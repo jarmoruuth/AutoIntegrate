@@ -17,6 +17,10 @@ Steps to run the script
 4. Press F9 to run the script in the editor
 5. Open all *_a.fit files and wait until the script completes.
 
+It is also possible to run manually background extraction and/or histogram transformations on the
+integrated images and then continue automatic processing from there. For more details see header 
+block in the source code.
+
 PixInsight scripts that come with the product were a great help when developing this script. Web site 
 Light Vortex Astronomy (http://www.lightvortexastronomy.com/) was a great place to find details and best 
 practises when using PixInsight.

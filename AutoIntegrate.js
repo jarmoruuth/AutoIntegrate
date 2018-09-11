@@ -26,6 +26,22 @@ This scripts then does the following steps:
 6. ChannelCombination is run on Red, Green and Blue integrated images to 
    create an RGB image. After that there is one L and and one RGB image or 
    just an RGB image if files were color files.
+---
+At this point we have Integrate_L and Integrate_RGB images in case of
+LRGB files or Integrate_RGB image in case of color files.
+It is possible to rerun the script with following steps if there are 
+manually created images:
+- If there are images L_BE and RGB_BE with background extracted the script starts 
+  with step 8.
+- If there is image RBG_BE with background extracted the script starts with 
+  step 11.
+- If there are images L_HT and RGB_HT with HistogramTransformation already done 
+  the script starts with step 9.
+- If there is image RBG_HT with HistogramTransformation already done the script 
+  starts with step 12.
+- In all cases if there is already a mask with name range_mask
+  then that is used as a mask in steps 10 and 15.
+---
 7. AutomaticBackgroundExtraction is run on L and RGB images.
 8. Autostretch is run on L and RGB images and that is used as an input
    to HistogramTransform.
@@ -91,8 +107,17 @@ var green_images;
 var blue_images;
 var color_images;
 
+function windowCloseif(id)
+{
+      var w = findWindow(id);
+      if (w != null) {
+            w.close();
+      }
+}
+
 function newMaskView(sourceView, name)
 {
+      /* Default mask is the same as stretched image. */
       var targetView = new ImageWindow(
                               sourceView.mainView.image.width,
                               sourceView.mainView.image.height,
@@ -114,6 +139,8 @@ function newMaskView(sourceView, name)
             P.executeOn(targetView.mainView);
             targetView.mainView.endProcess();
       }
+
+      targetView.show();
    
       return targetView;
 }
@@ -177,7 +204,7 @@ function findBestSSWEIGHT(fileNames)
                         case "SSWEIGHT":
                               ssweight = value;
                               console.noteln("ssweight=" +  ssweight);
-                              if (parseFloat(ssweight) > parseFloat(best_ssweight)) {
+                              if (i == 0 || parseFloat(ssweight) > parseFloat(best_ssweight)) {
                                     best_ssweight = ssweight;
                                     console.noteln("new best_ssweight=" +  best_ssweight);
                                     best_image = filePath;
@@ -469,8 +496,8 @@ function runImageIntegration(images, name)
       II.executeGlobal();
 
       if (close_windows) {
-            ImageWindow.windowById(II.highRejectionMapImageId).close();
-            ImageWindow.windowById(II.lowRejectionMapImageId).close();
+            windowCloseif(II.highRejectionMapImageId);
+            windowCloseif(II.lowRejectionMapImageId);
       }
 
       return II.integrationImageId;
@@ -549,8 +576,8 @@ function runImageIntegrationNormalized(images, name)
       P.executeGlobal();
 
       if (close_windows) {
-            ImageWindow.windowById(P.highRejectionMapImageId).close();
-            ImageWindow.windowById(P.lowRejectionMapImageId).close();
+            windowCloseif(P.highRejectionMapImageId);
+            windowCloseif(P.lowRejectionMapImageId);
       }
 
       return P.integrationImageId;
@@ -1082,100 +1109,154 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       imgView.mainView.endProcess();
 }
 
+function winIsValid(w)
+{
+      return w != null;
+}
+
+function findWindow(id)
+{
+      var images = ImageWindow.windows;
+      for (var i in images) {
+         if (images[i].mainView.id == id) {
+               return images[i];
+         }
+      }
+      return null;
+}
+
 function main()
 {
       var mask_win;
+      var RGB_win;
+      var color_files = false;
+      var preprocessed_files = false;
+      var L_ABE_id;
 
       console.noteln("Start main...");
 
-      /* Open .fit files, we assume SubframeSelector is run
-       * so each file has SSWEIGHT set.
+      /* First check if we have some processing done and we should continue
+       * from the middle of the processing.
        */
-     var fileNames;
-     if (test_mode) {
-            fileNames = ["c:\\Slooh\\test\\ngc2146_20171004_014519_0_qx7pbs_l_cal_a.fit",
-                        "c:\\Slooh\\test\\ngc2146_20171004_014639_1_siw5my_l_cal_a.fit",
-                        "c:\\Slooh\\test\\ngc2146_20171004_014758_2_imetl7_l_cal_a.fit",
-                        "c:\\Slooh\\test\\ngc2146_20171004_014934_3_eaiesc_r_cal_a.fit",
-                        "c:\\Slooh\\test\\ngc2146_20171004_015056_3_t1h1b8_g_cal_a.fit",
-                        "c:\\Slooh\\test\\ngc2146_20171004_015221_3_wuzurn_b_cal_a.fit"];
-      } else {
-            fileNames = openFitFiles();
-      }
 
-      /* Find file with best SSWEIGHT to be used 
-       * as a reference image in StarAlign.
-       */
-      var best_image = findBestSSWEIGHT(fileNames);
+      /* Check if we have manual background extracted files. */
+      var L_BE_win = findWindow("L_BE");
+      var RGB_BE_win = findWindow("RGB_BE");
 
-      /* StarAlign
-       */
-      var alignedFiles = runStarAlignment(fileNames, best_image);
+      /* Check if we have manually done histogram transformation. */
+      var L_HT_win = findWindow("L_HT");
+      var RGB_HT_win = findWindow("RGB_HT");
 
-      /* LocalNormalization
-       */
-      runLocalNormalization(alignedFiles, best_image);
+      /* Check if we have manually created mask. */
+      var range_mask_win = null;
 
-      /* Find files for each L, R, G and B channels, or color files.
-       */
-      luminance_images = new Array;
-      red_images = new Array;
-      green_images = new Array;
-      blue_images = new Array;
-      color_images = new Array;
-
-      findLRGBchannels(
-            alignedFiles,
-            luminance_images,
-            red_images,
-            green_images,
-            blue_images,
-            color_images);
-
-      var RGB_win;
-
-      /* ImageIntegration
-       */
-      if (color_images.length == 0) {
-            /* We have LRGB files. */
-            var luminance_id = runImageIntegration(luminance_images, 'L');
-
-            var red_id = runImageIntegration(red_images, 'R');
-            var green_id = runImageIntegration(green_images, 'G');
-            var blue_id = runImageIntegration(blue_images, 'B');
-
-            /* ChannelCombination
-            */
-            console.noteln("ChannelCombination");
-            var cc = new ChannelCombination;
-            cc.colorSpace = ChannelCombination.prototype.RGB;
-            cc.channels = [ // enabled, id
-                  [true, red_id],
-                  [true, green_id],
-                  [true, blue_id]
-            ];
-
-            var red_win = ImageWindow.windowById(red_id);
-            RGB_win = new ImageWindow(
-                              red_win.mainView.image.width,       // int width
-                              red_win.mainView.image.height,      // int height
-                              3,                                  // int numberOfChannels=1
-                              32,                                 // int bitsPerSample=32
-                              true,                               // bool floatSample=true
-                              true,                               // bool color=false
-                              "Integration_RGB");                 // const IsoString &id=IsoString()
-            cc.executeOn(RGB_win.mainView);
-            RGB_win.show();
-
-            if (close_windows) {
-                  ImageWindow.windowById(red_id).hide();
-                  ImageWindow.windowById(green_id).hide();
-                  ImageWindow.windowById(blue_id).hide();
+      if ((winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) ||     /* LRGB background extracted */
+          winIsValid(RGB_BE_win) ||                               /* color background extracted */
+          (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) ||     /* LRGB HistogramTransformation */
+          winIsValid(RGB_HT_win))                                 /* LRGB HistogramTransformation */
+      {
+            console.noteln("Using preprocessed images");
+            console.noteln("L_BE_win="+L_BE_win);
+            console.noteln("RGB_BE_win="+RGB_BE_win);
+            console.noteln("L_HT_win="+L_HT_win);
+            console.noteln("RGB_HT_win="+RGB_HT_win);
+            preprocessed_files = true;
+            if (!winIsValid(L_BE_win) && !winIsValid(L_HT_win)) {
+                  /* No L files, assume color. */
+                  console.noteln("Processing as color images");
+                  color_files = true;
             }
+            /* Check if we have manually created mask. */
+            range_mask_win = findWindow("range_mask");
       } else {
-            /* We have color files. */
-            var color_id = runImageIntegration(color_images, 'C');
-            RGB_win = ImageWindow.windowById(color_id);
+            /* Open .fit files, we assume SubframeSelector is run
+            * so each file has SSWEIGHT set.
+            */
+            var fileNames;
+            if (test_mode) {
+                  fileNames = ["c:\\Slooh\\test\\ngc2146_20171004_014519_0_qx7pbs_l_cal_a.fit",
+                              "c:\\Slooh\\test\\ngc2146_20171004_014639_1_siw5my_l_cal_a.fit",
+                              "c:\\Slooh\\test\\ngc2146_20171004_014758_2_imetl7_l_cal_a.fit",
+                              "c:\\Slooh\\test\\ngc2146_20171004_014934_3_eaiesc_r_cal_a.fit",
+                              "c:\\Slooh\\test\\ngc2146_20171004_015056_3_t1h1b8_g_cal_a.fit",
+                              "c:\\Slooh\\test\\ngc2146_20171004_015221_3_wuzurn_b_cal_a.fit"];
+            } else {
+                  fileNames = openFitFiles();
+            }
+
+            /* Find file with best SSWEIGHT to be used 
+            * as a reference image in StarAlign.
+            */
+            var best_image = findBestSSWEIGHT(fileNames);
+
+            /* StarAlign
+            */
+            var alignedFiles = runStarAlignment(fileNames, best_image);
+
+            /* LocalNormalization
+            */
+            runLocalNormalization(alignedFiles, best_image);
+
+            /* Find files for each L, R, G and B channels, or color files.
+            */
+            luminance_images = new Array;
+            red_images = new Array;
+            green_images = new Array;
+            blue_images = new Array;
+            color_images = new Array;
+
+            findLRGBchannels(
+                  alignedFiles,
+                  luminance_images,
+                  red_images,
+                  green_images,
+                  blue_images,
+                  color_images);
+
+            /* ImageIntegration
+            */
+            if (color_images.length == 0) {
+                  /* We have LRGB files. */
+                  var luminance_id = runImageIntegration(luminance_images, 'L');
+
+                  var red_id = runImageIntegration(red_images, 'R');
+                  var green_id = runImageIntegration(green_images, 'G');
+                  var blue_id = runImageIntegration(blue_images, 'B');
+
+                  /* ChannelCombination
+                  */
+                  console.noteln("ChannelCombination");
+                  var cc = new ChannelCombination;
+                  cc.colorSpace = ChannelCombination.prototype.RGB;
+                  cc.channels = [ // enabled, id
+                        [true, red_id],
+                        [true, green_id],
+                        [true, blue_id]
+                  ];
+
+                  var red_win = ImageWindow.windowById(red_id);
+                  RGB_win = new ImageWindow(
+                                    red_win.mainView.image.width,       // int width
+                                    red_win.mainView.image.height,      // int height
+                                    3,                                  // int numberOfChannels=1
+                                    32,                                 // int bitsPerSample=32
+                                    true,                               // bool floatSample=true
+                                    true,                               // bool color=false
+                                    "Integration_RGB");                 // const IsoString &id=IsoString()
+                  cc.executeOn(RGB_win.mainView);
+                  RGB_win.show();
+
+                  if (close_windows) {
+                        windowCloseif(red_id);
+                        windowCloseif(green_id);
+                        windowCloseif(blue_id);
+                  }
+            } else {
+                  /* We have color files. */
+                  color_files = true;
+                  var color_id = runImageIntegration(color_images, 'C');
+                  RGB_win = ImageWindow.windowById(color_id);
+            }
       }
 
       /* Now we have L (Gray) and RGB images, or just RGB image
@@ -1191,26 +1272,41 @@ function main()
       
       var L_stf = null;
 
-      if (color_images.length == 0) {
+      if (!color_files) {
             /* LRGB files */
             console.noteln("ABE L");
-            var L_win = ImageWindow.windowById(luminance_id);           
+            if (winIsValid(L_HT_win)) {
+                  /* We have run HistogramTransformation. */
+                  L_ABE_win = L_HT_win;
+                  L_ABE_id = L_HT_win.mainView.id;
+            } else {
+                  if (winIsValid(L_BE_win)) {
+                        /* We have background extracted from L. */
+                        L_ABE_id = L_BE_win.mainView.id;
+                  } else {
+                        var L_win = ImageWindow.windowById(luminance_id);           
 
-            /* ABE on L
-             */
-            var L_ABE_id = runABE(L_win);
+                        /* ABE on L
+                        */
+                        L_ABE_id = runABE(L_win);
+                  }
+                  /* On L image run HistogramTransform based on autostretch
+                  */
+                  L_stf = runHistogramTransform(L_ABE_id, null);
+                  if (!same_stf_for_both_images) {
+                        L_stf = null;
+                  }
 
-            /* On L image run HistogramTransform based on autostretch
-             */
-            L_stf = runHistogramTransform(L_ABE_id, null);
-            if (!same_stf_for_both_images) {
-                  L_stf = null;
+                  L_ABE_win = ImageWindow.windowById(L_ABE_id);
             }
 
-            var L_ABE_win = ImageWindow.windowById(L_ABE_id);
-
-            /* Create mask for noise reduction and sharpening. */
-            mask_win = newMaskView(L_ABE_win, "AutoMask");
+            if (winIsValid(range_mask_win)) {
+                  /* We already have a mask. */
+                  mask_win = range_mask_win;
+            } else {
+                  /* Create mask for noise reduction and sharpening. */
+                  mask_win = newMaskView(L_ABE_win, "AutoMask");
+            }
 
             /* Noise reduction for L.
              */
@@ -1219,23 +1315,38 @@ function main()
 
       /* ABE on RGB
        */
-      console.noteln("ABE RGB");
-      var RGB_ABE_id = runABE(RGB_win);
+      var RGB_ABE_id;
+      if (winIsValid(RGB_HT_win)) {
+            /* We already have run HistogramTransformation. */
+            RGB_ABE_id = RGB_HT_win.mainView.id;
+      } else {
+            if (winIsValid(RGB_BE_win)) {
+                  /* We already have background extracted. */
+                  RGB_ABE_id = RGB_BE_win.mainView.id;
+            } else {
+                  console.noteln("ABE RGB");
+                  RGB_ABE_id = runABE(RGB_win);
+            }
 
-      /* Color calibration on RGB
-       */
-      runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
+            /* Color calibration on RGB
+            */
+            runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
 
-      /* On RGB image run HistogramTransform based on autostretch
-       */
-      runHistogramTransform(RGB_ABE_id, L_stf);
+            /* On RGB image run HistogramTransform based on autostretch
+            */
+            runHistogramTransform(RGB_ABE_id, L_stf);
+      }
 
-      if (color_images.length > 0) {
-            /* Color files. Create mask for noise reduction and sharpening. */
-            mask_win = newMaskView(
-                        ImageWindow.windowById(RGB_ABE_id), 
-                        "AutoMask");
-
+      if (color_files) {
+            if (winIsValid(range_mask_win)) {
+                  /* We already have a mask. */
+                  mask_win = range_mask_win;
+            } else {
+                  /* Color files. Create mask for noise reduction and sharpening. */
+                  mask_win = newMaskView(
+                              ImageWindow.windowById(RGB_ABE_id), 
+                              "AutoMask");
+            }
             /* Noise reduction for color RGB
              */
             runMultiscaleLinearTransformReduceNoise(
@@ -1247,20 +1358,22 @@ function main()
        */
       runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_id).mainView);
 
-      if (color_images.length == 0) {
+      if (!color_files) {
             /* LRGB files. Combine L and RGB images.
             */
-            runLRGBCombination(ImageWindow.windowById(RGB_ABE_id).mainView, L_ABE_id);
+            runLRGBCombination(
+                  ImageWindow.windowById(RGB_ABE_id).mainView, 
+                  L_ABE_id);
 
             if (close_windows) {
-                  ImageWindow.windowById(L_ABE_id).hide();
-                  ImageWindow.windowById(L_ABE_id + "_background").close();
-                  ImageWindow.windowById(RGB_ABE_id + "_background").close();
+                  //windowCloseif(L_ABE_id);
+                  windowCloseif(L_ABE_id + "_background");
+                  windowCloseif(RGB_ABE_id + "_background");
             }
       } else {
             /* Color files */
             if (close_windows) {
-                  ImageWindow.windowById(RGB_ABE_id + "_background").close();
+                  windowCloseif(RGB_ABE_id + "_background");
             }
       }
 
@@ -1270,60 +1383,63 @@ function main()
 
       /* Sharpen image, use mask to sharpen mostly the light parts of image.
        */
-      runMultiscaleLinearTransformSharpen(ImageWindow.windowById(RGB_ABE_id), mask_win);
+      runMultiscaleLinearTransformSharpen(
+            ImageWindow.windowById(RGB_ABE_id), 
+            mask_win);
 
-      if (color_images.length == 0) {
-            /* LRGB files */
-            ImageWindow.windowById(luminance_id).mainView.id = "Integration_L";
-            ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoLRGB_ABE";
-      } else {
-            /* Color files */
-            RGB_win.mainView.id = "Integration_RGB";
-            ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoRGB_ABE";
-      }
+      if (!preprocessed_files) {
+            if (!color_files) {
+                  /* LRGB files */
+                  ImageWindow.windowById(luminance_id).mainView.id = "Integration_L";
+                  ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoLRGB_ABE";
+            } else {
+                  /* Color files */
+                  RGB_win.mainView.id = "Integration_RGB";
+                  ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoRGB_ABE";
+            }
      
-      console.noteln("* All data files *");
-      console.noteln(all_files.length + " data files, " + alignedFiles.length + " accepted");
-      console.noteln("best_ssweight="+best_ssweight);
-      console.noteln("best_image="+best_image);
+            console.noteln("* All data files *");
+            console.noteln(all_files.length + " data files, " + alignedFiles.length + " accepted");
+            console.noteln("best_ssweight="+best_ssweight);
+            console.noteln("best_image="+best_image);
 
-      console.noteln("");
-
-      if (color_images.length == 0) {
-            /* LRGB files */
-            console.noteln("* L data files *");
-            //console.noteln("luminance_images="+luminance_images);
-            console.noteln("best_l_ssweight="+best_l_ssweight);
-            console.noteln("best_l_image="+best_l_image);
             console.noteln("");
 
-            console.noteln("* R data files *");
-            //console.noteln("red_images="+red_images);
-            console.noteln("best_r_ssweight="+best_r_ssweight);
-            console.noteln("best_r_image="+best_r_image);
-            console.noteln("");
+            if (!color_files) {
+                  /* LRGB files */
+                  console.noteln("* L " + luminance_images.length + " data files *");
+                  //console.noteln("luminance_images="+luminance_images);
+                  console.noteln("best_l_ssweight="+best_l_ssweight);
+                  console.noteln("best_l_image="+best_l_image);
+                  console.noteln("");
 
-            console.noteln("* G data files *");
-            //console.noteln("green_images="+green_images);
-            console.noteln("best_g_ssweight="+best_g_ssweight);
-            console.noteln("best_g_image="+best_g_image);
-            console.noteln("");
+                  console.noteln("* R " + red_images.length + " data files *");
+                  //console.noteln("red_images="+red_images);
+                  console.noteln("best_r_ssweight="+best_r_ssweight);
+                  console.noteln("best_r_image="+best_r_image);
+                  console.noteln("");
 
-            console.noteln("* B data files *");
-            //console.noteln("blue_images="+blue_images);
-            console.noteln("best_b_ssweight="+best_b_ssweight);
-            console.noteln("best_b_image="+best_b_image);
-            console.noteln("");
-      } else {
-            /* Color files */
-            console.noteln("* Color data files *");
-            //console.noteln("color_images="+color_images);
-            console.noteln("best_c_ssweight="+best_c_ssweight);
-            console.noteln("best_c_image="+best_c_image);
-            console.noteln("");
+                  console.noteln("* G " + green_images.length + " data files *");
+                  //console.noteln("green_images="+green_images);
+                  console.noteln("best_g_ssweight="+best_g_ssweight);
+                  console.noteln("best_g_image="+best_g_image);
+                  console.noteln("");
+
+                  console.noteln("* B " + blue_images.length + " data files *");
+                  //console.noteln("blue_images="+blue_images);
+                  console.noteln("best_b_ssweight="+best_b_ssweight);
+                  console.noteln("best_b_image="+best_b_image);
+                  console.noteln("");
+            } else {
+                  /* Color files */
+                  console.noteln("* Color data files *");
+                  //console.noteln("color_images="+color_images);
+                  console.noteln("best_c_ssweight="+best_c_ssweight);
+                  console.noteln("best_c_image="+best_c_image);
+                  console.noteln("");
+            }
       }
-
-      console.noteln("Scirpt completed");
+      console.noteln("Script completed");
 }
 
 main();
