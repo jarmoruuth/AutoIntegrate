@@ -11,7 +11,8 @@ the header block of the source code.
 
 Steps to run the script
 
-1. Run SubframeSelector script to measure and output subframes.
+1. Run built in SubframeSelector script to measure and output subframes. Make sure 
+   SSWEIGHT keyword is embedded into target images
 2. Open script editor in PixInsight
 3. Open file AutoIntegrate.js
 4. Press F9 to run the script in the editor

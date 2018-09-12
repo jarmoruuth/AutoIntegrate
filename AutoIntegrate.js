@@ -11,7 +11,7 @@ processed final image. Both LRGB and color files are accepted.
 This scripts then does the following steps:
 
 1. Opens a file dialog. On that select all *_a.fit files. Both LRGB and color
-   can be used.
+   files can be used.
 2. Files are scanned and the file with highest SSWEIGHT is selected as a 
    reference.
 3. Files are assumed to have a FILTER keyword that tells if a file
