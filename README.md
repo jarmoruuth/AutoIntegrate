@@ -2,6 +2,8 @@
 
 PixInsight script to integrate FITS image files. Script automates initial steps of image processing in PixInsight.
 
+Script has a GUI interface where some processing options can be selected.
+
 After running the script there will be integrated light images and automatically processed final image. Both 
 LRGB and color files are accepted. Files must have .fit extension. 
 

@@ -2,7 +2,9 @@
 
 Script to automate initial steps of image processing in PixInsight.
 
-Before running this script SubframeSelector script must be run manually 
+Script has a GUI interface where some processing options can be selected.
+
+Before running this script SubframeSelector script must be run manually
 on .fit files to generate *_a.fit files and SSWEIGHT keyword.
 
 In the end there will be integrated light files and automatically
@@ -12,10 +14,10 @@ This scripts then does the following steps:
 
 1. Opens a file dialog. On that select all *_a.fit files. Both LRGB and color
    files can be used.
-2. Files are scanned and the file with highest SSWEIGHT is selected as a 
+2. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
 3. Files are assumed to have a FILTER keyword that tells if a file
-   is Luminance, Red, Green or Blue channel. Otherwise the file is 
+   is Luminance, Red, Green or Blue channel. Otherwise the file is
    considered a color file.
 4. StarAlign is run on all files and *_a_r.xisf files are
    generated.
@@ -23,21 +25,21 @@ This scripts then does the following steps:
    Rejection method is chosen dynamically based on the number of image files.
    (Optionally there is LocalNormalization before ImageIntegration but
    that does not seem to produce good results. There must be a bug...)
-6. ChannelCombination is run on Red, Green and Blue integrated images to 
-   create an RGB image. After that there is one L and and one RGB image or 
+6. ChannelCombination is run on Red, Green and Blue integrated images to
+   create an RGB image. After that there is one L and and one RGB image or
    just an RGB image if files were color files.
 ---
 At this point we have Integrate_L and Integrate_RGB images in case of
 LRGB files or Integrate_RGB image in case of color files.
-It is possible to rerun the script with following steps if there are 
+It is possible to rerun the script with following steps if there are
 manually created images:
-- If there are images L_BE and RGB_BE with background extracted the script starts 
+- If there are images L_BE and RGB_BE with background extracted the script starts
   with step 8.
-- If there is image RBG_BE with background extracted the script starts with 
+- If there is image RBG_BE with background extracted the script starts with
   step 11.
-- If there are images L_HT and RGB_HT with HistogramTransformation already done 
+- If there are images L_HT and RGB_HT with HistogramTransformation already done
   the script starts with step 9.
-- If there is image RBG_HT with HistogramTransformation already done the script 
+- If there is image RBG_HT with HistogramTransformation already done the script
   starts with step 12.
 - In all cases if there is already a mask with name range_mask
   then that is used as a mask in steps 10 and 15.
@@ -45,7 +47,7 @@ manually created images:
 7. AutomaticBackgroundExtraction is run on L and RGB images.
 8. Autostretch is run on L and RGB images and that is used as an input
    to HistogramTransform.
-9. Mask is created as a copy of stretched L image or stretched and grayscale 
+9. Mask is created as a copy of stretched L image or stretched and grayscale
    converted color RGB image.
 10. MultiscaleLinearTransform is run on L image or color RGB image to reduce noise.
     Mask is used to target noise reduction more on the background.
@@ -54,24 +56,28 @@ manually created images:
 13. If there are both L and RGB images then LRGBCombination is run to generate final
     LRGB image.
 14. SCNR is run on (L)RGB image to reduce green cast.
-15. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target 
+15. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
     sharpening more on the light parts of the image.
-16. Extra windows are closed or hidden. 
-17. In case of LRGB files there are integrated L and RGB windows and processed 
+16. Extra windows are closed or hidden.
+17. In case of LRGB files there are integrated L and RGB windows and processed
     LRGB window. In case of color files there are integrated RBG window
     and processed RGB window.
 
 Written by Jarmo Ruuth, 2018.
 
 Routine ApplyAutoSTF is written by Juan Conejero (PTeam),
-Copyright (C) 2010-2013 Pleiades Astrophoto. 
+Copyright (C) 2010-2013 Pleiades Astrophoto.
 
-Routine applySTF is originally made by Silvercup, heavily modified 
+Routine applySTF is originally made by Silvercup, heavily modified
 by roryt (Ioannis Ioannou).
 
-PixInsight scripts that come with the product were a great help. 
+PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
 was a great place to find details and best practises when using PixInsight.
+
+TODO
+- more tooltip texts, file names, defaults for options
+- pop-up for processing steps output
 
 */
 
@@ -79,15 +85,31 @@ was a great place to find details and best practises when using PixInsight.
 
 #feature-info Tool for integrating and processing calibrated LRGB or color images
 
-#include <pjsr/UndoFlag.jsh>
 #include <pjsr/ColorSpace.jsh>
+#include <pjsr/FrameStyle.jsh>
+#include <pjsr/Sizer.jsh>
+#include <pjsr/SampleType.jsh>
+#include <pjsr/StdButton.jsh>
+#include <pjsr/StdIcon.jsh>
+#include <pjsr/TextAlign.jsh>
+#include <pjsr/NumericControl.jsh>
+#include <pjsr/UndoFlag.jsh>
+#include <pjsr/Sizer.jsh>
+#include <pjsr/SectionBar.jsh>
 
 var test_mode = false;
 
-var close_windows = true;
-var use_local_normalization = false;
-var same_stf_for_both_images = false;
+var close_windows = false;
+var use_local_normalization = false;            /* color problems */
+var same_stf_for_all_images = false;            /* does not work, colors go bad */
+var BE_before_channel_combination = true;
+var use_linear_fit = true;
+var use_noise_reduction_on_all_channels = false;
+var hide_console = true;
+var integrate_only = false;
+var increase_saturation = true;
 
+var dialogFileNames = null;
 var all_files;
 var best_ssweight = 0;
 var best_image = null;
@@ -107,6 +129,65 @@ var green_images;
 var blue_images;
 var color_images;
 
+var processing_steps = "";
+var all_windows = new Array;
+var iconPoint;
+
+var testModefileNames = [
+      "m17_20180909_224950_0_8lxvv6_l_cal_a.fit",
+      "m17_20180909_225110_1_dzezji_l_cal_a.fit",
+      "m17_20180909_225231_3_dbdaah_l_cal_a.fit",
+      "m17_20180909_225401_2_lgndgd_r_cal_a.fit",
+      "m17_20180909_225527_2_enoohu_g_cal_a.fit",
+      "m17_20180909_225655_2_ygleft_b_cal_a.fit"
+];
+
+// known window names
+var fixed_windows = [
+      "Integration_L",
+      "Integration_R",
+      "Integration_G",
+      "Integration_B",
+      "Integration_RGB",
+      "Integration_L_ABE",
+      "Integration_R_ABE",
+      "Integration_G_ABE",
+      "Integration_B_ABE",
+      "Integration_RGB_ABE",
+      "Integration_L_ABE_HT",
+      "Integration_RGB_ABE_HT",
+      "L_BE_HT",
+      "RGB_BE_HT",
+      "AutoMask",
+      "AutoLRGB_ABE",
+      "AutoRGB_ABE"
+];
+
+function addProcessingStep(txt)
+{
+      console.noteln(txt);
+      processing_steps = processing_steps + "\n" + txt;
+}
+
+function winIsValid(w)
+{
+      return w != null;
+}
+
+function findWindow(id)
+{
+      if (id == null || id == undefined) {
+            return null;
+      }
+      var images = ImageWindow.windows;
+      for (var i in images) {
+         if (images[i].mainView.id == id) {
+               return images[i];
+         }
+      }
+      return null;
+}
+
 function windowCloseif(id)
 {
       var w = findWindow(id);
@@ -115,9 +196,66 @@ function windowCloseif(id)
       }
 }
 
-function newMaskView(sourceView, name)
+function windowIconizeif(id)
 {
-      /* Default mask is the same as stretched image. */
+      var w = findWindow(id);
+      if (w != null) {
+            /* Method iconize() will put the icon at the middle position
+               of the window. To get icons to the top left corner we
+               first move the window middle position there to get
+               the icon at the right position. Then we restore the 
+               window position back to old position.
+            */
+            var oldpos = new Point(w.position);  // save old position
+            if (iconPoint == null) {
+                  /* Get first icon to upper left corner. */
+                  iconPoint = new Point(
+                                    -(w.width / 2) + 5,
+                                    -(w.height / 2) + 5);
+                  addProcessingStep("Icons start from position " + iconPoint);
+            } else {
+                  /* Put next icons in a nice row below the first icon.
+                  */
+                  iconPoint.moveBy(0, 32);
+            }
+            w.position = new Point(iconPoint);  // set window position to get correct icon position
+            w.iconize();
+            w.position = oldpos;                // restore window position
+      }
+}
+
+function windowRename(old_name, new_name)
+{
+      var w = ImageWindow.windowById(old_name);
+      w.mainView.id = new_name;
+      addScriptWindow(new_name);
+      return w.mainView.id;
+}
+
+function addScriptWindow(name)
+{
+      all_windows[all_windows.length] = name;
+}
+
+// close all windows created by this script
+function closeAllWindowsFromArray(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            var w = findWindow(arr[i]);
+            if (w != null) {
+                  w.forceClose();
+            }
+      }
+}
+
+function closeAllWindows()
+{
+      closeAllWindowsFromArray(all_windows);
+      closeAllWindowsFromArray(fixed_windows);
+}
+
+function copyView(sourceView, name)
+{
       var targetView = new ImageWindow(
                               sourceView.mainView.image.width,
                               sourceView.mainView.image.height,
@@ -130,18 +268,33 @@ function newMaskView(sourceView, name)
       targetView.mainView.image.assign(sourceView.mainView.image);
       targetView.mainView.endProcess();
 
+      targetView.show();
+
+      addScriptWindow(name);
+
+      return targetView;
+}
+
+function newMaskView(sourceView, name)
+{
+      /* Default mask is the same as stretched image. */
+      var targetView = copyView(sourceView, name);
+
       if (targetView.mainView.image.colorSpace != ColorSpace_Gray) {
             /* If we have color files we use gray scale converted
                image as a mask.
             */
-            var P = new ConvertToGrayscale;
+           addProcessingStep("Create mask using grayscale converted color image "+ sourceView.mainView.id);
+           var P = new ConvertToGrayscale;
             targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
             P.executeOn(targetView.mainView);
             targetView.mainView.endProcess();
+      } else {
+            addProcessingStep("Create mask from image " + sourceView.mainView.id);
       }
 
       targetView.show();
-   
+
       return targetView;
 }
 
@@ -155,11 +308,11 @@ function openFitFiles()
       ofd.loadImageFilters();
 
       if (!ofd.execute()) {
-            throw new Error("Open files dialog failed");
+            return null;
       }
 
       if (ofd.fileNames.length < 1) {
-            throw new Error("Zero files");
+            return null;
       }
       filenames = ofd.fileNames;
       all_files = filenames;
@@ -173,6 +326,7 @@ function findBestSSWEIGHT(fileNames)
 
       /* Loop through files and find image with best SSWEIGHT.
        */
+      addProcessingStep("Find best SSWEIGHT");
       var n = 0;
       for (var i = 0; i < fileNames.length; i++) {
             var filter;
@@ -194,9 +348,9 @@ function findBestSSWEIGHT(fileNames)
             if (F.canStoreKeywords) {
                   keywords = f.keywords;
             }
-      
+
             f.close();
-      
+
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -231,6 +385,7 @@ function findLRGBchannels(
 {
       /* Loop through aligned files and find different channels.
        */
+      addProcessingStep("Find L,R,G,B channels");
       var n = 0;
       for (var i = 0; i < alignedFiles.length; i++) {
             var filter;
@@ -256,7 +411,7 @@ function findLRGBchannels(
             f.close();
 
             filter = 'Color';
-      
+
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -273,7 +428,7 @@ function findLRGBchannels(
                               break;
                   }
             }
-            
+
             switch (filter) {
                   case 'Luminance':
                         if (parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
@@ -385,7 +540,7 @@ function runStarAlignment(imagetable, refImage)
 {
       var alignedFiles;
 
-      console.noteln("runStarAlignment," + imagetable.length + " files");
+      addProcessingStep("Star alignment on " + imagetable.length + " files");
       var starAlignment = new StarAlignment;
       var targets = new Array;
 
@@ -421,8 +576,10 @@ function runStarAlignment(imagetable, refImage)
 function runLocalNormalization(imagetable, refImage)
 {
       if (!use_local_normalization) {
+            addProcessingStep("Do not run local normalization");
             return;
       }
+      addProcessingStep("Run local normalization using reference image " + refImage);
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
@@ -430,7 +587,7 @@ function runLocalNormalization(imagetable, refImage)
             oneimage[0] = true;
             oneimage[1] = imagetable[i];
             targets[targets.length] = oneimage;
-      }      
+      }
       var P = new LocalNormalization;
       P.scale = 128;
       P.noScale = false;
@@ -470,16 +627,31 @@ function runLocalNormalization(imagetable, refImage)
       P.executeGlobal();
 }
 
+function runLinearFit(refViewId, targetId)
+{
+      addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
+      var targetWin = ImageWindow.windowById(targetId);
+      var P = new LinearFit;
+      P.referenceViewId = refViewId;
+      P.rejectLow = 0.000000;
+      P.rejectHigh = 0.920000;
+
+      targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(targetWin.mainView);
+      targetWin.mainView.endProcess();
+}
+
 function runImageIntegration(images, name)
 {
-      console.noteln("runImageIntegration " + name + ", " + images.length + " files");
+      addProcessingStep("Image " + name + " integration on " + images.length + " files");
 
       if (images.length < 3) {
             for (var i = 0; images.length < 3; i++) {
+                  addProcessingStep("  Image integration needs 3 files, have only " + images.length + ", add one existing file");
                   append_image_for_integrate(images, images[i][1]);
             }
       }
-      if (use_local_normalization && name == 'L') {
+      if (use_local_normalization) {
             return runImageIntegrationNormalized(images, name);
       }
 
@@ -487,24 +659,27 @@ function runImageIntegration(images, name)
 
       II.evaluateNoise = true;
       if (images.length < 8) {
+            addProcessingStep("  Using percentile clip for rejection");
             II.rejection = ImageIntegration.prototype.PercentileClip;
       } else {
+            addProcessingStep("  Using sigma clip for rejection");
             II.rejection = ImageIntegration.prototype.SigmaClip;
       }
       II.images = images;
 
       II.executeGlobal();
 
-      if (close_windows) {
-            windowCloseif(II.highRejectionMapImageId);
-            windowCloseif(II.lowRejectionMapImageId);
-      }
+      windowCloseif(II.highRejectionMapImageId);
+      windowCloseif(II.lowRejectionMapImageId);
 
-      return II.integrationImageId;
+      var new_name = windowRename(II.integrationImageId, "Integration_" + name);
+      addScriptWindow(new_name);
+      return new_name
 }
 
 function runImageIntegrationNormalized(images, name)
 {
+      addProcessingStep("  Using local normalized data in integrate");
       var norm_images = new Array;
       for (var i = 0; i < images.length; i++) {
             var oneimage = new Array(4);
@@ -524,8 +699,10 @@ function runImageIntegrationNormalized(images, name)
       P.ignoreNoiseKeywords = false;
       P.normalization = ImageIntegration.prototype.LocalNormalization;
       if (images.length < 8) {
+            addProcessingStep("  Using percentile clip for rejection");
             P.rejection = ImageIntegration.prototype.PercentileClip;
       } else {
+            addProcessingStep("  Using sigma clip for rejection");
             P.rejection = ImageIntegration.prototype.SigmaClip;
       }
       P.rejectionNormalization = ImageIntegration.prototype.Scale;
@@ -575,16 +752,17 @@ function runImageIntegrationNormalized(images, name)
 
       P.executeGlobal();
 
-      if (close_windows) {
-            windowCloseif(P.highRejectionMapImageId);
-            windowCloseif(P.lowRejectionMapImageId);
-      }
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.lowRejectionMapImageId);
 
-      return P.integrationImageId;
+      var new_name = windowRename(P.integrationImageId, "Integration_" + name);
+      addScriptWindow(new_name);
+      return new_name
 }
 
 function runABE(win, target_id)
 {
+      addProcessingStep("ABE from " + win.mainView.id);
       var ABE_id = win.mainView.id + "_ABE";
       var ABE = new AutomaticBackgroundExtractor;
 
@@ -622,6 +800,10 @@ function runABE(win, target_id)
 
       win.mainView.endProcess();
 
+      windowCloseif(ABE_id + "_background");
+
+      addScriptWindow(ABE_id);
+
       return ABE_id;
 }
 
@@ -638,12 +820,13 @@ function runABE(win, target_id)
 #define DEFAULT_AUTOSTRETCH_CLINK   true
 
 /* ApplyAutoSTF routine is from AutoSTF.js
- * 
+ *
  * Written by Juan Conejero (PTeam)<br/>\
  * Copyright (C) 2010-2013 Pleiades Astrophoto
  */
 function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
 {
+   addProcessingStep("  Apply AutoSTF on " + view.id);
    var stf = new ScreenTransferFunction;
 
    var n = view.image.isColor ? 3 : 1;
@@ -771,8 +954,9 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
  * That file is originally made by Silvercup
  * heavily modified by roryt (Ioannis Ioannou)
  */
-function applySTF(imgView, stf) 
+function applySTF(imgView, stf)
 {
+      addProcessingStep("  Apply STF on " + imgView.id);
       var HT = new HistogramTransformation;
       if (imgView.isColor) {
             HT.H = [	// shadows, midtones, highlights, rescale0, rescale1
@@ -793,14 +977,13 @@ function applySTF(imgView, stf)
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
       HT.executeOn(imgView, false);
-      
+
       imgView.endProcess();
 }
 
-function runHistogramTransform(ABE_id, stf_to_use)
+function runHistogramTransform(ABE_win, stf_to_use)
 {
-      console.noteln("runHistogramTransform, ABE_id=" + ABE_id);
-      var ABE_win = ImageWindow.windowById(ABE_id);
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id);
 
       if (stf_to_use == null) {
             /* Apply autostrech on image */
@@ -810,15 +993,16 @@ function runHistogramTransform(ABE_id, stf_to_use)
                         DEFAULT_AUTOSTRETCH_CLINK);
             stf_to_use = ABE_win.mainView.stf;
       }
-                              
+
       /* Run histogram transfer function based on autostretch */
       applySTF(ABE_win.mainView, stf_to_use);
 
       /* Undo autostretch */
+      addProcessingStep("  Undo STF on " + ABE_win.mainView.id);
       var stf = new ScreenTransferFunction;
-      
+
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      
+
       stf.executeOn(ABE_win.mainView);
 
       ABE_win.mainView.endProcess();
@@ -828,12 +1012,13 @@ function runHistogramTransform(ABE_id, stf_to_use)
 
 function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
 {
+      addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
          [true, true, 0.000, true, 3.000, 0.50, 3],
          [true, true, 0.000, true, 2.000, 0.50, 2],
          [true, true, 0.000, true, 1.000, 0.50, 2],
-         [true, true, 0.000, true, 0.500, 0.50, 1], 
+         [true, true, 0.000, true, 0.500, 0.50, 1],
          [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
@@ -883,7 +1068,7 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
       P.toLuminance = true;
       P.toChrominance = true;
       P.linear = false;
-      
+
       imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Remove noise from dark parts of the image. */
@@ -893,12 +1078,13 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
       P.executeOn(imgView.mainView, false);
 
       imgView.removeMask();
-      
+
       imgView.mainView.endProcess();
 }
 
 function runColorCalibration(imgView)
 {
+      addProcessingStep("Color calibration on " + imgView.id);
       var P = new ColorCalibration;
       P.whiteReferenceViewId = "";
       P.whiteLow = 0.0000000;
@@ -935,6 +1121,7 @@ function runColorCalibration(imgView)
 
 function runCurvesTransformationSaturation(imgView)
 {
+      addProcessingStep("Curves transformation for saturation on " + imgView.id);
       var P = new CurvesTransformation;
       P.R = [ // x, y
             [0.00000, 0.00000],
@@ -988,7 +1175,7 @@ function runCurvesTransformationSaturation(imgView)
       P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
       P.S = [ // x, y
             [0.00000, 0.00000],
-            [0.68734, 0.83204],      
+            [0.68734, 0.83204],
             [1.00000, 1.00000]
       ];
       P.St = CurvesTransformation.prototype.AkimaSubsplines;
@@ -996,12 +1183,13 @@ function runCurvesTransformationSaturation(imgView)
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
       P.executeOn(imgView, false);
-      
+
       imgView.endProcess();
 }
 
 function runLRGBCombination(RGBimgView, L_id)
 {
+      addProcessingStep("LRGB combination on " + RGBimgView.id + ", luminance image " + L_id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
             [false, "", 1.00000],
@@ -1025,12 +1213,13 @@ function runLRGBCombination(RGBimgView, L_id)
 
 function runSCNR(RGBimgView)
 {
+      addProcessingStep("SCNR on " + RGBimgView.id);
       var P = new SCNR;
       P.amount = 1.00;
       P.protectionMethod = SCNR.prototype.AverageNeutral;
       P.colorToRemove = SCNR.prototype.Green;
       P.preserveLightness = true;
-      
+
       RGBimgView.beginProcess(UndoFlag_NoSwapFile);
 
       P.executeOn(RGBimgView, false);
@@ -1040,6 +1229,7 @@ function runSCNR(RGBimgView)
 
 function runMultiscaleLinearTransformSharpen(imgView, MaskView)
 {
+      addProcessingStep("Sharpening on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
             [true, true, 0.000, false, 3.000, 0.50, 3],
@@ -1095,7 +1285,7 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       P.toLuminance = true;
       P.toChrominance = true;
       P.linear = false;
-      
+
       imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Sharpen only light parts of the image. */
@@ -1105,43 +1295,59 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       P.executeOn(imgView.mainView, false);
 
       imgView.removeMask();
-      
+
       imgView.mainView.endProcess();
 }
 
-function winIsValid(w)
+function AutoIntegrateEngine()
 {
-      return w != null;
-}
-
-function findWindow(id)
-{
-      var images = ImageWindow.windows;
-      for (var i in images) {
-         if (images[i].mainView.id == id) {
-               return images[i];
-         }
-      }
-      return null;
-}
-
-function main()
-{
+      var alignedFiles;
       var mask_win;
+      var mask_win_id;
       var RGB_win;
+      var RGB_win_id;
       var color_files = false;
-      var preprocessed_files = false;
+      var preprocessed_images;
       var L_ABE_id;
+      var L_ABE_win;
+      var L_ABE_HT_id;
+      var L_HT_win;
+      var RGB_ABE_id;
+      var RGB_ABE_HT_id;
+      var luminance_id = null;
+      var red_id = null;
+      var green_id = null;
+      var blue_id = null;
+      var R_ABE_id = null;
+      var G_ABE_id = null;
+      var B_ABE_id = null;
+      var saved_BE_before_channel_combination = BE_before_channel_combination;
+
+      console.show();
 
       console.noteln("Start main...");
+      processing_steps = "";
+      all_windows = new Array;
+      iconPoint = null;
 
       /* First check if we have some processing done and we should continue
        * from the middle of the processing.
        */
+      var start_images = {
+            NONE : 0,
+            L_R_G_B_DBE : 1,
+            L_RGB_DBE : 2,
+            RGB_DBE : 3,
+            L_RGB_HT : 4,
+            RGB_HT : 5
+      };
 
       /* Check if we have manual background extracted files. */
-      var L_BE_win = findWindow("L_BE");
-      var RGB_BE_win = findWindow("RGB_BE");
+      var L_BE_win = findWindow("Integration_L_DBE");
+      var R_BE_win = findWindow("Integration_R_DBE");
+      var G_BE_win = findWindow("Integration_G_DBE");
+      var B_BE_win = findWindow("Integration_B_DBE");
+      var RGB_BE_win = findWindow("Integration_RGB_DBE");
 
       /* Check if we have manually done histogram transformation. */
       var L_HT_win = findWindow("L_HT");
@@ -1150,48 +1356,68 @@ function main()
       /* Check if we have manually created mask. */
       var range_mask_win = null;
 
-      if ((winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) ||     /* LRGB background extracted */
-          winIsValid(RGB_BE_win) ||                               /* color background extracted */
-          (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) ||     /* LRGB HistogramTransformation */
-          winIsValid(RGB_HT_win))                                 /* LRGB HistogramTransformation */
-      {
-            console.noteln("Using preprocessed images");
+      if (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
+            preprocessed_images = start_images.L_RGB_HT;
+      } else if (winIsValid(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
+            preprocessed_images = start_images.RGB_HT;
+      } else if (winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) { /* L,RGB background extracted */
+            preprocessed_images = start_images.L_RGB_DBE;
+      } else if (winIsValid(RGB_BE_win)) {                         /* RGB (color) background extracted */
+            preprocessed_images = start_images.RGB_DBE;
+      } else if (winIsValid(L_BE_win) && winIsValid(R_BE_win) &&   /* L,R,G,B background extracted */
+                 winIsValid(G_BE_win) && winIsValid(B_BE_win)) {
+            preprocessed_images = start_images.L_R_G_B_DBE;
+            BE_before_channel_combination = true;
+      } else {
+            preprocessed_images = start_images.NONE;
+      }
+
+      if (preprocessed_images != start_images.NONE) {
+            addProcessingStep("Using preprocessed images " + preprocessed_images);
             console.noteln("L_BE_win="+L_BE_win);
             console.noteln("RGB_BE_win="+RGB_BE_win);
             console.noteln("L_HT_win="+L_HT_win);
             console.noteln("RGB_HT_win="+RGB_HT_win);
-            preprocessed_files = true;
-            if (!winIsValid(L_BE_win) && !winIsValid(L_HT_win)) {
+            if (preprocessed_images == start_images.RGB_DBE ||
+                preprocessed_images == start_images.RGB_HT) 
+            {
                   /* No L files, assume color. */
-                  console.noteln("Processing as color images");
+                  addProcessingStep("Processing as color images");
                   color_files = true;
             }
             /* Check if we have manually created mask. */
-            range_mask_win = findWindow("range_mask");
+            mask_win_id = "range_mask";
+            range_mask_win = findWindow(mask_win_id);
       } else {
             /* Open .fit files, we assume SubframeSelector is run
             * so each file has SSWEIGHT set.
             */
-            var fileNames;
             if (test_mode) {
-                  fileNames = ["c:\\Slooh\\test\\ngc2146_20171004_014519_0_qx7pbs_l_cal_a.fit",
-                              "c:\\Slooh\\test\\ngc2146_20171004_014639_1_siw5my_l_cal_a.fit",
-                              "c:\\Slooh\\test\\ngc2146_20171004_014758_2_imetl7_l_cal_a.fit",
-                              "c:\\Slooh\\test\\ngc2146_20171004_014934_3_eaiesc_r_cal_a.fit",
-                              "c:\\Slooh\\test\\ngc2146_20171004_015056_3_t1h1b8_g_cal_a.fit",
-                              "c:\\Slooh\\test\\ngc2146_20171004_015221_3_wuzurn_b_cal_a.fit"];
+                  addProcessingStep("Test mode");
+                  fileNames = testModefileNames;
+                  for (var i = 0; i < fileNames.length; i++) {
+                        fileNames[i] = "c:\\Slooh\\Swan_Nebula_M17_T1\\" + fileNames[i];
+                  }
             } else {
-                  fileNames = openFitFiles();
+                  if (dialogFileNames == null) {
+                        dialogFileNames = openFitFiles();
+                        addProcessingStep("Get files from dialog");
+                  }
+                  if (dialogFileNames == null) {
+                        console.noteln("No files to process");
+                        return;
+                  }
+                  fileNames = dialogFileNames;
             }
 
-            /* Find file with best SSWEIGHT to be used 
+            /* Find file with best SSWEIGHT to be used
             * as a reference image in StarAlign.
             */
-            var best_image = findBestSSWEIGHT(fileNames);
+           var best_image = findBestSSWEIGHT(fileNames);
 
             /* StarAlign
             */
-            var alignedFiles = runStarAlignment(fileNames, best_image);
+            alignedFiles = runStarAlignment(fileNames, best_image);
 
             /* LocalNormalization
             */
@@ -1217,45 +1443,27 @@ function main()
             */
             if (color_images.length == 0) {
                   /* We have LRGB files. */
-                  var luminance_id = runImageIntegration(luminance_images, 'L');
+                  addProcessingStep("Processing as LRGB files");
+                  color_files = false;
 
-                  var red_id = runImageIntegration(red_images, 'R');
-                  var green_id = runImageIntegration(green_images, 'G');
-                  var blue_id = runImageIntegration(blue_images, 'B');
+                  luminance_id = runImageIntegration(luminance_images, 'L');
 
-                  /* ChannelCombination
-                  */
-                  console.noteln("ChannelCombination");
-                  var cc = new ChannelCombination;
-                  cc.colorSpace = ChannelCombination.prototype.RGB;
-                  cc.channels = [ // enabled, id
-                        [true, red_id],
-                        [true, green_id],
-                        [true, blue_id]
-                  ];
+                  red_id = runImageIntegration(red_images, 'R');
+                  green_id = runImageIntegration(green_images, 'G');
+                  blue_id = runImageIntegration(blue_images, 'B');
 
-                  var red_win = ImageWindow.windowById(red_id);
-                  RGB_win = new ImageWindow(
-                                    red_win.mainView.image.width,       // int width
-                                    red_win.mainView.image.height,      // int height
-                                    3,                                  // int numberOfChannels=1
-                                    32,                                 // int bitsPerSample=32
-                                    true,                               // bool floatSample=true
-                                    true,                               // bool color=false
-                                    "Integration_RGB");                 // const IsoString &id=IsoString()
-                  cc.executeOn(RGB_win.mainView);
-                  RGB_win.show();
+                  ImageWindow.windowById(red_id).show();
+                  ImageWindow.windowById(green_id).show();
+                  ImageWindow.windowById(blue_id).show();
 
-                  if (close_windows) {
-                        windowCloseif(red_id);
-                        windowCloseif(green_id);
-                        windowCloseif(blue_id);
-                  }
             } else {
                   /* We have color files. */
+                  addProcessingStep("Processing as color files");
                   color_files = true;
-                  var color_id = runImageIntegration(color_images, 'C');
+                  var color_id = runImageIntegration(color_images, 'RGB');
                   RGB_win = ImageWindow.windowById(color_id);
+                  RGB_win.show();
+                  RGB_win_id = color_id;
             }
       }
 
@@ -1264,140 +1472,270 @@ function main()
        *
        * Next we apply ABE on both and use autostrech as
        * input for HistogramTransfer.
-       * 
+       *
        * We keep integrated L and RGB images so it is
        * possible to continue manually if automatic
        * processing is not good enough.
        */
-      
-      var L_stf = null;
 
-      if (!color_files) {
-            /* LRGB files */
-            console.noteln("ABE L");
-            if (winIsValid(L_HT_win)) {
-                  /* We have run HistogramTransformation. */
-                  L_ABE_win = L_HT_win;
-                  L_ABE_id = L_HT_win.mainView.id;
-            } else {
-                  if (winIsValid(L_BE_win)) {
-                        /* We have background extracted from L. */
-                        L_ABE_id = L_BE_win.mainView.id;
-                  } else {
-                        var L_win = ImageWindow.windowById(luminance_id);           
+      if (!integrate_only) {
+            var L_stf = null;
 
-                        /* ABE on L
-                        */
-                        L_ABE_id = runABE(L_win);
-                  }
-                  /* On L image run HistogramTransform based on autostretch
-                  */
-                  L_stf = runHistogramTransform(L_ABE_id, null);
-                  if (!same_stf_for_both_images) {
-                        L_stf = null;
-                  }
-
-                  L_ABE_win = ImageWindow.windowById(L_ABE_id);
-            }
-
-            if (winIsValid(range_mask_win)) {
-                  /* We already have a mask. */
-                  mask_win = range_mask_win;
-            } else {
-                  /* Create mask for noise reduction and sharpening. */
-                  mask_win = newMaskView(L_ABE_win, "AutoMask");
-            }
-
-            /* Noise reduction for L.
-             */
-            runMultiscaleLinearTransformReduceNoise(L_ABE_win, mask_win);
-      }
-
-      /* ABE on RGB
-       */
-      var RGB_ABE_id;
-      if (winIsValid(RGB_HT_win)) {
-            /* We already have run HistogramTransformation. */
-            RGB_ABE_id = RGB_HT_win.mainView.id;
-      } else {
-            if (winIsValid(RGB_BE_win)) {
-                  /* We already have background extracted. */
-                  RGB_ABE_id = RGB_BE_win.mainView.id;
-            } else {
-                  console.noteln("ABE RGB");
-                  RGB_ABE_id = runABE(RGB_win);
-            }
-
-            /* Color calibration on RGB
-            */
-            runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
-
-            /* On RGB image run HistogramTransform based on autostretch
-            */
-            runHistogramTransform(RGB_ABE_id, L_stf);
-      }
-
-      if (color_files) {
-            if (winIsValid(range_mask_win)) {
-                  /* We already have a mask. */
-                  mask_win = range_mask_win;
-            } else {
-                  /* Color files. Create mask for noise reduction and sharpening. */
-                  mask_win = newMaskView(
-                              ImageWindow.windowById(RGB_ABE_id), 
-                              "AutoMask");
-            }
-            /* Noise reduction for color RGB
-             */
-            runMultiscaleLinearTransformReduceNoise(
-                  ImageWindow.windowById(RGB_ABE_id), 
-                  mask_win);
-      }
-
-      /* Add saturation on RGB
-       */
-      runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_id).mainView);
-
-      if (!color_files) {
-            /* LRGB files. Combine L and RGB images.
-            */
-            runLRGBCombination(
-                  ImageWindow.windowById(RGB_ABE_id).mainView, 
-                  L_ABE_id);
-
-            if (close_windows) {
-                  //windowCloseif(L_ABE_id);
-                  windowCloseif(L_ABE_id + "_background");
-                  windowCloseif(RGB_ABE_id + "_background");
-            }
-      } else {
-            /* Color files */
-            if (close_windows) {
-                  windowCloseif(RGB_ABE_id + "_background");
-            }
-      }
-
-      /* Remove green cast, run SCNR
-       */
-      runSCNR(ImageWindow.windowById(RGB_ABE_id).mainView);
-
-      /* Sharpen image, use mask to sharpen mostly the light parts of image.
-       */
-      runMultiscaleLinearTransformSharpen(
-            ImageWindow.windowById(RGB_ABE_id), 
-            mask_win);
-
-      if (!preprocessed_files) {
             if (!color_files) {
                   /* LRGB files */
-                  ImageWindow.windowById(luminance_id).mainView.id = "Integration_L";
-                  ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoLRGB_ABE";
-            } else {
-                  /* Color files */
-                  RGB_win.mainView.id = "Integration_RGB";
-                  ImageWindow.windowById(RGB_ABE_id).mainView.id = "AutoRGB_ABE";
+                  console.noteln("ABE L");
+                  if (preprocessed_images == start_images.L_RGB_HT) {
+                        /* We have run HistogramTransformation. */
+                        addProcessingStep("Start from image " + L_HT_win.mainView.id);
+                        L_ABE_HT_win = L_HT_win;
+                        L_ABE_HT_id = L_HT_win.mainView.id;
+                  } else {
+                        if (preprocessed_images == start_images.L_RGB_DBE ||
+                        preprocessed_images == start_images.L_R_G_B_DBE) 
+                        {
+                              /* We have background extracted from L. */
+                              L_ABE_id = L_BE_win.mainView.id;
+                              addProcessingStep("Start from image " + L_ABE_id);
+                        } else {
+                              var L_win = ImageWindow.windowById(luminance_id);
+
+                              /* ABE on L
+                              */
+                              L_ABE_id = runABE(L_win);
+                        }
+                        /* On L image run HistogramTransform based on autostretch
+                        */
+                        L_ABE_HT_id = L_ABE_id + "_HT";
+                        L_stf = runHistogramTransform(copyView(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), null);
+                        if (!same_stf_for_all_images) {
+                              L_stf = null;
+                        }
+
+                        L_ABE_win = ImageWindow.windowById(L_ABE_id);
+                        L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
+                  }
+
+                  if (winIsValid(range_mask_win)) {
+                        /* We already have a mask. */
+                        addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+                        mask_win = range_mask_win;
+                  } else {
+                        /* Create mask for noise reduction and sharpening. */
+                        mask_win_id = "AutoMask";
+                        mask_win = newMaskView(L_ABE_HT_win, mask_win_id);
+                  }
+
+                  /* Noise reduction for L.
+                  */
+                  runMultiscaleLinearTransformReduceNoise(L_ABE_HT_win, mask_win);
             }
-     
+
+            if (!color_files && 
+            (preprocessed_images == start_images.NONE ||
+            preprocessed_images == start_images.L_R_G_B_DBE)) 
+            {
+                  if (BE_before_channel_combination) {
+                        if (preprocessed_images == start_images.L_R_G_B_DBE) {
+                              R_ABE_id = R_BE_win.mainView.id;
+                              G_ABE_id = G_BE_win.mainView.id;
+                              B_ABE_id = B_BE_win.mainView.id;
+                        } else {
+                              /* Run automatic background extraction or R,G,B images 
+                              * before channel combination.
+                              */
+                              console.noteln("ABE R");
+                              R_ABE_id = runABE(ImageWindow.windowById(red_id));
+                              console.noteln("ABE G");
+                              G_ABE_id = runABE(ImageWindow.windowById(green_id));
+                              console.noteln("ABE B");
+                              B_ABE_id = runABE(ImageWindow.windowById(blue_id));
+                        }
+                  }
+                  if (use_linear_fit) {
+                        /* LinearFit
+                        */
+                        if (BE_before_channel_combination) {
+                              runLinearFit(L_ABE_id, R_ABE_id);
+                              runLinearFit(L_ABE_id, G_ABE_id);
+                              runLinearFit(L_ABE_id, B_ABE_id);
+                        } else {
+                              runLinearFit(luminance_id, red_id);
+                              runLinearFit(luminance_id, green_id);
+                              runLinearFit(luminance_id, blue_id);
+                        }
+                  }
+                  if (use_noise_reduction_on_all_channels) {
+                        if (BE_before_channel_combination) {
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(R_ABE_id), mask_win);
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(G_ABE_id), mask_win);
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(B_ABE_id), mask_win);
+                        } else {
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(red_id), mask_win);
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(green_id), mask_win);
+                              runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(blue_id), mask_win);
+                        }
+                  }
+
+                  /* ChannelCombination
+                  */
+                  console.noteln("ChannelCombination");
+                  var model_win;
+                  var cc = new ChannelCombination;
+                  cc.colorSpace = ChannelCombination.prototype.RGB;
+                  if (BE_before_channel_combination) {
+                        addProcessingStep("Channel combination using images " + R_ABE_id + "," + G_ABE_id + "," + B_ABE_id);
+                        cc.channels = [ // enabled, id
+                              [true, R_ABE_id],
+                              [true, G_ABE_id],
+                              [true, B_ABE_id]
+                        ];
+                        model_win = ImageWindow.windowById(R_ABE_id);
+                  } else {
+                        addProcessingStep("Channel combination using images " + red_id + "," + green_id + "," + blue_id);
+                        cc.channels = [ // enabled, id
+                              [true, red_id],
+                              [true, green_id],
+                              [true, blue_id]
+                        ];
+                        model_win = ImageWindow.windowById(red_id);
+                  }
+                  RGB_win = new ImageWindow(
+                                    model_win.mainView.image.width,     // int width
+                                    model_win.mainView.image.height,    // int height
+                                    3,                                  // int numberOfChannels=1
+                                    32,                                 // int bitsPerSample=32
+                                    true,                               // bool floatSample=true
+                                    true,                               // bool color=false
+                                    "Integration_RGB");                 // const IsoString &id=IsoString()
+                  RGB_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  cc.executeOn(RGB_win.mainView);
+                  RGB_win.mainView.endProcess();
+                  RGB_win.show();
+                  addScriptWindow(RGB_win.mainView.id);
+                  RGB_win_id = RGB_win.mainView.id;
+            }
+
+            /* ABE on RGB
+            */
+            if (preprocessed_images == start_images.L_RGB_HT ||
+            preprocessed_images == start_images.RGB_HT) 
+            {
+                  /* We already have run HistogramTransformation. */
+                  RGB_ABE_HT_id = RGB_HT_win.mainView.id;
+                  addProcessingStep("Start from image " + RGB_ABE_HT_id);
+            } else {
+                  if (preprocessed_images == start_images.L_RGB_DBE ||
+                  preprocessed_images == start_images.RGB_DBE) 
+                  {
+                        /* We already have background extracted. */
+                        RGB_ABE_id = RGB_BE_win.mainView.id;
+                        addProcessingStep("Start from image " + RGB_ABE_id);
+                  } else if (color_files || !BE_before_channel_combination) {
+                        console.noteln("ABE RGB");
+                        RGB_ABE_id = runABE(RGB_win);
+                  } else {
+                        RGB_ABE_id = RGB_win.mainView.id;
+                  }
+
+                  /* Color calibration on RGB
+                  */
+                  runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
+
+                  /* On RGB image run HistogramTransform based on autostretch
+                  */
+                  RGB_ABE_HT_id = RGB_ABE_id + "_HT";
+                  runHistogramTransform(copyView(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
+            }
+
+            if (color_files) {
+                  if (winIsValid(range_mask_win)) {
+                        /* We already have a mask. */
+                        mask_win = range_mask_win;
+                        addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+                  } else {
+                        /* Color files. Create mask for noise reduction and sharpening. */
+                        mask_win_id = "AutoMask";
+                        mask_win = newMaskView(
+                                    ImageWindow.windowById(RGB_ABE_HT_id),
+                                    mask_win_id);
+                  }
+                  /* Noise reduction for color RGB
+                  */
+                  runMultiscaleLinearTransformReduceNoise(
+                        ImageWindow.windowById(RGB_ABE_HT_id),
+                        mask_win);
+            }
+
+            if (increase_saturation) {
+                  /* Add saturation on RGB
+                  */
+                  runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
+            }
+
+            if (!color_files) {
+                  /* LRGB files. Combine L and RGB images.
+                  */
+                  runLRGBCombination(
+                        ImageWindow.windowById(RGB_ABE_HT_id).mainView,
+                        L_ABE_HT_id);
+            }
+
+            /* Remove green cast, run SCNR
+            */
+            runSCNR(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
+
+            /* Sharpen image, use mask to sharpen mostly the light parts of image.
+            */
+            runMultiscaleLinearTransformSharpen(
+                  ImageWindow.windowById(RGB_ABE_HT_id),
+                  mask_win);
+
+            if (preprocessed_images == start_images.NONE) {
+                  /* Rename some windows. Need to be done before iconize.
+                  */
+                  if (!color_files) {
+                        /* LRGB files */
+                        RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                  } else {
+                        /* Color files */
+                        RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_ABE");
+                  }
+            }
+      }
+
+      /* All done, do cleanup on windows on screen 
+       */
+      addProcessingStep("Processing completed");
+
+      windowIconizeif(luminance_id);            /* Integration_L */
+      windowIconizeif(red_id);                  /* Integration_R */
+      windowIconizeif(green_id);                /* Integraion_G */
+      windowIconizeif(blue_id);                 /* Integration_B */
+
+      windowIconizeif(L_ABE_id);
+      windowIconizeif(R_ABE_id);
+      windowIconizeif(G_ABE_id);
+      windowIconizeif(B_ABE_id);
+
+      windowIconizeif(RGB_ABE_id);
+      windowIconizeif(L_ABE_HT_id);
+      windowIconizeif(RGB_win_id);              /* Integration_RGB */
+      windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
+
+      console.noteln("Processing steps:");
+      console.noteln(processing_steps);
+
+      console.noteln("Parameter values:");
+      console.noteln("Integrate only:"+integrate_only);
+      console.noteln("Run local normalization:"+use_local_normalization);
+      console.noteln("ABE on R,G,B images before channel combination:"+BE_before_channel_combination);
+      console.noteln("Use Linear Fit:"+use_linear_fit);
+      console.noteln("Use noise reduction on R,G,B channels:"+use_noise_reduction_on_all_channels);
+      console.noteln("Increase saturation:"+increase_saturation);
+
+      if (preprocessed_images == start_images.NONE) {
+            /* Output some info of files.
+            */
             console.noteln("* All data files *");
             console.noteln(all_files.length + " data files, " + alignedFiles.length + " accepted");
             console.noteln("best_ssweight="+best_ssweight);
@@ -1440,6 +1778,362 @@ function main()
             }
       }
       console.noteln("Script completed");
+
+      BE_before_channel_combination = saved_BE_before_channel_combination;
+
+      if (hide_console) {
+            console.hide();
+      }
+}
+
+function newCheckBox( parent, checkboxText, checkboxState, toolTip )
+{
+      var widget = new CheckBox( parent );
+      widget.text = checkboxText;
+      widget.checked = checkboxState;
+      if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
+            widget.toolTip = toolTip; 
+      }
+
+      return widget;
+}
+
+function newSectionBar( parent, title, hasCheckBox )
+{
+      var widget = new SectionBar( parent );
+      if ( typeof title !== 'undefined' && title != null ) { 
+            widget.setTitle( title ); 
+      }
+      if ( typeof hasCheckBox !== 'undefined' && hasCheckBox ) { 
+            widget.enableCheckBox(); 
+      }
+
+      return widget;
+}
+
+function newGroupBox( parent, title, toolTip )
+{
+      var widget = new GroupBox( parent );
+      if ( typeof title !== 'undefined' && title != null ) { 
+            widget.title = title; 
+      }
+      if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
+            widget.toolTip = toolTip; 
+      }
+
+      return widget;
+}
+
+function AutoIntegrateDialog()
+{
+      this.__base__ = Dialog;
+      this.__base__();
+
+      var labelWidth1 = this.font.width( "Output format hints:" + 'T' );
+      this.textEditWidth = 25 * this.font.width( "M" );
+      this.numericEditWidth = 6 * this.font.width( "0" );
+   
+      /* Info box at the top. */
+      this.helpLabel = new Label( this );
+      this.helpLabel.frameStyle = FrameStyle_Box;
+      this.helpLabel.margin = this.logicalPixelsToPhysical( 4 );
+      this.helpLabel.wordWrapping = true;
+      this.helpLabel.useRichText = true;
+      if (test_mode) {
+            this.helpLabel.text = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
+                              "Automatic image integration utility.</p>";
+      } else {
+            this.helpLabel.text = "<p><b>AutoIntegrate v0.3</b> &mdash; " +
+                              "Automatic image integration utility.</p>";
+      }
+      /* Tree box to show files. */
+      this.files_TreeBox = new TreeBox( this );
+      this.files_TreeBox.multipleSelection = true;
+      this.files_TreeBox.rootDecoration = false;
+      this.files_TreeBox.alternateRowColor = true;
+      this.files_TreeBox.setScaledMinSize( 300, 200 );
+      this.files_TreeBox.numberOfColumns = 1;
+      this.files_TreeBox.headerVisible = false;
+
+      for (var i = 0; dialogFileNames != null && i < dialogFileNames.length; i++) {
+         var node = new TreeBoxNode( this.files_TreeBox );
+         node.setText(0, dialogFileNames[i]);
+      }
+   
+      /* Add files. */
+      this.filesAdd_Button = new PushButton( this );
+      this.filesAdd_Button.text = "Add";
+      this.filesAdd_Button.icon = this.scaledResource( ":/icons/add.png" );
+      this.filesAdd_Button.toolTip = "<p>Add image files to the input images list.</p>";
+      this.filesAdd_Button.onClick = function()
+      {
+            dialogFileNames = openFitFiles();
+            if (dialogFileNames != null) {
+                  this.dialog.files_TreeBox.canUpdate = false;
+                  for (var i = 0; i < dialogFileNames.length; i++) {
+                  var node = new TreeBoxNode(this.dialog.files_TreeBox);
+                  node.setText(0, dialogFileNames[i]);
+                  }
+                  this.dialog.files_TreeBox.canUpdate = true;
+            }
+      };
+
+      /* Clear files. */
+      this.filesClear_Button = new PushButton( this );
+      this.filesClear_Button.text = "Clear";
+      this.filesClear_Button.icon = this.scaledResource( ":/icons/clear.png" );
+      this.filesClear_Button.toolTip = "<p>Clear the list of input images.</p>";
+      this.filesClear_Button.onClick = function()
+      {
+         this.dialog.files_TreeBox.clear();
+         dialogFileNames = null;
+      };
+   
+      /* Place buttons on dialog. */
+      this.filesButtons_Sizer = new HorizontalSizer;
+      this.filesButtons_Sizer.spacing = 4;
+      this.filesButtons_Sizer.add( this.filesAdd_Button );
+      this.filesButtons_Sizer.addStretch();
+      this.filesButtons_Sizer.add( this.filesClear_Button );    
+      
+      this.files_GroupBox = new GroupBox( this );
+      this.files_GroupBox.title = "Input Images";
+      this.files_GroupBox.sizer = new VerticalSizer;
+      this.files_GroupBox.sizer.margin = 6;
+      this.files_GroupBox.sizer.spacing = 4;
+      this.files_GroupBox.sizer.add( this.files_TreeBox, this.textEditWidth );
+      this.files_GroupBox.sizer.add( this.filesButtons_Sizer );     
+
+      /* Paremeters check boxes. */
+      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", use_local_normalization, 
+            "<p>Run local normalization before StarAlign</p>" );
+      this.useLocalNormalizationCheckBox.onClick = function(checked) { use_local_normalization = checked; }
+
+      this.ABEeforeChannelCombinationCheckBox = newCheckBox(this, "ABE before ChannelCombination", BE_before_channel_combination, 
+            "<p>Run ABE in R,G,B images before ChannelCombination instead of after CC</p>" );
+      this.ABEeforeChannelCombinationCheckBox.onClick = function(checked) { BE_before_channel_combination = checked; }
+
+      this.useLinearFitCheckBox = newCheckBox(this, "Linear fit", use_linear_fit, 
+            "<p>Run LinearFit based on L image before ChannelCombination</p>" );
+      this.useLinearFitCheckBox.onClick = function(checked) { use_linear_fit = checked; }
+
+      this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
+            "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
+      this.useNoiseReductionOnAllChannelsCheckBox.onClick = function(checked) { use_noise_reduction_on_all_channels = checked; }
+
+      this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", integrate_only, 
+            "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
+      this.IntegrateOnlyCheckBox.onClick = function(checked) { integrate_only = checked; }
+
+      
+      this.SaturationCheckBox = newCheckBox(this, "Increase saturation", increase_saturation, 
+            "<p>Increase saturation on RGB image using CurvesTransformation</p>" );
+      this.SaturationCheckBox.onClick = function(checked) { increase_saturation = checked; }
+
+      this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
+            "<p>Hide console</p>" );
+      this.hideConsoleCheckBox.onClick = function(checked) { 
+            hide_console = checked;
+            if (hide_console) {
+                  console.hide();
+            } else {
+                  console.show();
+            }
+      }
+
+      // Parameters set 1.
+      this.paramsSet1 = new VerticalSizer;
+      this.paramsSet1.margin = 6;
+      this.paramsSet1.spacing = 4;
+      this.paramsSet1.add( this.IntegrateOnlyCheckBox );
+      this.paramsSet1.add( this.useLocalNormalizationCheckBox );
+      this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
+      this.paramsSet1.add( this.useLinearFitCheckBox );
+
+      // Parameters set 2.
+      this.paramsSet2 = new VerticalSizer;
+      this.paramsSet2.margin = 6;
+      this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
+      this.paramsSet2.add( this.SaturationCheckBox );      
+      this.paramsSet2.add( this.hideConsoleCheckBox );
+
+      // Group parameters.
+      this.paramsGroupBox = new newGroupBox( this );
+      this.paramsGroupBox.title = "Parameters";
+      this.paramsGroupBox.sizer = new HorizontalSizer;
+      this.paramsGroupBox.sizer.margin = 6;
+      this.paramsGroupBox.sizer.spacing = 4;
+      this.paramsGroupBox.sizer.add( this.paramsSet1 );
+      this.paramsGroupBox.sizer.add( this.paramsSet2 );
+      // Stop columns of buttons moving as dialog expands horizontally.
+      this.paramsGroupBox.sizer.addStretch();
+      
+      // Button to run automatic processing
+      this.autoRunLabel = new Label( this );
+      with (this.autoRunLabel) {
+         text = "Run automatic integrate";
+         textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      }
+      this.autoRunButton = new PushButton( this );
+      this.autoRunButton.text = "AutoRun";
+      this.autoRunButton.onClick = function()
+      {
+            console.noteln("AutoRun");
+            if (dialogFileNames == null) {
+                  dialogFileNames = openFitFiles();
+                  if (dialogFileNames != null) {
+                        this.dialog.files_TreeBox.canUpdate = false;
+                        for (var i = 0; i < dialogFileNames.length; i++) {
+                              var node = new TreeBoxNode(this.dialog.files_TreeBox);
+                              node.setText(0, dialogFileNames[i]);
+                        }
+                        this.dialog.files_TreeBox.canUpdate = true;
+                  }
+            }
+            if (dialogFileNames != null) {
+                  AutoIntegrateEngine();
+            }
+      };   
+      this.autoRunSizer = new HorizontalSizer;
+      this.autoRunSizer.add( this.autoRunLabel );
+      this.autoRunSizer.addSpacing( 4 );
+      this.autoRunSizer.add( this.autoRunButton );
+      this.autoRunGroupBox = new newGroupBox( this );
+      this.autoRunGroupBox.sizer = new HorizontalSizer;
+      this.autoRunGroupBox.sizer.margin = 6;
+      this.autoRunGroupBox.sizer.spacing = 4;
+      this.autoRunGroupBox.sizer.add( this.autoRunSizer );
+
+      // Button to run from user created DBE  files
+      this.autoRunBELabel = new Label( this );
+      with (this.autoRunBELabel) {
+            text = "Run automatic processing based on manually created\n" +
+                   "Integration_*_DBE images (* = L,R,G,B or L,RGB or RGB).";
+            textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      }
+      this.autoRunBEButton = new PushButton( this );
+      this.autoRunBEButton.text = "Auto from DBE";
+      this.autoRunBEButton.onClick = function()
+      {
+            console.noteln("autoRunBE");
+            AutoIntegrateEngine();
+      };   
+      this.autoRunBESizer = new HorizontalSizer;
+      this.autoRunBESizer.add( this.autoRunBELabel );
+      this.autoRunBESizer.addSpacing( 4 );
+      this.autoRunBESizer.add( this.autoRunBEButton );
+      this.autoRunBEGroupBox = new newGroupBox( this );
+      this.autoRunBEGroupBox.sizer = new HorizontalSizer;
+      this.autoRunBEGroupBox.sizer.margin = 6;
+      this.autoRunBEGroupBox.sizer.spacing = 4;
+      this.autoRunBEGroupBox.sizer.add( this.autoRunBESizer );
+
+      // Button to run from user created histogram transform files
+      this.autoRunHTLabel = new Label( this );
+      with (this.autoRunHTLabel) {
+            text = "Run automatic processing based on manually created\nL_HT and RGB_HT images.";
+            textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      }
+      this.autoRunHTButton = new PushButton( this );
+      this.autoRunHTButton.text = "Auto from HT";
+      this.autoRunHTButton.onClick = function()
+      {
+            console.noteln("autoRunHT");
+            AutoIntegrateEngine();
+      };   
+      this.autoRunHTSizer = new HorizontalSizer;
+      this.autoRunHTSizer.add( this.autoRunHTLabel );
+      this.autoRunHTSizer.addSpacing( 4 );
+      this.autoRunHTSizer.add( this.autoRunHTButton );
+      this.autoRunHTGroupBox = new newGroupBox( this );
+      this.autoRunHTGroupBox.sizer = new HorizontalSizer;
+      this.autoRunHTGroupBox.sizer.margin = 6;
+      this.autoRunHTGroupBox.sizer.spacing = 4;
+      this.autoRunHTGroupBox.sizer.add( this.autoRunHTSizer );
+
+      // Button to close all windows
+      this.closeAllLabel = new Label( this );
+      with (this.closeAllLabel) {
+            text = "Close all image windows created by this script";
+            textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      }
+      this.closeAllButton = new PushButton( this );
+      this.closeAllButton.text = "Close all";
+      this.closeAllButton.onClick = function()
+      {
+            console.noteln("closeAll");
+            closeAllWindows();
+      };   
+      this.closeAllSizer = new HorizontalSizer;
+      this.closeAllSizer.add( this.closeAllLabel );
+      this.closeAllSizer.addSpacing( 4 );
+      this.closeAllSizer.add( this.closeAllButton );
+      this.closeAllGroupBox = new newGroupBox( this );
+      this.closeAllGroupBox.sizer = new HorizontalSizer;
+      this.closeAllGroupBox.sizer.margin = 6;
+      this.closeAllGroupBox.sizer.spacing = 4;
+      this.closeAllGroupBox.sizer.add( this.closeAllSizer );
+
+      // OK and Cancel buttons
+      this.ok_Button = new PushButton( this );
+      this.ok_Button.text = "OK";
+      this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
+      this.ok_Button.onClick = function()
+      {
+         this.dialog.ok();
+      };
+   
+      this.cancel_Button = new PushButton( this );
+      this.cancel_Button.text = "Cancel";
+      this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
+      this.cancel_Button.onClick = function()
+      {
+         this.dialog.cancel();
+      };
+   
+      this.buttons_Sizer = new HorizontalSizer;
+      this.buttons_Sizer.spacing = 6;
+      this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( this.ok_Button );
+      this.buttons_Sizer.add( this.cancel_Button );
+   
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 6;
+      this.sizer.spacing = 6;
+      this.sizer.add( this.helpLabel );
+      this.sizer.addSpacing( 4 );
+      this.sizer.add( this.files_GroupBox, 100 );
+      this.sizer.add( this.paramsGroupBox );
+      this.sizer.add( this.autoRunGroupBox );
+      this.sizer.add( this.autoRunBEGroupBox );
+      this.sizer.add( this.autoRunHTGroupBox );
+      this.sizer.add( this.closeAllGroupBox );
+      this.sizer.add( this.buttons_Sizer );
+
+      this.windowTitle = "AutoIntegrate Script";
+      this.userResizable = true;
+      this.adjustToContents();
+      this.helpLabel.setFixedHeight();
+      this.files_GroupBox.setFixedHeight();
+}
+
+AutoIntegrateDialog.prototype = new Dialog;
+
+function main()
+{
+      if (hide_console) {
+            console.hide();
+      }
+      if (test_mode) {
+            dialogFileNames = testModefileNames;
+            all_files = testModefileNames;
+      }
+      var dialog = new AutoIntegrateDialog();
+
+      dialog.execute();
+
+      //AutoIntegrateEngine();
 }
 
 main();
