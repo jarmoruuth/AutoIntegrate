@@ -10,7 +10,27 @@ on .fit files to generate *_a.fit files and SSWEIGHT keyword.
 In the end there will be integrated light files and automatically
 processed final image. Both LRGB and color files are accepted.
 
-This scripts then does the following steps:
+Clicking button AutoRun on GUI all the following steps lilsted below are performed.
+
+After step 7 there are Integrate_L, Integrate_R, Integrate_G, Integrate_B and 
+Integrate_RGB images in case of
+LRGB files or Integrate_RGB image in case of color files.
+It is possible to rerun the script by clicking button AutoContinut with following steps if there are
+manually created images:
+- L_HT + RGB_HT
+  LRGB image with HistogramTransformation already done, the script starts with step 9.
+- RGB_HT
+  Color (RGB) image with HistogramTransformation already done, the script starts with step 12.
+- Integration_L_DBE + Integration_RGB_DBE
+  LRGB image background extracted, the script starts with step 8.
+- Integration_RGB_DBE
+  Color (RGB) image background extracted, the script starts with step 11.
+- Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE
+  LRGB image background extracted before image integration, the script starts with step 5b.
+- Integration_L + Integration_R + Integration_G + Integration_B
+  LRGB image with integrated L,R,G,B images (maybe e.g. cropped), the script starts with step 5a.
+
+This scripts does the following steps:
 
 1. Opens a file dialog. On that select all *_a.fit files. Both LRGB and color
    files can be used.
@@ -25,25 +45,11 @@ This scripts then does the following steps:
    Rejection method is chosen dynamically based on the number of image files.
    (Optionally there is LocalNormalization before ImageIntegration but
    that does not seem to produce good results. There must be a bug...)
+5a. If BE_before_channel_combination then ABE is run on each color channel (LRGB)
+5b. If use_linear_fit is set then Linear fir is done on RGB channels using L as a reference
 6. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and and one RGB image or
    just an RGB image if files were color files.
----
-At this point we have Integrate_L and Integrate_RGB images in case of
-LRGB files or Integrate_RGB image in case of color files.
-It is possible to rerun the script with following steps if there are
-manually created images:
-- If there are images L_BE and RGB_BE with background extracted the script starts
-  with step 8.
-- If there is image RBG_BE with background extracted the script starts with
-  step 11.
-- If there are images L_HT and RGB_HT with HistogramTransformation already done
-  the script starts with step 9.
-- If there is image RBG_HT with HistogramTransformation already done the script
-  starts with step 12.
-- In all cases if there is already a mask with name range_mask
-  then that is used as a mask in steps 10 and 15.
----
 7. AutomaticBackgroundExtraction is run on L and RGB images.
 8. Autostretch is run on L and RGB images and that is used as an input
    to HistogramTransform.
@@ -59,9 +65,6 @@ manually created images:
 15. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
     sharpening more on the light parts of the image.
 16. Extra windows are closed or hidden.
-17. In case of LRGB files there are integrated L and RGB windows and processed
-    LRGB window. In case of color files there are integrated RBG window
-    and processed RGB window.
 
 Written by Jarmo Ruuth, 2018.
 
@@ -74,10 +77,6 @@ by roryt (Ioannis Ioannou).
 PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
 was a great place to find details and best practises when using PixInsight.
-
-TODO
-- more tooltip texts, file names, defaults for options
-- pop-up for processing steps output
 
 */
 
@@ -100,14 +99,15 @@ TODO
 var test_mode = false;
 
 var close_windows = false;
-var use_local_normalization = false;            /* color problems */
+var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
-var BE_before_channel_combination = true;
+var BE_before_channel_combination = false;
 var use_linear_fit = true;
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
 var increase_saturation = true;
+var relaxed_StarAlign = false;
 
 var dialogFileNames = null;
 var all_files;
@@ -188,6 +188,17 @@ function findWindow(id)
       return null;
 }
 
+function findWindowId(id)
+{
+      var w = findWindow(id);
+
+      if (w == null) {
+            return null;
+      }
+
+      return w.mainView.id;
+}
+
 function windowCloseif(id)
 {
       var w = findWindow(id);
@@ -212,7 +223,7 @@ function windowIconizeif(id)
                   iconPoint = new Point(
                                     -(w.width / 2) + 5,
                                     -(w.height / 2) + 5);
-                  addProcessingStep("Icons start from position " + iconPoint);
+                  //addProcessingStep("Icons start from position " + iconPoint);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */
@@ -540,8 +551,8 @@ function runStarAlignment(imagetable, refImage)
 {
       var alignedFiles;
 
-      addProcessingStep("Star alignment on " + imagetable.length + " files");
-      var starAlignment = new StarAlignment;
+      addProcessingStep("Star alignment on " + imagetable.length + " files, reference image " + refImage);
+      var P = new StarAlignment;
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
@@ -552,17 +563,87 @@ function runStarAlignment(imagetable, refImage)
             targets[targets.length] = oneimage;
       }
 
-      starAlignment.referenceImage = refImage;
-      starAlignment.referenceIsFile = true;
-      starAlignment.targets = targets;
-      starAlignment.overwriteExistingFiles = true;
+      if (relaxed_StarAlign) {
+            P.structureLayers = 6;
+      } else {
+            P.structureLayers = 5;
+      }
+      P.noiseLayers = 0;
+      P.hotPixelFilterRadius = 1;
+      P.noiseReductionFilterRadius = 0;
+      if (relaxed_StarAlign) {
+            P.sensitivity = 0.010;
+      } else {
+            P.sensitivity = 0.100;
+      }
+      P.peakResponse = 0.80;
+      P.maxStarDistortion = 0.500;
+      P.upperLimit = 1.000;
+      P.invert = false;
+      P.distortionModel = "";
+      P.undistortedReference = false;
+      P.distortionCorrection = false;
+      P.distortionMaxIterations = 20;
+      P.distortionTolerance = 0.005;
+      P.matcherTolerance = 0.0500;
+      if (relaxed_StarAlign) {
+            P.ransacTolerance = 6.00;
+            P.ransacMaxIterations = 3000;
+      } else {
+            P.ransacTolerance = 2.00;
+            P.ransacMaxIterations = 2000;
+      }
+      P.ransacMaximizeInliers = 1.00;
+      P.ransacMaximizeOverlapping = 1.00;
+      P.ransacMaximizeRegularity = 1.00;
+      P.ransacMinimizeError = 1.00;
+      P.maxStars = 0;
+      P.useTriangles = false;
+      P.polygonSides = 5;
+      P.descriptorsPerStar = 20;
+      P.restrictToPreviews = true;
+      P.intersection = StarAlignment.prototype.MosaicOnly;
+      P.useBrightnessRelations = false;
+      P.useScaleDifferences = false;
+      P.scaleTolerance = 0.100;
+      P.referenceImage = "";
+      P.inputHints = "";
+      P.outputHints = "";
+      P.mode = StarAlignment.prototype.RegisterMatch;
+      P.writeKeywords = true;
+      P.generateMasks = false;
+      P.generateDrizzleData = false;
+      P.frameAdaptation = false;
+      P.noGUIMessages = true;
+      P.useSurfaceSplines = false;
+      P.splineSmoothness = 0.25;
+      P.pixelInterpolation = StarAlignment.prototype.Auto;
+      P.clampingThreshold = 0.30;
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_r";
+      P.maskPostfix = "_m";
+      P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
+      P.onError = StarAlignment.prototype.Continue;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.20;
+      P.maxFileReadThreads = 1;
+      P.maxFileWriteThreads = 1;      
 
-      starAlignment.executeGlobal();
+      // Overwrite defaults
+      P.referenceImage = refImage;
+      P.referenceIsFile = true;
+      P.targets = targets;
+      P.overwriteExistingFiles = true;
+
+
+      P.executeGlobal();
 
       alignedFiles = new Array;
 
-      for (var i = 0; i < starAlignment.outputData.length; ++i) {
-            var filePath = starAlignment.outputData[i][0];
+      for (var i = 0; i < P.outputData.length; ++i) {
+            var filePath = P.outputData[i][0];
             if (filePath != null && filePath != "") {
                   alignedFiles[alignedFiles.length] = filePath;
             }
@@ -1299,7 +1380,7 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       imgView.mainView.endProcess();
 }
 
-function AutoIntegrateEngine()
+function AutoIntegrateEngine(auto_continue)
 {
       var alignedFiles;
       var mask_win;
@@ -1339,7 +1420,9 @@ function AutoIntegrateEngine()
             L_RGB_DBE : 2,
             RGB_DBE : 3,
             L_RGB_HT : 4,
-            RGB_HT : 5
+            RGB_HT : 5,
+            RGB_COLOR : 6,
+            L_R_G_B : 7
       };
 
       /* Check if we have manual background extracted files. */
@@ -1352,6 +1435,12 @@ function AutoIntegrateEngine()
       /* Check if we have manually done histogram transformation. */
       var L_HT_win = findWindow("L_HT");
       var RGB_HT_win = findWindow("RGB_HT");
+
+      luminance_id = findWindowId("Integration_L");
+      red_id = findWindowId("Integration_R");
+      green_id = findWindowId("Integration_G");
+      blue_id = findWindowId("Integration_B");
+      color_id = findWindowId("Integration_RGB");
 
       /* Check if we have manually created mask. */
       var range_mask_win = null;
@@ -1368,8 +1457,26 @@ function AutoIntegrateEngine()
                  winIsValid(G_BE_win) && winIsValid(B_BE_win)) {
             preprocessed_images = start_images.L_R_G_B_DBE;
             BE_before_channel_combination = true;
+      } else if (color_id != null) {                              /* RGB (color) integrated image */
+            preprocessed_images = start_images.RGB_COLOR;
+      } else if (luminance_id != null && red_id != null &&
+                 green_id != null && blue_id != null) {           /* L,R,G,B integrated images */
+            preprocessed_images = start_images.L_R_G_B;
       } else {
             preprocessed_images = start_images.NONE;
+      }
+
+      if (auto_continue) {
+          if (preprocessed_images == start_images.NONE) {
+            addProcessingStep("No preprocessed images found, processing not started!");
+            return;
+          }
+      } else {
+            if (preprocessed_images != start_images.NONE) {
+                  addProcessingStep("There are already preprocessed images, processing not started!");
+                  addProcessingStep("Close or rename old images before continuing.");
+                  return;
+            }  
       }
 
       if (preprocessed_images != start_images.NONE) {
@@ -1379,11 +1486,16 @@ function AutoIntegrateEngine()
             console.noteln("L_HT_win="+L_HT_win);
             console.noteln("RGB_HT_win="+RGB_HT_win);
             if (preprocessed_images == start_images.RGB_DBE ||
-                preprocessed_images == start_images.RGB_HT) 
+                preprocessed_images == start_images.RGB_HT ||
+                preprocessed_images == start_images.RGB_COLOR) 
             {
                   /* No L files, assume color. */
                   addProcessingStep("Processing as color images");
                   color_files = true;
+            }
+            if (preprocessed_images == start_images.RGB_COLOR) {
+                  RGB_win = ImageWindow.windowById(color_id);
+                  RGB_win_id = color_id;
             }
             /* Check if we have manually created mask. */
             mask_win_id = "range_mask";
@@ -1531,8 +1643,9 @@ function AutoIntegrateEngine()
             }
 
             if (!color_files && 
-            (preprocessed_images == start_images.NONE ||
-            preprocessed_images == start_images.L_R_G_B_DBE)) 
+                (preprocessed_images == start_images.NONE ||
+                 preprocessed_images == start_images.L_R_G_B_DBE ||
+                 preprocessed_images == start_images.L_R_G_B)) 
             {
                   if (BE_before_channel_combination) {
                         if (preprocessed_images == start_images.L_R_G_B_DBE) {
@@ -1618,14 +1731,14 @@ function AutoIntegrateEngine()
             /* ABE on RGB
             */
             if (preprocessed_images == start_images.L_RGB_HT ||
-            preprocessed_images == start_images.RGB_HT) 
+                preprocessed_images == start_images.RGB_HT) 
             {
                   /* We already have run HistogramTransformation. */
                   RGB_ABE_HT_id = RGB_HT_win.mainView.id;
                   addProcessingStep("Start from image " + RGB_ABE_HT_id);
             } else {
                   if (preprocessed_images == start_images.L_RGB_DBE ||
-                  preprocessed_images == start_images.RGB_DBE) 
+                      preprocessed_images == start_images.RGB_DBE) 
                   {
                         /* We already have background extracted. */
                         RGB_ABE_id = RGB_BE_win.mainView.id;
@@ -1732,6 +1845,7 @@ function AutoIntegrateEngine()
       console.noteln("Use Linear Fit:"+use_linear_fit);
       console.noteln("Use noise reduction on R,G,B channels:"+use_noise_reduction_on_all_channels);
       console.noteln("Increase saturation:"+increase_saturation);
+      console.noteln("Relaxed StarAlign:"+relaxed_StarAlign);
 
       if (preprocessed_images == start_images.NONE) {
             /* Output some info of files.
@@ -1925,6 +2039,9 @@ function AutoIntegrateDialog()
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { integrate_only = checked; }
 
+      this.relaxedStartAlignCheckBox = newCheckBox(this, "More relaxed StarAlign", relaxed_StarAlign, 
+            "<p>Use more relaxed StarAlign parameters. Could be useful if too many files fail to align.</p>" );
+      this.relaxedStartAlignCheckBox.onClick = function(checked) { relaxed_StarAlign = checked; }
       
       this.SaturationCheckBox = newCheckBox(this, "Increase saturation", increase_saturation, 
             "<p>Increase saturation on RGB image using CurvesTransformation</p>" );
@@ -1946,16 +2063,17 @@ function AutoIntegrateDialog()
       this.paramsSet1.margin = 6;
       this.paramsSet1.spacing = 4;
       this.paramsSet1.add( this.IntegrateOnlyCheckBox );
+      this.paramsSet1.add( this.relaxedStartAlignCheckBox);
       this.paramsSet1.add( this.useLocalNormalizationCheckBox );
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
-      this.paramsSet1.add( this.useLinearFitCheckBox );
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.useLinearFitCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
-      this.paramsSet2.add( this.SaturationCheckBox );      
+      this.paramsSet2.add( this.SaturationCheckBox );
       this.paramsSet2.add( this.hideConsoleCheckBox );
 
       // Group parameters.
@@ -1992,7 +2110,13 @@ function AutoIntegrateDialog()
                   }
             }
             if (dialogFileNames != null) {
-                  AutoIntegrateEngine();
+                  try {
+                        AutoIntegrateEngine(false);
+                  } 
+                  catch(err) {
+                        console.noteln(err);
+                        console.noteln("Processing stopped!");
+                  }
             }
       };   
       this.autoRunSizer = new HorizontalSizer;
@@ -2005,52 +2129,41 @@ function AutoIntegrateDialog()
       this.autoRunGroupBox.sizer.spacing = 4;
       this.autoRunGroupBox.sizer.add( this.autoRunSizer );
 
-      // Button to run from user created DBE  files
-      this.autoRunBELabel = new Label( this );
-      with (this.autoRunBELabel) {
-            text = "Run automatic processing based on manually created\n" +
-                   "Integration_*_DBE images (* = L,R,G,B or L,RGB or RGB).";
+      // Button to continue from existing files
+      this.autoContinueLabel = new Label( this );
+      with (this.autoContinueLabel) {
+            text = "Run automatic processing from previously created images.";
             textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            toolTip = "Image check order is:\n" +
+                      "L_HT + RGB_HT\n" +
+                      "RGB_HT\n" +
+                      "Integration_L_DBE + Integration_RGB_DBE\n" +
+                      "Integration_RGB_DBE\n" +
+                      "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE\n" +
+                      "Integration_L + Integration_R + Integration_G + Integration_B\n";
       }
-      this.autoRunBEButton = new PushButton( this );
-      this.autoRunBEButton.text = "Auto from DBE";
-      this.autoRunBEButton.onClick = function()
+      this.autoContinueButton = new PushButton( this );
+      this.autoContinueButton.text = "AutoContinue";
+      this.autoContinueButton.onClick = function()
       {
-            console.noteln("autoRunBE");
-            AutoIntegrateEngine();
+            console.noteln("autoContinue");
+            try {
+                  AutoIntegrateEngine(true);
+            } 
+            catch(err) {
+                  console.noteln(err);
+                  console.noteln("Processing stopped!");
+            }
       };   
-      this.autoRunBESizer = new HorizontalSizer;
-      this.autoRunBESizer.add( this.autoRunBELabel );
-      this.autoRunBESizer.addSpacing( 4 );
-      this.autoRunBESizer.add( this.autoRunBEButton );
-      this.autoRunBEGroupBox = new newGroupBox( this );
-      this.autoRunBEGroupBox.sizer = new HorizontalSizer;
-      this.autoRunBEGroupBox.sizer.margin = 6;
-      this.autoRunBEGroupBox.sizer.spacing = 4;
-      this.autoRunBEGroupBox.sizer.add( this.autoRunBESizer );
-
-      // Button to run from user created histogram transform files
-      this.autoRunHTLabel = new Label( this );
-      with (this.autoRunHTLabel) {
-            text = "Run automatic processing based on manually created\nL_HT and RGB_HT images.";
-            textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      }
-      this.autoRunHTButton = new PushButton( this );
-      this.autoRunHTButton.text = "Auto from HT";
-      this.autoRunHTButton.onClick = function()
-      {
-            console.noteln("autoRunHT");
-            AutoIntegrateEngine();
-      };   
-      this.autoRunHTSizer = new HorizontalSizer;
-      this.autoRunHTSizer.add( this.autoRunHTLabel );
-      this.autoRunHTSizer.addSpacing( 4 );
-      this.autoRunHTSizer.add( this.autoRunHTButton );
-      this.autoRunHTGroupBox = new newGroupBox( this );
-      this.autoRunHTGroupBox.sizer = new HorizontalSizer;
-      this.autoRunHTGroupBox.sizer.margin = 6;
-      this.autoRunHTGroupBox.sizer.spacing = 4;
-      this.autoRunHTGroupBox.sizer.add( this.autoRunHTSizer );
+      this.autoContinueSizer = new HorizontalSizer;
+      this.autoContinueSizer.add( this.autoContinueLabel );
+      this.autoContinueSizer.addSpacing( 4 );
+      this.autoContinueSizer.add( this.autoContinueButton );
+      this.autoContinueGroupBox = new newGroupBox( this );
+      this.autoContinueGroupBox.sizer = new HorizontalSizer;
+      this.autoContinueGroupBox.sizer.margin = 6;
+      this.autoContinueGroupBox.sizer.spacing = 4;
+      this.autoContinueGroupBox.sizer.add( this.autoContinueSizer );
 
       // Button to close all windows
       this.closeAllLabel = new Label( this );
@@ -2106,8 +2219,7 @@ function AutoIntegrateDialog()
       this.sizer.add( this.files_GroupBox, 100 );
       this.sizer.add( this.paramsGroupBox );
       this.sizer.add( this.autoRunGroupBox );
-      this.sizer.add( this.autoRunBEGroupBox );
-      this.sizer.add( this.autoRunHTGroupBox );
+      this.sizer.add( this.autoContinueGroupBox );
       this.sizer.add( this.closeAllGroupBox );
       this.sizer.add( this.buttons_Sizer );
 
@@ -2133,7 +2245,7 @@ function main()
 
       dialog.execute();
 
-      //AutoIntegrateEngine();
+      //AutoIntegrateEngine(false);
 }
 
 main();
