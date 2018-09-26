@@ -108,6 +108,7 @@ var hide_console = true;
 var integrate_only = false;
 var increase_saturation = true;
 var relaxed_StarAlign = false;
+var keep_integrated_images = false;
 
 var dialogFileNames = null;
 var all_files;
@@ -143,12 +144,18 @@ var testModefileNames = [
 ];
 
 // known window names
-var fixed_windows = [
+var integration_LRGB_windows = [
       "Integration_L",
       "Integration_R",
       "Integration_G",
-      "Integration_B",
-      "Integration_RGB",
+      "Integration_B"
+];
+
+var integration_color_windows = [
+      "Integration_RGB"
+];
+
+var fixed_windows = [
       "Integration_L_ABE",
       "Integration_R_ABE",
       "Integration_G_ABE",
@@ -262,6 +269,18 @@ function closeAllWindowsFromArray(arr)
 function closeAllWindows()
 {
       closeAllWindowsFromArray(all_windows);
+      if (keep_integrated_images) {
+            if (findWindow(integration_LRGB_windows[0]) != null) {
+                  // we have LRGB images
+                  closeAllWindowsFromArray(integration_color_windows);
+            } else {
+                  // we have color image
+                  closeAllWindowsFromArray(integration_LRGB_windows);
+            }
+      } else {
+            closeAllWindowsFromArray(integration_LRGB_windows);
+            closeAllWindowsFromArray(integration_color_windows);
+      }
       closeAllWindowsFromArray(fixed_windows);
 }
 
@@ -339,6 +358,7 @@ function findBestSSWEIGHT(fileNames)
        */
       addProcessingStep("Find best SSWEIGHT");
       var n = 0;
+      var first_image = true;
       for (var i = 0; i < fileNames.length; i++) {
             var filter;
             var filePath = fileNames[i];
@@ -363,20 +383,41 @@ function findBestSSWEIGHT(fileNames)
             f.close();
 
             n++;
+
+            var skip_this = false;
+            
+            // First check if we skip image sice we do not know
+            // the order for keywords
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
                   switch (keywords[j].name) {
-                        case "SSWEIGHT":
-                              ssweight = value;
-                              console.noteln("ssweight=" +  ssweight);
-                              if (i == 0 || parseFloat(ssweight) > parseFloat(best_ssweight)) {
-                                    best_ssweight = ssweight;
-                                    console.noteln("new best_ssweight=" +  best_ssweight);
-                                    best_image = filePath;
+                        case "TELESCOP":
+                              console.noteln("telescop=" +  value);
+                              if (value.indexOf("T2-UWF") != -1) {
+                                    skip_this = true;                                    
                               }
                               break;
                         default:
                               break;
+                  }
+            }
+            if (!skip_this) {
+                  for (var j = 0; j < keywords.length; j++) {
+                        var value = keywords[j].strippedValue.trim();
+                        switch (keywords[j].name) {
+                              case "SSWEIGHT":
+                                    ssweight = value;
+                                    console.noteln("ssweight=" +  ssweight);
+                                    if (first_image || parseFloat(ssweight) > parseFloat(best_ssweight)) {
+                                          best_ssweight = ssweight;
+                                          console.noteln("new best_ssweight=" +  best_ssweight);
+                                          best_image = filePath;
+                                          first_image = false;
+                                    }
+                                    break;
+                              default:
+                                    break;
+                        }
                   }
             }
       }
@@ -422,6 +463,7 @@ function findLRGBchannels(
             f.close();
 
             filter = 'Color';
+            var skip_this = false;
 
             n++;
             for (var j = 0; j < keywords.length; j++) {
@@ -435,9 +477,18 @@ function findLRGBchannels(
                               ssweight = value;
                               console.noteln("ssweight=" +  ssweight);
                               break;
+                        case "TELESCOP":
+                              console.noteln("telescop=" +  value);
+                              if (value.indexOf("T2-UWF") != -1) {
+                                    skip_this = true;                                    
+                              }
+                              break;
                         default:
                               break;
                   }
+            }
+            if (skip_this) {
+                  filter = "skip";
             }
 
             switch (filter) {
@@ -754,7 +805,7 @@ function runImageIntegration(images, name)
       windowCloseif(II.lowRejectionMapImageId);
 
       var new_name = windowRename(II.integrationImageId, "Integration_" + name);
-      addScriptWindow(new_name);
+      //addScriptWindow(new_name);
       return new_name
 }
 
@@ -837,7 +888,7 @@ function runImageIntegrationNormalized(images, name)
       windowCloseif(P.lowRejectionMapImageId);
 
       var new_name = windowRename(P.integrationImageId, "Integration_" + name);
-      addScriptWindow(new_name);
+      //addScriptWindow(new_name);
       return new_name
 }
 
@@ -2047,6 +2098,10 @@ function AutoIntegrateDialog()
             "<p>Increase saturation on RGB image using CurvesTransformation</p>" );
       this.SaturationCheckBox.onClick = function(checked) { increase_saturation = checked; }
 
+      this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", keep_integrated_images, 
+            "<p>Keep integrated images when closing all windows</p>" );
+      this.keepIntegratedImagesCheckBox.onClick = function(checked) { keep_integrated_images = checked; }
+
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2066,14 +2121,15 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.relaxedStartAlignCheckBox);
       this.paramsSet1.add( this.useLocalNormalizationCheckBox );
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
+      this.paramsSet1.add( this.useLinearFitCheckBox );
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
-      this.paramsSet2.add( this.useLinearFitCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.paramsSet2.add( this.SaturationCheckBox );
+      this.paramsSet2.add( this.keepIntegratedImagesCheckBox );
       this.paramsSet2.add( this.hideConsoleCheckBox );
 
       // Group parameters.
