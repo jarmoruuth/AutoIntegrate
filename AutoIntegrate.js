@@ -109,6 +109,7 @@ var integrate_only = false;
 var increase_saturation = true;
 var relaxed_StarAlign = false;
 var keep_integrated_images = false;
+var run_HT = true;
 
 var dialogFileNames = null;
 var all_files;
@@ -119,11 +120,11 @@ var best_l_image = null;
 var best_r_ssweight = 0;
 var best_r_image = null;
 var best_g_ssweight = 0;
-var best_g_mage = null;
+var best_g_image = null;
 var best_b_ssweight = 0;
-var best_b_mage = null;
+var best_b_image = null;
 var best_c_ssweight = 0;
-var best_c_mage = null;
+var best_c_image = null;
 var luminance_images;
 var red_images;
 var green_images;
@@ -354,6 +355,8 @@ function findBestSSWEIGHT(fileNames)
 {
       var ssweight;
 
+      run_HT = true;
+
       /* Loop through files and find image with best SSWEIGHT.
        */
       addProcessingStep("Find best SSWEIGHT");
@@ -362,8 +365,14 @@ function findBestSSWEIGHT(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             var filter;
             var filePath = fileNames[i];
-            console.noteln("File " +  filePath);
-            var F = new FileFormat(".fit", true/*toRead*/, false/*toWrite*/);
+            var ext = '.' + filePath.split('.').pop();
+            console.noteln("File " +  filePath + " ext " +  ext);
+            if (ext.toUpperCase() == '.TIF' || ext.toUpperCase() == '.TIFF' ||
+                ext.toUpperCase() == '.JPG')
+            {
+                  run_HT = false;
+            }
+            var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
             if (F.isNull) {
                   throw new Error("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
             }
@@ -421,8 +430,10 @@ function findBestSSWEIGHT(fileNames)
                   }
             }
       }
-      if (best_image.isNull) {
-            throw new Error("Unable to find image with best SSWEIGHT");
+      if (best_image == null) {
+            console.noteln("Unable to find image with best SSWEIGHT, using first image");
+            best_image = fileNames[0];
+            best_ssweight = 1;
       }
       return best_image;
 }
@@ -444,7 +455,8 @@ function findLRGBchannels(
             var ssweight;
             var filePath = alignedFiles[i];
             console.noteln("findLRGBchannels file " +  filePath);
-            var F = new FileFormat(".xisf", true/*toRead*/, false/*toWrite*/);
+            var ext = ".xisf";
+            var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
             if (F.isNull) {
                   throw new Error("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
             }
@@ -461,6 +473,12 @@ function findLRGBchannels(
                   keywords = f.keywords;
             }
             f.close();
+
+            best_l_image = null;
+            best_r_image = null;
+            best_g_image = null;
+            best_b_image = null;
+            best_c_image = null;
 
             filter = 'Color';
             var skip_this = false;
@@ -493,7 +511,7 @@ function findLRGBchannels(
 
             switch (filter) {
                   case 'Luminance':
-                        if (parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
+                        if (best_l_image == null || parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
                               /* Add best images first in the array. */
                               best_l_ssweight = ssweight;
                               console.noteln("new best_l_ssweight=" +  best_l_ssweight);
@@ -504,7 +522,7 @@ function findLRGBchannels(
                         }
                         break;
                   case 'Red':
-                        if (parseFloat(ssweight) >= parseFloat(best_r_ssweight)) {
+                        if (best_r_image == null || parseFloat(ssweight) >= parseFloat(best_r_ssweight)) {
                               /* Add best images first in the array. */
                               best_r_ssweight = ssweight;
                               console.noteln("new best_r_ssweight=" +  best_r_ssweight);
@@ -515,7 +533,7 @@ function findLRGBchannels(
                         }
                         break;
                   case 'Green':
-                        if (parseFloat(ssweight) >= parseFloat(best_g_ssweight)) {
+                        if (best_g_image == null || parseFloat(ssweight) >= parseFloat(best_g_ssweight)) {
                               /* Add best images first in the array. */
                               best_g_ssweight = ssweight;
                               console.noteln("new best_g_ssweight=" +  best_g_ssweight);
@@ -526,7 +544,7 @@ function findLRGBchannels(
                         }
                         break;
                   case 'Blue':
-                        if (parseFloat(ssweight) >= parseFloat(best_b_ssweight)) {
+                        if (best_b_image == null || parseFloat(ssweight) >= parseFloat(best_b_ssweight)) {
                               /* Add best images first in the array. */
                               best_b_ssweight = ssweight;
                               console.noteln("new best_b_ssweight=" +  best_b_ssweight);
@@ -537,7 +555,7 @@ function findLRGBchannels(
                         }
                         break;
                   case 'Color':
-                        if (parseFloat(ssweight) >= parseFloat(best_c_ssweight)) {
+                        if (best_c_image == null || parseFloat(ssweight) >= parseFloat(best_c_ssweight)) {
                               /* Add best images first in the array. */
                               best_c_ssweight = ssweight;
                               console.noteln("new best_c_ssweight=" +  best_c_ssweight);
@@ -548,6 +566,16 @@ function findLRGBchannels(
                         }
                         break;
                   default:
+                        /* Assume color files.*/
+                        if (best_c_image == null) {
+                              /* Add best images first in the array. */
+                              best_c_ssweight = 1;
+                              console.noteln("new best_c_ssweight=" +  best_c_ssweight);
+                              best_c_image = filePath;
+                              insert_image_for_integrate(color_images, filePath);
+                        } else {
+                              append_image_for_integrate(color_images, filePath);
+                        }
                         break;
             }
       }
@@ -1115,6 +1143,10 @@ function applySTF(imgView, stf)
 
 function runHistogramTransform(ABE_win, stf_to_use)
 {
+      if (!run_HT) {
+            addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
+            return null;
+      }
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id);
 
       if (stf_to_use == null) {
@@ -1555,6 +1587,7 @@ function AutoIntegrateEngine(auto_continue)
             /* Open .fit files, we assume SubframeSelector is run
             * so each file has SSWEIGHT set.
             */
+            var fileNames;
             if (test_mode) {
                   addProcessingStep("Test mode");
                   fileNames = testModefileNames;
@@ -1576,7 +1609,7 @@ function AutoIntegrateEngine(auto_continue)
             /* Find file with best SSWEIGHT to be used
             * as a reference image in StarAlign.
             */
-           var best_image = findBestSSWEIGHT(fileNames);
+            best_image = findBestSSWEIGHT(fileNames);
 
             /* StarAlign
             */
