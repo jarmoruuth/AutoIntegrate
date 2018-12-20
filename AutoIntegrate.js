@@ -1474,6 +1474,7 @@ function AutoIntegrateEngine(auto_continue)
       var preprocessed_images;
       var L_ABE_id;
       var L_ABE_win;
+      var L_ABE_HT_win;
       var L_ABE_HT_id;
       var L_HT_win;
       var RGB_ABE_id;
