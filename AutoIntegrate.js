@@ -4,18 +4,12 @@ Script to automate initial steps of image processing in PixInsight.
 
 Script has a GUI interface where some processing options can be selected.
 
-Before running this script SubframeSelector script must be run manually
-on .fit files to generate *_a.fit files and SSWEIGHT keyword.
-
 In the end there will be integrated light files and automatically
 processed final image. Both LRGB and color files are accepted.
 
-Clicking button AutoRun on GUI all the following steps lilsted below are performed.
+Clicking button AutoRun on GUI all the following steps 1-16 listed below are performed.
 
-After step 7 there are Integrate_L, Integrate_R, Integrate_G, Integrate_B and 
-Integrate_RGB images in case of
-LRGB files or Integrate_RGB image in case of color files.
-It is possible to rerun the script by clicking button AutoContinut with following steps if there are
+It is possible to rerun the script by clicking button AutoContinue with following steps if there are
 manually created images:
 - L_HT + RGB_HT
   LRGB image with HistogramTransformation already done, the script starts with step 9.
@@ -32,9 +26,11 @@ manually created images:
 
 This scripts does the following steps:
 
-1. Opens a file dialog. On that select all *_a.fit files. Both LRGB and color
+1. Opens a file dialog. On that select all *.fit files. Both LRGB and color
    files can be used.
-2. Files are scanned and the file with highest SSWEIGHT is selected as a
+2a. SubframeSelector is run on .fit files to measure and generate SSWEIGHT for
+    each file. Output is *_a.xisf files.
+2b. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
 3. Files are assumed to have a FILTER keyword that tells if a file
    is Luminance, Red, Green or Blue channel. Otherwise the file is
@@ -45,10 +41,13 @@ This scripts does the following steps:
    Rejection method is chosen dynamically based on the number of image files.
    (Optionally there is LocalNormalization before ImageIntegration but
    that does not seem to produce good results. There must be a bug...)
+   After this step there are Integrate_L, Integrate_R, Integrate_G, Integrate_B and 
+   Integrate_RGB images in case of LRGB files or Integrate_RGB image in case of color 
+   files.
 5a. If BE_before_channel_combination then ABE is run on each color channel (LRGB)
 5b. If use_linear_fit is set then Linear fir is done on RGB channels using L as a reference
 6. ChannelCombination is run on Red, Green and Blue integrated images to
-   create an RGB image. After that there is one L and and one RGB image or
+   create an RGB image. After that there is one L and  one RGB image or
    just an RGB image if files were color files.
 7. AutomaticBackgroundExtraction is run on L and RGB images.
 8. Autostretch is run on L and RGB images and that is used as an input
@@ -66,7 +65,7 @@ This scripts does the following steps:
     sharpening more on the light parts of the image.
 16. Extra windows are closed or hidden.
 
-Written by Jarmo Ruuth, 2018.
+Written by Jarmo Ruuth, 2018-2019.
 
 Routine ApplyAutoSTF is written by Juan Conejero (PTeam),
 Copyright (C) 2010-2013 Pleiades Astrophoto.
@@ -106,10 +105,12 @@ var use_linear_fit = true;
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
+var run_subframeselector = true;
 var increase_saturation = true;
 var relaxed_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
+var skip_ABE = false;
 
 var dialogFileNames = null;
 var all_files;
@@ -164,11 +165,20 @@ var fixed_windows = [
       "Integration_RGB_ABE",
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
+      "Integration_L_noABE",
+      "Integration_R_noABE",
+      "Integration_G_noABE",
+      "Integration_B_noABE",
+      "Integration_RGB_noABE",
+      "Integration_L_noABE_HT",
+      "Integration_RGB_noABE_HT",
       "L_BE_HT",
       "RGB_BE_HT",
       "AutoMask",
       "AutoLRGB_ABE",
-      "AutoRGB_ABE"
+      "AutoRGB_ABE",
+      "AutoLRGB_noABE",
+      "AutoRGB_noABE"
 ];
 
 function addProcessingStep(txt)
@@ -189,7 +199,7 @@ function findWindow(id)
       }
       var images = ImageWindow.windows;
       for (var i in images) {
-         if (images[i].mainView.id == id) {
+            if (images[i].mainView.id == id) {
                return images[i];
          }
       }
@@ -335,7 +345,7 @@ function openFitFiles()
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
-      ofd.caption = "Select Light Frames (*_a.fit)";
+      ofd.caption = "Select Light Frames (*.fit)";
       ofd.loadImageFilters();
 
       if (!ofd.execute()) {
@@ -349,6 +359,219 @@ function openFitFiles()
       all_files = filenames;
 
       return filenames;
+}
+
+function findMin(arr, idx)
+{
+      var minval = arr[0][idx];
+      for (var i = 1; i < arr.length; i++) {
+            if (arr[i][idx] < minval) {
+                  minval = arr[i][idx];
+            }
+      }
+      return minval;
+}
+
+function findMax(arr, idx)
+{
+      var maxval = arr[0][idx];
+      for (var i = 1; i < arr.length; i++) {
+            if (arr[i][idx] > maxval) {
+                  maxval = arr[i][idx];
+            }
+      }
+      return maxval;
+}
+
+function setSSWEIGHT(imageWindow, SSWEIGHT) 
+{
+      var oldKeywords = [];
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i != keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name != "SSWEIGHT") {
+                  oldKeywords[oldKeywords.length] = keyword;
+            }
+      }
+      imageWindow.keywords = oldKeywords.concat([
+         new FITSKeyword(
+            "SSWEIGHT",
+            SSWEIGHT.toFixed(3),
+            "Image weight"
+         )
+      ]);
+}
+
+function writeImage(filePath, imageWindow) 
+{
+      var fileFormat = new FileFormat("XISF", false, true);
+      if (fileFormat.isNull) {
+            console.writeln("writeImage:FileFormat failed");
+            return false;
+      }
+   
+      var fileFormatInstance = new FileFormatInstance(fileFormat);
+      if (fileFormatInstance.isNull) {
+            console.writeln("writeImage:FileFormatInstance failed");
+            return false;
+      }
+   
+      if (!fileFormatInstance.create(filePath, "")) {
+            console.writeln("writeImage:fileFormatInstance.create failed");
+            return false;
+      }
+   
+      fileFormatInstance.keywords = imageWindow.keywords;
+      if (!fileFormatInstance.writeImage(imageWindow.mainView.image)) {
+            console.writeln("writeImage:fileFormatInstance.writeImage failed");
+            return false;
+      }
+   
+      fileFormatInstance.close();
+   
+      return true;
+}
+   
+
+function SubframeSelectorMeasure(fileNames)
+{
+      console.noteln("SubframeSelectorMeasure");
+      
+      var P = new SubframeSelector;
+      P.routine = SubframeSelector.prototype.MeasureSubframes;
+      var targets = new Array;
+      for (var i = 0; i < fileNames.length; i++) {
+            var oneimage = new Array(2);
+            oneimage[0] = true;
+            oneimage[1] = fileNames[i];
+            targets[targets.length] = oneimage;
+      }
+      P.subframes = targets;
+      P.fileCache = true;
+      P.subframeScale = 2.1514;
+      P.cameraGain = 1.0000;
+      P.cameraResolution = SubframeSelector.prototype.Bits16;
+      P.siteLocalMidnight = 24;
+      P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
+      P.dataUnit = SubframeSelector.prototype.Electron;
+      P.structureLayers = 4;
+      P.noiseLayers = 2;
+      P.hotPixelFilterRadius = 1;
+      P.applyHotPixelFilter = false;
+      P.noiseReductionFilterRadius = 0;
+      P.sensitivity = 0.1000;
+      P.peakResponse = 0.8000;
+      P.maxDistortion = 0.5000;
+      P.upperLimit = 1.0000;
+      P.backgroundExpansion = 3;
+      P.xyStretch = 1.5000;
+      P.psfFit = SubframeSelector.prototype.Gaussian;
+      P.psfFitCircular = false;
+      P.pedestal = 0;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.inputHints = "";
+      P.outputHints = "";
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_a";
+      P.outputKeyword = "SSWEIGHT";
+      P.overwriteExistingFiles = true;
+      P.onError = SubframeSelector.prototype.Continue;
+      P.approvalExpression = "";
+      P.weightingExpression = "10*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) +\n" +
+      "15*(1-(Eccentricity-EccentricityMin)/(EccentricityMax-EccentricityMin)) +\n" +
+      "10*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin) +\n" +
+      "20*(Noise-NoiseMin)/(NoiseMax-NoiseMin) +\n" +
+      "50";      
+      P.sortProperty = SubframeSelector.prototype.Index;
+      P.graphProperty = SubframeSelector.prototype.Eccentricity;
+      P.measurements = [ // measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev
+      ];
+
+      console.noteln("SubframeSelectorMeasure:executeGlobal");
+
+      P.executeGlobal();
+
+      console.noteln("SubframeSelectorMeasure:calculate weight");
+
+      /* Calculate weight */
+      var indexPath = 3;
+      var indexWeight = 4;
+      var indexFWHM = 5;
+      var indexEccentricity = 6;
+      var indexSNRWeight = 7;
+      var FWHMMin = findMin(P.measurements, indexFWHM);
+      var FWHMMax = findMax(P.measurements, indexFWHM);
+      var EccentricityMin = findMin(P.measurements, indexEccentricity);
+      var EccentricityMax = findMax(P.measurements, indexEccentricity);
+      var SNRWeightMin = findMin(P.measurements, indexSNRWeight);
+      var SNRWeightMax = findMax(P.measurements, indexSNRWeight);
+
+      var ssFiles = new Array;
+
+      for (var i = 0; i < P.measurements.length; i++) {
+            var FWHM = P.measurements[i][indexFWHM];
+            var Eccentricity = P.measurements[i][indexEccentricity];
+            var SNRWeight = P.measurements[i][indexSNRWeight];
+            var SSWEIGHT = (15*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) + 
+                           15*(1-(Eccentricity-EccentricityMin)/(EccentricityMax-EccentricityMin)) + 
+                           20*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin))+
+                           50;
+            P.measurements[i][indexWeight] = SSWEIGHT;
+            P.measurements[i][0] = true;
+            P.measurements[i][1] = false;
+            console.noteln(P.measurements[i][3]+" SSWEIGHT "+SSWEIGHT)
+            var onefile = new Array(2);
+            onefile[0] = P.measurements[i][indexPath];
+            onefile[1] = SSWEIGHT;
+            ssFiles[ssFiles.length] = onefile;
+      }
+
+      return ssFiles;
+}
+
+function runSubframeSelector(fileNames)
+{
+      addProcessingStep("runSubframeSelector");
+      
+      var ssWeights = SubframeSelectorMeasure(fileNames);
+      // SubframeSelectorOutput(P.measurements); Does not write weight keyword
+
+      var ssFiles = new Array;
+
+      for (var i = 0; i < ssWeights.length; i++) {
+            var filePath = ssWeights[i][0];
+            if (filePath != null && filePath != "") {
+                  var SSWEIGHT = ssWeights[i][1];
+                  var newFilePath = filePath.replace(".fit", "_a.xisf");
+                  console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
+                  var imageWindows = ImageWindow.open(filePath);
+                  if (imageWindows.length != 1) {
+                        console.writeln("*** Error: imageWindows.length: ", imageWindows.length);
+                        continue;
+                  }
+                  var imageWindow = imageWindows[0];
+                  if (imageWindow == null) {
+                        console.writeln("*** Error: Can't read subframe: ", filePath);
+                        continue;
+                  }
+                  setSSWEIGHT(imageWindow, SSWEIGHT);
+                  if (!writeImage(newFilePath, imageWindow)) {
+                        console.writeln(
+                           "*** Error: Can't write output image: ", newFilePath
+                        );
+                        continue;
+                  }         
+                  ssFiles[ssFiles.length] = newFilePath;
+            }
+      }
+      console.noteln("runSubframeSelector:"+fileNames.length+"files");
+
+      return ssFiles;
 }
 
 function findBestSSWEIGHT(fileNames)
@@ -395,7 +618,7 @@ function findBestSSWEIGHT(fileNames)
 
             var skip_this = false;
             
-            // First check if we skip image sice we do not know
+            // First check if we skip image since we do not know
             // the order for keywords
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -449,6 +672,13 @@ function findLRGBchannels(
       /* Loop through aligned files and find different channels.
        */
       addProcessingStep("Find L,R,G,B channels");
+
+      best_l_image = null;
+      best_r_image = null;
+      best_g_image = null;
+      best_b_image = null;
+      best_c_image = null;
+
       var n = 0;
       for (var i = 0; i < alignedFiles.length; i++) {
             var filter;
@@ -473,12 +703,6 @@ function findLRGBchannels(
                   keywords = f.keywords;
             }
             f.close();
-
-            best_l_image = null;
-            best_r_image = null;
-            best_g_image = null;
-            best_b_image = null;
-            best_c_image = null;
 
             filter = 'Color';
             var skip_this = false;
@@ -514,7 +738,7 @@ function findLRGBchannels(
                         if (best_l_image == null || parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
                               /* Add best images first in the array. */
                               best_l_ssweight = ssweight;
-                              console.noteln("new best_l_ssweight=" +  best_l_ssweight);
+                              console.noteln("new best_l_ssweight=" +  parseFloat(best_l_ssweight));
                               best_l_image = filePath;
                               insert_image_for_integrate(luminance_images, filePath);
                         } else {
@@ -623,7 +847,7 @@ function append_image_for_integrate(images, new_image)
       images[len][1] = new_image;
 }
 
-/* After SubframeSelector run StarAlignment on *_a.fit files.
+/* After SubframeSelector run StarAlignment on *_a.xisf files.
    The output will be *_a_r.xisf files.
 */
 function runStarAlignment(imagetable, refImage)
@@ -922,6 +1146,13 @@ function runImageIntegrationNormalized(images, name)
 
 function runABE(win, target_id)
 {
+      if (skip_ABE) {
+            var noABE_id = win.mainView.id + "_noABE";
+            addProcessingStep("No ABE for " + win.mainView.id);
+            addScriptWindow(noABE_id);
+            copyView(win, noABE_id);
+            return noABE_id;
+      }
       addProcessingStep("ABE from " + win.mainView.id);
       var ABE_id = win.mainView.id + "_ABE";
       var ABE = new AutomaticBackgroundExtractor;
@@ -1585,8 +1816,8 @@ function AutoIntegrateEngine(auto_continue)
             mask_win_id = "range_mask";
             range_mask_win = findWindow(mask_win_id);
       } else {
-            /* Open .fit files, we assume SubframeSelector is run
-            * so each file has SSWEIGHT set.
+            /* Open .fit files and run SubframeSelector on them
+            * that assigns SSWEIGHT.
             */
             var fileNames;
             if (test_mode) {
@@ -1605,6 +1836,13 @@ function AutoIntegrateEngine(auto_continue)
                         return;
                   }
                   fileNames = dialogFileNames;
+            }
+
+            if (run_subframeselector) {
+                  /* Run SubframeSelector that assigns SSWEIGHT for each file.
+                  * Output is *_a.xisf files.
+                  */
+                  fileNames = runSubframeSelector(fileNames);
             }
 
             /* Find file with best SSWEIGHT to be used
@@ -1893,10 +2131,19 @@ function AutoIntegrateEngine(auto_continue)
                   */
                   if (!color_files) {
                         /* LRGB files */
-                        RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                        if (skip_ABE) {
+                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_noABE");
+                        } else {
+                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                        }
                   } else {
                         /* Color files */
-                        RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_ABE");
+                        if (skip_ABE) {
+                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_noABE");
+                        } else {
+                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_ABE");
+
+                        }
                   }
             }
       }
@@ -2042,7 +2289,7 @@ function AutoIntegrateDialog()
             this.helpLabel.text = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       } else {
-            this.helpLabel.text = "<p><b>AutoIntegrate v0.3</b> &mdash; " +
+            this.helpLabel.text = "<p><b>AutoIntegrate v0.4</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       /* Tree box to show files. */
@@ -2120,6 +2367,10 @@ function AutoIntegrateDialog()
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
       this.useNoiseReductionOnAllChannelsCheckBox.onClick = function(checked) { use_noise_reduction_on_all_channels = checked; }
 
+      this.SubframeSelectorCheckBox = newCheckBox(this, "Run SubframeSelector", run_subframeselector, 
+            "<p>Run SubframeSelector to get image weights</p>" );
+      this.SubframeSelectorCheckBox.onClick = function(checked) { run_subframeselector = checked; }
+
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { integrate_only = checked; }
@@ -2136,6 +2387,10 @@ function AutoIntegrateDialog()
             "<p>Keep integrated images when closing all windows</p>" );
       this.keepIntegratedImagesCheckBox.onClick = function(checked) { keep_integrated_images = checked; }
 
+      this.skipABECheckBox = newCheckBox(this, "Skip ABE", skip_ABE, 
+      "<p>Skip ABE on image</p>" );
+      this.skipABECheckBox.onClick = function(checked) { skip_ABE = checked; }
+
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2151,16 +2406,18 @@ function AutoIntegrateDialog()
       this.paramsSet1 = new VerticalSizer;
       this.paramsSet1.margin = 6;
       this.paramsSet1.spacing = 4;
+      this.paramsSet1.add( this.SubframeSelectorCheckBox );
       this.paramsSet1.add( this.IntegrateOnlyCheckBox );
       this.paramsSet1.add( this.relaxedStartAlignCheckBox);
       this.paramsSet1.add( this.useLocalNormalizationCheckBox );
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
-      this.paramsSet1.add( this.useLinearFitCheckBox );
+      this.paramsSet1.add( this.skipABECheckBox );
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.useLinearFitCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.paramsSet2.add( this.SaturationCheckBox );
       this.paramsSet2.add( this.keepIntegratedImagesCheckBox );
