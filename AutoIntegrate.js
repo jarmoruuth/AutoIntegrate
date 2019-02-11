@@ -105,6 +105,7 @@ var use_linear_fit = true;
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
+var channelcombination_only = false;
 var run_subframeselector = true;
 var increase_saturation = true;
 var relaxed_StarAlign = false;
@@ -2051,98 +2052,100 @@ function AutoIntegrateEngine(auto_continue)
                   RGB_win_id = RGB_win.mainView.id;
             }
 
-            /* ABE on RGB
-            */
-            if (preprocessed_images == start_images.L_RGB_HT ||
-                preprocessed_images == start_images.RGB_HT) 
-            {
-                  /* We already have run HistogramTransformation. */
-                  RGB_ABE_HT_id = RGB_HT_win.mainView.id;
-                  addProcessingStep("Start from image " + RGB_ABE_HT_id);
-            } else {
-                  if (preprocessed_images == start_images.L_RGB_DBE ||
-                      preprocessed_images == start_images.RGB_DBE) 
+            if (!channelcombination_only) {
+                  /* ABE on RGB
+                  */
+                  if (preprocessed_images == start_images.L_RGB_HT ||
+                  preprocessed_images == start_images.RGB_HT) 
                   {
-                        /* We already have background extracted. */
-                        RGB_ABE_id = RGB_BE_win.mainView.id;
-                        addProcessingStep("Start from image " + RGB_ABE_id);
-                  } else if (color_files || !BE_before_channel_combination) {
-                        console.noteln("ABE RGB");
-                        RGB_ABE_id = runABE(RGB_win);
+                        /* We already have run HistogramTransformation. */
+                        RGB_ABE_HT_id = RGB_HT_win.mainView.id;
+                        addProcessingStep("Start from image " + RGB_ABE_HT_id);
                   } else {
-                        RGB_ABE_id = RGB_win.mainView.id;
+                        if (preprocessed_images == start_images.L_RGB_DBE ||
+                        preprocessed_images == start_images.RGB_DBE) 
+                        {
+                              /* We already have background extracted. */
+                              RGB_ABE_id = RGB_BE_win.mainView.id;
+                              addProcessingStep("Start from image " + RGB_ABE_id);
+                        } else if (color_files || !BE_before_channel_combination) {
+                              console.noteln("ABE RGB");
+                              RGB_ABE_id = runABE(RGB_win);
+                        } else {
+                              RGB_ABE_id = RGB_win.mainView.id;
+                        }
+
+                        /* Color calibration on RGB
+                        */
+                        runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
+
+                        /* On RGB image run HistogramTransform based on autostretch
+                        */
+                        RGB_ABE_HT_id = RGB_ABE_id + "_HT";
+                        runHistogramTransform(copyView(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
                   }
 
-                  /* Color calibration on RGB
-                  */
-                  runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
-
-                  /* On RGB image run HistogramTransform based on autostretch
-                  */
-                  RGB_ABE_HT_id = RGB_ABE_id + "_HT";
-                  runHistogramTransform(copyView(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
-            }
-
-            if (color_files) {
-                  if (winIsValid(range_mask_win)) {
-                        /* We already have a mask. */
-                        mask_win = range_mask_win;
-                        addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
-                  } else {
-                        /* Color files. Create mask for noise reduction and sharpening. */
-                        mask_win_id = "AutoMask";
-                        mask_win = newMaskView(
-                                    ImageWindow.windowById(RGB_ABE_HT_id),
-                                    mask_win_id);
+                  if (color_files) {
+                        if (winIsValid(range_mask_win)) {
+                              /* We already have a mask. */
+                              mask_win = range_mask_win;
+                              addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+                        } else {
+                              /* Color files. Create mask for noise reduction and sharpening. */
+                              mask_win_id = "AutoMask";
+                              mask_win = newMaskView(
+                                          ImageWindow.windowById(RGB_ABE_HT_id),
+                                          mask_win_id);
+                        }
+                        /* Noise reduction for color RGB
+                        */
+                        runMultiscaleLinearTransformReduceNoise(
+                              ImageWindow.windowById(RGB_ABE_HT_id),
+                              mask_win);
                   }
-                  /* Noise reduction for color RGB
+
+                  if (increase_saturation) {
+                        /* Add saturation on RGB
+                        */
+                        runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
+                  }
+
+                  if (!color_files) {
+                        /* LRGB files. Combine L and RGB images.
+                        */
+                        runLRGBCombination(
+                              ImageWindow.windowById(RGB_ABE_HT_id).mainView,
+                              L_ABE_HT_id);
+                  }
+
+                  /* Remove green cast, run SCNR
                   */
-                  runMultiscaleLinearTransformReduceNoise(
+                  runSCNR(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
+
+                  /* Sharpen image, use mask to sharpen mostly the light parts of image.
+                  */
+                  runMultiscaleLinearTransformSharpen(
                         ImageWindow.windowById(RGB_ABE_HT_id),
                         mask_win);
-            }
 
-            if (increase_saturation) {
-                  /* Add saturation on RGB
-                  */
-                  runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
-            }
-
-            if (!color_files) {
-                  /* LRGB files. Combine L and RGB images.
-                  */
-                  runLRGBCombination(
-                        ImageWindow.windowById(RGB_ABE_HT_id).mainView,
-                        L_ABE_HT_id);
-            }
-
-            /* Remove green cast, run SCNR
-            */
-            runSCNR(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
-
-            /* Sharpen image, use mask to sharpen mostly the light parts of image.
-            */
-            runMultiscaleLinearTransformSharpen(
-                  ImageWindow.windowById(RGB_ABE_HT_id),
-                  mask_win);
-
-            if (preprocessed_images == start_images.NONE) {
-                  /* Rename some windows. Need to be done before iconize.
-                  */
-                  if (!color_files) {
-                        /* LRGB files */
-                        if (skip_ABE) {
-                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_noABE");
+                  if (preprocessed_images == start_images.NONE) {
+                        /* Rename some windows. Need to be done before iconize.
+                        */
+                        if (!color_files) {
+                              /* LRGB files */
+                              if (skip_ABE) {
+                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_noABE");
+                              } else {
+                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                              }
                         } else {
-                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
-                        }
-                  } else {
-                        /* Color files */
-                        if (skip_ABE) {
-                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_noABE");
-                        } else {
-                              RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_ABE");
+                              /* Color files */
+                              if (skip_ABE) {
+                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_noABE");
+                              } else {
+                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRGB_ABE");
 
+                              }
                         }
                   }
             }
@@ -2375,6 +2378,10 @@ function AutoIntegrateDialog()
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { integrate_only = checked; }
 
+      this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", channelcombination_only, 
+            "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
+      this.ChannelCombinationOnlyCheckBox.onClick = function(checked) { channelcombination_only = checked; }
+
       this.relaxedStartAlignCheckBox = newCheckBox(this, "More relaxed StarAlign", relaxed_StarAlign, 
             "<p>Use more relaxed StarAlign parameters. Could be useful if too many files fail to align.</p>" );
       this.relaxedStartAlignCheckBox.onClick = function(checked) { relaxed_StarAlign = checked; }
@@ -2408,8 +2415,8 @@ function AutoIntegrateDialog()
       this.paramsSet1.spacing = 4;
       this.paramsSet1.add( this.SubframeSelectorCheckBox );
       this.paramsSet1.add( this.IntegrateOnlyCheckBox );
+      this.paramsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.paramsSet1.add( this.relaxedStartAlignCheckBox);
-      this.paramsSet1.add( this.useLocalNormalizationCheckBox );
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
       this.paramsSet1.add( this.skipABECheckBox );
 
@@ -2417,6 +2424,7 @@ function AutoIntegrateDialog()
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.useLocalNormalizationCheckBox );
       this.paramsSet2.add( this.useLinearFitCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.paramsSet2.add( this.SaturationCheckBox );
