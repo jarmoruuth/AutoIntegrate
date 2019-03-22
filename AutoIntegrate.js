@@ -28,42 +28,47 @@ This scripts does the following steps:
 
 1. Opens a file dialog. On that select all *.fit files. Both LRGB and color
    files can be used.
-2a. SubframeSelector is run on .fit files to measure and generate SSWEIGHT for
-    each file. Output is *_a.xisf files.
-2b. Files are scanned and the file with highest SSWEIGHT is selected as a
+2. SubframeSelector is run on .fit files to measure and generate SSWEIGHT for
+   each file. Output is *_a.xisf files.
+3. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
-3. Files are assumed to have a FILTER keyword that tells if a file
+4. Files are assumed to have a FILTER keyword that tells if a file
    is Luminance, Red, Green or Blue channel. Otherwise the file is
    considered a color file.
-4. StarAlign is run on all files and *_a_r.xisf files are
+5. StarAlign is run on all files and *_a_r.xisf files are
    generated.
-5. ImageIntegration is run on LRGB or color *_a_r.xisf files.
+6. Optionally there is LocalNormalization on all files but
+   that does not seem to produce good results. There must be a bug...
+7. ImageIntegration is run on LRGB or color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
-   (Optionally there is LocalNormalization before ImageIntegration but
-   that does not seem to produce good results. There must be a bug...)
    After this step there are Integrate_L, Integrate_R, Integrate_G, Integrate_B and 
    Integrate_RGB images in case of LRGB files or Integrate_RGB image in case of color 
    files.
-5a. If BE_before_channel_combination then ABE is run on each color channel (LRGB)
-5b. If use_linear_fit is set then Linear fir is done on RGB channels using L as a reference
-6. ChannelCombination is run on Red, Green and Blue integrated images to
-   create an RGB image. After that there is one L and  one RGB image or
-   just an RGB image if files were color files.
-7. AutomaticBackgroundExtraction is run on L and RGB images.
-8. Autostretch is run on L and RGB images and that is used as an input
-   to HistogramTransform.
-9. Mask is created as a copy of stretched L image or stretched and grayscale
-   converted color RGB image.
-10. MultiscaleLinearTransform is run on L image or color RGB image to reduce noise.
+8. ABE in run on L image.
+9. HistogramTransform is run on L image and resulted autostretched STF is saved.
+10. Streched L image is stored as a mask.
+11. If BE_before_channel_combination is seelected then ABE is run on each color channel (R,G,B)
+12. If use_linear_fit is selected then Linear fit is done on RGB channels using L as a reference
+13. If noise redection on all channels is selected then noise reduction is done separately 
+    for each L,R,G,B images using mask.
+14. ChannelCombination is run on Red, Green and Blue integrated images to
+    create an RGB image. After that there is one L and one RGB image or
+    just an RGB image if files were color files.
+15. If color calibration before ABE is selected then color calibration is run on RGB image.
+16. AutomaticBackgroundExtraction is run on RGB image.
+17. If color calibration before ABE is not selected then color calibration is run on RGB image.
+18. HistogramTransform is run on RGB image using autotreched STF from L image.
+19. In case of color files mask is created as a copy of stretched and grayscale
+    converted color RGB image.
+20. MultiscaleLinearTransform is run on L image or color RGB image to reduce noise.
     Mask is used to target noise reduction more on the background.
-11. ColorCalibration is run on RGB image.
-12. Slight CurvesTransformation is run on RGB image to increase saturation.
-13. If there are both L and RGB images then LRGBCombination is run to generate final
+21. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+22. If there are both L and RGB images then LRGBCombination is run to generate final
     LRGB image.
-14. SCNR is run on (L)RGB image to reduce green cast.
-15. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
+23. SCNR is run on (L)RGB image to reduce green cast.
+24. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
     sharpening more on the light parts of the image.
-16. Extra windows are closed or hidden.
+25. Extra windows are closed or minimized.
 
 Written by Jarmo Ruuth, 2018-2019.
 
@@ -112,6 +117,8 @@ var relaxed_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
 var skip_ABE = false;
+var color_calibration_before_ABE = false;
+var use_background_neutralization = true;
 
 var dialogFileNames = null;
 var all_files;
@@ -1478,6 +1485,28 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
       imgView.mainView.endProcess();
 }
 
+function runBackgroundNeutralization(imgView)
+{
+      addProcessingStep("Background neutralization on " + imgView.id);
+      var P = new BackgroundNeutralization;
+      P.backgroundReferenceViewId = "";
+      P.backgroundLow = 0.0000000;
+      P.backgroundHigh = 0.1000000;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.mode = BackgroundNeutralization.prototype.RescaleAsNeeded;
+      P.targetBackground = 0.0010000;
+
+      imgView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgView, false);
+
+      imgView.endProcess();
+}
+
 function runColorCalibration(imgView)
 {
       addProcessingStep("Color calibration on " + imgView.id);
@@ -1515,9 +1544,40 @@ function runColorCalibration(imgView)
       imgView.endProcess();
 }
 
-function runCurvesTransformationSaturation(imgView)
+function runColorSaturation(imgView, MaskView)
 {
-      addProcessingStep("Curves transformation for saturation on " + imgView.id);
+      addProcessingStep("Color saturation on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      var P = new ColorSaturation;
+      P.HS = [ // x, y
+            [0.00000, 0.43636],
+            [0.12661, -0.10909],
+            [0.27390, -0.63636],
+            [0.42377, -0.74545],
+            [0.52196, -0.32727],
+            [0.63566, 0.56364],
+            [0.76744, 1.29091],
+            [1.00000, 0.76364]
+      ];
+      P.HSt = ColorSaturation.prototype.AkimaSubsplines;
+      P.hueShift = 0.000;
+
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Saturate only light parts of the image. */
+      imgView.setMask(MaskView);
+      imgView.maskInverted = false;
+      
+      P.executeOn(imgView.mainView, false);
+
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function runCurvesTransformationSaturation(imgView, MaskView)
+{
+      addProcessingStep("Curves transformation for saturation on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+
       var P = new CurvesTransformation;
       P.R = [ // x, y
             [0.00000, 0.00000],
@@ -1576,11 +1636,23 @@ function runCurvesTransformationSaturation(imgView)
       ];
       P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
-      imgView.beginProcess(UndoFlag_NoSwapFile);
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(imgView, false);
+      /* Saturate only light parts of the image. */
+      imgView.setMask(MaskView);
+      imgView.maskInverted = false;
+      
+      P.executeOn(imgView.mainView, false);
 
-      imgView.endProcess();
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function increaseSaturation(imgView, MaskView)
+{
+      //runColorSaturation(imgView, MaskView);
+      runCurvesTransformationSaturation(imgView, MaskView);
 }
 
 function runLRGBCombination(RGBimgView, L_id)
@@ -1626,36 +1698,38 @@ function runSCNR(RGBimgView)
 function runMultiscaleLinearTransformSharpen(imgView, MaskView)
 {
       addProcessingStep("Sharpening on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+
+      var P = new MultiscaleLinearTransform;
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-            [true, true, 0.000, false, 3.000, 0.50, 3],
-            [true, true, 0.050, false, 2.000, 0.50, 2],
-            [true, true, 0.050, false, 1.000, 0.50, 2],
-            [true, true, 0.000, false, 0.500, 0.50, 1],
-            [true, true, 0.000, false, 3.000, 1.00, 1]
+         [true, true, 0.000, false, 3.000, 0.50, 3],
+         [true, true, 0.025, false, 2.000, 0.50, 2],
+         [true, true, 0.025, false, 1.000, 0.50, 2],
+         [true, true, 0.012, false, 0.500, 0.50, 1],
+         [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
       P.scaleDelta = 0;
       P.scalingFunctionData = [
-            0.25,0.5,0.25,
-            0.5,1,0.5,
-            0.25,0.5,0.25
+         0.25,0.5,0.25,
+         0.5,1,0.5,
+         0.25,0.5,0.25
       ];
       P.scalingFunctionRowFilter = [
-            0.5,
-            1,
-            0.5
+         0.5,
+         1,
+         0.5
       ];
       P.scalingFunctionColFilter = [
-            0.5,
-            1,
-            0.5
+         0.5,
+         1,
+         0.5
       ];
       P.scalingFunctionNoiseSigma = [
-            0.8003,0.2729,0.1198,
-            0.0578,0.0287,0.0143,
-            0.0072,0.0036,0.0019,
-            0.001
+         0.8003,0.2729,0.1198,
+         0.0578,0.0287,0.0143,
+         0.0072,0.0036,0.0019,
+         0.001
       ];
       P.scalingFunctionName = "Linear Interpolation (3)";
       P.linearMask = false;
@@ -1670,8 +1744,8 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       P.noiseThreshold = 3.00;
       P.softThresholding = true;
       P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
+      P.deringing = true;
+      P.deringingDark = 0.0100;
       P.deringingBright = 0.0000;
       P.outputDeringingMaps = false;
       P.lowRange = 0.0000;
@@ -1679,9 +1753,9 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
       P.previewLayer = 0;
       P.toLuminance = true;
-      P.toChrominance = true;
+      P.toChrominance = false;
       P.linear = false;
-
+      
       imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Sharpen only light parts of the image. */
@@ -2056,7 +2130,7 @@ function AutoIntegrateEngine(auto_continue)
                   /* ABE on RGB
                   */
                   if (preprocessed_images == start_images.L_RGB_HT ||
-                  preprocessed_images == start_images.RGB_HT) 
+                      preprocessed_images == start_images.RGB_HT) 
                   {
                         /* We already have run HistogramTransformation. */
                         RGB_ABE_HT_id = RGB_HT_win.mainView.id;
@@ -2069,15 +2143,28 @@ function AutoIntegrateEngine(auto_continue)
                               RGB_ABE_id = RGB_BE_win.mainView.id;
                               addProcessingStep("Start from image " + RGB_ABE_id);
                         } else if (color_files || !BE_before_channel_combination) {
+                              if (color_calibration_before_ABE) {
+                                    if (use_background_neutralization) {
+                                          runBackgroundNeutralization(RGB_win.mainView);
+                                    }
+                                    /* Color calibration on RGB
+                                     */
+                                    runColorCalibration(RGB_win.mainView);
+                              }
                               console.noteln("ABE RGB");
                               RGB_ABE_id = runABE(RGB_win);
                         } else {
                               RGB_ABE_id = RGB_win.mainView.id;
                         }
 
-                        /* Color calibration on RGB
-                        */
-                        runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
+                        if (!color_calibration_before_ABE) {
+                              if (use_background_neutralization) {
+                                    runBackgroundNeutralization(ImageWindow.windowById(RGB_ABE_id).mainView);
+                              }
+                              /* Color calibration on RGB
+                               */
+                              runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
+                        }
 
                         /* On RGB image run HistogramTransform based on autostretch
                         */
@@ -2107,7 +2194,7 @@ function AutoIntegrateEngine(auto_continue)
                   if (increase_saturation) {
                         /* Add saturation on RGB
                         */
-                        runCurvesTransformationSaturation(ImageWindow.windowById(RGB_ABE_HT_id).mainView);
+                       increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
                   }
 
                   if (!color_files) {
@@ -2398,6 +2485,14 @@ function AutoIntegrateDialog()
       "<p>Skip ABE on image</p>" );
       this.skipABECheckBox.onClick = function(checked) { skip_ABE = checked; }
 
+      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
+      "<p>Run ColorCalibration before ABE</p>" );
+      this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { color_calibration_before_ABE = checked; }
+
+      this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", use_background_neutralization, 
+      "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
+      this.use_background_neutralization_CheckBox.onClick = function(checked) { use_background_neutralization = checked; }
+
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2419,11 +2514,13 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.relaxedStartAlignCheckBox);
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
       this.paramsSet1.add( this.skipABECheckBox );
+      this.paramsSet1.add( this.color_calibration_before_ABE_CheckBox );
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.use_background_neutralization_CheckBox );
       this.paramsSet2.add( this.useLocalNormalizationCheckBox );
       this.paramsSet2.add( this.useLinearFitCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
