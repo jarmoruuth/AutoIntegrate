@@ -5,26 +5,40 @@ Script to automate initial steps of image processing in PixInsight.
 Script has a GUI interface where some processing options can be selected.
 
 In the end there will be integrated light files and automatically
-processed final image. Both LRGB and color files are accepted.
+processed final image. Both LRGB and color files are accepted. It is also possible
+do only partial processing and continue manually.
 
-Clicking button AutoRun on GUI all the following steps 1-16 listed below are performed.
+Clicking button AutoRun on GUI all the following steps listed below are performed.
 
-It is possible to rerun the script by clicking button AutoContinue with following steps if there are
-manually created images:
+LRGB files need to have keyword FILTER that has values 'Luminance', 'Red', 'Green'
+or 'Blue' values. If keyword FILTER is not found images are assumed to be color images.
+
+Manual processing
+-----------------
+
+It is possible to rerun the script by clicking button AutoContinue with following steps 
+if there are manually created images:
 - L_HT + RGB_HT
-  LRGB image with HistogramTransformation already done, the script starts with step 9.
+  LRGB image with HistogramTransformation already done, the script starts after step <lHT> and <rgbHT>.
 - RGB_HT
-  Color (RGB) image with HistogramTransformation already done, the script starts with step 12.
+  Color (RGB) image with HistogramTransformation already done, the script starts after step <colorHT>.
 - Integration_L_DBE + Integration_RGB_DBE
-  LRGB image background extracted, the script starts with step 8.
+  LRGB image background extracted, the script starts after step <lABE> and <rgbABE>.
 - Integration_RGB_DBE
-  Color (RGB) image background extracted, the script starts with step 11.
+  Color (RGB) image background extracted, the script starts with after step <colorABE>.
 - Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE
-  LRGB image background extracted before image integration, the script starts with step 5b.
+  LRGB image background extracted before image integration, the script starts after step <lABE> and 
+   <rgbDBE>. Automatic ABE is then skipped.
 - Integration_L + Integration_R + Integration_G + Integration_B
-  LRGB image with integrated L,R,G,B images (maybe e.g. cropped), the script starts with step 5a.
+  LRGB image with integrated L,R,G,B images the script starts with step <lII>. 
 
-This scripts does the following steps:
+Note that it is possible to run first automatic processing and then manually enhance some 
+intermediate files and autocontinue there. 
+- Crop integrated images and continue automatic processing using cropped images.
+- Run manual DBE to avoid ABE.
+
+Generic steps for all files
+---------------------------
 
 1. Opens a file dialog. On that select all *.fit files. Both LRGB and color
    files can be used.
@@ -32,43 +46,63 @@ This scripts does the following steps:
    each file. Output is *_a.xisf files.
 3. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
-4. Files are assumed to have a FILTER keyword that tells if a file
-   is Luminance, Red, Green or Blue channel. Otherwise the file is
-   considered a color file.
-5. StarAlign is run on all files and *_a_r.xisf files are
+4. StarAlign is run on all files and *_a_r.xisf files are
    generated.
-6. Optionally there is LocalNormalization on all files but
+5. Optionally there is LocalNormalization on all files but
    that does not seem to produce good results. There must be a bug...
-7. ImageIntegration is run on LRGB or color *_a_r.xisf files.
+
+Steps with LRGB files
+---------------------
+
+1. ImageIntegration is run on LRGB files. Rejection method is chosen dynamically 
+   based on the number of image files. <lII>
+   After this step there are Integrate_L, Integrate_R, Integrate_G and Integrate_B images.
+2. ABE in run on L image. <lABE>
+3. HistogramTransform is run on L image and resulted autostretched STF is saved for mask. <lHT>
+4. Streched L image is stored as a mask unless user can predefined mask named range_mask.
+5. Noise reduction is run on L image using a mask.
+6. If BE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
+   <rgbDBE>
+7. If use_linear_fit is selected then LinearFit is run on RGB channels using L as a reference
+8. If use_noise_reduction_on_all_channels is selected then noise reduction is done separately 
+   for each R,G and B images using a mask.
+9. ChannelCombination is run on Red, Green and Blue integrated images to
+   create an RGB image. After that there is one L and one RGB image.
+10. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+    If use_background_neutralization is selected then BackgroundNeutralization is run before
+    color calibration.
+11. AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
+12. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+    BackgroundNeutralization is run before color calibration
+13. HistogramTransform is run on RGB image using autotreched STF from L image. <rgbHT>
+14. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+15. LRGBCombination is run to generate final LRGB image.
+
+Steps with color files
+----------------------
+
+1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
-   After this step there are Integrate_L, Integrate_R, Integrate_G, Integrate_B and 
-   Integrate_RGB images in case of LRGB files or Integrate_RGB image in case of color 
-   files.
-8. ABE in run on L image.
-9. HistogramTransform is run on L image and resulted autostretched STF is saved.
-10. Streched L image is stored as a mask.
-11. If BE_before_channel_combination is seelected then ABE is run on each color channel (R,G,B)
-12. If use_linear_fit is selected then Linear fit is done on RGB channels using L as a reference
-13. If noise redection on all channels is selected then noise reduction is done separately 
-    for each L,R,G,B images using mask.
-14. ChannelCombination is run on Red, Green and Blue integrated images to
-    create an RGB image. After that there is one L and one RGB image or
-    just an RGB image if files were color files.
-15. If color calibration before ABE is selected then color calibration is run on RGB image.
-16. AutomaticBackgroundExtraction is run on RGB image.
-17. If color calibration before ABE is not selected then color calibration is run on RGB image.
-18. HistogramTransform is run on RGB image using autotreched STF from L image.
-19. In case of color files mask is created as a copy of stretched and grayscale
-    converted color RGB image.
-20. MultiscaleLinearTransform is run on L image or color RGB image to reduce noise.
+   After this step there is Integrate_RGB image.
+2. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+   If use_background_neutralization is selected then BackgroundNeutralization is run before
+   color calibration.
+3. ABE in run on RGB image. <colorABE>
+4. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+   BackgroundNeutralization is run before color calibration
+5. HistogramTransform is run on RGB image. <colorHT>
+6. A mask is created as a copy of stretched and grayscale converted color RGB image.
+7. MultiscaleLinearTransform is run on color RGB image to reduce noise.
     Mask is used to target noise reduction more on the background.
-21. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
-22. If there are both L and RGB images then LRGBCombination is run to generate final
-    LRGB image.
-23. SCNR is run on (L)RGB image to reduce green cast.
-24. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
-    sharpening more on the light parts of the image.
-25. Extra windows are closed or minimized.
+8. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+
+Common final steps for all images
+---------------------------------
+
+1. SCNR is run on to reduce green cast.
+2. MultiscaleLinearTransform is run to sharpen the image. A mask is used to target
+   sharpening more on the light parts of the image.
+3. Extra windows are closed or minimized.
 
 Written by Jarmo Ruuth, 2018-2019.
 
@@ -1793,6 +1827,7 @@ function AutoIntegrateEngine(auto_continue)
       var G_ABE_id = null;
       var B_ABE_id = null;
       var saved_BE_before_channel_combination = BE_before_channel_combination;
+      var start_time = Date.now();
 
       console.show();
 
@@ -2313,7 +2348,8 @@ function AutoIntegrateEngine(auto_continue)
                   console.noteln("");
             }
       }
-      console.noteln("Script completed");
+      var end_time = Date.now();
+      console.noteln("Script completed, time "+(end_time-start_time)/1000+" sec");
 
       BE_before_channel_combination = saved_BE_before_channel_combination;
 
