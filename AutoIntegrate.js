@@ -154,6 +154,8 @@ var skip_ABE = false;
 var color_calibration_before_ABE = false;
 var use_background_neutralization = true;
 
+var batch_mode = false;
+
 var dialogFileNames = null;
 var all_files;
 var best_ssweight = 0;
@@ -295,12 +297,19 @@ function windowIconizeif(id)
       }
 }
 
-function windowRename(old_name, new_name)
+function windowRenameKeepif(old_name, new_name, keepif)
 {
       var w = ImageWindow.windowById(old_name);
       w.mainView.id = new_name;
-      addScriptWindow(new_name);
+      if (!keepif) {
+            addScriptWindow(new_name);
+      }
       return w.mainView.id;
+}
+
+function windowRename(old_name, new_name)
+{
+      return windowRenameKeepif(old_name, new_name, false);
 }
 
 function addScriptWindow(name)
@@ -2292,6 +2301,28 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(RGB_win_id);              /* Integration_RGB */
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
 
+      if (batch_mode > 0) {
+            /* Rename image based on first file directory name. 
+             * First check possible device in Windows (like c:)
+             */
+            var fname = dialogFileNames[0];
+            var ss = fname.split(':');
+            if (ss.length > 1) {
+                  fname = ss[ss.length-1];
+            }
+            /* Then check Windows path separator \ */
+            ss = fname.split('\\');
+            if (ss.length > 1) {
+                  fname = ss[ss.length-2];
+            }
+            /* Then check Unix path separator / */
+            ss = fname.split('/');
+            if (ss.length > 1) {
+                  fname = ss[ss.length-2];
+            }
+            RGB_ABE_HT_id = windowRenameKeepif(RGB_ABE_HT_id, fname, true);
+      }
+
       console.noteln("Processing steps:");
       console.noteln(processing_steps);
 
@@ -2529,6 +2560,10 @@ function AutoIntegrateDialog()
       "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
       this.use_background_neutralization_CheckBox.onClick = function(checked) { use_background_neutralization = checked; }
 
+      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", batch_mode, 
+      "<p>Run in batch mode, continue until no files are given</p>" );
+      this.batch_mode_CheckBox.onClick = function(checked) { batch_mode = checked; }
+
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2563,6 +2598,7 @@ function AutoIntegrateDialog()
       this.paramsSet2.add( this.SaturationCheckBox );
       this.paramsSet2.add( this.keepIntegratedImagesCheckBox );
       this.paramsSet2.add( this.hideConsoleCheckBox );
+      this.paramsSet2.add( this.batch_mode_CheckBox );
 
       // Group parameters.
       this.paramsGroupBox = new newGroupBox( this );
@@ -2585,27 +2621,43 @@ function AutoIntegrateDialog()
       this.autoRunButton.text = "AutoRun";
       this.autoRunButton.onClick = function()
       {
-            console.noteln("AutoRun");
-            if (dialogFileNames == null) {
-                  dialogFileNames = openFitFiles();
-                  if (dialogFileNames != null) {
-                        this.dialog.files_TreeBox.canUpdate = false;
-                        for (var i = 0; i < dialogFileNames.length; i++) {
-                              var node = new TreeBoxNode(this.dialog.files_TreeBox);
-                              node.setText(0, dialogFileNames[i]);
+            var stopped;
+            if (batch_mode) {
+                  stopped = false;
+                  console.noteln("AutoRun in batch mode");
+            } else {
+                  stopped = true;
+                  console.noteln("AutoRun");
+            }
+            do {
+                  if (dialogFileNames == null) {
+                        dialogFileNames = openFitFiles();
+                        if (dialogFileNames != null) {
+                              this.dialog.files_TreeBox.canUpdate = false;
+                              for (var i = 0; i < dialogFileNames.length; i++) {
+                                    var node = new TreeBoxNode(this.dialog.files_TreeBox);
+                                    node.setText(0, dialogFileNames[i]);
+                              }
+                              this.dialog.files_TreeBox.canUpdate = true;
                         }
-                        this.dialog.files_TreeBox.canUpdate = true;
                   }
-            }
-            if (dialogFileNames != null) {
-                  try {
-                        AutoIntegrateEngine(false);
-                  } 
-                  catch(err) {
-                        console.noteln(err);
-                        console.noteln("Processing stopped!");
+                  if (dialogFileNames != null) {
+                        try {
+                              AutoIntegrateEngine(false);
+                        } 
+                        catch(err) {
+                              console.noteln(err);
+                              console.noteln("Processing stopped!");
+                        }
+                        if (batch_mode) {
+                              dialogFileNames = null;
+                              console.noteln("AutoRun in batch mode");
+                              closeAllWindows();
+                        }
+                  } else {
+                        stopped = true;
                   }
-            }
+            } while (!stopped);
       };   
       this.autoRunSizer = new HorizontalSizer;
       this.autoRunSizer.add( this.autoRunLabel );
