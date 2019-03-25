@@ -153,7 +153,7 @@ var run_HT = true;
 var skip_ABE = false;
 var color_calibration_before_ABE = false;
 var use_background_neutralization = true;
-
+var use_drizzle = false;
 var batch_mode = false;
 
 var dialogFileNames = null;
@@ -317,17 +317,25 @@ function addScriptWindow(name)
       all_windows[all_windows.length] = name;
 }
 
-// close all windows created by this script
-function closeAllWindowsFromArray(arr)
+// close one window
+function closeOneWindow(id)
 {
-      for (var i = 0; i < arr.length; i++) {
-            var w = findWindow(arr[i]);
-            if (w != null) {
-                  w.forceClose();
-            }
+      var w = findWindow(id);
+      if (w != null) {
+            w.forceClose();
       }
 }
 
+// close all windows from an array
+function closeAllWindowsFromArray(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            closeOneWindow(arr[i]);
+            closeOneWindow("Drizzle"+arr[i]);
+      }
+}
+
+// close all windows created by this script
 function closeAllWindows()
 {
       closeAllWindowsFromArray(all_windows);
@@ -886,8 +894,8 @@ function findLRGBchannels(
 function insert_image_for_integrate(images, new_image)
 {
       images.unshift(new Array(2));
-      images[0][0] = true;
-      images[0][1] = new_image;
+      images[0][0] = true;                // enabled
+      images[0][1] = new_image;           // path
 }
 
 function append_image_for_integrate(images, new_image)
@@ -966,7 +974,11 @@ function runStarAlignment(imagetable, refImage)
       P.mode = StarAlignment.prototype.RegisterMatch;
       P.writeKeywords = true;
       P.generateMasks = false;
-      P.generateDrizzleData = false;
+      if (use_drizzle) {
+            P.generateDrizzleData = true; /* Generate .zdrz files. */
+      } else {
+            P.generateDrizzleData = false;
+      }
       P.frameAdaptation = false;
       P.noGUIMessages = true;
       P.useSurfaceSplines = false;
@@ -1076,6 +1088,50 @@ function runLinearFit(refViewId, targetId)
       targetWin.mainView.endProcess();
 }
 
+function runDrizzleIntegration(images, name)
+{
+      var drizzleImages = new Array;
+      for (var i = 0; i < images.length; i++) {
+            drizzleImages[i] = new Array(3);
+            drizzleImages[i][0] = images[i][0];                           // enabled
+            drizzleImages[i][1] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+            drizzleImages[i][2] = "";                                     // localNormalizationDataPath
+      }
+
+      var P = new DrizzleIntegration;
+      P.inputData = drizzleImages;
+      P.inputHints = "";
+      P.inputDirectory = "";
+      P.scale = 2.00;
+      P.dropShrink = 0.90;
+      P.kernelFunction = DrizzleIntegration.prototype.Kernel_Square;
+      P.kernelGridSize = 16;
+      P.originX = 0.50;
+      P.originY = 0.50;
+      P.enableCFA = false;
+      P.cfaPattern = "";
+      P.enableRejection = true;
+      P.enableImageWeighting = true;
+      P.enableSurfaceSplines = true;
+      P.enableLocalNormalization = false;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.closePreviousImages = false;
+      P.noGUIMessages = true;
+      P.onError = DrizzleIntegration.prototype.Continue;
+
+      P.executeGlobal();
+
+      windowCloseif(P.weightImageId);
+
+      var new_name = windowRename(P.integrationImageId, "DrizzleIntegration_" + name);
+      //addScriptWindow(new_name);
+      return new_name;
+}
+
 function runImageIntegration(images, name)
 {
       addProcessingStep("Image " + name + " integration on " + images.length + " files");
@@ -1100,16 +1156,34 @@ function runImageIntegration(images, name)
             addProcessingStep("  Using sigma clip for rejection");
             II.rejection = ImageIntegration.prototype.SigmaClip;
       }
-      II.images = images;
+      if (use_drizzle) {
+            var drizzleImages = new Array;
+            for (var i = 0; i < images.length; i++) {
+                  drizzleImages[i] = new Array(3);
+                  drizzleImages[i][0] = images[i][0];      // enabled
+                  drizzleImages[i][1] = images[i][1];      // path
+                  drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+            }
+            II.generateDrizzleData = true; /* Generate .xdrz data. */
+            II.images = drizzleImages;
+      } else {
+            II.generateDrizzleData = false;
+            II.images = images;
+      }
 
       II.executeGlobal();
 
       windowCloseif(II.highRejectionMapImageId);
       windowCloseif(II.lowRejectionMapImageId);
 
-      var new_name = windowRename(II.integrationImageId, "Integration_" + name);
-      //addScriptWindow(new_name);
-      return new_name
+      if (use_drizzle) {
+            windowCloseif(II.integrationImageId);
+            return runDrizzleIntegration(images, name);
+      } else {
+            var new_name = windowRename(II.integrationImageId, "Integration_" + name);
+            //addScriptWindow(new_name);
+            return new_name
+      }
 }
 
 function runImageIntegrationNormalized(images, name)
@@ -1120,7 +1194,11 @@ function runImageIntegrationNormalized(images, name)
             var oneimage = new Array(4);
             oneimage[0] = true;                                   // enabled
             oneimage[1] = images[i][1];                           // path
-            oneimage[2] = "";                                     // drizzlePath
+            if (use_drizzle) {
+                  oneimage[2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+            } else {
+                  oneimage[2] = "";                                     // drizzlePath
+            }
             oneimage[3] = images[i][1].replace(".xisf", ".xnml");    // localNormalizationDataPath
             norm_images[norm_images.length] = oneimage;
       }
@@ -1169,7 +1247,11 @@ function runImageIntegrationNormalized(images, name)
       P.generate64BitResult = false;
       P.generateRejectionMaps = true;
       P.generateIntegratedImage = true;
-      P.generateDrizzleData = false;
+      if (use_drizzle) {
+            P.generateDrizzleData = true;
+      } else {
+            P.generateDrizzleData = false;
+      }
       P.closePreviousImages = false;
       P.bufferSizeMB = 16;
       P.stackSizeMB = 1024;
@@ -1190,9 +1272,14 @@ function runImageIntegrationNormalized(images, name)
       windowCloseif(P.highRejectionMapImageId);
       windowCloseif(P.lowRejectionMapImageId);
 
-      var new_name = windowRename(P.integrationImageId, "Integration_" + name);
-      //addScriptWindow(new_name);
-      return new_name
+      if (use_drizzle) {
+            windowCloseif(II.integrationImageId);
+            return runDrizzleIntegration(images, name);
+      } else {
+            var new_name = windowRename(P.integrationImageId, "Integration_" + name);
+            //addScriptWindow(new_name);
+            return new_name;
+      }
 }
 
 function runABE(win, target_id)
@@ -2564,6 +2651,11 @@ function AutoIntegrateDialog()
       "<p>Run in batch mode, continue until no files are given</p>" );
       this.batch_mode_CheckBox.onClick = function(checked) { batch_mode = checked; }
 
+      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", use_drizzle, 
+      "<p>Use Drizzle integration</p>" );
+      this.use_drizzle_CheckBox.onClick = function(checked) { use_drizzle = checked; }
+
+      
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2583,6 +2675,7 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.IntegrateOnlyCheckBox );
       this.paramsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.paramsSet1.add( this.relaxedStartAlignCheckBox);
+      this.paramsSet1.add( this.use_drizzle_CheckBox );
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
       this.paramsSet1.add( this.skipABECheckBox );
       this.paramsSet1.add( this.color_calibration_before_ABE_CheckBox );
