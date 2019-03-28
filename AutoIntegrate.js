@@ -1946,22 +1946,27 @@ function AutoIntegrateEngine(auto_continue)
             L_R_G_B : 7
       };
 
+      var drizzle_prefix = "";
+      if (use_drizzle) {
+            drizzle_prefix = "Drizzle";
+      }
+
       /* Check if we have manual background extracted files. */
-      var L_BE_win = findWindow("Integration_L_DBE");
-      var R_BE_win = findWindow("Integration_R_DBE");
-      var G_BE_win = findWindow("Integration_G_DBE");
-      var B_BE_win = findWindow("Integration_B_DBE");
-      var RGB_BE_win = findWindow("Integration_RGB_DBE");
+      var L_BE_win = findWindow(drizzle_prefix+"Integration_L_DBE");
+      var R_BE_win = findWindow(drizzle_prefix+"Integration_R_DBE");
+      var G_BE_win = findWindow(drizzle_prefix+"Integration_G_DBE");
+      var B_BE_win = findWindow(drizzle_prefix+"Integration_B_DBE");
+      var RGB_BE_win = findWindow(drizzle_prefix+"Integration_RGB_DBE");
 
       /* Check if we have manually done histogram transformation. */
       var L_HT_win = findWindow("L_HT");
       var RGB_HT_win = findWindow("RGB_HT");
 
-      luminance_id = findWindowId("Integration_L");
-      red_id = findWindowId("Integration_R");
-      green_id = findWindowId("Integration_G");
-      blue_id = findWindowId("Integration_B");
-      color_id = findWindowId("Integration_RGB");
+      luminance_id = findWindowId(drizzle_prefix+"Integration_L");
+      red_id = findWindowId(drizzle_prefix+"Integration_R");
+      green_id = findWindowId(drizzle_prefix+"Integration_G");
+      blue_id = findWindowId(drizzle_prefix+"Integration_B");
+      color_id = findWindowId(drizzle_prefix+"Integration_RGB");
 
       /* Check if we have manually created mask. */
       var range_mask_win = null;
@@ -2225,7 +2230,7 @@ function AutoIntegrateEngine(auto_continue)
                   var cc = new ChannelCombination;
                   cc.colorSpace = ChannelCombination.prototype.RGB;
                   if (BE_before_channel_combination) {
-                        addProcessingStep("Channel combination using images " + R_ABE_id + "," + G_ABE_id + "," + B_ABE_id);
+                        addProcessingStep("Channel combination using images " + R_ABE_id + ", " + G_ABE_id + ", " + B_ABE_id);
                         cc.channels = [ // enabled, id
                               [true, R_ABE_id],
                               [true, G_ABE_id],
