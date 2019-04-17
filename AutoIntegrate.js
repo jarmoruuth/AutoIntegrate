@@ -354,48 +354,85 @@ function closeAllWindows()
       closeAllWindowsFromArray(fixed_windows);
 }
 
-function copyView(sourceView, name)
+function saveMosaicWindow(win, dir, name, bits)
 {
-      var targetView = new ImageWindow(
-                              sourceView.mainView.image.width,
-                              sourceView.mainView.image.height,
-                              sourceView.mainView.image.numberOfChannels,
-                              sourceView.mainView.window.bitsPerSample,
-                              sourceView.mainView.window.isFloatSample,
-                              sourceView.mainView.image.colorSpace != ColorSpace_Gray,
-                              name);
-      targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
-      targetView.mainView.image.assign(sourceView.mainView.image);
-      targetView.mainView.endProcess();
+      console.writeln("saveMosaicWindow " + name);
+      var copy_win = copyWindow(win, name + "_savetmp");
+      var save_name = dir + "/" + name + "_" + bits + ".tif";
+      console.writeln("saveMosaicWindow:save name " + name);
 
-      targetView.show();
+      if (copy_win.bitsPerSample != bits) {
+            console.writeln("saveMosaicWindow:set bits to " + bits);
+            copy_win.setSampleFormat(bits, false);
+      }
+      // Save image. No format options, no warning messages, 
+      // no strict mode, no overwrite checks.
+      if (!copy_win.saveAs(save_name, false, false, false, false)) {
+            throw Error("Failed to save image: " + outputPath);
+      }
+      copy_win.forceClose();
+}
+
+function saveAllMosaicWindows(bits)
+{
+      console.writeln("saveAllMosaicWindows");
+      var gdd = new GetDirectoryDialog;
+      gdd.caption = "Select Save Directory";
+
+      if (gdd.execute()) {
+            console.writeln("saveAllMosaicWindows:dir " + gdd.directory);
+            for (var i = 0; i < 100; i++) {
+                  var name = "P"+i;
+                  var win = findWindow(name);
+                  if (win != null) {
+                        saveMosaicWindow(win, gdd.directory, name, bits);
+                  }
+            }
+      }
+}
+
+function copyWindow(sourceWindow, name)
+{
+      var targetWindow = new ImageWindow(
+                              sourceWindow.mainView.image.width,
+                              sourceWindow.mainView.image.height,
+                              sourceWindow.mainView.image.numberOfChannels,
+                              sourceWindow.mainView.window.bitsPerSample,
+                              sourceWindow.mainView.window.isFloatSample,
+                              sourceWindow.mainView.image.colorSpace != ColorSpace_Gray,
+                              name);
+      targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetWindow.mainView.image.assign(sourceWindow.mainView.image);
+      targetWindow.mainView.endProcess();
+
+      targetWindow.show();
 
       addScriptWindow(name);
 
-      return targetView;
+      return targetWindow;
 }
 
-function newMaskView(sourceView, name)
+function newMaskWindow(sourceWindow, name)
 {
       /* Default mask is the same as stretched image. */
-      var targetView = copyView(sourceView, name);
+      var targetWindow = copyWindow(sourceWindow, name);
 
-      if (targetView.mainView.image.colorSpace != ColorSpace_Gray) {
+      if (targetWindow.mainView.image.colorSpace != ColorSpace_Gray) {
             /* If we have color files we use gray scale converted
                image as a mask.
             */
-           addProcessingStep("Create mask using grayscale converted color image "+ sourceView.mainView.id);
+           addProcessingStep("Create mask using grayscale converted color image "+ sourceWindow.mainView.id);
            var P = new ConvertToGrayscale;
-            targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(targetView.mainView);
-            targetView.mainView.endProcess();
+            targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+            P.executeOn(targetWindow.mainView);
+            targetWindow.mainView.endProcess();
       } else {
-            addProcessingStep("Create mask from image " + sourceView.mainView.id);
+            addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
       }
 
-      targetView.show();
+      targetWindow.show();
 
-      return targetView;
+      return targetWindow;
 }
 
 function openFitFiles()
@@ -1288,7 +1325,7 @@ function runABE(win, target_id)
             var noABE_id = win.mainView.id + "_noABE";
             addProcessingStep("No ABE for " + win.mainView.id);
             addScriptWindow(noABE_id);
-            copyView(win, noABE_id);
+            copyWindow(win, noABE_id);
             return noABE_id;
       }
       addProcessingStep("ABE from " + win.mainView.id);
@@ -2152,7 +2189,7 @@ function AutoIntegrateEngine(auto_continue)
                         /* On L image run HistogramTransform based on autostretch
                         */
                         L_ABE_HT_id = L_ABE_id + "_HT";
-                        L_stf = runHistogramTransform(copyView(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), null);
+                        L_stf = runHistogramTransform(copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), null);
                         if (!same_stf_for_all_images) {
                               L_stf = null;
                         }
@@ -2168,7 +2205,7 @@ function AutoIntegrateEngine(auto_continue)
                   } else {
                         /* Create mask for noise reduction and sharpening. */
                         mask_win_id = "AutoMask";
-                        mask_win = newMaskView(L_ABE_HT_win, mask_win_id);
+                        mask_win = newMaskWindow(L_ABE_HT_win, mask_win_id);
                   }
 
                   /* Noise reduction for L.
@@ -2305,7 +2342,7 @@ function AutoIntegrateEngine(auto_continue)
                         /* On RGB image run HistogramTransform based on autostretch
                         */
                         RGB_ABE_HT_id = RGB_ABE_id + "_HT";
-                        runHistogramTransform(copyView(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
+                        runHistogramTransform(copyWindow(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
                   }
 
                   if (color_files) {
@@ -2316,7 +2353,7 @@ function AutoIntegrateEngine(auto_continue)
                         } else {
                               /* Color files. Create mask for noise reduction and sharpening. */
                               mask_win_id = "AutoMask";
-                              mask_win = newMaskView(
+                              mask_win = newMaskWindow(
                                           ImageWindow.windowById(RGB_ABE_HT_id),
                                           mask_win_id);
                         }
@@ -2521,6 +2558,14 @@ function newGroupBox( parent, title, toolTip )
 
 function AutoIntegrateDialog()
 {
+      var helptext;
+      if (test_mode) {
+            helptext = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
+                              "Automatic image integration utility.</p>";
+      } else {
+            helptext = "<p><b>AutoIntegrate v0.5</b> &mdash; " +
+                              "Automatic image integration utility.</p>";
+      }
       this.__base__ = Dialog;
       this.__base__();
 
@@ -2534,13 +2579,7 @@ function AutoIntegrateDialog()
       this.helpLabel.margin = this.logicalPixelsToPhysical( 4 );
       this.helpLabel.wordWrapping = true;
       this.helpLabel.useRichText = true;
-      if (test_mode) {
-            this.helpLabel.text = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
-                              "Automatic image integration utility.</p>";
-      } else {
-            this.helpLabel.text = "<p><b>AutoIntegrate v0.4</b> &mdash; " +
-                              "Automatic image integration utility.</p>";
-      }
+      this.helpLabel.text = helptext;
       /* Tree box to show files. */
       this.files_TreeBox = new TreeBox( this );
       this.files_TreeBox.multipleSelection = true;
@@ -2826,6 +2865,38 @@ function AutoIntegrateDialog()
       this.closeAllGroupBox.sizer.spacing = 4;
       this.closeAllGroupBox.sizer.add( this.closeAllSizer );
 
+      // Buttons for mosaic save
+      this.mosaicSaveLabel = new Label( this );
+      with (this.mosaicSaveLabel) {
+            text = "Save all mosaic files (P1, P2, ...) as TIFF";
+            textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      }
+      this.mosaicSave16bitButton = new PushButton( this );
+      this.mosaicSave16bitButton.text = "16 bit";
+      this.mosaicSave16bitButton.onClick = function()
+      {
+            console.noteln("Save 16 bit");
+            saveAllMosaicWindows(16);
+      };   
+      this.mosaicSave8bitButton = new PushButton( this );
+      this.mosaicSave8bitButton.text = "8 bit";
+      this.mosaicSave8bitButton.onClick = function()
+      {
+            console.noteln("Save 8 bit");
+            saveAllMosaicWindows(8);
+      };   
+      this.mosaicSaveSizer = new HorizontalSizer;
+      this.mosaicSaveSizer.add( this.mosaicSaveLabel );
+      this.mosaicSaveSizer.addSpacing( 4 );
+      this.mosaicSaveSizer.add( this.mosaicSave16bitButton );
+      this.mosaicSaveSizer.addSpacing( 4 );
+      this.mosaicSaveSizer.add( this.mosaicSave8bitButton );
+      this.mosaicSaveGroupBox = new newGroupBox( this );
+      this.mosaicSaveGroupBox.sizer = new HorizontalSizer;
+      this.mosaicSaveGroupBox.sizer.margin = 6;
+      this.mosaicSaveGroupBox.sizer.spacing = 4;
+      this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
+
       // OK and Cancel buttons
       this.ok_Button = new PushButton( this );
       this.ok_Button.text = "OK";
@@ -2859,6 +2930,7 @@ function AutoIntegrateDialog()
       this.sizer.add( this.autoRunGroupBox );
       this.sizer.add( this.autoContinueGroupBox );
       this.sizer.add( this.closeAllGroupBox );
+      this.sizer.add( this.mosaicSaveGroupBox );
       this.sizer.add( this.buttons_Sizer );
 
       this.windowTitle = "AutoIntegrate Script";
