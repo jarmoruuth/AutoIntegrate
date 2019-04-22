@@ -358,13 +358,19 @@ function saveMosaicWindow(win, dir, name, bits)
 {
       console.writeln("saveMosaicWindow " + name);
       var copy_win = copyWindow(win, name + "_savetmp");
-      var save_name = dir + "/" + name + "_" + bits + ".tif";
-      console.writeln("saveMosaicWindow:save name " + name);
+      var save_name;
 
-      if (copy_win.bitsPerSample != bits) {
-            console.writeln("saveMosaicWindow:set bits to " + bits);
-            copy_win.setSampleFormat(bits, false);
+      if (bits != 32) {
+            save_name = dir + "/" + name + "_" + bits + ".tif";
+
+            if (copy_win.bitsPerSample != bits) {
+                  console.writeln("saveMosaicWindow:set bits to " + bits);
+                  copy_win.setSampleFormat(bits, false);
+            }
+      } else {
+            save_name = dir + "/" + name + ".xisf";
       }
+      console.writeln("saveMosaicWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
@@ -2868,25 +2874,34 @@ function AutoIntegrateDialog()
       // Buttons for mosaic save
       this.mosaicSaveLabel = new Label( this );
       with (this.mosaicSaveLabel) {
-            text = "Save all mosaic files (P1, P2, ...) as TIFF";
+            text = "Save result files (P1, P2, ...) ";
             textAlignment = TextAlign_Left|TextAlign_VertCenter;
       }
+      this.mosaicSaveXisfButton = new PushButton( this );
+      this.mosaicSaveXisfButton.text = "XISF";
+      this.mosaicSaveXisfButton.onClick = function()
+      {
+            console.noteln("Save XISF");
+            saveAllMosaicWindows(32);
+      };   
       this.mosaicSave16bitButton = new PushButton( this );
-      this.mosaicSave16bitButton.text = "16 bit";
+      this.mosaicSave16bitButton.text = "16 bit TIFF";
       this.mosaicSave16bitButton.onClick = function()
       {
-            console.noteln("Save 16 bit");
+            console.noteln("Save 16 bit TIFF");
             saveAllMosaicWindows(16);
       };   
       this.mosaicSave8bitButton = new PushButton( this );
-      this.mosaicSave8bitButton.text = "8 bit";
+      this.mosaicSave8bitButton.text = "8 bit TIFF";
       this.mosaicSave8bitButton.onClick = function()
       {
-            console.noteln("Save 8 bit");
+            console.noteln("Save 8 bit TIFF");
             saveAllMosaicWindows(8);
       };   
       this.mosaicSaveSizer = new HorizontalSizer;
       this.mosaicSaveSizer.add( this.mosaicSaveLabel );
+      this.mosaicSaveSizer.addSpacing( 4 );
+      this.mosaicSaveSizer.add( this.mosaicSaveXisfButton );
       this.mosaicSaveSizer.addSpacing( 4 );
       this.mosaicSaveSizer.add( this.mosaicSave16bitButton );
       this.mosaicSaveSizer.addSpacing( 4 );
