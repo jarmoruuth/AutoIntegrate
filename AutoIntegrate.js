@@ -140,7 +140,8 @@ var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
 var BE_before_channel_combination = false;
-var use_linear_fit = true;
+var use_linear_fit_LRGB = true;
+var use_linear_fit_RGB = false;
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
@@ -150,13 +151,17 @@ var increase_saturation = true;
 var relaxed_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
-var skip_ABE = false;
+var skip_ABE = true;
 var color_calibration_before_ABE = false;
-var use_background_neutralization = true;
+var use_background_neutralization = false;
 var use_drizzle = false;
 var batch_mode = false;
+var use_uwf = false;
+var monochrome_image = false;
+var save_files = true;
 
 var dialogFileNames = null;
+var dialogFilePath = null;
 var all_files;
 var best_ssweight = 0;
 var best_image = null;
@@ -175,6 +180,11 @@ var red_images;
 var green_images;
 var blue_images;
 var color_images;
+var luminance_images_exptime;
+var red_images_exptime;
+var green_images_exptime;
+var blue_images_exptime;
+var color_images_exptime;
 
 var processing_steps = "";
 var all_windows = new Array;
@@ -209,6 +219,7 @@ var fixed_windows = [
       "Integration_RGB_ABE",
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
+      "Integration_LRGB_ABE_HT",
       "Integration_L_noABE",
       "Integration_R_noABE",
       "Integration_G_noABE",
@@ -216,19 +227,28 @@ var fixed_windows = [
       "Integration_RGB_noABE",
       "Integration_L_noABE_HT",
       "Integration_RGB_noABE_HT",
+      "Integration_LRGB_noABE_HT",
       "L_BE_HT",
       "RGB_BE_HT",
       "AutoMask",
       "AutoLRGB_ABE",
       "AutoRGB_ABE",
+      "AutoMono_ABE",
       "AutoLRGB_noABE",
-      "AutoRGB_noABE"
+      "AutoRGB_noABE",
+      "AutoMono_noABE"
 ];
 
 function addProcessingStep(txt)
 {
       console.noteln(txt);
       processing_steps = processing_steps + "\n" + txt;
+}
+
+function throwFatalError(txt)
+{
+      addProcessingStep(txt);
+      throw new Error(txt);
 }
 
 function winIsValid(w)
@@ -271,6 +291,9 @@ function windowCloseif(id)
 
 function windowIconizeif(id)
 {
+      if (id == null) {
+            return;
+      }
       var w = findWindow(id);
       if (w != null) {
             /* Method iconize() will put the icon at the middle position
@@ -354,6 +377,22 @@ function closeAllWindows()
       closeAllWindowsFromArray(fixed_windows);
 }
 
+function saveWindow(path, id)
+{
+      if (path == null || id == null) {
+            return;
+      }
+      console.writeln("saveWindow " + path + id + ".xisf");
+
+      var w = ImageWindow.windowById(id);
+
+      // Save image. No format options, no warning messages, 
+      // no strict mode, no overwrite checks.
+      if (!w.saveAs(path + id + ".xisf", false, false, false, false)) {
+            throwFatalError("Failed to save image: " + path + id + ".xisf");
+      }
+}
+
 function saveMosaicWindow(win, dir, name, bits)
 {
       console.writeln("saveMosaicWindow " + name);
@@ -374,7 +413,7 @@ function saveMosaicWindow(win, dir, name, bits)
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
-            throw Error("Failed to save image: " + outputPath);
+            throwFatalError("Failed to save image: " + outputPath);
       }
       copy_win.forceClose();
 }
@@ -447,8 +486,10 @@ function openFitFiles()
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
-      ofd.caption = "Select Light Frames (*.fit)";
-      ofd.loadImageFilters();
+      ofd.caption = "Select Light Frames";
+      ofd.filters = [
+            ["FITS files", "*.fit"]
+         ];
 
       if (!ofd.execute()) {
             return null;
@@ -663,11 +704,13 @@ function runSubframeSelector(fileNames)
                   }
                   setSSWEIGHT(imageWindow, SSWEIGHT);
                   if (!writeImage(newFilePath, imageWindow)) {
+                        imageWindow.forceClose();
                         console.writeln(
                            "*** Error: Can't write output image: ", newFilePath
                         );
                         continue;
                   }         
+                  imageWindow.forceClose();
                   ssFiles[ssFiles.length] = newFilePath;
             }
       }
@@ -679,6 +722,7 @@ function runSubframeSelector(fileNames)
 function findBestSSWEIGHT(fileNames)
 {
       var ssweight;
+      var newFileNames = [];
 
       run_HT = true;
 
@@ -687,6 +731,7 @@ function findBestSSWEIGHT(fileNames)
       addProcessingStep("Find best SSWEIGHT");
       var n = 0;
       var first_image = true;
+      var best_ssweight_naxis = 0;
       for (var i = 0; i < fileNames.length; i++) {
             var filter;
             var filePath = fileNames[i];
@@ -699,15 +744,15 @@ function findBestSSWEIGHT(fileNames)
             }
             var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
             if (F.isNull) {
-                  throw new Error("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
+                  throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
             }
             var f = new FileFormatInstance(F);
             if (f.isNull) {
-                  throw new Error("Unable to instantiate file format: " + F.name);
+                  throwFatalError("Unable to instantiate file format: " + F.name);
             }
             var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
             if (info.length <= 0) {
-                  throw new Error("Unable to open input file: " + filePath);
+                  throwFatalError("Unable to open input file: " + filePath);
             }
             var keywords = [];
             if (F.canStoreKeywords) {
@@ -719,6 +764,9 @@ function findBestSSWEIGHT(fileNames)
             n++;
 
             var skip_this = false;
+            var uwf = false;        // Chile or T2 UWF scope
+            var naxis1 = 0;
+            var chile = false;
             
             // First check if we skip image since we do not know
             // the order for keywords
@@ -727,25 +775,50 @@ function findBestSSWEIGHT(fileNames)
                   switch (keywords[j].name) {
                         case "TELESCOP":
                               console.noteln("telescop=" +  value);
-                              if (value.indexOf("T2-UWF") != -1) {
-                                    skip_this = true;                                    
+                              if (value.indexOf("UWF") != -1) {
+                                    uwf = true;
+                              } else if (value.indexOf("C1HM") != -1) {
+                                    chile = true;
                               }
+                              break;
+                        case "NAXIS1":
+                              console.noteln("naxis1=" + value);
+                              naxis1 = parseInt(value);
                               break;
                         default:
                               break;
                   }
             }
+            if (chile && naxis1 < 1000) {
+                  // chile UWF sometimes can be identified only by resolution
+                  console.noteln("Chile uwf");
+                  uwf = true;
+            }
+            if (use_uwf) {
+                  skip_this = !uwf;
+            } else {
+                  skip_this = uwf;
+            }
             if (!skip_this) {
+                  newFileNames[newFileNames.length] = fileNames[i];
                   for (var j = 0; j < keywords.length; j++) {
                         var value = keywords[j].strippedValue.trim();
                         switch (keywords[j].name) {
                               case "SSWEIGHT":
                                     ssweight = value;
                                     console.noteln("ssweight=" +  ssweight);
-                                    if (first_image || parseFloat(ssweight) > parseFloat(best_ssweight)) {
+                                    if (!first_image && naxis1 > best_ssweight_naxis) {
+                                          addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
+                                    }
+                                    if (first_image || 
+                                        naxis1 > best_ssweight_naxis ||
+                                        (parseFloat(ssweight) > parseFloat(best_ssweight) &&
+                                         naxis1 == best_ssweight_naxis))
+                                    {
                                           best_ssweight = ssweight;
                                           console.noteln("new best_ssweight=" +  best_ssweight);
                                           best_image = filePath;
+                                          best_ssweight_naxis = naxis1;
                                           first_image = false;
                                     }
                                     break;
@@ -753,14 +826,17 @@ function findBestSSWEIGHT(fileNames)
                                     break;
                         }
                   }
+            } else {
+                  console.noteln("Skip this");
             }
       }
       if (best_image == null) {
             console.noteln("Unable to find image with best SSWEIGHT, using first image");
-            best_image = fileNames[0];
+            best_image = newFileNames[0];
             best_ssweight = 1;
       }
-      return best_image;
+      console.noteln("Unable to find image with best SSWEIGHT, using first image");
+      return [ best_image, newFileNames ];
 }
 
 function findLRGBchannels(
@@ -781,6 +857,13 @@ function findLRGBchannels(
       best_b_image = null;
       best_c_image = null;
 
+      luminance_images_exptime = 0;
+      red_images_exptime = 0;
+      green_images_exptime = 0;
+      blue_images_exptime = 0;
+      color_images_exptime = 0;
+      var exptime;
+
       var n = 0;
       for (var i = 0; i < alignedFiles.length; i++) {
             var filter;
@@ -790,15 +873,15 @@ function findLRGBchannels(
             var ext = ".xisf";
             var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
             if (F.isNull) {
-                  throw new Error("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
+                  throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
             }
             var f = new FileFormatInstance(F);
             if (f.isNull) {
-                  throw new Error("Unable to instantiate file format: " + F.name);
+                  throwFatalError("Unable to instantiate file format: " + F.name);
             }
             var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
             if (info.length <= 0) {
-                  throw new Error("Unable to open input file: " + filePath);
+                  throwFatalError("Unable to open input file: " + filePath);
             }
             var keywords = [];
             if (F.canStoreKeywords) {
@@ -807,7 +890,6 @@ function findLRGBchannels(
             f.close();
 
             filter = 'Color';
-            var skip_this = false;
 
             n++;
             for (var j = 0; j < keywords.length; j++) {
@@ -823,20 +905,27 @@ function findLRGBchannels(
                               break;
                         case "TELESCOP":
                               console.noteln("telescop=" +  value);
-                              if (value.indexOf("T2-UWF") != -1) {
-                                    skip_this = true;                                    
-                              }
+                              break;
+                        case "NAXIS1":
+                              console.noteln("naxis1=" + value);
+                              break;
+                        case "EXPTIME":
+                              console.noteln("exptime=" + value);
+                              exptime = parseFloat(value);
                               break;
                         default:
                               break;
                   }
             }
-            if (skip_this) {
-                  filter = "skip";
+
+            if (monochrome_image) {
+                  console.noteln("Create monochrome image, set filter = Luminance");
+                  filter = 'Luminance';
             }
 
             switch (filter) {
                   case 'Luminance':
+                  case 'Clear':
                         if (best_l_image == null || parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
                               /* Add best images first in the array. */
                               best_l_ssweight = ssweight;
@@ -846,6 +935,7 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(luminance_images, filePath);
                         }
+                        luminance_images_exptime += exptime;
                         break;
                   case 'Red':
                         if (best_r_image == null || parseFloat(ssweight) >= parseFloat(best_r_ssweight)) {
@@ -857,6 +947,7 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(red_images, filePath);
                         }
+                        red_images_exptime += exptime;
                         break;
                   case 'Green':
                         if (best_g_image == null || parseFloat(ssweight) >= parseFloat(best_g_ssweight)) {
@@ -868,6 +959,7 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(green_images, filePath);
                         }
+                        green_images_exptime += exptime;
                         break;
                   case 'Blue':
                         if (best_b_image == null || parseFloat(ssweight) >= parseFloat(best_b_ssweight)) {
@@ -879,6 +971,7 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(blue_images, filePath);
                         }
+                        blue_images_exptime += exptime;
                         break;
                   case 'Color':
                         if (best_c_image == null || parseFloat(ssweight) >= parseFloat(best_c_ssweight)) {
@@ -890,6 +983,7 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(color_images, filePath);
                         }
+                        color_images_exptime += exptime;
                         break;
                   default:
                         /* Assume color files.*/
@@ -902,34 +996,37 @@ function findLRGBchannels(
                         } else {
                               append_image_for_integrate(color_images, filePath);
                         }
+                        color_images_exptime += exptime;
                         break;
             }
       }
       if (color_images.length > 0) {
             if (luminance_images.length > 0) {
-                  throw new Error("Cannot mix color and luminance filter files");
+                  throwFatalError("Cannot mix color and luminance filter files");
             }
             if (red_images.length > 0) {
-                  throw new Error("Cannot mix color and red filter files");
+                  throwFatalError("Cannot mix color and red filter files");
             }
             if (blue_images.length > 0) {
-                  throw new Error("Cannot mix color and blue filter files");
+                  throwFatalError("Cannot mix color and blue filter files");
             }
             if (green_images.length > 0) {
-                  throw new Error("Cannot mix color and green filter files");
+                  throwFatalError("Cannot mix color and green filter files");
             }
       } else {
             if (luminance_images.length == 0) {
-                  throw new Error("No Luminance images found");
+                  throwFatalError("No Luminance images found");
             }
-            if (red_images.length == 0) {
-                  throw new Error("No Red images found");
-            }
-            if (blue_images.length == 0) {
-                  throw new Error("No Blue images found");
-            }
-            if (green_images.length == 0) {
-                  throw new Error("No Green images found");
+            if (!monochrome_image) {
+                  if (red_images.length == 0) {
+                        throwFatalError("No Red images found");
+                  }
+                  if (blue_images.length == 0) {
+                        throwFatalError("No Blue images found");
+                  }
+                  if (green_images.length == 0) {
+                        throwFatalError("No Green images found");
+                  }
             }
       }
 }
@@ -975,7 +1072,11 @@ function runStarAlignment(imagetable, refImage)
       }
       P.noiseLayers = 0;
       P.hotPixelFilterRadius = 1;
-      P.noiseReductionFilterRadius = 0;
+      if (relaxed_StarAlign) {
+            P.noiseReductionFilterRadius = 5;
+      } else {
+            P.noiseReductionFilterRadius = 0;
+      }
       if (relaxed_StarAlign) {
             P.sensitivity = 0.010;
       } else {
@@ -1398,7 +1499,7 @@ function runABE(win, target_id)
  */
 function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
 {
-   addProcessingStep("  Apply AutoSTF on " + view.id);
+   console.noteln("  Apply AutoSTF on " + view.id);
    var stf = new ScreenTransferFunction;
 
    var n = view.image.isColor ? 3 : 1;
@@ -1528,7 +1629,7 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
  */
 function applySTF(imgView, stf)
 {
-      addProcessingStep("  Apply STF on " + imgView.id);
+      console.noteln("  Apply STF on " + imgView.id);
       var HT = new HistogramTransformation;
       if (imgView.isColor) {
             HT.H = [	// shadows, midtones, highlights, rescale0, rescale1
@@ -1559,10 +1660,10 @@ function runHistogramTransform(ABE_win, stf_to_use)
             addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
             return null;
       }
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id);
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
 
       if (stf_to_use == null) {
-            /* Apply autostrech on image */
+            /* Apply autostretch on image */
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
                         DEFAULT_AUTOSTRETCH_TBGND,
@@ -1574,11 +1675,12 @@ function runHistogramTransform(ABE_win, stf_to_use)
       applySTF(ABE_win.mainView, stf_to_use);
 
       /* Undo autostretch */
-      addProcessingStep("  Undo STF on " + ABE_win.mainView.id);
+      console.noteln("  Undo STF on " + ABE_win.mainView.id);
       var stf = new ScreenTransferFunction;
 
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
+      console.noteln(" Execute autostretch on " + ABE_win.mainView.id);
       stf.executeOn(ABE_win.mainView);
 
       ABE_win.mainView.endProcess();
@@ -1850,6 +1952,10 @@ function runLRGBCombination(RGBimgView, L_id)
       P.executeOn(RGBimgView, false);
 
       RGBimgView.endProcess();
+
+      RGBimgView.id = RGBimgView.id.replace("RGB", "LRGB");
+
+      return RGBimgView.id;
 }
 
 function runSCNR(RGBimgView)
@@ -1942,6 +2048,28 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       imgView.mainView.endProcess();
 }
 
+function writeProcessingSteps(alignedFiles)
+{
+      if (dialogFilePath == null) {
+            console.noteln("No path for AutoIntegrate.log");
+      }
+      console.noteln("Write processing steps to " + dialogFilePath + "AutoIntegrate.log");
+      var file = new File();
+      file.createForWriting(dialogFilePath + "AutoIntegrate.log");
+      file.outTextLn("Dialog files:");
+      for (var i = 0; i < dialogFileNames.length; i++) {
+            file.outTextLn(dialogFileNames[i]);
+      }
+      if (alignedFiles != null) {
+            file.outTextLn("Aligned files:");
+            for (var i = 0; i < alignedFiles.length; i++) {
+                  file.outTextLn(alignedFiles[i]);
+            }
+      }
+      file.outTextLn(processing_steps);
+      file.close();
+}
+
 function AutoIntegrateEngine(auto_continue)
 {
       var alignedFiles;
@@ -1974,6 +2102,7 @@ function AutoIntegrateEngine(auto_continue)
       processing_steps = "";
       all_windows = new Array;
       iconPoint = null;
+      dialogFilePath = null;
 
       /* First check if we have some processing done and we should continue
        * from the middle of the processing.
@@ -2015,23 +2144,31 @@ function AutoIntegrateEngine(auto_continue)
       var range_mask_win = null;
 
       if (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
+            addProcessingStep("L,RGB HistogramTransformation");
             preprocessed_images = start_images.L_RGB_HT;
       } else if (winIsValid(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
+            addProcessingStep("RGB (color) HistogramTransformation");
             preprocessed_images = start_images.RGB_HT;
       } else if (winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) { /* L,RGB background extracted */
+            addProcessingStep("L,RGB background extracted");
             preprocessed_images = start_images.L_RGB_DBE;
       } else if (winIsValid(RGB_BE_win)) {                         /* RGB (color) background extracted */
+            addProcessingStep("RGB (color) background extracted");
             preprocessed_images = start_images.RGB_DBE;
       } else if (winIsValid(L_BE_win) && winIsValid(R_BE_win) &&   /* L,R,G,B background extracted */
                  winIsValid(G_BE_win) && winIsValid(B_BE_win)) {
+            addProcessingStep("L,R,G,B background extracted");
             preprocessed_images = start_images.L_R_G_B_DBE;
             BE_before_channel_combination = true;
       } else if (color_id != null) {                              /* RGB (color) integrated image */
+            addProcessingStep("RGB (color) integrated image");
             preprocessed_images = start_images.RGB_COLOR;
       } else if (luminance_id != null && red_id != null &&
                  green_id != null && blue_id != null) {           /* L,R,G,B integrated images */
+            addProcessingStep("L,R,G,B integrated images");
             preprocessed_images = start_images.L_R_G_B;
       } else {
+            addProcessingStep("No preprocessed images found");
             preprocessed_images = start_images.NONE;
       }
 
@@ -2071,8 +2208,8 @@ function AutoIntegrateEngine(auto_continue)
             range_mask_win = findWindow(mask_win_id);
       } else {
             /* Open .fit files and run SubframeSelector on them
-            * that assigns SSWEIGHT.
-            */
+             * to assigns SSWEIGHT.
+             */
             var fileNames;
             if (test_mode) {
                   addProcessingStep("Test mode");
@@ -2092,6 +2229,14 @@ function AutoIntegrateEngine(auto_continue)
                   fileNames = dialogFileNames;
             }
 
+            /* Get path to current directory. */
+            var fname = dialogFileNames[0];
+            var filestart = fname.lastIndexOf('\\');
+            if (filestart == -1) {
+                  filestart = fname.lastIndexOf('/');
+            }
+            dialogFilePath = fname.substring(0, filestart+1)
+
             if (run_subframeselector) {
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
                   * Output is *_a.xisf files.
@@ -2101,8 +2246,11 @@ function AutoIntegrateEngine(auto_continue)
 
             /* Find file with best SSWEIGHT to be used
             * as a reference image in StarAlign.
+            * Also possible file list filtering is done.
             */
-            best_image = findBestSSWEIGHT(fileNames);
+            var retarr =  findBestSSWEIGHT(fileNames);
+            best_image = retarr[0];
+            fileNames = retarr[1];
 
             /* StarAlign
             */
@@ -2132,18 +2280,24 @@ function AutoIntegrateEngine(auto_continue)
             */
             if (color_images.length == 0) {
                   /* We have LRGB files. */
-                  addProcessingStep("Processing as LRGB files");
+                  if (!monochrome_image) {
+                        addProcessingStep("Processing as LRGB files");
+                  } else {
+                        addProcessingStep("Processing as monochrome files");
+                  }
                   color_files = false;
 
                   luminance_id = runImageIntegration(luminance_images, 'L');
 
-                  red_id = runImageIntegration(red_images, 'R');
-                  green_id = runImageIntegration(green_images, 'G');
-                  blue_id = runImageIntegration(blue_images, 'B');
+                  if (!monochrome_image) {
+                        red_id = runImageIntegration(red_images, 'R');
+                        green_id = runImageIntegration(green_images, 'G');
+                        blue_id = runImageIntegration(blue_images, 'B');
 
-                  ImageWindow.windowById(red_id).show();
-                  ImageWindow.windowById(green_id).show();
-                  ImageWindow.windowById(blue_id).show();
+                        ImageWindow.windowById(red_id).show();
+                        ImageWindow.windowById(green_id).show();
+                        ImageWindow.windowById(blue_id).show();
+                  }
 
             } else {
                   /* We have color files. */
@@ -2159,7 +2313,7 @@ function AutoIntegrateEngine(auto_continue)
       /* Now we have L (Gray) and RGB images, or just RGB image
        * in case of color files.
        *
-       * Next we apply ABE on both and use autostrech as
+       * Next we apply ABE on both and use autostretch as
        * input for HistogramTransfer.
        *
        * We keep integrated L and RGB images so it is
@@ -2220,6 +2374,7 @@ function AutoIntegrateEngine(auto_continue)
             }
 
             if (!color_files && 
+                !monochrome_image &&
                 (preprocessed_images == start_images.NONE ||
                  preprocessed_images == start_images.L_R_G_B_DBE ||
                  preprocessed_images == start_images.L_R_G_B)) 
@@ -2241,7 +2396,7 @@ function AutoIntegrateEngine(auto_continue)
                               B_ABE_id = runABE(ImageWindow.windowById(blue_id));
                         }
                   }
-                  if (use_linear_fit) {
+                  if (use_linear_fit_LRGB) {
                         /* LinearFit
                         */
                         if (BE_before_channel_combination) {
@@ -2252,6 +2407,16 @@ function AutoIntegrateEngine(auto_continue)
                               runLinearFit(luminance_id, red_id);
                               runLinearFit(luminance_id, green_id);
                               runLinearFit(luminance_id, blue_id);
+                        }
+                  } else if (use_linear_fit_RGB) {
+                        /* LinearFit
+                        */
+                        if (BE_before_channel_combination) {
+                              runLinearFit(R_ABE_id, G_ABE_id);
+                              runLinearFit(R_ABE_id, B_ABE_id);
+                        } else {
+                              runLinearFit(red_id, green_id);
+                              runLinearFit(red_id, blue_id);
                         }
                   }
                   if (use_noise_reduction_on_all_channels) {
@@ -2305,7 +2470,14 @@ function AutoIntegrateEngine(auto_continue)
                   RGB_win_id = RGB_win.mainView.id;
             }
 
-            if (!channelcombination_only) {
+            if (monochrome_image) {
+                  console.noteln("monochrome_image:rename windows")
+                  if (skip_ABE) {
+                        RGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono_noABE");
+                  } else {
+                        RGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono_ABE");
+                  }
+            } else if (!channelcombination_only) {
                   /* ABE on RGB
                   */
                   if (preprocessed_images == start_images.L_RGB_HT ||
@@ -2345,6 +2517,12 @@ function AutoIntegrateEngine(auto_continue)
                               runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
                         }
 
+                        /* Noise reduction for color RGB
+                         */
+                        runMultiscaleLinearTransformReduceNoise(
+                              ImageWindow.windowById(RGB_ABE_id),
+                              mask_win);
+
                         /* On RGB image run HistogramTransform based on autostretch
                         */
                         RGB_ABE_HT_id = RGB_ABE_id + "_HT";
@@ -2379,9 +2557,9 @@ function AutoIntegrateEngine(auto_continue)
                   if (!color_files) {
                         /* LRGB files. Combine L and RGB images.
                         */
-                        runLRGBCombination(
-                              ImageWindow.windowById(RGB_ABE_HT_id).mainView,
-                              L_ABE_HT_id);
+                       RGB_ABE_HT_id = runLRGBCombination(
+                                          ImageWindow.windowById(RGB_ABE_HT_id).mainView,
+                                          L_ABE_HT_id);
                   }
 
                   /* Remove green cast, run SCNR
@@ -2416,6 +2594,17 @@ function AutoIntegrateEngine(auto_continue)
                   }
             }
       }
+      if (use_drizzle) {
+            RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "Drizzle"+RGB_ABE_HT_id);
+      }
+
+      if (save_files) {
+            saveWindow(dialogFilePath, luminance_id);            /* Integration_L */
+            saveWindow(dialogFilePath, red_id);                  /* Integration_R */
+            saveWindow(dialogFilePath, green_id);                /* Integraion_G */
+            saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
+            saveWindow(dialogFilePath, RGB_ABE_HT_id);
+      }
 
       /* All done, do cleanup on windows on screen 
        */
@@ -2441,6 +2630,7 @@ function AutoIntegrateEngine(auto_continue)
              * First check possible device in Windows (like c:)
              */
             var fname = dialogFileNames[0];
+            console.noteln("Batch mode, get directory from file " + fname);
             var ss = fname.split(':');
             if (ss.length > 1) {
                   fname = ss[ss.length-1];
@@ -2455,67 +2645,72 @@ function AutoIntegrateEngine(auto_continue)
             if (ss.length > 1) {
                   fname = ss[ss.length-2];
             }
+            if (!isNaN(Number(fname.substring(0, 1)))) {
+                  // We have number which is not valid
+                  fname = 'P' + fname;
+            }
+            addProcessingStep("Batch mode, rename " + RGB_ABE_HT_id + " to " + fname);
             RGB_ABE_HT_id = windowRenameKeepif(RGB_ABE_HT_id, fname, true);
+            console.noteln("Batch mode, rename done");
       }
-
-      console.noteln("Processing steps:");
-      console.noteln(processing_steps);
-
-      console.noteln("Parameter values:");
-      console.noteln("Integrate only:"+integrate_only);
-      console.noteln("Run local normalization:"+use_local_normalization);
-      console.noteln("ABE on R,G,B images before channel combination:"+BE_before_channel_combination);
-      console.noteln("Use Linear Fit:"+use_linear_fit);
-      console.noteln("Use noise reduction on R,G,B channels:"+use_noise_reduction_on_all_channels);
-      console.noteln("Increase saturation:"+increase_saturation);
-      console.noteln("Relaxed StarAlign:"+relaxed_StarAlign);
 
       if (preprocessed_images == start_images.NONE) {
             /* Output some info of files.
             */
-            console.noteln("* All data files *");
-            console.noteln(all_files.length + " data files, " + alignedFiles.length + " accepted");
-            console.noteln("best_ssweight="+best_ssweight);
-            console.noteln("best_image="+best_image);
-
+            addProcessingStep("* All data files *");
+            addProcessingStep(all_files.length + " data files, " + alignedFiles.length + " accepted");
+            addProcessingStep("best_ssweight="+best_ssweight);
+            addProcessingStep("best_image="+best_image);
+            var totalexptime = luminance_images_exptime + red_images_exptime + green_images_exptime +
+                               blue_images_exptime + color_images_exptime;
+            addProcessingStep("total exptime="+totalexptime);
+            
             console.noteln("");
 
             if (!color_files) {
                   /* LRGB files */
-                  console.noteln("* L " + luminance_images.length + " data files *");
+                  addProcessingStep("* L " + luminance_images.length + " data files *");
                   //console.noteln("luminance_images="+luminance_images);
-                  console.noteln("best_l_ssweight="+best_l_ssweight);
-                  console.noteln("best_l_image="+best_l_image);
-                  console.noteln("");
+                  addProcessingStep("best_l_ssweight="+best_l_ssweight);
+                  addProcessingStep("best_l_image="+best_l_image);
+                  addProcessingStep("L exptime="+luminance_images_exptime);
 
-                  console.noteln("* R " + red_images.length + " data files *");
-                  //console.noteln("red_images="+red_images);
-                  console.noteln("best_r_ssweight="+best_r_ssweight);
-                  console.noteln("best_r_image="+best_r_image);
-                  console.noteln("");
+                  if (!monochrome_image) {
+                        addProcessingStep("* R " + red_images.length + " data files *");
+                        //console.noteln("red_images="+red_images);
+                        addProcessingStep("best_r_ssweight="+best_r_ssweight);
+                        addProcessingStep("best_r_image="+best_r_image);
+                        addProcessingStep("R exptime="+red_images_exptime);
 
-                  console.noteln("* G " + green_images.length + " data files *");
-                  //console.noteln("green_images="+green_images);
-                  console.noteln("best_g_ssweight="+best_g_ssweight);
-                  console.noteln("best_g_image="+best_g_image);
-                  console.noteln("");
+                        addProcessingStep("* G " + green_images.length + " data files *");
+                        //console.noteln("green_images="+green_images);
+                        addProcessingStep("best_g_ssweight="+best_g_ssweight);
+                        addProcessingStep("best_g_image="+best_g_image);
+                        addProcessingStep("G exptime="+green_images_exptime);
 
-                  console.noteln("* B " + blue_images.length + " data files *");
-                  //console.noteln("blue_images="+blue_images);
-                  console.noteln("best_b_ssweight="+best_b_ssweight);
-                  console.noteln("best_b_image="+best_b_image);
-                  console.noteln("");
+                        addProcessingStep("* B " + blue_images.length + " data files *");
+                        //console.noteln("blue_images="+blue_images);
+                        addProcessingStep("best_b_ssweight="+best_b_ssweight);
+                        addProcessingStep("best_b_image="+best_b_image);
+                        addProcessingStep("B exptime="+blue_images_exptime);
+                  }
             } else {
                   /* Color files */
-                  console.noteln("* Color data files *");
+                  addProcessingStep("* Color data files *");
                   //console.noteln("color_images="+color_images);
-                  console.noteln("best_c_ssweight="+best_c_ssweight);
-                  console.noteln("best_c_image="+best_c_image);
-                  console.noteln("");
+                  addProcessingStep("best_c_ssweight="+best_c_ssweight);
+                  addProcessingStep("best_c_image="+best_c_image);
+                  addProcessingStep("Color exptime="+color_images_exptime);
             }
       }
       var end_time = Date.now();
-      console.noteln("Script completed, time "+(end_time-start_time)/1000+" sec");
+      addProcessingStep("Script completed, time "+(end_time-start_time)/1000+" sec");
+
+      console.noteln("Processing steps:");
+      console.noteln(processing_steps);
+      console.noteln("");
+
+      writeProcessingSteps(alignedFiles);
 
       BE_before_channel_combination = saved_BE_before_channel_combination;
 
@@ -2607,12 +2802,16 @@ function AutoIntegrateDialog()
       this.filesAdd_Button.toolTip = "<p>Add image files to the input images list.</p>";
       this.filesAdd_Button.onClick = function()
       {
-            dialogFileNames = openFitFiles();
-            if (dialogFileNames != null) {
+            var fitFileNames = openFitFiles();
+            if (fitFileNames != null) {
+                  if (dialogFileNames == null) {
+                        dialogFileNames = [];
+                  }
                   this.dialog.files_TreeBox.canUpdate = false;
-                  for (var i = 0; i < dialogFileNames.length; i++) {
-                  var node = new TreeBoxNode(this.dialog.files_TreeBox);
-                  node.setText(0, dialogFileNames[i]);
+                  for (var i = 0; i < fitFileNames.length; i++) {
+                        var node = new TreeBoxNode(this.dialog.files_TreeBox);
+                        node.setText(0, fitFileNames[i]);
+                        dialogFileNames[dialogFileNames.length] = fitFileNames[i];
                   }
                   this.dialog.files_TreeBox.canUpdate = true;
             }
@@ -2653,9 +2852,13 @@ function AutoIntegrateDialog()
             "<p>Run ABE in R,G,B images before ChannelCombination instead of after CC</p>" );
       this.ABEeforeChannelCombinationCheckBox.onClick = function(checked) { BE_before_channel_combination = checked; }
 
-      this.useLinearFitCheckBox = newCheckBox(this, "Linear fit", use_linear_fit, 
-            "<p>Run LinearFit based on L image before ChannelCombination</p>" );
-      this.useLinearFitCheckBox.onClick = function(checked) { use_linear_fit = checked; }
+      this.useLinearFitLRGBCheckBox = newCheckBox(this, "Linear fit RGB using L", use_linear_fit_LRGB, 
+            "<p>Run LinearFit on RGB based on L image before ChannelCombination</p>" );
+      this.useLinearFitLRGBCheckBox.onClick = function(checked) { use_linear_fit_LRGB = checked; }
+
+      this.useLinearFitRGBCheckBox = newCheckBox(this, "Linear fit GB using R", use_linear_fit_RGB, 
+            "<p>Run LinearFit based on R image before ChannelCombination</p>" );
+      this.useLinearFitRGBCheckBox.onClick = function(checked) { use_linear_fit_RGB = checked; }
 
       this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
@@ -2705,7 +2908,18 @@ function AutoIntegrateDialog()
       "<p>Use Drizzle integration</p>" );
       this.use_drizzle_CheckBox.onClick = function(checked) { use_drizzle = checked; }
 
+      this.use_uwf_CheckBox = newCheckBox(this, "UWF", use_uwf, 
+      "<p>Use Ultra Wide Field (UWF) images for integration</p>" );
+      this.use_uwf_CheckBox.onClick = function(checked) { use_uwf = checked; }
       
+      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", monochrome_image, 
+      "<p>Create monochrome image</p>" );
+      this.monochrome_image_CheckBox.onClick = function(checked) { monochrome_image = checked; }
+
+      this.save_files_CheckBox = newCheckBox(this, "Save files", save_files, 
+      "<p>Save integrated and final images</p>" );
+      this.save_files_CheckBox.onClick = function(checked) { save_files = checked; }
+
       this.hideConsoleCheckBox = newCheckBox(this, "Hide console", hide_console, 
             "<p>Hide console</p>" );
       this.hideConsoleCheckBox.onClick = function(checked) { 
@@ -2729,6 +2943,8 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.ABEeforeChannelCombinationCheckBox );
       this.paramsSet1.add( this.skipABECheckBox );
       this.paramsSet1.add( this.color_calibration_before_ABE_CheckBox );
+      this.paramsSet1.add( this.use_uwf_CheckBox );
+      this.paramsSet1.add( this.monochrome_image_CheckBox );
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
@@ -2736,11 +2952,13 @@ function AutoIntegrateDialog()
       this.paramsSet2.spacing = 4;
       this.paramsSet2.add( this.use_background_neutralization_CheckBox );
       this.paramsSet2.add( this.useLocalNormalizationCheckBox );
-      this.paramsSet2.add( this.useLinearFitCheckBox );
+      this.paramsSet2.add( this.useLinearFitLRGBCheckBox );
+      this.paramsSet2.add( this.useLinearFitRGBCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.paramsSet2.add( this.SaturationCheckBox );
       this.paramsSet2.add( this.keepIntegratedImagesCheckBox );
       this.paramsSet2.add( this.hideConsoleCheckBox );
+      this.paramsSet2.add( this.save_files_CheckBox );
       this.paramsSet2.add( this.batch_mode_CheckBox );
 
       // Group parameters.
@@ -2791,6 +3009,7 @@ function AutoIntegrateDialog()
                         catch(err) {
                               console.noteln(err);
                               console.noteln("Processing stopped!");
+                              writeProcessingSteps(null);
                         }
                         if (batch_mode) {
                               dialogFileNames = null;
