@@ -835,7 +835,6 @@ function findBestSSWEIGHT(fileNames)
             best_image = newFileNames[0];
             best_ssweight = 1;
       }
-      console.noteln("Unable to find image with best SSWEIGHT, using first image");
       return [ best_image, newFileNames ];
 }
 
@@ -2517,12 +2516,13 @@ function AutoIntegrateEngine(auto_continue)
                               runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
                         }
 
-                        /* Noise reduction for color RGB
-                         */
-                        runMultiscaleLinearTransformReduceNoise(
-                              ImageWindow.windowById(RGB_ABE_id),
-                              mask_win);
-
+                        if (!color_files) {
+                              /* Noise reduction for RGB
+                               */
+                              runMultiscaleLinearTransformReduceNoise(
+                                    ImageWindow.windowById(RGB_ABE_id),
+                                    mask_win);
+                        }
                         /* On RGB image run HistogramTransform based on autostretch
                         */
                         RGB_ABE_HT_id = RGB_ABE_id + "_HT";
