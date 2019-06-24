@@ -5,11 +5,6 @@ processing in PixInsight.
 
 Script has a GUI interface where some processing options can be selected.
 
-NOTE! The use of new SubframeSelector process breaks the GUI so you can only close 
-the script dialog after processing. This is what is normally done so it does not change 
-the functionality, only the look and feel. Also SubframeSelector leaves Measurements and
-Expressions windows open and those must be closed manually.
-
 After running the script there will be integrated light images and automatically processed 
 final image. Both LRGB and color files are accepted. Files must have .fit extension. 
 
@@ -23,7 +18,7 @@ Steps to run the script
 2. Open file AutoIntegrate.js
 3. Press F9 to run the script in the editor
 4. When script Dialog opens, click AutoRun
-4. In the file dialog, open all *.fit files and wait until script completes.
+5. In the file dialog, select all *.fit files and wait until script completes.
 
 It is also possible to run manually background extraction, histogram transformations or
 other steps on the integrated images and then continue automatic processing from there. 
