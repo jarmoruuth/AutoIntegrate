@@ -3093,7 +3093,7 @@ function AutoIntegrateDialog()
       // Buttons for mosaic save
       this.mosaicSaveLabel = new Label( this );
       with (this.mosaicSaveLabel) {
-            text = "Save result files (P1, P2, ...) ";
+            text = "Save batch result files (P1, P2, ...) ";
             textAlignment = TextAlign_Left|TextAlign_VertCenter;
       }
       this.mosaicSaveXisfButton = new PushButton( this );
