@@ -399,8 +399,16 @@ function saveMosaicWindow(win, dir, name, bits)
       var copy_win = copyWindow(win, name + "_savetmp");
       var save_name;
 
+      // 8 and 16 bite are TIFF, 32 is XISF
       if (bits != 32) {
-            save_name = dir + "/" + name + "_" + bits + ".tif";
+            var new_postfix = "_" + bits;
+            var old_postfix = name.substr(name.len - new_postfix.len);
+            if (old_postfix != new_postfix) {
+                  save_name = dir + "/" + name + new_postfix + ".tif";
+            } else {
+                  // we already have bits added to name
+                  save_name = dir + "/" + name + ".tif";
+            }
 
             if (copy_win.bitsPerSample != bits) {
                   console.writeln("saveMosaicWindow:set bits to " + bits);
@@ -425,12 +433,20 @@ function saveAllMosaicWindows(bits)
       gdd.caption = "Select Save Directory";
 
       if (gdd.execute()) {
+            // Find a windows that has a keyword which tells this is
+            // a batch mode result file
             console.writeln("saveAllMosaicWindows:dir " + gdd.directory);
-            for (var i = 0; i < 100; i++) {
-                  var name = "P"+i;
-                  var win = findWindow(name);
-                  if (win != null) {
-                        saveMosaicWindow(win, gdd.directory, name, bits);
+            var images = ImageWindow.windows;
+            for (var i in images) {
+                  var imageWindow = images[i];
+                  var keywords = imageWindow.keywords;
+                  for (var j = 0; j != keywords.length; j++) {
+                        var keyword = keywords[j].name;
+                        var value = keywords[j].strippedValue.trim();
+                        if (keyword == "AstroMosaic" && value == "batch") {
+                              // we have batch window 
+                              saveMosaicWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
+                        }
                   }
             }
       }
@@ -448,6 +464,7 @@ function copyWindow(sourceWindow, name)
                               name);
       targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
       targetWindow.mainView.image.assign(sourceWindow.mainView.image);
+      targetWindow.keywords = sourceWindow.keywords;
       targetWindow.mainView.endProcess();
 
       targetWindow.show();
@@ -526,21 +543,39 @@ function findMax(arr, idx)
       return maxval;
 }
 
-function setSSWEIGHT(imageWindow, SSWEIGHT) 
+function filterKeywords(imageWindow, keywordname) 
 {
       var oldKeywords = [];
       var keywords = imageWindow.keywords;
       for (var i = 0; i != keywords.length; i++) {
             var keyword = keywords[i];
-            if (keyword.name != "SSWEIGHT") {
+            if (keyword.name != keywordname) {
                   oldKeywords[oldKeywords.length] = keyword;
             }
       }
+      return oldKeywords;
+}
+
+function setSSWEIGHTkeyword(imageWindow, SSWEIGHT) 
+{
+      var oldKeywords = filterKeywords(imageWindow, "SSWEIGHT");
       imageWindow.keywords = oldKeywords.concat([
          new FITSKeyword(
             "SSWEIGHT",
             SSWEIGHT.toFixed(3),
             "Image weight"
+         )
+      ]);
+}
+
+function setBatchKeyword(imageWindow) 
+{
+      var oldKeywords = filterKeywords(imageWindow, "AstroMosaic");
+      imageWindow.keywords = oldKeywords.concat([
+         new FITSKeyword(
+            "AstroMosaic",
+            "batch",
+            "AstroMosaic batch processed file"
          )
       ]);
 }
@@ -702,7 +737,7 @@ function runSubframeSelector(fileNames)
                         console.writeln("*** Error: Can't read subframe: ", filePath);
                         continue;
                   }
-                  setSSWEIGHT(imageWindow, SSWEIGHT);
+                  setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
                   if (!writeImage(newFilePath, imageWindow)) {
                         imageWindow.forceClose();
                         console.writeln(
@@ -2651,7 +2686,8 @@ function AutoIntegrateEngine(auto_continue)
             }
             addProcessingStep("Batch mode, rename " + RGB_ABE_HT_id + " to " + fname);
             RGB_ABE_HT_id = windowRenameKeepif(RGB_ABE_HT_id, fname, true);
-            console.noteln("Batch mode, rename done");
+            console.noteln("Batch mode, set batch keyword");
+            setBatchKeyword(ImageWindow.windowById(RGB_ABE_HT_id));
       }
 
       if (preprocessed_images == start_images.NONE) {
@@ -3093,7 +3129,7 @@ function AutoIntegrateDialog()
       // Buttons for mosaic save
       this.mosaicSaveLabel = new Label( this );
       with (this.mosaicSaveLabel) {
-            text = "Save batch result files (P1, P2, ...) ";
+            text = "Save batch result files";
             textAlignment = TextAlign_Left|TextAlign_VertCenter;
       }
       this.mosaicSaveXisfButton = new PushButton( this );
