@@ -2800,7 +2800,8 @@ function AutoIntegrateDialog()
             helptext = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       } else {
-            helptext = "<p><b>AutoIntegrate v0.5</b> &mdash; " +
+            /* Version number is here. */
+            helptext = "<p><b>AutoIntegrate v0.51</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
