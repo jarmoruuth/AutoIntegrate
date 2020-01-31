@@ -141,7 +141,7 @@ var use_local_normalization = false;            /* color problems, maybe should 
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
 var BE_before_channel_combination = false;
 var use_linear_fit_LRGB = true;
-var use_linear_fit_RGB = false;
+var use_linear_fit_using_R = false;
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
@@ -505,7 +505,8 @@ function openFitFiles()
       ofd.multipleSelections = true;
       ofd.caption = "Select Light Frames";
       ofd.filters = [
-            ["FITS files", "*.fit"]
+            ["FITS files", "*.fit"],
+            ["All files", "*.*"]
          ];
 
       if (!ofd.execute()) {
@@ -725,7 +726,11 @@ function runSubframeSelector(fileNames)
             var filePath = ssWeights[i][0];
             if (filePath != null && filePath != "") {
                   var SSWEIGHT = ssWeights[i][1];
-                  var newFilePath = filePath.replace(".fit", "_a.xisf");
+                  var ext = '.' + filePath.split('.').pop();
+                  var newFilePath = filePath.replace(ext, "_a.xisf");
+                  if (newFilePath == filePath) {
+                        throwFatalError("Cannot generate new output file name from " + filePath + ", extension " + ext);
+                  }
                   console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
                   var imageWindows = ImageWindow.open(filePath);
                   if (imageWindows.length != 1) {
@@ -772,9 +777,9 @@ function findBestSSWEIGHT(fileNames)
             var filePath = fileNames[i];
             var ext = '.' + filePath.split('.').pop();
             console.noteln("File " +  filePath + " ext " +  ext);
-            if (ext.toUpperCase() == '.TIF' || ext.toUpperCase() == '.TIFF' ||
-                ext.toUpperCase() == '.JPG')
-            {
+            if (ext.toUpperCase() == '.FIT' || ext.toUpperCase() == '.XISF') {
+                  run_HT = true;
+            } else {
                   run_HT = false;
             }
             var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
@@ -2433,24 +2438,31 @@ function AutoIntegrateEngine(auto_continue)
                   if (use_linear_fit_LRGB) {
                         /* LinearFit
                         */
-                        if (BE_before_channel_combination) {
-                              runLinearFit(L_ABE_id, R_ABE_id);
-                              runLinearFit(L_ABE_id, G_ABE_id);
-                              runLinearFit(L_ABE_id, B_ABE_id);
+                        if (use_linear_fit_using_R) {
+                              /* Use R.
+                              */
+                              if (BE_before_channel_combination) {
+                                    runLinearFit(R_ABE_id, L_ABE_id);
+                                    runLinearFit(R_ABE_id, G_ABE_id);
+                                    runLinearFit(R_ABE_id, B_ABE_id);
+                              } else {
+                                    runLinearFit(red_id, luminance_id);
+                                    runLinearFit(red_id, green_id);
+                                    runLinearFit(red_id, blue_id);
+                              }
                         } else {
-                              runLinearFit(luminance_id, red_id);
-                              runLinearFit(luminance_id, green_id);
-                              runLinearFit(luminance_id, blue_id);
-                        }
-                  } else if (use_linear_fit_RGB) {
-                        /* LinearFit
-                        */
-                        if (BE_before_channel_combination) {
-                              runLinearFit(R_ABE_id, G_ABE_id);
-                              runLinearFit(R_ABE_id, B_ABE_id);
-                        } else {
-                              runLinearFit(red_id, green_id);
-                              runLinearFit(red_id, blue_id);
+                              /* Use L.
+                               */
+                              if (BE_before_channel_combination) {
+                                    runLinearFit(L_ABE_id, R_ABE_id);
+                                    runLinearFit(L_ABE_id, G_ABE_id);
+                                    runLinearFit(L_ABE_id, B_ABE_id);
+                              } else {
+                                    runLinearFit(luminance_id, red_id);
+                                    runLinearFit(luminance_id, green_id);
+                                    runLinearFit(luminance_id, blue_id);
+                              }
+      
                         }
                   }
                   if (use_noise_reduction_on_all_channels) {
@@ -2889,13 +2901,13 @@ function AutoIntegrateDialog()
             "<p>Run ABE in R,G,B images before ChannelCombination instead of after CC</p>" );
       this.ABEeforeChannelCombinationCheckBox.onClick = function(checked) { BE_before_channel_combination = checked; }
 
-      this.useLinearFitLRGBCheckBox = newCheckBox(this, "Linear fit RGB using L", use_linear_fit_LRGB, 
-            "<p>Run LinearFit on RGB based on L image before ChannelCombination</p>" );
+      this.useLinearFitLRGBCheckBox = newCheckBox(this, "Use linear fit", use_linear_fit_LRGB, 
+            "<p>Run LinearFit before ChannelCombination</p>" );
       this.useLinearFitLRGBCheckBox.onClick = function(checked) { use_linear_fit_LRGB = checked; }
 
-      this.useLinearFitRGBCheckBox = newCheckBox(this, "Linear fit GB using R", use_linear_fit_RGB, 
-            "<p>Run LinearFit based on R image before ChannelCombination</p>" );
-      this.useLinearFitRGBCheckBox.onClick = function(checked) { use_linear_fit_RGB = checked; }
+      this.useLinearFitRGBCheckBox = newCheckBox(this, "Linear fit using R image", use_linear_fit_using_R, 
+            "<p>Run LinearFit based on R image. Default is to use L image.</p>" );
+      this.useLinearFitRGBCheckBox.onClick = function(checked) { use_linear_fit_using_R = checked; }
 
       this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
