@@ -158,6 +158,8 @@ var use_drizzle = false;
 var batch_mode = false;
 var use_uwf = false;
 var monochrome_image = false;
+var synthetic_l_image = false;
+var synthetic_missing_images = false;
 var save_files = true;
 
 var dialogFileNames = null;
@@ -878,6 +880,26 @@ function findBestSSWEIGHT(fileNames)
       return [ best_image, newFileNames ];
 }
 
+function copy_image_list(target_images, source_images)
+{
+      for (var i = 0; i < source_images.length; i++) {
+            append_image_for_integrate(target_images, source_images[i][1]);
+      }
+}
+
+function find_best_image(weight_arr, image_arr)
+{
+      var best_weight = weight_arr[0];
+      var best_image = image_arr[0];
+
+      for (i = 1; i < weight_arr.length; i++) {
+            if (weight_arr[i] > best_weight) {
+                  best_image = image_arr[i];
+            }
+      }
+      return { wght: best_weight, img: best_image };
+}
+
 function findLRGBchannels(
       alignedFiles,
       luminance_images,
@@ -1053,18 +1075,62 @@ function findLRGBchannels(
                   throwFatalError("Cannot mix color and green filter files");
             }
       } else {
+            if (synthetic_l_image ||
+                (synthetic_missing_images && luminance_images.length == 0))
+            {
+                  if (luminance_images.length == 0) {
+                        addProcessingStep("No luminance images, synthetic luminance image from all other images");
+                  } else {
+                        addProcessingStep("Synthetic luminance image from all LRGB images");
+                  }
+                  copy_image_list(luminance_images, red_images);
+                  copy_image_list(luminance_images, blue_images);
+                  copy_image_list(luminance_images, green_images);
+                  var bst = find_best_image(
+                              [best_l_ssweight, best_r_ssweight, best_g_ssweight, best_b_ssweight],
+                              [best_l_image, best_r_image, best_g_image, best_b_image]);
+
+                  best_l_ssweight = bst.wght;
+                  best_l_image = bst.img;
+                  luminance_images_exptime = luminance_images_exptime + red_images_exptime +
+                                             green_images_exptime + blue_images_exptime;
+            }
             if (luminance_images.length == 0) {
                   throwFatalError("No Luminance images found");
             }
             if (!monochrome_image) {
                   if (red_images.length == 0) {
-                        throwFatalError("No Red images found");
+                        if (synthetic_missing_images) {
+                              addProcessingStep("No red images, synthetic red image from luminance images");
+                              copy_image_list(red_images, luminance_images);
+                              best_r_ssweight = best_l_ssweight;
+                              best_r_image = best_l_image;
+                              red_images_exptime = luminance_images_exptime;
+                        } else {
+                              throwFatalError("No Red images found");
+                        }
                   }
                   if (blue_images.length == 0) {
-                        throwFatalError("No Blue images found");
+                        if (synthetic_missing_images) {
+                              addProcessingStep("No blue images, synthetic blue image from luminance images");
+                              copy_image_list(blue_images, luminance_images);
+                              best_b_ssweight = best_l_ssweight;
+                              best_b_image = best_l_image;
+                              blue_images_exptime = luminance_images_exptime;
+                        } else {
+                              throwFatalError("No Blue images found");
+                        }
                   }
                   if (green_images.length == 0) {
-                        throwFatalError("No Green images found");
+                        if (synthetic_missing_images) {
+                              addProcessingStep("No green images, synthetic green image from luminance images");
+                              copy_image_list(green_images, luminance_images);
+                              best_g_ssweight = best_l_ssweight;
+                              best_g_image = best_l_image;
+                              green_images_exptime = luminance_images_exptime;
+                        } else {
+                              throwFatalError("No Green images found");
+                        }
                   }
             }
       }
@@ -1329,15 +1395,85 @@ function runImageIntegration(images, name)
             return runImageIntegrationNormalized(images, name);
       }
 
-      var II = new ImageIntegration;
+      var P = new ImageIntegration;
 
-      II.evaluateNoise = true;
+      // default settings
+      P.images = [ // enabled, path, drizzlePath, localNormalizationDataPath
+      ];
+      P.inputHints = "";
+      P.combination = ImageIntegration.prototype.Average;
+      P.weightMode = ImageIntegration.prototype.NoiseEvaluation;
+      P.weightKeyword = "";
+      P.weightScale = ImageIntegration.prototype.WeightScale_IKSS;
+      P.ignoreNoiseKeywords = false;
+      P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
+      P.rejection = ImageIntegration.prototype.NoRejection;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.minMaxLow = 1;
+      P.minMaxHigh = 1;
+      P.pcClipLow = 0.200;
+      P.pcClipHigh = 0.100;
+      P.sigmaLow = 4.000;
+      P.sigmaHigh = 3.000;
+      P.winsorizationCutoff = 5.000;
+      P.linearFitLow = 5.000;
+      P.linearFitHigh = 4.000;
+      P.esdOutliersFraction = 0.30;
+      P.esdAlpha = 0.05;
+      P.ccdGain = 1.00;
+      P.ccdReadNoise = 10.00;
+      P.ccdScaleNoise = 0.00;
+      P.clipLow = true;
+      P.clipHigh = true;
+      P.rangeClipLow = true;
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+      P.largeScaleClipLow = false;
+      P.largeScaleClipLowProtectedLayers = 2;
+      P.largeScaleClipLowGrowth = 2;
+      P.largeScaleClipHigh = false;
+      P.largeScaleClipHighProtectedLayers = 2;
+      P.largeScaleClipHighGrowth = 2;
+      P.generate64BitResult = false;
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+      P.bufferSizeMB = 16;
+      P.stackSizeMB = 1024;
+      P.autoMemorySize = true;
+      P.autoMemoryLimit = 0.75;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.useCache = true;
+      P.evaluateNoise = true;
+      P.mrsMinDataFraction = 0.010;
+      P.subtractPedestals = true;
+      P.truncateOnOutOfRange = false;
+      P.noGUIMessages = true;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+
+      // Modification for AutoIntegrate
+      P.evaluateNoise = true;
       if (images.length < 8) {
-            addProcessingStep("  Using percentile clip for rejection");
-            II.rejection = ImageIntegration.prototype.PercentileClip;
+            addProcessingStep("  Using Percentile Clipping for rejection");
+            P.rejection = ImageIntegration.prototype.PercentileClip;
+      } else if (images.length <= 10) {
+            addProcessingStep("  Using Averaged Sigma Clipping for rejection");
+            P.rejection = ImageIntegration.prototype.AveragedSigmaClip;
+      } else if (images.length <= 20) {
+            addProcessingStep("  Using Winsorized sigma clip for rejection");
+            P.rejection = ImageIntegration.prototype.WinsorizedSigmaClip;
       } else {
-            addProcessingStep("  Using sigma clip for rejection");
-            II.rejection = ImageIntegration.prototype.SigmaClip;
+            addProcessingStep("  Using Linear Fit Clipping for rejection");
+            P.rejection = ImageIntegration.prototype.LinearFit;
       }
       if (use_drizzle) {
             var drizzleImages = new Array;
@@ -1347,23 +1483,23 @@ function runImageIntegration(images, name)
                   drizzleImages[i][1] = images[i][1];      // path
                   drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
             }
-            II.generateDrizzleData = true; /* Generate .xdrz data. */
-            II.images = drizzleImages;
+            P.generateDrizzleData = true; /* Generate .xdrz data. */
+            P.images = drizzleImages;
       } else {
-            II.generateDrizzleData = false;
-            II.images = images;
+            P.generateDrizzleData = false;
+            P.images = images;
       }
 
-      II.executeGlobal();
+      P.executeGlobal();
 
-      windowCloseif(II.highRejectionMapImageId);
-      windowCloseif(II.lowRejectionMapImageId);
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.lowRejectionMapImageId);
 
       if (use_drizzle) {
-            windowCloseif(II.integrationImageId);
+            windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
-            var new_name = windowRename(II.integrationImageId, "Integration_" + name);
+            var new_name = windowRename(P.integrationImageId, "Integration_" + name);
             //addScriptWindow(new_name);
             return new_name
       }
@@ -1395,11 +1531,17 @@ function runImageIntegrationNormalized(images, name)
       P.ignoreNoiseKeywords = false;
       P.normalization = ImageIntegration.prototype.LocalNormalization;
       if (images.length < 8) {
-            addProcessingStep("  Using percentile clip for rejection");
+            addProcessingStep("  Using Percentile Clipping for rejection");
             P.rejection = ImageIntegration.prototype.PercentileClip;
+      } else if (images.length <= 10) {
+            addProcessingStep("  Using Averaged Sigma Clipping for rejection");
+            P.rejection = ImageIntegration.prototype.AveragedSigmaClip;
+      } else if (images.length <= 20) {
+            addProcessingStep("  Using Winsorized sigma clip for rejection");
+            P.rejection = ImageIntegration.prototype.WinsorizedSigmaClip;
       } else {
-            addProcessingStep("  Using sigma clip for rejection");
-            P.rejection = ImageIntegration.prototype.SigmaClip;
+            addProcessingStep("  Using Linear Fit Clipping for rejection");
+            P.rejection = ImageIntegration.prototype.LinearFit;
       }
       P.rejectionNormalization = ImageIntegration.prototype.Scale;
       P.minMaxLow = 1;
@@ -1456,7 +1598,7 @@ function runImageIntegrationNormalized(images, name)
       windowCloseif(P.lowRejectionMapImageId);
 
       if (use_drizzle) {
-            windowCloseif(II.integrationImageId);
+            windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
             var new_name = windowRename(P.integrationImageId, "Integration_" + name);
@@ -2965,6 +3107,14 @@ function AutoIntegrateDialog()
       "<p>Create monochrome image</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { monochrome_image = checked; }
 
+      this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", synthetic_l_image, 
+      "<p>Create synthetic L image from all LRGB images.</p>" );
+      this.synthetic_l_image_CheckBox.onClick = function(checked) { synthetic_l_image = checked; }
+
+      this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", synthetic_missing_images, 
+      "<p>Create synthetic image for any missing image.</p>" );
+      this.synthetic_missing_images_CheckBox.onClick = function(checked) { synthetic_missing_images = checked; }
+
       this.save_files_CheckBox = newCheckBox(this, "Save files", save_files, 
       "<p>Save integrated and final images</p>" );
       this.save_files_CheckBox.onClick = function(checked) { save_files = checked; }
@@ -2994,6 +3144,9 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.color_calibration_before_ABE_CheckBox );
       this.paramsSet1.add( this.use_uwf_CheckBox );
       this.paramsSet1.add( this.monochrome_image_CheckBox );
+      this.paramsSet1.add( this.synthetic_l_image_CheckBox );
+      this.paramsSet1.add( this.synthetic_missing_images_CheckBox );
+      
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
