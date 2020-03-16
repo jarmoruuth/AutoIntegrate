@@ -63,7 +63,7 @@ Steps with LRGB files
 5. Noise reduction is run on L image using a mask.
 6. If BE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
-7. If use_linear_fit is selected then LinearFit is run on RGB channels using L as a reference
+7. If use_linear_fit is selected then LinearFit is run on RGB channels using L, R, G or B as a reference
 8. If use_noise_reduction_on_all_channels is selected then noise reduction is done separately 
    for each R,G and B images using a mask.
 9. ChannelCombination is run on Red, Green and Blue integrated images to
@@ -140,8 +140,7 @@ var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
 var BE_before_channel_combination = false;
-var use_linear_fit_LRGB = true;
-var use_linear_fit_using_R = false;
+var use_linear_fit = 'L';
 var use_noise_reduction_on_all_channels = false;
 var hide_console = true;
 var integrate_only = false;
@@ -2567,8 +2566,8 @@ function AutoIntegrateEngine(auto_continue)
                               B_ABE_id = B_BE_win.mainView.id;
                         } else {
                               /* Run automatic background extraction or R,G,B images 
-                              * before channel combination.
-                              */
+                               * before channel combination.
+                               */
                               console.noteln("ABE R");
                               R_ABE_id = runABE(ImageWindow.windowById(red_id));
                               console.noteln("ABE G");
@@ -2577,35 +2576,62 @@ function AutoIntegrateEngine(auto_continue)
                               B_ABE_id = runABE(ImageWindow.windowById(blue_id));
                         }
                   }
-                  if (use_linear_fit_LRGB) {
-                        /* LinearFit
-                        */
-                        if (use_linear_fit_using_R) {
-                              /* Use R.
-                              */
-                              if (BE_before_channel_combination) {
-                                    runLinearFit(R_ABE_id, L_ABE_id);
-                                    runLinearFit(R_ABE_id, G_ABE_id);
-                                    runLinearFit(R_ABE_id, B_ABE_id);
-                              } else {
-                                    runLinearFit(red_id, luminance_id);
-                                    runLinearFit(red_id, green_id);
-                                    runLinearFit(red_id, blue_id);
-                              }
+                  /* Check for LinearFit
+                   */
+                  if (use_linear_fit == 'R') {
+                        /* Use R.
+                         */
+                        addProcessingStep("Linear fit using R");
+                        if (BE_before_channel_combination) {
+                              runLinearFit(R_ABE_id, L_ABE_id);
+                              runLinearFit(R_ABE_id, G_ABE_id);
+                              runLinearFit(R_ABE_id, B_ABE_id);
                         } else {
-                              /* Use L.
-                               */
-                              if (BE_before_channel_combination) {
-                                    runLinearFit(L_ABE_id, R_ABE_id);
-                                    runLinearFit(L_ABE_id, G_ABE_id);
-                                    runLinearFit(L_ABE_id, B_ABE_id);
-                              } else {
-                                    runLinearFit(luminance_id, red_id);
-                                    runLinearFit(luminance_id, green_id);
-                                    runLinearFit(luminance_id, blue_id);
-                              }
-      
+                              runLinearFit(red_id, luminance_id);
+                              runLinearFit(red_id, green_id);
+                              runLinearFit(red_id, blue_id);
                         }
+                  } else if (use_linear_fit == 'G') {
+                        /* Use G.
+                         */
+                        addProcessingStep("Linear fit using G");
+                        if (BE_before_channel_combination) {
+                              runLinearFit(G_ABE_id, L_ABE_id);
+                              runLinearFit(G_ABE_id, R_ABE_id);
+                              runLinearFit(G_ABE_id, B_ABE_id);
+                        } else {
+                              runLinearFit(green_id, luminance_id);
+                              runLinearFit(green_id, red_id);
+                              runLinearFit(green_id, blue_id);
+                        }
+                  } else if (use_linear_fit == 'B') {
+                        /* Use B.
+                         */
+                        addProcessingStep("Linear fit using B");
+                        if (BE_before_channel_combination) {
+                              runLinearFit(B_ABE_id, L_ABE_id);
+                              runLinearFit(B_ABE_id, R_ABE_id);
+                              runLinearFit(B_ABE_id, G_ABE_id);
+                        } else {
+                              runLinearFit(blue_id, luminance_id);
+                              runLinearFit(blue_id, red_id);
+                              runLinearFit(blue_id, green_id);
+                        }
+                  } else if (use_linear_fit == 'L') {
+                        /* Use L.
+                         */
+                        addProcessingStep("Linear fit using L");
+                        if (BE_before_channel_combination) {
+                              runLinearFit(L_ABE_id, R_ABE_id);
+                              runLinearFit(L_ABE_id, G_ABE_id);
+                              runLinearFit(L_ABE_id, B_ABE_id);
+                        } else {
+                              runLinearFit(luminance_id, red_id);
+                              runLinearFit(luminance_id, green_id);
+                              runLinearFit(luminance_id, blue_id);
+                        }
+                  } else {
+                        addProcessingStep("No linear fit");
                   }
                   if (use_noise_reduction_on_all_channels) {
                         if (BE_before_channel_combination) {
@@ -2955,7 +2981,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.51</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.53</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3042,14 +3068,6 @@ function AutoIntegrateDialog()
       this.ABEeforeChannelCombinationCheckBox = newCheckBox(this, "ABE before ChannelCombination", BE_before_channel_combination, 
             "<p>Run ABE in R,G,B images before ChannelCombination instead of after CC</p>" );
       this.ABEeforeChannelCombinationCheckBox.onClick = function(checked) { BE_before_channel_combination = checked; }
-
-      this.useLinearFitLRGBCheckBox = newCheckBox(this, "Use linear fit", use_linear_fit_LRGB, 
-            "<p>Run LinearFit before ChannelCombination</p>" );
-      this.useLinearFitLRGBCheckBox.onClick = function(checked) { use_linear_fit_LRGB = checked; }
-
-      this.useLinearFitRGBCheckBox = newCheckBox(this, "Linear fit using R image", use_linear_fit_using_R, 
-            "<p>Run LinearFit based on R image. Default is to use L image.</p>" );
-      this.useLinearFitRGBCheckBox.onClick = function(checked) { use_linear_fit_using_R = checked; }
 
       this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
@@ -3144,18 +3162,16 @@ function AutoIntegrateDialog()
       this.paramsSet1.add( this.color_calibration_before_ABE_CheckBox );
       this.paramsSet1.add( this.use_uwf_CheckBox );
       this.paramsSet1.add( this.monochrome_image_CheckBox );
-      this.paramsSet1.add( this.synthetic_l_image_CheckBox );
-      this.paramsSet1.add( this.synthetic_missing_images_CheckBox );
       
 
       // Parameters set 2.
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.synthetic_l_image_CheckBox );
+      this.paramsSet2.add( this.synthetic_missing_images_CheckBox );
       this.paramsSet2.add( this.use_background_neutralization_CheckBox );
       this.paramsSet2.add( this.useLocalNormalizationCheckBox );
-      this.paramsSet2.add( this.useLinearFitLRGBCheckBox );
-      this.paramsSet2.add( this.useLinearFitRGBCheckBox );
       this.paramsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.paramsSet2.add( this.SaturationCheckBox );
       this.paramsSet2.add( this.keepIntegratedImagesCheckBox );
@@ -3173,7 +3189,46 @@ function AutoIntegrateDialog()
       this.paramsGroupBox.sizer.add( this.paramsSet2 );
       // Stop columns of buttons moving as dialog expands horizontally.
       this.paramsGroupBox.sizer.addStretch();
+
+      // Linear Fit buttons
+      this.luminanceRadioButton = new RadioButton( this );
+      this.luminanceRadioButton.text = "Luminance";
+      this.luminanceRadioButton.checked = true;
+      this.luminanceRadioButton.onClick = function(checked) { if (checked) use_linear_fit = 'L'; }
+
+      this.redRadioButton = new RadioButton( this );
+      this.redRadioButton.text = "Red";
+      this.redRadioButton.checked = false;
+      this.redRadioButton.onClick = function(checked) { if (checked) use_linear_fit = 'R'; }
       
+      this.greenRadioButton = new RadioButton( this );
+      this.greenRadioButton.text = "Green";
+      this.greenRadioButton.checked = false;
+      this.greenRadioButton.onClick = function(checked) { if (checked) use_linear_fit = 'G'; }
+      
+      this.blueRadioButton = new RadioButton( this );
+      this.blueRadioButton.text = "Blue";
+      this.blueRadioButton.checked = false;
+      this.blueRadioButton.onClick = function(checked) { if (checked) use_linear_fit = 'B'; }
+
+      this.noneRadioButton = new RadioButton( this );
+      this.noneRadioButton.text = "No linear fit";
+      this.noneRadioButton.checked = false;
+      this.noneRadioButton.onClick = function(checked) { if (checked) use_linear_fit = 'no'; }
+
+      this.linearFitGroupBox = new newGroupBox( this );
+      this.linearFitGroupBox.title = "Linear fit setting";
+      this.linearFitGroupBox.sizer = new HorizontalSizer;
+      this.linearFitGroupBox.sizer.margin = 6;
+      this.linearFitGroupBox.sizer.spacing = 4;
+      this.linearFitGroupBox.sizer.add( this.luminanceRadioButton );
+      this.linearFitGroupBox.sizer.add( this.redRadioButton );
+      this.linearFitGroupBox.sizer.add( this.greenRadioButton );
+      this.linearFitGroupBox.sizer.add( this.blueRadioButton );
+      this.linearFitGroupBox.sizer.add( this.noneRadioButton );
+      // Stop columns of buttons moving as dialog expands horizontally.
+      this.linearFitGroupBox.sizer.addStretch();
+
       // Button to run automatic processing
       this.autoRunLabel = new Label( this );
       with (this.autoRunLabel) {
@@ -3363,6 +3418,7 @@ function AutoIntegrateDialog()
       this.sizer.addSpacing( 4 );
       this.sizer.add( this.files_GroupBox, 100 );
       this.sizer.add( this.paramsGroupBox );
+      this.sizer.add( this.linearFitGroupBox );
       this.sizer.add( this.autoRunGroupBox );
       this.sizer.add( this.autoContinueGroupBox );
       this.sizer.add( this.closeAllGroupBox );
