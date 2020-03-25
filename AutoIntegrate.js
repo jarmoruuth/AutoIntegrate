@@ -1394,85 +1394,15 @@ function runImageIntegration(images, name)
             return runImageIntegrationNormalized(images, name);
       }
 
-      var P = new ImageIntegration;
+      var II = new ImageIntegration;
 
-      // default settings
-      P.images = [ // enabled, path, drizzlePath, localNormalizationDataPath
-      ];
-      P.inputHints = "";
-      P.combination = ImageIntegration.prototype.Average;
-      P.weightMode = ImageIntegration.prototype.NoiseEvaluation;
-      P.weightKeyword = "";
-      P.weightScale = ImageIntegration.prototype.WeightScale_IKSS;
-      P.ignoreNoiseKeywords = false;
-      P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
-      P.rejection = ImageIntegration.prototype.NoRejection;
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;
-      P.minMaxLow = 1;
-      P.minMaxHigh = 1;
-      P.pcClipLow = 0.200;
-      P.pcClipHigh = 0.100;
-      P.sigmaLow = 4.000;
-      P.sigmaHigh = 3.000;
-      P.winsorizationCutoff = 5.000;
-      P.linearFitLow = 5.000;
-      P.linearFitHigh = 4.000;
-      P.esdOutliersFraction = 0.30;
-      P.esdAlpha = 0.05;
-      P.ccdGain = 1.00;
-      P.ccdReadNoise = 10.00;
-      P.ccdScaleNoise = 0.00;
-      P.clipLow = true;
-      P.clipHigh = true;
-      P.rangeClipLow = true;
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
-      P.rangeHigh = 0.980000;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-      P.largeScaleClipLow = false;
-      P.largeScaleClipLowProtectedLayers = 2;
-      P.largeScaleClipLowGrowth = 2;
-      P.largeScaleClipHigh = false;
-      P.largeScaleClipHighProtectedLayers = 2;
-      P.largeScaleClipHighGrowth = 2;
-      P.generate64BitResult = false;
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
-      P.generateDrizzleData = false;
-      P.closePreviousImages = false;
-      P.bufferSizeMB = 16;
-      P.stackSizeMB = 1024;
-      P.autoMemorySize = true;
-      P.autoMemoryLimit = 0.75;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.useCache = true;
-      P.evaluateNoise = true;
-      P.mrsMinDataFraction = 0.010;
-      P.subtractPedestals = true;
-      P.truncateOnOutOfRange = false;
-      P.noGUIMessages = true;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-
-      // Modification for AutoIntegrate
-      P.evaluateNoise = true;
+      II.evaluateNoise = true;
       if (images.length < 8) {
-            addProcessingStep("  Using Percentile Clipping for rejection");
-            P.rejection = ImageIntegration.prototype.PercentileClip;
-      } else if (images.length <= 10) {
-            addProcessingStep("  Using Averaged Sigma Clipping for rejection");
-            P.rejection = ImageIntegration.prototype.AveragedSigmaClip;
-      } else if (images.length <= 20) {
-            addProcessingStep("  Using Winsorized sigma clip for rejection");
-            P.rejection = ImageIntegration.prototype.WinsorizedSigmaClip;
+            addProcessingStep("  Using percentile clip for rejection");
+            II.rejection = ImageIntegration.prototype.PercentileClip;
       } else {
-            addProcessingStep("  Using Linear Fit Clipping for rejection");
-            P.rejection = ImageIntegration.prototype.LinearFit;
+            addProcessingStep("  Using sigma clip for rejection");
+            II.rejection = ImageIntegration.prototype.SigmaClip;
       }
       if (use_drizzle) {
             var drizzleImages = new Array;
@@ -1482,23 +1412,23 @@ function runImageIntegration(images, name)
                   drizzleImages[i][1] = images[i][1];      // path
                   drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
             }
-            P.generateDrizzleData = true; /* Generate .xdrz data. */
-            P.images = drizzleImages;
+            II.generateDrizzleData = true; /* Generate .xdrz data. */
+            II.images = drizzleImages;
       } else {
-            P.generateDrizzleData = false;
-            P.images = images;
+            II.generateDrizzleData = false;
+            II.images = images;
       }
 
-      P.executeGlobal();
+      II.executeGlobal();
 
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.lowRejectionMapImageId);
+      windowCloseif(II.highRejectionMapImageId);
+      windowCloseif(II.lowRejectionMapImageId);
 
       if (use_drizzle) {
-            windowCloseif(P.integrationImageId);
+            windowCloseif(II.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
-            var new_name = windowRename(P.integrationImageId, "Integration_" + name);
+            var new_name = windowRename(II.integrationImageId, "Integration_" + name);
             //addScriptWindow(new_name);
             return new_name
       }
@@ -1530,17 +1460,11 @@ function runImageIntegrationNormalized(images, name)
       P.ignoreNoiseKeywords = false;
       P.normalization = ImageIntegration.prototype.LocalNormalization;
       if (images.length < 8) {
-            addProcessingStep("  Using Percentile Clipping for rejection");
+            addProcessingStep("  Using percentile clip for rejection");
             P.rejection = ImageIntegration.prototype.PercentileClip;
-      } else if (images.length <= 10) {
-            addProcessingStep("  Using Averaged Sigma Clipping for rejection");
-            P.rejection = ImageIntegration.prototype.AveragedSigmaClip;
-      } else if (images.length <= 20) {
-            addProcessingStep("  Using Winsorized sigma clip for rejection");
-            P.rejection = ImageIntegration.prototype.WinsorizedSigmaClip;
       } else {
-            addProcessingStep("  Using Linear Fit Clipping for rejection");
-            P.rejection = ImageIntegration.prototype.LinearFit;
+            addProcessingStep("  Using sigma clip for rejection");
+            P.rejection = ImageIntegration.prototype.SigmaClip;
       }
       P.rejectionNormalization = ImageIntegration.prototype.Scale;
       P.minMaxLow = 1;
@@ -1597,7 +1521,7 @@ function runImageIntegrationNormalized(images, name)
       windowCloseif(P.lowRejectionMapImageId);
 
       if (use_drizzle) {
-            windowCloseif(P.integrationImageId);
+            windowCloseif(II.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
             var new_name = windowRename(P.integrationImageId, "Integration_" + name);
