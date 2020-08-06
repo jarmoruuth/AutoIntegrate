@@ -2905,8 +2905,8 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.53</b> &mdash; " +
-                              "Automatic image integration utility.</p>";
+            helptext = "<p><b>AutoIntegrate v0.54</b> &mdash; " +
+                              "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
       this.__base__();
@@ -2917,11 +2917,50 @@ function AutoIntegrateDialog()
    
       /* Info box at the top. */
       this.helpLabel = new Label( this );
-      this.helpLabel.frameStyle = FrameStyle_Box;
-      this.helpLabel.margin = this.logicalPixelsToPhysical( 4 );
-      this.helpLabel.wordWrapping = true;
+      //this.helpLabel.frameStyle = FrameStyle_Box;
+      //this.helpLabel.margin = this.logicalPixelsToPhysical( 4 );
+      //this.helpLabel.wordWrapping = true;
       this.helpLabel.useRichText = true;
+      this.helpLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.helpLabel.text = helptext;
+      this.helpTips = new ToolButton( this );
+      this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
+      this.helpTips.setScaledFixedSize( 20, 20 );
+      this.helpTips.toolTip = 
+            "<p>" +
+            "<b>Some tips for using AutoIntegrate script</b>" +
+            "</p><p>" +
+            "Script automates initial steps of image processing in PixInsight. "+ 
+            "Most often you get the best results by running the script with default " +
+            "settings and then continue processing in Pixinsight." +
+            "</p><p>" +
+            "Usually images need some cleanup with HistogramTransformation tool. "+
+            "Depending on the image you can try clipping shadows between %0.01 and %0.1." +
+            "</p><p>" +
+            "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
+            "Changing the curve to a slight S can be helpful. " +
+            "CurvesTransformation can also be used to increase saturation." +
+            "</p><p>" +
+            "If background is not even then tools like AutomaticBackgroundExtractor or " +
+            "DynamicBackgroundExtractor can be helpful. Script can run AutomaticBackgroundExtractor "+
+            "automatically if needed." +
+            "</p><p>" +
+            "Further enhancements may include masking, noise reduction, sharpening and making " +
+            "stars smaller. Often tools like HDRMulticaleTransform and LocalHistogramEqualization "+
+            "can help with details in the image." +
+            "</p><p>" +
+            "Default options are typically a pretty good start for most Slooh telescopes but some changes " +
+            "are usually needed for Canary 3 color files. I suggest unchecking Skip ABE and checking " +
+            "Use BackgroudNeutralization. Otherwise there is a pretty bad color cast and vignetting "+
+            "on the result image." +
+            "</p><p>" +
+            "Batch mode is intended to be used with mosaic images. In Batch mode script " +
+            "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
+            "and can be saved with Save batch result files buttons." +
+            "</p><p>" +
+            "For more details see:<br>" +
+            "https://ruuth.xyz/AutoIntegrateInfo.html"
+            "</p>";
       /* Tree box to show files. */
       this.files_TreeBox = new TreeBox( this );
       this.files_TreeBox.multipleSelection = true;
@@ -2990,7 +3029,7 @@ function AutoIntegrateDialog()
       this.useLocalNormalizationCheckBox.onClick = function(checked) { use_local_normalization = checked; }
 
       this.ABEeforeChannelCombinationCheckBox = newCheckBox(this, "ABE before ChannelCombination", BE_before_channel_combination, 
-            "<p>Run ABE in R,G,B images before ChannelCombination instead of after CC</p>" );
+            "<p>Run AutomaticBackgroundExtractor in R,G,B images before ChannelCombination instead of after CC</p>" );
       this.ABEeforeChannelCombinationCheckBox.onClick = function(checked) { BE_before_channel_combination = checked; }
 
       this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
@@ -3022,11 +3061,11 @@ function AutoIntegrateDialog()
       this.keepIntegratedImagesCheckBox.onClick = function(checked) { keep_integrated_images = checked; }
 
       this.skipABECheckBox = newCheckBox(this, "Skip ABE", skip_ABE, 
-      "<p>Skip ABE on image</p>" );
+      "<p>Skip AutomaticBackgroundExtractor on image</p>" );
       this.skipABECheckBox.onClick = function(checked) { skip_ABE = checked; }
 
-      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
-      "<p>Run ColorCalibration before ABE</p>" );
+      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before AutomaticBackgroundExtractor", color_calibration_before_ABE, 
+      "<p>Run ColorCalibration before AutomaticBackgroundExtractor</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { color_calibration_before_ABE = checked; }
 
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", use_background_neutralization, 
@@ -3335,10 +3374,20 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.ok_Button );
       this.buttons_Sizer.add( this.cancel_Button );
    
+      this.helpLabelSizer = new HorizontalSizer;
+      this.helpLabelSizer.add( this.helpLabel );
+      this.helpLabelSizer.addSpacing( 4 );
+      this.helpLabelSizer.add( this.helpTips );
+      this.helpLabelGroupBox = new newGroupBox( this );
+      this.helpLabelGroupBox.sizer = new HorizontalSizer;
+      this.helpLabelGroupBox.sizer.margin = 6;
+      this.helpLabelGroupBox.sizer.spacing = 4;
+      this.helpLabelGroupBox.sizer.add( this.helpLabelSizer );
+
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 6;
-      this.sizer.add( this.helpLabel );
+      this.sizer.add( this.helpLabelGroupBox );
       this.sizer.addSpacing( 4 );
       this.sizer.add( this.files_GroupBox, 100 );
       this.sizer.add( this.paramsGroupBox );
@@ -3352,7 +3401,7 @@ function AutoIntegrateDialog()
       this.windowTitle = "AutoIntegrate Script";
       this.userResizable = true;
       this.adjustToContents();
-      this.helpLabel.setFixedHeight();
+      //this.helpLabel.setFixedHeight();
       this.files_GroupBox.setFixedHeight();
 }
 
