@@ -158,6 +158,7 @@ var batch_mode = false;
 var use_uwf = false;
 var monochrome_image = false;
 var synthetic_l_image = false;
+var RRGB_image = false;
 var synthetic_missing_images = false;
 var save_files = true;
 
@@ -233,9 +234,11 @@ var fixed_windows = [
       "RGB_BE_HT",
       "AutoMask",
       "AutoLRGB_ABE",
+      "AutoRRGB_ABE",
       "AutoRGB_ABE",
       "AutoMono_ABE",
       "AutoLRGB_noABE",
+      "AutoRRGB_noABE",
       "AutoRGB_noABE",
       "AutoMono_noABE"
 ];
@@ -881,6 +884,7 @@ function findBestSSWEIGHT(fileNames)
 
 function copy_image_list(target_images, source_images)
 {
+      console.noteln("copy_image_list");
       for (var i = 0; i < source_images.length; i++) {
             append_image_for_integrate(target_images, source_images[i][1]);
       }
@@ -1074,6 +1078,16 @@ function findLRGBchannels(
                   throwFatalError("Cannot mix color and green filter files");
             }
       } else {
+            if (RRGB_image) {
+                  addProcessingStep("RRGB image, use R as L image");
+                  console.noteln("L images " +  luminance_images.length);
+                  console.noteln("R images " +  red_images.length);
+                  luminance_images.splice(0, luminance_images.length);
+                  copy_image_list(luminance_images, red_images);
+                  best_l_ssweight = best_r_ssweight;
+                  best_l_image = best_r_image;
+                  luminance_images_exptime = red_images_exptime;
+            }
             if (synthetic_l_image ||
                 (synthetic_missing_images && luminance_images.length == 0))
             {
@@ -1144,6 +1158,7 @@ function insert_image_for_integrate(images, new_image)
 
 function append_image_for_integrate(images, new_image)
 {
+      console.noteln("append_image_for_integrate " + new_image);
       var len = images.length;
       images[len] = new Array(2);
       images[len][0] = true;
@@ -2716,10 +2731,18 @@ function AutoIntegrateEngine(auto_continue)
                         */
                         if (!color_files) {
                               /* LRGB files */
-                              if (skip_ABE) {
-                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_noABE");
+                              if (RRGB_image) {
+                                    if (skip_ABE) {
+                                          RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRRGB_noABE");
+                                    } else {
+                                          RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoRRGB_ABE");
+                                    }
                               } else {
-                                    RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                                    if (skip_ABE) {
+                                          RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_noABE");
+                                    } else {
+                                          RGB_ABE_HT_id = windowRename(RGB_ABE_HT_id, "AutoLRGB_ABE");
+                                    }
                               }
                         } else {
                               /* Color files */
@@ -3088,6 +3111,10 @@ function AutoIntegrateDialog()
       "<p>Create monochrome image</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { monochrome_image = checked; }
 
+      this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", RRGB_image, 
+      "<p>RRGB image using R as Luminance.</p>" );
+      this.RRGB_image_CheckBox.onClick = function(checked) { RRGB_image = checked; }
+
       this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", synthetic_l_image, 
       "<p>Create synthetic L image from all LRGB images.</p>" );
       this.synthetic_l_image_CheckBox.onClick = function(checked) { synthetic_l_image = checked; }
@@ -3131,6 +3158,7 @@ function AutoIntegrateDialog()
       this.paramsSet2 = new VerticalSizer;
       this.paramsSet2.margin = 6;
       this.paramsSet2.spacing = 4;
+      this.paramsSet2.add( this.RRGB_image_CheckBox );
       this.paramsSet2.add( this.synthetic_l_image_CheckBox );
       this.paramsSet2.add( this.synthetic_missing_images_CheckBox );
       this.paramsSet2.add( this.use_background_neutralization_CheckBox );
