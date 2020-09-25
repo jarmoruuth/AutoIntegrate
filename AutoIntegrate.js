@@ -143,14 +143,15 @@ var use_linear_fit = 'L';
 var use_clipping = 'D1';                        /* default */
 var ssweight_set = false;
 var use_weight = 'G';                           /* Default: Generic */
-var imageintegration_nonormalization = false;
+var imageintegration_normalization = 0;         /* Default: additive */
 var skip_imageintegration_ssweight = false;
 var use_noise_reduction_on_all_channels = false;
 var integrate_only = false;
 var channelcombination_only = false;
 var skip_subframeselector = false;
 var skip_cosmeticcorrection = false;
-var skip_increase_saturation = false;
+var linear_increase_saturation = 2;
+var non_linear_increase_saturation = 1;
 var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
@@ -166,6 +167,7 @@ var RRGB_image = false;
 var synthetic_missing_images = false;
 var unique_file_names = false;
 var skip_noise_reduction = false;
+var skip_color_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
 
 var processingDate;
@@ -1644,11 +1646,15 @@ function runImageIntegration(images, name)
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
-      if (imageintegration_nonormalization) {
+      if (imageintegration_normalization == 0) {
+            addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
+      } else if (imageintegration_normalization == 1) {
+            addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
+      } else {
             addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.NoNormalization;
-      } else {
-            P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
       }
       P.rejection = getRejectionAlgorigthm(images.length);
       
@@ -2117,6 +2123,45 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
       P.executeOn(imgView.mainView, false);
 
       imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function runColorReduceNoise(imgView)
+{
+      if (skip_color_noise_reduction) {
+            return;
+      }
+      addProcessingStep("Color noise reduction on " + imgView.mainView.id);
+
+      var P = new TGVDenoise;
+      P.rgbkMode = false;
+      P.filterEnabledL = false;
+      P.filterEnabledC = true;
+      P.strengthL = 5.00000000;
+      P.strengthC = 7.00000000;
+      P.edgeProtectionL = 0.00200000;
+      P.edgeProtectionC = 0.00300000;
+      P.smoothnessL = 2.00000000;
+      P.smoothnessC = 2.00000000;
+      P.maxIterationsL = 100;
+      P.maxIterationsC = 100;
+      P.convergenceEnabledL = false;
+      P.convergenceEnabledC = false;
+      P.convergenceLimitL = 0.00400000;
+      P.convergenceLimitC = 0.00400000;
+      P.supportEnabled = true;
+      P.supportViewId = "";
+      P.supportPreview = false;
+      P.supportRemovedWaveletLayers = 0;
+      P.supportShadowsClip = 0.00000;
+      P.supportHighlightsClip = 1.00000;
+      P.supportMidtonesBalance = 0.50000;
+
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Remove color noise from the whole image. */
+      P.executeOn(imgView.mainView, false);
 
       imgView.mainView.endProcess();
 }
@@ -2896,9 +2941,16 @@ function ProcessRGBimage()
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
-
+            if (linear_increase_saturation > 0) {
+                  /* Add saturation linear RGB
+                  */
+                  for (var i = 0; i < linear_increase_saturation; i++) {
+                        increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
+                  }
+            }
+      
             if (!color_files) {
-                  /* Noise reduction for RGB
+                  /* OPtional noise reduction for RGB
                   */
                   runMultiscaleLinearTransformReduceNoise(
                         ImageWindow.windowById(RGB_ABE_id),
@@ -2927,12 +2979,15 @@ function ProcessRGBimage()
             runMultiscaleLinearTransformReduceNoise(
                   ImageWindow.windowById(RGB_ABE_HT_id),
                   mask_win);
+            runColorReduceNoise(ImageWindow.windowById(RGB_ABE_HT_id));
       }
 
-      if (!skip_increase_saturation) {
+      if (!non_linear_increase_saturation) {
             /* Add saturation on RGB
             */
-            increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
+            for (var i = 0; i < non_linear_increase_saturation; i++) {
+                  increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
+            }
       }
       return RGB_ABE_HT_id;
 }
@@ -3035,7 +3090,11 @@ function AutoIntegrateEngine(auto_continue)
                   */
                   runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
           
-                  /* Sharpen image, use mask to sharpen mostly the light parts of image.
+                  /* Optional color noise reduction for RGB.
+                   */
+                  runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
+
+                        /* Sharpen image, use mask to sharpen mostly the light parts of image.
                   */
                   runMultiscaleLinearTransformSharpen(
                         ImageWindow.windowById(LRGB_ABE_HT_id),
@@ -3237,7 +3296,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.55</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.56</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3403,13 +3462,6 @@ function AutoIntegrateDialog()
             SetOption("Strict StarAlign", checked); 
       }
       
-      this.SaturationCheckBox = newCheckBox(this, "No saturation increase", skip_increase_saturation, 
-            "<p>Do not increase saturation on RGB image using CurvesTransformation</p>" );
-      this.SaturationCheckBox.onClick = function(checked) { 
-            skip_increase_saturation = checked; 
-            SetOption("No saturation increase", checked); 
-      }
-
       this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.keepIntegratedImagesCheckBox.onClick = function(checked) { 
@@ -3465,13 +3517,6 @@ function AutoIntegrateDialog()
             SetOption("Monochrome", checked); 
       }
 
-      this.ImageIntegration_NoNormalization_CheckBox = newCheckBox(this, "ImageIntegration no normalization", imageintegration_nonormalization, 
-      "<p>Do not use normalization during ImageIntegration</p>" );
-      this.ImageIntegration_NoNormalization_CheckBox.onClick = function(checked) { 
-            imageintegration_nonormalization = checked; 
-            SetOption("ImageIntegration no normalization", checked); 
-      }
-
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration do not use weight", skip_imageintegration_ssweight, 
       "<p>Do not use use SSWEIGHT weight keyword during ImageIntegration</p>" );
       this.imageintegration_ssweight_CheckBox.onClick = function(checked) { 
@@ -3513,6 +3558,13 @@ function AutoIntegrateDialog()
             SetOption("No noise reduction", checked); 
       }
 
+      this.skip_color_noise_reduction_CheckBox = newCheckBox(this, "No color noise reduction", skip_color_noise_reduction, 
+      "<p>Do not use color noise reduction.</p>" );
+      this.skip_color_noise_reduction_CheckBox.onClick = function(checked) { 
+            skip_color_noise_reduction = checked; 
+            SetOption("No color noise reduction", checked); 
+      }
+
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
@@ -3520,7 +3572,6 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
-      this.imageParamsSet1.add( this.ImageIntegration_NoNormalization_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet1.add( this.useLocalNormalizationCheckBox );
@@ -3530,10 +3581,10 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
+      this.imageParamsSet2.add( this.skip_color_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
       this.imageParamsSet2.add( this.useABECheckBox );
-      this.imageParamsSet2.add( this.SaturationCheckBox );
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
 
       // Image group parameters.
@@ -3546,6 +3597,42 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet2 );
       // Stop columns of buttons moving as dialog expands horizontally.
       this.imageParamsGroupBox.sizer.addStretch();
+
+      // Saturation selection
+      this.linearSaturationLabel = new Label( this );
+      this.linearSaturationLabel.text = "Linear saturation increase";
+      this.linearSaturationSpinBox = new SpinBox( this );
+      this.linearSaturationSpinBox.minValue = 0;
+      this.linearSaturationSpinBox.maxValue = 5;
+      this.linearSaturationSpinBox.value = linear_increase_saturation;
+      this.linearSaturationSpinBox.toolTip = "<p>Saturation increase in linear state.</p>";
+      this.linearSaturationSpinBox.onValueUpdated = function( value )
+      {
+            linear_increase_saturation = value;
+      };
+
+      this.nonLinearSaturationLabel = new Label( this );
+      this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
+      this.nonLinearSaturationSpinBox = new SpinBox( this );
+      this.nonLinearSaturationSpinBox.minValue = 0;
+      this.nonLinearSaturationSpinBox.maxValue = 5;
+      this.nonLinearSaturationSpinBox.value = non_linear_increase_saturation;
+      this.nonLinearSaturationSpinBox.toolTip = "<p>Saturation increase in non-linear state.</p>";
+      this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
+      {
+            non_linear_increase_saturation = value;
+      };
+
+      this.saturationGroupBox = new newGroupBox( this );
+      this.saturationGroupBox.title = "Saturation setting";
+      this.saturationGroupBox.sizer = new HorizontalSizer;
+      this.saturationGroupBox.sizer.margin = 6;
+      this.saturationGroupBox.sizer.spacing = 4;
+      this.saturationGroupBox.sizer.add( this.linearSaturationLabel );
+      this.saturationGroupBox.sizer.add( this.linearSaturationSpinBox );
+      this.saturationGroupBox.sizer.add( this.nonLinearSaturationLabel );
+      this.saturationGroupBox.sizer.add( this.nonLinearSaturationSpinBox );
+      this.saturationGroupBox.sizer.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -3697,81 +3784,98 @@ function AutoIntegrateDialog()
       // Stop columns of buttons moving as dialog expands horizontally.
       this.linearFitGroupBox.sizer.addStretch();
 
-      // ImageIntegration Pixel rejection algorihtm/clipping radio buttons
-      this.IIdef1ClipRadioButton = new RadioButton( this );
-      this.IIdef1ClipRadioButton.text = "Auto1";
-      this.IIdef1ClipRadioButton.checked = true;
-      this.IIdef1ClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'D1'; 
-                  RemoveOption("Rejection"); 
-            }
-      }
+      //
+      // Image integration
+      //
 
-      this.IIdef2ClipRadioButton = new RadioButton( this );
-      this.IIdef2ClipRadioButton.text = "Auto2";
-      this.IIdef2ClipRadioButton.checked = false;
-      this.IIdef2ClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'D2'; 
-                  SetOptionStr("Rejection", "Auto2"); 
+      // normalization
+      this.ImageIntegrationNormalizationLabel = new Label( this );
+      this.ImageIntegrationNormalizationLabel.text = "Normalization";
+      this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   
+      this.ImageIntegrationNormalizationComboBox = new ComboBox( this );
+      this.ImageIntegrationNormalizationComboBox.addItem( "Additive" );
+      this.ImageIntegrationNormalizationComboBox.addItem( "Adaptive" );
+      this.ImageIntegrationNormalizationComboBox.addItem( "None" );
+      this.ImageIntegrationNormalizationComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("ImageIntegration Normalization"); 
+            switch (itemIndex) {
+                  case 0:
+                        SetOption("ImageIntegration Normalization", "Additive"); 
+                        break;
+                  case 1:
+                        SetOption("ImageIntegration Normalization", "Adaptive"); 
+                        break;
+                  case 2:
+                        SetOption("ImageIntegration Normalization", "None"); 
+                        break;
             }
-      }
+            imageintegration_normalization = itemIndex;
+      };
+   
+      this.ImageIntegrationNormalizationSizer = new HorizontalSizer;
+      this.ImageIntegrationNormalizationSizer.spacing = 4;
+      this.ImageIntegrationNormalizationSizer.add( this.ImageIntegrationNormalizationLabel );
+      this.ImageIntegrationNormalizationSizer.add( this.ImageIntegrationNormalizationComboBox, 100 );
 
-      this.IIpercentileRadioClipButton = new RadioButton( this );
-      this.IIpercentileRadioClipButton.text = "Percentile";
-      this.IIpercentileRadioClipButton.checked = false;
-      this.IIpercentileRadioClipButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'P'; 
-                  SetOptionStr("Rejection", "Percentile"); 
+      // Pixel rejection algorihtm/clipping
+      this.ImageIntegrationRejectionLabel = new Label( this );
+      this.ImageIntegrationRejectionLabel.text = "Rejection";
+      this.ImageIntegrationRejectionLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   
+      this.ImageIntegrationRejectionComboBox = new ComboBox( this );
+      this.ImageIntegrationRejectionComboBox.addItem( "Auto1" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Auto2" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Percentile" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Sigma" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Winsorised sigma" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Averaged sigma" );
+      this.ImageIntegrationRejectionComboBox.addItem( "Linear fit" );
+      this.ImageIntegrationRejectionComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("ImageIntegration Rejection"); 
+            switch (itemIndex) {
+                  case 0:
+                        use_clipping = 'D1';
+                        SetOptionStr("ImageIntegration Rejection", "Auto1"); 
+                        break;
+                  case 1:
+                        use_clipping = 'D2';
+                        SetOptionStr("ImageIntegration Rejection", "Auto2"); 
+                        break;
+                  case 2:
+                        use_clipping = 'P';
+                        SetOptionStr("ImageIntegration Rejection", "Percentile"); 
+                        break;
+                  case 3:
+                        use_clipping = 'S';
+                        SetOptionStr("ImageIntegration Rejection", "Sigma"); 
+                        break;
+                  case 4:
+                        use_clipping = 'W';
+                        SetOptionStr("ImageIntegration Rejection", "Winsorised sigma"); 
+                        break;
+                  case 5:
+                        use_clipping = 'A';
+                        SetOptionStr("ImageIntegration Rejection", "Averaged sigma"); 
+                        break;
+                  case 6:
+                        use_clipping = 'L';
+                        SetOptionStr("ImageIntegration Rejection", "Linear fit"); 
+                        break;
             }
-      }
-      
-      this.IIsigmaClipRadioButton = new RadioButton( this );
-      this.IIsigmaClipRadioButton.text = "Sigma";
-      this.IIsigmaClipRadioButton.checked = false;
-      this.IIsigmaClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'S'; 
-                  SetOptionStr("Rejection", "Sigma"); 
-            }
-      }
-      
-      this.IIwinsorisedClipRadioButton = new RadioButton( this );
-      this.IIwinsorisedClipRadioButton.text = "Winsorised";
-      this.IIwinsorisedClipRadioButton.checked = false;
-      this.IIwinsorisedClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'W'; 
-                  SetOptionStr("Rejection", "Winsorised"); 
-            }
-      }
+      };
+   
+      this.ImageIntegrationRejectionSizer = new HorizontalSizer;
+      this.ImageIntegrationRejectionSizer.spacing = 4;
+      this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
+      this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionComboBox, 100 );
 
-      this.IIaveragedClipRadioButton = new RadioButton( this );
-      this.IIaveragedClipRadioButton.text = "Averaged";
-      this.IIaveragedClipRadioButton.checked = false;
-      this.IIaveragedClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'A'; 
-                  SetOptionStr("Rejection", "Averaged"); 
-            }
-      }
-
-      this.IIlinearClipRadioButton = new RadioButton( this );
-      this.IIlinearClipRadioButton.text = "Linear";
-      this.IIlinearClipRadioButton.checked = false;
-      this.IIlinearClipRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_clipping = 'L'; 
-                  SetOptionStr("Rejection", "Linear"); 
-            }
-      }
-
-      this.IIhelpTips = new ToolButton( this );
-      this.IIhelpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.IIhelpTips.setScaledFixedSize( 20, 20 );
-      this.IIhelpTips.toolTip = 
+      this.ImageIntegrationHelpTips = new ToolButton( this );
+      this.ImageIntegrationHelpTips.icon = this.scaledResource( ":/icons/help.png" );
+      this.ImageIntegrationHelpTips.setScaledFixedSize( 20, 20 );
+      this.ImageIntegrationHelpTips.toolTip = 
             "<p>" +
             "Auto1 - Default set 1 uses percentile clipping for less than 8 images " +
             "and sigma clipping otherwise." +
@@ -3793,18 +3897,13 @@ function AutoIntegrateDialog()
             "Linear - Linear fit clipping" +
             "</p>";
       this.clippingGroupBox = new newGroupBox( this );
-      this.clippingGroupBox.title = "Image integration pixel rejection algorithm";
+      this.clippingGroupBox.title = "Image integration pixel rejection";
       this.clippingGroupBox.sizer = new HorizontalSizer;
       this.clippingGroupBox.sizer.margin = 6;
       this.clippingGroupBox.sizer.spacing = 4;
-      this.clippingGroupBox.sizer.add( this.IIdef1ClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIdef2ClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIpercentileRadioClipButton );
-      this.clippingGroupBox.sizer.add( this.IIsigmaClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIwinsorisedClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIaveragedClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIlinearClipRadioButton );
-      this.clippingGroupBox.sizer.add( this.IIhelpTips );
+      this.clippingGroupBox.sizer.add( this.ImageIntegrationNormalizationSizer );
+      this.clippingGroupBox.sizer.add( this.ImageIntegrationRejectionSizer );
+      this.clippingGroupBox.sizer.add( this.ImageIntegrationHelpTips );
       // Stop columns of buttons moving as dialog expands horizontally.
       this.clippingGroupBox.sizer.addStretch();
 
@@ -4009,6 +4108,7 @@ function AutoIntegrateDialog()
       this.sizer.addSpacing( 4 );
       this.sizer.add( this.files_GroupBox, 100 );
       this.sizer.add( this.imageParamsGroupBox );
+      this.sizer.add( this.saturationGroupBox );
       this.sizer.add( this.otherParamsGroupBox );
       this.sizer.add( this.weightGroupBox );
       this.sizer.add( this.linearFitGroupBox );
