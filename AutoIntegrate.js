@@ -3288,6 +3288,49 @@ function newGroupBox( parent, title, toolTip )
       return widget;
 }
 
+function Autorun(that)
+{
+      var stopped;
+      if (batch_mode) {
+            stopped = false;
+            console.writeln("AutoRun in batch mode");
+      } else {
+            stopped = true;
+            console.writeln("AutoRun");
+      }
+      do {
+            if (dialogFileNames == null) {
+                  dialogFileNames = openFitFiles();
+                  if (dialogFileNames != null) {
+                        that .dialog.files_TreeBox.canUpdate = false;
+                        for (var i = 0; i < dialogFileNames.length; i++) {
+                              var node = new TreeBoxNode(that.dialog.files_TreeBox);
+                              node.setText(0, dialogFileNames[i]);
+                        }
+                        that.dialog.files_TreeBox.canUpdate = true;
+                  }
+            }
+            if (dialogFileNames != null) {
+                  try {
+                        AutoIntegrateEngine(false);
+                  } 
+                  catch(err) {
+                        console.endLog();
+                        console.writeln(err);
+                        console.writeln("Processing stopped!");
+                        writeProcessingSteps(null);
+                  }
+                  if (batch_mode) {
+                        dialogFileNames = null;
+                        console.writeln("AutoRun in batch mode");
+                        closeAllWindows();
+                  }
+            } else {
+                  stopped = true;
+            }
+      } while (!stopped);
+}
+
 function AutoIntegrateDialog()
 {
       var helptext;
@@ -3296,7 +3339,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.56</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.57</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3917,45 +3960,7 @@ function AutoIntegrateDialog()
       this.autoRunButton.text = "AutoRun";
       this.autoRunButton.onClick = function()
       {
-            var stopped;
-            if (batch_mode) {
-                  stopped = false;
-                  console.writeln("AutoRun in batch mode");
-            } else {
-                  stopped = true;
-                  console.writeln("AutoRun");
-            }
-            do {
-                  if (dialogFileNames == null) {
-                        dialogFileNames = openFitFiles();
-                        if (dialogFileNames != null) {
-                              this.dialog.files_TreeBox.canUpdate = false;
-                              for (var i = 0; i < dialogFileNames.length; i++) {
-                                    var node = new TreeBoxNode(this.dialog.files_TreeBox);
-                                    node.setText(0, dialogFileNames[i]);
-                              }
-                              this.dialog.files_TreeBox.canUpdate = true;
-                        }
-                  }
-                  if (dialogFileNames != null) {
-                        try {
-                              AutoIntegrateEngine(false);
-                        } 
-                        catch(err) {
-                              console.endLog();
-                              console.writeln(err);
-                              console.writeln("Processing stopped!");
-                              writeProcessingSteps(null);
-                        }
-                        if (batch_mode) {
-                              dialogFileNames = null;
-                              console.writeln("AutoRun in batch mode");
-                              closeAllWindows();
-                        }
-                  } else {
-                        stopped = true;
-                  }
-            } while (!stopped);
+            Autorun(this);
       };   
       this.autoRunSizer = new HorizontalSizer;
       this.autoRunSizer.add( this.autoRunLabel );
@@ -4074,7 +4079,9 @@ function AutoIntegrateDialog()
       this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
       this.ok_Button.onClick = function()
       {
-         this.dialog.ok();
+         //this.dialog.ok();
+
+         Autorun(this);
       };
    
       this.cancel_Button = new PushButton( this );
