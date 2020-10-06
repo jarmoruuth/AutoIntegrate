@@ -3339,7 +3339,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.57</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.58</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3400,7 +3400,7 @@ function AutoIntegrateDialog()
       this.files_TreeBox.multipleSelection = true;
       this.files_TreeBox.rootDecoration = false;
       this.files_TreeBox.alternateRowColor = true;
-      this.files_TreeBox.setScaledMinSize( 300, 200 );
+      this.files_TreeBox.setScaledMinSize( 300, 100 );
       this.files_TreeBox.numberOfColumns = 1;
       this.files_TreeBox.headerVisible = false;
 
@@ -3644,6 +3644,7 @@ function AutoIntegrateDialog()
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
       this.linearSaturationLabel.text = "Linear saturation increase";
+      this.linearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.linearSaturationSpinBox = new SpinBox( this );
       this.linearSaturationSpinBox.minValue = 0;
       this.linearSaturationSpinBox.maxValue = 5;
@@ -3656,6 +3657,7 @@ function AutoIntegrateDialog()
 
       this.nonLinearSaturationLabel = new Label( this );
       this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
+      this.nonLinearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.nonLinearSaturationSpinBox = new SpinBox( this );
       this.nonLinearSaturationSpinBox.minValue = 0;
       this.nonLinearSaturationSpinBox.maxValue = 5;
@@ -3951,42 +3953,29 @@ function AutoIntegrateDialog()
       this.clippingGroupBox.sizer.addStretch();
 
       // Button to run automatic processing
-      this.autoRunLabel = new Label( this );
-      with (this.autoRunLabel) {
-         text = "Run automatic integrate";
-         textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      }
       this.autoRunButton = new PushButton( this );
       this.autoRunButton.text = "AutoRun";
+      this.autoRunButton.toolTip = "Run automatic integrate.";
       this.autoRunButton.onClick = function()
       {
             Autorun(this);
       };   
-      this.autoRunSizer = new HorizontalSizer;
-      this.autoRunSizer.add( this.autoRunLabel );
-      this.autoRunSizer.addSpacing( 4 );
-      this.autoRunSizer.add( this.autoRunButton );
-      this.autoRunGroupBox = new newGroupBox( this );
-      this.autoRunGroupBox.sizer = new HorizontalSizer;
-      this.autoRunGroupBox.sizer.margin = 6;
-      this.autoRunGroupBox.sizer.spacing = 4;
-      this.autoRunGroupBox.sizer.add( this.autoRunSizer );
 
       // Button to continue from existing files
-      this.autoContinueLabel = new Label( this );
-      with (this.autoContinueLabel) {
-            text = "Run automatic processing from previously created images.";
-            textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            toolTip = "Image check order is:\n" +
-                      "L_HT + RGB_HT\n" +
-                      "RGB_HT\n" +
-                      "Integration_L_DBE + Integration_RGB_DBE\n" +
-                      "Integration_RGB_DBE\n" +
-                      "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE\n" +
-                      "Integration_L + Integration_R + Integration_G + Integration_B\n";
-      }
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
+      this.autoContinueButton.toolTip = 
+            "AutoContinue - Run automatic processing from previously created images." +
+            "<p>" +
+            "Image check order is:<br>" +
+            "L_HT + RGB_HT<br>" +
+            "RGB_HT<br>" +
+            "Integration_L_DBE + Integration_RGB_DBE<br>" +
+            "Integration_RGB_DBE<br>" +
+            "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "Integration_L + Integration_R + Integration_G + Integration_B" +
+            "</p>";
+
       this.autoContinueButton.onClick = function()
       {
             console.writeln("autoContinue");
@@ -3999,38 +3988,29 @@ function AutoIntegrateDialog()
                   console.writeln("Processing stopped!");
             }
       };   
-      this.autoContinueSizer = new HorizontalSizer;
-      this.autoContinueSizer.add( this.autoContinueLabel );
-      this.autoContinueSizer.addSpacing( 4 );
-      this.autoContinueSizer.add( this.autoContinueButton );
-      this.autoContinueGroupBox = new newGroupBox( this );
-      this.autoContinueGroupBox.sizer = new HorizontalSizer;
-      this.autoContinueGroupBox.sizer.margin = 6;
-      this.autoContinueGroupBox.sizer.spacing = 4;
-      this.autoContinueGroupBox.sizer.add( this.autoContinueSizer );
 
       // Button to close all windows
-      this.closeAllLabel = new Label( this );
-      with (this.closeAllLabel) {
-            text = "Close all image windows created by this script";
-            textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      }
       this.closeAllButton = new PushButton( this );
       this.closeAllButton.text = "Close all";
+      this.closeAllButton.toolTip = "Close all - Close all image windows created by this script";
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
             closeAllWindows();
-      };   
-      this.closeAllSizer = new HorizontalSizer;
-      this.closeAllSizer.add( this.closeAllLabel );
-      this.closeAllSizer.addSpacing( 4 );
-      this.closeAllSizer.add( this.closeAllButton );
-      this.closeAllGroupBox = new newGroupBox( this );
-      this.closeAllGroupBox.sizer = new HorizontalSizer;
-      this.closeAllGroupBox.sizer.margin = 6;
-      this.closeAllGroupBox.sizer.spacing = 4;
-      this.closeAllGroupBox.sizer.add( this.closeAllSizer );
+      };
+
+      // Group box for AutoRun, AutoContinue and CloseAll
+      this.autoButtonSizer = new HorizontalSizer;
+      this.autoButtonSizer.add( this.autoRunButton );
+      this.autoButtonSizer.addSpacing( 4 );
+      this.autoButtonSizer.add( this.autoContinueButton );
+      this.autoButtonSizer.addSpacing( 4 );
+      this.autoButtonSizer.add( this.closeAllButton );
+      this.autoButtonGroupBox = new newGroupBox( this );
+      this.autoButtonGroupBox.sizer = new HorizontalSizer;
+      this.autoButtonGroupBox.sizer.margin = 6;
+      this.autoButtonGroupBox.sizer.spacing = 4;
+      this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
 
       // Buttons for mosaic save
       this.mosaicSaveLabel = new Label( this );
@@ -4075,18 +4055,16 @@ function AutoIntegrateDialog()
 
       // OK and Cancel buttons
       this.ok_Button = new PushButton( this );
-      this.ok_Button.text = "OK";
-      this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
+      this.ok_Button.text = "Run";
+      this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
-         //this.dialog.ok();
-
          Autorun(this);
       };
    
       this.cancel_Button = new PushButton( this );
-      this.cancel_Button.text = "Cancel";
-      this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
+      this.cancel_Button.text = "Exit";
+      this.cancel_Button.icon = this.scaledResource( ":/icons/close.png" );
       this.cancel_Button.onClick = function()
       {
          this.dialog.cancel();
@@ -4120,9 +4098,7 @@ function AutoIntegrateDialog()
       this.sizer.add( this.weightGroupBox );
       this.sizer.add( this.linearFitGroupBox );
       this.sizer.add( this.clippingGroupBox );
-      this.sizer.add( this.autoRunGroupBox );
-      this.sizer.add( this.autoContinueGroupBox );
-      this.sizer.add( this.closeAllGroupBox );
+      this.sizer.add( this.autoButtonGroupBox );
       this.sizer.add( this.mosaicSaveGroupBox );
       this.sizer.add( this.buttons_Sizer );
 
