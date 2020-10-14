@@ -1160,9 +1160,10 @@ function findLRGBchannels(
                   filter = 'Luminance';
             }
 
-            switch (filter) {
+            switch (filter.trim()) {
                   case 'Luminance':
                   case 'Clear':
+                  case 'L':
                         if (best_l_image == null || parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
                               /* Add best images first in the array. */
                               best_l_ssweight = ssweight;
@@ -1175,6 +1176,7 @@ function findLRGBchannels(
                         luminance_images_exptime += exptime;
                         break;
                   case 'Red':
+                  case 'R':
                         if (best_r_image == null || parseFloat(ssweight) >= parseFloat(best_r_ssweight)) {
                               /* Add best images first in the array. */
                               best_r_ssweight = ssweight;
@@ -1187,6 +1189,7 @@ function findLRGBchannels(
                         red_images_exptime += exptime;
                         break;
                   case 'Green':
+                  case 'G':
                         if (best_g_image == null || parseFloat(ssweight) >= parseFloat(best_g_ssweight)) {
                               /* Add best images first in the array. */
                               best_g_ssweight = ssweight;
@@ -1199,6 +1202,7 @@ function findLRGBchannels(
                         green_images_exptime += exptime;
                         break;
                   case 'Blue':
+                  case 'B':
                         if (best_b_image == null || parseFloat(ssweight) >= parseFloat(best_b_ssweight)) {
                               /* Add best images first in the array. */
                               best_b_ssweight = ssweight;
@@ -2057,14 +2061,15 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
       if (skip_noise_reduction) {
             return;
       }
+
       addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
       var P = new MultiscaleLinearTransform;
+      // Mild noise reedection
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-         [true, true, 0.000, true, 3.000, 0.50, 3],
-         [true, true, 0.000, true, 2.000, 0.50, 2],
-         [true, true, 0.000, true, 1.000, 0.50, 2],
-         [true, true, 0.000, true, 0.500, 0.50, 1],
-         [true, true, 0.000, false, 3.000, 1.00, 1]
+      [true, true, 0.000, true, 1.000, 0.50, 2],
+      [true, true, 0.000, true, 0.500, 0.50, 2],
+      [true, true, 0.000, true, 0.500, 0.50, 1],
+      [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
       P.scaleDelta = 0;
@@ -2471,6 +2476,7 @@ function writeProcessingSteps(alignedFiles)
 
       if (dialogFilePath == null) {
             console.writeln("No path for " + logfname);
+            dialogFilePath = "";
       }
       console.writeln("Write processing steps to " + dialogFilePath + logfname);
 
@@ -3339,7 +3345,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.58</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.59</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
