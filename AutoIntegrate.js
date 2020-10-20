@@ -145,6 +145,7 @@ var ssweight_set = false;
 var use_weight = 'G';                           /* Default: Generic */
 var imageintegration_normalization = 0;         /* Default: additive */
 var skip_imageintegration_ssweight = false;
+var imageintegration_clipping = false;
 var use_noise_reduction_on_all_channels = false;
 var integrate_only = false;
 var channelcombination_only = false;
@@ -1643,6 +1644,68 @@ function runImageIntegration(images, name)
 
       var P = new ImageIntegration;
 
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.weightMode = ImageIntegration.prototype.NoiseEvaluation;
+      P.weightKeyword = "";
+      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
+      P.adaptiveGridSize = 16;
+      P.ignoreNoiseKeywords = false;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.minMaxLow = 1;
+      P.minMaxHigh = 1;
+      P.pcClipLow = 0.200;
+      P.pcClipHigh = 0.100;
+      P.sigmaLow = 4.000;
+      P.sigmaHigh = 3.000;
+      P.winsorizationCutoff = 5.000;
+      P.linearFitLow = 5.000;
+      P.linearFitHigh = 4.000;
+      P.esdOutliersFraction = 0.30;
+      P.esdAlpha = 0.05;
+      P.esdLowRelaxation = 1.50;
+      P.ccdGain = 1.00;
+      P.ccdReadNoise = 10.00;
+      P.ccdScaleNoise = 0.00;
+      P.clipLow = imageintegration_clipping;             // def: true
+      P.clipHigh = imageintegration_clipping;            // def: true
+      P.rangeClipLow = imageintegration_clipping;        // def: true
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+      P.largeScaleClipLow = false;
+      P.largeScaleClipLowProtectedLayers = 2;
+      P.largeScaleClipLowGrowth = 2;
+      P.largeScaleClipHigh = false;
+      P.largeScaleClipHighProtectedLayers = 2;
+      P.largeScaleClipHighGrowth = 2;
+      P.generate64BitResult = false;
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+      P.bufferSizeMB = 16;
+      P.stackSizeMB = 1024;
+      P.autoMemorySize = true;
+      P.autoMemoryLimit = 0.75;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.useCache = true;
+      P.evaluateNoise = true;
+      P.mrsMinDataFraction = 0.010;
+      P.subtractPedestals = false;
+      P.truncateOnOutOfRange = false;
+      P.noGUIMessages = true;
+      P.showImages = true;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.useBufferThreads = true;
+      P.maxBufferThreads = 8;
+
       P.combination = ImageIntegration.prototype.Average;
       if (ssweight_set && !skip_imageintegration_ssweight) {
             // Using weightKeyword seem to give better results
@@ -1664,13 +1727,6 @@ function runImageIntegration(images, name)
       
       P.evaluateNoise = true;
       
-      /*
-      P.clipLow = true;
-      P.clipHigh = false;
-      P.rangeClipLow = true;
-      P.rangeClipHigh = false;
-      */
-
       if (use_drizzle) {
             var drizzleImages = new Array;
             for (var i = 0; i < images.length; i++) {
@@ -1746,7 +1802,7 @@ function runImageIntegrationNormalized(images, name)
       P.clipHigh = true;
       P.rangeClipLow = true;
       P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
+      P.rangeClipHigh = true;       /* default: false */
       P.rangeHigh = 0.980000;
       P.mapRangeRejection = true;
       P.reportRangeRejection = false;
@@ -3345,7 +3401,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.59</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.60</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3573,6 +3629,13 @@ function AutoIntegrateDialog()
             SetOption("ImageIntegration do not use weight", checked); 
       }
 
+      this.imageintegration_clipping_CheckBox = newCheckBox(this, "ImageIntegration clipping", imageintegration_clipping, 
+      "<p>Use clipping in ImageIntegration</p>" );
+      this.imageintegration_clipping_CheckBox.onClick = function(checked) { 
+            imageintegration_clipping = checked; 
+            SetOption("ImageIntegration clipping", checked); 
+      }
+
       this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", RRGB_image, 
       "<p>RRGB image using R as Luminance.</p>" );
       this.RRGB_image_CheckBox.onClick = function(checked) { 
@@ -3622,6 +3685,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
+      this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet1.add( this.useLocalNormalizationCheckBox );
       
