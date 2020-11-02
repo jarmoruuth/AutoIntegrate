@@ -13,6 +13,9 @@ Clicking button AutoRun on GUI all the following steps listed below are performe
 LRGB files need to have keyword FILTER that has values 'Luminance', 'Red', 'Green'
 or 'Blue' values. If keyword FILTER is not found images are assumed to be color images.
 
+NOTE! These steps have not been updated with recent changes. They do describe the basic
+      processing but some details may have changed.
+
 Manual processing
 -----------------
 
@@ -232,6 +235,7 @@ var G_BE_win;
 var B_BE_win;
 var RGB_BE_win;
 var L_HT_win;
+var L_stf;
 var RGB_HT_win;
 var drizzle_prefix;
 var range_mask_win;
@@ -2816,6 +2820,34 @@ function LRGBCreateMask()
       }
 }
 
+/* Create mask for color processing. Mask is needed also in non-linear
+ * so we do a separate runHistogramTransform here.
+ */
+function ColorCreateMask(color_id)
+{
+      addProcessingStep("ColorCreateMask");
+
+      if (winIsValid(range_mask_win)) {
+            /* We already have a mask. */
+            addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+            mask_win = range_mask_win;
+      } else {
+            var color_win;
+            color_win = ImageWindow.windowById(color_id);
+            addProcessingStep("Using image " + color_id + " for a mask");
+            color_win = copyWindow(color_win, "color_win_mask");
+
+            /* Run HistogramTransform based on autostretch because mask should be non-linear. */
+            runHistogramTransform(color_win, null);
+
+            /* Create mask.
+             */
+            mask_win_id = "AutoMask";
+            mask_win = newMaskWindow(color_win, mask_win_id);
+            windowCloseif("color_win_mask")
+      }
+}
+
 /* Process L image
  *
  * optionally run ABE on L image
@@ -2975,6 +3007,7 @@ function ProcessRGBimage()
             /* We already have run HistogramTransformation. */
             RGB_ABE_HT_id = RGB_HT_win.mainView.id;
             addProcessingStep("Start from image " + RGB_ABE_HT_id);
+            ColorCreateMask(RGB_ABE_HT_id);
       } else {
             if (preprocessed_images == start_images.L_RGB_DBE ||
                 preprocessed_images == start_images.RGB_DBE) 
@@ -3003,17 +3036,19 @@ function ProcessRGBimage()
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
+            ColorCreateMask(RGB_ABE_id);
             if (linear_increase_saturation > 0) {
                   /* Add saturation linear RGB
                   */
-                  for (var i = 0; i < linear_increase_saturation; i++) {
+                 console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
+                 for (var i = 0; i < linear_increase_saturation; i++) {
                         increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
                   }
             }
       
             if (!color_files) {
-                  /* OPtional noise reduction for RGB
-                  */
+                  /* Optional noise reduction for RGB
+                   */
                   runMultiscaleLinearTransformReduceNoise(
                         ImageWindow.windowById(RGB_ABE_id),
                         mask_win);
@@ -3025,19 +3060,8 @@ function ProcessRGBimage()
       }
 
       if (color_files) {
-            if (winIsValid(range_mask_win)) {
-                  /* We already have a mask. */
-                  mask_win = range_mask_win;
-                  addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
-            } else {
-                  /* Color files. Create mask for noise reduction and sharpening. */
-                  mask_win_id = "AutoMask";
-                  mask_win = newMaskWindow(
-                              ImageWindow.windowById(RGB_ABE_HT_id),
-                              mask_win_id);
-            }
             /* Noise reduction for color RGB
-            */
+             */
             runMultiscaleLinearTransformReduceNoise(
                   ImageWindow.windowById(RGB_ABE_HT_id),
                   mask_win);
@@ -3076,6 +3100,7 @@ function AutoIntegrateEngine(auto_continue)
       all_windows = new Array;
       iconPoint = null;
       dialogFilePath = null;
+      L_stf = null;
 
       if (processingOptions.length > 0) {
             console.noteln("--------------------------------------");
@@ -3103,7 +3128,6 @@ function AutoIntegrateEngine(auto_continue)
        */
 
       if (!integrate_only) {
-            var L_stf = null;
             var processRGB = !color_files && 
                              !monochrome_image &&
                              (preprocessed_images == start_images.NONE ||
@@ -3401,7 +3425,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.60</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.61</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
