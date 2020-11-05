@@ -383,6 +383,7 @@ function windowCloseif(id)
 {
       var w = findWindow(id);
       if (w != null) {
+            console.writeln("Close window " + id);
             w.close();
       }
 }
@@ -2401,9 +2402,11 @@ function increaseSaturation(imgView, MaskView)
       runCurvesTransformationSaturation(imgView, MaskView);
 }
 
-function runLRGBCombination(RGBimgView, L_id)
+function runLRGBCombination(RGB_id, L_id)
 {
-      addProcessingStep("LRGB combination on " + RGBimgView.id + ", luminance image " + L_id);
+      var targetWin = copyWindow(ImageWindow.windowById(RGB_id), RGB_id.replace("RGB", "LRGB"));
+      var RGBimgView = targetWin.mainView;
+      addProcessingStep("LRGB combination of " + RGB_id + "and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
             [false, "", 1.00000],
@@ -2423,8 +2426,6 @@ function runLRGBCombination(RGBimgView, L_id)
       P.executeOn(RGBimgView, false);
 
       RGBimgView.endProcess();
-
-      RGBimgView.id = RGBimgView.id.replace("RGB", "LRGB");
 
       return RGBimgView.id;
 }
@@ -2535,8 +2536,13 @@ function writeProcessingSteps(alignedFiles)
       logfname = "AutoIntegrate" + getUniqueFilenamePart() + ".log";
 
       if (dialogFilePath == null) {
-            console.writeln("No path for " + logfname);
-            dialogFilePath = "";
+            var gdd = new GetDirectoryDialog;
+            gdd.caption = "Select Save Directory for AutoIntegrate.log";
+            if (!gdd.execute()) {
+                  console.writeln("No path for " + logfname + ', file not written');
+                  return;
+            }
+            dialogFilePath = gdd.directory + '/';
       }
       console.writeln("Write processing steps to " + dialogFilePath + logfname);
 
@@ -2545,9 +2551,11 @@ function writeProcessingSteps(alignedFiles)
 
       file.write(console.endLog());
       file.outTextLn("======================================");
-      file.outTextLn("Dialog files:");
-      for (var i = 0; i < dialogFileNames.length; i++) {
-            file.outTextLn(dialogFileNames[i]);
+      if (dialogFileNames != null) {
+            file.outTextLn("Dialog files:");
+            for (var i = 0; i < dialogFileNames.length; i++) {
+                  file.outTextLn(dialogFileNames[i]);
+            }
       }
       if (alignedFiles != null) {
             file.outTextLn("Aligned files:");
@@ -2795,7 +2803,7 @@ function LRGBCreateMask()
             if (preprocessed_images == start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
-                  L_win = L_HT_win;
+                  L_win = copyWindow(L_HT_win, "L_win_mask");
             } else {
                   if (preprocessed_images == start_images.L_RGB_DBE ||
                       preprocessed_images == start_images.L_R_G_B_DBE) 
@@ -3007,7 +3015,9 @@ function ProcessRGBimage()
             /* We already have run HistogramTransformation. */
             RGB_ABE_HT_id = RGB_HT_win.mainView.id;
             addProcessingStep("Start from image " + RGB_ABE_HT_id);
-            ColorCreateMask(RGB_ABE_HT_id);
+            if (preprocessed_images == start_images.RGB_HT) {
+                  ColorCreateMask(RGB_ABE_HT_id);
+            }
       } else {
             if (preprocessed_images == start_images.L_RGB_DBE ||
                 preprocessed_images == start_images.RGB_DBE) 
@@ -3036,7 +3046,9 @@ function ProcessRGBimage()
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
-            ColorCreateMask(RGB_ABE_id);
+            if (color_files) {
+                  ColorCreateMask(RGB_ABE_id);
+            }
             if (linear_increase_saturation > 0) {
                   /* Add saturation linear RGB
                   */
@@ -3081,6 +3093,7 @@ function ProcessRGBimage()
 function AutoIntegrateEngine(auto_continue)
 {
       var LRGB_ABE_HT_id = null;
+      var RGB_ABE_HT_id = null;
 
       color_files = false;
       luminance_id = null;
@@ -3160,7 +3173,7 @@ function AutoIntegrateEngine(auto_continue)
 
             } else if (!channelcombination_only) {
 
-                  var RGB_ABE_HT_id = ProcessRGBimage();
+                  RGB_ABE_HT_id = ProcessRGBimage();
 
                   if (color_files) {
                         LRGB_ABE_HT_id = RGB_ABE_HT_id;
@@ -3168,7 +3181,7 @@ function AutoIntegrateEngine(auto_continue)
                         /* LRGB files. Combine L and RGB images.
                         */
                        LRGB_ABE_HT_id = runLRGBCombination(
-                                          ImageWindow.windowById(RGB_ABE_HT_id).mainView,
+                                          RGB_ABE_HT_id,
                                           L_ABE_HT_id);
                   }
           
@@ -3241,6 +3254,7 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(B_ABE_id);
 
       windowIconizeif(RGB_ABE_id);
+      windowIconizeif(RGB_ABE_HT_id);
       windowIconizeif(L_ABE_HT_id);
       windowIconizeif(RGB_win_id);              /* Integration_RGB */
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
@@ -3425,7 +3439,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.61</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.62</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
