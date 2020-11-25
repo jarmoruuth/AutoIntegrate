@@ -360,10 +360,16 @@ function findWindow(id)
             return null;
       }
       var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return null;
+      }
       for (var i in images) {
-            if (images[i].mainView.id == id) {
+            if (images[i].mainView != null
+                && images[i].mainView != undefined
+                && images[i].mainView.id == id) 
+            {
                return images[i];
-         }
+            }
       }
       return null;
 }
@@ -3439,7 +3445,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.62</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.63</b> &mdash; " +
                               "Automatic astro image integration utility.</p>";
       }
       this.__base__ = Dialog;
