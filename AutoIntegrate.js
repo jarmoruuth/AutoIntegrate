@@ -5,15 +5,17 @@ Script to automate initial steps of image processing in PixInsight.
 Script has a GUI interface where some processing options can be selected.
 
 In the end there will be integrated light files and automatically
-processed final image. Both LRGB and color files are accepted. It is also possible
-do only partial processing and continue manually.
+processed final image. Scipt accepts LRGB, color and narrowband files. 
+It is also possible do only partial processing and continue manually.
 
 Clicking button AutoRun on GUI all the following steps listed below are performed.
 
-LRGB files need to have keyword FILTER that has values 'Luminance', 'Red', 'Green'
-or 'Blue' values. If keyword FILTER is not found images are assumed to be color images.
+LRGB files need to have keyword FILTER that has values for Luminance, Red, Green
+or Blue channels. A couple of variants are accepted like 'Red' or 'R'.
+If keyword FILTER is not found images are assumed to be color images. Also
+camera RAW files can be used.
 
-NOTE! These steps have not been updated with recent changes. They do describe the basic
+NOTE! These steps mayh not be updated with recent changes. They do describe the basic
       processing but some details may have changed.
 
 Manual processing
@@ -43,7 +45,7 @@ intermediate files and autocontinue there.
 Generic steps for all files
 ---------------------------
 
-1. Opens a file dialog. On that select all *.fit files. Both LRGB and color
+1. Opens a file dialog. On that select all *.fit files. LRGB, color and narrowband
    files can be used.
 2. SubframeSelector is run on .fit files to measure and generate SSWEIGHT for
    each file. Output is *_a.xisf files.
@@ -74,12 +76,15 @@ Steps with LRGB files
 10. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
     If use_background_neutralization is selected then BackgroundNeutralization is run before
     color calibration.
-11. AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
+11. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
 12. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
 13. HistogramTransform is run on RGB image using autotreched STF from L image. <rgbHT>
-14. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
-15. LRGBCombination is run to generate final LRGB image.
+14. Optionally TGVDenoise is run to reduce color noise.
+15. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+    By default saturation is increased also when the image is still in a linear
+    format.
+16. LRGBCombination is run to generate final LRGB image.
 
 Steps with color files
 ----------------------
@@ -99,6 +104,14 @@ Steps with color files
     Mask is used to target noise reduction more on the background.
 8. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
 
+Steps with narrowband files
+---------------------------
+
+Steps for narrowband files are a bit similar to LRGB files but without L channel.
+- There is an option to choose how S, H and O files and mapped to R, G and B channels.
+- Color calibration is not run on narrowband images
+- Saturation default setting 1 does not increase saturation on narrowband images.
+
 Common final steps for all images
 ---------------------------------
 
@@ -107,17 +120,63 @@ Common final steps for all images
    sharpening more on the light parts of the image.
 3. Extra windows are closed or minimized.
 
+Credits and Copyright notices
+-----------------------------
+
 Written by Jarmo Ruuth, 2018-2020.
 
 PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
 was a great place to find details and best practises when using PixInsight.
 
-Routine ApplyAutoSTF is from NBRGBCombination.js script that is distributed
-with Pixinsight. 
+Routines ApplyAutoSTF and applySTF are from PixInsight scripts that are 
+distributed with Pixinsight. 
 
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+The following copyright notice is for routines ApplyAutoSTF and applySTF:
+
+   Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
+   
+      Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
+   
+   Redistribution and use in both source and binary forms, with or without
+   modification, is permitted provided that the following conditions are met:
+   
+   1. All redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   
+   2. All redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+   
+   3. Neither the names "PixInsight" and "Pleiades Astrophoto", nor the names
+      of their contributors, may be used to endorse or promote products derived
+      from this software without specific prior written permission. For written
+      permission, please contact info@pixinsight.com.
+  
+   4. All products derived from this software, in any form whatsoever, must
+      reproduce the following acknowledgment in the end-user documentation
+      and/or other materials provided with the product:
+  
+      "This product is based on software from the PixInsight project, developed
+      by Pleiades Astrophoto and its contributors (https://pixinsight.com/)."
+   
+      Alternatively, if that is where third-party acknowledgments normally
+      appear, this acknowledgment must be reproduced in the product itself.
+  
+   THIS SOFTWARE IS PROVIDED BY PLEIADES ASTROPHOTO AND ITS CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+   PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL PLEIADES ASTROPHOTO OR ITS
+   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, BUSINESS
+   INTERRUPTION; PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; AND LOSS OF USE,
+   DATA OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGE.
 
 */
 
@@ -154,8 +213,8 @@ var integrate_only = false;
 var channelcombination_only = false;
 var skip_subframeselector = false;
 var skip_cosmeticcorrection = false;
-var linear_increase_saturation = 2;
-var non_linear_increase_saturation = 1;
+var linear_increase_saturation = 1;             /* Keep to 1, or check narrowband. */
+var non_linear_increase_saturation = 1;         /* Keep to 1, or check narrowband. */
 var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
@@ -173,6 +232,11 @@ var unique_file_names = false;
 var skip_noise_reduction = false;
 var skip_color_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
+var narrowband = false;
+var narrowband_palette = 'SHO';
+var skip_SCNR = false;
+var linear_fit_done = false;
+var fix_narrowband_star_color = false;
 
 var processingDate;
 var dialogFileNames = null;
@@ -610,7 +674,7 @@ function openFitFiles()
       ofd.multipleSelections = true;
       ofd.caption = "Select Light Frames";
       ofd.filters = [
-            ["FITS files", "*.fit"],
+            ["FITS files", "*.fit *.fits"],
             ["All files", "*.*"]
          ];
 
@@ -1085,6 +1149,50 @@ function find_best_image(weight_arr, image_arr)
       return { wght: best_weight, img: best_image };
 }
 
+function narrowband_mapping(filter)
+{
+      /* Check for narrowbad mapping: SHO, HOS, HOO. */
+      switch (filter) {
+            case 'SII':
+                  narrowband = true;
+                  if (narrowband_palette == 'HOS') {
+                        filter = 'B';
+                  } else if (narrowband_palette == 'HOO') {
+                        // Map to 'R', but should this be an error?
+                        filter = 'R';
+                  } else {
+                        /* SHO */
+                        filter = 'R';
+                  }
+                  break;
+            case 'Halpha':
+                  narrowband = true;
+                  if (narrowband_palette == 'HOS') {
+                        filter = 'R';
+                  } else if (narrowband_palette == 'HOO') {
+                        filter = 'R';
+                  } else {
+                        /* SHO */
+                        filter = 'G';
+                  }
+                  break;
+            case 'OIII':
+                  narrowband = true;
+                  if (narrowband_palette == 'HOS') {
+                        filter = 'G';
+                  } else if (narrowband_palette == 'HOO') {
+                        filter = 'G';
+                  } else {
+                        /* SHO */
+                        filter = 'B';
+                  }
+                  break;
+            default:
+                  break;
+      }
+      return filter;
+}
+
 function findLRGBchannels(
       alignedFiles,
       luminance_images,
@@ -1167,12 +1275,13 @@ function findLRGBchannels(
                   }
             }
 
+            filter = narrowband_mapping(filter.trim());
+
             if (monochrome_image) {
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
-
-            switch (filter.trim()) {
+            switch (filter) {
                   case 'Luminance':
                   case 'Clear':
                   case 'L':
@@ -1253,6 +1362,9 @@ function findLRGBchannels(
                         break;
             }
       }
+      if (narrowband) {
+            addProcessingStep("Processing as " + narrowband_palette + " narrowband image");
+      }
       if (color_images.length > 0) {
             if (luminance_images.length > 0) {
                   throwFatalError("Cannot mix color and luminance filter files");
@@ -1297,7 +1409,7 @@ function findLRGBchannels(
                   luminance_images_exptime = luminance_images_exptime + red_images_exptime +
                                              green_images_exptime + blue_images_exptime;
             }
-            if (luminance_images.length == 0) {
+            if (luminance_images.length == 0 && !narrowband) {
                   throwFatalError("No Luminance images found");
             }
             if (!monochrome_image) {
@@ -1313,7 +1425,9 @@ function findLRGBchannels(
                         }
                   }
                   if (blue_images.length == 0) {
-                        if (synthetic_missing_images) {
+                        if (narrowband && narrowband_palette == 'HOO') {
+                              copy_image_list(blue_images, green_images);
+                        } else if (synthetic_missing_images) {
                               addProcessingStep("No blue images, synthetic blue image from luminance images");
                               copy_image_list(blue_images, luminance_images);
                               best_b_ssweight = best_l_ssweight;
@@ -1531,6 +1645,7 @@ function runLocalNormalization(imagetable, refImage)
 function runLinearFit(refViewId, targetId)
 {
       addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
+      linear_fit_done = true;
       var targetWin = ImageWindow.windowById(targetId);
       var P = new LinearFit;
       P.referenceViewId = refViewId;
@@ -1927,48 +2042,8 @@ function runABE(win, target_id)
 // separately (false).
 #define DEFAULT_AUTOSTRETCH_CLINK   true
 
-/* ApplyAutoSTF routine is from NBRGBCombination.js
+/* ApplyAutoSTF routine is from PixInsight scripts.
  *
- * Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
- * 
- *    Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
- * 
- * Redistribution and use in both source and binary forms, with or without
- * modification, is permitted provided that the following conditions are met:
- * 
- * 1. All redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 
- * 2. All redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 
- * 3. Neither the names "PixInsight" and "Pleiades Astrophoto", nor the names
- *    of their contributors, may be used to endorse or promote products derived
- *    from this software without specific prior written permission. For written
- *    permission, please contact info@pixinsight.com.
- *
- * 4. All products derived from this software, in any form whatsoever, must
- *    reproduce the following acknowledgment in the end-user documentation
- *    and/or other materials provided with the product:
- *
- *    "This product is based on software from the PixInsight project, developed
- *    by Pleiades Astrophoto and its contributors (https://pixinsight.com/)."
- * 
- *    Alternatively, if that is where third-party acknowledgments normally
- *    appear, this acknowledgment must be reproduced in the product itself.
- *
- * THIS SOFTWARE IS PROVIDED BY PLEIADES ASTROPHOTO AND ITS CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL PLEIADES ASTROPHOTO OR ITS
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, BUSINESS
- * INTERRUPTION; PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; AND LOSS OF USE,
- * DATA OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
 {
@@ -2095,16 +2170,14 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    console.writeln("<end><cbr/><br/>");
 }
 
-/* applySTF routine is from NBRGBCombination.js
- *
- * That file is originally made by Silvercup
- * heavily modified by roryt (Ioannis Ioannou)
+/* applySTF routine is from PixInsight scripts.
  */
-function applySTF(imgView, stf)
+function applySTF(imgView, stf, iscolor)
 {
       console.writeln("  Apply STF on " + imgView.id);
       var HT = new HistogramTransformation;
-      if (imgView.isColor) {
+
+      if (iscolor) {
             HT.H = [	// shadows, midtones, highlights, rescale0, rescale1
                         [stf[0][1], stf[0][0], stf[0][2], stf[0][3], stf[0][4]],    // red
                         [stf[1][1], stf[1][0], stf[1][2], stf[1][3], stf[1][4]],    // green
@@ -2127,7 +2200,7 @@ function applySTF(imgView, stf)
       imgView.endProcess();
 }
 
-function runHistogramTransform(ABE_win, stf_to_use)
+function runHistogramTransform(ABE_win, stf_to_use, iscolor)
 {
       if (!run_HT) {
             addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
@@ -2137,15 +2210,23 @@ function runHistogramTransform(ABE_win, stf_to_use)
 
       if (stf_to_use == null) {
             /* Apply autostretch on image */
+            var rgbLinked = true;
+            if (narrowband) {
+                  if (linear_fit_done) {
+                        rgbLinked = true;
+                  } else {
+                        rgbLinked = false;
+                  }
+            }
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
                         DEFAULT_AUTOSTRETCH_TBGND,
-                        DEFAULT_AUTOSTRETCH_CLINK);
+                        rgbLinked);
             stf_to_use = ABE_win.mainView.stf;
       }
 
       /* Run histogram transfer function based on autostretch */
-      applySTF(ABE_win.mainView, stf_to_use);
+      applySTF(ABE_win.mainView, stf_to_use, iscolor);
 
       /* Undo autostretch */
       console.writeln("  Undo STF on " + ABE_win.mainView.id);
@@ -2300,6 +2381,9 @@ function runBackgroundNeutralization(imgView)
 
 function runColorCalibration(imgView)
 {
+      if (narrowband) {
+            return;
+      }
       addProcessingStep("Color calibration on " + imgView.id);
       var P = new ColorCalibration;
       P.whiteReferenceViewId = "";
@@ -2474,9 +2558,11 @@ function runLRGBCombination(RGB_id, L_id)
       return RGBimgView.id;
 }
 
-function runSCNR(RGBimgView)
+function runSCNR(RGBimgView, silent)
 {
-      addProcessingStep("SCNR on " + RGBimgView.id);
+      if (!silent) {
+            addProcessingStep("SCNR on " + RGBimgView.id);
+      }
       var P = new SCNR;
       P.amount = 1.00;
       P.protectionMethod = SCNR.prototype.AverageNeutral;
@@ -2805,7 +2891,9 @@ function CreateChannelImages(auto_continue)
                   }
                   color_files = false;
 
-                  luminance_id = runImageIntegration(luminance_images, 'L');
+                  if (luminance_images.length > 0) {
+                        luminance_id = runImageIntegration(luminance_images, 'L');
+                  }
 
                   if (!monochrome_image) {
                         red_id = runImageIntegration(red_images, 'R');
@@ -2862,7 +2950,7 @@ function LRGBCreateMask()
                   L_win = copyWindow(L_win, "L_win_mask");
 
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  runHistogramTransform(L_win, null);
+                  runHistogramTransform(L_win, null, false);
             }
             /* Create mask.
              */
@@ -2890,7 +2978,7 @@ function ColorCreateMask(color_id)
             color_win = copyWindow(color_win, "color_win_mask");
 
             /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-            runHistogramTransform(color_win, null);
+            runHistogramTransform(color_win, null, true);
 
             /* Create mask.
              */
@@ -2939,7 +3027,10 @@ function ProcessLimage()
             /* On L image run HistogramTransform based on autostretch
             */
             L_ABE_HT_id = L_ABE_id + "_HT";
-            L_stf = runHistogramTransform(copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), null);
+            L_stf = runHistogramTransform(
+                        copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
+                        null,
+                        false);
             if (!same_stf_for_all_images) {
                   L_stf = null;
             }
@@ -2964,24 +3055,30 @@ function LinearFitLRGBchannels()
             /* Use R.
              */
             addProcessingStep("Linear fit using R");
-            runLinearFit(red_id, luminance_id);
+            if (luminance_images.length > 0) {
+                  runLinearFit(red_id, luminance_id);
+            }
             runLinearFit(red_id, green_id);
             runLinearFit(red_id, blue_id);
       } else if (use_linear_fit == 'G') {
             /* Use G.
               */
             addProcessingStep("Linear fit using G");
-            runLinearFit(green_id, luminance_id);
+            if (luminance_images.length > 0) {
+                  runLinearFit(green_id, luminance_id);
+            }
             runLinearFit(green_id, red_id);
             runLinearFit(green_id, blue_id);
       } else if (use_linear_fit == 'B') {
             /* Use B.
               */
             addProcessingStep("Linear fit using B");
-            runLinearFit(blue_id, luminance_id);
+            if (luminance_images.length > 0) {
+                  runLinearFit(blue_id, luminance_id);
+            }
             runLinearFit(blue_id, red_id);
             runLinearFit(blue_id, green_id);
-      } else if (use_linear_fit == 'L') {
+      } else if (use_linear_fit == 'L' && luminance_images.length > 0) {
             /* Use L.
              */
             addProcessingStep("Linear fit using L");
@@ -3090,14 +3187,18 @@ function ProcessRGBimage()
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
-            if (color_files) {
+            if (color_files || luminance_images.length == 0) {
                   ColorCreateMask(RGB_ABE_id);
+            }
+            if (narrowband && linear_increase_saturation > 0) {
+                  /* Deafult one means no increase with narrowband. */
+                  linear_increase_saturation--;
             }
             if (linear_increase_saturation > 0) {
                   /* Add saturation linear RGB
                   */
-                 console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
-                 for (var i = 0; i < linear_increase_saturation; i++) {
+                  console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
+                  for (var i = 0; i < linear_increase_saturation; i++) {
                         increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
                   }
             }
@@ -3112,7 +3213,11 @@ function ProcessRGBimage()
             /* On RGB image run HistogramTransform based on autostretch
             */
             RGB_ABE_HT_id = RGB_ABE_id + "_HT";
-            runHistogramTransform(copyWindow(ImageWindow.windowById(RGB_ABE_id), RGB_ABE_HT_id), L_stf);
+            runHistogramTransform(
+                  copyWindow(ImageWindow.windowById(RGB_ABE_id), 
+                  RGB_ABE_HT_id), 
+                  L_stf,
+                  true);
       }
 
       if (color_files) {
@@ -3124,7 +3229,11 @@ function ProcessRGBimage()
             runColorReduceNoise(ImageWindow.windowById(RGB_ABE_HT_id));
       }
 
-      if (!non_linear_increase_saturation) {
+      if (narrowband && non_linear_increase_saturation > 0) {
+            /* Deafult one means no increase with narrowband. */
+            non_linear_increase_saturation--;
+      }
+      if (non_linear_increase_saturation > 0) {
             /* Add saturation on RGB
             */
             for (var i = 0; i < non_linear_increase_saturation; i++) {
@@ -3132,6 +3241,25 @@ function ProcessRGBimage()
             }
       }
       return RGB_ABE_HT_id;
+}
+
+function invertImage(targetView)
+{
+      console.writeln("invertImage");
+      var P = new Invert;
+      P.executeOn(targetView, true);
+}
+
+/* Do a rough fix on magen stars by inverting the image, applying
+ * SCNR to remove the now green cast on stars and then inverting back.
+ */
+function fixNarrowbandStarColor(targetView)
+{
+      addProcessingStep("fixNarrowbandStarColor");
+
+      invertImage(targetView);
+      runSCNR(targetView, true);
+      invertImage(targetView);
 }
 
 function AutoIntegrateEngine(auto_continue)
@@ -3195,7 +3323,7 @@ function AutoIntegrateEngine(auto_continue)
                   LinearFitLRGBchannels();
             }
 
-            if (!color_files) {
+            if (!color_files && luminance_images.length > 0) {
                   /* This need to be run early as we create a mask from
                    * L image.
                    */
@@ -3219,7 +3347,7 @@ function AutoIntegrateEngine(auto_continue)
 
                   RGB_ABE_HT_id = ProcessRGBimage();
 
-                  if (color_files) {
+                  if (color_files || luminance_images.length == 0) {
                         LRGB_ABE_HT_id = RGB_ABE_HT_id;
                   } else {
                         /* LRGB files. Combine L and RGB images.
@@ -3229,25 +3357,32 @@ function AutoIntegrateEngine(auto_continue)
                                           L_ABE_HT_id);
                   }
           
-                  /* Remove green cast, run SCNR
-                  */
-                  runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
+                  if (!skip_SCNR) {
+                        /* Remove green cast, run SCNR
+                        */
+                        runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
+                  }
           
                   /* Optional color noise reduction for RGB.
                    */
                   runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
 
-                        /* Sharpen image, use mask to sharpen mostly the light parts of image.
+                  /* Sharpen image, use mask to sharpen mostly the light parts of image.
                   */
                   runMultiscaleLinearTransformSharpen(
                         ImageWindow.windowById(LRGB_ABE_HT_id),
                         mask_win);
           
+                  if (narrowband && fix_narrowband_star_color) {
+                        /* Fix narrowband image star color.
+                         */
+                        fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
+                  }
 
                   if (preprocessed_images == start_images.NONE) {
                         /* Rename some windows. Need to be done before iconize.
                         */
-                        if (!color_files) {
+                        if (!color_files && luminance_images.length > 0) {
                               /* LRGB files */
                               if (RRGB_image) {
                                     if (use_ABE) {
@@ -3277,7 +3412,7 @@ function AutoIntegrateEngine(auto_continue)
             LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "Drizzle"+LRGB_ABE_HT_id);
       }
 
-      saveWindow(dialogFilePath, luminance_id);            /* Integration_L */
+      saveWindow(dialogFilePath, luminance_id);      /* Integration_L */
       saveWindow(dialogFilePath, red_id);                  /* Integration_R */
       saveWindow(dialogFilePath, green_id);                /* Integraion_G */
       saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
@@ -3483,8 +3618,8 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.63</b> &mdash; " +
-                              "Automatic astro image integration utility.</p>";
+            helptext = "<p><b>AutoIntegrate v0.64 Beta3</b> &mdash; " +
+                              "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
       this.__base__();
@@ -3762,6 +3897,13 @@ function AutoIntegrateDialog()
             SetOption("No color noise reduction", checked); 
       }
 
+      this.skip_SCNR_CheckBox = newCheckBox(this, "Skip SCNR", skip_SCNR, 
+      "<p>Skip SCNR to remove green cast</p>" );
+      this.skip_SCNR_CheckBox.onClick = function(checked) { 
+            skip_SCNR = checked; 
+            SetOption("SCNR", checked); 
+      }
+
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
@@ -3784,6 +3926,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
       this.imageParamsSet2.add( this.useABECheckBox );
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
+      this.imageParamsSet2.add( this.skip_SCNR_CheckBox );
 
       // Image group parameters.
       this.imageParamsGroupBox = new newGroupBox( this );
@@ -3794,7 +3937,7 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet1 );
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet2 );
       // Stop columns of buttons moving as dialog expands horizontally.
-      this.imageParamsGroupBox.sizer.addStretch();
+      //this.imageParamsGroupBox.sizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -3832,7 +3975,7 @@ function AutoIntegrateDialog()
       this.saturationGroupBox.sizer.add( this.linearSaturationSpinBox );
       this.saturationGroupBox.sizer.add( this.nonLinearSaturationLabel );
       this.saturationGroupBox.sizer.add( this.nonLinearSaturationSpinBox );
-      this.saturationGroupBox.sizer.addStretch();
+      //this.saturationGroupBox.sizer.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -3863,7 +4006,7 @@ function AutoIntegrateDialog()
       this.otherParamsGroupBox.sizer.add( this.otherParamsSet1 );
       this.otherParamsGroupBox.sizer.add( this.otherParamsSet2 );
       // Stop columns of buttons moving as dialog expands horizontally.
-      this.otherParamsGroupBox.sizer.addStretch();
+      //this.otherParamsGroupBox.sizer.addStretch();
       
       // Weight calculations
       this.genericWeightRadioButton = new RadioButton( this );
@@ -3918,7 +4061,7 @@ function AutoIntegrateDialog()
       this.weightGroupBox.sizer.add( this.starWeightRadioButton );
       this.weightGroupBox.sizer.add( this.weightHelpTips );
       // Stop columns of buttons moving as dialog expands horizontally.
-      this.weightGroupBox.sizer.addStretch();
+      //this.weightGroupBox.sizer.addStretch();
       
       // Linear Fit buttons
       this.luminanceRadioButton = new RadioButton( this );
@@ -3982,7 +4125,7 @@ function AutoIntegrateDialog()
       this.linearFitGroupBox.sizer.add( this.blueRadioButton );
       this.linearFitGroupBox.sizer.add( this.noneRadioButton );
       // Stop columns of buttons moving as dialog expands horizontally.
-      this.linearFitGroupBox.sizer.addStretch();
+      //this.linearFitGroupBox.sizer.addStretch();
 
       //
       // Image integration
@@ -4067,6 +4210,7 @@ function AutoIntegrateDialog()
             }
       };
    
+      // Image integration
       this.ImageIntegrationRejectionSizer = new HorizontalSizer;
       this.ImageIntegrationRejectionSizer.spacing = 4;
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
@@ -4105,7 +4249,63 @@ function AutoIntegrateDialog()
       this.clippingGroupBox.sizer.add( this.ImageIntegrationRejectionSizer );
       this.clippingGroupBox.sizer.add( this.ImageIntegrationHelpTips );
       // Stop columns of buttons moving as dialog expands horizontally.
-      this.clippingGroupBox.sizer.addStretch();
+      //this.clippingGroupBox.sizer.addStretch();
+
+      // Narrowband palette
+
+      this.SHORadioButton = new RadioButton( this );
+      this.SHORadioButton.text = "SHO";
+      this.SHORadioButton.checked = true;
+      this.SHORadioButton.onClick = function(checked) { 
+            if (checked) { 
+                  narrowband_palette = 'SHO'; 
+                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+            }
+      }
+      this.HOSRadioButton = new RadioButton( this );
+      this.HOSRadioButton.text = "HOS";
+      this.HOSRadioButton.checked = false;
+      this.HOSRadioButton.onClick = function(checked) { 
+            if (checked) { 
+                  narrowband_palette = 'HOS'; 
+                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+            }
+      }
+      this.HOORadioButton = new RadioButton( this );
+      this.HOORadioButton.text = "HOO";
+      this.HOORadioButton.checked = false;
+      this.HOORadioButton.onClick = function(checked) { 
+            if (checked) { 
+                  narrowband_palette = 'HOO'; 
+                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+            }
+      }
+
+      this.narrowbandButton_sizer = new HorizontalSizer;
+      this.narrowbandButton_sizer.margin = 6;
+      this.narrowbandButton_sizer.spacing = 4;
+      this.narrowbandButton_sizer.add( this.SHORadioButton );
+      this.narrowbandButton_sizer.add( this.HOSRadioButton );
+      this.narrowbandButton_sizer.add( this.HOORadioButton );
+      // Stop columns of buttons moving as dialog expands horizontally.
+      //this.narrowbandButton_sizer.addStretch();
+
+      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
+      "<p>Fix magenta cast on stars.</p>" );
+      this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
+            fix_narrowband_star_color = checked; 
+            SetOption("Fix narrowband star color", checked); 
+      }
+
+      this.narrowbandGroupBox = new newGroupBox( this );
+      this.narrowbandGroupBox.title = "Narrowband color palette";
+      this.narrowbandGroupBox.sizer = new VerticalSizer;
+      this.narrowbandGroupBox.sizer.margin = 6;
+      this.narrowbandGroupBox.sizer.spacing = 4;
+      this.narrowbandGroupBox.sizer.add( this.narrowbandButton_sizer );
+      this.narrowbandGroupBox.sizer.add( this.fix_narrowband_star_color_CheckBox );
+      // Stop columns of buttons moving as dialog expands horizontally.
+      //this.narrowbandGroupBox.sizer.addStretch();
 
       // Button to run automatic processing
       this.autoRunButton = new PushButton( this );
@@ -4166,13 +4366,9 @@ function AutoIntegrateDialog()
       this.autoButtonGroupBox.sizer.margin = 6;
       this.autoButtonGroupBox.sizer.spacing = 4;
       this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
+      this.autoButtonGroupBox.setFixedHeight(60);
 
       // Buttons for mosaic save
-      this.mosaicSaveLabel = new Label( this );
-      with (this.mosaicSaveLabel) {
-            text = "Save batch result files";
-            textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      }
       this.mosaicSaveXisfButton = new PushButton( this );
       this.mosaicSaveXisfButton.text = "XISF";
       this.mosaicSaveXisfButton.onClick = function()
@@ -4195,18 +4391,18 @@ function AutoIntegrateDialog()
             saveAllMosaicWindows(8);
       };   
       this.mosaicSaveSizer = new HorizontalSizer;
-      this.mosaicSaveSizer.add( this.mosaicSaveLabel );
-      this.mosaicSaveSizer.addSpacing( 4 );
       this.mosaicSaveSizer.add( this.mosaicSaveXisfButton );
       this.mosaicSaveSizer.addSpacing( 4 );
       this.mosaicSaveSizer.add( this.mosaicSave16bitButton );
       this.mosaicSaveSizer.addSpacing( 4 );
       this.mosaicSaveSizer.add( this.mosaicSave8bitButton );
       this.mosaicSaveGroupBox = new newGroupBox( this );
+      this.mosaicSaveGroupBox.title = "Save batch result files";
       this.mosaicSaveGroupBox.sizer = new HorizontalSizer;
       this.mosaicSaveGroupBox.sizer.margin = 6;
       this.mosaicSaveGroupBox.sizer.spacing = 4;
       this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
+      this.mosaicSaveGroupBox.setFixedHeight(60);
 
       // OK and Cancel buttons
       this.ok_Button = new PushButton( this );
@@ -4240,21 +4436,37 @@ function AutoIntegrateDialog()
       this.helpLabelGroupBox.sizer.margin = 6;
       this.helpLabelGroupBox.sizer.spacing = 4;
       this.helpLabelGroupBox.sizer.add( this.helpLabelSizer );
+      this.helpLabelGroupBox.setFixedHeight(50);
+
+      this.col1 = new VerticalSizer;
+      this.col1.margin = 6;
+      this.col1.spacing = 6;
+      this.col1.add( this.imageParamsGroupBox );
+      this.col1.add( this.otherParamsGroupBox );
+      this.col1.add( this.mosaicSaveGroupBox );
+
+      this.col2 = new VerticalSizer;
+      this.col2.margin = 6;
+      this.col2.spacing = 6;
+      this.col2.add( this.saturationGroupBox );
+      this.col2.add( this.weightGroupBox );
+      this.col2.add( this.linearFitGroupBox );
+      this.col2.add( this.clippingGroupBox );
+      this.col2.add( this.narrowbandGroupBox );
+      this.col2.add( this.autoButtonGroupBox );
+
+      this.cols = new HorizontalSizer;
+      this.cols.margin = 6;
+      this.cols.spacing = 6;
+      this.cols.add( this.col1 );
+      this.cols.add( this.col2 );
 
       this.sizer = new VerticalSizer;
+      this.sizer.add( this.helpLabelGroupBox );
+      this.sizer.add( this.files_GroupBox, 300 );
       this.sizer.margin = 6;
       this.sizer.spacing = 6;
-      this.sizer.add( this.helpLabelGroupBox );
-      this.sizer.addSpacing( 4 );
-      this.sizer.add( this.files_GroupBox, 100 );
-      this.sizer.add( this.imageParamsGroupBox );
-      this.sizer.add( this.saturationGroupBox );
-      this.sizer.add( this.otherParamsGroupBox );
-      this.sizer.add( this.weightGroupBox );
-      this.sizer.add( this.linearFitGroupBox );
-      this.sizer.add( this.clippingGroupBox );
-      this.sizer.add( this.autoButtonGroupBox );
-      this.sizer.add( this.mosaicSaveGroupBox );
+      this.sizer.add( this.cols );
       this.sizer.add( this.buttons_Sizer );
 
       this.windowTitle = "AutoIntegrate Script";
