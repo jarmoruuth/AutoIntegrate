@@ -111,6 +111,8 @@ Steps for narrowband files are a bit similar to LRGB files but without L channel
 - There is an option to choose how S, H and O files and mapped to R, G and B channels.
 - Color calibration is not run on narrowband images
 - Saturation default setting 1 does not increase saturation on narrowband images.
+- Linear for can be used for R, G or B channels. In that case script runs linked STF 
+  stretch. Default is to use unlinked STF stretch for narrpwband files.
 
 Common final steps for all images
 ---------------------------------
@@ -233,10 +235,12 @@ var skip_noise_reduction = false;
 var skip_color_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
 var narrowband = false;
+var narrowband_autocontinue = false;
 var narrowband_palette = 'SHO';
 var skip_SCNR = false;
 var linear_fit_done = false;
 var fix_narrowband_star_color = false;
+var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 
 var processingDate;
 var dialogFileNames = null;
@@ -277,7 +281,7 @@ var mask_win;
 var mask_win_id;
 var RGB_win;
 var RGB_win_id;
-var color_files = false;
+var is_color_files = false;
 var preprocessed_images;
 var L_ABE_id;
 var L_ABE_win;
@@ -1448,6 +1452,9 @@ function findLRGBchannels(
                               throwFatalError("No Green images found");
                         }
                   }
+            }
+            if (luminance_images.length > 0) {
+                  is_luminance_images = true;
             }
       }
 }
@@ -2738,6 +2745,12 @@ function CreateChannelImages(auto_continue)
       blue_id = findWindowId(drizzle_prefix+"Integration_B");
       color_id = findWindowId(drizzle_prefix+"Integration_RGB");
 
+      if (L_BE_win != null || L_HT_win != null || luminance_id != null) {
+            is_luminance_images = true;
+      } else {
+            is_luminance_images = false;
+      }
+
       /* Check if we have manually created mask. */
       range_mask_win = null;
 
@@ -2792,9 +2805,13 @@ function CreateChannelImages(auto_continue)
                 preprocessed_images == start_images.RGB_HT ||
                 preprocessed_images == start_images.RGB_COLOR) 
             {
-                  /* No L files, assume color. */
-                  addProcessingStep("Processing as color images");
-                  color_files = true;
+                  if (narrowband) {
+                        addProcessingStep("Processing as narrowband images");
+                  } else {
+                        /* No L files, assume color. */
+                        addProcessingStep("Processing as color images");
+                        is_color_files = true;
+                  }
             }
             if (preprocessed_images == start_images.RGB_COLOR) {
                   RGB_win = ImageWindow.windowById(color_id);
@@ -2889,9 +2906,9 @@ function CreateChannelImages(auto_continue)
                   } else {
                         addProcessingStep("Processing as monochrome files");
                   }
-                  color_files = false;
+                  is_color_files = false;
 
-                  if (luminance_images.length > 0) {
+                  if (is_luminance_images) {
                         luminance_id = runImageIntegration(luminance_images, 'L');
                   }
 
@@ -2908,7 +2925,7 @@ function CreateChannelImages(auto_continue)
             } else {
                   /* We have color files. */
                   addProcessingStep("Processing as color files");
-                  color_files = true;
+                  is_color_files = true;
                   var color_id = runImageIntegration(color_images, 'RGB');
                   RGB_win = ImageWindow.windowById(color_id);
                   RGB_win.show();
@@ -3055,7 +3072,7 @@ function LinearFitLRGBchannels()
             /* Use R.
              */
             addProcessingStep("Linear fit using R");
-            if (luminance_images.length > 0) {
+            if (luminance_id != null) {
                   runLinearFit(red_id, luminance_id);
             }
             runLinearFit(red_id, green_id);
@@ -3064,7 +3081,7 @@ function LinearFitLRGBchannels()
             /* Use G.
               */
             addProcessingStep("Linear fit using G");
-            if (luminance_images.length > 0) {
+            if (luminance_id != null) {
                   runLinearFit(green_id, luminance_id);
             }
             runLinearFit(green_id, red_id);
@@ -3073,12 +3090,12 @@ function LinearFitLRGBchannels()
             /* Use B.
               */
             addProcessingStep("Linear fit using B");
-            if (luminance_images.length > 0) {
+            if (luminance_id != null) {
                   runLinearFit(blue_id, luminance_id);
             }
             runLinearFit(blue_id, red_id);
             runLinearFit(blue_id, green_id);
-      } else if (use_linear_fit == 'L' && luminance_images.length > 0) {
+      } else if (use_linear_fit == 'L' && luminance_id != null) {
             /* Use L.
              */
             addProcessingStep("Linear fit using L");
@@ -3187,11 +3204,12 @@ function ProcessRGBimage()
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
-            if (color_files || luminance_images.length == 0) {
+            if (is_color_files || !is_luminance_images) {
+                  /* Color or narrowband. */
                   ColorCreateMask(RGB_ABE_id);
             }
             if (narrowband && linear_increase_saturation > 0) {
-                  /* Deafult one means no increase with narrowband. */
+                  /* Default 1 means no increase with narrowband. */
                   linear_increase_saturation--;
             }
             if (linear_increase_saturation > 0) {
@@ -3203,7 +3221,7 @@ function ProcessRGBimage()
                   }
             }
       
-            if (!color_files) {
+            if (!is_color_files) {
                   /* Optional noise reduction for RGB
                    */
                   runMultiscaleLinearTransformReduceNoise(
@@ -3214,13 +3232,14 @@ function ProcessRGBimage()
             */
             RGB_ABE_HT_id = RGB_ABE_id + "_HT";
             runHistogramTransform(
-                  copyWindow(ImageWindow.windowById(RGB_ABE_id), 
-                  RGB_ABE_HT_id), 
+                  copyWindow(
+                        ImageWindow.windowById(RGB_ABE_id), 
+                        RGB_ABE_HT_id), 
                   L_stf,
                   true);
       }
 
-      if (color_files) {
+      if (is_color_files) {
             /* Noise reduction for color RGB
              */
             runMultiscaleLinearTransformReduceNoise(
@@ -3230,7 +3249,7 @@ function ProcessRGBimage()
       }
 
       if (narrowband && non_linear_increase_saturation > 0) {
-            /* Deafult one means no increase with narrowband. */
+            /* Default 1 means no increase with narrowband. */
             non_linear_increase_saturation--;
       }
       if (non_linear_increase_saturation > 0) {
@@ -3255,7 +3274,7 @@ function invertImage(targetView)
  */
 function fixNarrowbandStarColor(targetView)
 {
-      addProcessingStep("fixNarrowbandStarColor");
+      addProcessingStep("Fix narrowband star color");
 
       invertImage(targetView);
       runSCNR(targetView, true);
@@ -3267,7 +3286,7 @@ function AutoIntegrateEngine(auto_continue)
       var LRGB_ABE_HT_id = null;
       var RGB_ABE_HT_id = null;
 
-      color_files = false;
+      is_color_files = false;
       luminance_id = null;
       red_id = null;
       green_id = null;
@@ -3286,6 +3305,9 @@ function AutoIntegrateEngine(auto_continue)
       iconPoint = null;
       dialogFilePath = null;
       L_stf = null;
+      linear_fit_done = false;
+      narrowband = narrowband_autocontinue;
+      is_luminance_images = false;
 
       if (processingOptions.length > 0) {
             console.noteln("--------------------------------------");
@@ -3313,7 +3335,7 @@ function AutoIntegrateEngine(auto_continue)
        */
 
       if (!integrate_only) {
-            var processRGB = !color_files && 
+            var processRGB = !is_color_files && 
                              !monochrome_image &&
                              (preprocessed_images == start_images.NONE ||
                               preprocessed_images == start_images.L_R_G_B_DBE ||
@@ -3323,7 +3345,7 @@ function AutoIntegrateEngine(auto_continue)
                   LinearFitLRGBchannels();
             }
 
-            if (!color_files && luminance_images.length > 0) {
+            if (!is_color_files && is_luminance_images) {
                   /* This need to be run early as we create a mask from
                    * L image.
                    */
@@ -3347,8 +3369,14 @@ function AutoIntegrateEngine(auto_continue)
 
                   RGB_ABE_HT_id = ProcessRGBimage();
 
-                  if (color_files || luminance_images.length == 0) {
-                        LRGB_ABE_HT_id = RGB_ABE_HT_id;
+                  if (is_color_files || !is_luminance_images) {
+                        /* Keep RGB_ABE_HT_id separate fron LRGB_ABE_HT_id which
+                         * will be the final result file.
+                          */
+                         LRGB_ABE_HT_id = "copy" + RGB_ABE_HT_id;
+                         copyWindow(
+                              ImageWindow.windowById(RGB_ABE_HT_id), 
+                              "copy" + RGB_ABE_HT_id);
                   } else {
                         /* LRGB files. Combine L and RGB images.
                         */
@@ -3382,7 +3410,7 @@ function AutoIntegrateEngine(auto_continue)
                   if (preprocessed_images == start_images.NONE) {
                         /* Rename some windows. Need to be done before iconize.
                         */
-                        if (!color_files && luminance_images.length > 0) {
+                        if (!is_color_files && is_luminance_images) {
                               /* LRGB files */
                               if (RRGB_image) {
                                     if (use_ABE) {
@@ -3398,7 +3426,7 @@ function AutoIntegrateEngine(auto_continue)
                                     }
                               }
                         } else {
-                              /* Color files */
+                              /* Color or narrowband files */
                               if (use_ABE) {
                                     LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRGB_ABE");
                               } else {
@@ -3481,13 +3509,17 @@ function AutoIntegrateEngine(auto_continue)
             
             console.writeln("");
 
-            if (!color_files) {
+            if (!is_color_files) {
                   /* LRGB files */
-                  addProcessingStep("* L " + luminance_images.length + " data files *");
-                  //console.writeln("luminance_images="+luminance_images);
-                  addProcessingStep("best_l_ssweight="+best_l_ssweight);
-                  addProcessingStep("best_l_image="+best_l_image);
-                  addProcessingStep("L exptime="+luminance_images_exptime);
+                  if (is_luminance_images) {
+                        addProcessingStep("* L " + luminance_images.length + " data files *");
+                        //console.writeln("luminance_images="+luminance_images);
+                        addProcessingStep("best_l_ssweight="+best_l_ssweight);
+                        addProcessingStep("best_l_image="+best_l_image);
+                        addProcessingStep("L exptime="+luminance_images_exptime);
+                  } else {
+                        addProcessingStep("* No L files with narrowband *");
+                  }
 
                   if (!monochrome_image) {
                         addProcessingStep("* R " + red_images.length + " data files *");
@@ -3618,7 +3650,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.64 Beta3</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.64</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -4281,14 +4313,25 @@ function AutoIntegrateDialog()
             }
       }
 
-      this.narrowbandButton_sizer = new HorizontalSizer;
-      this.narrowbandButton_sizer.margin = 6;
-      this.narrowbandButton_sizer.spacing = 4;
-      this.narrowbandButton_sizer.add( this.SHORadioButton );
-      this.narrowbandButton_sizer.add( this.HOSRadioButton );
-      this.narrowbandButton_sizer.add( this.HOORadioButton );
-      // Stop columns of buttons moving as dialog expands horizontally.
-      //this.narrowbandButton_sizer.addStretch();
+      this.narrowbandColorPaletteLabel = new Label( this );
+      this.narrowbandColorPaletteLabel.text = "Color palette";
+      this.narrowbandColorPaletteLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.narrowbandColorPaletteLabel.toolTip = 
+            "<p>" +
+            "Color palette used to map SII, Ha and OIII to R, G and B" +
+            "</p><p>" +
+            "SHO - SII=R, Ha=G, OIII=B, similar to Hubble palatte<br>" +
+            "HOS - Ha=R, OIII=G, SII=B<br>" +
+            "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is mapped to R)<br>" +
+            "</p>";
+
+      this.narrowbandColorPalette_sizer = new HorizontalSizer;
+      this.narrowbandColorPalette_sizer.margin = 6;
+      this.narrowbandColorPalette_sizer.spacing = 4;
+      this.narrowbandColorPalette_sizer.add( this.narrowbandColorPaletteLabel );
+      this.narrowbandColorPalette_sizer.add( this.SHORadioButton );
+      this.narrowbandColorPalette_sizer.add( this.HOSRadioButton );
+      this.narrowbandColorPalette_sizer.add( this.HOORadioButton );
 
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
       "<p>Fix magenta cast on stars.</p>" );
@@ -4297,15 +4340,47 @@ function AutoIntegrateDialog()
             SetOption("Fix narrowband star color", checked); 
       }
 
+      // Button to continue narrowband from existing files
+      this.autoContinueNarrowbandButton = new PushButton( this );
+      this.autoContinueNarrowbandButton.text = "AutoContinue narrowband";
+      this.autoContinueNarrowbandButton.toolTip = 
+            "AutoContinue narrowband - Run automatic processing from previously created images." +
+            "<p>" +
+            "Image check order is:<br>" +
+            "RGB_HT<br>" +
+            "Integration_RGB_DBE<br>" +
+            "Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "Integration_R + Integration_G + Integration_B" +
+            "</p>";
+      this.autoContinueNarrowbandButton.onClick = function()
+      {
+            console.writeln("autoContinue narrowband");
+            try {
+                  narrowband_autocontinue = true;
+                  AutoIntegrateEngine(true);
+                  narrowband_autocontinue = false;
+            } 
+            catch(err) {
+                  console.endLog();
+                  console.writeln(err);
+                  console.writeln("Processing stopped!");
+                  narrowband_autocontinue = false;
+            }
+      };   
+      
+      this.narrowbandOptions_sizer = new HorizontalSizer;
+      this.narrowbandOptions_sizer.margin = 6;
+      this.narrowbandOptions_sizer.spacing = 4;
+      this.narrowbandOptions_sizer.add( this.fix_narrowband_star_color_CheckBox );
+      this.narrowbandOptions_sizer.add( this.autoContinueNarrowbandButton );
+      
       this.narrowbandGroupBox = new newGroupBox( this );
-      this.narrowbandGroupBox.title = "Narrowband color palette";
+      this.narrowbandGroupBox.title = "Narrowband processing";
       this.narrowbandGroupBox.sizer = new VerticalSizer;
       this.narrowbandGroupBox.sizer.margin = 6;
       this.narrowbandGroupBox.sizer.spacing = 4;
-      this.narrowbandGroupBox.sizer.add( this.narrowbandButton_sizer );
-      this.narrowbandGroupBox.sizer.add( this.fix_narrowband_star_color_CheckBox );
-      // Stop columns of buttons moving as dialog expands horizontally.
-      //this.narrowbandGroupBox.sizer.addStretch();
+      this.narrowbandGroupBox.sizer.add( this.narrowbandColorPalette_sizer );
+      this.narrowbandGroupBox.sizer.add( this.narrowbandOptions_sizer );
 
       // Button to run automatic processing
       this.autoRunButton = new PushButton( this );
@@ -4316,11 +4391,11 @@ function AutoIntegrateDialog()
             Autorun(this);
       };   
 
-      // Button to continue from existing files
+      // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
       this.autoContinueButton.toolTip = 
-            "AutoContinue - Run automatic processing from previously created images." +
+            "AutoContinue - Run automatic processing from previously created LRGB or Color images." +
             "<p>" +
             "Image check order is:<br>" +
             "L_HT + RGB_HT<br>" +
@@ -4330,7 +4405,6 @@ function AutoIntegrateDialog()
             "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
             "Integration_L + Integration_R + Integration_G + Integration_B" +
             "</p>";
-
       this.autoContinueButton.onClick = function()
       {
             console.writeln("autoContinue");
