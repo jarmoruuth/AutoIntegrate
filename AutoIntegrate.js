@@ -209,7 +209,7 @@ var ssweight_set = false;
 var use_weight = 'G';                           /* Default: Generic */
 var imageintegration_normalization = 0;         /* Default: additive */
 var skip_imageintegration_ssweight = false;
-var imageintegration_clipping = false;
+var imageintegration_clipping = true;
 var use_noise_reduction_on_all_channels = false;
 var integrate_only = false;
 var channelcombination_only = false;
@@ -3881,11 +3881,11 @@ function AutoIntegrateDialog()
             SetOption("ImageIntegration do not use weight", checked); 
       }
 
-      this.imageintegration_clipping_CheckBox = newCheckBox(this, "ImageIntegration clipping", imageintegration_clipping, 
-      "<p>Use clipping in ImageIntegration</p>" );
+      this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !imageintegration_clipping, 
+      "<p>Do not use clipping in ImageIntegration</p>" );
       this.imageintegration_clipping_CheckBox.onClick = function(checked) { 
-            imageintegration_clipping = checked; 
-            SetOption("ImageIntegration clipping", checked); 
+            imageintegration_clipping = !checked; 
+            SetOption("No ImageIntegration clipping", checked); 
       }
 
       this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", RRGB_image, 
@@ -3929,11 +3929,11 @@ function AutoIntegrateDialog()
             SetOption("No color noise reduction", checked); 
       }
 
-      this.skip_SCNR_CheckBox = newCheckBox(this, "Skip SCNR", skip_SCNR, 
+      this.skip_SCNR_CheckBox = newCheckBox(this, "No SCNR", skip_SCNR, 
       "<p>Skip SCNR to remove green cast</p>" );
       this.skip_SCNR_CheckBox.onClick = function(checked) { 
             skip_SCNR = checked; 
-            SetOption("SCNR", checked); 
+            SetOption("No SCNR", checked); 
       }
 
       // Image parameters set 1.
