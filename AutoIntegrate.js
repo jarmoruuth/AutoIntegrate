@@ -3650,7 +3650,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.64</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.65</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
