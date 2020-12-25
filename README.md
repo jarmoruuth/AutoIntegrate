@@ -1,6 +1,6 @@
 # AutoIntegrate
 
-PixInsight script to integrate FITS and other image files. Script automates initial steps of image 
+PixInsight script to integrate FITS, RAW and other image files. Script automates initial steps of image 
 processing in PixInsight.
 
 Script has a GUI interface where some processing options can be selected.
