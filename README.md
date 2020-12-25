@@ -1,16 +1,16 @@
 # AutoIntegrate
 
-PixInsight script to integrate FITS image files. Script automates initial steps of image 
+PixInsight script to integrate FITS and other image files. Script automates initial steps of image 
 processing in PixInsight.
 
 Script has a GUI interface where some processing options can be selected.
 
 After running the script there will be integrated light images and automatically processed 
-final image. Both LRGB and color files are accepted. Files must have .fit extension. 
+final image. LRGB, color and narrowband files are accepted.
 
-This script is targeted for use with Slooh.com where .fit files are already calibrated and 
-files have keywords that tell if they are L, R, G or B files or color files. More details of 
-processing the files can be found from the header block of the source code.
+This script is targeted for use with files that are already calibrated and files. More details 
+of processing the files can be found from the header block of the source code or from 
+page https://ruuth.xyz/AutoIntegrateInfo.html
 
 Steps to run the script
 
@@ -22,8 +22,5 @@ Steps to run the script
 
 It is also possible to run manually background extraction, histogram transformations or
 other steps on the integrated images and then continue automatic processing from there. 
-For more details see header block in the source code.
 
-PixInsight scripts that come with the product were a great help when developing this script. 
-Website Light Vortex Astronomy (http://www.lightvortexastronomy.com/) was a great place to 
-find details and best practises when using PixInsight.
+This product is based on software from the PixInsight project, developed by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
