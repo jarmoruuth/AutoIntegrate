@@ -241,6 +241,7 @@ var skip_SCNR = false;
 var linear_fit_done = false;
 var fix_narrowband_star_color = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
+var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
 
 var processingDate;
 var dialogFileNames = null;
@@ -268,6 +269,13 @@ var red_images_exptime;
 var green_images_exptime;
 var blue_images_exptime;
 var color_images_exptime;
+var extra_darker_background = false;
+var extra_HDRMLT= false;
+var extra_LHE = false;
+var extra_smaller_stars = false;
+var extra_smaller_stars_iterations = 1;
+var extra_contrast = false;
+var extra_target_image = null;
 
 var processing_steps = "";
 var all_windows = new Array;
@@ -279,6 +287,8 @@ var logfname;
 var alignedFiles;
 var mask_win;
 var mask_win_id;
+var star_mask_win;
+var star_mask_win_id;
 var RGB_win;
 var RGB_win_id;
 var is_color_files = false;
@@ -307,6 +317,7 @@ var L_stf;
 var RGB_HT_win;
 var drizzle_prefix;
 var range_mask_win;
+var final_win;
 var start_images = {
       NONE : 0,
       L_R_G_B_DBE : 1,
@@ -315,7 +326,8 @@ var start_images = {
       L_RGB_HT : 4,
       RGB_HT : 5,
       RGB_COLOR : 6,
-      L_R_G_B : 7
+      L_R_G_B : 7,
+      FINAL : 8
 };
 
 var testModefileNames = [
@@ -359,6 +371,17 @@ var fixed_windows = [
       "L_BE_HT",
       "RGB_BE_HT",
       "AutoMask",
+      "AutoStarMask",
+      "SubframeSelector",
+      "Measurements",
+      "Expressions",
+      "L_win_mask"
+];
+
+/* Final processed window names, depending on input data and options used.
+ * These may have Drizzle prefix if that option ise used.
+ */
+var final_windows = [
       "AutoLRGB_ABE",
       "AutoRRGB_ABE",
       "AutoRGB_ABE",
@@ -366,11 +389,7 @@ var fixed_windows = [
       "AutoLRGB_noABE",
       "AutoRRGB_noABE",
       "AutoRGB_noABE",
-      "AutoMono_noABE",
-      "SubframeSelector",
-      "Measurements",
-      "Expressions",
-      "L_win_mask"
+      "AutoMono_noABE"
 ];
 
 var processingOptions = new Array;
@@ -440,6 +459,19 @@ function findWindow(id)
             }
       }
       return null;
+}
+
+function getWindowList()
+{
+      var windowList = [];
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return windowList;
+      }
+      for (var i in images) {
+            windowList[windowList.length] = images[i].mainView.id;
+      }
+      return windowList;
 }
 
 function findWindowId(id)
@@ -531,6 +563,18 @@ function closeAllWindowsFromArray(arr)
       }
 }
 
+// For the final window, we may have more different names with
+// both prefix or postfix added
+function closeFinalWindowsFromArray(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            closeOneWindow(arr[i]);
+            closeOneWindow(arr[i]+"_extra");
+            closeOneWindow("Drizzle"+arr[i]);
+            closeOneWindow("Drizzle"+arr[i]+"_extra");
+      }
+}
+
 // close all windows created by this script
 function closeAllWindows()
 {
@@ -548,6 +592,7 @@ function closeAllWindows()
             closeAllWindowsFromArray(integration_color_windows);
       }
       closeAllWindowsFromArray(fixed_windows);
+      closeFinalWindowsFromArray(final_windows);
 }
 
 function saveWindow(path, id)
@@ -649,20 +694,32 @@ function copyWindow(sourceWindow, name)
 
 function newMaskWindow(sourceWindow, name)
 {
-      /* Default mask is the same as stretched image. */
-      var targetWindow = copyWindow(sourceWindow, name);
+      var targetWindow;
 
-      if (targetWindow.mainView.image.colorSpace != ColorSpace_Gray) {
-            /* If we have color files we use gray scale converted
-               image as a mask.
+      if (sourceWindow.mainView.image.colorSpace != ColorSpace_Gray) {
+            /* If we have color files we extrack lightness component and
+               use it as a mask.
             */
-            addProcessingStep("Create mask using grayscale converted color image "+ sourceWindow.mainView.id);
-            var P = new ConvertToGrayscale;
-            targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(targetWindow.mainView);
-            targetWindow.mainView.endProcess();
+            addProcessingStep("Create mask by extracting lightness component from color image "+ sourceWindow.mainView.id);
+            var P = new ChannelExtraction;
+            P.colorSpace = ChannelExtraction.prototype.CIELab;
+            P.channels = [ // enabled, id
+                  [true, ""],       // L
+                  [false, ""],      // a
+                  [false, ""]       // b
+            ];
+            P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+
+            sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+            P.executeOn(sourceWindow.mainView);
+            targetWindow = ImageWindow.activeWindow;
+            sourceWindow.mainView.endProcess();
+            
+            windowRenameKeepif(targetWindow.mainView.id, name, true);
       } else {
+            /* Default mask is the same as stretched image. */
             addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
+            targetWindow = copyWindow(sourceWindow, name);
       }
 
       targetWindow.show();
@@ -2064,6 +2121,14 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    var mad = view.computeOrFetchProperty("MAD");
    mad.mul(1.4826); // coherent with a normal distribution
 
+   if (STF_linking == 1) {
+      rgbLinked = true;  
+   } else if (STF_linking == 2) {
+      rgbLinked = false;  
+   } else {
+         // auto, use default
+   }
+
    if (rgbLinked)
    {
       /*
@@ -2719,6 +2784,8 @@ function CreateChannelImages(auto_continue)
 {
       addProcessingStep("CreateChannelImages");
 
+      final_win = null;
+
       /* First check if we have some processing done and we should continue
        * from the middle of the processing.
        */
@@ -2745,6 +2812,19 @@ function CreateChannelImages(auto_continue)
       blue_id = findWindowId(drizzle_prefix+"Integration_B");
       color_id = findWindowId(drizzle_prefix+"Integration_RGB");
 
+      if (is_extra_option()
+          || (narrowband_autocontinue && fix_narrowband_star_color)) 
+      {
+            for (var i = 0; i < final_windows.length; i++) {
+                  final_win = findWindow(final_windows[i]);
+                  if (final_win == null) {
+                        final_win = findWindow("Drizzle"+final_windows[i]);
+                  }
+                  if (final_win != null) {
+                        break;
+                  }
+            }
+      }
       if (L_BE_win != null || L_HT_win != null || luminance_id != null) {
             is_luminance_images = true;
       } else {
@@ -2754,24 +2834,27 @@ function CreateChannelImages(auto_continue)
       /* Check if we have manually created mask. */
       range_mask_win = null;
 
-      if (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
+      if (final_win != null) {
+            addProcessingStep("Final image " + final_win.mainView.id);
+            preprocessed_images = start_images.FINAL;
+      } else if (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
             addProcessingStep("L,RGB HistogramTransformation");
             preprocessed_images = start_images.L_RGB_HT;
       } else if (winIsValid(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
-            addProcessingStep("RGB (color) HistogramTransformation");
+            addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
             preprocessed_images = start_images.RGB_HT;
       } else if (winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) { /* L,RGB background extracted */
             addProcessingStep("L,RGB background extracted");
             preprocessed_images = start_images.L_RGB_DBE;
       } else if (winIsValid(RGB_BE_win)) {                         /* RGB (color) background extracted */
-            addProcessingStep("RGB (color) background extracted");
+            addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
             preprocessed_images = start_images.RGB_DBE;
       } else if (winIsValid(L_BE_win) && winIsValid(R_BE_win) &&   /* L,R,G,B background extracted */
                  winIsValid(G_BE_win) && winIsValid(B_BE_win)) {
             addProcessingStep("L,R,G,B background extracted");
             preprocessed_images = start_images.L_R_G_B_DBE;
       } else if (color_id != null) {                              /* RGB (color) integrated image */
-            addProcessingStep("RGB (color) integrated image");
+            addProcessingStep("RGB (color) integrated image " + color_id);
             preprocessed_images = start_images.RGB_COLOR;
       } else if (luminance_id != null && red_id != null &&
                  green_id != null && blue_id != null) {           /* L,R,G,B integrated images */
@@ -2795,7 +2878,9 @@ function CreateChannelImages(auto_continue)
             }  
       }
 
-      if (preprocessed_images != start_images.NONE) {
+      if (preprocessed_images == start_images.FINAL) {
+            return true;
+      } else if (preprocessed_images != start_images.NONE) {
             addProcessingStep("Using preprocessed images " + preprocessed_images);
             console.writeln("L_BE_win="+L_BE_win);
             console.writeln("RGB_BE_win="+RGB_BE_win);
@@ -3144,9 +3229,11 @@ function CombineRGBimage()
                         true,                               // bool floatSample=true
                         true,                               // bool color=false
                         "Integration_RGB");                 // const IsoString &id=IsoString()
+
       RGB_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       cc.executeOn(RGB_win.mainView);
       RGB_win.mainView.endProcess();
+      
       RGB_win.show();
       addScriptWindow(RGB_win.mainView.id);
       RGB_win_id = RGB_win.mainView.id;
@@ -3266,7 +3353,10 @@ function invertImage(targetView)
 {
       console.writeln("invertImage");
       var P = new Invert;
+
+      targetView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(targetView, true);
+      targetView.endProcess();
 }
 
 /* Do a rough fix on magen stars by inverting the image, applying
@@ -3281,8 +3371,390 @@ function fixNarrowbandStarColor(targetView)
       invertImage(targetView);
 }
 
+function extraDarkerBackground(imgView, MaskView)
+{
+      addProcessingStep("Darker background on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+
+      var P = new CurvesTransformation;
+      P.R = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.G = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.B = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.K = [ // x, y
+         [0.00000, 0.00000],
+         [0.53564, 0.46212],
+         [1.00000, 1.00000]
+      ];
+      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.A = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.At = CurvesTransformation.prototype.AkimaSubsplines;
+      P.L = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.a = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.at = CurvesTransformation.prototype.AkimaSubsplines;
+      P.b = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.c = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
+      P.H = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
+      P.S = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.St = CurvesTransformation.prototype.AkimaSubsplines;
+
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Darken only dark parts (background) of the image. */
+      imgView.setMask(MaskView);
+      imgView.maskInverted = true;
+      
+      P.executeOn(imgView.mainView, false);
+
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function extraHDRMultiscaleTansform(imgView, MaskView)
+{
+      addProcessingStep("HDRMultiscaleTransform on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+
+      var P = new HDRMultiscaleTransform;
+      P.numberOfLayers = 6;
+      P.numberOfIterations = 1;
+      P.invertedIterations = true;
+      P.overdrive = 0.000;
+      P.medianTransform = true;
+      P.scalingFunctionData = [
+         0.003906,0.015625,0.023438,0.015625,0.003906,
+         0.015625,0.0625,0.09375,0.0625,0.015625,
+         0.023438,0.09375,0.140625,0.09375,0.023438,
+         0.015625,0.0625,0.09375,0.0625,0.015625,
+         0.003906,0.015625,0.023438,0.015625,0.003906
+      ];
+      P.scalingFunctionRowFilter = [
+         0.0625,0.25,
+         0.375,0.25,
+         0.0625
+      ];
+      P.scalingFunctionColFilter = [
+         0.0625,0.25,
+         0.375,0.25,
+         0.0625
+      ];
+      P.scalingFunctionName = "B3 Spline (5)";
+      P.deringing = true;
+      P.smallScaleDeringing = 0.000;
+      P.largeScaleDeringing = 0.250;
+      P.outputDeringingMaps = false;
+      P.midtonesBalanceMode = HDRMultiscaleTransform.prototype.Automatic;
+      P.midtonesBalance = 0.500000;
+      P.toLightness = true;
+      P.preserveHue = false;
+      P.luminanceMask = true;
+      
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Transform only light parts of the image. */
+      imgView.setMask(MaskView);
+      imgView.maskInverted = false;
+      
+      P.executeOn(imgView.mainView, false);
+
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function extraLocalHistogramEqualization(imgView, MaskView)
+{
+      addProcessingStep("LocalHistogramEqualization on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+
+      var P = new LocalHistogramEqualization;
+      P.radius = 110;
+      P.histogramBins = LocalHistogramEqualization.prototype.Bit8;
+      P.slopeLimit = 1.3;
+      P.amount = 1.000;
+      P.circularKernel = true;
+      
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Transform only light parts of the image. */
+      imgView.setMask(MaskView);
+      imgView.maskInverted = false;
+      
+      P.executeOn(imgView.mainView, false);
+
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function createStarMask(imgView)
+{
+      if (star_mask_win == null) {
+            star_mask_win = findWindow("star_mask");
+      }
+      if (star_mask_win == null) {
+            star_mask_win = findWindow("AutoStarMask");
+      }
+      if (star_mask_win != null) {
+            // Use already created start mask
+            console.writeln("Use existing star mask " + star_mask_win.mainView.id);
+            star_mask_win_id = star_mask_win.mainView.id;
+            return;
+      }
+
+      var P = new StarMask;
+      P.shadowsClipping = 0.00000;
+      P.midtonesBalance = 0.50000;
+      P.highlightsClipping = 1.00000;
+      P.waveletLayers = 6;
+      P.structureContours = false;
+      P.noiseThreshold = 0.10000;
+      P.aggregateStructures = false;
+      P.binarizeStructures = false;
+      P.largeScaleGrowth = 2;
+      P.smallScaleGrowth = 1;
+      P.growthCompensation = 2;
+      P.smoothness = 8;
+      P.invert = false;
+      P.truncation = 1.00000;
+      P.limit = 1.00000;
+      P.mode = StarMask.prototype.StarMask;
+
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgView.mainView, false);
+      imgView.mainView.endProcess();
+
+      star_mask_win = ImageWindow.activeWindow;
+
+      windowRenameKeepif(star_mask_win.mainView.id, "AutoStarMask", true);
+
+      addProcessingStep("Created star mask " + star_mask_win.mainView.id);
+      star_mask_win_id = star_mask_win.mainView.id;
+}
+
+function extraSmallerStars(imgView)
+{
+      createStarMask(imgView);
+
+      addProcessingStep("Smaller stars on " + imgView.mainView.id + " using mask " + star_mask_win.mainView.id + 
+                        " and " + extra_smaller_stars_iterations + " iterations");
+
+      var P = new MorphologicalTransformation;
+      P.operator = MorphologicalTransformation.prototype.Selection;
+      P.interlacingDistance = 1;
+      P.lowThreshold = 0.000000;
+      P.highThreshold = 0.000000;
+      P.numberOfIterations = extra_smaller_stars_iterations;
+      P.amount = 0.70;
+      P.selectionPoint = 0.20;
+      P.structureName = "";
+      P.structureSize = 5;
+      P.structureWayTable = [ // mask
+         [[
+            0x00,0x01,0x01,0x01,0x00,
+            0x01,0x01,0x01,0x01,0x01,
+            0x01,0x01,0x01,0x01,0x01,
+            0x01,0x01,0x01,0x01,0x01,
+            0x00,0x01,0x01,0x01,0x00
+         ]]
+      ];
+      
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Transform only light parts of the image. */
+      imgView.setMask(star_mask_win);
+      imgView.maskInverted = false;
+      
+      P.executeOn(imgView.mainView, false);
+
+      imgView.removeMask();
+
+      imgView.mainView.endProcess();
+}
+
+function extraContrast(imgView)
+{
+      addProcessingStep("Increase contrast on " + imgView.mainView.id);
+
+      var P = new CurvesTransformation;
+      P.R = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.G = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.B = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.K = [ // x, y
+            [0.00000, 0.00000],
+            [0.26884, 0.24432],
+            [0.74542, 0.77652],
+            [1.00000, 1.00000]
+         ];
+      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.A = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.At = CurvesTransformation.prototype.AkimaSubsplines;
+      P.L = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.a = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.at = CurvesTransformation.prototype.AkimaSubsplines;
+      P.b = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.c = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
+      P.H = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
+      P.S = [ // x, y
+      [0.00000, 0.00000],
+      [1.00000, 1.00000]
+      ];
+      P.St = CurvesTransformation.prototype.AkimaSubsplines;
+
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgView.mainView, false);
+
+      imgView.mainView.endProcess();
+}
+
+function is_extra_option()
+{
+      return extra_darker_background || 
+             extra_HDRMLT || 
+             extra_LHE || 
+             extra_contrast ||
+             extra_smaller_stars;
+}
+
+function extraProcessing(id, apply_directly)
+{
+      var extraWin;
+      var need_L_mask = extra_darker_background || 
+                        extra_HDRMLT || 
+                        extra_LHE;
+
+      if (need_L_mask) {
+            // Try find mask window
+            if (mask_win == null) {
+                  mask_win = findWindow("range_mask");
+            }
+            if (mask_win == null) {
+                  mask_win = findWindow("AutoMask");
+            }
+            if (mask_win == null) {
+                  mask_win_id = "AutoMask";
+                  mask_win = newMaskWindow(ImageWindow.windowById(id), mask_win_id);
+            }
+            console.writeln("Use mask " + mask_win.mainView.id);
+      }
+      if (apply_directly) {
+            extraWin = ImageWindow.windowById(id);
+      } else {
+            extraWin = copyWindow(ImageWindow.windowById(id), id + "_extra");
+      }
+
+      if (extra_darker_background) {
+            extraDarkerBackground(extraWin, mask_win);
+      }
+      if (extra_HDRMLT) {
+            extraHDRMultiscaleTansform(extraWin, mask_win);
+      }
+      if (extra_LHE) {
+            extraLocalHistogramEqualization(extraWin, mask_win);
+      }
+      if (extra_contrast) {
+            extraContrast(extraWin);
+      }
+      if (extra_smaller_stars) {
+            extraSmallerStars(extraWin);
+      }
+}
+
+function extraProcessingEngine(id)
+{
+      processing_steps = "";
+
+      console.writeln("Start extra processing...");
+
+      console.show(true);
+      extraProcessing(extra_target_image, true);
+      console.show(false);
+
+      windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+
+      console.writeln("Processing steps:");
+      console.writeln(processing_steps);
+      console.writeln("");
+      console.writeln("Extra processing completed.");
+}
+
 function AutoIntegrateEngine(auto_continue)
 {
+      if (extra_target_image != "Auto") {
+            console.criticalln("Extra processing target image can be used only with Apply button!");
+            return;
+      }
+
       var LRGB_ABE_HT_id = null;
       var RGB_ABE_HT_id = null;
 
@@ -3295,9 +3767,11 @@ function AutoIntegrateEngine(auto_continue)
       G_ABE_id = null;
       B_ABE_id = null;
       start_time = Date.now();
+      mask_win = null;
+      star_mask_win = null;
 
       console.beginLog();
-      console.show();
+      console.show(true);
 
       processingDate = new Date;
       processing_steps = "";
@@ -3334,7 +3808,10 @@ function AutoIntegrateEngine(auto_continue)
        * processing is not good enough.
        */
 
-      if (!integrate_only) {
+      if (preprocessed_images == start_images.FINAL) {
+            // We have a final image, just run run possible extra processing steps
+            LRGB_ABE_HT_id = final_win.mainView.id;
+      } else if (!integrate_only && preprocessed_images != start_images.FINAL) {
             var processRGB = !is_color_files && 
                              !monochrome_image &&
                              (preprocessed_images == start_images.NONE ||
@@ -3436,11 +3913,23 @@ function AutoIntegrateEngine(auto_continue)
                   }
             }
       }
-      if (use_drizzle) {
+      if (preprocessed_images == start_images.FINAL
+          && narrowband_autocontinue
+          && fix_narrowband_star_color) 
+      {
+            /* Fix narrowband image star color.
+             */
+            fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
+      }
+      if (use_drizzle && preprocessed_images != start_images.FINAL) {
             LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "Drizzle"+LRGB_ABE_HT_id);
       }
 
-      saveWindow(dialogFilePath, luminance_id);      /* Integration_L */
+      if (is_extra_option()) {
+            extraProcessing(LRGB_ABE_HT_id, false);
+      }
+
+      saveWindow(dialogFilePath, luminance_id);            /* Integration_L */
       saveWindow(dialogFilePath, red_id);                  /* Integration_R */
       saveWindow(dialogFilePath, green_id);                /* Integraion_G */
       saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
@@ -3465,6 +3954,7 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(L_ABE_HT_id);
       windowIconizeif(RGB_win_id);              /* Integration_RGB */
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
 
       if (batch_mode > 0) {
             /* Rename image based on first file directory name. 
@@ -3553,12 +4043,16 @@ function AutoIntegrateEngine(auto_continue)
       addProcessingStep("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
-      writeProcessingSteps(alignedFiles);
+      if (preprocessed_images != start_images.FINAL) {
+            writeProcessingSteps(alignedFiles);
+      }
 
       console.writeln("Processing steps:");
       console.writeln(processing_steps);
       console.writeln("");
-      console.noteln("Console output is written into file " + logfname);
+      if (preprocessed_images != start_images.FINAL) {
+            console.noteln("Console output is written into file " + logfname);
+      }
 }
 
 function newCheckBox( parent, checkboxText, checkboxState, toolTip )
@@ -3650,7 +4144,7 @@ function AutoIntegrateDialog()
                               "Automatic image integration utility.</p>";
       } else {
             /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.65</b> &mdash; " +
+            helptext = "<p><b>AutoIntegrate v0.66</b> &mdash; " +
                               "Automatic image integration utility.</p>";
       }
       this.__base__ = Dialog;
@@ -3659,7 +4153,47 @@ function AutoIntegrateDialog()
       var labelWidth1 = this.font.width( "Output format hints:" + 'T' );
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
-   
+
+      var mainHelpTips = 
+      "<p>" +
+      "<b>Some tips for using AutoIntegrate script</b>" +
+      "</p><p>" +
+      "Script automates initial steps of image processing in PixInsight. "+ 
+      "Most often you get the best results by running the script with default " +
+      "settings and then continue processing in Pixinsight." +
+      "</p><p>" +
+      "Usually images need some cleanup with HistogramTransformation tool. "+
+      "Depending on the image you can try clipping shadows between %0.01 and %0.1." +
+      "</p><p>" +
+      "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
+      "Changing the curve to a slight S can be helpful. " +
+      "CurvesTransformation can also be used to increase saturation." +
+      "</p><p>" +
+      "If background is not even then tools like AutomaticBackgroundExtractor or " +
+      "DynamicBackgroundExtractor can be helpful. Script can run AutomaticBackgroundExtractor "+
+      "automatically if needed." +
+      "</p><p>" +
+      "Further enhancements may include masking, noise reduction, sharpening and making " +
+      "stars smaller. Often tools like HDRMulticaleTransform and LocalHistogramEqualization "+
+      "can help with details in the image." +
+      "</p><p>" +
+      "Default options are typically a pretty good start for most images but sometimes "+
+      "a few changes are needed for OSC (One Shot Color) files. If there is a strong color cast and/or "+
+      "vignetting it is worth trying with Use ABE and Use BackgroudNeutralization options. "+
+      "Sometimes also choosing Unlinked in Link RGB channel option helps. "+
+      "Examples where these options may be useful are DSRL files and Slooh Canary Three telescope. " +
+      "</p><p>" +
+      "Batch mode is intended to be used with mosaic images. In Batch mode script " +
+      "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
+      "and can be saved with Save batch result files buttons." +
+      "</p><p>" +
+      "For more details see:<br>" +
+      "https://ruuth.xyz/AutoIntegrateInfo.html" +
+      "</p><p>" +
+      "This product is based on software from the PixInsight project, developed " +
+      "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
+      "</p>";
+
       /* Info box at the top. */
       this.helpLabel = new Label( this );
       //this.helpLabel.frameStyle = FrameStyle_Box;
@@ -3671,44 +4205,8 @@ function AutoIntegrateDialog()
       this.helpTips = new ToolButton( this );
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.helpTips.setScaledFixedSize( 20, 20 );
-      this.helpTips.toolTip = 
-            "<p>" +
-            "<b>Some tips for using AutoIntegrate script</b>" +
-            "</p><p>" +
-            "Script automates initial steps of image processing in PixInsight. "+ 
-            "Most often you get the best results by running the script with default " +
-            "settings and then continue processing in Pixinsight." +
-            "</p><p>" +
-            "Usually images need some cleanup with HistogramTransformation tool. "+
-            "Depending on the image you can try clipping shadows between %0.01 and %0.1." +
-            "</p><p>" +
-            "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
-            "Changing the curve to a slight S can be helpful. " +
-            "CurvesTransformation can also be used to increase saturation." +
-            "</p><p>" +
-            "If background is not even then tools like AutomaticBackgroundExtractor or " +
-            "DynamicBackgroundExtractor can be helpful. Script can run AutomaticBackgroundExtractor "+
-            "automatically if needed." +
-            "</p><p>" +
-            "Further enhancements may include masking, noise reduction, sharpening and making " +
-            "stars smaller. Often tools like HDRMulticaleTransform and LocalHistogramEqualization "+
-            "can help with details in the image." +
-            "</p><p>" +
-            "Default options are typically a pretty good start for most Slooh telescopes but some changes " +
-            "are usually needed for Canary 3 color files. I suggest checking Use ABE and checking " +
-            "Use BackgroudNeutralization. Otherwise there is a pretty bad color cast and vignetting "+
-            "on the result image." +
-            "</p><p>" +
-            "Batch mode is intended to be used with mosaic images. In Batch mode script " +
-            "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
-            "and can be saved with Save batch result files buttons." +
-            "</p><p>" +
-            "For more details see:<br>" +
-            "https://ruuth.xyz/AutoIntegrateInfo.html" +
-            "</p><p>" +
-            "This product is based on software from the PixInsight project, developed " +
-            "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
-            "</p>";
+      this.helpTips.toolTip = mainHelpTips;
+
       /* Tree box to show files. */
       this.files_TreeBox = new TreeBox( this );
       this.files_TreeBox.multipleSelection = true;
@@ -3936,6 +4434,36 @@ function AutoIntegrateDialog()
             SetOption("No SCNR", checked); 
       }
 
+      this.STFLabel = new Label( this );
+      this.STFLabel.text = "Link RGB channels";
+      this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.STFLabel.toolTip = "<p>RGB channel linking in Screen Transfer Function. Using Unlinked can help reduce color cast with OSC images.</p>";
+      this.STFComboBox = new ComboBox( this );
+      this.STFComboBox.addItem( "Auto" );
+      this.STFComboBox.addItem( "Linked" );
+      this.STFComboBox.addItem( "Unlinked" );
+      this.STFComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("STF"); 
+            switch (itemIndex) {
+                  case 0:
+                        SetOption("STF", "Auto"); 
+                        break;
+                  case 1:
+                        SetOption("STF", "Linked"); 
+                        break;
+                  case 2:
+                        SetOption("STF", "Unlinked"); 
+                        break;
+            }
+            STF_linking = itemIndex;
+      };
+      this.STFSizer = new HorizontalSizer;
+      this.STFSizer.spacing = 4;
+      this.STFSizer.add( this.STFLabel );
+      this.STFSizer.add( this.STFComboBox );
+      this.STFSizer.addStretch();
+
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
@@ -3959,6 +4487,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.useABECheckBox );
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.skip_SCNR_CheckBox );
+      this.imageParamsSet2.add( this.STFSizer );
 
       // Image group parameters.
       this.imageParamsGroupBox = new newGroupBox( this );
@@ -3982,6 +4511,7 @@ function AutoIntegrateDialog()
       this.linearSaturationSpinBox.toolTip = "<p>Saturation increase in linear state.</p>";
       this.linearSaturationSpinBox.onValueUpdated = function( value )
       {
+            SetOption("Linear saturation increase", value);
             linear_increase_saturation = value;
       };
 
@@ -3995,6 +4525,7 @@ function AutoIntegrateDialog()
       this.nonLinearSaturationSpinBox.toolTip = "<p>Saturation increase in non-linear state.</p>";
       this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
       {
+            SetOption("Non-linear saturation increase", value);
             non_linear_increase_saturation = value;
       };
 
@@ -4074,7 +4605,7 @@ function AutoIntegrateDialog()
       this.weightHelpTips = new ToolButton( this );
       this.weightHelpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.weightHelpTips.setScaledFixedSize( 20, 20 );
-      this.weightHelpTips.toolTip = 
+      var weightHelpToolTips =
             "<p>" +
             "Generic - Use both noise and stars for the weight calculation." +
             "</p><p>" +
@@ -4082,6 +4613,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "Stars - More weight on stars." +
             "</p>";
+      this.weightHelpTips.toolTip = weightHelpToolTips;
 
       this.weightGroupBox = new newGroupBox( this );
       this.weightGroupBox.title = "Image weight calculation settings";
@@ -4092,6 +4624,7 @@ function AutoIntegrateDialog()
       this.weightGroupBox.sizer.add( this.noiseWeightRadioButton );
       this.weightGroupBox.sizer.add( this.starWeightRadioButton );
       this.weightGroupBox.sizer.add( this.weightHelpTips );
+      this.weightGroupBox.toolTip = weightHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
       //this.weightGroupBox.sizer.addStretch();
       
@@ -4251,7 +4784,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationHelpTips = new ToolButton( this );
       this.ImageIntegrationHelpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.ImageIntegrationHelpTips.setScaledFixedSize( 20, 20 );
-      this.ImageIntegrationHelpTips.toolTip = 
+      var ImageIntegrationHelpToolTips = 
             "<p>" +
             "Auto1 - Default set 1 uses percentile clipping for less than 8 images " +
             "and sigma clipping otherwise." +
@@ -4272,6 +4805,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "Linear - Linear fit clipping" +
             "</p>";
+      this.ImageIntegrationHelpTips.toolTip = ImageIntegrationHelpToolTips;
       this.clippingGroupBox = new newGroupBox( this );
       this.clippingGroupBox.title = "Image integration pixel rejection";
       this.clippingGroupBox.sizer = new HorizontalSizer;
@@ -4280,14 +4814,25 @@ function AutoIntegrateDialog()
       this.clippingGroupBox.sizer.add( this.ImageIntegrationNormalizationSizer );
       this.clippingGroupBox.sizer.add( this.ImageIntegrationRejectionSizer );
       this.clippingGroupBox.sizer.add( this.ImageIntegrationHelpTips );
+      this.clippingGroupBox.toolTip = ImageIntegrationHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
       //this.clippingGroupBox.sizer.addStretch();
 
       // Narrowband palette
 
+      var narrowbandToolTip = 
+      "<p>" +
+      "Color palette used to map SII, Ha and OIII to R, G and B" +
+      "</p><p>" +
+      "SHO - SII=R, Ha=G, OIII=B, similar to Hubble palatte<br>" +
+      "HOS - Ha=R, OIII=G, SII=B<br>" +
+      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is mapped to R)<br>" +
+      "</p>";
+
       this.SHORadioButton = new RadioButton( this );
       this.SHORadioButton.text = "SHO";
       this.SHORadioButton.checked = true;
+      this.SHORadioButton.toolTip = narrowbandToolTip;
       this.SHORadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'SHO'; 
@@ -4297,6 +4842,7 @@ function AutoIntegrateDialog()
       this.HOSRadioButton = new RadioButton( this );
       this.HOSRadioButton.text = "HOS";
       this.HOSRadioButton.checked = false;
+      this.HOSRadioButton.toolTip = narrowbandToolTip;
       this.HOSRadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'HOS'; 
@@ -4306,6 +4852,7 @@ function AutoIntegrateDialog()
       this.HOORadioButton = new RadioButton( this );
       this.HOORadioButton.text = "HOO";
       this.HOORadioButton.checked = false;
+      this.HOORadioButton.toolTip = narrowbandToolTip;
       this.HOORadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'HOO'; 
@@ -4316,14 +4863,7 @@ function AutoIntegrateDialog()
       this.narrowbandColorPaletteLabel = new Label( this );
       this.narrowbandColorPaletteLabel.text = "Color palette";
       this.narrowbandColorPaletteLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.narrowbandColorPaletteLabel.toolTip = 
-            "<p>" +
-            "Color palette used to map SII, Ha and OIII to R, G and B" +
-            "</p><p>" +
-            "SHO - SII=R, Ha=G, OIII=B, similar to Hubble palatte<br>" +
-            "HOS - Ha=R, OIII=G, SII=B<br>" +
-            "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is mapped to R)<br>" +
-            "</p>";
+      this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
 
       this.narrowbandColorPalette_sizer = new HorizontalSizer;
       this.narrowbandColorPalette_sizer.margin = 6;
@@ -4350,7 +4890,8 @@ function AutoIntegrateDialog()
             "RGB_HT<br>" +
             "Integration_RGB_DBE<br>" +
             "Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
-            "Integration_R + Integration_G + Integration_B" +
+            "Integration_R + Integration_G + Integration_B<br>" +
+            "Final image (for extra processing)" +
             "</p>";
       this.autoContinueNarrowbandButton.onClick = function()
       {
@@ -4373,7 +4914,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions_sizer.spacing = 4;
       this.narrowbandOptions_sizer.add( this.fix_narrowband_star_color_CheckBox );
       this.narrowbandOptions_sizer.add( this.autoContinueNarrowbandButton );
-      
+
       this.narrowbandGroupBox = new newGroupBox( this );
       this.narrowbandGroupBox.title = "Narrowband processing";
       this.narrowbandGroupBox.sizer = new VerticalSizer;
@@ -4381,6 +4922,151 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer.spacing = 4;
       this.narrowbandGroupBox.sizer.add( this.narrowbandColorPalette_sizer );
       this.narrowbandGroupBox.sizer.add( this.narrowbandOptions_sizer );
+
+      // Extra processing
+      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
+      "<p>Make image background darker.</p>" );
+      this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
+            extra_darker_background = checked; 
+            SetOption("Darker background", checked); 
+      }
+      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", extra_HDRMLT, 
+      "<p>Run HDRMultiscaleTansform on image.</p>" );
+      this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
+            extra_HDRMLT = checked; 
+            SetOption("HDRMultiscaleTansform", checked); 
+      }
+      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", extra_LHE, 
+      "<p>Run LocalHistogramEqualization on image.</p>" );
+      this.extra_LHE_CheckBox.onClick = function(checked) { 
+            extra_LHE = checked; 
+            SetOption("LocalHistogramEqualization", checked); 
+      }
+      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", extra_contrast, 
+      "<p>Run LocalHistogramEqualization on image.</p>" );
+      this.extra_Contrast_CheckBox.onClick = function(checked) { 
+            extra_contrast = checked; 
+            SetOption("Add contrast", checked); 
+      }
+      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", extra_smaller_stars, 
+      "<p>Make stars smaller on image.</p>" );
+      this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
+            extra_smaller_stars = checked; 
+            SetOption("Smaller stars", checked); 
+      }
+      this.IterationsSpinBox = new SpinBox( this );
+      this.IterationsSpinBox.minValue = 1;
+      this.IterationsSpinBox.maxValue = 10;
+      this.IterationsSpinBox.value = extra_smaller_stars_iterations;
+      this.IterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes.</p>";
+      this.IterationsSpinBox.onValueUpdated = function( value )
+      {
+            extra_smaller_stars_iterations = value;
+            SetOption("Smaller stars iterations", value);
+      };
+      this.IterationsLabel = new Label( this );
+      this.IterationsLabel.text = "iterations";
+      this.IterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.IterationsLabel.toolTip = this.IterationsSpinBox.toolTip;
+      this.SmallerStarsSizer = new HorizontalSizer;
+      this.SmallerStarsSizer.spacing = 4;
+      this.SmallerStarsSizer.add( this.extra_SmallerStars_CheckBox );
+      this.SmallerStarsSizer.add( this.IterationsSpinBox );
+      this.SmallerStarsSizer.add( this.IterationsLabel );
+      this.SmallerStarsSizer.toolTip = this.IterationsSpinBox.toolTip;
+      this.SmallerStarsSizer.addStretch();
+
+      this.extraImageLabel = new Label( this );
+      this.extraImageLabel.text = "Target image";
+      this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraImageLabel.toolTip = "<p>Target image for extra processing.</p>";
+      this.extraImageComboBox = new ComboBox( this );
+      var windowList = getWindowList();
+      windowList.unshift("Auto");
+      for (var i = 0; i < windowList.length; i++) {
+            this.extraImageComboBox.addItem( windowList[i] );
+      }
+      extra_target_image = windowList[0];
+      this.extraImageComboBox.onItemSelected = function( itemIndex )
+      {
+            extra_target_image = windowList[itemIndex];
+      };
+      this.extraApplyButton = new PushButton( this );
+      this.extraApplyButton.text = "Apply";
+      this.extraApplyButton.toolTip = 
+            "Apply extra processing on the selected image.";
+      this.extraApplyButton.onClick = function()
+      {
+            if (!is_extra_option()) {
+                  console.criticalln("No extra processing option selected!");
+            } else if (extra_target_image == null) {
+                  console.criticalln("No image!");
+            } else if (extra_target_image == "Auto") {
+                  console.criticalln("Auto target image cannot be used with Apply button!");
+            } else {
+                  console.writeln("Apply extra processing directly on " + extra_target_image);
+                  try {
+                        extraProcessingEngine(extra_target_image);
+                  } 
+                  catch(err) {
+                        console.endLog();
+                        console.criticalln(err);
+                        console.criticalln("Processing stopped!");
+                  }
+            }
+      };   
+
+      this.extraImageSizer = new HorizontalSizer;
+      this.extraImageSizer.spacing = 4;
+      this.extraImageSizer.add( this.extraImageLabel );
+      this.extraImageSizer.add( this.extraImageComboBox );
+      this.extraImageSizer.add( this.extraApplyButton );
+      this.extraImageSizer.addStretch();
+
+      this.extra1 = new VerticalSizer;
+      this.extra1.margin = 6;
+      this.extra1.spacing = 4;
+      this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extra_HDRMLT_CheckBox );
+      this.extra1.add( this.extra_LHE_CheckBox );
+
+      this.extra2 = new VerticalSizer;
+      this.extra2.margin = 6;
+      this.extra2.spacing = 4;
+      this.extra2.add( this.extra_Contrast_CheckBox );
+      this.extra2.add( this.SmallerStarsSizer );
+
+      this.extraGroupBoxSizer = new HorizontalSizer;
+      this.extraGroupBoxSizer.margin = 6;
+      this.extraGroupBoxSizer.spacing = 4;
+      this.extraGroupBoxSizer.add( this.extra1 );
+      this.extraGroupBoxSizer.add( this.extra2 );
+
+      this.extraGroupBox = new newGroupBox( this );
+      this.extraGroupBox.title = "Extra processing";
+      this.extraGroupBox.sizer = new VerticalSizer;
+      this.extraGroupBox.sizer.margin = 6;
+      this.extraGroupBox.sizer.spacing = 4;
+      this.extraGroupBox.sizer.add( this.extraGroupBoxSizer );
+      this.extraGroupBox.sizer.add( this.extraImageSizer );
+      this.extraGroupBox.toolTip = 
+            "<p>" +
+            "In case of Run or AutoContinue, extra processing steps are applied to a copy of the final image. " + 
+            "A new image is created with _extra added to the name. " + 
+            "For example if the final image is AutoLRGB_noABE then a new image AutoLRGB_noABE_extra is created. " + 
+            "AutoContinue can be used to apply extra processing after the final image is created." +
+            "</p><p>" +
+            "With the Apply button extra processing is run directly on the selected image. " +
+            "</p><p>" +
+            "If multiple options are selected they are executed in the following order" +
+            "</p><p>" +
+            "1. Darker background<br>" +
+            "2. HDRMultiscaleTansform<br>" +
+            "3. LocalHistogramEqualization<br>" +
+            "4. Add contrast<br>" +
+            "5. Smaller stars" +
+            "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
+            "</p>";
 
       // Button to run automatic processing
       this.autoRunButton = new PushButton( this );
@@ -4403,7 +5089,8 @@ function AutoIntegrateDialog()
             "Integration_L_DBE + Integration_RGB_DBE<br>" +
             "Integration_RGB_DBE<br>" +
             "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
-            "Integration_L + Integration_R + Integration_G + Integration_B" +
+            "Integration_L + Integration_R + Integration_G + Integration_B<br>" +
+            "Final image (for extra processing)" +
             "</p>";
       this.autoContinueButton.onClick = function()
       {
@@ -4413,8 +5100,8 @@ function AutoIntegrateDialog()
             } 
             catch(err) {
                   console.endLog();
-                  console.writeln(err);
-                  console.writeln("Processing stopped!");
+                  console.criticalln(err);
+                  console.criticalln("Processing stopped!");
             }
       };   
 
@@ -4511,6 +5198,7 @@ function AutoIntegrateDialog()
       this.helpLabelGroupBox.sizer.spacing = 4;
       this.helpLabelGroupBox.sizer.add( this.helpLabelSizer );
       this.helpLabelGroupBox.setFixedHeight(50);
+      this.helpLabelGroupBox.toolTip = mainHelpTips;
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -4527,6 +5215,7 @@ function AutoIntegrateDialog()
       this.col2.add( this.linearFitGroupBox );
       this.col2.add( this.clippingGroupBox );
       this.col2.add( this.narrowbandGroupBox );
+      this.col2.add( this.extraGroupBox );
       this.col2.add( this.autoButtonGroupBox );
 
       this.cols = new HorizontalSizer;
@@ -4548,6 +5237,8 @@ function AutoIntegrateDialog()
       this.adjustToContents();
       //this.helpLabel.setFixedHeight();
       this.files_GroupBox.setFixedHeight();
+
+      console.show(false);
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
