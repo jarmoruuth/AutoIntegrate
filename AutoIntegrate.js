@@ -15,6 +15,8 @@ or Blue channels. A couple of variants are accepted like 'Red' or 'R'.
 If keyword FILTER is not found images are assumed to be color images. Also
 camera RAW files can be used.
 
+Script creates an AutoIntegrate.log file where details of the processing can be checked.
+
 NOTE! These steps mayh not be updated with recent changes. They do describe the basic
       processing but some details may have changed.
 
@@ -27,11 +29,11 @@ if there are manually created images:
   LRGB image with HistogramTransformation already done, the script starts after step <lHT> and <rgbHT>.
 - RGB_HT
   Color (RGB) image with HistogramTransformation already done, the script starts after step <colorHT>.
-- Integration_L_DBE + Integration_RGB_DBE
+- Integration_L_BE + Integration_RGB_BE
   LRGB image background extracted, the script starts after step <lABE> and <rgbABE>.
-- Integration_RGB_DBE
+- Integration_RGB_BE
   Color (RGB) image background extracted, the script starts with after step <colorABE>.
-- Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE
+- Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE
   LRGB image background extracted before image integration, the script starts after step <lABE> and 
    <rgbDBE>. Automatic ABE is then skipped.
 - Integration_L + Integration_R + Integration_G + Integration_B
@@ -40,14 +42,14 @@ if there are manually created images:
 Note that it is possible to run first automatic processing and then manually enhance some 
 intermediate files and autocontinue there. 
 - Crop integrated images and continue automatic processing using cropped images.
-- Run manual DBE to avoid ABE.
+- Run manual DBE.
 
 Generic steps for all files
 ---------------------------
 
-1. Opens a file dialog. On that select all *.fit files. LRGB, color and narrowband
+1. Opens a file dialog. On that select all *.fit (or other) files. LRGB, color, RAW and narrowband
    files can be used.
-2. SubframeSelector is run on .fit files to measure and generate SSWEIGHT for
+2. SubframeSelector is run on files to measure and generate SSWEIGHT for
    each file. Output is *_a.xisf files.
 3. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
@@ -60,11 +62,11 @@ Steps with LRGB files
 ---------------------
 
 1. ImageIntegration is run on LRGB files. Rejection method is chosen dynamically 
-   based on the number of image files. <lII>
+   based on the number of image files, or specified by the user. <lII>
    After this step there are Integrate_L, Integrate_R, Integrate_G and Integrate_B images.
-2. ABE in run on L image. <lABE>
-3. HistogramTransform is run on L image and resulted autostretched STF is saved for mask. <lHT>
-4. Streched L image is stored as a mask unless user can predefined mask named range_mask.
+2. Optionally ABE in run on L image. <lABE>
+3. HistogramTransform is run on L image. <lHT>
+4. Streched L image is stored as a mask unless user has a predefined mask named range_mask.
 5. Noise reduction is run on L image using a mask.
 6. *REMOVED* If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
@@ -79,7 +81,7 @@ Steps with LRGB files
 11. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
 12. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
-13. HistogramTransform is run on RGB image using autotreched STF from L image. <rgbHT>
+13. HistogramTransform is run on RGB image. <rgbHT>
 14. Optionally TGVDenoise is run to reduce color noise.
 15. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
     By default saturation is increased also when the image is still in a linear
@@ -95,13 +97,13 @@ Steps with color files
 2. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
    If use_background_neutralization is selected then BackgroundNeutralization is run before
    color calibration.
-3. ABE in run on RGB image. <colorABE>
+3. Optionally ABE in run on RGB image. <colorABE>
 4. If color calibration is not yet done the color calibration is run on RGB image. Optionally
    BackgroundNeutralization is run before color calibration
 5. HistogramTransform is run on RGB image. <colorHT>
-6. A mask is created as a copy of stretched and grayscale converted color RGB image.
+6. A mask is created from an extracted and stretched luminance channel.
 7. MultiscaleLinearTransform is run on color RGB image to reduce noise.
-    Mask is used to target noise reduction more on the background.
+   Mask is used to target noise reduction more on the background.
 8. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
 
 Steps with narrowband files
@@ -198,8 +200,6 @@ The following copyright notice is for routines ApplyAutoSTF and applySTF:
 #include <pjsr/Sizer.jsh>
 #include <pjsr/SectionBar.jsh>
 
-var test_mode = false;
-
 var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
@@ -220,7 +220,8 @@ var non_linear_increase_saturation = 1;         /* Keep to 1, or check narrowban
 var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
-var use_ABE = false;
+var use_ABE_on_L_RGB = false;
+var use_ABE_on_final_image = false;
 var color_calibration_before_ABE = false;
 var use_background_neutralization = false;
 var use_drizzle = false;
@@ -294,7 +295,6 @@ var RGB_win_id;
 var is_color_files = false;
 var preprocessed_images;
 var L_ABE_id;
-var L_ABE_win;
 var L_ABE_HT_win;
 var L_ABE_HT_id;
 var L_HT_win;
@@ -315,29 +315,19 @@ var RGB_BE_win;
 var L_HT_win;
 var L_stf;
 var RGB_HT_win;
-var drizzle_prefix;
 var range_mask_win;
 var final_win;
 var start_images = {
       NONE : 0,
-      L_R_G_B_DBE : 1,
-      L_RGB_DBE : 2,
-      RGB_DBE : 3,
+      L_R_G_B_BE : 1,
+      L_RGB_BE : 2,
+      RGB_BE : 3,
       L_RGB_HT : 4,
       RGB_HT : 5,
       RGB_COLOR : 6,
       L_R_G_B : 7,
       FINAL : 8
 };
-
-var testModefileNames = [
-      "m17_20180909_224950_0_8lxvv6_l_cal_a.fit",
-      "m17_20180909_225110_1_dzezji_l_cal_a.fit",
-      "m17_20180909_225231_3_dbdaah_l_cal_a.fit",
-      "m17_20180909_225401_2_lgndgd_r_cal_a.fit",
-      "m17_20180909_225527_2_enoohu_g_cal_a.fit",
-      "m17_20180909_225655_2_ygleft_b_cal_a.fit"
-];
 
 // known window names
 var integration_LRGB_windows = [
@@ -382,14 +372,10 @@ var fixed_windows = [
  * These may have Drizzle prefix if that option ise used.
  */
 var final_windows = [
-      "AutoLRGB_ABE",
-      "AutoRRGB_ABE",
-      "AutoRGB_ABE",
-      "AutoMono_ABE",
-      "AutoLRGB_noABE",
-      "AutoRRGB_noABE",
-      "AutoRGB_noABE",
-      "AutoMono_noABE"
+      "AutoLRGB",
+      "AutoRRGB",
+      "AutoRGB",
+      "AutoMono"
 ];
 
 var processingOptions = new Array;
@@ -404,23 +390,23 @@ function RemoveOption(option)
       }
 }
 
-function SetOptionStr(option, str)
+function SetOptionValue(option, val)
 {
       RemoveOption(option);
 
       var newopt = new Array;
       newopt[0] = option;
-      newopt[1] = str;
+      newopt[1] = val;
 
       processingOptions[processingOptions.length] = newopt;
 }
 
-function SetOption(option, checked)
+function SetOptionChecked(option, checked)
 {
       if (!checked) {
             RemoveOption(option);
       } else {
-            SetOptionStr(option, "");
+            SetOptionValue(option, "");
       }
 }
 
@@ -472,6 +458,16 @@ function getWindowList()
             windowList[windowList.length] = images[i].mainView.id;
       }
       return windowList;
+}
+
+function getWindowListReverse()
+{
+      var windowListReverse = [];
+      var windowList = getWindowList();
+      for (var i = windowList.length-1; i >= 0; i--) {
+            windowListReverse[windowListReverse.length] = windowList[i];
+      }
+      return windowListReverse;
 }
 
 function findWindowId(id)
@@ -540,6 +536,8 @@ function windowRename(old_name, new_name)
       return windowRenameKeepif(old_name, new_name, false);
 }
 
+// Add a script window that will be closed when close aff is clicked
+// Useful for temporary windows that do have a fixed name
 function addScriptWindow(name)
 {
       all_windows[all_windows.length] = name;
@@ -559,7 +557,6 @@ function closeAllWindowsFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
             closeOneWindow(arr[i]);
-            closeOneWindow("Drizzle"+arr[i]);
       }
 }
 
@@ -570,8 +567,6 @@ function closeFinalWindowsFromArray(arr)
       for (var i = 0; i < arr.length; i++) {
             closeOneWindow(arr[i]);
             closeOneWindow(arr[i]+"_extra");
-            closeOneWindow("Drizzle"+arr[i]);
-            closeOneWindow("Drizzle"+arr[i]+"_extra");
       }
 }
 
@@ -1694,9 +1689,9 @@ function runLocalNormalization(imagetable, refImage)
       P.overwriteExistingFiles = true;
       P.onError = LocalNormalization.prototype.OnError_Continue;
       P.useFileThreads = true;
-      P.fileThreadOverload = 1.20;
-      P.maxFileReadThreads = 1;
-      P.maxFileWriteThreads = 1;
+      P.fileThreadOverload = 1.00;
+      P.maxFileReadThreads = 0;
+      P.maxFileWriteThreads = 0;
       P.graphSize = 800;
       P.graphTextSize = 12;
       P.graphTitleSize = 18;
@@ -1760,7 +1755,7 @@ function runDrizzleIntegration(images, name)
 
       windowCloseif(P.weightImageId);
 
-      var new_name = windowRename(P.integrationImageId, "DrizzleIntegration_" + name);
+      var new_name = windowRename(P.integrationImageId, "Integration_" + name);
       //addScriptWindow(new_name);
       return new_name;
 }
@@ -2040,15 +2035,20 @@ function runImageIntegrationNormalized(images, name)
       }
 }
 
-function runABE(win, target_id)
+/* Do run ABE so just make copy of the source window as
+ * is done by AutomaticBackgroundExtractor.
+ */
+function noABEcopyWin(win)
 {
-      if (!use_ABE) {
-            var noABE_id = win.mainView.id + "_noABE";
-            addProcessingStep("No ABE for " + win.mainView.id);
-            addScriptWindow(noABE_id);
-            copyWindow(win, noABE_id);
-            return noABE_id;
-      }
+      var noABE_id = win.mainView.id + "_noABE";
+      addProcessingStep("No ABE for " + win.mainView.id);
+      addScriptWindow(noABE_id);
+      copyWindow(win, noABE_id);
+      return noABE_id;
+}
+
+function runABE(win)
+{
       addProcessingStep("ABE from " + win.mainView.id);
       var ABE_id = win.mainView.id + "_ABE";
       var ABE = new AutomaticBackgroundExtractor;
@@ -2786,40 +2786,28 @@ function CreateChannelImages(auto_continue)
 
       final_win = null;
 
-      /* First check if we have some processing done and we should continue
-       * from the middle of the processing.
-       */
-      if (use_drizzle) {
-            drizzle_prefix = "Drizzle";
-      } else {
-            drizzle_prefix = "";
-      }
-
-      /* Check if we have manual background extracted files. */
-      L_BE_win = findWindow(drizzle_prefix+"Integration_L_DBE");
-      R_BE_win = findWindow(drizzle_prefix+"Integration_R_DBE");
-      G_BE_win = findWindow(drizzle_prefix+"Integration_G_DBE");
-      B_BE_win = findWindow(drizzle_prefix+"Integration_B_DBE");
-      RGB_BE_win = findWindow(drizzle_prefix+"Integration_RGB_DBE");
-
       /* Check if we have manually done histogram transformation. */
       L_HT_win = findWindow("L_HT");
       RGB_HT_win = findWindow("RGB_HT");
 
-      luminance_id = findWindowId(drizzle_prefix+"Integration_L");
-      red_id = findWindowId(drizzle_prefix+"Integration_R");
-      green_id = findWindowId(drizzle_prefix+"Integration_G");
-      blue_id = findWindowId(drizzle_prefix+"Integration_B");
-      color_id = findWindowId(drizzle_prefix+"Integration_RGB");
+      /* Check if we have manual background extracted files. */
+      L_BE_win = findWindow("Integration_L_BE");
+      R_BE_win = findWindow("Integration_R_BE");
+      G_BE_win = findWindow("Integration_G_BE");
+      B_BE_win = findWindow("Integration_B_BE");
+      RGB_BE_win = findWindow("Integration_RGB_BE");
+
+      luminance_id = findWindowId("Integration_L");
+      red_id = findWindowId("Integration_R");
+      green_id = findWindowId("Integration_G");
+      blue_id = findWindowId("Integration_B");
+      color_id = findWindowId("Integration_RGB");
 
       if (is_extra_option()
           || (narrowband_autocontinue && fix_narrowband_star_color)) 
       {
             for (var i = 0; i < final_windows.length; i++) {
                   final_win = findWindow(final_windows[i]);
-                  if (final_win == null) {
-                        final_win = findWindow("Drizzle"+final_windows[i]);
-                  }
                   if (final_win != null) {
                         break;
                   }
@@ -2845,14 +2833,14 @@ function CreateChannelImages(auto_continue)
             preprocessed_images = start_images.RGB_HT;
       } else if (winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) { /* L,RGB background extracted */
             addProcessingStep("L,RGB background extracted");
-            preprocessed_images = start_images.L_RGB_DBE;
+            preprocessed_images = start_images.L_RGB_BE;
       } else if (winIsValid(RGB_BE_win)) {                         /* RGB (color) background extracted */
             addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
-            preprocessed_images = start_images.RGB_DBE;
+            preprocessed_images = start_images.RGB_BE;
       } else if (winIsValid(L_BE_win) && winIsValid(R_BE_win) &&   /* L,R,G,B background extracted */
                  winIsValid(G_BE_win) && winIsValid(B_BE_win)) {
             addProcessingStep("L,R,G,B background extracted");
-            preprocessed_images = start_images.L_R_G_B_DBE;
+            preprocessed_images = start_images.L_R_G_B_BE;
       } else if (color_id != null) {                              /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + color_id);
             preprocessed_images = start_images.RGB_COLOR;
@@ -2886,7 +2874,7 @@ function CreateChannelImages(auto_continue)
             console.writeln("RGB_BE_win="+RGB_BE_win);
             console.writeln("L_HT_win="+L_HT_win);
             console.writeln("RGB_HT_win="+RGB_HT_win);
-            if (preprocessed_images == start_images.RGB_DBE ||
+            if (preprocessed_images == start_images.RGB_BE ||
                 preprocessed_images == start_images.RGB_HT ||
                 preprocessed_images == start_images.RGB_COLOR) 
             {
@@ -2906,27 +2894,19 @@ function CreateChannelImages(auto_continue)
             mask_win_id = "range_mask";
             range_mask_win = findWindow(mask_win_id);
       } else {
-            /* Open .fit files and run SubframeSelector on them
+            /* Open dialog files and run SubframeSelector on them
              * to assigns SSWEIGHT.
              */
             var fileNames;
-            if (test_mode) {
-                  addProcessingStep("Test mode");
-                  fileNames = testModefileNames;
-                  for (var i = 0; i < fileNames.length; i++) {
-                        fileNames[i] = "c:\\Slooh\\Swan_Nebula_M17_T1\\" + fileNames[i];
-                  }
-            } else {
-                  if (dialogFileNames == null) {
-                        dialogFileNames = openFitFiles();
-                        addProcessingStep("Get files from dialog");
-                  }
-                  if (dialogFileNames == null) {
-                        console.writeln("No files to process");
-                        return false;
-                  }
-                  fileNames = dialogFileNames;
+            if (dialogFileNames == null) {
+                  dialogFileNames = openFitFiles();
+                  addProcessingStep("Get files from dialog");
             }
+            if (dialogFileNames == null) {
+                  console.writeln("No files to process");
+                  return false;
+            }
+            fileNames = dialogFileNames;
 
             /* Get path to current directory. */
             var fname = dialogFileNames[0];
@@ -3039,8 +3019,8 @@ function LRGBCreateMask()
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
                   L_win = copyWindow(L_HT_win, "L_win_mask");
             } else {
-                  if (preprocessed_images == start_images.L_RGB_DBE ||
-                      preprocessed_images == start_images.L_R_G_B_DBE) 
+                  if (preprocessed_images == start_images.L_RGB_BE ||
+                      preprocessed_images == start_images.L_R_G_B_BE) 
                   {
                         /* We have background extracted from L. */
                         L_win = ImageWindow.windowById(L_BE_win.mainView.id);
@@ -3102,15 +3082,15 @@ function ProcessLimage()
       addProcessingStep("ProcessLimage");
 
       /* LRGB files */
-      console.writeln("ABE L");
+      console.writeln("BE L");
       if (preprocessed_images == start_images.L_RGB_HT) {
             /* We have run HistogramTransformation. */
             addProcessingStep("Start from image " + L_HT_win.mainView.id);
             L_ABE_HT_win = L_HT_win;
             L_ABE_HT_id = L_HT_win.mainView.id;
       } else {
-            if (preprocessed_images == start_images.L_RGB_DBE ||
-                preprocessed_images == start_images.L_R_G_B_DBE) 
+            if (preprocessed_images == start_images.L_RGB_BE ||
+                preprocessed_images == start_images.L_R_G_B_BE) 
             {
                   /* We have background extracted from L. */
                   L_ABE_id = L_BE_win.mainView.id;
@@ -3120,7 +3100,11 @@ function ProcessLimage()
 
                   /* Optionally run ABE on L
                   */
-                  L_ABE_id = runABE(L_win);
+                  if (use_ABE_on_L_RGB) {
+                        L_ABE_id = runABE(L_win);
+                  } else {
+                        L_ABE_id = noABEcopyWin(L_win);
+                  }
             }
 
             /* Noise reduction for L. */
@@ -3137,8 +3121,8 @@ function ProcessLimage()
                   L_stf = null;
             }
 
-            L_ABE_win = ImageWindow.windowById(L_ABE_id);
             L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
+            ImageWindow.windowById(L_ABE_HT_id);      
       }
 
       /* Noise reduction for L. */
@@ -3264,8 +3248,8 @@ function ProcessRGBimage()
                   ColorCreateMask(RGB_ABE_HT_id);
             }
       } else {
-            if (preprocessed_images == start_images.L_RGB_DBE ||
-                preprocessed_images == start_images.RGB_DBE) 
+            if (preprocessed_images == start_images.L_RGB_BE ||
+                preprocessed_images == start_images.RGB_BE) 
             {
                   /* We already have background extracted. */
                   RGB_ABE_id = RGB_BE_win.mainView.id;
@@ -3279,8 +3263,13 @@ function ProcessRGBimage()
                         */
                         runColorCalibration(RGB_win.mainView);
                   }
-                  console.writeln("ABE RGB");
-                  RGB_ABE_id = runABE(RGB_win);
+                  if (use_ABE_on_L_RGB) {
+                        console.writeln("ABE RGB");
+                        RGB_ABE_id = runABE(RGB_win);
+                  } else {
+                        console.writeln("No ABE for RGB");
+                        RGB_ABE_id = noABEcopyWin(RGB_win);
+                  }
             }
 
             if (!color_calibration_before_ABE) {
@@ -3731,9 +3720,11 @@ function extraProcessing(id, apply_directly)
 
 function extraProcessingEngine(id)
 {
+      mask_win = null;
+      star_mask_win = null;
       processing_steps = "";
 
-      console.writeln("Start extra processing...");
+      console.noteln("Start extra processing...");
 
       console.show(true);
       extraProcessing(extra_target_image, true);
@@ -3742,10 +3733,10 @@ function extraProcessingEngine(id)
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
 
-      console.writeln("Processing steps:");
+      console.noteln("Processing steps:");
       console.writeln(processing_steps);
       console.writeln("");
-      console.writeln("Extra processing completed.");
+      console.noteln("Extra processing completed.");
 }
 
 function AutoIntegrateEngine(auto_continue)
@@ -3783,15 +3774,17 @@ function AutoIntegrateEngine(auto_continue)
       narrowband = narrowband_autocontinue;
       is_luminance_images = false;
 
+      console.noteln("--------------------------------------");
       if (processingOptions.length > 0) {
-            console.noteln("--------------------------------------");
             addProcessingStep("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
                   addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
             }
-            console.noteln("--------------------------------------");
+      } else {
+            addProcessingStep("Using default processing options");
       }
       console.noteln("======================================");
+      console.noteln("--------------------------------------");
       addProcessingStep("Start processing...");
 
       /* Create images for each L, R, G and B channels, or Color image. */
@@ -3815,7 +3808,7 @@ function AutoIntegrateEngine(auto_continue)
             var processRGB = !is_color_files && 
                              !monochrome_image &&
                              (preprocessed_images == start_images.NONE ||
-                              preprocessed_images == start_images.L_R_G_B_DBE ||
+                              preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
 
             if (processRGB) {
@@ -3836,28 +3829,24 @@ function AutoIntegrateEngine(auto_continue)
 
             if (monochrome_image) {
                   console.writeln("monochrome_image:rename windows")
-                  if (use_ABE) {
-                        LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono_ABE");
-                  } else {
-                        LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono_noABE");
-                  }
+                  LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono");
 
             } else if (!channelcombination_only) {
 
                   RGB_ABE_HT_id = ProcessRGBimage();
 
                   if (is_color_files || !is_luminance_images) {
-                        /* Keep RGB_ABE_HT_id separate fron LRGB_ABE_HT_id which
+                        /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
                          * will be the final result file.
                           */
-                         LRGB_ABE_HT_id = "copy" + RGB_ABE_HT_id;
-                         copyWindow(
+                        LRGB_ABE_HT_id = "copy_" + RGB_ABE_HT_id;
+                        copyWindow(
                               ImageWindow.windowById(RGB_ABE_HT_id), 
-                              "copy" + RGB_ABE_HT_id);
+                              LRGB_ABE_HT_id);
                   } else {
                         /* LRGB files. Combine L and RGB images.
                         */
-                       LRGB_ABE_HT_id = runLRGBCombination(
+                        LRGB_ABE_HT_id = runLRGBCombination(
                                           RGB_ABE_HT_id,
                                           L_ABE_HT_id);
                   }
@@ -3883,33 +3872,26 @@ function AutoIntegrateEngine(auto_continue)
                          */
                         fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
                   }
-
-                  if (preprocessed_images == start_images.NONE) {
-                        /* Rename some windows. Need to be done before iconize.
-                        */
-                        if (!is_color_files && is_luminance_images) {
-                              /* LRGB files */
-                              if (RRGB_image) {
-                                    if (use_ABE) {
-                                          LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRRGB_ABE");
-                                    } else {
-                                          LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRRGB_noABE");
-                                    }
-                              } else {
-                                    if (use_ABE) {
-                                          LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoLRGB_ABE");
-                                    } else {
-                                          LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoLRGB_noABE");
-                                    }
-                              }
+                  if (use_ABE_on_final_image) {
+                        /* ABE creates a new window so we will close the old one. */
+                        var win = ImageWindow.windowById(LRGB_ABE_HT_id)
+                        var before_ABE_id = win.mainView.id;
+                        LRGB_ABE_HT_id = runABE(win);
+                        closeOneWindow(before_ABE_id);
+                  }
+            
+                  /* Rename some windows. Need to be done before iconize.
+                  */
+                  if (!is_color_files && is_luminance_images) {
+                        /* LRGB files */
+                        if (RRGB_image) {
+                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRRGB");
                         } else {
-                              /* Color or narrowband files */
-                              if (use_ABE) {
-                                    LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRGB_ABE");
-                              } else {
-                                    LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRGB_noABE");
-                              }
+                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoLRGB");
                         }
+                  } else {
+                        /* Color or narrowband files */
+                        LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRGB");
                   }
             }
       }
@@ -3917,12 +3899,9 @@ function AutoIntegrateEngine(auto_continue)
           && narrowband_autocontinue
           && fix_narrowband_star_color) 
       {
-            /* Fix narrowband image star color.
+            /* Fix narrowband image star color with AutoContinue narrowband.
              */
             fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
-      }
-      if (use_drizzle && preprocessed_images != start_images.FINAL) {
-            LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "Drizzle"+LRGB_ABE_HT_id);
       }
 
       if (is_extra_option()) {
@@ -3933,7 +3912,10 @@ function AutoIntegrateEngine(auto_continue)
       saveWindow(dialogFilePath, red_id);                  /* Integration_R */
       saveWindow(dialogFilePath, green_id);                /* Integraion_G */
       saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
-      saveWindow(dialogFilePath, LRGB_ABE_HT_id);
+      if (color_images || narrowband) {
+            saveWindow(dialogFilePath, RGB_win_id);        /* Integration_RGB */
+      }
+      saveWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
 
       /* All done, do cleanup on windows on screen 
        */
@@ -3943,16 +3925,16 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(red_id);                  /* Integration_R */
       windowIconizeif(green_id);                /* Integraion_G */
       windowIconizeif(blue_id);                 /* Integration_B */
+      windowIconizeif(RGB_win_id);              /* Integration_RGB */
 
       windowIconizeif(L_ABE_id);
       windowIconizeif(R_ABE_id);
       windowIconizeif(G_ABE_id);
       windowIconizeif(B_ABE_id);
-
       windowIconizeif(RGB_ABE_id);
+
       windowIconizeif(RGB_ABE_HT_id);
       windowIconizeif(L_ABE_HT_id);
-      windowIconizeif(RGB_win_id);              /* Integration_RGB */
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
 
@@ -4047,9 +4029,19 @@ function AutoIntegrateEngine(auto_continue)
             writeProcessingSteps(alignedFiles);
       }
 
-      console.writeln("Processing steps:");
+      console.noteln("Processing steps:");
       console.writeln(processing_steps);
-      console.writeln("");
+      console.writeln("--------------------------------------");
+      if (processingOptions.length > 0) {
+            console.writeln("Processing options:");
+            for (var i = 0; i < processingOptions.length; i++) {
+                  console.writeln(processingOptions[i][0] + " " + processingOptions[i][1]);
+            }
+      } else {
+            addProcessingStep("Default processing options were used");
+
+      }
+      console.writeln("--------------------------------------");
       if (preprocessed_images != start_images.FINAL) {
             console.noteln("Console output is written into file " + logfname);
       }
@@ -4138,15 +4130,10 @@ function Autorun(that)
 
 function AutoIntegrateDialog()
 {
-      var helptext;
-      if (test_mode) {
-            helptext = "<p><b>AutoIntegrate TEST MODE</b> &mdash; " +
-                              "Automatic image integration utility.</p>";
-      } else {
-            /* Version number is here. */
-            helptext = "<p><b>AutoIntegrate v0.66</b> &mdash; " +
-                              "Automatic image integration utility.</p>";
-      }
+      /* Version number is here. */
+      var helptext = "<p><b>AutoIntegrate v0.67</b> &mdash; " +
+                     "Automatic image integration utility.</p>";
+
       this.__base__ = Dialog;
       this.__base__();
 
@@ -4274,164 +4261,175 @@ function AutoIntegrateDialog()
             "<p>Run local normalization before StarAlign</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
             use_local_normalization = checked; 
-            SetOption("Local Normalization", checked); 
+            SetOptionChecked("Local Normalization", checked); 
       }
 
       this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
       this.useNoiseReductionOnAllChannelsCheckBox.onClick = function(checked) { 
             use_noise_reduction_on_all_channels = checked; 
-            SetOption("Noise reduction also on on R,G,B", checked); 
+            SetOptionChecked("Noise reduction also on on R,G,B", checked); 
       }
 
       this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection on image files</p>" );
       this.CosmeticCorrectionCheckBox.onClick = function(checked) { 
             skip_cosmeticcorrection = checked; 
-            SetOption("No CosmeticCorrection", checked); 
+            SetOptionChecked("No CosmeticCorrection", checked); 
       }
 
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.SubframeSelectorCheckBox.onClick = function(checked) { 
             skip_subframeselector = checked; 
-            SetOption("No SubframeSelector", checked); 
+            SetOptionChecked("No SubframeSelector", checked); 
       }
 
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { 
             integrate_only = checked; 
+            SetOptionChecked("Integrate only", checked); 
       }
 
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
       this.ChannelCombinationOnlyCheckBox.onClick = function(checked) { 
             channelcombination_only = checked; 
+            SetOptionChecked("ChannelCombination only", checked); 
       }
 
       this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", strict_StarAlign, 
             "<p>Use more strict StarAlign parameters. When set more files may fail to align.</p>" );
       this.relaxedStartAlignCheckBox.onClick = function(checked) { 
             strict_StarAlign = checked; 
-            SetOption("Strict StarAlign", checked); 
+            SetOptionChecked("Strict StarAlign", checked); 
       }
       
       this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.keepIntegratedImagesCheckBox.onClick = function(checked) { 
             keep_integrated_images = checked; 
+            SetOptionChecked("Keep integrated images", checked); 
       }
 
-      this.useABECheckBox = newCheckBox(this, "Use ABE", use_ABE, 
-      "<p>Use AutomaticBackgroundExtractor on image</p>" );
-      this.useABECheckBox.onClick = function(checked) { 
-            use_ABE = checked; 
-            SetOption("Use ABE", checked); 
+      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE", use_ABE_on_L_RGB, 
+      "<p>Use AutomaticBackgroundExtractor on L and RGB images separately</p>" );
+      this.useABE_L_RGB_CheckBox.onClick = function(checked) { 
+            use_ABE_on_L_RGB = checked; 
+            SetOptionChecked("Use ABE on L, RGB", checked); 
+      }
+
+      this.useABE_final_CheckBox = newCheckBox(this, "ABE on final image", use_ABE_on_final_image, 
+      "<p>Use AutomaticBackgroundExtractor on the final image</p>" );
+      this.useABE_final_CheckBox.onClick = function(checked) { 
+            use_ABE_on_final_image = checked; 
+            SetOptionChecked("Use ABE on final image", checked); 
       }
 
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
       "<p>Run ColorCalibration before AutomaticBackgroundExtractor</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
             color_calibration_before_ABE = checked; 
-            SetOption("Color calibration before ABE", checked); 
+            SetOptionChecked("Color calibration before ABE", checked); 
       }
 
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", use_background_neutralization, 
       "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
       this.use_background_neutralization_CheckBox.onClick = function(checked) { 
             use_background_neutralization = checked; 
-            SetOption("Use BackgroundNeutralization", checked); 
+            SetOptionChecked("Use BackgroundNeutralization", checked); 
       }
 
       this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", batch_mode, 
       "<p>Run in batch mode, continue until no files are given</p>" );
       this.batch_mode_CheckBox.onClick = function(checked) { 
             batch_mode = checked; 
-            SetOption("Batch mode", checked); 
+            SetOptionChecked("Batch mode", checked); 
       }
 
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", use_drizzle, 
       "<p>Use Drizzle integration</p>" );
       this.use_drizzle_CheckBox.onClick = function(checked) { 
             use_drizzle = checked; 
-            SetOption("Drizzle", checked); 
+            SetOptionChecked("Drizzle", checked); 
       }
 
       this.use_uwf_CheckBox = newCheckBox(this, "UWF", use_uwf, 
       "<p>Use Ultra Wide Field (UWF) images for integration</p>" );
       this.use_uwf_CheckBox.onClick = function(checked) { 
             use_uwf = checked; 
-            SetOption("UWF", checked); 
+            SetOptionChecked("UWF", checked); 
       }
       
       this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", monochrome_image, 
       "<p>Create monochrome image</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { 
             monochrome_image = checked; 
-            SetOption("Monochrome", checked); 
+            SetOptionChecked("Monochrome", checked); 
       }
 
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration do not use weight", skip_imageintegration_ssweight, 
       "<p>Do not use use SSWEIGHT weight keyword during ImageIntegration</p>" );
       this.imageintegration_ssweight_CheckBox.onClick = function(checked) { 
             skip_imageintegration_ssweight = checked; 
-            SetOption("ImageIntegration do not use weight", checked); 
+            SetOptionChecked("ImageIntegration do not use weight", checked); 
       }
 
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !imageintegration_clipping, 
       "<p>Do not use clipping in ImageIntegration</p>" );
       this.imageintegration_clipping_CheckBox.onClick = function(checked) { 
             imageintegration_clipping = !checked; 
-            SetOption("No ImageIntegration clipping", checked); 
+            SetOptionChecked("No ImageIntegration clipping", checked); 
       }
 
       this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", RRGB_image, 
       "<p>RRGB image using R as Luminance.</p>" );
       this.RRGB_image_CheckBox.onClick = function(checked) { 
             RRGB_image = checked; 
-            SetOption("RRGB image", checked); 
+            SetOptionChecked("RRGB image", checked); 
       }
 
       this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", synthetic_l_image, 
       "<p>Create synthetic L image from all LRGB images.</p>" );
       this.synthetic_l_image_CheckBox.onClick = function(checked) { 
             synthetic_l_image = checked; 
-            SetOption("Synthetic L image", checked); 
+            SetOptionChecked("Synthetic L image", checked); 
       }
 
       this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", synthetic_missing_images, 
       "<p>Create synthetic image for any missing image.</p>" );
       this.synthetic_missing_images_CheckBox.onClick = function(checked) { 
             synthetic_missing_images = checked; 
-            SetOption("Synthetic missing image", checked); 
+            SetOptionChecked("Synthetic missing image", checked); 
       }
 
       this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", unique_file_names, 
       "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.unique_file_names_CheckBox.onClick = function(checked) { 
             unique_file_names = checked; 
+            SetOptionChecked("Use unique file names", checked); 
       }
 
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", skip_noise_reduction, 
       "<p>Do not use noise reduction.</p>" );
       this.skip_noise_reduction_CheckBox.onClick = function(checked) { 
             skip_noise_reduction = checked; 
-            SetOption("No noise reduction", checked); 
+            SetOptionChecked("No noise reduction", checked); 
       }
 
       this.skip_color_noise_reduction_CheckBox = newCheckBox(this, "No color noise reduction", skip_color_noise_reduction, 
       "<p>Do not use color noise reduction.</p>" );
       this.skip_color_noise_reduction_CheckBox.onClick = function(checked) { 
             skip_color_noise_reduction = checked; 
-            SetOption("No color noise reduction", checked); 
+            SetOptionChecked("No color noise reduction", checked); 
       }
 
       this.skip_SCNR_CheckBox = newCheckBox(this, "No SCNR", skip_SCNR, 
       "<p>Skip SCNR to remove green cast</p>" );
       this.skip_SCNR_CheckBox.onClick = function(checked) { 
             skip_SCNR = checked; 
-            SetOption("No SCNR", checked); 
+            SetOptionChecked("No SCNR", checked); 
       }
 
       this.STFLabel = new Label( this );
@@ -4444,16 +4442,16 @@ function AutoIntegrateDialog()
       this.STFComboBox.addItem( "Unlinked" );
       this.STFComboBox.onItemSelected = function( itemIndex )
       {
-            RemoveOption("STF"); 
+            RemoveOption("Link RGB channels");
             switch (itemIndex) {
                   case 0:
-                        SetOption("STF", "Auto"); 
+                        SetOptionValue("Link RGB channels", "Auto"); 
                         break;
                   case 1:
-                        SetOption("STF", "Linked"); 
+                        SetOptionValue("Link RGB channels", "Linked"); 
                         break;
                   case 2:
-                        SetOption("STF", "Unlinked"); 
+                        SetOptionValue("Link RGB channels", "Unlinked"); 
                         break;
             }
             STF_linking = itemIndex;
@@ -4484,7 +4482,8 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.skip_color_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
-      this.imageParamsSet2.add( this.useABECheckBox );
+      this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
+      //this.imageParamsSet2.add( this.useABE_final_CheckBox );   Not sure if this useful fo leaving off for now.
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.skip_SCNR_CheckBox );
       this.imageParamsSet2.add( this.STFSizer );
@@ -4511,7 +4510,7 @@ function AutoIntegrateDialog()
       this.linearSaturationSpinBox.toolTip = "<p>Saturation increase in linear state.</p>";
       this.linearSaturationSpinBox.onValueUpdated = function( value )
       {
-            SetOption("Linear saturation increase", value);
+            SetOptionValue("Linear saturation increase", value);
             linear_increase_saturation = value;
       };
 
@@ -4525,7 +4524,7 @@ function AutoIntegrateDialog()
       this.nonLinearSaturationSpinBox.toolTip = "<p>Saturation increase in non-linear state.</p>";
       this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
       {
-            SetOption("Non-linear saturation increase", value);
+            SetOptionValue("Non-linear saturation increase", value);
             non_linear_increase_saturation = value;
       };
 
@@ -4588,7 +4587,7 @@ function AutoIntegrateDialog()
       this.noiseWeightRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_weight = 'N'; 
-                  SetOptionStr("Weight", "Noise"); 
+                  SetOptionValue("Weight", "Noise"); 
             }
       }
       
@@ -4598,7 +4597,7 @@ function AutoIntegrateDialog()
       this.starWeightRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_weight = 'S'; 
-                  SetOptionStr("Weight", "Stars"); 
+                  SetOptionValue("Weight", "Stars"); 
             }
       }
 
@@ -4645,7 +4644,7 @@ function AutoIntegrateDialog()
       this.redRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_linear_fit = 'R'; 
-                  SetOptionStr("Linear fit", "Red"); 
+                  SetOptionValue("Linear fit", "Red"); 
             }
       }
       
@@ -4655,7 +4654,7 @@ function AutoIntegrateDialog()
       this.greenRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_linear_fit = 'G'; 
-                  SetOptionStr("Linear fit", "Green"); 
+                  SetOptionValue("Linear fit", "Green"); 
             }
       }
       
@@ -4665,7 +4664,7 @@ function AutoIntegrateDialog()
       this.blueRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_linear_fit = 'B'; 
-                  SetOptionStr("Linear fit", "Blue"); 
+                  SetOptionValue("Linear fit", "Blue"); 
             }
       }
 
@@ -4675,7 +4674,7 @@ function AutoIntegrateDialog()
       this.noneRadioButton.onClick = function(checked) { 
             if (checked) { 
                   use_linear_fit = 'no'; 
-                  SetOptionStr("Linear fit", "No linear fit"); 
+                  SetOptionValue("Linear fit", "No linear fit"); 
             }
       }
 
@@ -4710,13 +4709,13 @@ function AutoIntegrateDialog()
             RemoveOption("ImageIntegration Normalization"); 
             switch (itemIndex) {
                   case 0:
-                        SetOption("ImageIntegration Normalization", "Additive"); 
+                        SetOptionValue("ImageIntegration Normalization", "Additive"); 
                         break;
                   case 1:
-                        SetOption("ImageIntegration Normalization", "Adaptive"); 
+                        SetOptionValue("ImageIntegration Normalization", "Adaptive"); 
                         break;
                   case 2:
-                        SetOption("ImageIntegration Normalization", "None"); 
+                        SetOptionValue("ImageIntegration Normalization", "None"); 
                         break;
             }
             imageintegration_normalization = itemIndex;
@@ -4746,31 +4745,31 @@ function AutoIntegrateDialog()
             switch (itemIndex) {
                   case 0:
                         use_clipping = 'D1';
-                        SetOptionStr("ImageIntegration Rejection", "Auto1"); 
+                        SetOptionValue("ImageIntegration Rejection", "Auto1"); 
                         break;
                   case 1:
                         use_clipping = 'D2';
-                        SetOptionStr("ImageIntegration Rejection", "Auto2"); 
+                        SetOptionValue("ImageIntegration Rejection", "Auto2"); 
                         break;
                   case 2:
                         use_clipping = 'P';
-                        SetOptionStr("ImageIntegration Rejection", "Percentile"); 
+                        SetOptionValue("ImageIntegration Rejection", "Percentile"); 
                         break;
                   case 3:
                         use_clipping = 'S';
-                        SetOptionStr("ImageIntegration Rejection", "Sigma"); 
+                        SetOptionValue("ImageIntegration Rejection", "Sigma"); 
                         break;
                   case 4:
                         use_clipping = 'W';
-                        SetOptionStr("ImageIntegration Rejection", "Winsorised sigma"); 
+                        SetOptionValue("ImageIntegration Rejection", "Winsorised sigma"); 
                         break;
                   case 5:
                         use_clipping = 'A';
-                        SetOptionStr("ImageIntegration Rejection", "Averaged sigma"); 
+                        SetOptionValue("ImageIntegration Rejection", "Averaged sigma"); 
                         break;
                   case 6:
                         use_clipping = 'L';
-                        SetOptionStr("ImageIntegration Rejection", "Linear fit"); 
+                        SetOptionValue("ImageIntegration Rejection", "Linear fit"); 
                         break;
             }
       };
@@ -4836,7 +4835,7 @@ function AutoIntegrateDialog()
       this.SHORadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'SHO'; 
-                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+                  SetOptionValue("Narrowband color palette", narrowband_palette); 
             }
       }
       this.HOSRadioButton = new RadioButton( this );
@@ -4846,7 +4845,7 @@ function AutoIntegrateDialog()
       this.HOSRadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'HOS'; 
-                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+                  SetOptionValue("Narrowband color palette", narrowband_palette); 
             }
       }
       this.HOORadioButton = new RadioButton( this );
@@ -4856,7 +4855,7 @@ function AutoIntegrateDialog()
       this.HOORadioButton.onClick = function(checked) { 
             if (checked) { 
                   narrowband_palette = 'HOO'; 
-                  SetOptionStr("Narrowband color palette", narrowband_palette); 
+                  SetOptionValue("Narrowband color palette", narrowband_palette); 
             }
       }
 
@@ -4877,7 +4876,7 @@ function AutoIntegrateDialog()
       "<p>Fix magenta cast on stars.</p>" );
       this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
             fix_narrowband_star_color = checked; 
-            SetOption("Fix narrowband star color", checked); 
+            SetOptionChecked("Fix narrowband star color", checked); 
       }
 
       // Button to continue narrowband from existing files
@@ -4888,8 +4887,8 @@ function AutoIntegrateDialog()
             "<p>" +
             "Image check order is:<br>" +
             "RGB_HT<br>" +
-            "Integration_RGB_DBE<br>" +
-            "Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "Integration_RGB_BE<br>" +
+            "Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
             "Integration_R + Integration_G + Integration_B<br>" +
             "Final image (for extra processing)" +
             "</p>";
@@ -4928,31 +4927,31 @@ function AutoIntegrateDialog()
       "<p>Make image background darker.</p>" );
       this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
             extra_darker_background = checked; 
-            SetOption("Darker background", checked); 
+            SetOptionChecked("Darker background", checked); 
       }
       this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", extra_HDRMLT, 
       "<p>Run HDRMultiscaleTansform on image.</p>" );
       this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
             extra_HDRMLT = checked; 
-            SetOption("HDRMultiscaleTansform", checked); 
+            SetOptionChecked("HDRMultiscaleTansform", checked); 
       }
       this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", extra_LHE, 
       "<p>Run LocalHistogramEqualization on image.</p>" );
       this.extra_LHE_CheckBox.onClick = function(checked) { 
             extra_LHE = checked; 
-            SetOption("LocalHistogramEqualization", checked); 
+            SetOptionChecked("LocalHistogramEqualization", checked); 
       }
       this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", extra_contrast, 
       "<p>Run LocalHistogramEqualization on image.</p>" );
       this.extra_Contrast_CheckBox.onClick = function(checked) { 
             extra_contrast = checked; 
-            SetOption("Add contrast", checked); 
+            SetOptionChecked("Add contrast", checked); 
       }
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", extra_smaller_stars, 
       "<p>Make stars smaller on image.</p>" );
       this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
             extra_smaller_stars = checked; 
-            SetOption("Smaller stars", checked); 
+            SetOptionChecked("Smaller stars", checked); 
       }
       this.IterationsSpinBox = new SpinBox( this );
       this.IterationsSpinBox.minValue = 1;
@@ -4962,7 +4961,7 @@ function AutoIntegrateDialog()
       this.IterationsSpinBox.onValueUpdated = function( value )
       {
             extra_smaller_stars_iterations = value;
-            SetOption("Smaller stars iterations", value);
+            SetOptionValue("Smaller stars iterations", value);
       };
       this.IterationsLabel = new Label( this );
       this.IterationsLabel.text = "iterations";
@@ -4981,7 +4980,7 @@ function AutoIntegrateDialog()
       this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.extraImageLabel.toolTip = "<p>Target image for extra processing.</p>";
       this.extraImageComboBox = new ComboBox( this );
-      var windowList = getWindowList();
+      var windowList = getWindowListReverse();
       windowList.unshift("Auto");
       for (var i = 0; i < windowList.length; i++) {
             this.extraImageComboBox.addItem( windowList[i] );
@@ -4989,6 +4988,7 @@ function AutoIntegrateDialog()
       extra_target_image = windowList[0];
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
+            SetOptionValue("Extra processing target image", windowList[itemIndex]);
             extra_target_image = windowList[itemIndex];
       };
       this.extraApplyButton = new PushButton( this );
@@ -5053,7 +5053,7 @@ function AutoIntegrateDialog()
             "<p>" +
             "In case of Run or AutoContinue, extra processing steps are applied to a copy of the final image. " + 
             "A new image is created with _extra added to the name. " + 
-            "For example if the final image is AutoLRGB_noABE then a new image AutoLRGB_noABE_extra is created. " + 
+            "For example if the final image is AutoLRGB then a new image AutoLRGB_extra is created. " + 
             "AutoContinue can be used to apply extra processing after the final image is created." +
             "</p><p>" +
             "With the Apply button extra processing is run directly on the selected image. " +
@@ -5086,9 +5086,9 @@ function AutoIntegrateDialog()
             "Image check order is:<br>" +
             "L_HT + RGB_HT<br>" +
             "RGB_HT<br>" +
-            "Integration_L_DBE + Integration_RGB_DBE<br>" +
-            "Integration_RGB_DBE<br>" +
-            "Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "Integration_L_BE + Integration_RGB_BE<br>" +
+            "Integration_RGB_BE<br>" +
+            "Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
             "Integration_L + Integration_R + Integration_G + Integration_B<br>" +
             "Final image (for extra processing)" +
             "</p>";
@@ -5245,15 +5245,9 @@ AutoIntegrateDialog.prototype = new Dialog;
 
 function main()
 {
-      if (test_mode) {
-            dialogFileNames = testModefileNames;
-            all_files = testModefileNames;
-      }
       var dialog = new AutoIntegrateDialog();
 
       dialog.execute();
-
-      //AutoIntegrateEngine(false);
 }
 
 main();
