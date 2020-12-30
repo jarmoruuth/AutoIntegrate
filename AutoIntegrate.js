@@ -1222,6 +1222,7 @@ function narrowband_mapping(filter)
                   }
                   break;
             case 'Halpha':
+            case 'Ha':
                   narrowband = true;
                   if (narrowband_palette == 'HOS') {
                         filter = 'R';
@@ -4131,7 +4132,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.67</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.68</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
