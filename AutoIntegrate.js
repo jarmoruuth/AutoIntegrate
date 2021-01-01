@@ -1419,6 +1419,10 @@ function findLRGBchannels(
                         break;
             }
       }
+      if (luminance_images.length > 0 && narrowband) {
+            addProcessingStep("There is both LRGB and narrowband data, processing as LRGB image");
+            narrowband = false;
+      }
       if (narrowband) {
             addProcessingStep("Processing as " + narrowband_palette + " narrowband image");
       }
@@ -4113,7 +4117,6 @@ function Autorun(that)
                         AutoIntegrateEngine(false);
                   } 
                   catch(err) {
-                        console.endLog();
                         console.writeln(err);
                         console.writeln("Processing stopped!");
                         writeProcessingSteps(null);
@@ -4132,7 +4135,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.68</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.69</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
