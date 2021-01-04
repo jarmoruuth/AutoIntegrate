@@ -221,7 +221,6 @@ var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
 var use_ABE_on_L_RGB = false;
-var use_ABE_on_final_image = false;
 var color_calibration_before_ABE = false;
 var use_background_neutralization = false;
 var use_drizzle = false;
@@ -236,13 +235,16 @@ var skip_noise_reduction = false;
 var skip_color_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
 var narrowband = false;
-var narrowband_autocontinue = false;
+var autocontinue_narrowband = false;
 var narrowband_palette = 'SHO';
-var skip_SCNR = false;
 var linear_fit_done = false;
-var fix_narrowband_star_color = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
+
+var fix_narrowband_star_color = false;
+var run_hue_shift = false;
+var run_narrowband_SCNR = false;
+var leave_some_green = false;
 
 var processingDate;
 var dialogFileNames = null;
@@ -277,6 +279,7 @@ var extra_smaller_stars = false;
 var extra_smaller_stars_iterations = 1;
 var extra_contrast = false;
 var extra_target_image = null;
+var skip_mask_contrast = false;
 
 var processing_steps = "";
 var all_windows = new Array;
@@ -350,6 +353,7 @@ var fixed_windows = [
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
       "Integration_LRGB_ABE_HT",
+      "copy_Integration_RGB_ABE_HT",
       "Integration_L_noABE",
       "Integration_R_noABE",
       "Integration_G_noABE",
@@ -358,6 +362,7 @@ var fixed_windows = [
       "Integration_L_noABE_HT",
       "Integration_RGB_noABE_HT",
       "Integration_LRGB_noABE_HT",
+      "copy_Integration_RGB_noABE_HT",
       "L_BE_HT",
       "RGB_BE_HT",
       "AutoMask",
@@ -718,6 +723,10 @@ function newMaskWindow(sourceWindow, name)
       }
 
       targetWindow.show();
+
+      if (!skip_mask_contrast) {
+            extraContrast(targetWindow);
+      }
 
       return targetWindow;
 }
@@ -2635,13 +2644,18 @@ function runLRGBCombination(RGB_id, L_id)
       return RGBimgView.id;
 }
 
-function runSCNR(RGBimgView, silent)
+function runSCNR(RGBimgView, fixing_stars)
 {
-      if (!silent) {
+      if (!fixing_stars) {
             addProcessingStep("SCNR on " + RGBimgView.id);
       }
       var P = new SCNR;
-      P.amount = 1.00;
+      if (narrowband && leave_some_green && !fixing_stars) {
+            P.amount = 0.50;
+            addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
+      } else {
+            P.amount = 1.00;
+      }
       P.protectionMethod = SCNR.prototype.AverageNeutral;
       P.colorToRemove = SCNR.prototype.Green;
       P.preserveLightness = true;
@@ -2651,6 +2665,77 @@ function runSCNR(RGBimgView, silent)
       P.executeOn(RGBimgView, false);
 
       RGBimgView.endProcess();
+}
+
+// Run hue shift on narrowband image to enhance orange.
+function narrowbandHueShift(imgView)
+{
+      addProcessingStep("Hue shift on " + imgView.id);
+      
+      var P = new CurvesTransformation;
+      P.R = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.G = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.B = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.K = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.A = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.At = CurvesTransformation.prototype.AkimaSubsplines;
+      P.L = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.a = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.at = CurvesTransformation.prototype.AkimaSubsplines;
+      P.b = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
+      P.c = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
+      P.H = [ // x, y
+         [0.00000, 0.00000],
+         [0.30361, 0.18576],
+         [0.47454, 0.47348],
+         [1.00000, 1.00000]
+      ];
+      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
+      P.S = [ // x, y
+         [0.00000, 0.00000],
+         [1.00000, 1.00000]
+      ];
+      P.St = CurvesTransformation.prototype.AkimaSubsplines;
+      
+      imgView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgView, false);
+
+      imgView.endProcess();
 }
 
 function runMultiscaleLinearTransformSharpen(imgView, MaskView)
@@ -2808,9 +2893,7 @@ function CreateChannelImages(auto_continue)
       blue_id = findWindowId("Integration_B");
       color_id = findWindowId("Integration_RGB");
 
-      if (is_extra_option()
-          || (narrowband_autocontinue && fix_narrowband_star_color)) 
-      {
+      if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
                   final_win = findWindow(final_windows[i]);
                   if (final_win != null) {
@@ -3679,6 +3762,14 @@ function is_extra_option()
              extra_smaller_stars;
 }
 
+function is_narrowband_option()
+{
+      return fix_narrowband_star_color ||
+             run_hue_shift ||
+             run_narrowband_SCNR ||
+             leave_some_green;
+}
+
 function extraProcessing(id, apply_directly)
 {
       var extraWin;
@@ -3706,6 +3797,17 @@ function extraProcessing(id, apply_directly)
             extraWin = copyWindow(ImageWindow.windowById(id), id + "_extra");
       }
 
+      if (narrowband) {
+            if (run_hue_shift) {
+                  narrowbandHueShift(extraWin.mainView);
+            }
+            if (run_narrowband_SCNR || leave_some_green) {
+                  runSCNR(extraWin.mainView, false);
+            }
+            if (fix_narrowband_star_color) {
+                  fixNarrowbandStarColor(extraWin.mainView);
+            }
+      }
       if (extra_darker_background) {
             extraDarkerBackground(extraWin, mask_win);
       }
@@ -3776,7 +3878,7 @@ function AutoIntegrateEngine(auto_continue)
       dialogFilePath = null;
       L_stf = null;
       linear_fit_done = false;
-      narrowband = narrowband_autocontinue;
+      narrowband = autocontinue_narrowband;
       is_luminance_images = false;
 
       console.noteln("--------------------------------------");
@@ -3855,8 +3957,8 @@ function AutoIntegrateEngine(auto_continue)
                                           RGB_ABE_HT_id,
                                           L_ABE_HT_id);
                   }
-          
-                  if (!skip_SCNR) {
+
+                  if (!narrowband) {
                         /* Remove green cast, run SCNR
                         */
                         runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
@@ -3872,19 +3974,6 @@ function AutoIntegrateEngine(auto_continue)
                         ImageWindow.windowById(LRGB_ABE_HT_id),
                         mask_win);
           
-                  if (narrowband && fix_narrowband_star_color) {
-                        /* Fix narrowband image star color.
-                         */
-                        fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
-                  }
-                  if (use_ABE_on_final_image) {
-                        /* ABE creates a new window so we will close the old one. */
-                        var win = ImageWindow.windowById(LRGB_ABE_HT_id)
-                        var before_ABE_id = win.mainView.id;
-                        LRGB_ABE_HT_id = runABE(win);
-                        closeOneWindow(before_ABE_id);
-                  }
-            
                   /* Rename some windows. Need to be done before iconize.
                   */
                   if (!is_color_files && is_luminance_images) {
@@ -3900,16 +3989,8 @@ function AutoIntegrateEngine(auto_continue)
                   }
             }
       }
-      if (preprocessed_images == start_images.FINAL
-          && narrowband_autocontinue
-          && fix_narrowband_star_color) 
-      {
-            /* Fix narrowband image star color with AutoContinue narrowband.
-             */
-            fixNarrowbandStarColor(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
-      }
 
-      if (is_extra_option()) {
+      if (is_extra_option() || is_narrowband_option()) {
             extraProcessing(LRGB_ABE_HT_id, false);
       }
 
@@ -4135,7 +4216,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.69</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.70</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -4324,13 +4405,6 @@ function AutoIntegrateDialog()
             SetOptionChecked("Use ABE on L, RGB", checked); 
       }
 
-      this.useABE_final_CheckBox = newCheckBox(this, "ABE on final image", use_ABE_on_final_image, 
-      "<p>Use AutomaticBackgroundExtractor on the final image</p>" );
-      this.useABE_final_CheckBox.onClick = function(checked) { 
-            use_ABE_on_final_image = checked; 
-            SetOptionChecked("Use ABE on final image", checked); 
-      }
-
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
       "<p>Run ColorCalibration before AutomaticBackgroundExtractor</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
@@ -4429,13 +4503,6 @@ function AutoIntegrateDialog()
             SetOptionChecked("No color noise reduction", checked); 
       }
 
-      this.skip_SCNR_CheckBox = newCheckBox(this, "No SCNR", skip_SCNR, 
-      "<p>Skip SCNR to remove green cast</p>" );
-      this.skip_SCNR_CheckBox.onClick = function(checked) { 
-            skip_SCNR = checked; 
-            SetOptionChecked("No SCNR", checked); 
-      }
-
       this.STFLabel = new Label( this );
       this.STFLabel.text = "Link RGB channels";
       this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -4466,6 +4533,13 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFComboBox );
       this.STFSizer.addStretch();
 
+      this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", skip_mask_contrast, 
+      "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
+      this.no_mask_contrast_CheckBox.onClick = function(checked) { 
+            skip_mask_contrast = checked; 
+            SetOptionChecked("No extra contrast on mask", checked); 
+      }
+
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
@@ -4489,7 +4563,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
       //this.imageParamsSet2.add( this.useABE_final_CheckBox );   Not sure if this useful fo leaving off for now.
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
-      this.imageParamsSet2.add( this.skip_SCNR_CheckBox );
+      this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet2.add( this.STFSizer );
 
       // Image group parameters.
@@ -4877,17 +4951,36 @@ function AutoIntegrateDialog()
       this.narrowbandColorPalette_sizer.add( this.HOORadioButton );
 
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
-      "<p>Fix magenta cast on stars.</p>" );
+      "<p>Fix magenta cast on stars. Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
             fix_narrowband_star_color = checked; 
-            SetOptionChecked("Fix narrowband star color", checked); 
+            SetOptionChecked("Fix star colors", checked); 
+      }
+      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", run_hue_shift, 
+      "<p>Do hue shift to enhance orange color. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      this.narrowband_hue_shift_CheckBox.onClick = function(checked) { 
+            run_hue_shift = checked; 
+            SetOptionChecked("Hue shift for more orange", checked); 
+      }
+      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", leave_some_green, 
+      "<p>Leave some green color on image when running SCNR. Applied only when Remove green cast is selected. " +
+      "Also run with AutoContinue narrowband and Extra processing.</p>" );
+      this.narrowband_leave_some_green_CheckBox.onClick = function(checked) { 
+            leave_some_green = checked; 
+            SetOptionChecked("Leave some green", checked); 
+      }
+      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", run_narrowband_SCNR, 
+      "<p>Run SCNR to remove green cast. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
+            run_narrowband_SCNR = checked; 
+            SetOptionChecked("Remove green cast", checked); 
       }
 
       // Button to continue narrowband from existing files
       this.autoContinueNarrowbandButton = new PushButton( this );
       this.autoContinueNarrowbandButton.text = "AutoContinue narrowband";
       this.autoContinueNarrowbandButton.toolTip = 
-            "AutoContinue narrowband - Run automatic processing from previously created images." +
+            "AutoContinue narrowband - Run automatic processing from previously created narrowband images." +
             "<p>" +
             "Image check order is:<br>" +
             "RGB_HT<br>" +
@@ -4900,23 +4993,56 @@ function AutoIntegrateDialog()
       {
             console.writeln("autoContinue narrowband");
             try {
-                  narrowband_autocontinue = true;
+                  autocontinue_narrowband = true;
                   AutoIntegrateEngine(true);
-                  narrowband_autocontinue = false;
+                  autocontinue_narrowband = false;
             } 
             catch(err) {
                   console.endLog();
                   console.writeln(err);
                   console.writeln("Processing stopped!");
-                  narrowband_autocontinue = false;
+                  autocontinue_narrowband = false;
             }
       };   
+
+      this.narrowbandExtraProcessingLabel = new Label( this );
+      this.narrowbandExtraProcessingLabel.text = "Extra processing for narrowband";
+      this.narrowbandExtraProcessingLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.narrowbandExtraProcessingLabel.toolTip = 
+            "<p>" +
+            "Extra processing options to be applied on narrowband images. "+
+            "They are applied before other extra processing options in the following order:" +
+            "</p><p>" +
+            "1. Hue shift for more orange<br>" +
+            "2. Remove green cast and Leave some green<br>" +
+            "3. Fix star colors" +
+            "</p>";
+
+      this.narrowbandAutoContinue_sizer = new HorizontalSizer;
+      this.narrowbandAutoContinue_sizer.margin = 6;
+      this.narrowbandAutoContinue_sizer.spacing = 4;
+      this.narrowbandAutoContinue_sizer.add( this.autoContinueNarrowbandButton );
+      this.narrowbandAutoContinue_sizer.addStretch();
       
-      this.narrowbandOptions_sizer = new HorizontalSizer;
-      this.narrowbandOptions_sizer.margin = 6;
-      this.narrowbandOptions_sizer.spacing = 4;
-      this.narrowbandOptions_sizer.add( this.fix_narrowband_star_color_CheckBox );
-      this.narrowbandOptions_sizer.add( this.autoContinueNarrowbandButton );
+      this.narrowbandOptions1_sizer = new VerticalSizer;
+      this.narrowbandOptions1_sizer.margin = 6;
+      this.narrowbandOptions1_sizer.spacing = 4;
+      this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
+
+      this.narrowbandOptions2_sizer = new VerticalSizer;
+      this.narrowbandOptions2_sizer.margin = 6;
+      this.narrowbandOptions2_sizer.spacing = 4;
+      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
+
+      this.narrowbandAllOptions_sizer = new HorizontalSizer;
+      this.narrowbandAllOptions_sizer.add( this.narrowbandOptions1_sizer );
+      this.narrowbandAllOptions_sizer.add( this.narrowbandOptions2_sizer );
+
+      this.narrowbandOptions_sizer = new VerticalSizer;
+      this.narrowbandOptions_sizer.add( this.narrowbandExtraProcessingLabel );
+      this.narrowbandOptions_sizer.add( this.narrowbandAllOptions_sizer );
 
       this.narrowbandGroupBox = new newGroupBox( this );
       this.narrowbandGroupBox.title = "Narrowband processing";
@@ -4925,6 +5051,7 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer.spacing = 4;
       this.narrowbandGroupBox.sizer.add( this.narrowbandColorPalette_sizer );
       this.narrowbandGroupBox.sizer.add( this.narrowbandOptions_sizer );
+      this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
       // Extra processing
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
@@ -5001,7 +5128,7 @@ function AutoIntegrateDialog()
             "Apply extra processing on the selected image.";
       this.extraApplyButton.onClick = function()
       {
-            if (!is_extra_option()) {
+            if (!is_extra_option() && !is_narrowband_option()) {
                   console.criticalln("No extra processing option selected!");
             } else if (extra_target_image == null) {
                   console.criticalln("No image!");
@@ -5010,12 +5137,15 @@ function AutoIntegrateDialog()
             } else {
                   console.writeln("Apply extra processing directly on " + extra_target_image);
                   try {
+                        narrowband = is_narrowband_option();
                         extraProcessingEngine(extra_target_image);
+                        narrowband = false;
                   } 
                   catch(err) {
                         console.endLog();
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
+                        narrowband = false;
                   }
             }
       };   
@@ -5025,7 +5155,7 @@ function AutoIntegrateDialog()
       this.extraImageSizer.add( this.extraImageLabel );
       this.extraImageSizer.add( this.extraImageComboBox );
       this.extraImageSizer.add( this.extraApplyButton );
-      this.extraImageSizer.addStretch();
+      //this.extraImageSizer.addStretch();
 
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
@@ -5055,14 +5185,18 @@ function AutoIntegrateDialog()
       this.extraGroupBox.sizer.add( this.extraImageSizer );
       this.extraGroupBox.toolTip = 
             "<p>" +
-            "In case of Run or AutoContinue, extra processing steps are applied to a copy of the final image. " + 
+            "In case of Run or AutoContinue or AutoContinue narrowband " + 
+            "extra processing options are always applied to a copy of the final image. " + 
             "A new image is created with _extra added to the name. " + 
             "For example if the final image is AutoLRGB then a new image AutoLRGB_extra is created. " + 
-            "AutoContinue can be used to apply extra processing after the final image is created." +
+            "AutoContinue or AutoContinue narrowband can be used to apply extra processing after the final image is created. " +
             "</p><p>" +
-            "With the Apply button extra processing is run directly on the selected image. " +
+            "In case of Apply button extra processing is run directly on the selected image. " +
             "</p><p>" +
-            "If multiple options are selected they are executed in the following order" +
+            "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
+            "narrowband options are selected then image is assumed to be narrowband." +
+            "</p><p>" +
+            "If multiple extra processing options are selected they are executed in the following order" +
             "</p><p>" +
             "1. Darker background<br>" +
             "2. HDRMultiscaleTansform<br>" +
@@ -5070,6 +5204,8 @@ function AutoIntegrateDialog()
             "4. Add contrast<br>" +
             "5. Smaller stars" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
+            "</p><p>" +
+            "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
       // Button to run automatic processing
@@ -5209,6 +5345,7 @@ function AutoIntegrateDialog()
       this.col1.spacing = 6;
       this.col1.add( this.imageParamsGroupBox );
       this.col1.add( this.otherParamsGroupBox );
+      this.col1.add( this.narrowbandGroupBox );
       this.col1.add( this.mosaicSaveGroupBox );
 
       this.col2 = new VerticalSizer;
@@ -5218,7 +5355,6 @@ function AutoIntegrateDialog()
       this.col2.add( this.weightGroupBox );
       this.col2.add( this.linearFitGroupBox );
       this.col2.add( this.clippingGroupBox );
-      this.col2.add( this.narrowbandGroupBox );
       this.col2.add( this.extraGroupBox );
       this.col2.add( this.autoButtonGroupBox );
 
