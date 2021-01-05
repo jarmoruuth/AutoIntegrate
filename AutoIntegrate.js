@@ -245,6 +245,7 @@ var fix_narrowband_star_color = false;
 var run_hue_shift = false;
 var run_narrowband_SCNR = false;
 var leave_some_green = false;
+var skip_star_fix_mask = false;
 
 var processingDate;
 var dialogFileNames = null;
@@ -278,6 +279,7 @@ var extra_LHE = false;
 var extra_smaller_stars = false;
 var extra_smaller_stars_iterations = 1;
 var extra_contrast = false;
+var extra_STF = false;
 var extra_target_image = null;
 var skip_mask_contrast = false;
 
@@ -285,7 +287,6 @@ var processing_steps = "";
 var all_windows = new Array;
 var iconPoint;
 var logfname;
-
 /* Variable used during processing images.
  */
 var alignedFiles;
@@ -293,6 +294,8 @@ var mask_win;
 var mask_win_id;
 var star_mask_win;
 var star_mask_win_id;
+var star_fix_mask_win;
+var star_fix_mask_win_id;
 var RGB_win;
 var RGB_win_id;
 var is_color_files = false;
@@ -367,6 +370,7 @@ var fixed_windows = [
       "RGB_BE_HT",
       "AutoMask",
       "AutoStarMask",
+      "AutoStarFixMask",
       "SubframeSelector",
       "Measurements",
       "Expressions",
@@ -2823,13 +2827,20 @@ function getUniqueFilenamePart()
       }
 }
 
-function writeProcessingSteps(alignedFiles)
+function writeProcessingSteps(alignedFiles, autocontinue)
 {
-      logfname = "AutoIntegrate" + getUniqueFilenamePart() + ".log";
+      var basename;
+
+      if (autocontinue) {
+            basename = "AutoContinue";
+      } else {
+            basename = "AutoIntegrate";
+      }
+      logfname = basename + getUniqueFilenamePart() + ".log";
 
       if (dialogFilePath == null) {
             var gdd = new GetDirectoryDialog;
-            gdd.caption = "Select Save Directory for AutoIntegrate.log";
+            gdd.caption = "Select Save Directory for " + basename + ".log";
             if (!gdd.execute()) {
                   console.writeln("No path for " + logfname + ', file not written');
                   return;
@@ -3436,16 +3447,94 @@ function invertImage(targetView)
       targetView.endProcess();
 }
 
+// Mask used when fixing star colors in narrowband images.
+function createStarFixMask(imgView)
+{
+      if (star_fix_mask_win == null) {
+            star_fix_mask_win = findWindow("star_fix_mask");
+      }
+      if (star_fix_mask_win == null) {
+            star_fix_mask_win = findWindow("AutoStarFixMask");
+      }
+      if (star_fix_mask_win != null) {
+            // Use already created start mask
+            console.writeln("Use existing star mask " + star_fix_mask_win.mainView.id);
+            star_fix_mask_win_id = star_fix_mask_win.mainView.id;
+            return;
+      }
+
+      var P = new StarMask;
+      P.shadowsClipping = 0.00000;
+      P.midtonesBalance = 0.50000;
+      P.highlightsClipping = 1.00000;
+      P.waveletLayers = 8;
+      P.structureContours = false;
+      P.noiseThreshold = 0.10000;
+      P.aggregateStructures = false;
+      P.binarizeStructures = false;
+      P.largeScaleGrowth = 2;
+      P.smallScaleGrowth = 1;
+      P.growthCompensation = 2;
+      P.smoothness = 8;
+      P.invert = false;
+      P.truncation = 1.00000;
+      P.limit = 1.00000;
+      P.mode = StarMask.prototype.StarMask;
+
+      imgView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgView, false);
+      imgView.endProcess();
+
+      star_fix_mask_win = ImageWindow.activeWindow;
+
+      windowRenameKeepif(star_fix_mask_win.mainView.id, "AutoStarFixMask", true);
+      star_fix_mask_win_id = star_fix_mask_win.mainView.id;
+
+      addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
+}
+
 /* Do a rough fix on magen stars by inverting the image, applying
  * SCNR to remove the now green cast on stars and then inverting back.
+ * If we are not removing all green case we use mask ro protect
+ * other areas than stars.
  */
 function fixNarrowbandStarColor(targetView)
 {
+      var use_mask;
+
+      if (skip_star_fix_mask) {
+            use_mask = false;
+      } else if (!run_narrowband_SCNR || leave_some_green) {
+            // If we do not remove all green we use mask protect
+            // other than stars.
+            use_mask = true;
+      } else {
+            // We want all green removed, do not use mask on stars either.
+            use_mask = false;
+      }
+
       addProcessingStep("Fix narrowband star color");
 
-      invertImage(targetView);
-      runSCNR(targetView, true);
-      invertImage(targetView);
+      if (use_mask) {
+            createStarFixMask(targetView.mainView);
+      }
+
+      invertImage(targetView.mainView);
+
+      if (use_mask) {
+            /* Use mask to change only star colors. */
+            addProcessingStep("Using mask " + star_fix_mask_win.mainView.id + " when fixing star colors");
+            targetView.setMask(star_fix_mask_win);
+            targetView.maskInverted = false;
+      }      
+
+      runSCNR(targetView.mainView, true);
+
+      if (use_mask) {
+            targetView.removeMask();
+      }
+
+      invertImage(targetView.mainView);
 }
 
 function extraDarkerBackground(imgView, MaskView)
@@ -3753,12 +3842,19 @@ function extraContrast(imgView)
       imgView.mainView.endProcess();
 }
 
+function extraSTF(win)
+{
+      runHistogramTransform(win, null, true);
+}
+
+
 function is_extra_option()
 {
       return extra_darker_background || 
              extra_HDRMLT || 
              extra_LHE || 
              extra_contrast ||
+             extra_STF ||
              extra_smaller_stars;
 }
 
@@ -3805,7 +3901,7 @@ function extraProcessing(id, apply_directly)
                   runSCNR(extraWin.mainView, false);
             }
             if (fix_narrowband_star_color) {
-                  fixNarrowbandStarColor(extraWin.mainView);
+                  fixNarrowbandStarColor(extraWin);
             }
       }
       if (extra_darker_background) {
@@ -3820,6 +3916,9 @@ function extraProcessing(id, apply_directly)
       if (extra_contrast) {
             extraContrast(extraWin);
       }
+      if (extra_STF) {
+            extraSTF(extraWin);
+      }
       if (extra_smaller_stars) {
             extraSmallerStars(extraWin);
       }
@@ -3828,7 +3927,11 @@ function extraProcessing(id, apply_directly)
 function extraProcessingEngine(id)
 {
       mask_win = null;
+      mask_win_id = null;
       star_mask_win = null;
+      star_mask_win_id = null;
+      star_fix_mask_win = null;
+      star_fix_mask_win_id = null;
       processing_steps = "";
 
       console.noteln("Start extra processing...");
@@ -3839,6 +3942,7 @@ function extraProcessingEngine(id)
 
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+      windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
       console.noteln("Processing steps:");
       console.writeln(processing_steps);
@@ -3867,6 +3971,7 @@ function AutoIntegrateEngine(auto_continue)
       start_time = Date.now();
       mask_win = null;
       star_mask_win = null;
+      star_fix_mask_win = null;
 
       console.beginLog();
       console.show(true);
@@ -3890,12 +3995,12 @@ function AutoIntegrateEngine(auto_continue)
       } else {
             addProcessingStep("Using default processing options");
       }
-      console.noteln("======================================");
       console.noteln("--------------------------------------");
       addProcessingStep("Start processing...");
 
       /* Create images for each L, R, G and B channels, or Color image. */
       if (!CreateChannelImages(auto_continue)) {
+            console.criticalln("Failed!");
             console.endLog();
             return;
       }
@@ -4023,6 +4128,7 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(L_ABE_HT_id);
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+      windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
       if (batch_mode > 0) {
             /* Rename image based on first file directory name. 
@@ -4112,7 +4218,7 @@ function AutoIntegrateEngine(auto_continue)
       console.noteln("======================================");
 
       if (preprocessed_images != start_images.FINAL) {
-            writeProcessingSteps(alignedFiles);
+            writeProcessingSteps(alignedFiles, auto_continue);
       }
 
       console.noteln("Processing steps:");
@@ -4131,6 +4237,7 @@ function AutoIntegrateEngine(auto_continue)
       if (preprocessed_images != start_images.FINAL) {
             console.noteln("Console output is written into file " + logfname);
       }
+      console.noteln("Processing completed.");
 }
 
 function newCheckBox( parent, checkboxText, checkboxState, toolTip )
@@ -4198,9 +4305,9 @@ function Autorun(that)
                         AutoIntegrateEngine(false);
                   } 
                   catch(err) {
-                        console.writeln(err);
-                        console.writeln("Processing stopped!");
-                        writeProcessingSteps(null);
+                        console.criticalln(err);
+                        console.criticalln("Processing stopped!");
+                        writeProcessingSteps(null, false);
                   }
                   if (batch_mode) {
                         dialogFileNames = null;
@@ -4216,7 +4323,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.70</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.71</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -4951,19 +5058,20 @@ function AutoIntegrateDialog()
       this.narrowbandColorPalette_sizer.add( this.HOORadioButton );
 
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
-      "<p>Fix magenta cast on stars. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Fix magenta color on stars with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
+      "Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
             fix_narrowband_star_color = checked; 
             SetOptionChecked("Fix star colors", checked); 
       }
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", run_hue_shift, 
-      "<p>Do hue shift to enhance orange color. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.narrowband_hue_shift_CheckBox.onClick = function(checked) { 
             run_hue_shift = checked; 
             SetOptionChecked("Hue shift for more orange", checked); 
       }
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", leave_some_green, 
-      "<p>Leave some green color on image when running SCNR. Applied only when Remove green cast is selected. " +
+      "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. Applied only when Remove green cast is selected. " +
       "Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.narrowband_leave_some_green_CheckBox.onClick = function(checked) { 
             leave_some_green = checked; 
@@ -4974,6 +5082,12 @@ function AutoIntegrateDialog()
       this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
             run_narrowband_SCNR = checked; 
             SetOptionChecked("Remove green cast", checked); 
+      }
+      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", skip_star_fix_mask, 
+      "<p>Do not use star mask when fixing star colors</p>" );
+      this.no_star_fix_mask_CheckBox.onClick = function(checked) { 
+            skip_star_fix_mask = checked; 
+            SetOptionChecked("No mask when fixing star colors", checked); 
       }
 
       // Button to continue narrowband from existing files
@@ -4998,9 +5112,9 @@ function AutoIntegrateDialog()
                   autocontinue_narrowband = false;
             } 
             catch(err) {
-                  console.endLog();
-                  console.writeln(err);
-                  console.writeln("Processing stopped!");
+                  console.criticalln(err);
+                  console.criticalln("Processing stopped!");
+                  writeProcessingSteps(null, true);
                   autocontinue_narrowband = false;
             }
       };   
@@ -5029,12 +5143,13 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer.spacing = 4;
       this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_leave_some_green_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
-      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_CheckBox );
       this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
       this.narrowbandAllOptions_sizer = new HorizontalSizer;
       this.narrowbandAllOptions_sizer.add( this.narrowbandOptions1_sizer );
@@ -5077,6 +5192,12 @@ function AutoIntegrateDialog()
       this.extra_Contrast_CheckBox.onClick = function(checked) { 
             extra_contrast = checked; 
             SetOptionChecked("Add contrast", checked); 
+      }
+      this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", extra_STF, 
+      "<p>Run automatic ScreenTransferFunction on final image to brighten it.</p>" );
+      this.extra_STF_CheckBox.onClick = function(checked) { 
+            extra_STF = checked; 
+            SetOptionChecked("Run STF", checked); 
       }
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", extra_smaller_stars, 
       "<p>Make stars smaller on image.</p>" );
@@ -5142,7 +5263,6 @@ function AutoIntegrateDialog()
                         narrowband = false;
                   } 
                   catch(err) {
-                        console.endLog();
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
                         narrowband = false;
@@ -5168,6 +5288,7 @@ function AutoIntegrateDialog()
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
       this.extra2.add( this.extra_Contrast_CheckBox );
+      this.extra2.add( this.extra_STF_CheckBox );
       this.extra2.add( this.SmallerStarsSizer );
 
       this.extraGroupBoxSizer = new HorizontalSizer;
@@ -5236,12 +5357,15 @@ function AutoIntegrateDialog()
       {
             console.writeln("autoContinue");
             try {
+                  autocontinue_narrowband = is_narrowband_option();
                   AutoIntegrateEngine(true);
+                  autocontinue_narrowband = false;
             } 
             catch(err) {
-                  console.endLog();
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
+                  writeProcessingSteps(null, true);
+                  autocontinue_narrowband = false;
             }
       };   
 
