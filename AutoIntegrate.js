@@ -203,7 +203,7 @@ The following copyright notice is for routines ApplyAutoSTF and applySTF:
 var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
-var use_linear_fit = 'L';
+var use_linear_fit = 'L';                       /* default */
 var use_clipping = 'D1';                        /* default */
 var ssweight_set = false;
 var use_weight = 'G';                           /* Default: Generic */
@@ -240,6 +240,7 @@ var narrowband_palette = 'SHO';
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
+var Halpha_mapping = 'L';
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
@@ -253,26 +254,13 @@ var dialogFilePath = null;
 var all_files;
 var best_ssweight = 0;
 var best_image = null;
-var best_l_ssweight = 0;
-var best_l_image = null;
-var best_r_ssweight = 0;
-var best_r_image = null;
-var best_g_ssweight = 0;
-var best_g_image = null;
-var best_b_ssweight = 0;
-var best_b_image = null;
-var best_c_ssweight = 0;
-var best_c_image = null;
-var luminance_images;
-var red_images;
-var green_images;
-var blue_images;
-var color_images;
-var luminance_images_exptime;
-var red_images_exptime;
-var green_images_exptime;
-var blue_images_exptime;
-var color_images_exptime;
+
+var L_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+var R_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+var G_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+var B_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+var C_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+
 var extra_darker_background = false;
 var extra_HDRMLT= false;
 var extra_LHE = false;
@@ -284,9 +272,10 @@ var extra_target_image = null;
 var skip_mask_contrast = false;
 
 var processing_steps = "";
-var all_windows = new Array;
+var all_windows = [];
 var iconPoint;
 var logfname;
+
 /* Variable used during processing images.
  */
 var alignedFiles;
@@ -387,7 +376,7 @@ var final_windows = [
       "AutoMono"
 ];
 
-var processingOptions = new Array;
+var processingOptions = [];
 
 function RemoveOption(option) 
 {
@@ -403,7 +392,7 @@ function SetOptionValue(option, val)
 {
       RemoveOption(option);
 
-      var newopt = new Array;
+      var newopt = [];
       newopt[0] = option;
       newopt[1] = val;
 
@@ -1083,6 +1072,8 @@ function findBestSSWEIGHT(fileNames)
       var newFileNames = [];
 
       run_HT = true;
+      best_ssweight = 0;
+      best_image = null;
 
       /* Loop through files and find image with best SSWEIGHT.
        */
@@ -1122,9 +1113,9 @@ function findBestSSWEIGHT(fileNames)
             n++;
 
             var skip_this = false;
-            var uwf = false;        // Chile or T2 UWF scope
+            var slooh_uwf = false;        // Slooh Chile or T2 UWF scope
             var naxis1 = 0;
-            var chile = false;
+            var slooh_chile = false;      // Slooh Chile scope
             
             // First check if we skip image since we do not know
             // the order for keywords
@@ -1134,9 +1125,9 @@ function findBestSSWEIGHT(fileNames)
                         case "TELESCOP":
                               console.writeln("telescop=" +  value);
                               if (value.indexOf("UWF") != -1) {
-                                    uwf = true;
+                                    slooh_uwf = true;
                               } else if (value.indexOf("C1HM") != -1) {
-                                    chile = true;
+                                    slooh_chile = true;
                               }
                               break;
                         case "NAXIS1":
@@ -1147,15 +1138,15 @@ function findBestSSWEIGHT(fileNames)
                               break;
                   }
             }
-            if (chile && naxis1 < 1000) {
-                  // chile UWF sometimes can be identified only by resolution
-                  console.writeln("Chile uwf");
-                  uwf = true;
+            if (slooh_chile && naxis1 < 1000) {
+                  // Slooh Chile UWF sometimes can be identified only by resolution
+                  console.writeln("Chile slooh_uwf");
+                  slooh_uwf = true;
             }
             if (use_uwf) {
-                  skip_this = !uwf;
+                  skip_this = !slooh_uwf;
             } else {
-                  skip_this = uwf;
+                  skip_this = slooh_uwf;
             }
             if (!skip_this) {
                   newFileNames[newFileNames.length] = fileNames[i];
@@ -1218,81 +1209,78 @@ function find_best_image(weight_arr, image_arr)
       return { wght: best_weight, img: best_image };
 }
 
-function narrowband_mapping(filter)
+function filterByFileName(filePath, filename_postfix)
 {
-      /* Check for narrowbad mapping: SHO, HOS, HOO. */
+      var splitname = filePath.split('.');
+      var basename = splitname[splitname.length - 2];
+      var filter = basename.slice(0, basename.length - filename_postfix.length).slice(-2);
+      
+      console.writeln("filterByFileName:filePath=" + filePath + ", filter=" + filter);
+      
+      // Create filter based of file name ending.
       switch (filter) {
-            case 'SII':
-                  narrowband = true;
-                  if (narrowband_palette == 'HOS') {
-                        filter = 'B';
-                  } else if (narrowband_palette == 'HOO') {
-                        // Map to 'R', but should this be an error?
-                        filter = 'R';
-                  } else {
-                        /* SHO */
-                        filter = 'R';
-                  }
-                  break;
-            case 'Halpha':
-            case 'Ha':
-                  narrowband = true;
-                  if (narrowband_palette == 'HOS') {
-                        filter = 'R';
-                  } else if (narrowband_palette == 'HOO') {
-                        filter = 'R';
-                  } else {
-                        /* SHO */
-                        filter = 'G';
-                  }
-                  break;
-            case 'OIII':
-                  narrowband = true;
-                  if (narrowband_palette == 'HOS') {
-                        filter = 'G';
-                  } else if (narrowband_palette == 'HOO') {
-                        filter = 'G';
-                  } else {
-                        /* SHO */
-                        filter = 'B';
-                  }
-                  break;
+            case '_L':
+                  return 'L';
+            case '_R':
+                  return 'R';
+            case '_G':
+                  return 'G';
+            case '_B':
+                  return 'B';
+            case '_S':
+                  return 'S';
+            case '_H':
+                  return 'H';
+            case '_O':
+                  return 'O';
             default:
-                  break;
+                  return null;
       }
-      return filter;
 }
 
-function findLRGBchannels(
-      alignedFiles,
-      luminance_images,
-      red_images,
-      green_images,
-      blue_images,
-      color_images)
+function updateFilesInfo(files, filearr, txt)
 {
+      for (var i = 0; i < filearr.length; i++) {
+            if (files.best_image == null || parseFloat(filearr[i].ssweight) >= parseFloat(files.best_ssweight)) {
+                  /* Add best images first in the array. */
+                  files.best_ssweight = filearr[i].ssweight;
+                  console.writeln(txt + " new best_ssweight=" +  parseFloat(files.best_ssweight));
+                  files.best_image = filearr[i].name;
+                  insert_image_for_integrate(files.images, filearr[i].name);
+            } else {
+                  append_image_for_integrate(files.images, filearr[i].name);
+            }
+            files.exptime += filearr[i].exptime;
+      }
+}
+
+function findLRGBchannels(alignedFiles, filename_postfix)
+{
+      var lrgb = false;
+
       /* Loop through aligned files and find different channels.
        */
       addProcessingStep("Find L,R,G,B channels");
 
-      best_l_image = null;
-      best_r_image = null;
-      best_g_image = null;
-      best_b_image = null;
-      best_c_image = null;
+      L_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+      R_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+      G_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+      B_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+      C_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
 
-      luminance_images_exptime = 0;
-      red_images_exptime = 0;
-      green_images_exptime = 0;
-      blue_images_exptime = 0;
-      color_images_exptime = 0;
-      var exptime;
+      var allfiles = {
+            L: [], R: [], G: [], B: [], H: [], O: [], S: [], C: []
+      };
 
+      /* Collect all different file types and some information about them.
+       */
       var n = 0;
       for (var i = 0; i < alignedFiles.length; i++) {
-            var filter;
-            var ssweight;
+            var filter = null;
+            var ssweight = '0';
+            var exptime = 0;
             var filePath = alignedFiles[i];
+            
             console.writeln("findLRGBchannels file " +  filePath);
             var ext = ".xisf";
             var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
@@ -1312,8 +1300,6 @@ function findLRGBchannels(
                   keywords = f.keywords;
             }
             f.close();
-
-            filter = 'Color';
 
             n++;
             for (var j = 0; j < keywords.length; j++) {
@@ -1345,185 +1331,192 @@ function findLRGBchannels(
                   }
             }
 
-            filter = narrowband_mapping(filter.trim());
-
+            if (filter == null) {
+                  // No filter keyword. Try mapping based on file name.
+                  filter = filterByFileName(filePath, filename_postfix);
+            }
+            if (filter == null) {
+                  filter = 'Color';
+            }
             if (monochrome_image) {
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
-            switch (filter) {
+            switch (filter.trim()) {
                   case 'Luminance':
                   case 'Clear':
                   case 'L':
-                        if (best_l_image == null || parseFloat(ssweight) >= parseFloat(best_l_ssweight)) {
-                              /* Add best images first in the array. */
-                              best_l_ssweight = ssweight;
-                              console.writeln("new best_l_ssweight=" +  parseFloat(best_l_ssweight));
-                              best_l_image = filePath;
-                              insert_image_for_integrate(luminance_images, filePath);
-                        } else {
-                              append_image_for_integrate(luminance_images, filePath);
-                        }
-                        luminance_images_exptime += exptime;
+                        allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        lrgb = true;
                         break;
                   case 'Red':
                   case 'R':
-                        if (best_r_image == null || parseFloat(ssweight) >= parseFloat(best_r_ssweight)) {
-                              /* Add best images first in the array. */
-                              best_r_ssweight = ssweight;
-                              console.writeln("new best_r_ssweight=" +  best_r_ssweight);
-                              best_r_image = filePath;
-                              insert_image_for_integrate(red_images, filePath);
-                        } else {
-                              append_image_for_integrate(red_images, filePath);
-                        }
-                        red_images_exptime += exptime;
+                        allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        lrgb = true;
                         break;
                   case 'Green':
                   case 'G':
-                        if (best_g_image == null || parseFloat(ssweight) >= parseFloat(best_g_ssweight)) {
-                              /* Add best images first in the array. */
-                              best_g_ssweight = ssweight;
-                              console.writeln("new best_g_ssweight=" +  best_g_ssweight);
-                              best_g_image = filePath;
-                              insert_image_for_integrate(green_images, filePath);
-                        } else {
-                              append_image_for_integrate(green_images, filePath);
-                        }
-                        green_images_exptime += exptime;
+                        allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        lrgb = true;
                         break;
                   case 'Blue':
                   case 'B':
-                        if (best_b_image == null || parseFloat(ssweight) >= parseFloat(best_b_ssweight)) {
-                              /* Add best images first in the array. */
-                              best_b_ssweight = ssweight;
-                              console.writeln("new best_b_ssweight=" +  best_b_ssweight);
-                              best_b_image = filePath;
-                              insert_image_for_integrate(blue_images, filePath);
-                        } else {
-                              append_image_for_integrate(blue_images, filePath);
-                        }
-                        blue_images_exptime += exptime;
+                        allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        lrgb = true;
+                        break;
+                  case 'SII':
+                  case 'S':
+                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        narrowband = true;
+                        break;
+                  case 'Halpha':
+                  case 'Ha':
+                  case 'H':
+                        allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        narrowband = true;
+                        break;
+                  case 'OIII':
+                  case 'O':
+                        allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        narrowband = true;
                         break;
                   case 'Color':
-                        if (best_c_image == null || parseFloat(ssweight) >= parseFloat(best_c_ssweight)) {
-                              /* Add best images first in the array. */
-                              best_c_ssweight = ssweight;
-                              console.writeln("new best_c_ssweight=" +  best_c_ssweight);
-                              best_c_image = filePath;
-                              insert_image_for_integrate(color_images, filePath);
-                        } else {
-                              append_image_for_integrate(color_images, filePath);
-                        }
-                        color_images_exptime += exptime;
-                        break;
                   default:
-                        /* Assume color files.*/
-                        if (best_c_image == null) {
-                              /* Add best images first in the array. */
-                              best_c_ssweight = 1;
-                              console.writeln("new best_c_ssweight=" +  best_c_ssweight);
-                              best_c_image = filePath;
-                              insert_image_for_integrate(color_images, filePath);
-                        } else {
-                              append_image_for_integrate(color_images, filePath);
-                        }
-                        color_images_exptime += exptime;
+                        allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         break;
             }
       }
-      if (luminance_images.length > 0 && narrowband) {
-            addProcessingStep("There is both LRGB and narrowband data, processing as LRGB image");
+
+      if (narrowband) {
+            // we have some narrowband files, group them to LRGB files
+            if (allfiles.O.length == 0 && allfiles.S.length == 0) {
+                  // We have only Ha
+                  if (Halpha_mapping == 'L') {
+                        addProcessingStep("Ha but no SII or OIII, map Ha to L");
+                        allfiles.L = allfiles.L.concat(allfiles.H);
+                  } else if (Halpha_mapping == 'R') {
+                        addProcessingStep("Ha but no SII or OIII, map Ha to R");
+                        allfiles.R = allfiles.R.concat(allfiles.H);
+                  } else if (Halpha_mapping == 'LR') {
+                        addProcessingStep("Ha but no SII or OIII, map Ha to L and R");
+                        allfiles.L = allfiles.L.concat(allfiles.H);
+                        allfiles.R = allfiles.R.concat(allfiles.H);
+                  }
+                  narrowband = false;
+            } else if (narrowband_palette == 'SHO') {
+                  addProcessingStep("Narrowband files, map SHO to RGB");
+                  allfiles.R = allfiles.R.concat(allfiles.S);
+                  allfiles.G = allfiles.G.concat(allfiles.H);
+                  allfiles.B = allfiles.B.concat(allfiles.O);
+            } else if (narrowband_palette == 'HOS') {
+                  addProcessingStep("Narrowband files, map HOS to RGB");
+                  allfiles.R = allfiles.R.concat(allfiles.H);
+                  allfiles.G = allfiles.G.concat(allfiles.O);
+                  allfiles.B = allfiles.B.concat(allfiles.S);
+            } else if (narrowband_palette == 'HOO') {
+                  addProcessingStep("Narrowband files, map HOO to RGB, ignoring possible S files");
+                  allfiles.R = allfiles.R.concat(allfiles.H);
+                  allfiles.G = allfiles.G.concat(allfiles.O);
+                  allfiles.B = allfiles.B.concat(allfiles.O);
+            }
+      }
+
+      updateFilesInfo(L_images, allfiles.L, 'L');
+      updateFilesInfo(R_images, allfiles.R, 'R');
+      updateFilesInfo(G_images, allfiles.G, 'G');
+      updateFilesInfo(B_images, allfiles.B, 'B');
+      updateFilesInfo(C_images, allfiles.C, 'C');
+
+      if (lrgb && narrowband) {
+            addProcessingStep("There are both LRGB and narrowband data, processing as LRGB image");
             narrowband = false;
       }
       if (narrowband) {
             addProcessingStep("Processing as " + narrowband_palette + " narrowband image");
       }
-      if (color_images.length > 0) {
-            if (luminance_images.length > 0) {
+      if (C_images.images.length > 0) {
+            // Color image
+            if (L_images.images.length > 0) {
                   throwFatalError("Cannot mix color and luminance filter files");
             }
-            if (red_images.length > 0) {
+            if (R_images.images.length > 0) {
                   throwFatalError("Cannot mix color and red filter files");
             }
-            if (blue_images.length > 0) {
+            if (B_images.images.length > 0) {
                   throwFatalError("Cannot mix color and blue filter files");
             }
-            if (green_images.length > 0) {
+            if (G_images.images.length > 0) {
                   throwFatalError("Cannot mix color and green filter files");
             }
       } else {
+            // LRGB, RGB or Monochrome (narrowband or broadband)
             if (RRGB_image) {
                   addProcessingStep("RRGB image, use R as L image");
-                  console.writeln("L images " +  luminance_images.length);
-                  console.writeln("R images " +  red_images.length);
-                  luminance_images.splice(0, luminance_images.length);
-                  copy_image_list(luminance_images, red_images);
-                  best_l_ssweight = best_r_ssweight;
-                  best_l_image = best_r_image;
-                  luminance_images_exptime = red_images_exptime;
+                  console.writeln("L images " +  L_images.images.length);
+                  console.writeln("R images " +  R_images.images.length);
+                  L_images.images.splice(0, L_images.images.length);
+                  copy_image_list(L_images.images, R_images.images);
+                  L_images.best_ssweight = R_images.best_ssweight;
+                  L_images.best_image = R_images.best_image;
+                  L_images.exptime = R_images.exptime;
             }
             if (synthetic_l_image ||
-                (synthetic_missing_images && luminance_images.length == 0))
+                (synthetic_missing_images && L_images.images.length == 0))
             {
-                  if (luminance_images.length == 0) {
+                  if (L_images.images.length == 0) {
                         addProcessingStep("No luminance images, synthetic luminance image from all other images");
                   } else {
                         addProcessingStep("Synthetic luminance image from all LRGB images");
                   }
-                  copy_image_list(luminance_images, red_images);
-                  copy_image_list(luminance_images, blue_images);
-                  copy_image_list(luminance_images, green_images);
+                  copy_image_list(L_images.images, R_images.images);
+                  copy_image_list(L_images.images, B_images.images);
+                  copy_image_list(L_images.images, G_images.images);
                   var bst = find_best_image(
-                              [best_l_ssweight, best_r_ssweight, best_g_ssweight, best_b_ssweight],
-                              [best_l_image, best_r_image, best_g_image, best_b_image]);
+                              [L_images.best_ssweight, R_images.best_ssweight, G_images.best_ssweight, B_images.best_ssweight],
+                              [L_images.best_image, R_images.best_image, G_images.best_image, B_images.best_image]);
 
-                  best_l_ssweight = bst.wght;
-                  best_l_image = bst.img;
-                  luminance_images_exptime = luminance_images_exptime + red_images_exptime +
-                                             green_images_exptime + blue_images_exptime;
+                  L_images.best_ssweight = bst.wght;
+                  L_images.best_image = bst.img;
+                  L_images.exptime = L_images.exptime + R_images.exptime +
+                                             G_images.exptime + B_images.exptime;
             }
-            if (luminance_images.length == 0 && !narrowband) {
-                  throwFatalError("No Luminance images found");
-            }
-            if (!monochrome_image) {
-                  if (red_images.length == 0) {
-                        if (synthetic_missing_images) {
-                              addProcessingStep("No red images, synthetic red image from luminance images");
-                              copy_image_list(red_images, luminance_images);
-                              best_r_ssweight = best_l_ssweight;
-                              best_r_image = best_l_image;
-                              red_images_exptime = luminance_images_exptime;
-                        } else {
-                              throwFatalError("No Red images found");
-                        }
+            if (monochrome_image) {
+                  if (L_images.images.length == 0) {
+                        throwFatalError("No Luminance images found");
                   }
-                  if (blue_images.length == 0) {
-                        if (narrowband && narrowband_palette == 'HOO') {
-                              copy_image_list(blue_images, green_images);
-                        } else if (synthetic_missing_images) {
-                              addProcessingStep("No blue images, synthetic blue image from luminance images");
-                              copy_image_list(blue_images, luminance_images);
-                              best_b_ssweight = best_l_ssweight;
-                              best_b_image = best_l_image;
-                              blue_images_exptime = luminance_images_exptime;
-                        } else {
-                              throwFatalError("No Blue images found");
-                        }
+            } else {
+                  if (R_images.images.length == 0 && synthetic_missing_images) {
+                        addProcessingStep("No red images, synthetic red image from luminance images");
+                        copy_image_list(R_images.images, L_images.images);
+                        R_images.best_ssweight = L_images.best_ssweight;
+                        R_images.best_image = L_images.best_image;
+                        R_images.exptime = L_images.exptime;
                   }
-                  if (green_images.length == 0) {
-                        if (synthetic_missing_images) {
-                              addProcessingStep("No green images, synthetic green image from luminance images");
-                              copy_image_list(green_images, luminance_images);
-                              best_g_ssweight = best_l_ssweight;
-                              best_g_image = best_l_image;
-                              green_images_exptime = luminance_images_exptime;
-                        } else {
-                              throwFatalError("No Green images found");
-                        }
+                  if (B_images.images.length == 0 && synthetic_missing_images) {
+                        addProcessingStep("No blue images, synthetic blue image from luminance images");
+                        copy_image_list(B_images.images, L_images.images);
+                        B_images.best_ssweight = L_images.best_ssweight;
+                        B_images.best_image = L_images.best_image;
+                        B_images.exptime = L_images.exptime;
+                  }
+                  if (G_images.images.length == 0 && synthetic_missing_images) {
+                        addProcessingStep("No green images, synthetic green image from luminance images");
+                        copy_image_list(G_images.images, L_images.images);
+                        G_images.best_ssweight = L_images.best_ssweight;
+                        G_images.best_image = L_images.best_image;
+                        G_images.exptime = L_images.exptime;
+                  }
+                  if (R_images.images.length == 0) {
+                        throwFatalError("No Red images found");
+                  }
+                  if (B_images.images.length == 0) {
+                        throwFatalError("No Blue images found");
+                  }
+                  if (G_images.images.length == 0) {
+                        throwFatalError("No Green images found");
                   }
             }
-            if (luminance_images.length > 0) {
+            if (L_images.images.length > 0) {
                   is_luminance_images = true;
             }
       }
@@ -1667,10 +1660,6 @@ function runStarAlignment(imagetable, refImage)
 
 function runLocalNormalization(imagetable, refImage)
 {
-      if (!use_local_normalization) {
-            addProcessingStep("Do not run local normalization");
-            return;
-      }
       addProcessingStep("Run local normalization using reference image " + refImage);
       var targets = new Array;
 
@@ -3006,6 +2995,7 @@ function CreateChannelImages(auto_continue)
                   return false;
             }
             fileNames = dialogFileNames;
+            var filename_postfix = '';
 
             /* Get path to current directory. */
             var fname = dialogFileNames[0];
@@ -3020,6 +3010,7 @@ function CreateChannelImages(auto_continue)
                    * Output is *_cc.xisf files.
                    */
                  fileNames = runCosmeticCorrection(fileNames);
+                 filename_postfix = filename_postfix + '_cc';
             }
 
             if (!skip_subframeselector) {
@@ -3027,6 +3018,7 @@ function CreateChannelImages(auto_continue)
                    * Output is *_a.xisf files.
                    */
                   fileNames = runSubframeSelector(fileNames);
+                  filename_postfix = filename_postfix + '_a';
             }
 
             /* Find file with best SSWEIGHT to be used
@@ -3040,30 +3032,22 @@ function CreateChannelImages(auto_continue)
             /* StarAlign
             */
             alignedFiles = runStarAlignment(fileNames, best_image);
+            filename_postfix = filename_postfix + '_r';
 
-            /* LocalNormalization
-            */
-            runLocalNormalization(alignedFiles, best_image);
+            if (use_local_normalization) {
+                  /* LocalNormalization
+                   */
+                  runLocalNormalization(alignedFiles, best_image);
+                  filename_postfix = filename_postfix + '_n';
+            }
 
             /* Find files for each L, R, G and B channels, or color files.
-            */
-            luminance_images = new Array;
-            red_images = new Array;
-            green_images = new Array;
-            blue_images = new Array;
-            color_images = new Array;
-
-            findLRGBchannels(
-                  alignedFiles,
-                  luminance_images,
-                  red_images,
-                  green_images,
-                  blue_images,
-                  color_images);
+             */
+            findLRGBchannels(alignedFiles, filename_postfix);
 
             /* ImageIntegration
             */
-            if (color_images.length == 0) {
+            if (C_images.images.length == 0) {
                   /* We have LRGB files. */
                   if (!monochrome_image) {
                         addProcessingStep("Processing as LRGB files");
@@ -3073,13 +3057,13 @@ function CreateChannelImages(auto_continue)
                   is_color_files = false;
 
                   if (is_luminance_images) {
-                        luminance_id = runImageIntegration(luminance_images, 'L');
+                        luminance_id = runImageIntegration(L_images.images, 'L');
                   }
 
                   if (!monochrome_image) {
-                        red_id = runImageIntegration(red_images, 'R');
-                        green_id = runImageIntegration(green_images, 'G');
-                        blue_id = runImageIntegration(blue_images, 'B');
+                        red_id = runImageIntegration(R_images.images, 'R');
+                        green_id = runImageIntegration(G_images.images, 'G');
+                        blue_id = runImageIntegration(B_images.images, 'B');
 
                         ImageWindow.windowById(red_id).show();
                         ImageWindow.windowById(green_id).show();
@@ -3090,7 +3074,7 @@ function CreateChannelImages(auto_continue)
                   /* We have color files. */
                   addProcessingStep("Processing as color files");
                   is_color_files = true;
-                  var color_id = runImageIntegration(color_images, 'RGB');
+                  var color_id = runImageIntegration(C_images.images, 'RGB');
                   RGB_win = ImageWindow.windowById(color_id);
                   RGB_win.show();
                   RGB_win_id = color_id;
@@ -3233,6 +3217,17 @@ function ProcessLimage()
 function LinearFitLRGBchannels()
 {
       addProcessingStep("LinearFitLRGBchannels");
+
+      if (luminance_id == null && use_linear_fit == 'L') {
+            // no luminance
+            if (narrowband) {
+                  addProcessingStep("No Luminance, no linear fit with narrowband");
+                  use_linear_fit = 'no';
+            } else {
+                  addProcessingStep("No Luminance, linear fit using R with RGB");
+                  use_linear_fit = 'R';
+            }
+      }
 
       /* Check for LinearFit
        */
@@ -3380,7 +3375,7 @@ function ProcessRGBimage()
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
             if (is_color_files || !is_luminance_images) {
-                  /* Color or narrowband. */
+                  /* Color or narrowband or RGB. */
                   ColorCreateMask(RGB_ABE_id);
             }
             if (narrowband && linear_increase_saturation > 0) {
@@ -4089,7 +4084,7 @@ function AutoIntegrateEngine(auto_continue)
                               LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoLRGB");
                         }
                   } else {
-                        /* Color or narrowband files */
+                        /* Color or narrowband or RGB files */
                         LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRGB");
                   }
             }
@@ -4103,7 +4098,7 @@ function AutoIntegrateEngine(auto_continue)
       saveWindow(dialogFilePath, red_id);                  /* Integration_R */
       saveWindow(dialogFilePath, green_id);                /* Integraion_G */
       saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
-      if (color_images || narrowband) {
+      if (C_images.images || narrowband) {
             saveWindow(dialogFilePath, RGB_win_id);        /* Integration_RGB */
       }
       saveWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
@@ -4167,8 +4162,8 @@ function AutoIntegrateEngine(auto_continue)
             addProcessingStep(all_files.length + " data files, " + alignedFiles.length + " accepted");
             addProcessingStep("best_ssweight="+best_ssweight);
             addProcessingStep("best_image="+best_image);
-            var totalexptime = luminance_images_exptime + red_images_exptime + green_images_exptime +
-                               blue_images_exptime + color_images_exptime;
+            var totalexptime = L_images.exptime + R_images.exptime + G_images.exptime +
+                               B_images.exptime + C_images.exptime;
             addProcessingStep("total exptime="+totalexptime);
             
             console.writeln("");
@@ -4176,41 +4171,41 @@ function AutoIntegrateEngine(auto_continue)
             if (!is_color_files) {
                   /* LRGB files */
                   if (is_luminance_images) {
-                        addProcessingStep("* L " + luminance_images.length + " data files *");
-                        //console.writeln("luminance_images="+luminance_images);
-                        addProcessingStep("best_l_ssweight="+best_l_ssweight);
-                        addProcessingStep("best_l_image="+best_l_image);
-                        addProcessingStep("L exptime="+luminance_images_exptime);
+                        addProcessingStep("* L " + L_images.images.length + " data files *");
+                        //console.writeln("L_images.images="+L_images.images);
+                        addProcessingStep("L_images.best_ssweight="+L_images.best_ssweight);
+                        addProcessingStep("L_images.best_image="+L_images.best_image);
+                        addProcessingStep("L exptime="+L_images.exptime);
                   } else {
-                        addProcessingStep("* No L files with narrowband *");
+                        addProcessingStep("* No L files *");
                   }
 
                   if (!monochrome_image) {
-                        addProcessingStep("* R " + red_images.length + " data files *");
-                        //console.writeln("red_images="+red_images);
-                        addProcessingStep("best_r_ssweight="+best_r_ssweight);
-                        addProcessingStep("best_r_image="+best_r_image);
-                        addProcessingStep("R exptime="+red_images_exptime);
+                        addProcessingStep("* R " + R_images.images.length + " data files *");
+                        //console.writeln("R_images.images="+R_images.images);
+                        addProcessingStep("R_images.best_ssweight="+R_images.best_ssweight);
+                        addProcessingStep("R_images.best_image="+R_images.best_image);
+                        addProcessingStep("R exptime="+R_images.exptime);
 
-                        addProcessingStep("* G " + green_images.length + " data files *");
-                        //console.writeln("green_images="+green_images);
-                        addProcessingStep("best_g_ssweight="+best_g_ssweight);
-                        addProcessingStep("best_g_image="+best_g_image);
-                        addProcessingStep("G exptime="+green_images_exptime);
+                        addProcessingStep("* G " + G_images.images.length + " data files *");
+                        //console.writeln("G_images.images="+G_images.images);
+                        addProcessingStep("G_images.best_ssweight="+G_images.best_ssweight);
+                        addProcessingStep("G_images.best_image="+G_images.best_image);
+                        addProcessingStep("G exptime="+G_images.exptime);
 
-                        addProcessingStep("* B " + blue_images.length + " data files *");
-                        //console.writeln("blue_images="+blue_images);
-                        addProcessingStep("best_b_ssweight="+best_b_ssweight);
-                        addProcessingStep("best_b_image="+best_b_image);
-                        addProcessingStep("B exptime="+blue_images_exptime);
+                        addProcessingStep("* B " + B_images.images.length + " data files *");
+                        //console.writeln("B_images.images="+B_images.images);
+                        addProcessingStep("B_images.best_ssweight="+B_images.best_ssweight);
+                        addProcessingStep("B_images.best_image="+B_images.best_image);
+                        addProcessingStep("B exptime="+B_images.exptime);
                   }
             } else {
                   /* Color files */
                   addProcessingStep("* Color data files *");
-                  //console.writeln("color_images="+color_images);
-                  addProcessingStep("best_c_ssweight="+best_c_ssweight);
-                  addProcessingStep("best_c_image="+best_c_image);
-                  addProcessingStep("Color exptime="+color_images_exptime);
+                  //console.writeln("C_images.images="+C_images.images);
+                  addProcessingStep("C_images.best_ssweight="+C_images.best_ssweight);
+                  addProcessingStep("C_images.best_image="+C_images.best_image);
+                  addProcessingStep("Color exptime="+C_images.exptime);
             }
       }
       var end_time = Date.now();
@@ -4323,7 +4318,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.71</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.72</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -4640,6 +4635,38 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFComboBox );
       this.STFSizer.addStretch();
 
+      this.HalphaLabel = new Label( this );
+      this.HalphaLabel.text = "Ha channel mapping";
+      this.HalphaLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.HalphaLabel.toolTip = "<p>How to map H-alpha channel in RGB image.</p>";
+      this.HalphaComboBox = new ComboBox( this );
+      this.HalphaComboBox.addItem( "Ha to L" );
+      this.HalphaComboBox.addItem( "Ha to R" );
+      this.HalphaComboBox.addItem( "Ha to L and R" );
+      this.HalphaComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("Link RGB channels");
+            switch (itemIndex) {
+                  case 0:
+                        SetOptionValue("Ha channel mapping", "Ha to L"); 
+                        Halpha_mapping = 'L';
+                        break;
+                  case 1:
+                        SetOptionValue("Ha channel mapping", "Ha to R"); 
+                        Halpha_mapping = 'R';
+                        break;
+                  case 2:
+                        SetOptionValue("Ha channel mapping", "Ha to L and R"); 
+                        Halpha_mapping = 'LR';
+                        break;
+            }
+      };
+      this.HalphaSizer = new HorizontalSizer;
+      this.HalphaSizer.spacing = 4;
+      this.HalphaSizer.add( this.HalphaLabel );
+      this.HalphaSizer.add( this.HalphaComboBox );
+      this.HalphaSizer.addStretch();
+
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", skip_mask_contrast, 
       "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_mask_contrast_CheckBox.onClick = function(checked) { 
@@ -4672,6 +4699,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet2.add( this.STFSizer );
+      this.imageParamsSet2.add( this.HalphaSizer );
 
       // Image group parameters.
       this.imageParamsGroupBox = new newGroupBox( this );
@@ -5010,7 +5038,7 @@ function AutoIntegrateDialog()
       "</p><p>" +
       "SHO - SII=R, Ha=G, OIII=B, similar to Hubble palatte<br>" +
       "HOS - Ha=R, OIII=G, SII=B<br>" +
-      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is mapped to R)<br>" +
+      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)<br>" +
       "</p>";
 
       this.SHORadioButton = new RadioButton( this );
@@ -5078,7 +5106,7 @@ function AutoIntegrateDialog()
             SetOptionChecked("Leave some green", checked); 
       }
       this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", run_narrowband_SCNR, 
-      "<p>Run SCNR to remove green cast. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Run SCNR to remove green cast. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
             run_narrowband_SCNR = checked; 
             SetOptionChecked("Remove green cast", checked); 
