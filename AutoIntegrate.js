@@ -240,13 +240,15 @@ var narrowband_palette = 'SHO';
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
-var Halpha_mapping = 'L';
+var Halpha_RGB_mapping = 'R';       // where to map a lone Ha channel
+var narrowband_RGB_mapping = 'max'; // how to map narrowband to RGB if we have both
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
 var run_narrowband_SCNR = false;
 var leave_some_green = false;
 var skip_star_fix_mask = false;
+var skip_max_linear_fit = false;
 
 var processingDate;
 var dialogFileNames = null;
@@ -255,11 +257,11 @@ var all_files;
 var best_ssweight = 0;
 var best_image = null;
 
-var L_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-var R_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-var G_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-var B_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-var C_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+var L_images;
+var R_images;
+var G_images;
+var B_images;
+var C_images;
 
 var extra_darker_background = false;
 var extra_HDRMLT= false;
@@ -596,6 +598,10 @@ function saveWindow(path, id)
       console.writeln("saveWindow " + path + id + getUniqueFilenamePart() + ".xisf");
 
       var w = ImageWindow.windowById(id);
+
+      if (w == null) {
+            return;
+      }
 
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
@@ -971,6 +977,9 @@ function SubframeSelectorMeasure(fileNames)
       var SNRWeightMin = findMin(P.measurements, indexSNRWeight);
       var SNRWeightMax = findMax(P.measurements, indexSNRWeight);
 
+      console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin);
+      console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax);
+
       var ssFiles = new Array;
 
       for (var i = 0; i < P.measurements.length; i++) {
@@ -981,7 +990,10 @@ function SubframeSelectorMeasure(fileNames)
             /* Defaults below are from script Weighted Batch Preprocessing v1.4.0
              * https://www.tommasorubechi.it/2019/11/15/the-new-weighted-batchpreprocessing/
              */
-            if (use_weight == 'N') {
+            if (FWHMMax == FWHMMin || EccentricityMax == EccentricityMin || SNRWeightMax == SNRWeightMin) {
+                  // Avoid division by zero
+                  SSWEIGHT = SNRWeight;
+            } else if (use_weight == 'N') {
                   /* More weight on noise.
                    */
                   SSWEIGHT = (5*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) + 
@@ -1254,19 +1266,24 @@ function updateFilesInfo(files, filearr, txt)
       }
 }
 
+function init_images()
+{
+      return { images: [], best_image: null, best_ssweight: 0, exptime: 0, maximages: null };
+}
+
 function findLRGBchannels(alignedFiles, filename_postfix)
 {
-      var lrgb = false;
+      var rgb = false;
 
       /* Loop through aligned files and find different channels.
        */
       addProcessingStep("Find L,R,G,B channels");
 
-      L_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-      R_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-      G_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-      B_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
-      C_images = { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
+      L_images = init_images();
+      R_images = init_images();
+      G_images = init_images();
+      B_images = init_images();
+      C_images = init_images();
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], O: [], S: [], C: []
@@ -1347,22 +1364,21 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   case 'Clear':
                   case 'L':
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
-                        lrgb = true;
                         break;
                   case 'Red':
                   case 'R':
                         allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
-                        lrgb = true;
+                        rgb = true;
                         break;
                   case 'Green':
                   case 'G':
                         allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
-                        lrgb = true;
+                        rgb = true;
                         break;
                   case 'Blue':
                   case 'B':
                         allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
-                        lrgb = true;
+                        rgb = true;
                         break;
                   case 'SII':
                   case 'S':
@@ -1389,35 +1405,125 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 
       if (narrowband) {
             // we have some narrowband files, group them to LRGB files
+            var mapping;
+            if (rgb) {
+                  // We have both RGB and SHO, use mapping
+                  mapping = narrowband_RGB_mapping;
+            } else {
+                  // We have no RGB files, just use a direct palette mapping
+                  mapping = 'palette';
+            }
             if (allfiles.O.length == 0 && allfiles.S.length == 0) {
                   // We have only Ha
-                  if (Halpha_mapping == 'L') {
-                        addProcessingStep("Ha but no SII or OIII, map Ha to L");
-                        allfiles.L = allfiles.L.concat(allfiles.H);
-                  } else if (Halpha_mapping == 'R') {
-                        addProcessingStep("Ha but no SII or OIII, map Ha to R");
-                        allfiles.R = allfiles.R.concat(allfiles.H);
-                  } else if (Halpha_mapping == 'LR') {
-                        addProcessingStep("Ha but no SII or OIII, map Ha to L and R");
-                        allfiles.L = allfiles.L.concat(allfiles.H);
-                        allfiles.R = allfiles.R.concat(allfiles.H);
+                  if (Halpha_RGB_mapping == 'L') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Ha but no SII or OIII, map Ha as max(L,Ha)");
+                              L_images.maximages = init_images();
+                              updateFilesInfo(L_images.maximages, allfiles.H, 'H');
+                        } else {
+                              addProcessingStep("Ha but no SII or OIII, map Ha to L");
+                              allfiles.L = allfiles.L.concat(allfiles.H);
+                        }
+                  } else if (Halpha_RGB_mapping == 'R') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Ha but no SII or OIII, map Ha as max(R,Ha)");
+                              R_images.maximages = init_images();
+                              updateFilesInfo(R_images.maximages, allfiles.H, 'H');
+                        } else {
+                              addProcessingStep("Ha but no SII or OIII, map Ha to R");
+                              allfiles.R = allfiles.R.concat(allfiles.H);
+                        }
+                  } else if (Halpha_RGB_mapping == 'LR') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Ha but no SII or OIII, map Ha as max(L,Ha) and max(R,Ha)");
+                              L_images.maximages = init_images();
+                              R_images.maximages = init_images();
+                              updateFilesInfo(L_images.maximages, allfiles.H, 'H');
+                              updateFilesInfo(R_images.maximages, allfiles.H, 'H');
+                        } else {
+                              addProcessingStep("Ha but no SII or OIII, map Ha to L and R");
+                              allfiles.L = allfiles.L.concat(allfiles.H);
+                              allfiles.R = allfiles.R.concat(allfiles.H);
+                        }
                   }
-                  narrowband = false;
-            } else if (narrowband_palette == 'SHO') {
-                  addProcessingStep("Narrowband files, map SHO to RGB");
-                  allfiles.R = allfiles.R.concat(allfiles.S);
-                  allfiles.G = allfiles.G.concat(allfiles.H);
-                  allfiles.B = allfiles.B.concat(allfiles.O);
-            } else if (narrowband_palette == 'HOS') {
-                  addProcessingStep("Narrowband files, map HOS to RGB");
-                  allfiles.R = allfiles.R.concat(allfiles.H);
-                  allfiles.G = allfiles.G.concat(allfiles.O);
-                  allfiles.B = allfiles.B.concat(allfiles.S);
-            } else if (narrowband_palette == 'HOO') {
-                  addProcessingStep("Narrowband files, map HOO to RGB, ignoring possible S files");
-                  allfiles.R = allfiles.R.concat(allfiles.H);
-                  allfiles.G = allfiles.G.concat(allfiles.O);
-                  allfiles.B = allfiles.B.concat(allfiles.O);
+            } else {
+                  if (mapping == 'max') {
+                        R_images.maximages = init_images();
+                        G_images.maximages = init_images();
+                        B_images.maximages = init_images();
+                  }
+                  if (narrowband_palette == 'SHO') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Narrowband files, map as max(SHO, RGB)");
+                              updateFilesInfo(R_images.maximages, allfiles.S, 'S');
+                              updateFilesInfo(G_images.maximages, allfiles.H, 'H');
+                              updateFilesInfo(B_images.maximages, allfiles.O, 'O');
+                        } else {
+                              addProcessingStep("Narrowband files, map SHO to RGB");
+                              allfiles.R = allfiles.R.concat(allfiles.S);
+                              allfiles.G = allfiles.G.concat(allfiles.H);
+                              allfiles.B = allfiles.B.concat(allfiles.O);
+                        }
+                  } else if (narrowband_palette == 'HOS') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Narrowband files, map as max(HOS, RGB)");
+                              updateFilesInfo(R_images.maximages, allfiles.H, 'H');
+                              updateFilesInfo(G_images.maximages, allfiles.O, 'O');
+                              updateFilesInfo(B_images.maximages, allfiles.S, 'S');
+                        } else {
+                              addProcessingStep("Narrowband files, map HOS to RGB");
+                              allfiles.R = allfiles.R.concat(allfiles.H);
+                              allfiles.G = allfiles.G.concat(allfiles.O);
+                              allfiles.B = allfiles.B.concat(allfiles.S);
+                        }
+                  } else if (narrowband_palette == 'HOO') {
+                        if (mapping == 'max') {
+                              addProcessingStep("Narrowband files, map as max(HOO, RGB)");
+                              updateFilesInfo(R_images.maximages, allfiles.H, 'H');
+                              updateFilesInfo(G_images.maximages, allfiles.O, 'O');
+                              updateFilesInfo(B_images.maximages, allfiles.O, 'O');
+                        } else {
+                              addProcessingStep("Narrowband files, map HOO to RGB, ignoring possible S files");
+                              allfiles.R = allfiles.R.concat(allfiles.H);
+                              allfiles.G = allfiles.G.concat(allfiles.O);
+                              allfiles.B = allfiles.B.concat(allfiles.O);
+                        }
+                  }
+            }
+      }
+
+      // Check for synthetic images
+      if (C_images.images.length > 0) {
+            if (synthetic_l_image ||
+                  (synthetic_missing_images && L_images.images.length == 0))
+            {
+                  if (L_images.images.length == 0) {
+                        addProcessingStep("No luminance images, synthetic luminance image from all other images");
+                  } else {
+                        addProcessingStep("Synthetic luminance image from all LRGB images");
+                  }
+                  allfiles.L = allfiles.L.concat(allfiles.R);
+                  allfiles.L = allfiles.L.concat(allfiles.G);
+                  allfiles.L = allfiles.L.concat(allfiles.B);
+            }
+            if (R_images.images.length == 0 && synthetic_missing_images) {
+                  addProcessingStep("No red images, synthetic red image from luminance images");
+                  allfiles.R = allfiles.R.concat(allfiles.L);
+            }
+            if (G_images.images.length == 0 && synthetic_missing_images) {
+                  addProcessingStep("No green images, synthetic green image from luminance images");
+                  allfiles.G = allfiles.G.concat(allfiles.L);
+            }
+            if (B_images.images.length == 0 && synthetic_missing_images) {
+                  addProcessingStep("No blue images, synthetic blue image from luminance images");
+                  allfiles.B = allfiles.B.concat(allfiles.L);
+            }
+            if (RRGB_image) {
+                  addProcessingStep("RRGB image, use R as L image");
+                  console.writeln("L images " +  L_images.images.length);
+                  console.writeln("R images " +  R_images.images.length);
+                  allfiles.L = [];
+                  allfiles.L = allfiles.L.concat(allfiles.R);
             }
       }
 
@@ -1427,8 +1533,8 @@ function findLRGBchannels(alignedFiles, filename_postfix)
       updateFilesInfo(B_images, allfiles.B, 'B');
       updateFilesInfo(C_images, allfiles.C, 'C');
 
-      if (lrgb && narrowband) {
-            addProcessingStep("There are both LRGB and narrowband data, processing as LRGB image");
+      if (rgb && narrowband) {
+            addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
             narrowband = false;
       }
       if (narrowband) {
@@ -1449,63 +1555,13 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   throwFatalError("Cannot mix color and green filter files");
             }
       } else {
-            // LRGB, RGB or Monochrome (narrowband or broadband)
-            if (RRGB_image) {
-                  addProcessingStep("RRGB image, use R as L image");
-                  console.writeln("L images " +  L_images.images.length);
-                  console.writeln("R images " +  R_images.images.length);
-                  L_images.images.splice(0, L_images.images.length);
-                  copy_image_list(L_images.images, R_images.images);
-                  L_images.best_ssweight = R_images.best_ssweight;
-                  L_images.best_image = R_images.best_image;
-                  L_images.exptime = R_images.exptime;
-            }
-            if (synthetic_l_image ||
-                (synthetic_missing_images && L_images.images.length == 0))
-            {
-                  if (L_images.images.length == 0) {
-                        addProcessingStep("No luminance images, synthetic luminance image from all other images");
-                  } else {
-                        addProcessingStep("Synthetic luminance image from all LRGB images");
-                  }
-                  copy_image_list(L_images.images, R_images.images);
-                  copy_image_list(L_images.images, B_images.images);
-                  copy_image_list(L_images.images, G_images.images);
-                  var bst = find_best_image(
-                              [L_images.best_ssweight, R_images.best_ssweight, G_images.best_ssweight, B_images.best_ssweight],
-                              [L_images.best_image, R_images.best_image, G_images.best_image, B_images.best_image]);
-
-                  L_images.best_ssweight = bst.wght;
-                  L_images.best_image = bst.img;
-                  L_images.exptime = L_images.exptime + R_images.exptime +
-                                             G_images.exptime + B_images.exptime;
-            }
             if (monochrome_image) {
+                  // Monochrome
                   if (L_images.images.length == 0) {
                         throwFatalError("No Luminance images found");
                   }
             } else {
-                  if (R_images.images.length == 0 && synthetic_missing_images) {
-                        addProcessingStep("No red images, synthetic red image from luminance images");
-                        copy_image_list(R_images.images, L_images.images);
-                        R_images.best_ssweight = L_images.best_ssweight;
-                        R_images.best_image = L_images.best_image;
-                        R_images.exptime = L_images.exptime;
-                  }
-                  if (B_images.images.length == 0 && synthetic_missing_images) {
-                        addProcessingStep("No blue images, synthetic blue image from luminance images");
-                        copy_image_list(B_images.images, L_images.images);
-                        B_images.best_ssweight = L_images.best_ssweight;
-                        B_images.best_image = L_images.best_image;
-                        B_images.exptime = L_images.exptime;
-                  }
-                  if (G_images.images.length == 0 && synthetic_missing_images) {
-                        addProcessingStep("No green images, synthetic green image from luminance images");
-                        copy_image_list(G_images.images, L_images.images);
-                        G_images.best_ssweight = L_images.best_ssweight;
-                        G_images.best_image = L_images.best_image;
-                        G_images.exptime = L_images.exptime;
-                  }
+                  // LRGB or RGB, narrowband or broadband
                   if (R_images.images.length == 0) {
                         throwFatalError("No Red images found");
                   }
@@ -1517,6 +1573,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   }
             }
             if (L_images.images.length > 0) {
+                  // Use just RGB channels
                   is_luminance_images = true;
             }
       }
@@ -1723,6 +1780,45 @@ function runLinearFit(refViewId, targetId)
       targetWin.mainView.endProcess();
 }
 
+function runPixelMathMax(id, maxid)
+{
+      addProcessingStep("Run PixelMath max(" + id + ", " + maxid + ")");
+
+      var idWin = findWindow(id);
+
+      var P = new PixelMath;
+      P.expression = "max("+id+", "+maxid+")";
+      P.expression1 = "";
+      P.expression2 = "";
+      P.expression3 = "";
+      P.useSingleExpression = true;
+      P.symbols = "";
+      P.generateOutput = true;
+      P.singleThreaded = false;
+      P.optimization = true;
+      P.use64BitWorkingImage = false;
+      P.rescale = false;
+      P.rescaleLower = 0;
+      P.rescaleUpper = 1;
+      P.truncate = true;
+      P.truncateLower = 0;
+      P.truncateUpper = 1;
+      P.createNewImage = false;
+      P.showNewImage = false;
+      P.newImageId = "";
+      P.newImageWidth = 0;
+      P.newImageHeight = 0;
+      P.newImageAlpha = false;
+      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+      idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(idWin.mainView);
+      idWin.mainView.endProcess();
+
+      return id;
+}
+
 function runDrizzleIntegration(images, name)
 {
       var drizzleImages = new Array;
@@ -1770,7 +1866,7 @@ function runDrizzleIntegration(images, name)
 function getRejectionAlgorigthm(numimages)
 {
       if (numimages < 8) {
-            addProcessingStep("  Using Percentile clip for rejection because nummber of images is " + numimages);
+            addProcessingStep("  Using Percentile clip for rejection because number of images is " + numimages);
             return ImageIntegration.prototype.PercentileClip;
       }
       if (use_clipping == 'P') {
@@ -1948,6 +2044,25 @@ function runImageIntegration(images, name)
             //addScriptWindow(new_name);
             return new_name
       }
+}
+
+function runImageIntegrationEx(images, name)
+{
+      var id = runImageIntegration(images.images, name);
+
+      if (images.maximages != null) {
+            // we want the result to be max(images, images,maximages)
+            console.writeln("There are maximages for " + id);
+            var maxid = runImageIntegration(images.maximages.images, name + "_max");
+            if (!skip_max_linear_fit) {
+                  runLinearFit(id, maxid);
+            }
+            id = runPixelMathMax(id, maxid);
+            closeOneWindow(maxid);
+      } else {
+            console.writeln("No maximages for " + id);
+      }
+      return id;
 }
 
 function runImageIntegrationNormalized(images, name)
@@ -2135,6 +2250,7 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    } else {
          // auto, use default
    }
+   console.writeln("  RgbLinked " + rgbLinked);
 
    if (rgbLinked)
    {
@@ -3050,7 +3166,11 @@ function CreateChannelImages(auto_continue)
             if (C_images.images.length == 0) {
                   /* We have LRGB files. */
                   if (!monochrome_image) {
-                        addProcessingStep("Processing as LRGB files");
+                        if (is_luminance_images) {
+                              addProcessingStep("Processing as LRGB files");
+                        } else {
+                              addProcessingStep("Processing as RGB files");
+                        }
                   } else {
                         addProcessingStep("Processing as monochrome files");
                   }
@@ -3061,9 +3181,9 @@ function CreateChannelImages(auto_continue)
                   }
 
                   if (!monochrome_image) {
-                        red_id = runImageIntegration(R_images.images, 'R');
-                        green_id = runImageIntegration(G_images.images, 'G');
-                        blue_id = runImageIntegration(B_images.images, 'B');
+                        red_id = runImageIntegrationEx(R_images, 'R');
+                        green_id = runImageIntegrationEx(G_images, 'G');
+                        blue_id = runImageIntegrationEx(B_images, 'B');
 
                         ImageWindow.windowById(red_id).show();
                         ImageWindow.windowById(green_id).show();
@@ -3963,6 +4083,7 @@ function AutoIntegrateEngine(auto_continue)
       R_ABE_id = null;
       G_ABE_id = null;
       B_ABE_id = null;
+      RGB_win_id = null;
       start_time = Date.now();
       mask_win = null;
       star_mask_win = null;
@@ -4098,9 +4219,7 @@ function AutoIntegrateEngine(auto_continue)
       saveWindow(dialogFilePath, red_id);                  /* Integration_R */
       saveWindow(dialogFilePath, green_id);                /* Integraion_G */
       saveWindow(dialogFilePath, blue_id);                 /* Integration_B */
-      if (C_images.images || narrowband) {
-            saveWindow(dialogFilePath, RGB_win_id);        /* Integration_RGB */
-      }
+      saveWindow(dialogFilePath, RGB_win_id);              /* Integration_RGB */
       saveWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
 
       /* All done, do cleanup on windows on screen 
@@ -4318,7 +4437,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.72</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.73</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -4335,8 +4454,10 @@ function AutoIntegrateDialog()
       "Script automates initial steps of image processing in PixInsight. "+ 
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in Pixinsight." +
+      "</p><p>"+
+      "Always remember to check you data with Blink tool and rem,ove all bad images." +
       "</p><p>" +
-      "Usually images need some cleanup with HistogramTransformation tool. "+
+      "Sometimes images need some shadow cleanup with HistogramTransformation tool. "+
       "Depending on the image you can try clipping shadows between %0.01 and %0.1." +
       "</p><p>" +
       "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
@@ -4635,38 +4756,6 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFComboBox );
       this.STFSizer.addStretch();
 
-      this.HalphaLabel = new Label( this );
-      this.HalphaLabel.text = "Ha channel mapping";
-      this.HalphaLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.HalphaLabel.toolTip = "<p>How to map H-alpha channel in RGB image.</p>";
-      this.HalphaComboBox = new ComboBox( this );
-      this.HalphaComboBox.addItem( "Ha to L" );
-      this.HalphaComboBox.addItem( "Ha to R" );
-      this.HalphaComboBox.addItem( "Ha to L and R" );
-      this.HalphaComboBox.onItemSelected = function( itemIndex )
-      {
-            RemoveOption("Link RGB channels");
-            switch (itemIndex) {
-                  case 0:
-                        SetOptionValue("Ha channel mapping", "Ha to L"); 
-                        Halpha_mapping = 'L';
-                        break;
-                  case 1:
-                        SetOptionValue("Ha channel mapping", "Ha to R"); 
-                        Halpha_mapping = 'R';
-                        break;
-                  case 2:
-                        SetOptionValue("Ha channel mapping", "Ha to L and R"); 
-                        Halpha_mapping = 'LR';
-                        break;
-            }
-      };
-      this.HalphaSizer = new HorizontalSizer;
-      this.HalphaSizer.spacing = 4;
-      this.HalphaSizer.add( this.HalphaLabel );
-      this.HalphaSizer.add( this.HalphaComboBox );
-      this.HalphaSizer.addStretch();
-
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", skip_mask_contrast, 
       "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_mask_contrast_CheckBox.onClick = function(checked) { 
@@ -4699,7 +4788,6 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet2.add( this.STFSizer );
-      this.imageParamsSet2.add( this.HalphaSizer );
 
       // Image group parameters.
       this.imageParamsGroupBox = new newGroupBox( this );
@@ -5085,6 +5173,90 @@ function AutoIntegrateDialog()
       this.narrowbandColorPalette_sizer.add( this.HOSRadioButton );
       this.narrowbandColorPalette_sizer.add( this.HOORadioButton );
 
+      this.HalphaLabel = new Label( this );
+      this.HalphaLabel.text = "Ha to RGB";
+      this.HalphaLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.HalphaLabel.toolTip = "<p>Where to map H-alpha channel in RGB image.</p>";
+      this.HalphaComboBox = new ComboBox( this );
+      this.HalphaComboBox.addItem( "R" );
+      this.HalphaComboBox.addItem( "L" );
+      this.HalphaComboBox.addItem( "L,R" );
+      this.HalphaComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("Ha to RGB");
+            switch (itemIndex) {
+                  case 0:
+                        SetOptionValue("Ha to RGB", "R"); 
+                        Halpha_RGB_mapping = 'R';
+                        break;
+                  case 1:
+                        SetOptionValue("Ha to RGB", "L"); 
+                        Halpha_RGB_mapping = 'L';
+                        break;
+                  case 2:
+                        SetOptionValue("Ha to RGB", "L and R"); 
+                        Halpha_RGB_mapping = 'LR';
+                        break;
+            }
+      };
+      this.HalphaSizer = new HorizontalSizer;
+      this.HalphaSizer.spacing = 4;
+      this.HalphaSizer.add( this.HalphaLabel );
+      this.HalphaSizer.add( this.HalphaComboBox );
+      this.HalphaSizer.addStretch();
+
+      this.NbRGBLabel = new Label( this );
+      this.NbRGBLabel.text = "RGB mapping";
+      this.NbRGBLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.NbRGBLabel.toolTip = "<p>How to map narrowband channels in RGB image if both are present. Channels are mapped using the color palette choice "+
+                                "except when only Ha is available. Then Ha is mapped as specified in Ha to RGB mapping.</p>" +
+                                "<p>- max means that max pixel value of Narrowband or RGB is used.</p>" +
+                                "<p>- RGB means that narrowband files are treated as RGB files.</p>";
+      this.NbRGBComboBox = new ComboBox( this );
+      this.NbRGBComboBox.addItem( "max" );
+      this.NbRGBComboBox.addItem( "RGB" );
+      this.NbRGBComboBox.onItemSelected = function( itemIndex )
+      {
+            RemoveOption("Narrowband to RGB");
+            switch (itemIndex) {
+                  case 0:
+                        SetOptionValue("Narrowband to RGB", "max(NB,R)"); 
+                        narrowband_RGB_mapping = 'max';
+                        break;
+                  case 1:
+                        SetOptionValue("Narrowband to RGB", "Same as RGB"); 
+                        narrowband_RGB_mapping = 'same';
+                        break;
+            }
+      };
+      this.NbRGBSizer = new HorizontalSizer;
+      this.NbRGBSizer.spacing = 4;
+      this.NbRGBSizer.add( this.NbRGBLabel );
+      this.NbRGBSizer.add( this.NbRGBComboBox );
+      this.NbRGBSizer.addStretch();
+
+      this.max_linear_fit_CheckBox = newCheckBox(this, "No linear fit before max()", skip_max_linear_fit, 
+      "<p>Do not use linear fit before applying max() on Narrowband to RGB.</p>" );
+      this.max_linear_fit_CheckBox.onClick = function(checked) { 
+            skip_max_linear_fit = checked; 
+            SetOptionChecked("No linear fit before max()", checked); 
+      }
+
+      this.NbRGBmapping_sizer1 = new VerticalSizer;
+      this.NbRGBmapping_sizer1.margin = 6;
+      this.NbRGBmapping_sizer1.spacing = 4;
+      this.NbRGBmapping_sizer1.add( this.NbRGBSizer );
+      this.NbRGBmapping_sizer1.add( this.max_linear_fit_CheckBox );
+
+      this.NbRGBmapping_sizer2 = new VerticalSizer;
+      this.NbRGBmapping_sizer2.margin = 6;
+      this.NbRGBmapping_sizer2.spacing = 4;
+      this.NbRGBmapping_sizer2.add( this.HalphaSizer );
+
+      this.NbRGBmapping_sizer = new HorizontalSizer;
+      this.NbRGBmapping_sizer.add( this.NbRGBmapping_sizer1 );
+      this.NbRGBmapping_sizer.add( this.NbRGBmapping_sizer2 );
+
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
       "<p>Fix magenta color on stars with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
       "Also run with AutoContinue narrowband and Extra processing.</p>" );
@@ -5193,6 +5365,7 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer.margin = 6;
       this.narrowbandGroupBox.sizer.spacing = 4;
       this.narrowbandGroupBox.sizer.add( this.narrowbandColorPalette_sizer );
+      this.narrowbandGroupBox.sizer.add( this.NbRGBmapping_sizer );
       this.narrowbandGroupBox.sizer.add( this.narrowbandOptions_sizer );
       this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
