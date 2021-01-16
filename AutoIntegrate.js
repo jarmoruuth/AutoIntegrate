@@ -5124,8 +5124,8 @@ function AutoIntegrateDialog()
       "<p>" +
       "Color palette used to map SII, Ha and OIII to R, G and B" +
       "</p><p>" +
-      "SHO - SII=R, Ha=G, OIII=B, similar to Hubble palatte<br>" +
-      "HOS - Ha=R, OIII=G, SII=B<br>" +
+      "SHO - SII=R, Ha=G, OIII=B  (Hubble)e<br>" +
+      "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
       "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)<br>" +
       "</p>";
 
