@@ -1,11 +1,4 @@
 /*
-TODO
-- GUI for HSO formulas
-- apply formulas
-- autocontinue for HSO
-- runPixelMathMax new image
-*/
-/*
 
 Script to automate initial steps of image processing in PixInsight.
 
@@ -244,19 +237,15 @@ var skip_color_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
 var narrowband = false;
 var autocontinue_narrowband = false;
-var narrowband_palette;
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
-var Halpha_RGB_mapping = 'R';       // where to map a lone Ha channel
-var narrowband_RGB_mapping = 'max'; // how to map narrowband to RGB if we have both
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
 var run_narrowband_SCNR = false;
 var leave_some_green = false;
 var skip_star_fix_mask = false;
-var skip_max_linear_fit = false;
 
 var processingDate;
 var dialogFileNames = null;
@@ -278,7 +267,9 @@ var C_images;
 var custom_R_mapping = "S";
 var custom_G_mapping = "H";
 var custom_B_mapping = "O";
-var mapping_on_linear_data = false;
+var custom_L_mapping = "L";
+var mapping_on_nonlinear_data = false;
+var narrowband_linear_fit = "None";
 
 var extra_darker_background = false;
 var extra_HDRMLT= false;
@@ -618,6 +609,7 @@ function closeTempWindows()
       for (var i = 0; i < integration_LRGB_windows.length; i++) {
             closeOneWindow(integration_LRGB_windows[i] + "_max");
             closeOneWindow(integration_LRGB_windows[i] + "_map");
+            closeOneWindow(integration_LRGB_windows[i] + "_map_mask");
       }
 }
 
@@ -1508,16 +1500,6 @@ function findLRGBchannels(alignedFiles, filename_postfix)
       updateFilesInfo(O_images, allfiles.O, 'O');
       updateFilesInfo(C_images, allfiles.C, 'C');
 
-      if (rgb && narrowband) {
-            addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
-            narrowband = false;
-      }
-      if (narrowband) {
-            narrowband_palette = custom_R_mapping + custom_G_mapping + custom_B_mapping;
-            addProcessingStep("Processing as narrowband image");
-      } else {
-            narrowband_palette = '';
-      }
       if (C_images.images.length > 0) {
             // Color image
             if (L_images.images.length > 0) {
@@ -1557,65 +1539,6 @@ function findLRGBchannels(alignedFiles, filename_postfix)
       }
 }
 
-function runPixelMathMax(id, maxid)
-{
-      addProcessingStep("Run PixelMath max(" + id + ", " + maxid + ")");
-
-      var idWin = findWindow(id);
-
-      var P = new PixelMath;
-      P.expression = "max("+id+", "+maxid+")";
-      P.expression1 = "";
-      P.expression2 = "";
-      P.expression3 = "";
-      P.useSingleExpression = true;
-      P.symbols = "";
-      P.generateOutput = true;
-      P.singleThreaded = false;
-      P.optimization = true;
-      P.use64BitWorkingImage = false;
-      P.rescale = false;
-      P.rescaleLower = 0;
-      P.rescaleUpper = 1;
-      P.truncate = true;
-      P.truncateLower = 0;
-      P.truncateUpper = 1;
-      P.createNewImage = true;
-      P.showNewImage = false;
-      P.newImageId = id + "_max";
-      P.newImageWidth = 0;
-      P.newImageHeight = 0;
-      P.newImageAlpha = false;
-      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-
-      idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(idWin.mainView);
-      idWin.mainView.endProcess();
-
-      return P.newImageId;
-}
-
-/* Run max() channel mapping using PixelMath. */
-function mapMax(id1, id2)
-{
-      if (id1 == null) {
-            console.writeln("Map max, we have only ", id2);
-            return id2;
-      }
-      if (id2 == null) {
-            console.writeln("Map max, we have only ", id1);
-            return id1;
-      }
-      console.writeln("Map max(" + id1 + ", " + id2);
-      if (!skip_max_linear_fit) {
-            runLinearFit(id1, id2);
-      }
-      var id = runPixelMathMax(id1, id2);
-      console.writeln("Map max result " + id);
-      return id;
-}
-
 function isVariableChar(str) {
       return str.length === 1 && str.match(/[a-z0-9_]/i);
 }
@@ -1633,19 +1556,22 @@ function add_missing_image(images, to)
       }
 }
 
+/* Replace tag "from" with real image name "to" with _map added to the end (H -> Integration_H_map) . 
+ * Images names listed in the mapping are put into images array without _map added (Integration_H).
+ */
 function replaceMappingImageNames(mapping, from, to, images)
 {
-      console.writeln("replaceMappingImageNames in " + mapping + " from " + from + " to " + to);
+      //console.writeln("replaceMappingImageNames in " + mapping + " from " + from + " to " + to);
       mapping = mapping.trim();
       var n = mapping.search(from);
       if (n == -1) {
             // not found
-            console.writeln("replaceMappingImageNames not found");
+            //console.writeln("replaceMappingImageNames, " + from + " not found");
             return mapping;
       }
       if (mapping.length == 1) {
             // only char must be the one we are looking for
-            console.writeln("replaceMappingImageNames only one char");
+            //console.writeln("replaceMappingImageNames only one char");
             add_missing_image(images, to);
             return to + "_map";
       }
@@ -1657,24 +1583,24 @@ function replaceMappingImageNames(mapping, from, to, images)
                         var replace = true;
                         if (n > 0 && isVariableChar(mapping.substring(n-1, n))) {
                               // nothing to replace
-                              console.writeln("replaceMappingImageNames letter before " + from);
+                              //console.writeln("replaceMappingImageNames letter before " + from);
                               replace = false;
                         } else if (n < mapping.length-1 && isVariableChar(mapping.substring(n+1, n+2))) {
                               // nothing to replace
-                              console.writeln("replaceMappingImageNames letter after " + from);
+                              //console.writeln("replaceMappingImageNames letter after " + from);
                               replace = false;
                         }
                         if (replace) {
                               add_missing_image(images, to);
                               mapping = mapping.substring(0, n) + to + "_map" + mapping.substring(n+1);
-                              console.writeln("replaceMappingImageNames mapped to " + mapping);
+                              //console.writeln("replaceMappingImageNames mapped to " + mapping);
                               break;
                         }
                   }
             }
             if (n == mapping.length) {
                   // all replaced
-                  console.writeln("replaceMappingImageNames, all replaced, mapped to " + mapping);
+                  //console.writeln("replaceMappingImageNames, all replaced, mapped to " + mapping);
                   return mapping;
             }
       }
@@ -1682,7 +1608,10 @@ function replaceMappingImageNames(mapping, from, to, images)
       return mapping;
 }
 
-/* Run a custom channel mapping using PixelMath. */
+/* Get custom channel mapping and replace target images with real names.
+ * Tag is changed to a real image name with _map added to the end (H -> Integration_H_map) . 
+ * Images names listed in the mapping are put into images array without _map added (Integration_H).
+ */
 function mapCustomAndReplaceImageNames(targetChannel, images)
 {
       switch (targetChannel) {
@@ -1695,12 +1624,16 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
             case 'B':
                   var mapping = custom_B_mapping;
                   break;
+            case 'L':
+                  var mapping = custom_L_mapping;
+                  break;
             default:
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
                   return null;
       }
       console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
       /* Replace letters with actual image identifiers. */
+      mapping = replaceMappingImageNames(mapping, "L", "Integration_O", images);
       mapping = replaceMappingImageNames(mapping, "R", "Integration_R", images);
       mapping = replaceMappingImageNames(mapping, "G", "Integration_G", images);
       mapping = replaceMappingImageNames(mapping, "B", "Integration_B", images);
@@ -1712,7 +1645,51 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
       return mapping;
 }
 
-function runPixelMathMapping(newId, mapping_R, mapping_G, mapping_B)
+/* Run single expression PixelMath and overwrite target image. */
+function runPixelMathSingleMappingOverwrite(id, mapping)
+{
+      addProcessingStep("Run PixelMath single mapping " + mapping + " using image " + id);
+
+      var idWin = findWindow(id);
+      if (idWin == null) {
+            console.writeln("ERROR: No reference window found for PixelMath");
+      }
+
+      var P = new PixelMath;
+      P.expression = mapping;
+      P.expression1 = "";
+      P.expression2 = "";
+      P.expression3 = "";
+      P.useSingleExpression = true;
+      P.symbols = "";
+      P.generateOutput = true;
+      P.singleThreaded = false;
+      P.optimization = true;
+      P.use64BitWorkingImage = false;
+      P.rescale = false;
+      P.rescaleLower = 0;
+      P.rescaleUpper = 1;
+      P.truncate = true;
+      P.truncateLower = 0;
+      P.truncateUpper = 1;
+      P.createNewImage = false;
+      P.showNewImage = false;
+      P.newImageId = "";
+      P.newImageWidth = 0;
+      P.newImageHeight = 0;
+      P.newImageAlpha = false;
+      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+      idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(idWin.mainView);
+      idWin.mainView.endProcess();
+
+      return id;
+}
+
+/* Run RGB channel combination using PixelMath. */
+function runPixelMathRGBMapping(newId, mapping_R, mapping_G, mapping_B)
 {
       addProcessingStep("Run PixelMath mapping R " + mapping_R + ", G " + mapping_G + ", B " + mapping_B);
 
@@ -1761,6 +1738,89 @@ function runPixelMathMapping(newId, mapping_R, mapping_G, mapping_B)
       return newId;
 }
 
+function linearFitArray(refimage, targetimages)
+{
+      console.writeln("linearFitArray");
+      for (var i = 0; i < targetimages.length; i++) {
+            if (targetimages[i] != refimage) {
+                  runLinearFit(refimage, targetimages[i]);
+            }
+      }
+}
+
+function arrayFindImage(images, image)
+{
+      for (var i = 0; i < images.length; i++) {
+            if (images[i] == image) {
+                  return true;
+            }
+      }
+      return false;
+}
+
+function findLinearFitHSOMapRefimage(images, suggestion)
+{
+      var refimage;
+      console.writeln("findLinearFitHSOMapRefimage");
+      if (suggestion == "Auto") {
+            refimage = "Integration_O_map";
+            if (arrayFindImage(images, refimage)) {
+                  return(refimage);
+            }
+            refimage = "Integration_S_map";
+            if (arrayFindImage(images, refimage)) {
+                  return(refimage);
+            }
+      } else {
+            refimage = "Integration_" + suggestion + "_map";
+            if (arrayFindImage(images, refimage)) {
+                  return(refimage);
+            }
+            throwFatalError("Could not find linear fit reference image " + suggestion);
+      }
+      // Just pick something
+      return(images[0]);
+}
+
+/* Copy images with _map name so we do not change the original
+ * images (Integration_H -> Integration_H_map).
+ */
+function copyToMapImages(images)
+{
+      console.writeln("copyToMapImages");
+      for (var i = 0; i < images.length; i++) {
+            var copyname = images[i] + "_map";
+            copyWindow(findWindow(images[i]), copyname);
+            images[i] = copyname;
+      }
+}
+
+function mapRGBchannel(images, refimage, mapping)
+{
+      console.writeln("mapRGBchannel");
+      copyToMapImages(images);
+      refimage = refimage + "_map";
+      if (images.length > 1) {
+            // run linear fit to match images nefore PixelMath
+            linearFitArray(refimage, images);
+            // create combined image
+            runPixelMathSingleMappingOverwrite(refimage, mapping);
+      }
+      return refimage;
+}
+
+function reduceNoiseOnChannelImage(image)
+{
+      console.writeln("reduceNoiseOnChannelImage " + image);
+      /* Create a temporary stretched copy to be used as a mask. */
+      var maskname = image + "_mask";
+      var image_win = findWindow(image);
+      var mask_win = copyWindow(image_win, maskname);
+      runHistogramTransform(mask_win, null, false);
+      runMultiscaleLinearTransformReduceNoise(image_win, mask_win);
+      closeOneWindow(maskname);
+}
+
 /* Do custom mapping of channels to RGB image. We do some the same 
  * stuff here as in CombineRGBimage.
  */
@@ -1768,138 +1828,127 @@ function customMapping()
 {
       var RBGmapping = { combined: true, stretched: true};
 
-      addProcessingStep("customMapping");
+      addProcessingStep("Custom mapping");
 
       /* Get updated mapping strings and collect images
        * used in mapping.
        */
-      var images = [];
-      var red_mapping = mapCustomAndReplaceImageNames('R', images);
-      var green_mapping = mapCustomAndReplaceImageNames('G', images);
-      var blue_mapping = mapCustomAndReplaceImageNames('B', images);
+      var R_images = [];
+      var G_images = [];
+      var B_images = [];
 
-      if (mapping_on_linear_data) {
-            /* Do linear fit before pixelmath on non-strectched linear images with _map added to name.
-             */
-            var refid = -1;
-            for (var i = 0; i < images.length; i++) {
-                  // Try find other that Ha as reference as we do not want the strongest
-                  // signal as reference.
-                  if (images[i] == "Integration_O") {
-                        refid = i;
-                  }
-                  if (refid == -1 && images[i] == "Integration_S") {
-                        refid = i;
-                  }
-                  /* Make a copy so we do not change the original integrated images. */
-                  var copyname = images[i] + "_map";
-                  copyWindow(findWindow(images[i]), copyname);
-                  images[i] = copyname;
-                  if (use_noise_reduction_on_all_channels) {
-                        runMultiscaleLinearTransformReduceNoise(images[i], null);
-                  }
-            }
-            if (refid == -1) {
-                  // Just pick something
-                  refid = 0;
-            }
-            for (var i = 0; i < images.length; i++) {
-                  if (i != refid) {
-                        copyWindow(findWindow(images[i]), images[i] + "_before_linear_fit");
-                        runLinearFit(images[refid], images[i]);
-                        copyWindow(findWindow(images[i]), images[i] + "_after_linear_fit");
-                  }
-            }
-            RBGmapping.stretched = false;
-      } else {
-            /* Stretch images to non-linear with _map added to name.
-             */
-            addProcessingStep("customMapping, stretch images");
-            for (var i = 0; i < images.length; i++) {
-                  /* Make a copy so we do not change the original integrated images. */
-                  var copy_win = copyWindow(findWindow(images[i]), images[i] + "_map");
-                  if (use_noise_reduction_on_all_channels) {
-                        runMultiscaleLinearTransformReduceNoise(copy_win, null);
-                  }
-                  runHistogramTransform(copy_win, null, false);
-            }
-            RBGmapping.stretched = true;
-      }
-
-      /* Run PixelMath to create a combined RGB image.
+      /* Get a modfied mapping with tags replaced with real image names.
        */
-      RGB_win_id = runPixelMathMapping("Integration_RGB", red_mapping, green_mapping, blue_mapping);
+      var red_mapping = mapCustomAndReplaceImageNames('R', R_images);
+      var green_mapping = mapCustomAndReplaceImageNames('G', G_images);
+      var blue_mapping = mapCustomAndReplaceImageNames('B', B_images);
 
-      RGB_win = findWindow(RGB_win_id);
-      RGB_win.show();
-      addScriptWindow(RGB_win_id);
+      if (narrowband) {
+            /* For narrowband we have two options:
+             *
+             * 1. Do PixelMath mapping in linear format.
+             *    https://jonrista.com/the-astrophotographers-guide/pixinsights/narrow-band-combinations-with-pixelmath-hoo/
+             * 2. We do auto-stretch of images before PixelMath. Stretch is done to make
+             *    images roughtly match with each other. In this case we have already stretched image.
+             *    https://www.lightvortexastronomy.com/tutorial-narrowband-bicolour-palette-combinations.html
+             *    https://www.lightvortexastronomy.com/tutorial-narrowband-hubble-palette.html
+             * 
+             * User can choose in the GUI interface which one to use.
+             */
+            var images = R_images.concat(G_images, B_images);
+
+            /* Make a copy so we do not change the original integrated images.
+             * Here we create image with _map added to the end 
+             * (Integration_H -> Integration_H_map).
+             */
+            copyToMapImages(images);
+
+            if (use_noise_reduction_on_all_channels) {
+                  // Optionally do noise reduction on linear state
+                  for (var i = 0; i < images.length; i++) {
+                        reduceNoiseOnChannelImage(images[i]);
+                  }
+            }
+
+            if (!mapping_on_nonlinear_data) {
+                  /* We run PixelMath using linear images. 
+                   */
+                  addProcessingStep("Custom mapping, linear narrowband images");
+                  RBGmapping.stretched = false;
+            } else {
+                  /* Stretch images to non-linear before combining with PixelMath.
+                   */
+                  addProcessingStep("Custom mapping, stretched narrowband images");
+                  for (var i = 0; i < images.length; i++) {
+                        runHistogramTransform(findWindow(images[i]), null, false);
+                  }
+                  RBGmapping.stretched = true;
+            }
+            if (narrowband_linear_fit != "None") {
+                  /* Do a linear fit of images before PixelMath. We do this on both cases,
+                  * linear and stretched.
+                  */
+                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
+                  linearFitArray(refimage, images);
+            }
+
+            /* Run PixelMath to create a combined RGB image.
+             */
+            RGB_win_id = runPixelMathRGBMapping("Integration_RGB", red_mapping, green_mapping, blue_mapping);
+
+            RGB_win = findWindow(RGB_win_id);
+            RGB_win.show();
+            addScriptWindow(RGB_win_id);
+
+      } else {
+            // We have both RGB and narrowband, do custom mapping on individual channels.
+            // Here we just create different combined channels in linear format and
+            // then continue as normal RGB processing.
+            // If we have multiple images in mappiong we use linmear fit to match
+            // them before PixelMath.
+            addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
+            if (is_luminance_images) {
+                  var L_images = [];
+                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images);
+                  luminance_id = mapRGBchannel(L_images, "Integration_L", luminance_mapping);
+            }
+
+            red_id = mapRGBchannel(R_images, "Integration_R", red_mapping);
+            green_id = mapRGBchannel(G_images, "Integration_G", green_mapping);
+            blue_id = mapRGBchannel(B_images, "Integration_B", blue_mapping);
+            
+            RBGmapping.combined = false;
+            RBGmapping.stretched = false;
+      }
 
       return RBGmapping;
 }
 
+/* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
+ */
 function mapLRGBchannels()
 {
       var RBGmapping = { combined: false, stretched: false};
-      var rgb = R_id != null || G_id != null || B_id != null;;
+
+      var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null;
+      var custom_mapping = narrowband;
+
+      if (rgb && narrowband) {
+            addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
+            narrowband = false;
+      }
+      if (narrowband) {
+            addProcessingStep("Processing as narrowband image");
+      }
 
       addProcessingStep("Map LRGB channels");
 
-      if (narrowband) {
-            // we have some narrowband files, group them to LRGB files
-            var mapping;
-            if (rgb) {
-                  // We have both RGB and SHO, use mapping
-                  mapping = narrowband_RGB_mapping;
-            } else {
-                  // We have no RGB files, just use a direct palette mapping
-                  mapping = 'palette';
-            }
-            if (O_id == null && S_id == null) {
-                  // We have only Ha
-                  luminance_id = L_id;
-                  red_id = R_id;
-                  green_id = G_id;
-                  blue_id = B_id;
-                  if (Halpha_RGB_mapping == 'L') {
-                        if (mapping == 'max') {
-                              addProcessingStep("Ha but no SII or OIII, map Ha as max(L,Ha)");
-                              luminance_id = mapMax(L_id, H_id);
-                        }
-                  } else if (Halpha_RGB_mapping == 'R') {
-                        if (mapping == 'max') {
-                              addProcessingStep("Ha but no SII or OIII, map Ha as max(R,Ha)");
-                              red_id = mapMax(R_id, H_id);
-                        }
-                  } else if (Halpha_RGB_mapping == 'LR') {
-                        if (mapping == 'max') {
-                              addProcessingStep("Ha but no SII or OIII, map Ha as max(L,Ha) and max(R,Ha)");
-                              luminance_id = mapMax(L_id, H_id);
-                              red_id = mapMax(R_id, H_id);
-                        }
-                  }
-            } else {
-                  if (narrowband_palette == 'SHO' && mapping == 'max') {
-                        addProcessingStep("Narrowband files, map as max(SHO, RGB)");
-                        red_id = mapMax(R_id, S_id);
-                        green_id = mapMax(G_id, H_id);
-                        blue_id = mapMax(B_id, O_id);
-                  } else if (narrowband_palette == 'HOS' && mapping == 'max') {
-                        addProcessingStep("Narrowband files, map as max(HOS, RGB)");
-                        red_id = mapMax(R_id, H_id);
-                        green_id = mapMax(G_id, O_id);
-                        blue_id = mapMax(B_id, S_id);
-                  } else if (narrowband_palette == 'HOO' && mapping == 'max') {
-                        addProcessingStep("Narrowband files, map as max(HOO, RGB)");
-                        red_id = mapMax(R_id, H_id);
-                        green_id = mapMax(G_id, O_id);
-                        blue_id = mapMax(B_id, O_id);
-                  } else {
-                        addProcessingStep("Narrowband files, custom mapping");
-                        RBGmapping = customMapping();
-                  }
-            }
+      if (custom_mapping) {
+            addProcessingStep("Narrowband files, use custom mapping");
+            RBGmapping = customMapping();
       } else {
+            addProcessingStep("Normal RGB processing");
             luminance_id = L_id;
             red_id = R_id;
             green_id = G_id;
@@ -1908,6 +1957,7 @@ function mapLRGBchannels()
       return RBGmapping;
 }
 
+// add as a first item, first item should be the best image
 function insert_image_for_integrate(images, new_image)
 {
       images.unshift(new Array(2));
@@ -1915,6 +1965,7 @@ function insert_image_for_integrate(images, new_image)
       images[0][1] = new_image;           // path
 }
 
+// add to the end
 function append_image_for_integrate(images, new_image)
 {
       console.writeln("append_image_for_integrate " + new_image);
@@ -2717,11 +2768,7 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
             return;
       }
 
-      if (MaskView == null) {
-            addProcessingStep("Noise reduction on " + imgView.mainView.id + " with no mask");
-      } else {
-            addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
-      }
+      addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
       var P = new MultiscaleLinearTransform;
       // Mild noise reedection
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
@@ -2859,6 +2906,7 @@ function runBackgroundNeutralization(imgView)
 function runColorCalibration(imgView)
 {
       if (narrowband) {
+            addProcessingStep("No Color calibration for narrowband");
             return;
       }
       addProcessingStep("Color calibration on " + imgView.id);
@@ -3578,7 +3626,7 @@ function ColorCreateMask(color_id, RBGstretched)
  * run histogram transformation on L to make in non-linear
  * by default run noise reduction on L image using a mask
  */
-function ProcessLimage()
+function ProcessLimage(RBGmapping)
 {
       addProcessingStep("ProcessLimage");
 
@@ -3599,26 +3647,36 @@ function ProcessLimage()
             } else {
                   var L_win = ImageWindow.windowById(luminance_id);
 
-                  /* Optionally run ABE on L
-                  */
-                  if (use_ABE_on_L_RGB) {
-                        L_ABE_id = runABE(L_win);
-                  } else {
-                        L_ABE_id = noABEcopyWin(L_win);
+                  if (!RBGmapping.stretched) {
+                        /* Optionally run ABE on L
+                        */
+                        if (use_ABE_on_L_RGB) {
+                              L_ABE_id = runABE(L_win);
+                        } else {
+                              L_ABE_id = noABEcopyWin(L_win);
+                        }
                   }
             }
 
-            /* Noise reduction for L. */
-            runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(L_ABE_id), mask_win);
+            if (!RBGmapping.combined) {
+                  /* Noise reduction for L. */
+                  runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(L_ABE_id), mask_win);
+            }
 
             /* On L image run HistogramTransform based on autostretch
             */
             L_ABE_HT_id = L_ABE_id + "_HT";
-            L_stf = runHistogramTransform(
-                        copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
-                        null,
-                        false);
-            if (!same_stf_for_all_images) {
+            if (!RBGmapping.stretched) {
+                  L_stf = runHistogramTransform(
+                              copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
+                              null,
+                              false);
+                  if (!same_stf_for_all_images) {
+                        L_stf = null;
+                  }
+            } else {
+                  copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id);
+                  same_stf_for_all_images = false;
                   L_stf = null;
             }
 
@@ -4450,8 +4508,9 @@ function AutoIntegrateEngine(auto_continue)
             var RBGmapping = { combined: false, stretched: false};
 
             if (processRGB) {
-                  /* Do possibloe channel mapping. After that we 
+                  /* Do possible channel mapping. After that we 
                    * have red_id, green_id and blue_id.
+                   * Or we may have a mapped RGB image.
                    */
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
@@ -4464,7 +4523,7 @@ function AutoIntegrateEngine(auto_continue)
                    * L image.
                    */
                   LRGBCreateMask();
-                  ProcessLimage();
+                  ProcessLimage(RBGmapping);
             }
 
             if (processRGB && !RBGmapping.combined) {
@@ -5470,12 +5529,8 @@ function AutoIntegrateDialog()
       this.narrowbandColorPaletteLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
 
-      this.narrowbandColorPalette_sizer = new HorizontalSizer;
-      this.narrowbandColorPalette_sizer.margin = 6;
-      this.narrowbandColorPalette_sizer.spacing = 4;
-      this.narrowbandColorPalette_sizer.add( this.narrowbandColorPaletteLabel );
-
-      /* Narrowband mappings. */
+      /* Narrowband to RGB mappings. 
+       */
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_ComboBox.addItem( "SHO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOS" );
@@ -5485,6 +5540,8 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "Natural HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "3-channel HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Dynamic SHO" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,H)" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
       this.narrowbandCustomPalette_ComboBox.toolTip = narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
@@ -5493,70 +5550,60 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 1:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 2:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 3:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.6*S + 0.4*H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.7*H + 0.3*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 4:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.75*H + 0.25*S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.50*S + 0.50*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.30*H + 0.70*O";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 5:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.8*O+0.2*H";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 6:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.76*H+0.24*S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
                         break;
                   case 7:
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "(O^~O)*S + ~(O^~O)*H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-                        custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-                        custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
+                        break;
+                  case 8:
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
+                        break;
+                  case 9:
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "max(G, O)";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "max(B, O)";
                         break;
             }
+            custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
+            custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
+            custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
       };
 
-      /* Create Editable boxes for R, G and B mapping. */
+      /* Create Editable boxes for R, G and B mapping. 
+       */
       this.narrowbandCustomPalette_R_Label = new Label( this );
       this.narrowbandCustomPalette_R_Label.text = "R";
       this.narrowbandCustomPalette_R_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
@@ -5603,6 +5650,7 @@ function AutoIntegrateDialog()
       };
 
       this.narrowbandCustomPalette_Sizer = new HorizontalSizer;
+      this.narrowbandCustomPalette_Sizer.margin = 6;
       this.narrowbandCustomPalette_Sizer.spacing = 4;
       this.narrowbandCustomPalette_Sizer.toolTip = narrowbandToolTip;
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_ComboBox );
@@ -5612,104 +5660,112 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_G_ComboBox );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
-      this.narrowbandCustomPalette_Sizer.addStretch();
 
-      this.mapping_on_linear_data_CheckBox = newCheckBox(this, "Narrowband mapping using linear data", mapping_on_linear_data, 
+      this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", mapping_on_nonlinear_data, 
             "<p>" +
-            "Do narrowband mapping using linear data. Linear fit is run on data before combining RBG image using PixelMath. " +
-            "Combined RGB image is later stretched to non-linear." + 
-            "</p><p>" +
-            "By default images are stretched to non-linear before combining with PixelMath." +
+            "Do narrowband mapping using non-linear data. Before running PixelMath images are stretched to non-linear state. " +
             "</p>" );
-      this.mapping_on_linear_data_CheckBox.onClick = function(checked) { 
-            mapping_on_linear_data = checked; 
-            SetOptionChecked("Narrowband mapping using linear data", checked); 
+      this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
+            mapping_on_nonlinear_data = checked; 
+            SetOptionChecked("Narrowband mapping using non-linear data", checked); 
       }
 
-      this.HalphaLabel = new Label( this );
-      this.HalphaLabel.text = "Ha to RGB";
-      this.HalphaLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.HalphaLabel.toolTip = "<p>Where to map H-alpha channel in RGB image.</p>";
-      this.HalphaComboBox = new ComboBox( this );
-      this.HalphaComboBox.addItem( "R" );
-      this.HalphaComboBox.addItem( "L" );
-      this.HalphaComboBox.addItem( "L,R" );
-      this.HalphaComboBox.onItemSelected = function( itemIndex )
+      this.narrowbandLinearFit_Label = new Label( this );
+      this.narrowbandLinearFit_Label.text = "Linear fit";
+      this.narrowbandLinearFit_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      this.narrowbandLinearFit_Label.toolTip = 
+            "<p>" +
+            "Linear fit setting before running PixelMath." +
+            "</p><p>" +
+            "None does not use linear fit.<br>" +
+            "Auto uses linear fit and tries to choose a less bright channel, first O and then S.<br>" +
+            "Other selections use linear fit with that channel image." +
+            "</p>";
+      this.narrowbandLinearFit_Label.margin = 6;
+      this.narrowbandLinearFit_Label.spacing = 4;
+      this.narrowbandLinearFit_ComboBox = new ComboBox( this );
+      this.narrowbandLinearFit_ComboBox.addItem( "None" );
+      this.narrowbandLinearFit_ComboBox.addItem( "H" );
+      this.narrowbandLinearFit_ComboBox.addItem( "S" );
+      this.narrowbandLinearFit_ComboBox.addItem( "O" );
+      this.narrowbandLinearFit_ComboBox.addItem( "Auto" );
+      this.narrowbandLinearFit_ComboBox.toolTip = this.narrowbandLinearFit_Label.toolTip;
+      this.narrowbandLinearFit_ComboBox.onItemSelected = function( itemIndex )
       {
-            RemoveOption("Ha to RGB");
             switch (itemIndex) {
                   case 0:
-                        SetOptionValue("Ha to RGB", "R"); 
-                        Halpha_RGB_mapping = 'R';
+                        narrowband_linear_fit = "None";
                         break;
                   case 1:
-                        SetOptionValue("Ha to RGB", "L"); 
-                        Halpha_RGB_mapping = 'L';
+                        narrowband_linear_fit = "H";
                         break;
                   case 2:
-                        SetOptionValue("Ha to RGB", "L and R"); 
-                        Halpha_RGB_mapping = 'LR';
+                        narrowband_linear_fit = "S";
+                        break;
+                  case 3:
+                        narrowband_linear_fit = "O";
+                        break;
+                  case 4:
+                        narrowband_linear_fit = "Auto";
                         break;
             }
+            custom_L_mapping = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
       };
-      this.HalphaSizer = new HorizontalSizer;
-      this.HalphaSizer.spacing = 4;
-      this.HalphaSizer.add( this.HalphaLabel );
-      this.HalphaSizer.add( this.HalphaComboBox );
-      this.HalphaSizer.addStretch();
 
-      this.NbRGBLabel = new Label( this );
-      this.NbRGBLabel.text = "RGB mapping";
-      this.NbRGBLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.NbRGBLabel.toolTip = "<p>How to map narrowband channels in RGB image if both are present. Channels are mapped using the color palette choice " +
-                                "except when only Ha is available. Then Ha is mapped as specified in Ha to RGB mapping.</p>" +
-                                "<p>- max means that max pixel value of Narrowband or RGB is used. Works only with SHO, HOS and HOO palettes.</p>" +
-                                "<p>- custom means that narrowband files are mapped as in narrowband color palette section.</p>";
-      this.NbRGBComboBox = new ComboBox( this );
-      this.NbRGBComboBox.addItem( "max" );
-      this.NbRGBComboBox.addItem( "custom" );
-      this.NbRGBComboBox.onItemSelected = function( itemIndex )
+
+      this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
+      this.mapping_on_nonlinear_data_Sizer.margin = 6;
+      this.mapping_on_nonlinear_data_Sizer.spacing = 4;
+      this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
+      this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
+      this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_ComboBox );
+
+      /* Luminance channel mapping.
+       */
+      this.narrowbandLuminancePalette_ComboBox = new ComboBox( this );
+      this.narrowbandLuminancePalette_ComboBox.addItem( "L" );
+      this.narrowbandLuminancePalette_ComboBox.addItem( "max(L, H)" );
+      this.narrowbandLuminancePalette_ComboBox.toolTip = "Mapping of Luminance channel with narrowband data, if both are available.";
+      this.narrowbandLuminancePalette_ComboBox.onItemSelected = function( itemIndex )
       {
-            RemoveOption("Narrowband to RGB");
             switch (itemIndex) {
                   case 0:
-                        SetOptionValue("Narrowband to RGB", "max(NB,R)"); 
-                        narrowband_RGB_mapping = 'max';
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "L";
                         break;
                   case 1:
-                        SetOptionValue("Narrowband to RGB", "custom"); 
-                        narrowband_RGB_mapping = 'custom';
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "max(L, H)";
                         break;
             }
+            custom_L_mapping = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
       };
+
+      this.narrowbandCustomPalette_L_Label = new Label( this );
+      this.narrowbandCustomPalette_L_Label.text = "L";
+      this.narrowbandCustomPalette_L_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      this.narrowbandCustomPalette_L_Label.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
+      this.narrowbandCustomPalette_L_ComboBox = new ComboBox( this );
+      this.narrowbandCustomPalette_L_ComboBox.enabled = true;
+      this.narrowbandCustomPalette_L_ComboBox.editEnabled = true;
+      this.narrowbandCustomPalette_L_ComboBox.addItem(custom_L_mapping);
+      this.narrowbandCustomPalette_L_ComboBox.addItem("max(L, H)");
+      this.narrowbandCustomPalette_L_ComboBox.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip
+      this.narrowbandCustomPalette_L_ComboBox.onEditTextUpdated = function() { 
+            custom_L_mapping = this.editText.trim(); 
+            SetOptionValue("Narrowband L mapping", this.editText); 
+      };
+
+      this.NbRGBLabel = new Label( this );
+      this.NbRGBLabel.text = "Luminance mapping";
+      this.NbRGBLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.NbRGBLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
       this.NbRGBSizer = new HorizontalSizer;
+      this.NbRGBSizer.margin = 6;
       this.NbRGBSizer.spacing = 4;
       this.NbRGBSizer.add( this.NbRGBLabel );
-      this.NbRGBSizer.add( this.NbRGBComboBox );
+      this.NbRGBSizer.add( this.narrowbandLuminancePalette_ComboBox );
+      this.NbRGBSizer.add( this.narrowbandCustomPalette_L_Label );
+      this.NbRGBSizer.add( this.narrowbandCustomPalette_L_ComboBox );
       this.NbRGBSizer.addStretch();
-
-      this.max_linear_fit_CheckBox = newCheckBox(this, "No linear fit before max()", skip_max_linear_fit, 
-      "<p>Do not use linear fit before applying max() on Narrowband to RGB.</p>" );
-      this.max_linear_fit_CheckBox.onClick = function(checked) { 
-            skip_max_linear_fit = checked; 
-            SetOptionChecked("No linear fit before max()", checked); 
-      }
-
-      this.NbRGBmapping_sizer1 = new VerticalSizer;
-      this.NbRGBmapping_sizer1.margin = 6;
-      this.NbRGBmapping_sizer1.spacing = 4;
-      this.NbRGBmapping_sizer1.add( this.NbRGBSizer );
-      this.NbRGBmapping_sizer1.add( this.max_linear_fit_CheckBox );
-
-      this.NbRGBmapping_sizer2 = new VerticalSizer;
-      this.NbRGBmapping_sizer2.margin = 6;
-      this.NbRGBmapping_sizer2.spacing = 4;
-      this.NbRGBmapping_sizer2.add( this.HalphaSizer );
-
-      this.NbRGBmapping_sizer = new HorizontalSizer;
-      this.NbRGBmapping_sizer.add( this.NbRGBmapping_sizer1 );
-      this.NbRGBmapping_sizer.add( this.NbRGBmapping_sizer2 );
-      this.NbRGBmapping_sizer.addStretch();
 
       // Button to continue narrowband from existing files
       this.autoContinueNarrowbandButton = new PushButton( this );
@@ -5721,7 +5777,7 @@ function AutoIntegrateDialog()
             "RGB_HT<br>" +
             "Integration_RGB_BE<br>" +
             "Integration_H_BE + Integration_O_BE + Integration_S_BE<br>" +
-            "Integration_H + Integration_O + Integration_S<br>" +
+            "Integration_H + Integration_S + Integration_O<br>" +
             "Final image (for extra processing)" +
             "</p>";
       this.autoContinueNarrowbandButton.onClick = function()
@@ -5751,10 +5807,10 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer = new VerticalSizer;
       this.narrowbandGroupBox.sizer.margin = 6;
       this.narrowbandGroupBox.sizer.spacing = 4;
-      this.narrowbandGroupBox.sizer.add( this.narrowbandColorPalette_sizer );
+      this.narrowbandGroupBox.sizer.add( this.narrowbandColorPaletteLabel );
       this.narrowbandGroupBox.sizer.add( this.narrowbandCustomPalette_Sizer );
-      this.narrowbandGroupBox.sizer.add( this.mapping_on_linear_data_CheckBox );
-      this.narrowbandGroupBox.sizer.add( this.NbRGBmapping_sizer );
+      this.narrowbandGroupBox.sizer.add( this.mapping_on_nonlinear_data_Sizer );
+      this.narrowbandGroupBox.sizer.add( this.NbRGBSizer );
       this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
       // Narrowband extra processing
