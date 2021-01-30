@@ -69,7 +69,7 @@ Steps with LRGB files
 3. HistogramTransform is run on L image. <lHT>
 4. Streched L image is stored as a mask unless user has a predefined mask named range_mask.
 5. Noise reduction is run on L image using a mask.
-6. *REMOVED* If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
+6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
 7. If use_linear_fit is selected then LinearFit is run on RGB channels using L, R, G or B as a reference
 8. If use_noise_reduction_on_all_channels is selected then noise reduction is done separately 
@@ -221,6 +221,7 @@ var non_linear_increase_saturation = 1;         /* Keep to 1, or check narrowban
 var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
+var ABE_before_channel_combination = false;
 var use_ABE_on_L_RGB = false;
 var color_calibration_before_ABE = false;
 var use_background_neutralization = false;
@@ -1758,6 +1759,15 @@ function arrayFindImage(images, image)
       return false;
 }
 
+function arrayAppendCheckDuplicates(images, appimages)
+{
+      for (var i = 0; i < appimages.length; i++) {
+            if (!arrayFindImage(images, appimages[i])) {
+                  images[images.length] = appimages[i];
+            }
+      }
+}
+
 function findLinearFitHSOMapRefimage(images, suggestion)
 {
       var refimage;
@@ -1855,13 +1865,23 @@ function customMapping()
              * 
              * User can choose in the GUI interface which one to use.
              */
-            var images = R_images.concat(G_images, B_images);
+            var images = [];
+            arrayAppendCheckDuplicates(images, R_images);
+            arrayAppendCheckDuplicates(images, G_images);
+            arrayAppendCheckDuplicates(images, B_images);
 
             /* Make a copy so we do not change the original integrated images.
              * Here we create image with _map added to the end 
              * (Integration_H -> Integration_H_map).
              */
             copyToMapImages(images);
+
+            if (ABE_before_channel_combination) {
+                  // Optionally do ABE on channel images
+                  for (var i = 0; i < images.length; i++) {
+                        run_ABE_before_channel_combination(images[i]);
+                  }
+            }
 
             if (use_noise_reduction_on_all_channels) {
                   // Optionally do noise reduction on linear state
@@ -2539,6 +2559,17 @@ function runABE(win)
       addScriptWindow(ABE_id);
 
       return ABE_id;
+}
+
+// Run ABE and rename windows so that the final result has the same id
+function run_ABE_before_channel_combination(id)
+{
+      var id_win = ImageWindow.windowById(id);
+
+      var ABE_id = runABE(id_win);
+
+      closeOneWindow(id);
+      windowRename(ABE_id, id);
 }
 
 /*
@@ -3650,7 +3681,7 @@ function ProcessLimage(RBGmapping)
                   if (!RBGmapping.stretched) {
                         /* Optionally run ABE on L
                         */
-                        if (use_ABE_on_L_RGB) {
+                        if (use_ABE_on_L_RGB && !ABE_before_channel_combination) {
                               L_ABE_id = runABE(L_win);
                         } else {
                               L_ABE_id = noABEcopyWin(L_win);
@@ -4514,6 +4545,12 @@ function AutoIntegrateEngine(auto_continue)
                    */
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
+                        if (ABE_before_channel_combination) {
+                              run_ABE_before_channel_combination(luminance_id);
+                              run_ABE_before_channel_combination(red_id);
+                              run_ABE_before_channel_combination(green_id);
+                              run_ABE_before_channel_combination(blue_id);
+                        }
                         LinearFitLRGBchannels();
                   }
             }
@@ -4820,7 +4857,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.74</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.75</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -4857,7 +4894,7 @@ function AutoIntegrateDialog()
       "</p><p>" +
       "Default options are typically a pretty good start for most images but sometimes "+
       "a few changes are needed for OSC (One Shot Color) files. If there is a strong color cast and/or "+
-      "vignetting it is worth trying with Use ABE and Use BackgroudNeutralization options. "+
+      "vignetting it is worth trying with Use ABE on combined images and Use BackgroudNeutralization options. "+
       "Sometimes also choosing Unlinked in Link RGB channel option helps. "+
       "Examples where these options may be useful are DSRL files and Slooh Canary Three telescope. " +
       "</p><p>" +
@@ -5004,15 +5041,22 @@ function AutoIntegrateDialog()
             SetOptionChecked("Keep integrated images", checked); 
       }
 
-      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE", use_ABE_on_L_RGB, 
-      "<p>Use AutomaticBackgroundExtractor on L and RGB images separately</p>" );
+      this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", ABE_before_channel_combination, 
+      "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
+      this.ABE_before_channel_combination_CheckBox.onClick = function(checked) { 
+            ABE_before_channel_combination = checked; 
+            SetOptionChecked("Use ABE on L, R, G, B channels", checked); 
+      }
+
+      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", use_ABE_on_L_RGB, 
+      "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
       this.useABE_L_RGB_CheckBox.onClick = function(checked) { 
             use_ABE_on_L_RGB = checked; 
-            SetOptionChecked("Use ABE on L, RGB", checked); 
+            SetOptionChecked("Use ABE on L and RGB", checked); 
       }
 
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
-      "<p>Run ColorCalibration before AutomaticBackgroundExtractor</p>" );
+      "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
             color_calibration_before_ABE = checked; 
             SetOptionChecked("Color calibration before ABE", checked); 
@@ -5172,6 +5216,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.skip_color_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
+      this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
       //this.imageParamsSet2.add( this.useABE_final_CheckBox );   Not sure if this useful fo leaving off for now.
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
