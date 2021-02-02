@@ -218,6 +218,8 @@ var skip_subframeselector = false;
 var skip_cosmeticcorrection = false;
 var linear_increase_saturation = 1;             /* Keep to 1, or check narrowband. */
 var non_linear_increase_saturation = 1;         /* Keep to 1, or check narrowband. */
+var LRGBCombination_lightness = 0.5;
+var LRGBCombination_saturation = 0.5;
 var strict_StarAlign = false;
 var keep_integrated_images = false;
 var run_HT = true;
@@ -3090,7 +3092,7 @@ function runLRGBCombination(RGB_id, L_id)
 {
       var targetWin = copyWindow(ImageWindow.windowById(RGB_id), RGB_id.replace("RGB", "LRGB"));
       var RGBimgView = targetWin.mainView;
-      addProcessingStep("LRGB combination of " + RGB_id + "and luminance image " + L_id + " into " + RGBimgView.id);
+      addProcessingStep("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
             [false, "", 1.00000],
@@ -3098,8 +3100,8 @@ function runLRGBCombination(RGB_id, L_id)
             [false, "", 1.00000],
             [true, L_id, 1.00000]
       ];
-      P.mL = 0.500;
-      P.mc = 0.500;
+      P.mL = LRGBCombination_lightness;
+      P.mc = LRGBCombination_saturation;
       P.clipHighlights = true;
       P.noiseReduction = true;
       P.layersRemoved = 4;
@@ -4857,7 +4859,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.75</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.76</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -5233,6 +5235,42 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet2 );
       // Stop columns of buttons moving as dialog expands horizontally.
       //this.imageParamsGroupBox.sizer.addStretch();
+
+      // LRGBCombination selection
+
+      this.LRGBCombinationLightnessControl = new NumericControl( this );
+      this.LRGBCombinationLightnessControl.label.text = "Lightness";
+      this.LRGBCombinationLightnessControl.setRange(0, 1);
+      this.LRGBCombinationLightnessControl.setValue(LRGBCombination_lightness);
+      this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image.</p>";
+      this.LRGBCombinationLightnessControl.onValueUpdated = function( value )
+      {
+            SetOptionValue("LRGBCombination lightness", value);
+            LRGBCombination_lightness = value;
+      };
+
+      this.LRGBCombinationSaturationControl = new NumericControl( this );
+      this.LRGBCombinationSaturationControl.label.text = "Saturation";
+      this.LRGBCombinationSaturationControl.setRange(0, 1);
+      this.LRGBCombinationSaturationControl.setValue(LRGBCombination_saturation);
+      this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image</p>";
+      this.LRGBCombinationSaturationControl.onValueUpdated = function( value )
+      {
+            SetOptionValue("LRGBCombination saturation", value);
+            LRGBCombination_saturation = value;
+      };
+
+      this.LRGBCombinationGroupBox = new newGroupBox( this );
+      this.LRGBCombinationGroupBox.title = "LRGBCombination settings";
+      this.LRGBCombinationGroupBox.toolTip = 
+            "LRGBCombination settings can be used to fine tune image. For relatively small " +
+            "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.";
+      this.LRGBCombinationGroupBox.sizer = new VerticalSizer;
+      this.LRGBCombinationGroupBox.sizer.margin = 6;
+      this.LRGBCombinationGroupBox.sizer.spacing = 4;
+      this.LRGBCombinationGroupBox.sizer.add( this.LRGBCombinationLightnessControl );
+      this.LRGBCombinationGroupBox.sizer.add( this.LRGBCombinationSaturationControl );
+      //this.LRGBCombinationGroupBox.sizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -6231,6 +6269,7 @@ function AutoIntegrateDialog()
       this.col2 = new VerticalSizer;
       this.col2.margin = 6;
       this.col2.spacing = 6;
+      this.col2.add( this.LRGBCombinationGroupBox );
       this.col2.add( this.saturationGroupBox );
       this.col2.add( this.weightGroupBox );
       this.col2.add( this.linearFitGroupBox );
