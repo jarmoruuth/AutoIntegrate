@@ -4877,10 +4877,13 @@ function AutoIntegrateDialog()
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in Pixinsight." +
       "</p><p>"+
-      "Always remember to check you data with Blink tool and rem,ove all bad images." +
+      "Always remember to check you data with Blink tool and remove all bad images." +
       "</p><p>" +
       "Sometimes images need some shadow cleanup with HistogramTransformation tool. "+
-      "Depending on the image you can try clipping shadows between %0.01 and %0.1." +
+      "Depending on the image you can try clipping shadows between %0.01 and %0.1. " +
+      "If default stretch creates too bright image try moving the histogram to the left " +
+      "using HistogramTransformation tool." +
+      "</p><p>" +
       "</p><p>" +
       "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
       "Changing the curve to a slight S can be helpful. " +
@@ -5242,7 +5245,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationLightnessControl.label.text = "Lightness";
       this.LRGBCombinationLightnessControl.setRange(0, 1);
       this.LRGBCombinationLightnessControl.setValue(LRGBCombination_lightness);
-      this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image.</p>";
+      this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>";
       this.LRGBCombinationLightnessControl.onValueUpdated = function( value )
       {
             SetOptionValue("LRGBCombination lightness", value);
@@ -5253,7 +5256,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationSaturationControl.label.text = "Saturation";
       this.LRGBCombinationSaturationControl.setRange(0, 1);
       this.LRGBCombinationSaturationControl.setValue(LRGBCombination_saturation);
-      this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image</p>";
+      this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>";
       this.LRGBCombinationSaturationControl.onValueUpdated = function( value )
       {
             SetOptionValue("LRGBCombination saturation", value);
@@ -5276,11 +5279,12 @@ function AutoIntegrateDialog()
       this.linearSaturationLabel = new Label( this );
       this.linearSaturationLabel.text = "Linear saturation increase";
       this.linearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.linearSaturationLabel.toolTip = "<p>Saturation increase in linear state using a mask.</p>";
       this.linearSaturationSpinBox = new SpinBox( this );
       this.linearSaturationSpinBox.minValue = 0;
       this.linearSaturationSpinBox.maxValue = 5;
       this.linearSaturationSpinBox.value = linear_increase_saturation;
-      this.linearSaturationSpinBox.toolTip = "<p>Saturation increase in linear state.</p>";
+      this.linearSaturationSpinBox.toolTip = this.linearSaturationLabel.toolTip;
       this.linearSaturationSpinBox.onValueUpdated = function( value )
       {
             SetOptionValue("Linear saturation increase", value);
@@ -5290,11 +5294,12 @@ function AutoIntegrateDialog()
       this.nonLinearSaturationLabel = new Label( this );
       this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
       this.nonLinearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.nonLinearSaturationLabel.toolTip = "<p>Saturation increase in non-linear state using a mask.</p>";
       this.nonLinearSaturationSpinBox = new SpinBox( this );
       this.nonLinearSaturationSpinBox.minValue = 0;
       this.nonLinearSaturationSpinBox.maxValue = 5;
       this.nonLinearSaturationSpinBox.value = non_linear_increase_saturation;
-      this.nonLinearSaturationSpinBox.toolTip = "<p>Saturation increase in non-linear state.</p>";
+      this.nonLinearSaturationSpinBox.toolTip = this.nonLinearSaturationLabel.toolTip;
       this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
       {
             SetOptionValue("Non-linear saturation increase", value);
