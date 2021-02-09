@@ -1594,6 +1594,9 @@ function replaceMappingImageNames(mapping, from, to, images)
                               replace = false;
                         }
                         if (replace) {
+                              if (findWindow(to) == null) {
+                                    throwFatalError("Could not find image window " + to + " that is needed for PixelMath mapping");
+                              }
                               add_missing_image(images, to);
                               mapping = mapping.substring(0, n) + to + "_map" + mapping.substring(n+1);
                               //console.writeln("replaceMappingImageNames mapped to " + mapping);
@@ -1648,8 +1651,8 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
       return mapping;
 }
 
-/* Run single expression PixelMath and overwrite target image. */
-function runPixelMathSingleMappingOverwrite(id, mapping)
+/* Run single expression PixelMath and create new image. */
+function runPixelMathSingleMapping(id, mapping)
 {
       addProcessingStep("Run PixelMath single mapping " + mapping + " using image " + id);
 
@@ -1675,9 +1678,9 @@ function runPixelMathSingleMappingOverwrite(id, mapping)
       P.truncate = true;
       P.truncateLower = 0;
       P.truncateUpper = 1;
-      P.createNewImage = false;
+      P.createNewImage = true;
       P.showNewImage = false;
-      P.newImageId = "";
+      P.newImageId = id + "_pm";
       P.newImageWidth = 0;
       P.newImageHeight = 0;
       P.newImageAlpha = false;
@@ -1688,7 +1691,7 @@ function runPixelMathSingleMappingOverwrite(id, mapping)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      return id;
+      return P.newImageId;
 }
 
 /* Run RGB channel combination using PixelMath. */
@@ -1810,15 +1813,21 @@ function copyToMapImages(images)
 function mapRGBchannel(images, refimage, mapping)
 {
       console.writeln("mapRGBchannel");
+      // copy files to _map names to avoid changing original files
       copyToMapImages(images);
       refimage = refimage + "_map";
-      if (images.length > 1) {
-            // run linear fit to match images nefore PixelMath
-            linearFitArray(refimage, images);
-            // create combined image
-            runPixelMathSingleMappingOverwrite(refimage, mapping);
+      if (findWindow(refimage) == null) {
+            refimage = images[0];
       }
-      return refimage;
+      if (images.length > 1) {
+            // run linear fit to match images before PixelMath
+            linearFitArray(refimage, images);
+      }
+      // create combined image
+      var target_image = runPixelMathSingleMapping(refimage, mapping);
+      // close all copied images as we may want use the same names in the next RGB round
+      closeAllWindowsFromArray(images);
+      return target_image;
 }
 
 function reduceNoiseOnChannelImage(image)
@@ -5623,13 +5632,14 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "SHO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOS" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "Hubble" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "Pseudo RGB" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "SHO Hubble" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Pseudo RGB" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Natural HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "3-channel HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Dynamic SHO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,H)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HOO Helix" );
       this.narrowbandCustomPalette_ComboBox.toolTip = narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
@@ -5683,6 +5693,11 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "max(G, O)";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "max(B, O)";
+                        break;
+                  case 10:
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "(0.4*H)+(0.6*O)";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
             }
             custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
