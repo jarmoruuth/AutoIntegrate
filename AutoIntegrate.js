@@ -243,6 +243,8 @@ var autocontinue_narrowband = false;
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
+var image_stretching = 'STF';
+var MaskedStretch_targetBackground = 0.125;
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
@@ -272,7 +274,7 @@ var custom_G_mapping = "H";
 var custom_B_mapping = "O";
 var custom_L_mapping = "L";
 var mapping_on_nonlinear_data = false;
-var narrowband_linear_fit = "None";
+var narrowband_linear_fit = "Auto";
 
 var extra_darker_background = false;
 var extra_HDRMLT= false;
@@ -1837,7 +1839,7 @@ function reduceNoiseOnChannelImage(image)
       var maskname = image + "_mask";
       var image_win = findWindow(image);
       var mask_win = copyWindow(image_win, maskname);
-      runHistogramTransform(mask_win, null, false);
+      runHistogramTransform(mask_win, null, false, 'mask');
       runMultiscaleLinearTransformReduceNoise(image_win, mask_win);
       closeOneWindow(maskname);
 }
@@ -1900,6 +1902,16 @@ function customMapping()
                         reduceNoiseOnChannelImage(images[i]);
                   }
             }
+            if (narrowband_linear_fit == "Auto"
+                && image_stretching == 'STF') 
+            {
+                  /* By default we do not do linear fit
+                   * if we stretch with STF. If we stretch
+                   * with MaskedStretch we use linear
+                   * for to balance channels better.
+                   * */
+                  narrowband_linear_fit = "None";
+            }
 
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
@@ -1911,7 +1923,7 @@ function customMapping()
                    */
                   addProcessingStep("Custom mapping, stretched narrowband images");
                   for (var i = 0; i < images.length; i++) {
-                        runHistogramTransform(findWindow(images[i]), null, false);
+                        runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
                   }
                   RBGmapping.stretched = true;
             }
@@ -2762,12 +2774,8 @@ function applySTF(imgView, stf, iscolor)
       imgView.endProcess();
 }
 
-function runHistogramTransform(ABE_win, stf_to_use, iscolor)
+function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor)
 {
-      if (!run_HT) {
-            addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
-            return null;
-      }
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
 
       if (stf_to_use == null) {
@@ -2802,6 +2810,58 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor)
       ABE_win.mainView.endProcess();
 
       return stf_to_use;
+}
+
+function runHistogramTransformMaskedStretch(ABE_win)
+{
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
+
+      var P = new MaskedStretch;
+      P.targetBackground = MaskedStretch_targetBackground;
+      P.numberOfIterations = 100;
+      P.clippingFraction = 0.00050000;
+      P.backgroundReferenceViewId = "";
+      P.backgroundLow = 0.00000000;
+      P.backgroundHigh = 0.05000000;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.maskType = MaskedStretch.prototype.MaskType_Intensity;
+
+      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      console.writeln("Execute MaskedStretch on " + ABE_win.mainView.id);
+      P.executeOn(ABE_win.mainView);
+
+      ABE_win.mainView.endProcess();
+
+      return null;
+}
+
+function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
+{
+      if (!run_HT) {
+            addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
+            return null;
+      }
+
+      if (image_stretching == 'STF' 
+          || type == 'mask'
+          || (image_stretching == 'Both' && type == 'L'))
+      {
+            return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor);
+
+      } else if (image_stretching == 'Masked'
+                 || (image_stretching == 'Both' && type == 'RGB'))
+      {
+            return runHistogramTransformMaskedStretch(ABE_win);
+
+      } else {
+            throwFatalError("Bad image_stretching value " + image_stretching + " with type " + type);
+            return null;
+      }
 }
 
 function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
@@ -3621,7 +3681,7 @@ function LRGBCreateMask()
                   L_win = copyWindow(L_win, "L_win_mask");
 
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  runHistogramTransform(L_win, null, false);
+                  runHistogramTransform(L_win, null, false, 'mask');
             }
             /* Create mask.
              */
@@ -3650,7 +3710,7 @@ function ColorCreateMask(color_id, RBGstretched)
 
             if (!RBGstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  runHistogramTransform(color_win, null, true);
+                  runHistogramTransform(color_win, null, true, 'mask');
             }
 
             /* Create mask.
@@ -3712,7 +3772,8 @@ function ProcessLimage(RBGmapping)
                   L_stf = runHistogramTransform(
                               copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
-                              false);
+                              false,
+                              'L');
                   if (!same_stf_for_all_images) {
                         L_stf = null;
                   }
@@ -3925,7 +3986,8 @@ function ProcessRGBimage(RBGstretched)
                               ImageWindow.windowById(RGB_ABE_id), 
                               RGB_ABE_HT_id), 
                         L_stf,
-                        true);
+                        true,
+                        'RGB');
             } else {
                   RGB_ABE_HT_id = RGB_ABE_id;
             }
@@ -4361,7 +4423,7 @@ function extraContrast(imgView)
 
 function extraSTF(win)
 {
-      runHistogramTransform(win, null, true);
+      runHistogramTransform(win, null, true, 'mask');
 }
 
 
@@ -4868,7 +4930,7 @@ function Autorun(that)
 function AutoIntegrateDialog()
 {
       /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.76</b> &mdash; " +
+      var helptext = "<p><b>AutoIntegrate v0.77</b> &mdash; " +
                      "Automatic image integration utility.</p>";
 
       this.__base__ = Dialog;
@@ -5167,42 +5229,6 @@ function AutoIntegrateDialog()
             SetOptionChecked("No color noise reduction", checked); 
       }
 
-      this.STFLabel = new Label( this );
-      this.STFLabel.text = "Link RGB channels";
-      this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.STFLabel.toolTip = 
-      "<p>" +
-      "RGB channel linking in Screen Transfer Function. Using Unlinked can help reduce color cast with OSC images." +
-      "</p><p>" +
-      "With Auto the default for true RGB images is to use linked channels. For narrowband images the default " +
-      "is to use unlinked channels. But if linear fit is done with narrowband images, then linked channels are used." +
-      "</p>";
-      this.STFComboBox = new ComboBox( this );
-      this.STFComboBox.addItem( "Auto" );
-      this.STFComboBox.addItem( "Linked" );
-      this.STFComboBox.addItem( "Unlinked" );
-      this.STFComboBox.onItemSelected = function( itemIndex )
-      {
-            RemoveOption("Link RGB channels");
-            switch (itemIndex) {
-                  case 0:
-                        SetOptionValue("Link RGB channels", "Auto"); 
-                        break;
-                  case 1:
-                        SetOptionValue("Link RGB channels", "Linked"); 
-                        break;
-                  case 2:
-                        SetOptionValue("Link RGB channels", "Unlinked"); 
-                        break;
-            }
-            STF_linking = itemIndex;
-      };
-      this.STFSizer = new HorizontalSizer;
-      this.STFSizer.spacing = 4;
-      this.STFSizer.add( this.STFLabel );
-      this.STFSizer.add( this.STFComboBox );
-      this.STFSizer.addStretch();
-
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", skip_mask_contrast, 
       "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_mask_contrast_CheckBox.onClick = function(checked) { 
@@ -5235,7 +5261,6 @@ function AutoIntegrateDialog()
       //this.imageParamsSet2.add( this.useABE_final_CheckBox );   Not sure if this useful fo leaving off for now.
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
-      this.imageParamsSet2.add( this.STFSizer );
 
       // Image group parameters.
       this.imageParamsGroupBox = new newGroupBox( this );
@@ -5479,6 +5504,116 @@ function AutoIntegrateDialog()
       //this.linearFitGroupBox.sizer.addStretch();
 
       //
+      // Stretching
+      //
+
+      this.STFRadioButton = new RadioButton( this );
+      this.STFRadioButton.text = "Auto STF";
+      this.STFRadioButton.checked = true;
+      this.STFRadioButton.toolTip = "Use auto Screen Transfer Function to stretch image to non-linear.";
+      this.STFRadioButton.onClick = function(checked) { 
+            if (checked) {
+                  image_stretching = 'STF'; 
+                  SetOptionValue("Stretching", "Auto STF");
+            }
+      }
+      
+      this.MaskedStretchRadioButton = new RadioButton( this );
+      this.MaskedStretchRadioButton.text = "Masked Stretch";
+      this.MaskedStretchRadioButton.toolTip = "Use MaskedStretch to stretch image to non-linear.";
+      this.MaskedStretchRadioButton.checked = false;
+      this.MaskedStretchRadioButton.onClick = function(checked) { 
+            if (checked) { 
+                  image_stretching = 'Masked'; 
+                  SetOptionValue("Stretching", "Masked Stretch");
+            }
+      }
+
+      this.BothStretchRadioButton = new RadioButton( this );
+      this.BothStretchRadioButton.text = "Use both";
+      this.BothStretchRadioButton.toolTip = "Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.";
+      this.BothStretchRadioButton.checked = false;
+      this.BothStretchRadioButton.onClick = function(checked) { 
+            if (checked) { 
+                  image_stretching = 'Both'; 
+                  SetOptionValue("Stretching", "Auto STF and Masked Stretch");
+            }
+      }
+
+      this.StretchingButtonsSizer = new HorizontalSizer;
+      this.StretchingButtonsSizer.margin = 6;
+      this.StretchingButtonsSizer.spacing = 4;
+      this.StretchingButtonsSizer.add( this.STFRadioButton );
+      this.StretchingButtonsSizer.add( this.MaskedStretchRadioButton );
+      this.StretchingButtonsSizer.add( this.BothStretchRadioButton );
+
+      this.STFLabel = new Label( this );
+      this.STFLabel.text = "Auto STF link RGB channels";
+      this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.STFLabel.toolTip = 
+      "<p>" +
+      "RGB channel linking in Screen Transfer Function. Using Unlinked can help reduce color cast with OSC images." +
+      "</p><p>" +
+      "With Auto the default for true RGB images is to use linked channels. For narrowband images the default " +
+      "is to use unlinked channels. But if linear fit is done with narrowband images, then linked channels are used." +
+      "</p>";
+      this.STFComboBox = new ComboBox( this );
+      this.STFComboBox.toolTip = this.STFLabel.toolTip;
+      this.STFComboBox.addItem( "Auto" );
+      this.STFComboBox.addItem( "Linked" );
+      this.STFComboBox.addItem( "Unlinked" );
+      this.STFComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        SetOptionValue("Link RGB channels", "Auto"); 
+                        break;
+                  case 1:
+                        SetOptionValue("Link RGB channels", "Linked"); 
+                        break;
+                  case 2:
+                        SetOptionValue("Link RGB channels", "Unlinked"); 
+                        break;
+            }
+            STF_linking = itemIndex;
+      };
+
+      this.STFSizer = new HorizontalSizer;
+      this.STFSizer.spacing = 4;
+      this.STFSizer.toolTip = this.STFLabel.toolTip;
+      this.STFSizer.add( this.STFLabel );
+      this.STFSizer.add( this.STFComboBox );
+
+      this.MaskedStretchTargetBackgroundControl = new NumericControl( this );
+      this.MaskedStretchTargetBackgroundControl.label.text = "Masked Stretch targetBackground";
+      this.MaskedStretchTargetBackgroundControl.setRange(0, 1);
+      this.MaskedStretchTargetBackgroundControl.setValue(MaskedStretch_targetBackground);
+      this.MaskedStretchTargetBackgroundControl.toolTip = "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>";
+      this.MaskedStretchTargetBackgroundControl.onValueUpdated = function( value )
+      {
+            SetOptionValue("Masked Stretch targetBackground", value);
+            MaskedStretch_targetBackground = value;
+      };
+
+      this.StretchingOptionsSizer = new VerticalSizer;
+      this.StretchingOptionsSizer.spacing = 4;
+      this.StretchingOptionsSizer.margin = 2;
+      this.StretchingOptionsSizer.add( this.STFSizer );
+      this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
+      //this.StretchingOptionsSizer.addStretch();
+
+      this.StretchingGroupBox = new newGroupBox( this );
+      this.StretchingGroupBox.title = "Image stretching settings";
+      this.StretchingGroupBox.toolTip = "Settings for stretching linear image image to non-linear.";
+      this.StretchingGroupBox.sizer = new VerticalSizer;
+      this.StretchingGroupBox.sizer.margin = 6;
+      this.StretchingGroupBox.sizer.spacing = 4;
+      this.StretchingGroupBox.sizer.add( this.StretchingButtonsSizer );
+      this.StretchingGroupBox.sizer.add( this.StretchingOptionsSizer );
+      // Stop columns of buttons moving as dialog expands horizontally.
+      //this.StretchingGroupBox.sizer.addStretch();
+
+      //
       // Image integration
       //
 
@@ -5493,7 +5628,6 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationComboBox.addItem( "None" );
       this.ImageIntegrationNormalizationComboBox.onItemSelected = function( itemIndex )
       {
-            RemoveOption("ImageIntegration Normalization"); 
             switch (itemIndex) {
                   case 0:
                         SetOptionValue("ImageIntegration Normalization", "Additive"); 
@@ -5528,7 +5662,6 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionComboBox.addItem( "Linear fit" );
       this.ImageIntegrationRejectionComboBox.onItemSelected = function( itemIndex )
       {
-            RemoveOption("ImageIntegration Rejection"); 
             switch (itemIndex) {
                   case 0:
                         use_clipping = 'D1';
@@ -5633,7 +5766,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "HOS" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "SHO Hubble" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Pseudo RGB" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "Pseudo RGB" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Natural HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "3-channel HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Dynamic SHO" );
@@ -5644,60 +5777,65 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
             switch (itemIndex) {
-                  case 0:
+                  case 0: // SHO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 1:
+                  case 1: // HOS
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
                         break;
-                  case 2:
+                  case 2: // HOO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 3:
+                  case 3: // SHO Hubble
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.6*S + 0.4*H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.7*H + 0.3*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 4:
+                  case 4: // Pseudo RGB
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.75*H + 0.25*S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.50*S + 0.50*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.30*H + 0.70*O";
                         break;
-                  case 5:
+                  case 5: // Natural HOO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.8*O+0.2*H";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
                         break;
-                  case 6:
+                  case 6: // #-channel HOO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.76*H+0.24*S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
                         break;
-                  case 7:
+                  case 7: // Dynamic SHO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "(O^~O)*S + ~(O^~O)*H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 8:
+                  case 8: // max(RGB, H)
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
                         break;
-                  case 9:
+                  case 9: // max(RGB, HOO)
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "max(G, O)";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "max(B, O)";
                         break;
-                  case 10:
+                  case 10: // HOO Helix
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "(0.4*H)+(0.6*O)";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
+                        break;
+                  case 10: // OHS
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "O";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "H";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
                         break;
             }
             custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
@@ -5787,17 +5925,17 @@ function AutoIntegrateDialog()
       this.narrowbandLinearFit_Label.margin = 6;
       this.narrowbandLinearFit_Label.spacing = 4;
       this.narrowbandLinearFit_ComboBox = new ComboBox( this );
-      this.narrowbandLinearFit_ComboBox.addItem( "None" );
+      this.narrowbandLinearFit_ComboBox.addItem( "Auto" );
       this.narrowbandLinearFit_ComboBox.addItem( "H" );
       this.narrowbandLinearFit_ComboBox.addItem( "S" );
       this.narrowbandLinearFit_ComboBox.addItem( "O" );
-      this.narrowbandLinearFit_ComboBox.addItem( "Auto" );
+      this.narrowbandLinearFit_ComboBox.addItem( "None" );
       this.narrowbandLinearFit_ComboBox.toolTip = this.narrowbandLinearFit_Label.toolTip;
       this.narrowbandLinearFit_ComboBox.onItemSelected = function( itemIndex )
       {
             switch (itemIndex) {
                   case 0:
-                        narrowband_linear_fit = "None";
+                        narrowband_linear_fit = "Auto";
                         break;
                   case 1:
                         narrowband_linear_fit = "H";
@@ -5809,10 +5947,10 @@ function AutoIntegrateDialog()
                         narrowband_linear_fit = "O";
                         break;
                   case 4:
-                        narrowband_linear_fit = "Auto";
+                        narrowband_linear_fit = "None";
                         break;
             }
-            custom_L_mapping = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
+            SetOptionValue("Narrowband linear fit", narrowband_linear_fit); 
       };
 
 
@@ -5840,6 +5978,7 @@ function AutoIntegrateDialog()
                         break;
             }
             custom_L_mapping = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
+            SetOptionValue("Narrowband L mapping", this.editText); 
       };
 
       this.narrowbandCustomPalette_L_Label = new Label( this );
@@ -6284,17 +6423,18 @@ function AutoIntegrateDialog()
       this.col1.add( this.imageParamsGroupBox );
       this.col1.add( this.otherParamsGroupBox );
       this.col1.add( this.narrowbandGroupBox );
+      this.col1.add( this.narrowbandExtraGroupBox );
       this.col1.add( this.mosaicSaveGroupBox );
 
       this.col2 = new VerticalSizer;
       this.col2.margin = 6;
       this.col2.spacing = 6;
+      this.col2.add( this.weightGroupBox );
+      this.col2.add( this.clippingGroupBox );
+      this.col2.add( this.linearFitGroupBox );
+      this.col2.add( this.StretchingGroupBox );
       this.col2.add( this.LRGBCombinationGroupBox );
       this.col2.add( this.saturationGroupBox );
-      this.col2.add( this.weightGroupBox );
-      this.col2.add( this.linearFitGroupBox );
-      this.col2.add( this.clippingGroupBox );
-      this.col2.add( this.narrowbandExtraGroupBox );
       this.col2.add( this.extraGroupBox );
       this.col2.add( this.autoButtonGroupBox );
 
