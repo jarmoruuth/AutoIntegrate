@@ -4927,12 +4927,17 @@ function Autorun(that)
       } while (!stopped);
 }
 
+function aiSectionLabel(parent, text)
+{
+      var lbl = new Label( parent );
+      lbl.useRichText = true;
+      lbl.text = '<p style="color:SlateBlue"><b>' + text + "</b></p>";
+
+      return lbl;
+}
+
 function AutoIntegrateDialog()
 {
-      /* Version number is here. */
-      var helptext = "<p><b>AutoIntegrate v0.77</b> &mdash; " +
-                     "Automatic image integration utility.</p>";
-
       this.__base__ = Dialog;
       this.__base__();
 
@@ -4942,6 +4947,8 @@ function AutoIntegrateDialog()
 
       var mainHelpTips = 
       "<p>" +
+      "<b>AutoIntegrate - Automatic image integration utility</b>" +
+      "</p><p>" +
       "<b>Some tips for using AutoIntegrate script</b>" +
       "</p><p>" +
       "Script automates initial steps of image processing in PixInsight. "+ 
@@ -4985,14 +4992,6 @@ function AutoIntegrateDialog()
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p>";
 
-      /* Info box at the top. */
-      this.helpLabel = new Label( this );
-      //this.helpLabel.frameStyle = FrameStyle_Box;
-      //this.helpLabel.margin = this.logicalPixelsToPhysical( 4 );
-      //this.helpLabel.wordWrapping = true;
-      this.helpLabel.useRichText = true;
-      this.helpLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.helpLabel.text = helptext;
       this.helpTips = new ToolButton( this );
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.helpTips.setScaledFixedSize( 20, 20 );
@@ -5051,6 +5050,7 @@ function AutoIntegrateDialog()
       this.filesButtons_Sizer.add( this.filesAdd_Button );
       this.filesButtons_Sizer.addStretch();
       this.filesButtons_Sizer.add( this.filesClear_Button );    
+      //this.filesButtons_Sizer.addStretch();
       
       this.files_GroupBox = new GroupBox( this );
       this.files_GroupBox.title = "Input Images";
@@ -5058,7 +5058,8 @@ function AutoIntegrateDialog()
       this.files_GroupBox.sizer.margin = 6;
       this.files_GroupBox.sizer.spacing = 4;
       this.files_GroupBox.sizer.add( this.files_TreeBox, this.textEditWidth );
-      this.files_GroupBox.sizer.add( this.filesButtons_Sizer );     
+      this.files_GroupBox.sizer.add( this.filesButtons_Sizer );   
+      //this.files_GroupBox.sizer.addStretch();
 
       /* Paremeters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", use_local_normalization, 
@@ -5297,17 +5298,16 @@ function AutoIntegrateDialog()
             LRGBCombination_saturation = value;
       };
 
-      this.LRGBCombinationGroupBox = new newGroupBox( this );
-      this.LRGBCombinationGroupBox.title = "LRGBCombination settings";
-      this.LRGBCombinationGroupBox.toolTip = 
+      this.LRGBCombinationGroupBoxLabel = aiSectionLabel(this, "LRGBCombination settings");
+      this.LRGBCombinationGroupBoxLabel.toolTip = 
             "LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.";
-      this.LRGBCombinationGroupBox.sizer = new VerticalSizer;
-      this.LRGBCombinationGroupBox.sizer.margin = 6;
-      this.LRGBCombinationGroupBox.sizer.spacing = 4;
-      this.LRGBCombinationGroupBox.sizer.add( this.LRGBCombinationLightnessControl );
-      this.LRGBCombinationGroupBox.sizer.add( this.LRGBCombinationSaturationControl );
-      //this.LRGBCombinationGroupBox.sizer.addStretch();
+      this.LRGBCombinationGroupBoxSizer = new VerticalSizer;
+      this.LRGBCombinationGroupBoxSizer.margin = 6;
+      this.LRGBCombinationGroupBoxSizer.spacing = 4;
+      this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
+      this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
+      //this.LRGBCombinationGroupBoxSizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -5340,16 +5340,15 @@ function AutoIntegrateDialog()
             non_linear_increase_saturation = value;
       };
 
-      this.saturationGroupBox = new newGroupBox( this );
-      this.saturationGroupBox.title = "Saturation setting";
-      this.saturationGroupBox.sizer = new HorizontalSizer;
-      this.saturationGroupBox.sizer.margin = 6;
-      this.saturationGroupBox.sizer.spacing = 4;
-      this.saturationGroupBox.sizer.add( this.linearSaturationLabel );
-      this.saturationGroupBox.sizer.add( this.linearSaturationSpinBox );
-      this.saturationGroupBox.sizer.add( this.nonLinearSaturationLabel );
-      this.saturationGroupBox.sizer.add( this.nonLinearSaturationSpinBox );
-      //this.saturationGroupBox.sizer.addStretch();
+      this.saturationGroupBoxLabel = aiSectionLabel(this, "Saturation setting");
+      this.saturationGroupBoxSizer = new HorizontalSizer;
+      this.saturationGroupBoxSizer.margin = 6;
+      this.saturationGroupBoxSizer.spacing = 4;
+      this.saturationGroupBoxSizer.add( this.linearSaturationLabel );
+      this.saturationGroupBoxSizer.add( this.linearSaturationSpinBox );
+      this.saturationGroupBoxSizer.add( this.nonLinearSaturationLabel );
+      this.saturationGroupBoxSizer.add( this.nonLinearSaturationSpinBox );
+      //this.saturationGroupBoxSizer.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -5426,18 +5425,17 @@ function AutoIntegrateDialog()
             "</p>";
       this.weightHelpTips.toolTip = weightHelpToolTips;
 
-      this.weightGroupBox = new newGroupBox( this );
-      this.weightGroupBox.title = "Image weight calculation settings";
-      this.weightGroupBox.sizer = new HorizontalSizer;
-      this.weightGroupBox.sizer.margin = 6;
-      this.weightGroupBox.sizer.spacing = 4;
-      this.weightGroupBox.sizer.add( this.genericWeightRadioButton );
-      this.weightGroupBox.sizer.add( this.noiseWeightRadioButton );
-      this.weightGroupBox.sizer.add( this.starWeightRadioButton );
-      this.weightGroupBox.sizer.add( this.weightHelpTips );
-      this.weightGroupBox.toolTip = weightHelpToolTips;
+      this.weightGroupBoxLabel = aiSectionLabel(this, "Image weight calculation settings");
+      this.weightGroupBoxSizer = new HorizontalSizer;
+      this.weightGroupBoxSizer.margin = 6;
+      this.weightGroupBoxSizer.spacing = 4;
+      this.weightGroupBoxSizer.add( this.genericWeightRadioButton );
+      this.weightGroupBoxSizer.add( this.noiseWeightRadioButton );
+      this.weightGroupBoxSizer.add( this.starWeightRadioButton );
+      this.weightGroupBoxSizer.add( this.weightHelpTips );
+      this.weightGroupBoxSizer.toolTip = weightHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.weightGroupBox.sizer.addStretch();
+      //this.weightGroupBoxSizer.addStretch();
       
       // Linear Fit buttons
       this.luminanceRadioButton = new RadioButton( this );
@@ -5490,18 +5488,17 @@ function AutoIntegrateDialog()
             }
       }
 
-      this.linearFitGroupBox = new newGroupBox( this );
-      this.linearFitGroupBox.title = "Linear fit setting";
-      this.linearFitGroupBox.sizer = new HorizontalSizer;
-      this.linearFitGroupBox.sizer.margin = 6;
-      this.linearFitGroupBox.sizer.spacing = 4;
-      this.linearFitGroupBox.sizer.add( this.luminanceRadioButton );
-      this.linearFitGroupBox.sizer.add( this.redRadioButton );
-      this.linearFitGroupBox.sizer.add( this.greenRadioButton );
-      this.linearFitGroupBox.sizer.add( this.blueRadioButton );
-      this.linearFitGroupBox.sizer.add( this.noneRadioButton );
+      this.linearFitGroupBoxLabel = aiSectionLabel(this, "Linear fit setting");
+      this.linearFitGroupBoxSizer = new HorizontalSizer;
+      this.linearFitGroupBoxSizer.margin = 6;
+      this.linearFitGroupBoxSizer.spacing = 4;
+      this.linearFitGroupBoxSizer.add( this.luminanceRadioButton );
+      this.linearFitGroupBoxSizer.add( this.redRadioButton );
+      this.linearFitGroupBoxSizer.add( this.greenRadioButton );
+      this.linearFitGroupBoxSizer.add( this.blueRadioButton );
+      this.linearFitGroupBoxSizer.add( this.noneRadioButton );
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.linearFitGroupBox.sizer.addStretch();
+      //this.linearFitGroupBoxSizer.addStretch();
 
       //
       // Stretching
@@ -5602,16 +5599,15 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
       //this.StretchingOptionsSizer.addStretch();
 
-      this.StretchingGroupBox = new newGroupBox( this );
-      this.StretchingGroupBox.title = "Image stretching settings";
-      this.StretchingGroupBox.toolTip = "Settings for stretching linear image image to non-linear.";
-      this.StretchingGroupBox.sizer = new VerticalSizer;
-      this.StretchingGroupBox.sizer.margin = 6;
-      this.StretchingGroupBox.sizer.spacing = 4;
-      this.StretchingGroupBox.sizer.add( this.StretchingButtonsSizer );
-      this.StretchingGroupBox.sizer.add( this.StretchingOptionsSizer );
+      this.StretchingGroupBoxLabel = aiSectionLabel(this, "Image stretching settings");
+      this.StretchingGroupBoxLabel.toolTip = "Settings for stretching linear image image to non-linear.";
+      this.StretchingGroupBoxSizer = new VerticalSizer;
+      this.StretchingGroupBoxSizer.margin = 6;
+      this.StretchingGroupBoxSizer.spacing = 4;
+      this.StretchingGroupBoxSizer.add( this.StretchingButtonsSizer );
+      this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.StretchingGroupBox.sizer.addStretch();
+      //this.StretchingGroupBoxSizer.addStretch();
 
       //
       // Image integration
@@ -5725,17 +5721,16 @@ function AutoIntegrateDialog()
             "Linear - Linear fit clipping" +
             "</p>";
       this.ImageIntegrationHelpTips.toolTip = ImageIntegrationHelpToolTips;
-      this.clippingGroupBox = new newGroupBox( this );
-      this.clippingGroupBox.title = "Image integration pixel rejection";
-      this.clippingGroupBox.sizer = new HorizontalSizer;
-      this.clippingGroupBox.sizer.margin = 6;
-      this.clippingGroupBox.sizer.spacing = 4;
-      this.clippingGroupBox.sizer.add( this.ImageIntegrationNormalizationSizer );
-      this.clippingGroupBox.sizer.add( this.ImageIntegrationRejectionSizer );
-      this.clippingGroupBox.sizer.add( this.ImageIntegrationHelpTips );
-      this.clippingGroupBox.toolTip = ImageIntegrationHelpToolTips;
+      this.clippingGroupBoxLabel = aiSectionLabel(this, 'Image integration pixel rejection');
+      this.clippingGroupBoxSizer = new HorizontalSizer;
+      this.clippingGroupBoxSizer.margin = 6;
+      this.clippingGroupBoxSizer.spacing = 4;
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationNormalizationSizer );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSizer );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationHelpTips );
+      this.clippingGroupBoxSizer.toolTip = ImageIntegrationHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.clippingGroupBox.sizer.addStretch();
+      //this.clippingGroupBoxSizer.addStretch();
 
       // Narrowband palette
 
@@ -6119,8 +6114,6 @@ function AutoIntegrateDialog()
             "3. Fix star colors" +
             "</p>";
 
-
-
       // Extra processing
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
       "<p>Make image background darker.</p>" );
@@ -6401,21 +6394,28 @@ function AutoIntegrateDialog()
    
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
+      this.buttons_Sizer.add( this.helpTips );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.ok_Button );
       this.buttons_Sizer.add( this.cancel_Button );
    
-      this.helpLabelSizer = new HorizontalSizer;
-      this.helpLabelSizer.add( this.helpLabel );
-      this.helpLabelSizer.addSpacing( 4 );
-      this.helpLabelSizer.add( this.helpTips );
-      this.helpLabelGroupBox = new newGroupBox( this );
-      this.helpLabelGroupBox.sizer = new HorizontalSizer;
-      this.helpLabelGroupBox.sizer.margin = 6;
-      this.helpLabelGroupBox.sizer.spacing = 4;
-      this.helpLabelGroupBox.sizer.add( this.helpLabelSizer );
-      this.helpLabelGroupBox.setFixedHeight(50);
-      this.helpLabelGroupBox.toolTip = mainHelpTips;
+      this.ProcessingGroupBox = new newGroupBox( this );
+      this.ProcessingGroupBox.title = "Processing settings";
+      this.ProcessingGroupBox.sizer = new VerticalSizer;
+      this.ProcessingGroupBox.sizer.margin = 6;
+      this.ProcessingGroupBox.sizer.spacing = 4;
+      this.ProcessingGroupBox.sizer.add( this.weightGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.weightGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.linearFitGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.linearFitGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.StretchingGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.StretchingGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.LRGBCombinationGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.LRGBCombinationGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.saturationGroupBoxLabel );
+      this.ProcessingGroupBox.sizer.add( this.saturationGroupBoxSizer );
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -6425,38 +6425,36 @@ function AutoIntegrateDialog()
       this.col1.add( this.narrowbandGroupBox );
       this.col1.add( this.narrowbandExtraGroupBox );
       this.col1.add( this.mosaicSaveGroupBox );
+      this.col1.addStretch();
 
       this.col2 = new VerticalSizer;
       this.col2.margin = 6;
       this.col2.spacing = 6;
-      this.col2.add( this.weightGroupBox );
-      this.col2.add( this.clippingGroupBox );
-      this.col2.add( this.linearFitGroupBox );
-      this.col2.add( this.StretchingGroupBox );
-      this.col2.add( this.LRGBCombinationGroupBox );
-      this.col2.add( this.saturationGroupBox );
+      this.col2.add( this.ProcessingGroupBox );
       this.col2.add( this.extraGroupBox );
       this.col2.add( this.autoButtonGroupBox );
+      this.col2.addStretch();
 
       this.cols = new HorizontalSizer;
       this.cols.margin = 6;
       this.cols.spacing = 6;
       this.cols.add( this.col1 );
       this.cols.add( this.col2 );
+      this.cols.addStretch();
 
       this.sizer = new VerticalSizer;
-      this.sizer.add( this.helpLabelGroupBox );
       this.sizer.add( this.files_GroupBox, 300 );
       this.sizer.margin = 6;
       this.sizer.spacing = 6;
       this.sizer.add( this.cols );
       this.sizer.add( this.buttons_Sizer );
+      this.sizer.addStretch();
 
-      this.windowTitle = "AutoIntegrate Script";
+      // Version number
+      this.windowTitle = "AutoIntegrate v0.78";
       this.userResizable = true;
-      this.adjustToContents();
-      //this.helpLabel.setFixedHeight();
-      this.files_GroupBox.setFixedHeight();
+      //this.adjustToContents();
+      //this.files_GroupBox.setFixedHeight();
 
       console.show(false);
 }
