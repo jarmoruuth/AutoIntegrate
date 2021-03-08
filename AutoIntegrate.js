@@ -222,6 +222,7 @@ var LRGBCombination_lightness = 0.5;
 var LRGBCombination_saturation = 0.5;
 var strict_StarAlign = false;
 var keep_integrated_images = false;
+var keep_temporary_images = false;
 var run_HT = true;
 var ABE_before_channel_combination = false;
 var use_ABE_on_L_RGB = false;
@@ -516,8 +517,14 @@ function windowCloseif(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            console.writeln("Close window " + id);
-            w.close();
+            if (keep_temporary_images) {
+                  w.mainView.id = "tmp_" + w.mainView.id;
+                  w.show();
+                  console.writeln("Rename window to " + w.mainView.id);
+            } else {
+                  console.writeln("Close window " + id);
+                  w.close();
+            }
       }
 }
 
@@ -583,12 +590,23 @@ function addScriptWindow(name)
       all_windows[all_windows.length] = name;
 }
 
+function forceCloseOneWindow(w)
+{
+      if (keep_temporary_images) {
+            w.mainView.id = "tmp_" + w.mainView.id;
+            w.show();
+            console.writeln("Rename window to " + w.mainView.id);
+      } else {
+            w.forceClose();
+      }
+}
+
 // close one window
 function closeOneWindow(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            w.forceClose();
+            forceCloseOneWindow(w);
       }
 }
 
@@ -697,7 +715,7 @@ function saveMosaicWindow(win, dir, name, bits)
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
             throwFatalError("Failed to save image: " + outputPath);
       }
-      copy_win.forceClose();
+      forceCloseOneWindow(copy_win);
 }
 
 function saveAllMosaicWindows(bits)
@@ -1119,13 +1137,13 @@ function runSubframeSelector(fileNames)
                   }
                   setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
                   if (!writeImage(newFilePath, imageWindow)) {
-                        imageWindow.forceClose();
+                        forceCloseOneWindow(imageWindow);
                         console.writeln(
                            "*** Error: Can't write output image: ", newFilePath
                         );
                         continue;
                   }         
-                  imageWindow.forceClose();
+                  forceCloseOneWindow(imageWindow);
                   ssFiles[ssFiles.length] = newFilePath;
             }
       }
@@ -1139,6 +1157,7 @@ function findBestSSWEIGHT(fileNames)
 {
       var ssweight;
       var newFileNames = [];
+      var found_slooh_uwf = false;
 
       run_HT = true;
       best_ssweight = 0;
@@ -1212,6 +1231,9 @@ function findBestSSWEIGHT(fileNames)
                   console.writeln("Chile slooh_uwf");
                   slooh_uwf = true;
             }
+            if (slooh_uwf) {
+                  found_slooh_uwf = true;
+            }
             if (use_uwf) {
                   skip_this = !slooh_uwf;
             } else {
@@ -1247,6 +1269,13 @@ function findBestSSWEIGHT(fileNames)
                   }
             } else {
                   console.writeln("Skip this");
+            }
+      }
+      if (newFileNames.length == 0) {
+            if (found_slooh_uwf) {
+                  throwFatalError("No files found for processing. Slooh UWF files found, to process those you need to set Ultra Wide Field check box.");
+            } else {
+                  throwFatalError("No files found for processing.");
             }
       }
       if (best_image == null) {
@@ -2284,7 +2313,7 @@ function getRejectionAlgorigthm(numimages)
                   addProcessingStep("  Auto2 using Winsorised sigma clip for rejection");
                   return ImageIntegration.prototype.WinsorizedSigmaClip;
             } else if (numimages < 25 || ImageIntegration.prototype.Rejection_ESD === undefined) {
-                  addProcessingStep("  Auto2 using liner fit clip for rejection");
+                  addProcessingStep("  Auto2 using linear fit clip for rejection");
                   return ImageIntegration.prototype.LinearFit;
             } else {
                   addProcessingStep("  Auto2 using ESD clip for rejection");
@@ -5182,6 +5211,13 @@ function AutoIntegrateDialog()
             SetOptionChecked("Keep integrated images", checked); 
       }
 
+      this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", keep_temporary_images, 
+            "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
+      this.keepTemporaryImagesCheckBox.onClick = function(checked) { 
+            keep_temporary_images = checked; 
+            SetOptionChecked("Keep temporary images", checked); 
+      }
+
       this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", ABE_before_channel_combination, 
       "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
       this.ABE_before_channel_combination_CheckBox.onClick = function(checked) { 
@@ -5224,8 +5260,8 @@ function AutoIntegrateDialog()
             SetOptionChecked("Drizzle", checked); 
       }
 
-      this.use_uwf_CheckBox = newCheckBox(this, "UWF", use_uwf, 
-      "<p>Use Ultra Wide Field (UWF) images for integration</p>" );
+      this.use_uwf_CheckBox = newCheckBox(this, "Ultra Wide Field", use_uwf, 
+      "<p>Use Slooh Ultra Wide Field (UWF) images for integration</p>" );
       this.use_uwf_CheckBox.onClick = function(checked) { 
             use_uwf = checked; 
             SetOptionChecked("UWF", checked); 
@@ -5437,6 +5473,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.margin = 6;
       this.otherParamsSet2.spacing = 4;
       this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
+      this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
       this.otherParamsSet2.add( this.use_uwf_CheckBox );
       this.otherParamsSet2.add( this.monochrome_image_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
@@ -5454,39 +5491,6 @@ function AutoIntegrateDialog()
       //this.otherParamsGroupBox.sizer.addStretch();
       
       // Weight calculations
-      this.genericWeightRadioButton = new RadioButton( this );
-      this.genericWeightRadioButton.text = "Generic";
-      this.genericWeightRadioButton.checked = true;
-      this.genericWeightRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_weight = 'G'; 
-                  RemoveOption("Weight"); 
-            }
-      }
-
-      this.noiseWeightRadioButton = new RadioButton( this );
-      this.noiseWeightRadioButton.text = "Noise";
-      this.noiseWeightRadioButton.checked = false;
-      this.noiseWeightRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_weight = 'N'; 
-                  SetOptionValue("Weight", "Noise"); 
-            }
-      }
-      
-      this.starWeightRadioButton = new RadioButton( this );
-      this.starWeightRadioButton.text = "Stars";
-      this.starWeightRadioButton.checked = false;
-      this.starWeightRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_weight = 'S'; 
-                  SetOptionValue("Weight", "Stars"); 
-            }
-      }
-
-      this.weightHelpTips = new ToolButton( this );
-      this.weightHelpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.weightHelpTips.setScaledFixedSize( 20, 20 );
       var weightHelpToolTips =
             "<p>" +
             "Generic - Use both noise and stars for the weight calculation." +
@@ -5495,126 +5499,117 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "Stars - More weight on stars." +
             "</p>";
-      this.weightHelpTips.toolTip = weightHelpToolTips;
+
+      this.weightComboBox = new ComboBox( this );
+      this.weightComboBox.toolTip = weightHelpToolTips;
+      this.weightComboBox.addItem( "Generic" );
+      this.weightComboBox.addItem( "Noise" );
+      this.weightComboBox.addItem( "Stars" );
+      this.weightComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        RemoveOption("Weight"); 
+                        use_weight = 'G'; 
+                        break;
+                  case 1:
+                        SetOptionValue("Weight", "Noise"); 
+                        use_weight = 'N'; 
+                        break;
+                  case 2:
+                        SetOptionValue("Weight", "Stars"); 
+                        use_weight = 'S'; 
+                        break;
+            }
+      };
 
       this.weightGroupBoxLabel = aiSectionLabel(this, "Image weight calculation settings");
       this.weightGroupBoxSizer = new HorizontalSizer;
       this.weightGroupBoxSizer.margin = 6;
       this.weightGroupBoxSizer.spacing = 4;
-      this.weightGroupBoxSizer.add( this.genericWeightRadioButton );
-      this.weightGroupBoxSizer.add( this.noiseWeightRadioButton );
-      this.weightGroupBoxSizer.add( this.starWeightRadioButton );
-      this.weightGroupBoxSizer.add( this.weightHelpTips );
+      this.weightGroupBoxSizer.add( this.weightComboBox );
       this.weightGroupBoxSizer.toolTip = weightHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.weightGroupBoxSizer.addStretch();
+      this.weightGroupBoxSizer.addStretch();
       
-      // Linear Fit buttons
-      this.luminanceRadioButton = new RadioButton( this );
-      this.luminanceRadioButton.text = "Luminance";
-      this.luminanceRadioButton.checked = true;
-      this.luminanceRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_linear_fit = 'L'; 
-                  RemoveOption("Linear fit");
-            }
-      }
+      // Linear Fit selection
 
-      this.redRadioButton = new RadioButton( this );
-      this.redRadioButton.text = "Red";
-      this.redRadioButton.checked = false;
-      this.redRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_linear_fit = 'R'; 
-                  SetOptionValue("Linear fit", "Red"); 
-            }
-      }
-      
-      this.greenRadioButton = new RadioButton( this );
-      this.greenRadioButton.text = "Green";
-      this.greenRadioButton.checked = false;
-      this.greenRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_linear_fit = 'G'; 
-                  SetOptionValue("Linear fit", "Green"); 
-            }
-      }
-      
-      this.blueRadioButton = new RadioButton( this );
-      this.blueRadioButton.text = "Blue";
-      this.blueRadioButton.checked = false;
-      this.blueRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_linear_fit = 'B'; 
-                  SetOptionValue("Linear fit", "Blue"); 
-            }
-      }
-
-      this.noneRadioButton = new RadioButton( this );
-      this.noneRadioButton.text = "No linear fit";
-      this.noneRadioButton.checked = false;
-      this.noneRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  use_linear_fit = 'no'; 
-                  SetOptionValue("Linear fit", "No linear fit"); 
-            }
-      }
+      this.linearFitComboBox = new ComboBox( this );
+      this.linearFitComboBox.toolTip = "Choose how to do linear fit of images.";
+      this.linearFitComboBox.addItem( "Luminance" );
+      this.linearFitComboBox.addItem( "Red" );
+      this.linearFitComboBox.addItem( "Green" );
+      this.linearFitComboBox.addItem( "Blue" );
+      this.linearFitComboBox.addItem( "No linear fit" );
+      this.linearFitComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        use_linear_fit = 'L'; 
+                        RemoveOption("Linear fit");
+                        break;
+                  case 1:
+                        use_linear_fit = 'R'; 
+                        SetOptionValue("Linear fit", "Red"); 
+                        break;
+                  case 2:
+                        use_linear_fit = 'G'; 
+                        SetOptionValue("Linear fit", "Green"); 
+                        break;
+                  case 3:
+                        use_linear_fit = 'B'; 
+                        SetOptionValue("Linear fit", "Blue"); 
+                        break;
+                  case 4:
+                        use_linear_fit = 'no'; 
+                        SetOptionValue("Linear fit", "No linear fit"); 
+                        break;
+                  }
+      };
 
       this.linearFitGroupBoxLabel = aiSectionLabel(this, "Linear fit setting");
       this.linearFitGroupBoxSizer = new HorizontalSizer;
       this.linearFitGroupBoxSizer.margin = 6;
       this.linearFitGroupBoxSizer.spacing = 4;
-      this.linearFitGroupBoxSizer.add( this.luminanceRadioButton );
-      this.linearFitGroupBoxSizer.add( this.redRadioButton );
-      this.linearFitGroupBoxSizer.add( this.greenRadioButton );
-      this.linearFitGroupBoxSizer.add( this.blueRadioButton );
-      this.linearFitGroupBoxSizer.add( this.noneRadioButton );
+      this.linearFitGroupBoxSizer.add( this.linearFitComboBox );
       // Stop columns of buttons moving as dialog expands horizontally.
-      //this.linearFitGroupBoxSizer.addStretch();
+      this.linearFitGroupBoxSizer.addStretch();
 
       //
       // Stretching
       //
 
-      this.STFRadioButton = new RadioButton( this );
-      this.STFRadioButton.text = "Auto STF";
-      this.STFRadioButton.checked = true;
-      this.STFRadioButton.toolTip = "Use auto Screen Transfer Function to stretch image to non-linear.";
-      this.STFRadioButton.onClick = function(checked) { 
-            if (checked) {
-                  image_stretching = 'STF'; 
-                  SetOptionValue("Stretching", "Auto STF");
+      this.stretchingComboBox = new ComboBox( this );
+      this.stretchingComboBox.toolTip = 
+            "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
+            "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
+            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.";
+      this.stretchingComboBox.addItem( "Auto STF" );
+      this.stretchingComboBox.addItem( "Masked Stretch" );
+      this.stretchingComboBox.addItem( "Use both" );
+      this.stretchingComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        image_stretching = 'STF'; 
+                        SetOptionValue("Stretching", "Auto STF");
+                        break;
+                  case 1:
+                        image_stretching = 'Masked'; 
+                        SetOptionValue("Stretching", "Masked Stretch");
+                        break;
+                  case 2:
+                        image_stretching = 'Both'; 
+                        SetOptionValue("Stretching", "Auto STF and Masked Stretch");
+                        break;
             }
-      }
-      
-      this.MaskedStretchRadioButton = new RadioButton( this );
-      this.MaskedStretchRadioButton.text = "Masked Stretch";
-      this.MaskedStretchRadioButton.toolTip = "Use MaskedStretch to stretch image to non-linear.";
-      this.MaskedStretchRadioButton.checked = false;
-      this.MaskedStretchRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  image_stretching = 'Masked'; 
-                  SetOptionValue("Stretching", "Masked Stretch");
-            }
-      }
+      };
 
-      this.BothStretchRadioButton = new RadioButton( this );
-      this.BothStretchRadioButton.text = "Use both";
-      this.BothStretchRadioButton.toolTip = "Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.";
-      this.BothStretchRadioButton.checked = false;
-      this.BothStretchRadioButton.onClick = function(checked) { 
-            if (checked) { 
-                  image_stretching = 'Both'; 
-                  SetOptionValue("Stretching", "Auto STF and Masked Stretch");
-            }
-      }
-
-      this.StretchingButtonsSizer = new HorizontalSizer;
-      this.StretchingButtonsSizer.margin = 6;
-      this.StretchingButtonsSizer.spacing = 4;
-      this.StretchingButtonsSizer.add( this.STFRadioButton );
-      this.StretchingButtonsSizer.add( this.MaskedStretchRadioButton );
-      this.StretchingButtonsSizer.add( this.BothStretchRadioButton );
+      this.stretchingChoiceSizer = new HorizontalSizer;
+      this.stretchingChoiceSizer.margin = 6;
+      this.stretchingChoiceSizer.spacing = 4;
+      this.stretchingChoiceSizer.add( this.stretchingComboBox );
+      this.stretchingChoiceSizer.addStretch();
 
       this.STFLabel = new Label( this );
       this.STFLabel.text = "Auto STF link RGB channels";
@@ -5676,7 +5671,7 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
       this.StretchingGroupBoxSizer.spacing = 4;
-      this.StretchingGroupBoxSizer.add( this.StretchingButtonsSizer );
+      this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
       // Stop columns of buttons moving as dialog expands horizontally.
       //this.StretchingGroupBoxSizer.addStretch();
@@ -5684,6 +5679,27 @@ function AutoIntegrateDialog()
       //
       // Image integration
       //
+      var ImageIntegrationHelpToolTips = 
+            "<p>" +
+            "Auto1 - Default set 1 uses percentile clipping for less than 8 images " +
+            "and sigma clipping otherwise." +
+            "</p><p>" +
+            "Auto2 - Default set 2 uses percentile clipping for 1-7 images, " +
+            "averaged sigma clipping for 8 - 10 images, " +
+            "winsorised sigma clipping for 11 - 19 images, " +
+            "linear fit clipping for 20 - 24 images, " +
+            "ESD clipping for more than 25 images" +
+            "</p><p>" +
+            "Percentile - Percentile clip" +
+            "</p><p>" +
+            "Sigma - Sigma clipping" +
+            "</p><p>" +
+            "Winsorised - Winsorised sigma clipping" +
+            "</p><p>" +
+            "Averaged - Averaged sigma clipping" +
+            "</p><p>" +
+            "Linear - Linear fit clipping" +
+            "</p>";
 
       // normalization
       this.ImageIntegrationNormalizationLabel = new Label( this );
@@ -5718,9 +5734,11 @@ function AutoIntegrateDialog()
       // Pixel rejection algorihtm/clipping
       this.ImageIntegrationRejectionLabel = new Label( this );
       this.ImageIntegrationRejectionLabel.text = "Rejection";
+      this.ImageIntegrationRejectionLabel.toolTip = ImageIntegrationHelpToolTips;
       this.ImageIntegrationRejectionLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.ImageIntegrationRejectionComboBox = new ComboBox( this );
+      this.ImageIntegrationRejectionComboBox.toolTip = ImageIntegrationHelpToolTips;
       this.ImageIntegrationRejectionComboBox.addItem( "Auto1" );
       this.ImageIntegrationRejectionComboBox.addItem( "Auto2" );
       this.ImageIntegrationRejectionComboBox.addItem( "Percentile" );
@@ -5768,38 +5786,12 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionComboBox, 100 );
 
-      this.ImageIntegrationHelpTips = new ToolButton( this );
-      this.ImageIntegrationHelpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.ImageIntegrationHelpTips.setScaledFixedSize( 20, 20 );
-      var ImageIntegrationHelpToolTips = 
-            "<p>" +
-            "Auto1 - Default set 1 uses percentile clipping for less than 8 images " +
-            "and sigma clipping otherwise." +
-            "</p><p>" +
-            "Auto2 - Default set 2 uses percentile clipping for 1-7 images, " +
-            "averaged sigma clipping for 8 - 10 images, " +
-            "winsorised sigma clipping for 11 - 19 images, " +
-            "linear fit clipping for 20 - 24 images, " +
-            "ESD clipping for more than 25 images" +
-            "</p><p>" +
-            "Percentile - Percentile clip" +
-            "</p><p>" +
-            "Sigma - Sigma clipping" +
-            "</p><p>" +
-            "Winsorised - Winsorised sigma clipping" +
-            "</p><p>" +
-            "Averaged - Averaged sigma clipping" +
-            "</p><p>" +
-            "Linear - Linear fit clipping" +
-            "</p>";
-      this.ImageIntegrationHelpTips.toolTip = ImageIntegrationHelpToolTips;
       this.clippingGroupBoxLabel = aiSectionLabel(this, 'Image integration pixel rejection');
       this.clippingGroupBoxSizer = new HorizontalSizer;
       this.clippingGroupBoxSizer.margin = 6;
       this.clippingGroupBoxSizer.spacing = 4;
       this.clippingGroupBoxSizer.add( this.ImageIntegrationNormalizationSizer );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSizer );
-      this.clippingGroupBoxSizer.add( this.ImageIntegrationHelpTips );
       this.clippingGroupBoxSizer.toolTip = ImageIntegrationHelpToolTips;
       // Stop columns of buttons moving as dialog expands horizontally.
       //this.clippingGroupBoxSizer.addStretch();
@@ -6523,7 +6515,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.79";
+      this.windowTitle = "AutoIntegrate v0.80";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
