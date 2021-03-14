@@ -6401,7 +6401,8 @@ function AutoIntegrateDialog()
       this.autoButtonGroupBox.sizer.margin = 6;
       this.autoButtonGroupBox.sizer.spacing = 4;
       this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
-      this.autoButtonGroupBox.setFixedHeight(60);
+      this.autoButtonGroupBox.sizer.addStretch();
+      //this.autoButtonGroupBox.setFixedHeight(60);
 
       // Buttons for mosaic save
       this.mosaicSaveXisfButton = new PushButton( this );
@@ -6437,7 +6438,8 @@ function AutoIntegrateDialog()
       this.mosaicSaveGroupBox.sizer.margin = 6;
       this.mosaicSaveGroupBox.sizer.spacing = 4;
       this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
-      this.mosaicSaveGroupBox.setFixedHeight(60);
+      this.mosaicSaveGroupBox.sizer.autoButtonGroupBox
+      //this.mosaicSaveGroupBox.setFixedHeight(60);
 
       // OK and Cancel buttons
       this.ok_Button = new PushButton( this );
@@ -6515,7 +6517,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.80";
+      this.windowTitle = "AutoIntegrate v0.81";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
