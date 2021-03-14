@@ -6438,7 +6438,7 @@ function AutoIntegrateDialog()
       this.mosaicSaveGroupBox.sizer.margin = 6;
       this.mosaicSaveGroupBox.sizer.spacing = 4;
       this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
-      this.mosaicSaveGroupBox.sizer.autoButtonGroupBox
+      this.mosaicSaveGroupBox.sizer.addStretch();
       //this.mosaicSaveGroupBox.setFixedHeight(60);
 
       // OK and Cancel buttons
