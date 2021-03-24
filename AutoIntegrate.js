@@ -114,8 +114,17 @@ Steps for narrowband files are a bit similar to LRGB files but without L channel
 - There is an option to choose how S, H and O files and mapped to R, G and B channels.
 - Color calibration is not run on narrowband images
 - Saturation default setting 1 does not increase saturation on narrowband images.
-- Linear for can be used for R, G or B channels. In that case script runs linked STF 
+- Linear fit for can be used for R, G or B channels. In that case script runs linked STF 
   stretch. Default is to use unlinked STF stretch for narrpwband files.
+- PixelMath expression can chosen from a list or edited manually for custom blending.
+  Pixelmath expressions can also include RGB channels.
+
+Narrowband RGB mapping
+----------------------
+
+A special section in narrowband processing can be used for narrowband to LRGB image
+mapping. This mapping is similar to NBRGBCombination script in Pixinsight or
+as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband.
 
 Common final steps for all images
 ---------------------------------
@@ -288,6 +297,26 @@ var extra_STF = false;
 var extra_target_image = null;
 var skip_mask_contrast = false;
 
+/* RGBNB mapping. */
+var use_RGBNB_Mapping = false;
+var use_RGB_image = false;
+var L_BoostFactor = 1.2;
+var R_BoostFactor = 1.2;
+var G_BoostFactor = 1.2;
+var B_BoostFactor = 1.2;
+var L_mapping = 'H';
+var R_mapping = 'H';
+var G_mapping = 'O';
+var B_mapping = 'O';
+//var RGB_bandwidth = 300;
+var L_bandwidth = 300;
+var R_bandwidth = 100;
+var G_bandwidth = 100;
+var B_bandwidth = 100;
+var H_bandwidth = 7;
+var S_bandwidth = 8.5;
+var O_bandwidth = 8.5;
+
 var processing_steps = "";
 var all_windows = [];
 var iconPoint;
@@ -376,19 +405,30 @@ var fixed_windows = [
       "Integration_G_ABE",
       "Integration_B_ABE",
       "Integration_RGB_ABE",
+      "Integration_RGB_ABE_NB",
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
-      "Integration_LRGB_ABE_HT",
       "copy_Integration_RGB_ABE_HT",
+      "Integration_RGB_ABE_NB_HT",
+      "copy_Integration_RGB_ABE_NB_HT",
+      "Integration_LRGB_ABE_HT",
+      "copy_Integration_LRGB_ABE_HT",
       "Integration_L_noABE",
       "Integration_R_noABE",
       "Integration_G_noABE",
       "Integration_B_noABE",
       "Integration_RGB_noABE",
+      "Integration_RGB_noABE_NB",
       "Integration_L_noABE_HT",
+      "Integration_L_noABE_NB",
+      "Integration_L_noABE_NB_HT",
       "Integration_RGB_noABE_HT",
-      "Integration_LRGB_noABE_HT",
       "copy_Integration_RGB_noABE_HT",
+      "Integration_RGB_noABE_NB_HT",
+      "Integration_LRGB_noABE_HT",
+      "copy_Integration_LRGB_noABE_HT",
+      "Integration_LRGB_noABE_NB_HT",
+      "copy_Integration_LRGB_noABE_NB_HT",
       "L_BE_HT",
       "RGB_BE_HT",
       "AutoMask",
@@ -448,6 +488,16 @@ function addProcessingStep(txt)
       processing_steps = processing_steps + "\n" + txt;
 }
 
+function parseFilePath(p)
+{
+      var fname = p;
+      var filestart = fname.lastIndexOf('\\');
+      if (filestart == -1) {
+            filestart = fname.lastIndexOf('/');
+      }
+      return fname.substring(0, filestart+1)
+}
+
 function throwFatalError(txt)
 {
       addProcessingStep(txt);
@@ -457,6 +507,30 @@ function throwFatalError(txt)
 function winIsValid(w)
 {
       return w != null;
+}
+
+function checkWinFilePath(w)
+{
+      if (dialogFilePath == null) {
+            console.writeln("checkWinFilePath id ", w.mainView.id);
+            var filePath = w.filePath;
+            if (filePath != null) {
+                  dialogFilePath = parseFilePath(filePath);
+                  console.writeln("checkWinFilePath filePath ", filePath);
+            } else {
+                  console.writeln("checkWinFilePath null filePath");
+            }
+      }
+}
+
+function checkAutoCont(w)
+{
+      if (winIsValid(w))  {
+            checkWinFilePath(w);
+            return true;
+      } else {
+            return false;
+      }
 }
 
 function findWindow(id)
@@ -746,6 +820,9 @@ function saveAllMosaicWindows(bits)
 
 function copyWindow(sourceWindow, name)
 {
+      if (sourceWindow == null) {
+            throwFatalError("Window not found, cannot copy to " + name);
+      }
       var targetWindow = new ImageWindow(
                               sourceWindow.mainView.image.width,
                               sourceWindow.mainView.image.height,
@@ -1332,8 +1409,9 @@ function filterByFileName(filePath, filename_postfix)
             case '_O':
                   return 'O';
             default:
-                  return null;
+                  break;
       }
+      return null;
 }
 
 function updateFilesInfo(files, filearr, txt)
@@ -1727,12 +1805,17 @@ function runPixelMathSingleMapping(id, mapping)
       return P.newImageId;
 }
 
-/* Run RGB channel combination using PixelMath. */
-function runPixelMathRGBMapping(newId, mapping_R, mapping_G, mapping_B)
+/* Run RGB channel combination using PixelMath. 
+   If we have newId we create a new image. If newId is null we
+   replace target image.
+*/
+function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
 {
       addProcessingStep("Run PixelMath mapping R " + mapping_R + ", G " + mapping_G + ", B " + mapping_B);
 
-      var idWin = findWindow("Integration_H");
+      if (idWin == null) {
+            idWin = findWindow("Integration_H");
+      }
       if (idWin == null) {
             findWindow("Integration_S");
       }
@@ -1761,9 +1844,14 @@ function runPixelMathRGBMapping(newId, mapping_R, mapping_G, mapping_B)
       P.truncate = true;
       P.truncateLower = 0;
       P.truncateUpper = 1;
-      P.createNewImage = true;
       P.showNewImage = true;
-      P.newImageId = newId;
+      if (newId != null) {
+            P.createNewImage = true;
+            P.newImageId = newId;
+      } else {
+            P.createNewImage = false;
+            P.newImageId = "";
+      }
       P.newImageWidth = 0;
       P.newImageHeight = 0;
       P.newImageAlpha = false;
@@ -1838,6 +1926,7 @@ function copyToMapImages(images)
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
             var copyname = images[i] + "_map";
+            console.writeln("copyname", copyname);
             copyWindow(findWindow(images[i]), copyname);
             images[i] = copyname;
       }
@@ -1968,7 +2057,7 @@ function customMapping()
 
             /* Run PixelMath to create a combined RGB image.
              */
-            RGB_win_id = runPixelMathRGBMapping("Integration_RGB", red_mapping, green_mapping, blue_mapping);
+            RGB_win_id = runPixelMathRGBMapping("Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
 
             RGB_win = findWindow(RGB_win_id);
             RGB_win.show();
@@ -2006,7 +2095,7 @@ function mapLRGBchannels()
 
       var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null;
-      var custom_mapping = narrowband;
+      var custom_mapping = narrowband && !use_RGBNB_Mapping;
 
       if (rgb && narrowband) {
             addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
@@ -3466,26 +3555,38 @@ function getUniqueFilenamePart()
       }
 }
 
-function writeProcessingSteps(alignedFiles, autocontinue)
+function ensureDialogFilePath(names)
 {
-      var basename;
-
-      if (autocontinue) {
-            basename = "AutoContinue";
+      if (dialogFilePath == null) {
+            var gdd = new GetDirectoryDialog;
+            gdd.caption = "Select Save Directory for " + names;
+            console.noteln(gdd.caption);
+            if (!gdd.execute()) {
+                  console.writeln("No path for " + names + ', nothing written');
+                  return false;
+            }
+            dialogFilePath = gdd.directory + '/';
+            return true;
       } else {
-            basename = "AutoIntegrate";
+            return true;
+      }
+}
+
+function writeProcessingSteps(alignedFiles, autocontinue, basename)
+{
+      if (basename == null) {
+            if (autocontinue) {
+                  basename = "AutoContinue";
+            } else {
+                  basename = "AutoIntegrate";
+            }
       }
       logfname = basename + getUniqueFilenamePart() + ".log";
 
-      if (dialogFilePath == null) {
-            var gdd = new GetDirectoryDialog;
-            gdd.caption = "Select Save Directory for " + basename + ".log";
-            if (!gdd.execute()) {
-                  console.writeln("No path for " + logfname + ', file not written');
-                  return;
-            }
-            dialogFilePath = gdd.directory + '/';
+      if (!ensureDialogFilePath(basename + ".log")) {
+            return;
       }
+
       console.writeln("Write processing steps to " + dialogFilePath + logfname);
 
       var file = new File();
@@ -3507,6 +3608,18 @@ function writeProcessingSteps(alignedFiles, autocontinue)
       }
       file.outTextLn(processing_steps);
       file.close();
+}
+
+function findProcessedImages()
+{
+      L_id = findWindowId("Integration_L");
+      R_id = findWindowId("Integration_R");
+      G_id = findWindowId("Integration_G");
+      B_id = findWindowId("Integration_B");
+      H_id = findWindowId("Integration_H");
+      S_id = findWindowId("Integration_S");
+      O_id = findWindowId("Integration_O");
+      color_id = findWindowId("Integration_RGB");
 }
 
 /* Create master L, R, G and B images, or a Color image
@@ -3540,14 +3653,7 @@ function CreateChannelImages(auto_continue)
       O_BE_win = findWindow("Integration_O_BE");
       RGB_BE_win = findWindow("Integration_RGB_BE");
 
-      L_id = findWindowId("Integration_L");
-      R_id = findWindowId("Integration_R");
-      G_id = findWindowId("Integration_G");
-      B_id = findWindowId("Integration_B");
-      H_id = findWindowId("Integration_H");
-      S_id = findWindowId("Integration_S");
-      O_id = findWindowId("Integration_O");
-      color_id = findWindowId("Integration_RGB");
+      findProcessedImages();
 
       if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
@@ -3569,29 +3675,32 @@ function CreateChannelImages(auto_continue)
       if (final_win != null) {
             addProcessingStep("Final image " + final_win.mainView.id);
             preprocessed_images = start_images.FINAL;
-      } else if (winIsValid(L_HT_win) && winIsValid(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
+      } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
             addProcessingStep("L,RGB HistogramTransformation");
             preprocessed_images = start_images.L_RGB_HT;
-      } else if (winIsValid(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
+      } else if (checkAutoCont(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
             addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
             preprocessed_images = start_images.RGB_HT;
-      } else if (winIsValid(L_BE_win) && winIsValid(RGB_BE_win)) { /* L,RGB background extracted */
+      } else if (checkAutoCont(L_BE_win) && checkAutoCont(RGB_BE_win)) { /* L,RGB background extracted */
             addProcessingStep("L,RGB background extracted");
             preprocessed_images = start_images.L_RGB_BE;
-      } else if (winIsValid(RGB_BE_win)) {                         /* RGB (color) background extracted */
+      } else if (checkAutoCont(RGB_BE_win)) {                         /* RGB (color) background extracted */
             addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
             preprocessed_images = start_images.RGB_BE;
-      } else if ((winIsValid(R_BE_win) && winIsValid(G_BE_win) && winIsValid(B_BE_win)) ||
-                 (winIsValid(H_BE_win) && winIsValid(O_BE_win))) {  /* L,R,G,B background extracted */
+      } else if ((checkAutoCont(R_BE_win) && checkAutoCont(G_BE_win) && checkAutoCont(B_BE_win)) ||
+                 (checkAutoCont(H_BE_win) && checkAutoCont(O_BE_win))) {  /* L,R,G,B background extracted */
             addProcessingStep("L,R,G,B background extracted");
             preprocessed_images = start_images.L_R_G_B_BE;
-            narrowband = winIsValid(H_BE_win) || winIsValid(O_BE_win);
+            narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
       } else if (color_id != null) {                              /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + color_id);
+            checkAutoCont(findWindow(color_id));
             preprocessed_images = start_images.RGB_COLOR;
       } else if ((R_id != null && G_id != null && B_id != null) ||
                  (H_id != null && O_id != null)) {                /* L,R,G,B integrated images */
             addProcessingStep("L,R,G,B integrated images");
+            checkAutoCont(findWindow(R_id));
+            checkAutoCont(findWindow(H_id));
             narrowband = H_id != null || S_id != null || O_id != null;
             preprocessed_images = start_images.L_R_G_B;
       } else {
@@ -3656,12 +3765,7 @@ function CreateChannelImages(auto_continue)
             var filename_postfix = '';
 
             /* Get path to current directory. */
-            var fname = dialogFileNames[0];
-            var filestart = fname.lastIndexOf('\\');
-            if (filestart == -1) {
-                  filestart = fname.lastIndexOf('/');
-            }
-            dialogFilePath = fname.substring(0, filestart+1)
+            dialogFilePath = parseFilePath(dialogFileNames[0]);
 
             if (!skip_cosmeticcorrection) {
                   /* Run CosmeticCorrection for each file.
@@ -3851,7 +3955,6 @@ function ProcessLimage(RBGmapping)
                   addProcessingStep("Start from image " + L_ABE_id);
             } else {
                   var L_win = ImageWindow.windowById(luminance_id);
-
                   if (!RBGmapping.stretched) {
                         /* Optionally run ABE on L
                         */
@@ -3860,6 +3963,12 @@ function ProcessLimage(RBGmapping)
                         } else {
                               L_ABE_id = noABEcopyWin(L_win);
                         }
+                  }
+                  if (use_RGBNB_Mapping) {
+                        var mapped_L_ABE_id = RGBNB_Channel_Mapping(L_ABE_id, 'L', L_bandwidth, L_mapping, L_BoostFactor);
+                        mapped_L_ABE_id = windowRename(mapped_L_ABE_id, L_ABE_id + "_NB");
+                        closeOneWindow(L_ABE_id);
+                        L_ABE_id = mapped_L_ABE_id;
                   }
             }
 
@@ -3999,6 +4108,165 @@ function CombineRGBimage()
       RGB_win_id = RGB_win.mainView.id;
 }
 
+function extractRGBchannel(RGB_id, channel)
+{
+      addProcessingStep("Extract " + channel + " from " + RGB_id);
+      var sourceWindow = findWindow(RGB_id);
+      var P = new ChannelExtraction;
+      P.colorSpace = ChannelExtraction.prototype.RGB;
+      P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+      switch (channel) {
+            case 'R':
+                  P.channels = [ // enabled, id
+                        [true, ""],       // R
+                        [false, ""],      // G
+                        [false, ""]       // B
+                  ];
+                  break;
+            case 'G':
+                  P.channels = [ // enabled, id
+                        [false, ""],      // R
+                        [true, ""],       // G
+                        [false, ""]       // B
+                  ];
+                  break;
+            case 'B':
+                  P.channels = [ // enabled, id
+                        [false, ""],      // R
+                        [false, ""],      // G
+                        [true, ""]        // B
+                  ];
+                  break;
+      }
+
+      sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(sourceWindow.mainView);
+      var targetWindow = ImageWindow.activeWindow;
+      sourceWindow.mainView.endProcess();
+
+      return targetWindow.mainView.id;
+}
+
+function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, BoostFactor)
+{
+      console.writeln("RGBNB_Channel_Mapping " + RGB_id);
+
+      if (channel == 'L') {
+            var L_win_copy = copyWindow(findWindow(RGB_id), RGB_id + "_RGBNBcopy");
+            var channelId = L_win_copy.mainView.id;
+      } else {
+            var channelId = extractRGBchannel(RGB_id, channel);
+      }
+
+      switch (mapping) {
+            case 'H':
+                  var NB_id = H_id;
+                  var NB_bandwidth = H_bandwidth;
+                  break;
+            case 'S':
+                  var NB_id = S_id;
+                  var NB_bandwidth = S_bandwidth;
+                  break;
+            case 'O':
+                  var NB_bandwidth = O_bandwidth;
+                  var NB_id = O_id;
+                  break;
+            case '':
+                  return channelId;
+            default:
+                  throwFatalError("Invalid NB mapping " + mapping);
+      }
+      if (NB_id == null) {
+            throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
+      }
+      if (use_RGB_image) {
+            var sourceChannelId = RGB_id;
+            channel_bandwidth = R_bandwidth;
+      } else {
+            var sourceChannelId = channelId;
+      }
+
+      addProcessingStep("Run " + channel + " mapping using " + NB_id + ", " + 
+                        channel + " bandwidth " + channel_bandwidth + ", " + 
+                        mapping + " bandwidth " + NB_bandwidth + 
+                        " and boost factor " + BoostFactor);
+      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + sourceChannelId);
+      var mappedChannelId = runPixelMathSingleMapping(
+                              channelId,
+                              "((" + NB_id + " * " + channel_bandwidth + ") - " + 
+                              "("+ sourceChannelId + " * " + NB_bandwidth + "))" +
+                              " / (" + channel_bandwidth + " - " +  NB_bandwidth + ")");
+      
+      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId);
+      var mappedChannelId2 = runPixelMathSingleMapping(
+                              mappedChannelId,
+                              channelId + " + ((" + mappedChannelId + " - Med(" + mappedChannelId + ")) * " + 
+                              BoostFactor + ")");
+      
+      runLinearFit(mappedChannelId2, mappedChannelId);
+
+      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId2);
+      var mappedChannelId3 = runPixelMathSingleMapping(
+                                    mappedChannelId2,
+                                    "max(" + mappedChannelId + ", " + mappedChannelId2 + ")");
+
+      closeOneWindow(channelId);
+      closeOneWindow(mappedChannelId);
+      closeOneWindow(mappedChannelId2);
+
+      return mappedChannelId3;
+}
+
+function doRGBNBmapping(RGB_id)
+{
+      addProcessingStep("Create mapped channel images from " + RGB_id);
+      var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', R_bandwidth, R_mapping, R_BoostFactor);
+      var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', G_bandwidth, G_mapping, G_BoostFactor);
+      var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', B_bandwidth, B_mapping, B_BoostFactor);
+
+      /* Combine RGB image from mapped channel images. */
+      addProcessingStep("Combine mapped channel images to an RGB image");
+      var RGB_mapped_id = runPixelMathRGBMapping(
+                              RGB_id + "_NB", 
+                              findWindow(RGB_id),
+                              R_mapped,
+                              G_mapped,
+                              B_mapped);
+
+      closeOneWindow(R_mapped);
+      closeOneWindow(G_mapped);
+      closeOneWindow(B_mapped);
+      closeOneWindow(RGB_id);
+
+      return RGB_mapped_id;
+}
+
+function testRGBNBmapping()
+{
+      console.beginLog();
+
+      addProcessingStep("Test narrowband mapping to RGB");
+
+      findProcessedImages();
+
+      if (color_id == null) {
+            throwFatalError("Could not find RGB image");
+      }
+
+      var color_win = findWindow(color_id);
+
+      checkWinFilePath(color_win);
+
+      var test_win = copyWindow(color_win, color_id + "_test");
+
+      doRGBNBmapping(test_win.mainView.id);
+      
+      addProcessingStep("Processing completed");
+      writeProcessingSteps(null, true, "AutoRGBNB");
+
+      console.endLog();
+}
+
 /* Process RGB image
  *
  * optionally run background neutralization on RGB image
@@ -4056,6 +4324,12 @@ function ProcessRGBimage(RBGstretched)
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
+
+            if (use_RGBNB_Mapping) {
+                  /* Do RGBNB mapping on combined and color calibrated RGB image. */
+                  RGB_ABE_id = doRGBNBmapping(RGB_ABE_id);
+            }
+
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
                   ColorCreateMask(RGB_ABE_id, RBGstretched);
@@ -4641,6 +4915,7 @@ function AutoIntegrateEngine(auto_continue)
 
       var LRGB_ABE_HT_id = null;
       var RGB_ABE_HT_id = null;
+      var LRGB_Combined = null;
 
       is_color_files = false;
       luminance_id = null;
@@ -4765,9 +5040,14 @@ function AutoIntegrateEngine(auto_continue)
                         LRGB_ABE_HT_id = runLRGBCombination(
                                           RGB_ABE_HT_id,
                                           L_ABE_HT_id);
+                        LRGB_Combined = LRGB_ABE_HT_id;
+                        copyWindow(
+                              ImageWindow.windowById(LRGB_ABE_HT_id), 
+                              "copy_" + LRGB_ABE_HT_id);
+                        LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
                   }
 
-                  if (!narrowband) {
+                  if (!narrowband && !use_RGBNB_Mapping) {
                         /* Remove green cast, run SCNR
                         */
                         runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
@@ -4803,6 +5083,8 @@ function AutoIntegrateEngine(auto_continue)
             extraProcessing(LRGB_ABE_HT_id, false);
       }
 
+      ensureDialogFilePath("result files");
+
       saveWindow(dialogFilePath, L_id);                    /* Integration_L */
       saveWindow(dialogFilePath, R_id);                    /* Integration_R */
       saveWindow(dialogFilePath, G_id);                    /* Integration_G */
@@ -4836,6 +5118,7 @@ function AutoIntegrateEngine(auto_continue)
 
       windowIconizeif(RGB_ABE_HT_id);
       windowIconizeif(L_ABE_HT_id);
+      windowIconizeif(LRGB_Combined);           /* LRGB Combined image */
       windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
       windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
@@ -4907,7 +5190,7 @@ function AutoIntegrateEngine(auto_continue)
       console.noteln("======================================");
 
       if (preprocessed_images != start_images.FINAL) {
-            writeProcessingSteps(alignedFiles, auto_continue);
+            writeProcessingSteps(alignedFiles, auto_continue, null);
       }
 
       console.noteln("Processing steps:");
@@ -5007,7 +5290,7 @@ function Autorun(that)
                   catch(err) {
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
-                        writeProcessingSteps(null, false);
+                        writeProcessingSteps(null, false, null);
                   }
                   if (batch_mode) {
                         dialogFileNames = null;
@@ -5027,6 +5310,60 @@ function aiSectionLabel(parent, text)
       lbl.text = '<p style="color:SlateBlue"><b>' + text + "</b></p>";
 
       return lbl;
+}
+
+function aiLabel(parent, text)
+{
+      var lbl = new Label( parent );
+      lbl.text = text;
+      lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+
+      return lbl;
+}
+
+function aiNumericEdit(parent, txt, defval, func)
+{
+      var edt = new NumericEdit( parent );
+      edt.label.text = txt;
+      edt.real = true;
+      edt.edit.setFixedWidth( 6 * parent.font.width( "0" ) );
+      edt.onValueUpdated = func;
+      edt.setPrecision( 1 );
+      edt.setRange(0.1, 999)
+      edt.setValue(defval);
+      return edt;
+}
+
+function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc)
+{
+      var cb = new ComboBox( parent );
+      cb.addItem( "H" );
+      cb.addItem( "S" );
+      cb.addItem( "O" );
+      cb.addItem( "-" );
+      cb.currentItem = defindex;
+      cb.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        RemoveOption("RGBNB mapping " + channel + " using H"); 
+                        setValueFunc('H');
+                        break;
+                  case 1:
+                        RemoveOption("RGBNB mapping " + channel + " using S"); 
+                        setValueFunc('S');
+                        break;
+                  case 2:
+                        RemoveOption("RGBNB mapping " + channel + " using O"); 
+                        setValueFunc('O');
+                        break;
+                  case 3:
+                        RemoveOption("No RGBNB mapping for " + channel); 
+                        setValueFunc('');
+                        break;
+                  }
+      };
+      return cb;
 }
 
 function AutoIntegrateDialog()
@@ -5832,6 +6169,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,H)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO Helix" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "RGB" );
       this.narrowbandCustomPalette_ComboBox.toolTip = narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
@@ -5891,10 +6229,10 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "(0.4*H)+(0.6*O)";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 10: // OHS
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "O";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
+                  case 11: // RGB
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "R";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
                         break;
             }
             custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
@@ -6055,54 +6393,183 @@ function AutoIntegrateDialog()
             SetOptionValue("Narrowband L mapping", this.editText); 
       };
 
-      this.NbRGBLabel = new Label( this );
-      this.NbRGBLabel.text = "Luminance mapping";
-      this.NbRGBLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.NbRGBLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
-      this.NbRGBSizer = new HorizontalSizer;
-      this.NbRGBSizer.margin = 6;
-      this.NbRGBSizer.spacing = 4;
-      this.NbRGBSizer.add( this.NbRGBLabel );
-      this.NbRGBSizer.add( this.narrowbandLuminancePalette_ComboBox );
-      this.NbRGBSizer.add( this.narrowbandCustomPalette_L_Label );
-      this.NbRGBSizer.add( this.narrowbandCustomPalette_L_ComboBox );
-      this.NbRGBSizer.addStretch();
+      this.NbLuminanceLabel = new Label( this );
+      this.NbLuminanceLabel.text = "Luminance mapping";
+      this.NbLuminanceLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.NbLuminanceLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
+      this.NbLuminanceSizer = new HorizontalSizer;
+      this.NbLuminanceSizer.margin = 6;
+      this.NbLuminanceSizer.spacing = 4;
+      this.NbLuminanceSizer.add( this.NbLuminanceLabel );
+      this.NbLuminanceSizer.add( this.narrowbandLuminancePalette_ComboBox );
+      this.NbLuminanceSizer.add( this.narrowbandCustomPalette_L_Label );
+      this.NbLuminanceSizer.add( this.narrowbandCustomPalette_L_ComboBox );
+      this.NbLuminanceSizer.addStretch();
 
-      // Button to continue narrowband from existing files
-      this.autoContinueNarrowbandButton = new PushButton( this );
-      this.autoContinueNarrowbandButton.text = "AutoContinue narrowband";
-      this.autoContinueNarrowbandButton.toolTip = 
-            "AutoContinue narrowband - Run automatic processing from previously created narrowband images." +
+      /* RGBNB mapping.
+       */
+      var RGBNB_tooltip = 
+            "A special narrowband processing is used for narrowband to LRGB image " +
+            "mapping. This mapping is similar to NBRGBCombination script in Pixinsight or " +
+            "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. ";
+            
+      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
+      this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
+            use_RGBNB_Mapping = checked; 
+            SetOptionChecked("Narrowband RGB mapping", checked); 
+      }
+      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", use_RGB_image, 
             "<p>" +
-            "Image check order is:<br>" +
-            "RGB_HT<br>" +
-            "Integration_RGB_BE<br>" +
-            "Integration_H_BE + Integration_O_BE + Integration_S_BE<br>" +
-            "Integration_H + Integration_S + Integration_O<br>" +
-            "Final image (for extra processing)" +
-            "</p>";
-      this.autoContinueNarrowbandButton.onClick = function()
+            "Use RGB image for bandwidth mapping instead of separate R, G and B channel images. " +
+            "R channel bandwidth is then used for the RGB image." +
+            "</p>" );
+      this.useRGBbandwidth_CheckBox.onClick = function(checked) { 
+            use_RGB_image = checked; 
+            SetOptionChecked("Use RGB image", checked); 
+      }
+      this.useRGBNBmappingSizer = new HorizontalSizer;
+      this.useRGBNBmappingSizer.margin = 6;
+      this.useRGBNBmappingSizer.spacing = 4;
+      this.useRGBNBmappingSizer.add( this.useRGBNBmapping_CheckBox );
+      this.useRGBNBmappingSizer.add( this.useRGBbandwidth_CheckBox );
+
+      // Button to test narrowband mapping
+      this.testNarrowbandMappingButton = new PushButton( this );
+      this.testNarrowbandMappingButton.text = "Test";
+      this.testNarrowbandMappingButton.toolTip = "Test narrowband RGB mapping.";
+      this.testNarrowbandMappingButton.onClick = function()
       {
-            console.writeln("autoContinue narrowband");
+            console.writeln("Test narrowband mapping");
+            use_RGBNB_Mapping = true;
             try {
-                  autocontinue_narrowband = true;
-                  AutoIntegrateEngine(true);
-                  autocontinue_narrowband = false;
+                  testRGBNBmapping();
             } 
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true);
-                  autocontinue_narrowband = false;
+                  writeProcessingSteps(null, true, "AutoRGBNB");
+                  console.endLog();
             }
+            use_RGBNB_Mapping = false;
       };   
 
-      this.narrowbandAutoContinue_sizer = new HorizontalSizer;
-      this.narrowbandAutoContinue_sizer.margin = 6;
-      this.narrowbandAutoContinue_sizer.spacing = 4;
-      this.narrowbandAutoContinue_sizer.add( this.autoContinueNarrowbandButton );
-      this.narrowbandAutoContinue_sizer.addStretch();
-      
+      // channel mapping
+      this.RGBNB_MappingLabel = aiLabel(this, 'Mapping');
+      this.RGBNB_MappingLLabel = aiLabel(this, 'L');
+      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", 0, function(value) { L_mapping = value; });
+      this.RGBNB_MappingRLabel = aiLabel(this, 'R');
+      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", 0, function(value) { R_mapping = value; });
+      this.RGBNB_MappingGLabel = aiLabel(this, 'G');
+      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", 2, function(value) { G_mapping = value; });
+      this.RGBNB_MappingBLabel = aiLabel(this, 'B');
+      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", 2, function(value) { B_mapping = value; });
+
+      this.RGBNB_MappingSizer = new HorizontalSizer;
+      this.RGBNB_MappingSizer.margin = 6;
+      this.RGBNB_MappingSizer.spacing = 4;
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingLabel );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingLLabel );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingLValue );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingRLabel );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingRValue );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingGLabel );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingGValue );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingBLabel );
+      this.RGBNB_MappingSizer.add( this.RGBNB_MappingBValue );
+      this.RGBNB_MappingSizer.addStretch();
+
+      // Boost factor for LRGB
+      this.RGBNB_BoostLabel = aiLabel(this, 'Boost');
+      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', L_BoostFactor, function(value) { L_BoostFactor = value; } );
+      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', R_BoostFactor, function(value) { R_BoostFactor = value; } );
+      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', G_BoostFactor, function(value) { G_BoostFactor = value; } );
+      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', B_BoostFactor, function(value) { B_BoostFactor = value; } );
+
+      this.RGBNB_BoostSizer = new HorizontalSizer;
+      this.RGBNB_BoostSizer.margin = 6;
+      this.RGBNB_BoostSizer.spacing = 4;
+      this.RGBNB_BoostSizer.add( this.RGBNB_BoostLabel );
+      this.RGBNB_BoostSizer.add( this.RGBNB_BoostLValue );
+      this.RGBNB_BoostSizer.add( this.RGBNB_BoostRValue );
+      this.RGBNB_BoostSizer.add( this.RGBNB_BoostGValue );
+      this.RGBNB_BoostSizer.add( this.RGBNB_BoostBValue );
+      this.RGBNB_BoostSizer.addStretch();
+
+      this.RGBNB_Sizer1 = new HorizontalSizer;
+      this.RGBNB_Sizer1.add(this.RGBNB_MappingSizer);
+      this.RGBNB_Sizer1.add(this.RGBNB_BoostSizer);
+      this.RGBNB_Sizer1.addStretch();
+
+      // Bandwidth for different channels
+      this.RGBNB_BandwidthLabel = aiLabel(this, 'Bandwidth');
+      //this.RGBNB_BandwidthRGBValue = aiNumericEdit(this, 'RGB', RGB_bandwidth, function(value) { RGB_bandwidth = value; } );
+      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', L_bandwidth, function(value) { L_bandwidth = value; } );
+      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', R_bandwidth, function(value) { R_bandwidth = value; } );
+      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', G_bandwidth, function(value) { G_bandwidth = value; } );
+      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', B_bandwidth, function(value) { B_bandwidth = value; } );
+      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', H_bandwidth, function(value) { H_bandwidth = value; } );
+      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', S_bandwidth, function(value) { S_bandwidth = value; } );
+      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', O_bandwidth, function(value) { O_bandwidth = value; } );
+
+      this.RGBNB_BandwidthSizer = new HorizontalSizer;
+      this.RGBNB_BandwidthSizer.margin = 6;
+      this.RGBNB_BandwidthSizer.spacing = 4;
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthLabel );
+      //this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthRGBValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthLValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthRValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthGValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthBValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthHValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthSValue );
+      this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthOValue );
+      this.RGBNB_BandwidthSizer.add( this.testNarrowbandMappingButton );
+      this.RGBNB_BandwidthSizer.addStretch();
+
+      this.RGBNB_Sizer = new VerticalSizer;
+      this.RGBNB_Sizer.add(this.useRGBNBmappingSizer);
+      this.RGBNB_Sizer.add(this.RGBNB_Sizer1);
+      this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
+      this.RGBNB_Sizer.addStretch();
+
+      if (0) {
+            // No need for separate AutoContinue narrowband button for now...
+            // Button to continue narrowband from existing files
+            this.autoContinueNarrowbandButton = new PushButton( this );
+            this.autoContinueNarrowbandButton.text = "AutoContinue narrowband";
+            this.autoContinueNarrowbandButton.toolTip = 
+                  "AutoContinue narrowband - Run automatic processing from previously created narrowband images." +
+                  "<p>" +
+                  "Image check order is:<br>" +
+                  "RGB_HT<br>" +
+                  "Integration_RGB_BE<br>" +
+                  "Integration_H_BE + Integration_O_BE + Integration_S_BE<br>" +
+                  "Integration_H + Integration_S + Integration_O<br>" +
+                  "Final image (for extra processing)" +
+                  "</p>";
+            this.autoContinueNarrowbandButton.onClick = function()
+            {
+                  console.writeln("autoContinue narrowband");
+                  try {
+                        autocontinue_narrowband = true;
+                        AutoIntegrateEngine(true);
+                        autocontinue_narrowband = false;
+                  } 
+                  catch(err) {
+                        console.criticalln(err);
+                        console.criticalln("Processing stopped!");
+                        writeProcessingSteps(null, true, null);
+                        autocontinue_narrowband = false;
+                  }
+            };   
+
+            this.narrowbandAutoContinue_sizer = new HorizontalSizer;
+            this.narrowbandAutoContinue_sizer.margin = 6;
+            this.narrowbandAutoContinue_sizer.spacing = 4;
+            this.narrowbandAutoContinue_sizer.add( this.autoContinueNarrowbandButton );
+            this.narrowbandAutoContinue_sizer.addStretch();
+      }
+
       this.narrowbandGroupBox = new newGroupBox( this );
       this.narrowbandGroupBox.title = "Narrowband processing";
       this.narrowbandGroupBox.sizer = new VerticalSizer;
@@ -6111,8 +6578,9 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer.add( this.narrowbandColorPaletteLabel );
       this.narrowbandGroupBox.sizer.add( this.narrowbandCustomPalette_Sizer );
       this.narrowbandGroupBox.sizer.add( this.mapping_on_nonlinear_data_Sizer );
-      this.narrowbandGroupBox.sizer.add( this.NbRGBSizer );
-      this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
+      this.narrowbandGroupBox.sizer.add( this.NbLuminanceSizer );
+      this.narrowbandGroupBox.sizer.add( this.RGBNB_Sizer );
+      //this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
@@ -6374,7 +6842,7 @@ function AutoIntegrateDialog()
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true);
+                  writeProcessingSteps(null, true, null);
                   autocontinue_narrowband = false;
             }
       };   
@@ -6490,7 +6958,6 @@ function AutoIntegrateDialog()
       this.col1.add( this.otherParamsGroupBox );
       this.col1.add( this.narrowbandGroupBox );
       this.col1.add( this.narrowbandExtraGroupBox );
-      this.col1.add( this.mosaicSaveGroupBox );
       this.col1.addStretch();
 
       this.col2 = new VerticalSizer;
@@ -6498,6 +6965,7 @@ function AutoIntegrateDialog()
       this.col2.spacing = 6;
       this.col2.add( this.ProcessingGroupBox );
       this.col2.add( this.extraGroupBox );
+      this.col2.add( this.mosaicSaveGroupBox );
       this.col2.add( this.autoButtonGroupBox );
       this.col2.addStretch();
 
@@ -6517,7 +6985,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.81";
+      this.windowTitle = "AutoIntegrate v0.82";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
