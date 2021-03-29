@@ -49,13 +49,16 @@ Generic steps for all files
 
 1. Opens a file dialog. On that select all *.fit (or other) files. LRGB, color, RAW and narrowband
    files can be used.
-2. SubframeSelector is run on files to measure and generate SSWEIGHT for
+2. Optionally linear defect detection is run to find column and row defects. Defect information
+   is used by the CosmeticCorrection.
+3. By default run CosmeticCorrection for each file.
+4. SubframeSelector is run on files to measure and generate SSWEIGHT for
    each file. Output is *_a.xisf files.
-3. Files are scanned and the file with highest SSWEIGHT is selected as a
+5. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
-4. StarAlign is run on all files and *_a_r.xisf files are
+6. StarAlign is run on all files and *_a_r.xisf files are
    generated.
-5. Optionally there is LocalNormalization on all files but
+7. Optionally there is LocalNormalization on all files but
    that does not seem to produce good results. There must be a bug...
 
 Steps with LRGB files
@@ -137,8 +140,6 @@ Common final steps for all images
 Credits and Copyright notices
 -----------------------------
 
-Written by Jarmo Ruuth, 2018-2021.
-
 PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
 was a great place to find details and best practises when using PixInsight.
@@ -146,15 +147,26 @@ was a great place to find details and best practises when using PixInsight.
 Routines ApplyAutoSTF and applySTF are from PixInsight scripts that are 
 distributed with Pixinsight. 
 
+Routines for Linear Defect Detection are from PixInsight scripts 
+LinearDefectDetection.js and CommonFunctions.jsh that is distributed 
+with Pixinsight. 
+
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+Copyright (c) 2018-2021 Jarmo Ruuth. All Rights Reserved.
+
+The following copyright notice is for Linear Defect Detection
+
+   Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
 The following copyright notice is for routines ApplyAutoSTF and applySTF:
 
    Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
-   
-      Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
-   
+
+The following condition apply for routines ApplyAutoSTF, applySTF and 
+Linear Defect Detection:
+
    Redistribution and use in both source and binary forms, with or without
    modification, is permitted provided that the following conditions are met:
    
@@ -209,6 +221,7 @@ The following copyright notice is for routines ApplyAutoSTF and applySTF:
 #include <pjsr/UndoFlag.jsh>
 #include <pjsr/Sizer.jsh>
 #include <pjsr/SectionBar.jsh>
+#include <pjsr/ImageOp.jsh>
 
 var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
@@ -256,6 +269,8 @@ var is_luminance_images = false;    // Do we have luminance files from autoconti
 var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
 var image_stretching = 'STF';
 var MaskedStretch_targetBackground = 0.125;
+var fix_column_defects = false;
+var fix_row_defects = false;
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
@@ -996,10 +1011,750 @@ function writeImage(filePath, imageWindow)
    
       return true;
 }
-   
-function runCosmeticCorrection(fileNames)
+
+/* Linear Defect Detection from LinearDefectDetection.js script.
+
+   Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
+*/
+function LDDEngine( win, detectColumns, detectPartialLines,
+                                layersToRemove, rejectionLimit, imageShift,
+                                detectionThreshold, partialLineDetectionThreshold )
 {
-      addProcessingStep("runCosmeticCorrection, output *_cc.xisf");
+   console.writeln("LDDEngine");
+   let WI = new DefineWindowsAndImages( win, detectPartialLines );
+
+   // Generate the small-scale image by subtracting
+   // the large-scale components of the image.
+   MultiscaleIsolation( WI.referenceSSImage, null, layersToRemove );
+
+   // Build a list of lines in the image.
+   // This can include entire or partial rows or columns.
+   if ( layersToRemove < 7 )
+      layersToRemove = 7;
+   let partialLines;
+   if ( detectPartialLines )
+      partialLines = new PartialLineDetection( detectColumns, WI.referenceImageCopy,
+                                               layersToRemove - 3, imageShift,
+                                               partialLineDetectionThreshold );
+
+   let maxPixelPara, maxPixelPerp;
+   if ( detectColumns )
+   {
+      maxPixelPara = WI.referenceImage.height - 1;
+      maxPixelPerp = WI.referenceImage.width - 1;
+   }
+   else
+   {
+      maxPixelPara = WI.referenceImage.width - 1;
+      maxPixelPerp = WI.referenceImage.height - 1;
+   }
+
+   let lines;
+   if ( detectPartialLines )
+      lines = new LineList( true,
+                            partialLines.columnOrRow,
+                            partialLines.startPixel,
+                            partialLines.endPixel,
+                            maxPixelPara, maxPixelPerp );
+   else
+      lines = new LineList( true, [], [], [], maxPixelPara, maxPixelPerp );
+
+   // Calculate the median value of each line in the image.
+   // Create a model image with the lines filled
+   // by their respective median values.
+   console.writeln( "<end><cbr><br>Analyzing " + lines.columnOrRow.length + " lines in the image<br>" );
+   let lineValues = new Array;
+   for ( let i = 0; i < lines.columnOrRow.length; ++i )
+   {
+      let lineRect;
+      if ( detectColumns )
+      {
+         lineRect = new Rect( 1, lines.endPixel[i] - lines.startPixel[i] + 1 );
+         lineRect.moveTo( lines.columnOrRow[i], lines.startPixel[i] );
+      }
+      else
+      {
+         lineRect = new Rect( lines.endPixel[i] - lines.startPixel[i] + 1, 1 );
+         lineRect.moveTo( lines.startPixel[i], lines.columnOrRow[i] );
+      }
+
+      let lineStatistics = new IterativeStatistics( WI.referenceSSImage, lineRect, rejectionLimit );
+      WI.lineModelImage.selectedRect = lineRect;
+      WI.lineModelImage.apply( lineStatistics.median );
+      lineValues.push( lineStatistics.median );
+   }
+   WI.referenceSSImage.resetSelections();
+   WI.lineModelImage.resetSelections();
+
+   // Build the detection map image
+   // and the list of detected line defects.
+   this.detectedColumnOrRow = new Array;
+   this.detectedStartPixel = new Array;
+   this.detectedEndPixel = new Array;
+   let lineModelMedian = WI.lineModelImage.median();
+   let lineModelMAD = WI.lineModelImage.MAD();
+   let lineRect;
+   for ( let i = 0; i < lineValues.length; ++i )
+   {
+      if ( detectColumns )
+      {
+         lineRect = new Rect( 1, lines.endPixel[i] - lines.startPixel[i] + 1 );
+         lineRect.moveTo( lines.columnOrRow[i], lines.startPixel[i] );
+      }
+      else
+      {
+         lineRect = new Rect( lines.endPixel[i] - lines.startPixel[i] + 1, 1 );
+         lineRect.moveTo( lines.startPixel[i], lines.columnOrRow[i] );
+      }
+
+      WI.lineDetectionImage.selectedRect = lineRect;
+      let sigma = Math.abs( lineValues[i] - lineModelMedian ) / ( lineModelMAD * 1.4826 );
+      WI.lineDetectionImage.apply( parseInt( sigma ) / ( detectionThreshold + 1 ) );
+      if ( sigma >= detectionThreshold )
+      {
+         this.detectedColumnOrRow.push( lines.columnOrRow[i] );
+         this.detectedStartPixel.push( lines.startPixel[i] );
+         this.detectedEndPixel.push( lines.endPixel[i] );
+      }
+   }
+
+   // Transfer the resulting images to their respective windows.
+   WI.lineDetectionImage.resetSelections();
+   WI.lineDetectionImage.truncate( 0, 1 );
+   WI.lineModelImage.apply( WI.referenceImage.median(), ImageOp_Add );
+
+   WI.lineModelWindow.mainView.beginProcess();
+   WI.lineModelWindow.mainView.image.apply( WI.lineModelImage );
+   WI.lineModelWindow.mainView.endProcess();
+
+   WI.lineDetectionWindow.mainView.beginProcess();
+   WI.lineDetectionWindow.mainView.image.apply( WI.lineDetectionImage );
+   WI.lineDetectionWindow.mainView.endProcess();
+
+   // Free memory space taken by working images.
+   WI.referenceImage.free();
+   WI.referenceSSImage.free();
+   WI.lineModelImage.free();
+   WI.lineDetectionImage.free();
+   if ( detectPartialLines )
+      WI.referenceImageCopy.free();
+   closeOneWindow(WI.lineModelWindow.mainView.id);
+   closeOneWindow(WI.lineDetectionWindow.mainView.id);
+   closeOneWindow("partial_line_detection");
+}
+
+// ----------------------------------------------------------------------------
+
+/*
+ * Function to subtract the large-scale components from an image using the
+ * median wavelet transform.
+ */
+function MultiscaleIsolation( image, LSImage, layersToRemove )
+{
+   // Generate the large-scale components image.
+   // First we generate the array that defines
+   // the states (enabled / disabled) of the scale layers.
+   let scales = new Array;
+   for ( let i = 0; i < layersToRemove; ++i )
+      scales.push( 1 );
+
+   // The scale layers are an array of images.
+   // We use the medianWaveletTransform. This algorithm is less prone
+   // to show vertical patterns in the large-scale components.
+   let multiscaleTransform = new Array;
+   multiscaleTransform = image.medianWaveletTransform( layersToRemove-1, 0, scales );
+   // We subtract the last layer to the image.
+   // Please note that this image has negative pixel values.
+   image.apply( multiscaleTransform[layersToRemove-1], ImageOp_Sub );
+   // Generate a large-scale component image
+   // if the respective input image is not null.
+   if ( LSImage != null )
+      LSImage.apply( multiscaleTransform[layersToRemove-1] );
+   // Remove the multiscale layers from memory.
+   for ( let i = 0; i < multiscaleTransform.length; ++i )
+      multiscaleTransform[i].free();
+}
+
+/*
+ * Function to create a list of vertical or horizontal lines in an image. It
+ * can combine entire rows or columns and fragmented ones, if an array of
+ * partial sections is specified in the input parameters. This list is used to
+ * input the selected regions in the IterativeStatistics function.
+ */
+function LineList( correctEntireImage, partialColumnOrRow, partialStartPixel, partialEndPixel, maxPixelPara, maxPixelPerp )
+{
+   this.columnOrRow = new Array;
+   this.startPixel = new Array;
+   this.endPixel = new Array;
+
+   if ( !correctEntireImage )
+   {
+      this.columnOrRow = partialColumnOrRow;
+      this.startPixel = partialStartPixel;
+      this.endPixel = partialEndPixel;
+   }
+   else
+   {
+      if ( partialColumnOrRow.length == 0 )
+         partialColumnOrRow.push( maxPixelPerp + 1 );
+
+      let iPartial = 0;
+      for ( let i = 0; i <= maxPixelPerp; ++i )
+      {
+         if ( iPartial < partialColumnOrRow.length )
+         {
+            if ( i < partialColumnOrRow[iPartial] && correctEntireImage )
+            {
+               this.columnOrRow.push( i );
+               this.startPixel.push( 0 );
+               this.endPixel.push( maxPixelPara );
+            }
+            else
+            {
+               // Get the partial column or row.
+               this.columnOrRow.push( partialColumnOrRow[iPartial] );
+               this.startPixel.push( partialStartPixel[iPartial] );
+               this.endPixel.push( partialEndPixel[iPartial] );
+               if ( partialStartPixel[iPartial] > 0 )
+               {
+                  this.columnOrRow.push( partialColumnOrRow[iPartial] );
+                  this.startPixel.push( 0 );
+                  this.endPixel.push( partialStartPixel[iPartial] - 1 );
+               }
+               if ( partialEndPixel[iPartial] < maxPixelPara )
+               {
+                  this.columnOrRow.push( partialColumnOrRow[iPartial] );
+                  this.startPixel.push( partialEndPixel[iPartial] + 1 );
+                  this.endPixel.push( maxPixelPara );
+               }
+               // In some cases, there can be more than one section of
+               // the same column or row in the partial defect list.
+               // In that case, i (which is the current column or row number)
+               // shouldn't increase because we are repeating
+               // the same column or row.
+               i = partialColumnOrRow[iPartial];
+               ++iPartial;
+            }
+         }
+         else if ( correctEntireImage )
+         {
+            this.columnOrRow.push( i );
+            this.startPixel.push( 0 );
+            this.endPixel.push( maxPixelPara );
+         }
+      }
+   }
+}
+
+/*
+ * Function to calculate the median and MAD of a selected image area with
+ * iterative outlier rejection in the high end of the distribution. Useful to
+ * reject bright objects in a background-dominated image, especially if the
+ * input image is the output image of MultiscaleIsolation.
+ */
+function IterativeStatistics( image, rectangle, rejectionLimit )
+{
+   image.selectedRect = rectangle;
+   let formerHighRejectionLimit = 1000;
+   // The initial currentHighRejectionLimit value is set to 0.99 because
+   // the global rejection sets the rejected pixels to 1. This way, those
+   // pixels are already rejected in the first iteration.
+   let currentHighRejectionLimit = 0.99;
+   let j = 0;
+   while ( formerHighRejectionLimit / currentHighRejectionLimit > 1.001 || j < 10 )
+   {
+      // Construct the statistics object to rectangle statistics.
+      // These statistics are updated with the new high rejection limit
+      // calculated at the end of the iteration.
+      let iterativeRectangleStatistics = new ImageStatistics;
+      with ( iterativeRectangleStatistics )
+      {
+         medianEnabled = true;
+         lowRejectionEnabled = false;
+         highRejectionEnabled = true;
+         rejectionHigh = currentHighRejectionLimit;
+      }
+      iterativeRectangleStatistics.generate( image );
+      this.median = iterativeRectangleStatistics.median;
+      this.MAD = iterativeRectangleStatistics.mad;
+      formerHighRejectionLimit = currentHighRejectionLimit;
+      currentHighRejectionLimit = parseFloat( this.median + ( iterativeRectangleStatistics.mad * 1.4826 * rejectionLimit ) );
+      ++j;
+   }
+   image.resetSelections();
+}
+
+/*
+ * Function to detect defective partial columns or rows in an image.
+ */
+function PartialLineDetection( detectColumns, image, layersToRemove, imageShift, threshold )
+{
+   if ( ( detectColumns ? image.height : image.width ) < imageShift * 4 )
+      throw new Error( "imageShift parameter too high for the current image size" );
+
+
+   // Create a small-scale component image and its image window.
+   // SSImage will be the main view of the small-scale component
+   // image window because we need to apply a
+   // MorphologicalTransformation instance to it.
+   this.SSImageWindow = new ImageWindow( image.width,
+                                         image.height,
+                                         image.numberOfChannels,
+                                         32, true, false,
+                                         "partial_line_detection" );
+
+   // The initial small-scale component image is the input image.
+   this.SSImage = new Image( image.width,
+                             image.height,
+                             image.numberOfChannels,
+                             image.colorSpace,
+                             image.bitsPerSample,
+                             SampleType_Real );
+
+   this.SSImage.apply( image );
+
+   // Subtract the large-scale components to the image.
+   console.noteln( "<end><cbr><br>* Isolating small-scale image components..." );
+   console.flush();
+   MultiscaleIsolation( this.SSImage, null, layersToRemove );
+
+   // The clipping mask is an image to reject the highlights
+   // of the processed small-scale component image. The initial
+   // state of this image is the small-scale component image
+   // after removing the large-scale components. We simply
+   // binarize this image at 5 sigmas above the image median.
+   // This way, the bright structures are white and the rest
+   // of the image is pure black. We'll use this image
+   // at the end of the processing.
+   let clippingMask = new Image( image.width,
+                                 image.height,
+                                 image.numberOfChannels,
+                                 image.colorSpace,
+                                 image.bitsPerSample,
+                                 SampleType_Real );
+
+   clippingMask.apply( this.SSImage );
+   clippingMask.binarize( clippingMask.MAD() * 5 );
+
+   // Apply a morphological transformation process
+   // to the small-scale component image.
+   // The structuring element is a line in the direction
+   // of the lines to be detected.
+   console.noteln( "<end><cbr><br>* Processing small-scale component image..." );
+   console.flush();
+   let structure;
+   if ( detectColumns )
+      structure =
+      [[
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0
+      ]];
+   else
+      structure =
+      [[
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+      ]];
+
+   console.writeln( "<end><cbr>Applying morphological median transformation..." );
+   console.flush();
+   for ( let i = 0; i < 5; ++i )
+      this.SSImage.morphologicalTransformation( 4, structure, 0, 0, 1 );
+
+   // Shift a clone of the small-scale component image
+   // after the morphological transformation. We then subtract
+   // the shifted image from its parent image. In the resulting
+   // image, those linear structures with a sudden change
+   // of contrast over the column or row will result in a bright
+   // line at the origin of the defect. This lets us
+   // to detect the defective partial columns or rows.
+   let shiftedSSImage = new Image( image.width,
+                                   image.height,
+                                   image.numberOfChannels,
+                                   image.colorSpace,
+                                   32, SampleType_Real );
+
+   shiftedSSImage.apply( this.SSImage );
+   detectColumns ? shiftedSSImage.shiftBy( 0, -imageShift )
+                 : shiftedSSImage.shiftBy( imageShift, 0 );
+   this.SSImage.apply( shiftedSSImage, ImageOp_Sub );
+   shiftedSSImage.free();
+
+   // Subtract again the large-scale components
+   // of this processed small-scale component image.
+   // This will give a cleaner result before binarizing.
+   console.writeln( "<end><cbr>Isolating small-scale image components..." );
+   console.flush();
+   MultiscaleIsolation( this.SSImage, null, layersToRemove - 3 );
+
+   // Binarize the image to isolate the partial line detection structures.
+   console.writeln( "<end><cbr>Isolating partial line defects..." );
+   console.flush();
+   let imageMedian = this.SSImage.median();
+   let imageMAD = this.SSImage.MAD();
+   this.SSImage.binarize( imageMedian + imageMAD*threshold );
+   // Now, we subtract the binarized the clipping mask from this processed
+   // small-scale component image. This removes the surviving linear structures
+   // coming from bright objects in the image.
+   this.SSImage.apply( clippingMask, ImageOp_Sub );
+   this.SSImage.truncate( 0, 1 );
+
+   // We apply a closure operation with the same structuring element.
+   // This process removes short surviving lines coming from
+   // the image noise while keeping the long ones
+   console.writeln( "<end><cbr>Applying morphological closure transformation..." );
+   console.flush();
+   this.SSImage.morphologicalTransformation( 2, structure, 0, 0, 1 );
+
+   // Detect the defective partial rows or columns. We select
+   // those columns or rows having a minimum number of white pixels.
+   // The minimum is half of the image shift and it is calculated
+   // by comparing the mean pixel value to the length of the line.
+   // Then, we find the maximum position to set the origin of the defect.
+   // The maximum position is the start of the white line but the origin
+   // of the defect is the end of the white line. To solve this,
+   // we first mirror the image.
+   console.noteln( "<end><cbr><br>* Detecting partial line defects..." );
+   console.flush();
+   let maxPixelPerp, maxPixelPara, lineRect;
+   if ( detectColumns )
+   {
+      this.SSImage.mirrorVertical();
+      maxPixelPerp = this.SSImage.width - 1;
+      maxPixelPara = this.SSImage.height - 1;
+      lineRect = new Rect( 1, this.SSImage.height );
+   }
+   else
+   {
+      this.SSImage.mirrorHorizontal();
+      maxPixelPerp = this.SSImage.height - 1;
+      maxPixelPara = this.SSImage.width - 1;
+      lineRect = new Rect( this.SSImage.width, 1 );
+   }
+
+   this.columnOrRow = new Array;
+   this.startPixel = new Array;
+   this.endPixel = new Array;
+   for ( let i = 0; i <= maxPixelPerp; ++i )
+   {
+      detectColumns ? lineRect.moveTo( i, 0 )
+                    : lineRect.moveTo( 0, i );
+
+      var lineMeanPixelValue = this.SSImage.mean( lineRect );
+      // The equation at right sets the minimum length of the line
+      // to trigger a defect detection.
+      if ( lineMeanPixelValue > ( imageShift / ( ( maxPixelPara + 1 - imageShift * 2 ) * 2 ) ) )
+      {
+         this.columnOrRow.push( i )
+         detectColumns  ? this.startPixel.push( maxPixelPara - parseInt( this.SSImage.maximumPosition( lineRect ).toArray()[1] ) )
+                        : this.startPixel.push( maxPixelPara - parseInt( this.SSImage.maximumPosition( lineRect ).toArray()[0] ) );
+         this.endPixel.push( maxPixelPara );
+      }
+   }
+
+   detectColumns ? this.SSImage.mirrorVertical() : this.SSImage.mirrorHorizontal();
+
+   this.SSImageWindow.mainView.beginProcess();
+   this.SSImageWindow.mainView.image.apply( this.SSImage );
+   this.SSImageWindow.mainView.endProcess();
+   this.SSImageWindow.show();
+}
+
+/*
+ * These are the image windows and images that will be used by the script
+ * engine.
+ */
+function DefineWindowsAndImages( win, detectPartialLines )
+{
+   // Define the working image windows and images.
+   this.referenceImageWindow = win;
+
+   this.referenceImage = new Image( this.referenceImageWindow.mainView.image.width,
+                                    this.referenceImageWindow.mainView.image.height,
+                                    this.referenceImageWindow.mainView.image.numberOfChannels,
+                                    this.referenceImageWindow.mainView.image.colorSpace,
+                                    32, SampleType_Real );
+
+   this.referenceImage.apply( this.referenceImageWindow.mainView.image );
+
+   if ( detectPartialLines )
+   {
+      this.referenceImageCopy = new Image( this.referenceImageWindow.mainView.image.width,
+                                           this.referenceImageWindow.mainView.image.height,
+                                           this.referenceImageWindow.mainView.image.numberOfChannels,
+                                           this.referenceImageWindow.mainView.image.colorSpace,
+                                           32, SampleType_Real );
+
+      this.referenceImageCopy.apply( this.referenceImageWindow.mainView.image );
+   }
+
+   this.referenceSSImage = new Image( this.referenceImage.width,
+                                      this.referenceImage.height,
+                                      this.referenceImage.numberOfChannels,
+                                      this.referenceImage.colorSpace,
+                                      32, SampleType_Real );
+
+   this.referenceSSImage.apply( this.referenceImage );
+
+   this.lineModelWindow = new ImageWindow( this.referenceImage.width,
+                                           this.referenceImage.height,
+                                           this.referenceImage.numberOfChannels,
+                                           32, true, false, "line_model" );
+
+   this.lineModelImage = new Image( this.referenceImage.width,
+                                    this.referenceImage.height,
+                                    this.referenceImage.numberOfChannels,
+                                    this.referenceImage.colorSpace,
+                                    32, SampleType_Real );
+
+   this.lineDetectionWindow = new ImageWindow( this.referenceImage.width,
+                                               this.referenceImage.height,
+                                               this.referenceImage.numberOfChannels,
+                                               32, true, false, "line_detection" );
+
+   this.lineDetectionImage = new Image( this.referenceImage.width,
+                                        this.referenceImage.height,
+                                        this.referenceImage.numberOfChannels,
+                                        this.referenceImage.colorSpace,
+                                        32, SampleType_Real );
+}
+
+/*
+ * LDDOutput the list of detected lines to console and text file.
+ */
+function LDDOutput( detectColumns, detectedLines, threshold, outputDir )
+{
+   console.writeln( "LDDOutput" );
+   var defects = [];
+   if ( detectedLines.detectedColumnOrRow.length > 0 )
+   {
+      console.noteln( "Detected lines" );
+      console.noteln(  "--------------" );
+      for ( let i = 0; i < detectedLines.detectedColumnOrRow.length; ++i )
+      {
+         var oneDefect = 
+            [ 
+                  true,                                     // defectEnabled
+                  !detectColumns,                           // defectIsRow
+                  detectedLines.detectedColumnOrRow[i],     // defectAddress
+                  true,                                     // defectIsRange
+                  detectedLines.detectedStartPixel[i],      // defectBegin
+                  detectedLines.detectedEndPixel[i]         // defectEnd
+            ];
+         if (i == 0) {
+            console.noteln(  oneDefect );
+         }
+         defects[defects.length] = oneDefect;
+         console.noteln( "detectColumns=" + detectColumns + " " +
+                         detectedLines.detectedColumnOrRow[i] + " " +
+                         detectedLines.detectedStartPixel[i] + " " +
+                         detectedLines.detectedEndPixel[i] );
+      }
+      console.noteln( "Detected defect lines: " + detectedLines.detectedColumnOrRow.length );
+   }
+   else
+   {
+      console.warningln( "No defect was detected. Try lowering the threshold value." );
+   }
+   return defects;
+}
+
+// Group files based on telescope and resolution
+function getLDDgroups(fileNames)
+{
+      console.writeln("getLDDgroups");
+      var groups = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            var keywords = getFileKeywords(fileNames[i]);
+            var groupname = "";
+            var slooh_uwf = false;        // Slooh Chile or T2 UWF scope
+            var naxis1 = 0;
+            var slooh_chile = false;      // Slooh Chile scope
+            for (var j = 0; j < keywords.length; j++) {
+                  var value = keywords[j].strippedValue.trim();
+                  switch (keywords[j].name) {
+                        case "TELESCOP":
+                              console.writeln("telescop=" + value);
+                              groupname = groupname + value;
+                              if (value.indexOf("UWF") != -1) {
+                                    slooh_uwf = true;
+                              } else if (value.indexOf("C1HM") != -1) {
+                                    slooh_chile = true;
+                              }
+                              break;
+                        case "NAXIS1":
+                              console.writeln("naxis1=" + value);
+                              groupname = groupname + value;
+                              naxis1 = parseInt(value);
+                              break;
+                        default:
+                              break;
+                  }
+            }
+            if (slooh_chile && naxis1 < 1000) {
+                  // Slooh Chile UWF sometimes can be identified only by resolution
+                  console.writeln("Chile slooh_uwf");
+                  slooh_uwf = true;
+            }
+            if (use_uwf) {
+                  if (!slooh_uwf) {
+                        continue;
+                  }
+            } else {
+                  if (slooh_uwf) {
+                        continue;
+                  }
+            }
+            for (var j = 0; j < groups.length; j++) {
+                  if (groups[j].name == groupname) {
+                        // found, add to existing group
+                        groups[j].groupfiles[groups[j].groupfiles.length] = fileNames[i];
+                        break;
+                  }
+            }
+            if (j == groups.length) {
+                  // not found, add a new group
+                  console.writeln("getLDDgroups, add a new group " + groupname);
+                  groups[groups.length] = { name: groupname, groupfiles: [ fileNames[i] ]};
+            }
+      }
+      console.writeln("getLDDgroups found " + groups.length + " groups");
+      return groups;
+}
+
+// Get row or col defect information
+function getDefects(LDD_win, detectColumns)
+{
+      if (detectColumns) {
+            console.writeln("getDefects, column defects");
+      } else {
+            console.writeln("getDefects, row defects");
+      }
+
+      var detectPartialLines = true;
+      var layersToRemove = 9;
+      var rejectionLimit = 3;
+      var detectionThreshold = 5;
+      var partialLineDetectionThreshold = 5;
+      var imageShift = 50;
+
+      // detect line defects
+      var detectedLines = new LDDEngine( LDD_win, detectColumns, detectPartialLines,
+                                         layersToRemove, rejectionLimit, imageShift,
+                                         detectionThreshold, partialLineDetectionThreshold );
+      // Generate output for cosmetic correction
+      console.writeln("getDefects, LDDOutput");
+      var defects = LDDOutput( detectColumns, detectedLines, detectionThreshold );
+
+      return defects;
+}
+
+// Run ImageIntegration and then get row/col defects
+function getDefectInfo(fileNames)
+{
+      console.writeln("getDefectInfo, fileNames[0]=" + fileNames[0]);
+      var LDD_images = init_images();
+      for (var i = 0; i < fileNames.length; i++) {
+            append_image_for_integrate(LDD_images.images, fileNames[i]);
+      }
+      // Run image interation as-is to make line defects more visible
+      console.writeln("getDefectInfo, runImageIntegration");
+      var LDD_id = runImageIntegration(LDD_images.images, "LDD");
+      var LDD_win = findWindow(LDD_id);
+      var defects = [];
+
+      if (fix_column_defects) {
+            console.writeln("getDefectInfo, fix_column_defects");
+            var colDefects = getDefects(LDD_win, true);
+            defects = defects.concat(colDefects);
+      }
+      if (fix_row_defects) {
+            console.writeln("getDefectInfo, fix_row_defects");
+            var rowDefects = getDefects(LDD_win, false);
+            defects = defects.concat(rowDefects);
+      }
+
+      closeOneWindow(LDD_id);
+
+      return { ccFileNames: fileNames, ccDefects: defects };
+}
+
+function runLinearDefectDetection(fileNames)
+{
+      addProcessingStep("run Linear Defect Detection");
+      console.writeln("runLinearDefectDetection, fileNames[0]=" + fileNames[0]);
+      var ccInfo = [];
+
+      // Group images by telescope and resolution
+      var LDD_groups = getLDDgroups(fileNames);
+
+      if (LDD_groups.length > 4) {
+            throwFatalError("too many LDD groups: " + LDD_groups.length);
+      }
+
+      // For each group, generate own defect information
+      for (var i = 0; i < LDD_groups.length; i++) {
+            console.writeln("runLinearDefectDetection, group " + i);
+            var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles);
+            ccInfo[ccInfo.length] = ccGroupInfo;
+      }
+
+      return ccInfo;
+}
+
+function runCosmeticCorrection(fileNames, defects)
+{
+      if (defects.length > 0) {
+            addProcessingStep("run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
+      } else {
+            addProcessingStep("run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
+      }
       console.writeln("fileNames[0] " + fileNames[0]);
 
       var P = new CosmeticCorrection;
@@ -1030,9 +1785,13 @@ function runCosmeticCorrection(fileNames)
       P.hotAutoValue = 3.0;
       P.coldAutoCheck = true;
       P.coldAutoValue = 3.0;
-      P.useDefectList = false;
-      P.defects = [ // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
-      ];
+      if (defects.length > 0) {
+            P.useDefectList = true;
+            P.defects = defects; // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
+      } else {
+            P.useDefectList = false;
+            P.defects = [];
+      }
 
       console.writeln("runCosmeticCorrection:executeGlobal");
 
@@ -1256,24 +2015,7 @@ function findBestSSWEIGHT(fileNames)
             } else {
                   run_HT = false;
             }
-            var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
-            if (F.isNull) {
-                  throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
-            }
-            var f = new FileFormatInstance(F);
-            if (f.isNull) {
-                  throwFatalError("Unable to instantiate file format: " + F.name);
-            }
-            var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
-            if (info.length <= 0) {
-                  throwFatalError("Unable to open input file: " + filePath);
-            }
-            var keywords = [];
-            if (F.canStoreKeywords) {
-                  keywords = f.keywords;
-            }
-
-            f.close();
+            var keywords = getFileKeywords(filePath);
 
             n++;
 
@@ -1435,6 +2177,32 @@ function init_images()
       return { images: [], best_image: null, best_ssweight: 0, exptime: 0 };
 }
 
+function getFileKeywords(filePath)
+{
+      console.writeln("getFileKeywords " + filePath);
+      var keywords = [];
+
+      var ext = '.' + filePath.split('.').pop();
+      var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
+      if (F.isNull) {
+            throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
+      }
+      var f = new FileFormatInstance(F);
+      if (f.isNull) {
+            throwFatalError("Unable to instantiate file format: " + F.name);
+      }
+      var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
+      if (info.length <= 0) {
+            throwFatalError("Unable to open input file: " + filePath);
+      }
+      if (F.canStoreKeywords) {
+            keywords = f.keywords;
+      }
+      f.close();
+
+      return keywords;
+}
+
 function findLRGBchannels(alignedFiles, filename_postfix)
 {
       var rgb = false;
@@ -1466,25 +2234,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
             var filePath = alignedFiles[i];
             
             console.writeln("findLRGBchannels file " +  filePath);
-            var ext = ".xisf";
-            var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
-            if (F.isNull) {
-                  throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
-            }
-            var f = new FileFormatInstance(F);
-            if (f.isNull) {
-                  throwFatalError("Unable to instantiate file format: " + F.name);
-            }
-            var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
-            if (info.length <= 0) {
-                  throwFatalError("Unable to open input file: " + filePath);
-            }
-            var keywords = [];
-            if (F.canStoreKeywords) {
-                  keywords = f.keywords;
-            }
-            f.close();
-
+            var keywords = getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
@@ -1571,11 +2321,11 @@ function findLRGBchannels(alignedFiles, filename_postfix)
       }
 
       // Check for synthetic images
-      if (C_images.images.length == 0) {
+      if (allfiles.C.length == 0) {
             if (synthetic_l_image ||
-                  (synthetic_missing_images && L_images.images.length == 0))
+                  (synthetic_missing_images && allfiles.L.length == 0))
             {
-                  if (L_images.images.length == 0) {
+                  if (allfiles.L.length == 0) {
                         addProcessingStep("No luminance images, synthetic luminance image from all other images");
                   } else {
                         addProcessingStep("Synthetic luminance image from all LRGB images");
@@ -1584,22 +2334,22 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   allfiles.L = allfiles.L.concat(allfiles.G);
                   allfiles.L = allfiles.L.concat(allfiles.B);
             }
-            if (R_images.images.length == 0 && synthetic_missing_images) {
+            if (allfiles.R.length == 0 && synthetic_missing_images) {
                   addProcessingStep("No red images, synthetic red image from luminance images");
                   allfiles.R = allfiles.R.concat(allfiles.L);
             }
-            if (G_images.images.length == 0 && synthetic_missing_images) {
+            if (allfiles.G.length == 0 && synthetic_missing_images) {
                   addProcessingStep("No green images, synthetic green image from luminance images");
                   allfiles.G = allfiles.G.concat(allfiles.L);
             }
-            if (B_images.images.length == 0 && synthetic_missing_images) {
+            if (allfiles.B.length == 0 && synthetic_missing_images) {
                   addProcessingStep("No blue images, synthetic blue image from luminance images");
                   allfiles.B = allfiles.B.concat(allfiles.L);
             }
             if (RRGB_image) {
                   addProcessingStep("RRGB image, use R as L image");
-                  console.writeln("L images " +  L_images.images.length);
-                  console.writeln("R images " +  R_images.images.length);
+                  console.writeln("L images " +  allfiles.L.length);
+                  console.writeln("R images " +  allfiles.R.length);
                   allfiles.L = [];
                   allfiles.L = allfiles.L.concat(allfiles.R);
             }
@@ -2518,7 +3268,12 @@ function runImageIntegration(images, name)
             addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.NoNormalization;
       }
-      P.rejection = getRejectionAlgorigthm(images.length);
+      if (name == 'LDD') {
+            // Integration for LDDEngine, do not use rejection
+            P.rejection = ImageIntegration.prototype.NoRejection;
+      } else {
+            P.rejection = getRejectionAlgorigthm(images.length);
+      }
       
       P.evaluateNoise = true;
       
@@ -3768,11 +4523,23 @@ function CreateChannelImages(auto_continue)
             dialogFilePath = parseFilePath(dialogFileNames[0]);
 
             if (!skip_cosmeticcorrection) {
-                  /* Run CosmeticCorrection for each file.
-                   * Output is *_cc.xisf files.
-                   */
-                 fileNames = runCosmeticCorrection(fileNames);
-                 filename_postfix = filename_postfix + '_cc';
+                  if (fix_column_defects || fix_row_defects) {
+                        var ccFileNames = [];
+                        var ccInfo = runLinearDefectDetection(fileNames);
+                        for (var i = 0; i < ccInfo.length; i++) {
+                              addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + ccInfo[i].ccFileNames.length + " files");
+                              var cc = runCosmeticCorrection(ccInfo[i].ccFileNames, ccInfo[i].ccDefects);
+                              ccFileNames = ccFileNames.concat(cc);
+                        }
+                        fileNames = ccFileNames;
+                  } else {
+                        var defects = [];
+                        /* Run CosmeticCorrection for each file.
+                        * Output is *_cc.xisf files.
+                        */
+                        fileNames = runCosmeticCorrection(fileNames, defects);
+                  }
+                  filename_postfix = filename_postfix + '_cc';
             }
 
             if (!skip_subframeselector) {
@@ -3787,7 +4554,7 @@ function CreateChannelImages(auto_continue)
             * as a reference image in StarAlign.
             * Also possible file list filtering is done.
             */
-            var retarr =  findBestSSWEIGHT(fileNames);
+            var retarr = findBestSSWEIGHT(fileNames);
             best_image = retarr[0];
             fileNames = retarr[1];
 
@@ -5506,6 +6273,22 @@ function AutoIntegrateDialog()
             SetOptionChecked("Noise reduction also on on R,G,B", checked); 
       }
 
+      this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", fix_column_defects, 
+            "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
+            "Defect information is used by CosmeticCorrection to fix the defects." );
+      this.FixColumnDefectsCheckBox.onClick = function(checked) { 
+            fix_column_defects = checked; 
+            SetOptionChecked("Fix column defects", checked); 
+      }
+
+      this.FixRowDefectsCheckBox = newCheckBox(this, "Fix row defects", fix_row_defects, 
+            "If checked, fix linear row defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
+            "Defect information is used by CosmeticCorrection to fix the defects." );
+      this.FixRowDefectsCheckBox.onClick = function(checked) { 
+            fix_row_defects = checked; 
+            SetOptionChecked("Fix linear row defects", checked); 
+      }
+
       this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection on image files</p>" );
       this.CosmeticCorrectionCheckBox.onClick = function(checked) { 
@@ -5685,6 +6468,8 @@ function AutoIntegrateDialog()
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
       this.imageParamsSet1.spacing = 4;
+      this.imageParamsSet1.add( this.FixColumnDefectsCheckBox );
+      this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
@@ -6985,7 +7770,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.82";
+      this.windowTitle = "AutoIntegrate v0.83";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
