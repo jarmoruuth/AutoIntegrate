@@ -324,7 +324,7 @@ var R_mapping = 'H';
 var G_mapping = 'O';
 var B_mapping = 'O';
 //var RGB_bandwidth = 300;
-var L_bandwidth = 300;
+var L_bandwidth = 100;
 var R_bandwidth = 100;
 var G_bandwidth = 100;
 var B_bandwidth = 100;
@@ -6079,16 +6079,17 @@ function aiSectionLabel(parent, text)
       return lbl;
 }
 
-function aiLabel(parent, text)
+function aiLabel(parent, text, tip)
 {
       var lbl = new Label( parent );
       lbl.text = text;
       lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      lbl.toolTip = tip;
 
       return lbl;
 }
 
-function aiNumericEdit(parent, txt, defval, func)
+function aiNumericEdit(parent, txt, defval, func, tip)
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
@@ -6098,12 +6099,14 @@ function aiNumericEdit(parent, txt, defval, func)
       edt.setPrecision( 1 );
       edt.setRange(0.1, 999)
       edt.setValue(defval);
+      edt.toolTip = tip;
       return edt;
 }
 
-function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc)
+function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc, tip)
 {
       var cb = new ComboBox( parent );
+      cb.toolTip = tip;
       cb.addItem( "H" );
       cb.addItem( "S" );
       cb.addItem( "O" );
@@ -6935,9 +6938,7 @@ function AutoIntegrateDialog()
       "are passed directly to PixelMath process." +
       "</p>";
 
-      this.narrowbandColorPaletteLabel = new Label( this );
-      this.narrowbandColorPaletteLabel.text = "Color palette";
-      this.narrowbandColorPaletteLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.narrowbandColorPaletteLabel = aiSectionLabel(this, "Color palette");
       this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
 
       /* Narrowband to RGB mappings. 
@@ -7137,7 +7138,7 @@ function AutoIntegrateDialog()
 
 
       this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
-      this.mapping_on_nonlinear_data_Sizer.margin = 6;
+      this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
@@ -7183,7 +7184,7 @@ function AutoIntegrateDialog()
       this.NbLuminanceLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.NbLuminanceLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
       this.NbLuminanceSizer = new HorizontalSizer;
-      this.NbLuminanceSizer.margin = 6;
+      this.NbLuminanceSizer.margin = 2;
       this.NbLuminanceSizer.spacing = 4;
       this.NbLuminanceSizer.add( this.NbLuminanceLabel );
       this.NbLuminanceSizer.add( this.narrowbandLuminancePalette_ComboBox );
@@ -7194,14 +7195,29 @@ function AutoIntegrateDialog()
       /* RGBNB mapping.
        */
       var RGBNB_tooltip = 
+            "<p>" +
             "A special narrowband processing is used for narrowband to LRGB image " +
             "mapping. This mapping is similar to NBRGBCombination script in Pixinsight or " +
-            "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. ";
+            "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. " +
+            "You can find more details on parameters from those sources. " +
+            "</p><p>" +
+            "If narrowband RGB mapping is used then narrowband Color palette is not used." +
+            "</p><p>" +
+            "With narrowband RGB mapping you can chooce:<br>" +
+            "- Mapping of narrowband channels to (L)RGB channels<br>" +
+            "- Boost for (L)RGB channels<br>" +
+            "- Bandwidth for each filter<br>" +
+            "- Test the mapping with a test button" +
+            "</p><p>" +
+            "If there is no Luminance channel available then selections for L channel are ignored." +
+            "</p>";
             
-      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
+      this.RGBNBLabel = aiSectionLabel(this, "Narrowband RGB mapping");
+      this.RGBNBLabel.toolTip = RGBNB_tooltip;
+      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
       this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
             use_RGBNB_Mapping = checked; 
-            SetOptionChecked("Narrowband RGB mapping", checked); 
+            SetOptionChecked("Use Narrowband RGB mapping", checked); 
       }
       this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", use_RGB_image, 
             "<p>" +
@@ -7221,7 +7237,15 @@ function AutoIntegrateDialog()
       // Button to test narrowband mapping
       this.testNarrowbandMappingButton = new PushButton( this );
       this.testNarrowbandMappingButton.text = "Test";
-      this.testNarrowbandMappingButton.toolTip = "Test narrowband RGB mapping.";
+      this.testNarrowbandMappingButton.toolTip = 
+            "<p>" +
+            "Test narrowband RGB mapping. This requires that you have opened:" +
+            "</p><p>" +
+            "- Integration_RGB file<br>" +
+            "- Needed narrowband files (Integration_[SHO])" +
+            "</p><p>" +
+            "Result image will be in linear mode." +
+            "</p>" ;
       this.testNarrowbandMappingButton.onClick = function()
       {
             console.writeln("Test narrowband mapping");
@@ -7239,15 +7263,15 @@ function AutoIntegrateDialog()
       };   
 
       // channel mapping
-      this.RGBNB_MappingLabel = aiLabel(this, 'Mapping');
-      this.RGBNB_MappingLLabel = aiLabel(this, 'L');
-      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", 0, function(value) { L_mapping = value; });
-      this.RGBNB_MappingRLabel = aiLabel(this, 'R');
-      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", 0, function(value) { R_mapping = value; });
-      this.RGBNB_MappingGLabel = aiLabel(this, 'G');
-      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", 2, function(value) { G_mapping = value; });
-      this.RGBNB_MappingBLabel = aiLabel(this, 'B');
-      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", 2, function(value) { B_mapping = value; });
+      this.RGBNB_MappingLabel = aiLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
+      this.RGBNB_MappingLLabel = aiLabel(this, 'L', "Mapping of narrowband channel to L channel. If there is no L channel available then this setting is ignored.");
+      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", 0, function(value) { L_mapping = value; }, this.RGBNB_MappingLLabel.toolTip);
+      this.RGBNB_MappingRLabel = aiLabel(this, 'R', "Mapping of narrowband channel to R channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", 0, function(value) { R_mapping = value; }, this.RGBNB_MappingRLabel.toolTip);
+      this.RGBNB_MappingGLabel = aiLabel(this, 'G', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", 2, function(value) { G_mapping = value; }, this.RGBNB_MappingGLabel.toolTip);
+      this.RGBNB_MappingBLabel = aiLabel(this, 'B', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", 2, function(value) { B_mapping = value; }, this.RGBNB_MappingBLabel.toolTip);
 
       this.RGBNB_MappingSizer = new HorizontalSizer;
       this.RGBNB_MappingSizer.margin = 6;
@@ -7264,11 +7288,11 @@ function AutoIntegrateDialog()
       this.RGBNB_MappingSizer.addStretch();
 
       // Boost factor for LRGB
-      this.RGBNB_BoostLabel = aiLabel(this, 'Boost');
-      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', L_BoostFactor, function(value) { L_BoostFactor = value; } );
-      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', R_BoostFactor, function(value) { R_BoostFactor = value; } );
-      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', G_BoostFactor, function(value) { G_BoostFactor = value; } );
-      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', B_BoostFactor, function(value) { B_BoostFactor = value; } );
+      this.RGBNB_BoostLabel = aiLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
+      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', L_BoostFactor, function(value) { L_BoostFactor = value; }, "Boost, or multiplication factor, for the L channel.");
+      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', R_BoostFactor, function(value) { R_BoostFactor = value; }, "Boost, or multiplication factor, for the R channel.");
+      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', G_BoostFactor, function(value) { G_BoostFactor = value; }, "Boost, or multiplication factor, for the G channel.");
+      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', B_BoostFactor, function(value) { B_BoostFactor = value; }, "Boost, or multiplication factor, for the B channel.");
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       this.RGBNB_BoostSizer.margin = 6;
@@ -7286,15 +7310,15 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer1.addStretch();
 
       // Bandwidth for different channels
-      this.RGBNB_BandwidthLabel = aiLabel(this, 'Bandwidth');
+      this.RGBNB_BandwidthLabel = aiLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
       //this.RGBNB_BandwidthRGBValue = aiNumericEdit(this, 'RGB', RGB_bandwidth, function(value) { RGB_bandwidth = value; } );
-      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', L_bandwidth, function(value) { L_bandwidth = value; } );
-      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', R_bandwidth, function(value) { R_bandwidth = value; } );
-      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', G_bandwidth, function(value) { G_bandwidth = value; } );
-      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', B_bandwidth, function(value) { B_bandwidth = value; } );
-      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', H_bandwidth, function(value) { H_bandwidth = value; } );
-      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', S_bandwidth, function(value) { S_bandwidth = value; } );
-      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', O_bandwidth, function(value) { O_bandwidth = value; } );
+      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', L_bandwidth, function(value) { L_bandwidth = value; }, "Bandwidth (nm) for the L filter.");
+      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', R_bandwidth, function(value) { R_bandwidth = value; }, "Bandwidth (nm) for the R filter.");
+      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', G_bandwidth, function(value) { G_bandwidth = value; }, "Bandwidth (nm) for the G filter.");
+      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', B_bandwidth, function(value) { B_bandwidth = value; }, "Bandwidth (nm) for the B filter.");
+      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', H_bandwidth, function(value) { H_bandwidth = value; }, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
+      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', S_bandwidth, function(value) { S_bandwidth = value; }, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', O_bandwidth, function(value) { O_bandwidth = value; }, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       this.RGBNB_BandwidthSizer.margin = 6;
@@ -7312,6 +7336,10 @@ function AutoIntegrateDialog()
       this.RGBNB_BandwidthSizer.addStretch();
 
       this.RGBNB_Sizer = new VerticalSizer;
+      this.RGBNB_Sizer.margin = 6;
+      //this.RGBNB_Sizer.spacing = 4;
+      this.RGBNB_Sizer.toolTip = RGBNB_tooltip;
+      this.RGBNB_Sizer.add(this.RGBNBLabel);
       this.RGBNB_Sizer.add(this.useRGBNBmappingSizer);
       this.RGBNB_Sizer.add(this.RGBNB_Sizer1);
       this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
