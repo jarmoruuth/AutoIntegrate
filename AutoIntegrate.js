@@ -122,12 +122,14 @@ Steps for narrowband files are a bit similar to LRGB files but without L channel
 - PixelMath expression can chosen from a list or edited manually for custom blending.
   Pixelmath expressions can also include RGB channels.
 
-Narrowband RGB mapping
-----------------------
+Narrowband to RGB mapping
+-------------------------
 
-A special section in narrowband processing can be used for narrowband to LRGB image
-mapping. This mapping is similar to NBRGBCombination script in Pixinsight or
-as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband.
+A special processing is used for narrowband to (L)RGB image mapping. It is used 
+to enhance (L)RGB channels with narrowband data. It cannot be used without RGB filters.
+This mapping is similar to NBRGBCombination script in Pixinsight or as described in 
+Light Vortex Astronomy tutorial Combining LRGB with Narrowband. You can find more 
+details on parameters from those sources.
 
 Common final steps for all images
 ---------------------------------
@@ -7196,14 +7198,16 @@ function AutoIntegrateDialog()
        */
       var RGBNB_tooltip = 
             "<p>" +
-            "A special narrowband processing is used for narrowband to LRGB image " +
-            "mapping. This mapping is similar to NBRGBCombination script in Pixinsight or " +
+            "A special processing is used for narrowband to (L)RGB image " +
+            "mapping. It is used to enhance (L)RGB channels with narrowband data. " + 
+            "It cannot be used without RGB filters. " + 
+            "This mapping is similar to NBRGBCombination script in Pixinsight or " +
             "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. " +
             "You can find more details on parameters from those sources. " +
             "</p><p>" +
             "If narrowband RGB mapping is used then narrowband Color palette is not used." +
             "</p><p>" +
-            "With narrowband RGB mapping you can chooce:<br>" +
+            "With narrowband RGB mapping you can choose:<br>" +
             "- Mapping of narrowband channels to (L)RGB channels<br>" +
             "- Boost for (L)RGB channels<br>" +
             "- Bandwidth for each filter<br>" +
@@ -7212,7 +7216,7 @@ function AutoIntegrateDialog()
             "If there is no Luminance channel available then selections for L channel are ignored." +
             "</p>";
             
-      this.RGBNBLabel = aiSectionLabel(this, "Narrowband RGB mapping");
+      this.RGBNBLabel = aiSectionLabel(this, "Narrowband to RGB mapping");
       this.RGBNBLabel.toolTip = RGBNB_tooltip;
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
       this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
