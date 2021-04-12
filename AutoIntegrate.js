@@ -6929,11 +6929,13 @@ function AutoIntegrateDialog()
       "<p>" +
       "Color palette used to map SII, Ha and OIII to R, G and B" +
       "</p><p>" +
+      "There is a list of predefined mapping that can be used, some examples are below." +
+      "</p><p>" +
       "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
       "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
       "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)<br>" +
       "</p><p>" +
-      "Other palettes can use any combination of channel images." +
+      "Mapping formulas are editable and other palettes can use any combination of channel images." +
       "</p><p>" +
       "Special keywords H, S, O, R, G and B are recognized and replaced " +
       "with corresponding channel image names. Otherwise these formulas " +
@@ -6958,7 +6960,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO Helix" );
       this.narrowbandCustomPalette_ComboBox.addItem( "RGB" );
-      this.narrowbandCustomPalette_ComboBox.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_ComboBox.toolTip = 
+            "<p>" +
+            "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
+            "</p>" +
+            narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
             switch (itemIndex) {
@@ -7033,13 +7039,17 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_R_Label = new Label( this );
       this.narrowbandCustomPalette_R_Label.text = "R";
       this.narrowbandCustomPalette_R_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_R_Label.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_R_Label.toolTip = 
+            "<p>" +
+            "Mapping for R channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "</p>" +
+            narrowbandToolTip;
       this.narrowbandCustomPalette_R_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_R_ComboBox.enabled = true;
       this.narrowbandCustomPalette_R_ComboBox.editEnabled = true;
       this.narrowbandCustomPalette_R_ComboBox.addItem(custom_R_mapping);
       this.narrowbandCustomPalette_R_ComboBox.addItem("0.75*H + 0.25*S");
-      this.narrowbandCustomPalette_R_ComboBox.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_R_ComboBox.toolTip = this.narrowbandCustomPalette_R_Label.toolTip;
       this.narrowbandCustomPalette_R_ComboBox.onEditTextUpdated = function() { 
             custom_R_mapping = this.editText.trim(); 
             SetOptionValue("Narrowband R mapping", this.editText); 
@@ -7048,13 +7058,17 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_G_Label = new Label( this );
       this.narrowbandCustomPalette_G_Label.text = "G";
       this.narrowbandCustomPalette_G_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_G_Label.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_G_Label.toolTip = 
+            "<p>" +
+            "Mapping for G channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "</p>" +
+            narrowbandToolTip;
       this.narrowbandCustomPalette_G_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_G_ComboBox.enabled = true;
       this.narrowbandCustomPalette_G_ComboBox.editEnabled = true;
       this.narrowbandCustomPalette_G_ComboBox.addItem(custom_G_mapping);
       this.narrowbandCustomPalette_G_ComboBox.addItem("0.50*S + 0.50*O");
-      this.narrowbandCustomPalette_G_ComboBox.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_G_ComboBox.toolTip = this.narrowbandCustomPalette_G_Label.toolTip;
       this.narrowbandCustomPalette_G_ComboBox.onEditTextUpdated = function() { 
             custom_G_mapping = this.editText.trim(); 
             SetOptionValue("Narrowband G mapping", this.editText); 
@@ -7063,13 +7077,17 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_B_Label = new Label( this );
       this.narrowbandCustomPalette_B_Label.text = "B";
       this.narrowbandCustomPalette_B_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_B_Label.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_B_Label.toolTip = 
+            "<p>" +
+            "Mapping for B channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "</p>" +
+            narrowbandToolTip;
       this.narrowbandCustomPalette_B_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_B_ComboBox.enabled = true;
       this.narrowbandCustomPalette_B_ComboBox.editEnabled = true;
       this.narrowbandCustomPalette_B_ComboBox.addItem(custom_B_mapping);
       this.narrowbandCustomPalette_B_ComboBox.addItem("0.30*H + 0.70*O");
-      this.narrowbandCustomPalette_B_ComboBox.toolTip = narrowbandToolTip;
+      this.narrowbandCustomPalette_B_ComboBox.toolTip = this.narrowbandCustomPalette_B_Label.toolTip;
       this.narrowbandCustomPalette_B_ComboBox.onEditTextUpdated = function() { 
             custom_B_mapping = this.editText.trim(); 
             SetOptionValue("Narrowband B mapping", this.editText); 
@@ -7200,7 +7218,9 @@ function AutoIntegrateDialog()
             "<p>" +
             "A special processing is used for narrowband to (L)RGB image " +
             "mapping. It is used to enhance (L)RGB channels with narrowband data. " + 
-            "It cannot be used without RGB filters. " + 
+            "</p><p>" +
+            "This mapping cannot be used without RGB filters. " + 
+            "</p><p>" +
             "This mapping is similar to NBRGBCombination script in Pixinsight or " +
             "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. " +
             "You can find more details on parameters from those sources. " +
@@ -7208,9 +7228,9 @@ function AutoIntegrateDialog()
             "If narrowband RGB mapping is used then narrowband Color palette is not used." +
             "</p><p>" +
             "With narrowband RGB mapping you can choose:<br>" +
-            "- Mapping of narrowband channels to (L)RGB channels<br>" +
-            "- Boost for (L)RGB channels<br>" +
-            "- Bandwidth for each filter<br>" +
+            "- Which narrowband channels mapped (L)RGB channels to enhance those.<br>" +
+            "- Boost for (L)RGB channels.<br>" +
+            "- Bandwidth for each filter.<br>" +
             "- Test the mapping with a test button" +
             "</p><p>" +
             "If there is no Luminance channel available then selections for L channel are ignored." +
@@ -7245,8 +7265,10 @@ function AutoIntegrateDialog()
             "<p>" +
             "Test narrowband RGB mapping. This requires that you have opened:" +
             "</p><p>" +
-            "- Integration_RGB file<br>" +
-            "- Needed narrowband files (Integration_[SHO])" +
+            "- Integration_RGB file.<br>" +
+            "- Those narrowband files Integration_[SHO] that are used in the mapping." +
+            "</p><p>" +
+            "To get required Integration_RGB and Integration_[SHO] files you can a full workflow first." +
             "</p><p>" +
             "Result image will be in linear mode." +
             "</p>" ;
