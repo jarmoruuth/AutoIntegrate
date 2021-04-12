@@ -5706,6 +5706,7 @@ function AutoIntegrateEngine(auto_continue)
       mask_win = null;
       star_mask_win = null;
       star_fix_mask_win = null;
+      ssweight_set = false;
 
       console.beginLog();
       console.show(true);
@@ -7824,7 +7825,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.83";
+      this.windowTitle = "AutoIntegrate v0.84";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
