@@ -273,6 +273,8 @@ var image_stretching = 'STF';
 var MaskedStretch_targetBackground = 0.125;
 var fix_column_defects = false;
 var fix_row_defects = false;
+var cosmetic_sorrection_hot_sigma = 3;
+var cosmetic_sorrection_cold_sigma = 3;
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
@@ -1784,9 +1786,9 @@ function runCosmeticCorrection(fileNames, defects)
       P.coldDarkLevel = 0.0000000;
       P.useAutoDetect = true;
       P.hotAutoCheck = true;
-      P.hotAutoValue = 3.0;
+      P.hotAutoValue = cosmetic_sorrection_hot_sigma;
       P.coldAutoCheck = true;
-      P.coldAutoValue = 3.0;
+      P.coldAutoValue = cosmetic_sorrection_cold_sigma;
       if (defects.length > 0) {
             P.useDefectList = true;
             P.defects = defects; // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
@@ -6660,6 +6662,67 @@ function AutoIntegrateDialog()
       // Stop columns of buttons moving as dialog expands horizontally.
       this.weightGroupBoxSizer.addStretch();
       
+      // CosmeticCorrection Sigma values
+      //
+      this.cosmeticCorrectionSigmaGroupBoxLabel = aiSectionLabel(this, "CosmeticCorrection Sigma values");
+      
+      var cosmeticCorrectionSigmaGroupBoxLabeltoolTip = "Hot Sigma and Cold Sigma values for CosmeticCorrection";
+
+      this.cosmeticCorrectionHotSigmaGroupBoxLabel = aiLabel(this, "Hot Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
+      this.cosmeticCorrectionHotSigmaSpinBox = new SpinBox( this );
+      this.cosmeticCorrectionHotSigmaSpinBox.minValue = 0;
+      this.cosmeticCorrectionHotSigmaSpinBox.maxValue = 10;
+      this.cosmeticCorrectionHotSigmaSpinBox.value = cosmetic_sorrection_hot_sigma;
+      this.cosmeticCorrectionHotSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
+      this.cosmeticCorrectionHotSigmaSpinBox.onValueUpdated = function( value )
+      {
+            SetOptionValue("CosmeticCorrection Hot Sigma", value);
+            cosmetic_sorrection_hot_sigma = value;
+      };
+      this.cosmeticCorrectionColSigmaGroupBoxLabel = aiLabel(this, "Cold Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
+      this.cosmeticCorrectionColdSigmaSpinBox = new SpinBox( this );
+      this.cosmeticCorrectionColdSigmaSpinBox.minValue = 0;
+      this.cosmeticCorrectionColdSigmaSpinBox.maxValue = 10;
+      this.cosmeticCorrectionColdSigmaSpinBox.value = cosmetic_sorrection_cold_sigma;
+      this.cosmeticCorrectionColdSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
+      this.cosmeticCorrectionColdSigmaSpinBox.onValueUpdated = function( value )
+      {
+            SetOptionValue("CosmeticCorrection Cold Sigma", value);
+            cosmetic_sorrection_cold_sigma = value;
+      };
+      this.cosmeticCorrectionSigmaGroupBoxSizer = new HorizontalSizer;
+      this.cosmeticCorrectionSigmaGroupBoxSizer.margin = 6;
+      this.cosmeticCorrectionSigmaGroupBoxSizer.spacing = 4;
+      this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionHotSigmaGroupBoxLabel );
+      this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionHotSigmaSpinBox );
+      this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionColSigmaGroupBoxLabel );
+      this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionColdSigmaSpinBox );
+      this.cosmeticCorrectionSigmaGroupBoxSizer.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
+      // Stop columns of buttons moving as dialog expands horizontally.
+      this.cosmeticCorrectionSigmaGroupBoxSizer.addStretch();
+
+      this.cosmeticCorrectionGroupBoxSizer = new VerticalSizer;
+      //this.cosmeticCorrectionGroupBoxSizer.margin = 6;
+      //this.cosmeticCorrectionGroupBoxSizer.spacing = 4;
+      this.cosmeticCorrectionGroupBoxSizer.add( this.cosmeticCorrectionSigmaGroupBoxLabel );
+      this.cosmeticCorrectionGroupBoxSizer.add( this.cosmeticCorrectionSigmaGroupBoxSizer );
+      this.cosmeticCorrectionGroupBoxSizer.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
+      // Stop columns of buttons moving as dialog expands horizontally.
+      this.cosmeticCorrectionGroupBoxSizer.addStretch();
+
+      // Combined weight and sigma settings
+      this.weightSizer = new VerticalSizer;
+      //this.weightSizer.margin = 6;
+      //this.weightSizer.spacing = 4;
+      this.weightSizer.add( this.weightGroupBoxLabel );
+      this.weightSizer.add( this.weightGroupBoxSizer );
+
+      this.weightAndSigmaSizer = new HorizontalSizer;
+      //this.weightAndSigmaSizer.margin = 6;
+      this.weightAndSigmaSizer.spacing = 8;
+      this.weightAndSigmaSizer.add( this.weightSizer );
+      this.weightAndSigmaSizer.add( this.cosmeticCorrectionGroupBoxSizer );
+
       // Linear Fit selection
 
       this.linearFitComboBox = new ComboBox( this );
@@ -6951,8 +7014,8 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_ComboBox.addItem( "SHO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOS" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HSO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "SHO Hubble" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Pseudo RGB" );
       this.narrowbandCustomPalette_ComboBox.addItem( "Natural HOO" );
       this.narrowbandCustomPalette_ComboBox.addItem( "3-channel HOO" );
@@ -6960,7 +7023,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,H)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
       this.narrowbandCustomPalette_ComboBox.addItem( "HOO Helix" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 1" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 2" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 3" );
       this.narrowbandCustomPalette_ComboBox.addItem( "RGB" );
+      this.narrowbandCustomPalette_ComboBox.addItem( "User defined" );
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
@@ -6979,14 +7046,14 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
                         break;
-                  case 2: // HOO
+                  case 2: // HSO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 3: // SHO Hubble
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.6*S + 0.4*H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.7*H + 0.3*O";
+                  case 3: // HOO
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
                   case 4: // Pseudo RGB
@@ -6999,7 +7066,7 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.8*O+0.2*H";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
                         break;
-                  case 6: // #-channel HOO
+                  case 6: // 3-channel HOO
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.76*H+0.24*S";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
@@ -7024,10 +7091,30 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "(0.4*H)+(0.6*O)";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
                         break;
-                  case 11: // RGB
+                  case 11: // HSO Mix 1
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.4*H + 0.6*S";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.7*H + 0.3*O";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
+                        break;
+                  case 12: // HSO Mix 2
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.4*H + 0.6*S";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.4*O + 0.3*H + 0.3*S";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
+                        break;
+                  case 13: // HSO Mix 3
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.5*H + 0.5*S";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.15*H + 0.85*O";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
+                        break;
+                  case 14: // RGB
                         this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "R";
                         this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
                         this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
+                        break;
+                  case 15: // User defined
+                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "";
+                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "";
+                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "";
                         break;
             }
             custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
@@ -7237,8 +7324,6 @@ function AutoIntegrateDialog()
             "If there is no Luminance channel available then selections for L channel are ignored." +
             "</p>";
             
-      this.RGBNBLabel = aiSectionLabel(this, "Narrowband to RGB mapping");
-      this.RGBNBLabel.toolTip = RGBNB_tooltip;
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
       this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
             use_RGBNB_Mapping = checked; 
@@ -7366,7 +7451,6 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer.margin = 6;
       //this.RGBNB_Sizer.spacing = 4;
       this.RGBNB_Sizer.toolTip = RGBNB_tooltip;
-      this.RGBNB_Sizer.add(this.RGBNBLabel);
       this.RGBNB_Sizer.add(this.useRGBNBmappingSizer);
       this.RGBNB_Sizer.add(this.RGBNB_Sizer1);
       this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
@@ -7419,8 +7503,15 @@ function AutoIntegrateDialog()
       this.narrowbandGroupBox.sizer.add( this.narrowbandCustomPalette_Sizer );
       this.narrowbandGroupBox.sizer.add( this.mapping_on_nonlinear_data_Sizer );
       this.narrowbandGroupBox.sizer.add( this.NbLuminanceSizer );
-      this.narrowbandGroupBox.sizer.add( this.RGBNB_Sizer );
       //this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
+
+      this.narrowbandRGBmappingGroupBox = new newGroupBox( this );
+      this.narrowbandRGBmappingGroupBox.title = "Narrowband to RGB mapping";
+      this.narrowbandRGBmappingGroupBox.sizer = new VerticalSizer;
+      this.narrowbandRGBmappingGroupBox.sizer.margin = 6;
+      this.narrowbandRGBmappingGroupBox.sizer.spacing = 4;
+      this.narrowbandRGBmappingGroupBox.sizer.add( this.RGBNB_Sizer );
+      //this.narrowbandRGBmappingGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
@@ -7469,14 +7560,8 @@ function AutoIntegrateDialog()
       this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
-      this.narrowbandExtraGroupBox = new newGroupBox( this );
-      this.narrowbandExtraGroupBox.title = "Extra processing for narrowband";
-      this.narrowbandExtraGroupBox.sizer = new HorizontalSizer;
-      this.narrowbandExtraGroupBox.sizer.margin = 6;
-      this.narrowbandExtraGroupBox.sizer.spacing = 4;
-      this.narrowbandExtraGroupBox.sizer.add( this.narrowbandOptions1_sizer );
-      this.narrowbandExtraGroupBox.sizer.add( this.narrowbandOptions2_sizer );
-      this.narrowbandExtraGroupBox.toolTip = 
+      this.narrowbandExtraLabel = aiSectionLabel(this, "Extra processing for narrowband");
+      this.narrowbandExtraLabel.toolTip = 
             "<p>" +
             "Extra processing options to be applied on narrowband images. "+
             "They are applied before other extra processing options in the following order:" +
@@ -7485,6 +7570,13 @@ function AutoIntegrateDialog()
             "2. Remove green cast and Leave some green<br>" +
             "3. Fix star colors" +
             "</p>";
+      this.narrowbandExtraOptionsSizer = new HorizontalSizer;
+      //this.narrowbandExtraOptionsSizer.margin = 6;
+      //this.narrowbandExtraOptionsSizer.spacing = 4;
+      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions1_sizer );
+      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions2_sizer );
+      this.narrowbandExtraOptionsSizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
@@ -7609,19 +7701,26 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extra_STF_CheckBox );
       this.extra2.add( this.SmallerStarsSizer );
 
+      this.extraLabel = aiSectionLabel(this, "Generic extra processing");
+
       this.extraGroupBoxSizer = new HorizontalSizer;
-      this.extraGroupBoxSizer.margin = 6;
-      this.extraGroupBoxSizer.spacing = 4;
+      //this.extraGroupBoxSizer.margin = 6;
+      //this.extraGroupBoxSizer.spacing = 4;
       this.extraGroupBoxSizer.add( this.extra1 );
       this.extraGroupBoxSizer.add( this.extra2 );
+      this.extraGroupBoxSizer.addStretch();
 
       this.extraGroupBox = new newGroupBox( this );
       this.extraGroupBox.title = "Extra processing";
       this.extraGroupBox.sizer = new VerticalSizer;
       this.extraGroupBox.sizer.margin = 6;
       this.extraGroupBox.sizer.spacing = 4;
+      this.extraGroupBox.sizer.add( this.narrowbandExtraLabel );
+      this.extraGroupBox.sizer.add( this.narrowbandExtraOptionsSizer );
+      this.extraGroupBox.sizer.add( this.extraLabel );
       this.extraGroupBox.sizer.add( this.extraGroupBoxSizer );
       this.extraGroupBox.sizer.add( this.extraImageSizer );
+      this.extraGroupBox.sizer.addStretch();
       this.extraGroupBox.toolTip = 
             "<p>" +
             "In case of Run or AutoContinue or AutoContinue narrowband " + 
@@ -7778,8 +7877,9 @@ function AutoIntegrateDialog()
       this.ProcessingGroupBox.sizer = new VerticalSizer;
       this.ProcessingGroupBox.sizer.margin = 6;
       this.ProcessingGroupBox.sizer.spacing = 4;
-      this.ProcessingGroupBox.sizer.add( this.weightGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.weightGroupBoxSizer );
+      //this.ProcessingGroupBox.sizer.add( this.weightGroupBoxLabel );
+      //this.ProcessingGroupBox.sizer.add( this.weightGroupBoxSizer );
+      this.ProcessingGroupBox.sizer.add( this.weightAndSigmaSizer );
       this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxLabel );
       this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxSizer );
       this.ProcessingGroupBox.sizer.add( this.linearFitGroupBoxLabel );
@@ -7797,7 +7897,8 @@ function AutoIntegrateDialog()
       this.col1.add( this.imageParamsGroupBox );
       this.col1.add( this.otherParamsGroupBox );
       this.col1.add( this.narrowbandGroupBox );
-      this.col1.add( this.narrowbandExtraGroupBox );
+      this.col1.add( this.narrowbandRGBmappingGroupBox );
+      this.col1.add( this.mosaicSaveGroupBox );
       this.col1.addStretch();
 
       this.col2 = new VerticalSizer;
@@ -7805,7 +7906,6 @@ function AutoIntegrateDialog()
       this.col2.spacing = 6;
       this.col2.add( this.ProcessingGroupBox );
       this.col2.add( this.extraGroupBox );
-      this.col2.add( this.mosaicSaveGroupBox );
       this.col2.add( this.autoButtonGroupBox );
       this.col2.addStretch();
 
@@ -7825,7 +7925,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.84";
+      this.windowTitle = "AutoIntegrate v0.85";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
