@@ -580,7 +580,11 @@ function getWindowList()
             return windowList;
       }
       for (var i in images) {
-            windowList[windowList.length] = images[i].mainView.id;
+            try {
+                  windowList[windowList.length] = images[i].mainView.id;
+            } catch (err) {
+                  // ignore errors
+            }
       }
       return windowList;
 }
@@ -7925,7 +7929,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.85";
+      this.windowTitle = "AutoIntegrate v0.86";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
