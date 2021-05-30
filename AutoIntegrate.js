@@ -525,7 +525,7 @@ function SetOptionChecked(option, checked)
 
 function addProcessingStep(txt)
 {
-      console.noteln("AutoIntegrate " + txt);
+      console.noteln("AutoIntegrate: " + txt);
       processing_steps = processing_steps + "\n" + txt;
 }
 
@@ -641,7 +641,6 @@ function windowCloseif(id)
                   w.show();
                   console.writeln("Rename window to " + w.mainView.id);
             } else {
-                  console.writeln("Close window " + id);
                   w.close();
             }
       }
@@ -651,7 +650,6 @@ function windowShowif(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            console.writeln("Show window " + id);
             w.show();
       }
 }
@@ -757,12 +755,22 @@ function closeTempWindows()
       }
 }
 
-// close all windows created by this script
-function closeAllWindows(keep_integrated_images)
+function findFromArray(arr, id)
 {
-      closeAllWindowsFromArray(all_windows);
-      if (keep_integrated_images) {
+      for (var i = 0; i < arr.length; i++) {
+            if (arr[i] == id) {
+                  return true;
+            }
+      }
+      return false;
+}
+
+// close all windows created by this script
+function closeAllWindows(keep_integrated_imgs)
+{
+      if (keep_integrated_imgs) {
             var isLRGB = false;
+            var integration_windows = integration_LRGB_windows;
             for (var i = 0; i < integration_LRGB_windows.length; i++) {
                   if (findWindow(integration_LRGB_windows[i]) != null) {
                         // we have LRGB images
@@ -774,8 +782,16 @@ function closeAllWindows(keep_integrated_images)
             if (!isLRGB) {
                   // we have color image
                   closeAllWindowsFromArray(integration_LRGB_windows);
+                  integration_windows = integration_color_windows
+            }
+            for (var i = 0; i < all_windows.length; i++) {
+                  // check that we do not close integration windows
+                  if (!findFromArray(integration_windows, all_windows[i])) {
+                        closeOneWindow(all_windows[i]);
+                  }
             }
       } else {
+            closeAllWindowsFromArray(all_windows);
             closeAllWindowsFromArray(integration_LRGB_windows);
             closeAllWindowsFromArray(integration_color_windows);
       }
@@ -5630,19 +5646,25 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 {
       console.writeln("AutoIntegrateNarrowbandPaletteBatch");
       for (var i = 0; i < narrowBandPalettes.length; i++) {
+            console.writeln("AutoIntegrateNarrowbandPaletteBatch loop ", i);
             if (narrowBandPalettes[i].all) {
-                  ensureDialogFilePath("narrowband batch result files");
+                  if (auto_continue) {
+                        ensureDialogFilePath("narrowband batch result files");
+                  }
                   custom_R_mapping = narrowBandPalettes[i].R;
                   custom_G_mapping = narrowBandPalettes[i].G;
                   custom_B_mapping = narrowBandPalettes[i].B;
-                  addProcessingStep("Narrowband palette batch using " + custom_R_mapping + ", " + custom_G_mapping + ", " + custom_B_mapping);
+                  addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + custom_R_mapping + ", " + custom_G_mapping + ", " + custom_B_mapping);
+
                   AutoIntegrateEngine(auto_continue);
+                  
                   // rename and save image using palette name
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename AutoRGB using ", narrowBandPalettes[i].name);
                   var palette_image = narrowBandPalettes[i].name;
                   palette_image = palette_image.replace(/ /g,"_");
                   palette_image = palette_image.replace(/-/g,"_");
                   palette_image = "Auto_" + palette_image;
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename AutoRGB to " + palette_image);
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:new name " + palette_image);+
                   windowRenameKeepif("AutoRGB", palette_image, true);
                   // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:set batch keyword");
@@ -5652,6 +5674,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   saveWindow(dialogFilePath, palette_image);
                   addProcessingStep("Narrowband palette batch final image " + palette_image);
                   // next runs are always auto_continue
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:set auto_continue = true");
                   auto_continue = true;
                   // close all but integrated images
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windows");
@@ -7442,49 +7465,6 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
       this.RGBNB_Sizer.addStretch();
 
-      if (0) {
-            // No need for separate AutoContinue narrowband button for now...
-            // Button to continue narrowband from existing files
-            this.autoContinueNarrowbandButton = new PushButton( this );
-            this.autoContinueNarrowbandButton.text = "AutoContinue narrowband";
-            this.autoContinueNarrowbandButton.toolTip = 
-                  "AutoContinue narrowband - Run automatic processing from previously created narrowband images." +
-                  "<p>" +
-                  "Image check order is:<br>" +
-                  "RGB_HT<br>" +
-                  "Integration_RGB_BE<br>" +
-                  "Integration_H_BE + Integration_O_BE + Integration_S_BE<br>" +
-                  "Integration_H + Integration_S + Integration_O<br>" +
-                  "Final image (for extra processing)" +
-                  "</p>";
-            this.autoContinueNarrowbandButton.onClick = function()
-            {
-                  console.writeln("autoContinue narrowband");
-                  batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
-                  try {
-                        autocontinue_narrowband = true;
-                        if (batch_narrowband_palette_mode) {
-                              AutoIntegrateNarrowbandPaletteBatch(true);
-                        } else {
-                              AutoIntegrateEngine(true);
-                        }
-                        autocontinue_narrowband = false;
-                  } 
-                  catch(err) {
-                        console.criticalln(err);
-                        console.criticalln("Processing stopped!");
-                        writeProcessingSteps(null, true, null);
-                        autocontinue_narrowband = false;
-                  }
-            };   
-
-            this.narrowbandAutoContinue_sizer = new HorizontalSizer;
-            this.narrowbandAutoContinue_sizer.margin = 6;
-            this.narrowbandAutoContinue_sizer.spacing = 4;
-            this.narrowbandAutoContinue_sizer.add( this.autoContinueNarrowbandButton );
-            this.narrowbandAutoContinue_sizer.addStretch();
-      }
-
       this.narrowbandGroupBox = new newGroupBox( this );
       this.narrowbandGroupBox.title = "Narrowband processing";
       this.narrowbandGroupBox.sizer = new VerticalSizer;
@@ -7921,7 +7901,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.87";
+      this.windowTitle = "AutoIntegrate v0.88";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
