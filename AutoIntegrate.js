@@ -254,6 +254,7 @@ var color_calibration_before_ABE = false;
 var use_background_neutralization = false;
 var use_drizzle = false;
 var batch_mode = false;
+var batch_narrowband_palette_mode = false;
 var use_uwf = false;
 var monochrome_image = false;
 var synthetic_l_image = false;
@@ -467,6 +468,27 @@ var final_windows = [
       "AutoRRGB",
       "AutoRGB",
       "AutoMono"
+];
+
+var narrowBandPalettes = [
+      { name: "SHO", R: "S", G: "H", B: "O", all: true }, 
+      { name: "HOS", R: "H", G: "O", B: "S", all: true }, 
+      { name: "HSO", R: "H", G: "S", B: "O", all: true }, 
+      { name: "HOO", R: "H", G: "O", B: "O", all: true }, 
+      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true }, 
+      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true }, 
+      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true }, 
+      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false }, 
+      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false }, 
+      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true }, 
+      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true }, 
+      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true }, 
+      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false }, 
+      { name: "User defined", R: "", G: "", B: "", all: false },
+      { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
 
 var processingOptions = [];
@@ -736,7 +758,7 @@ function closeTempWindows()
 }
 
 // close all windows created by this script
-function closeAllWindows()
+function closeAllWindows(keep_integrated_images)
 {
       closeAllWindowsFromArray(all_windows);
       if (keep_integrated_images) {
@@ -782,9 +804,9 @@ function saveWindow(path, id)
       }
 }
 
-function saveMosaicWindow(win, dir, name, bits)
+function saveBatchWindow(win, dir, name, bits)
 {
-      console.writeln("saveMosaicWindow " + name);
+      console.writeln("saveBatchWindow " + name);
       var copy_win = copyWindow(win, name + "_savetmp");
       var save_name;
 
@@ -800,13 +822,13 @@ function saveMosaicWindow(win, dir, name, bits)
             }
 
             if (copy_win.bitsPerSample != bits) {
-                  console.writeln("saveMosaicWindow:set bits to " + bits);
+                  console.writeln("saveBatchWindow:set bits to " + bits);
                   copy_win.setSampleFormat(bits, false);
             }
       } else {
             save_name = dir + "/" + name + getUniqueFilenamePart() + ".xisf";
       }
-      console.writeln("saveMosaicWindow:save name " + name);
+      console.writeln("saveBatchWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
@@ -815,16 +837,16 @@ function saveMosaicWindow(win, dir, name, bits)
       forceCloseOneWindow(copy_win);
 }
 
-function saveAllMosaicWindows(bits)
+function saveAllbatchWindows(bits)
 {
-      console.writeln("saveAllMosaicWindows");
+      console.writeln("saveAllbatchWindows");
       var gdd = new GetDirectoryDialog;
       gdd.caption = "Select Save Directory";
 
       if (gdd.execute()) {
             // Find a windows that has a keyword which tells this is
             // a batch mode result file
-            console.writeln("saveAllMosaicWindows:dir " + gdd.directory);
+            console.writeln("saveAllbatchWindows:dir " + gdd.directory);
             var images = ImageWindow.windows;
             for (var i in images) {
                   var imageWindow = images[i];
@@ -834,11 +856,12 @@ function saveAllMosaicWindows(bits)
                         var value = keywords[j].strippedValue.trim();
                         if (keyword == "AstroMosaic" && value == "batch") {
                               // we have batch window 
-                              saveMosaicWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
+                              saveBatchWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
                         }
                   }
             }
       }
+      console.writeln("All batch windows are saved!");
 }
 
 function copyWindow(sourceWindow, name)
@@ -5597,6 +5620,47 @@ function is_narrowband_option()
              leave_some_green;
 }
 
+function isbatchNarrowbandPaletteMode()
+{
+      return custom_R_mapping == "All" && custom_G_mapping == "All" && custom_B_mapping == "All";
+}
+
+// Run through all narrowband palette options
+function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
+{
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch");
+      for (var i = 0; i < narrowBandPalettes.length; i++) {
+            if (narrowBandPalettes[i].all) {
+                  ensureDialogFilePath("narrowband batch result files");
+                  custom_R_mapping = narrowBandPalettes[i].R;
+                  custom_G_mapping = narrowBandPalettes[i].G;
+                  custom_B_mapping = narrowBandPalettes[i].B;
+                  addProcessingStep("Narrowband palette batch using " + custom_R_mapping + ", " + custom_G_mapping + ", " + custom_B_mapping);
+                  AutoIntegrateEngine(auto_continue);
+                  // rename and save image using palette name
+                  var palette_image = narrowBandPalettes[i].name;
+                  palette_image = palette_image.replace(/ /g,"_");
+                  palette_image = palette_image.replace(/-/g,"_");
+                  palette_image = "Auto_" + palette_image;
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename AutoRGB to " + palette_image);
+                  windowRenameKeepif("AutoRGB", palette_image, true);
+                  // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:set batch keyword");
+                  setBatchKeyword(ImageWindow.windowById(palette_image));
+                  // save image
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image");
+                  saveWindow(dialogFilePath, palette_image);
+                  addProcessingStep("Narrowband palette batch final image " + palette_image);
+                  // next runs are always auto_continue
+                  auto_continue = true;
+                  // close all but integrated images
+                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windows");
+                  closeAllWindows(true);
+            }
+      }
+      addProcessingStep("Narrowband palette batch completed");
+}
+
 function extraProcessing(id, apply_directly)
 {
       var extraWin;
@@ -5926,6 +5990,7 @@ function AutoIntegrateEngine(auto_continue)
             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
             LRGB_ABE_HT_id = windowRenameKeepif(LRGB_ABE_HT_id, fname, true);
             console.writeln("Batch mode, set batch keyword");
+            // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
             setBatchKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
       }
 
@@ -6040,9 +6105,12 @@ function newGroupBox( parent, title, toolTip )
 function Autorun(that)
 {
       var stopped;
+      batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (batch_mode) {
-            stopped = false;
             console.writeln("AutoRun in batch mode");
+      } else if (batch_narrowband_palette_mode) {
+            stopped = false;
+            console.writeln("AutoRun in narrowband palette batch mode");
       } else {
             stopped = true;
             console.writeln("AutoRun");
@@ -6061,7 +6129,11 @@ function Autorun(that)
             }
             if (dialogFileNames != null) {
                   try {
-                        AutoIntegrateEngine(false);
+                        if (batch_narrowband_palette_mode) {
+                              AutoIntegrateNarrowbandPaletteBatch(false);
+                        } else {
+                              AutoIntegrateEngine(false);
+                        }
                   } 
                   catch(err) {
                         console.criticalln(err);
@@ -6071,7 +6143,7 @@ function Autorun(that)
                   if (batch_mode) {
                         dialogFileNames = null;
                         console.writeln("AutoRun in batch mode");
-                        closeAllWindows();
+                        closeAllWindows(keep_integrated_images);
                   }
             } else {
                   stopped = true;
@@ -7016,111 +7088,21 @@ function AutoIntegrateDialog()
       /* Narrowband to RGB mappings. 
        */
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
-      this.narrowbandCustomPalette_ComboBox.addItem( "SHO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HOS" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HSO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HOO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "Pseudo RGB" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "Natural HOO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "3-channel HOO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "Dynamic SHO" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,H)" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "max(RGB,HOO)" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HOO Helix" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 1" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 2" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "HSO Mix 3" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "RGB" );
-      this.narrowbandCustomPalette_ComboBox.addItem( "User defined" );
+      for (var i = 0; i < narrowBandPalettes.length; i++) {
+            this.narrowbandCustomPalette_ComboBox.addItem( narrowBandPalettes[i].name );
+      }
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
+            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/pixinsight-dynamic-narrowband-combinations-with-pixelmath/" +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0: // SHO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 1: // HOS
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "S";
-                        break;
-                  case 2: // HSO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 3: // HOO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 4: // Pseudo RGB
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.75*H + 0.25*S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.50*S + 0.50*O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.30*H + 0.70*O";
-                        break;
-                  case 5: // Natural HOO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.8*O+0.2*H";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
-                        break;
-                  case 6: // 3-channel HOO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.76*H+0.24*S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "0.85*O + 0.15*H";
-                        break;
-                  case 7: // Dynamic SHO
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "(O^~O)*S + ~(O^~O)*H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 8: // max(RGB, H)
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
-                        break;
-                  case 9: // max(RGB, HOO)
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "max(R, H)";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "max(G, O)";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "max(B, O)";
-                        break;
-                  case 10: // HOO Helix
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "H";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "(0.4*H)+(0.6*O)";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 11: // HSO Mix 1
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.4*H + 0.6*S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.7*H + 0.3*O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 12: // HSO Mix 2
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.4*H + 0.6*S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.4*O + 0.3*H + 0.3*S";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 13: // HSO Mix 3
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "0.5*H + 0.5*S";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "0.15*H + 0.85*O";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "O";
-                        break;
-                  case 14: // RGB
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "R";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "G";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "B";
-                        break;
-                  case 15: // User defined
-                        this.dialog.narrowbandCustomPalette_R_ComboBox.editText = "";
-                        this.dialog.narrowbandCustomPalette_G_ComboBox.editText = "";
-                        this.dialog.narrowbandCustomPalette_B_ComboBox.editText = "";
-                        break;
-            }
+            this.dialog.narrowbandCustomPalette_R_ComboBox.editText = narrowBandPalettes[itemIndex].R;
+            this.dialog.narrowbandCustomPalette_G_ComboBox.editText = narrowBandPalettes[itemIndex].G;
+            this.dialog.narrowbandCustomPalette_B_ComboBox.editText = narrowBandPalettes[itemIndex].B;
+
             custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
             custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
             custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
@@ -7478,9 +7460,14 @@ function AutoIntegrateDialog()
             this.autoContinueNarrowbandButton.onClick = function()
             {
                   console.writeln("autoContinue narrowband");
+                  batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
                   try {
                         autocontinue_narrowband = true;
-                        AutoIntegrateEngine(true);
+                        if (batch_narrowband_palette_mode) {
+                              AutoIntegrateNarrowbandPaletteBatch(true);
+                        } else {
+                              AutoIntegrateEngine(true);
+                        }
                         autocontinue_narrowband = false;
                   } 
                   catch(err) {
@@ -7777,9 +7764,14 @@ function AutoIntegrateDialog()
       this.autoContinueButton.onClick = function()
       {
             console.writeln("autoContinue");
+            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
             try {
                   autocontinue_narrowband = is_narrowband_option();
-                  AutoIntegrateEngine(true);
+                  if (batch_narrowband_palette_mode) {
+                        AutoIntegrateNarrowbandPaletteBatch(true);
+                  } else {
+                        AutoIntegrateEngine(true);
+                  }
                   autocontinue_narrowband = false;
             } 
             catch(err) {
@@ -7797,7 +7789,7 @@ function AutoIntegrateDialog()
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
-            closeAllWindows();
+            closeAllWindows(keep_integrated_images);
       };
 
       // Group box for AutoRun, AutoContinue and CloseAll
@@ -7821,21 +7813,21 @@ function AutoIntegrateDialog()
       this.mosaicSaveXisfButton.onClick = function()
       {
             console.writeln("Save XISF");
-            saveAllMosaicWindows(32);
+            saveAllbatchWindows(32);
       };   
       this.mosaicSave16bitButton = new PushButton( this );
       this.mosaicSave16bitButton.text = "16 bit TIFF";
       this.mosaicSave16bitButton.onClick = function()
       {
             console.writeln("Save 16 bit TIFF");
-            saveAllMosaicWindows(16);
+            saveAllbatchWindows(16);
       };   
       this.mosaicSave8bitButton = new PushButton( this );
       this.mosaicSave8bitButton.text = "8 bit TIFF";
       this.mosaicSave8bitButton.onClick = function()
       {
             console.writeln("Save 8 bit TIFF");
-            saveAllMosaicWindows(8);
+            saveAllbatchWindows(8);
       };   
       this.mosaicSaveSizer = new HorizontalSizer;
       this.mosaicSaveSizer.add( this.mosaicSaveXisfButton );
