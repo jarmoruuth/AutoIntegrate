@@ -5667,7 +5667,6 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 // Run through all narrowband palette options
 function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 {
-      var n = 0;
       console.writeln("AutoIntegrateNarrowbandPaletteBatch");
       for (var i = 0; i < narrowBandPalettes.length; i++) {
             console.writeln("AutoIntegrateNarrowbandPaletteBatch loop ", i);
@@ -5695,9 +5694,6 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   // close all but integrated images
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windows");
                   closeAllWindows(true);
-                  if (n++ >= 2) {
-                        break;
-                  }
             }
       }
       addProcessingStep("Narrowband palette batch completed");
