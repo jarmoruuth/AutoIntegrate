@@ -5656,7 +5656,10 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   custom_B_mapping = narrowBandPalettes[i].B;
                   addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + custom_R_mapping + ", " + custom_G_mapping + ", " + custom_B_mapping);
 
-                  AutoIntegrateEngine(auto_continue);
+                  var succ = AutoIntegrateEngine(auto_continue);
+                  if (!succ) {
+                        addProcessingStep("Narrowband palette batch could not process all palettes");
+                  }
                   
                   // rename and save image using palette name
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename AutoRGB using ", narrowBandPalettes[i].name);
@@ -5772,7 +5775,7 @@ function AutoIntegrateEngine(auto_continue)
 {
       if (extra_target_image != "Auto") {
             console.criticalln("Extra processing target image can be used only with Apply button!");
-            return;
+            return false;
       }
 
       var LRGB_ABE_HT_id = null;
@@ -5830,7 +5833,7 @@ function AutoIntegrateEngine(auto_continue)
       if (!CreateChannelImages(auto_continue)) {
             console.criticalln("Failed!");
             console.endLog();
-            return;
+            return false;
       }
 
       /* Now we have L (Gray) and R, G and B images, or just RGB image
@@ -6074,6 +6077,8 @@ function AutoIntegrateEngine(auto_continue)
             console.noteln("Console output is written into file " + logfname);
       }
       console.noteln("Processing completed.");
+
+      return true;
 }
 
 function printImageInfo(images, name)
@@ -6127,15 +6132,14 @@ function newGroupBox( parent, title, toolTip )
 
 function Autorun(that)
 {
-      var stopped;
+      var stopped = true;
       batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (batch_mode) {
+            stopped = false;
             console.writeln("AutoRun in batch mode");
       } else if (batch_narrowband_palette_mode) {
-            stopped = false;
             console.writeln("AutoRun in narrowband palette batch mode");
       } else {
-            stopped = true;
             console.writeln("AutoRun");
       }
       do {
@@ -7901,7 +7905,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.88";
+      this.windowTitle = "AutoIntegrate v0.89";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
