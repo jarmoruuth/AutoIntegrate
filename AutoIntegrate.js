@@ -5641,9 +5641,33 @@ function isbatchNarrowbandPaletteMode()
       return custom_R_mapping == "All" && custom_G_mapping == "All" && custom_B_mapping == "All";
 }
 
+// Rename and save palette batch image
+function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
+{
+      // rename and save image using palette name
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename " + winId + " using " + palette_name);
+      var palette_image = palette_name;
+      palette_image = palette_image.replace(/ /g,"_");
+      palette_image = palette_image.replace(/-/g,"_");
+      palette_image = "Auto_" + palette_image;
+      if (extra) {
+            palette_image = palette_image + "_extra";
+      }
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch:new name " + palette_image);+
+      windowRenameKeepif(winId, palette_image, true);
+      // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch:set batch keyword");
+      setBatchKeyword(ImageWindow.windowById(palette_image));
+      // save image
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image " + palette_image);
+      saveWindow(dialogFilePath, palette_image);
+      addProcessingStep("Narrowband palette batch final image " + palette_image);
+}
+
 // Run through all narrowband palette options
 function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 {
+      var n = 0;
       console.writeln("AutoIntegrateNarrowbandPaletteBatch");
       for (var i = 0; i < narrowBandPalettes.length; i++) {
             console.writeln("AutoIntegrateNarrowbandPaletteBatch loop ", i);
@@ -5660,28 +5684,20 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   if (!succ) {
                         addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
-                  
-                  // rename and save image using palette name
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename AutoRGB using ", narrowBandPalettes[i].name);
-                  var palette_image = narrowBandPalettes[i].name;
-                  palette_image = palette_image.replace(/ /g,"_");
-                  palette_image = palette_image.replace(/-/g,"_");
-                  palette_image = "Auto_" + palette_image;
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:new name " + palette_image);+
-                  windowRenameKeepif("AutoRGB", palette_image, true);
-                  // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:set batch keyword");
-                  setBatchKeyword(ImageWindow.windowById(palette_image));
-                  // save image
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image");
-                  saveWindow(dialogFilePath, palette_image);
-                  addProcessingStep("Narrowband palette batch final image " + palette_image);
+                  // rename and save the final image
+                  narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, "AutoRGB", false);
+                  if (findWindow("AutoRGB_extra") != null) {
+                        narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, "AutoRGB_extra", true);
+                  }
                   // next runs are always auto_continue
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:set auto_continue = true");
                   auto_continue = true;
                   // close all but integrated images
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windows");
                   closeAllWindows(true);
+                  if (n++ >= 2) {
+                        break;
+                  }
             }
       }
       addProcessingStep("Narrowband palette batch completed");
@@ -7092,6 +7108,12 @@ function AutoIntegrateDialog()
 
       // Narrowband palette
 
+      var narrowbandAllTip = 
+            "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
+            "extra options, then also images with name Auto_+palette-name+_extra are created. Images are saved as .xisf files. " +
+            "Use Save batch result files buttons to save them all in a different format. " + 
+            "To use All option all HSO filters must be available.";
+
       var narrowbandToolTip = 
       "<p>" +
       "Color palette used to map SII, Ha and OIII to R, G and B" +
@@ -7100,13 +7122,15 @@ function AutoIntegrateDialog()
       "</p><p>" +
       "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
       "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
-      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)<br>" +
+      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)" +
       "</p><p>" +
       "Mapping formulas are editable and other palettes can use any combination of channel images." +
       "</p><p>" +
       "Special keywords H, S, O, R, G and B are recognized and replaced " +
       "with corresponding channel image names. Otherwise these formulas " +
       "are passed directly to PixelMath process." +
+      "</p><p>" +
+      narrowbandAllTip + 
       "</p>";
 
       this.narrowbandColorPaletteLabel = aiSectionLabel(this, "Color palette");
@@ -7121,6 +7145,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
+            "</p><p>" +
             "Dynamic palettes, credit https://thecoldestnights.com/2020/06/pixinsight-dynamic-narrowband-combinations-with-pixelmath/" +
             "</p>" +
             narrowbandToolTip;
