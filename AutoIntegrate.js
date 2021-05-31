@@ -7926,7 +7926,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.89";
+      this.windowTitle = "AutoIntegrate v0.90";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
