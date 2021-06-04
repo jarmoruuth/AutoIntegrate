@@ -17,7 +17,7 @@ camera RAW files can be used.
 
 Script creates an AutoIntegrate.log file where details of the processing can be checked.
 
-NOTE! These steps mayh not be updated with recent changes. They do describe the basic
+NOTE! These steps may not be updated with recent changes. They do describe the basic
       processing but some details may have changed.
 
 Manual processing
@@ -260,6 +260,7 @@ var monochrome_image = false;
 var synthetic_l_image = false;
 var RRGB_image = false;
 var synthetic_missing_images = false;
+var force_file_name_filter = false;
 var unique_file_names = false;
 var skip_noise_reduction = false;
 var skip_color_noise_reduction = false;
@@ -2312,7 +2313,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   }
             }
 
-            if (filter == null) {
+            if (filter == null || force_file_name_filter) {
                   // No filter keyword. Try mapping based on file name.
                   filter = filterByFileName(filePath, filename_postfix);
             }
@@ -4005,39 +4006,46 @@ function runColorCalibration(imgView)
             addProcessingStep("No Color calibration for narrowband");
             return;
       }
-      addProcessingStep("Color calibration on " + imgView.id);
-      var P = new ColorCalibration;
-      P.whiteReferenceViewId = "";
-      P.whiteLow = 0.0000000;
-      P.whiteHigh = 0.9000000;
-      P.whiteUseROI = false;
-      P.whiteROIX0 = 0;
-      P.whiteROIY0 = 0;
-      P.whiteROIX1 = 0;
-      P.whiteROIY1 = 0;
-      P.structureDetection = true;
-      P.structureLayers = 5;
-      P.noiseLayers = 1;
-      P.manualWhiteBalance = false;
-      P.manualRedFactor = 1.0000;
-      P.manualGreenFactor = 1.0000;
-      P.manualBlueFactor = 1.0000;
-      P.backgroundReferenceViewId = "";
-      P.backgroundLow = 0.0000000;
-      P.backgroundHigh = 0.1000000;
-      P.backgroundUseROI = false;
-      P.backgroundROIX0 = 0;
-      P.backgroundROIY0 = 0;
-      P.backgroundROIX1 = 0;
-      P.backgroundROIY1 = 0;
-      P.outputWhiteReferenceMask = false;
-      P.outputBackgroundReferenceMask = false;
+      try {
+            addProcessingStep("Color calibration on " + imgView.id);
+            var P = new ColorCalibration;
+            P.whiteReferenceViewId = "";
+            P.whiteLow = 0.0000000;
+            P.whiteHigh = 0.9000000;
+            P.whiteUseROI = false;
+            P.whiteROIX0 = 0;
+            P.whiteROIY0 = 0;
+            P.whiteROIX1 = 0;
+            P.whiteROIY1 = 0;
+            P.structureDetection = true;
+            P.structureLayers = 5;
+            P.noiseLayers = 1;
+            P.manualWhiteBalance = false;
+            P.manualRedFactor = 1.0000;
+            P.manualGreenFactor = 1.0000;
+            P.manualBlueFactor = 1.0000;
+            P.backgroundReferenceViewId = "";
+            P.backgroundLow = 0.0000000;
+            P.backgroundHigh = 0.1000000;
+            P.backgroundUseROI = false;
+            P.backgroundROIX0 = 0;
+            P.backgroundROIY0 = 0;
+            P.backgroundROIX1 = 0;
+            P.backgroundROIY1 = 0;
+            P.outputWhiteReferenceMask = false;
+            P.outputBackgroundReferenceMask = false;
 
-      imgView.beginProcess(UndoFlag_NoSwapFile);
+            imgView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(imgView, false);
+            P.executeOn(imgView, false);
 
-      imgView.endProcess();
+            imgView.endProcess();
+      } catch(err) {
+            console.criticalln("Color calibration failed");
+            console.criticalln(err);
+            addProcessingStep("Maybe filter files or file format were not recognized correctly");
+            throwFatalError("Color calibration failed");
+      }
 }
 
 function runColorSaturation(imgView, MaskView)
@@ -6552,6 +6560,13 @@ function AutoIntegrateDialog()
             SetOptionChecked("Synthetic missing image", checked); 
       }
 
+      this.force_file_name_filter_CheckBox = newCheckBox(this, "Use file name for filters", force_file_name_filter, 
+      "<p>Use file name for recognizing filters and ignore FILTER keyword.</p>" );
+      this.force_file_name_filter_CheckBox.onClick = function(checked) { 
+            force_file_name_filter = checked; 
+            SetOptionChecked("Use file name for filters", checked); 
+      }
+
       this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", unique_file_names, 
       "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.unique_file_names_CheckBox.onClick = function(checked) { 
@@ -6712,6 +6727,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
+      this.otherParamsSet1.add( this.force_file_name_filter_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -7926,7 +7942,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.90";
+      this.windowTitle = "AutoIntegrate v0.91";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
