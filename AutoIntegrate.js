@@ -308,6 +308,7 @@ var custom_L_mapping = "L";
 var mapping_on_nonlinear_data = false;
 var narrowband_linear_fit = "Auto";
 
+var extra_StarNet = false;
 var extra_darker_background = false;
 var extra_HDRMLT= false;
 var extra_LHE = false;
@@ -743,6 +744,8 @@ function closeFinalWindowsFromArray(arr)
       for (var i = 0; i < arr.length; i++) {
             closeOneWindow(arr[i]);
             closeOneWindow(arr[i]+"_extra");
+            closeOneWindow(arr[i]+"_extra_starless");
+            closeOneWindow(arr[i]+"_extra_stars");
       }
 }
 
@@ -2560,8 +2563,8 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
       return mapping;
 }
 
-/* Run single expression PixelMath and create new image. */
-function runPixelMathSingleMapping(id, mapping)
+/* Run single expression PixelMath and optionally create new image. */
+function runPixelMathSingleMappingEx(id, mapping, createNewImage)
 {
       addProcessingStep("Run PixelMath single mapping " + mapping + " using image " + id);
 
@@ -2587,7 +2590,7 @@ function runPixelMathSingleMapping(id, mapping)
       P.truncate = true;
       P.truncateLower = 0;
       P.truncateUpper = 1;
-      P.createNewImage = true;
+      P.createNewImage = createNewImage;
       P.showNewImage = false;
       P.newImageId = id + "_pm";
       P.newImageWidth = 0;
@@ -2601,6 +2604,12 @@ function runPixelMathSingleMapping(id, mapping)
       idWin.mainView.endProcess();
 
       return P.newImageId;
+}
+
+/* Run single expression PixelMath and create new image. */
+function runPixelMathSingleMapping(id, mapping)
+{
+      return runPixelMathSingleMappingEx(id, mapping, true);
 }
 
 /* Run RGB channel combination using PixelMath. 
@@ -5315,6 +5324,49 @@ function fixNarrowbandStarColor(targetView)
       invertImage(targetView.mainView);
 }
 
+// When starnet is run we do some thins differently
+// - We make a copy of the starless image
+// - We make a copy of the stars image
+// - Operations like HDMT and LHE are run on the starless image
+// - Star reduction is done on the stars image
+// - In the end starless and stars images are combined together
+function extraStarNet(imgView)
+{
+      addProcessingStep("Run StarNet on " + imgView.mainView.id);
+
+      var P = new StarNet;
+      P.stride = StarNet.prototype.Stride_128;
+      P.mask = true;
+
+      /* Execute StarNet on image.
+       */
+      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgView.mainView, false);
+
+      imgView.mainView.endProcess();
+
+      /* Get star mask.
+       */
+      console.writeln("extraStarNet star_mask_win_id " + ImageWindow.activeWindow.mainView.id);
+      star_mask_win = ImageWindow.activeWindow;
+      star_mask_win_id = star_mask_win.mainView.id;
+
+      /* Make a copy of the stars image.
+       */
+      console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgView.mainView.id + "_stars");
+      var copywin = copyWindow(star_mask_win, imgView.mainView.id + "_stars");
+      saveWindow(dialogFilePath, copywin.mainView.id);
+      addProcessingStep("StarNet stars image " + copywin.mainView.id);
+
+      /* Make a copy of the starless image.
+       */
+      console.writeln("extraStarNet copy " + imgView.mainView.id + " to " + imgView.mainView.id + "_starless");
+      var copywin = copyWindow(imgView, imgView.mainView.id + "_starless");
+      saveWindow(dialogFilePath, copywin.mainView.id);
+      addProcessingStep("StarNet starless image " + copywin.mainView.id);
+}
+
 function extraDarkerBackground(imgView, MaskView)
 {
       addProcessingStep("Darker background on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
@@ -5512,42 +5564,76 @@ function createStarMask(imgView)
 
 function extraSmallerStars(imgView)
 {
+      var targetView = imgView;
+
       createStarMask(imgView);
 
-      addProcessingStep("Smaller stars on " + imgView.mainView.id + " using mask " + star_mask_win.mainView.id + 
+      if (extra_StarNet) {
+            addProcessingStep("Smaller stars on " + star_mask_win_id + 
+                        " using " + extra_smaller_stars_iterations + " iterations");
+            targetView = star_mask_win;    
+      } else {
+            addProcessingStep("Smaller stars on " + imgView.mainView.id + " using mask " + star_mask_win.mainView.id + 
                         " and " + extra_smaller_stars_iterations + " iterations");
+      }
 
-      var P = new MorphologicalTransformation;
-      P.operator = MorphologicalTransformation.prototype.Selection;
-      P.interlacingDistance = 1;
-      P.lowThreshold = 0.000000;
-      P.highThreshold = 0.000000;
-      P.numberOfIterations = extra_smaller_stars_iterations;
-      P.amount = 0.70;
-      P.selectionPoint = 0.20;
-      P.structureName = "";
-      P.structureSize = 5;
-      P.structureWayTable = [ // mask
-         [[
-            0x00,0x01,0x01,0x01,0x00,
-            0x01,0x01,0x01,0x01,0x01,
-            0x01,0x01,0x01,0x01,0x01,
-            0x01,0x01,0x01,0x01,0x01,
-            0x00,0x01,0x01,0x01,0x00
-         ]]
-      ];
+      if (extra_smaller_stars_iterations == 0) {
+            var P = new MorphologicalTransformation;
+            P.operator = MorphologicalTransformation.prototype.Erosion;
+            P.interlacingDistance = 1;
+            P.lowThreshold = 0.000000;
+            P.highThreshold = 0.000000;
+            P.numberOfIterations = 1;
+            P.amount = 0.30;
+            P.selectionPoint = 0.20;
+            P.structureName = "";
+            P.structureSize = 5;
+            P.structureWayTable = [ // mask
+               [[
+                  0x00,0x01,0x01,0x01,0x00,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x00,0x01,0x01,0x01,0x00
+               ]]
+            ];
+      } else {
+            var P = new MorphologicalTransformation;
+            P.operator = MorphologicalTransformation.prototype.Selection;
+            P.interlacingDistance = 1;
+            P.lowThreshold = 0.000000;
+            P.highThreshold = 0.000000;
+            P.numberOfIterations = extra_smaller_stars_iterations;
+            P.amount = 0.70;
+            P.selectionPoint = 0.20;
+            P.structureName = "";
+            P.structureSize = 5;
+            P.structureWayTable = [ // mask
+            [[
+                  0x00,0x01,0x01,0x01,0x00,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x01,0x01,0x01,0x01,0x01,
+                  0x00,0x01,0x01,0x01,0x00
+            ]]
+            ];
+      }
       
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      /* Transform only light parts of the image. */
-      imgView.setMask(star_mask_win);
-      imgView.maskInverted = false;
+      if (!extra_StarNet) {
+            /* Transform only light parts of the image. */
+            targetView.setMask(star_mask_win);
+            targetView.maskInverted = false;
+      }
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(targetView.mainView, false);
 
-      imgView.removeMask();
+      if (!extra_StarNet) {
+            targetView.removeMask();
+      }
 
-      imgView.mainView.endProcess();
+      targetView.mainView.endProcess();
 }
 
 function extraContrast(imgView)
@@ -5626,7 +5712,7 @@ function extraSTF(win)
 }
 
 
-function is_extra_option()
+function is_non_starnet_option()
 {
       return extra_darker_background || 
              extra_HDRMLT || 
@@ -5634,6 +5720,12 @@ function is_extra_option()
              extra_contrast ||
              extra_STF ||
              extra_smaller_stars;
+}
+
+function is_extra_option()
+{
+      return extra_StarNet || 
+             is_non_starnet_option();
 }
 
 function is_narrowband_option()
@@ -5714,20 +5806,6 @@ function extraProcessing(id, apply_directly)
                         extra_HDRMLT || 
                         extra_LHE;
 
-      if (need_L_mask) {
-            // Try find mask window
-            if (mask_win == null) {
-                  mask_win = findWindow("range_mask");
-            }
-            if (mask_win == null) {
-                  mask_win = findWindow("AutoMask");
-            }
-            if (mask_win == null) {
-                  mask_win_id = "AutoMask";
-                  mask_win = newMaskWindow(ImageWindow.windowById(id), mask_win_id);
-            }
-            console.writeln("Use mask " + mask_win.mainView.id);
-      }
       if (apply_directly) {
             extraWin = ImageWindow.windowById(id);
       } else {
@@ -5744,6 +5822,25 @@ function extraProcessing(id, apply_directly)
             if (fix_narrowband_star_color) {
                   fixNarrowbandStarColor(extraWin);
             }
+      }
+      if (extra_StarNet) {
+            extraStarNet(extraWin);
+      }
+      if (need_L_mask) {
+            // Try find mask window
+            // If we need to create a mask di it after we
+            // have removed the stars
+            if (mask_win == null) {
+                  mask_win = findWindow("range_mask");
+            }
+            if (mask_win == null) {
+                  mask_win = findWindow("AutoMask");
+            }
+            if (mask_win == null) {
+                  mask_win_id = "AutoMask";
+                  mask_win = newMaskWindow(extraWin, mask_win_id);
+            }
+            console.writeln("Use mask " + mask_win.mainView.id);
       }
       if (extra_darker_background) {
             extraDarkerBackground(extraWin, mask_win);
@@ -5762,6 +5859,22 @@ function extraProcessing(id, apply_directly)
       }
       if (extra_smaller_stars) {
             extraSmallerStars(extraWin);
+      }
+      if (extra_StarNet) {
+             if (is_non_starnet_option() || is_narrowband_option()) {
+                  /* Restore stars by combining starless image and stars. */
+                  addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
+                  runPixelMathSingleMappingEx(
+                        extraWin.mainView.id, 
+                        extraWin.mainView.id + " + " + star_mask_win_id,
+                        false);
+                  // star_mask_win_id was a temp window with maybe smaller stars
+                  closeOneWindow(star_mask_win_id);
+             } else {
+                   // close the working windows as we did not change anything
+                  closeOneWindow(extraWin.mainView.id);
+                  closeOneWindow(star_mask_win_id);
+             }
       }
 }
 
@@ -7591,6 +7704,13 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
+      this.extraStarNet_CheckBox = newCheckBox(this, "StarNet", extra_StarNet, 
+      "<p>Run Starnet on image to generate a starless image and a separate image for the stars. When Starnet is selected, extra processing is " +
+      "applied to the starless image.</p>" );
+      this.extraStarNet_CheckBox.onClick = function(checked) { 
+            extra_StarNet = checked; 
+            SetOptionChecked("StarNet", checked); 
+      }
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
       "<p>Make image background darker.</p>" );
       this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
@@ -7628,10 +7748,10 @@ function AutoIntegrateDialog()
             SetOptionChecked("Smaller stars", checked); 
       }
       this.IterationsSpinBox = new SpinBox( this );
-      this.IterationsSpinBox.minValue = 1;
+      this.IterationsSpinBox.minValue = 0;
       this.IterationsSpinBox.maxValue = 10;
       this.IterationsSpinBox.value = extra_smaller_stars_iterations;
-      this.IterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes.</p>";
+      this.IterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection</p>";
       this.IterationsSpinBox.onValueUpdated = function( value )
       {
             extra_smaller_stars_iterations = value;
@@ -7702,6 +7822,7 @@ function AutoIntegrateDialog()
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
+      this.extra1.add( this.extraStarNet_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_HDRMLT_CheckBox );
       this.extra1.add( this.extra_LHE_CheckBox );
@@ -7748,11 +7869,12 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "If multiple extra processing options are selected they are executed in the following order" +
             "</p><p>" +
-            "1. Darker background<br>" +
-            "2. HDRMultiscaleTansform<br>" +
-            "3. LocalHistogramEqualization<br>" +
-            "4. Add contrast<br>" +
-            "5. Smaller stars" +
+            "1. StarNet<br>" +
+            "2. Darker background<br>" +
+            "3. HDRMultiscaleTansform<br>" +
+            "4. LocalHistogramEqualization<br>" +
+            "5. Add contrast<br>" +
+            "6. Smaller stars" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
@@ -7942,7 +8064,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.91";
+      this.windowTitle = "AutoIntegrate v0.92";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
