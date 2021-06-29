@@ -1577,7 +1577,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             if (pre_calibrate_darks) {
                   P.calibrateDark = false;
             } else {
-                  P.calibrateDark = false;
+                  P.calibrateDark = true;
             }
             P.calibrateFlat = false;
             P.optimizeDarks = true;
@@ -9278,7 +9278,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 5";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 6";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
