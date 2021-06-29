@@ -44,21 +44,37 @@ intermediate files and autocontinue there.
 - Crop integrated images and continue automatic processing using cropped images.
 - Run manual DBE.
 
+Calibration steps
+-----------------
+
+1. In each file page in GUI, select light, bias, dark and flat frames. If only light are selected
+   the calibration is skipped. Also bias, dark or flat files may be not selected, so
+   any one of those can be left out. Script tries to automatically detect different
+   filters, or OSC/RAW files.
+2. If bias files are present, those are integrated into master bias. Optionally a superbias
+   file is created.
+3. If dark files are present, those are calibrated using master bias and then integrated 
+   into master dark.
+4. If flat files are present, those are calibrated using master bias and master dark and then 
+   integrated into master flat.
+5. Light files are then calibrated using master bias, master dark and master flat.
+
 Generic steps for all files
 ---------------------------
 
-1. Opens a file dialog. On that select all *.fit (or other) files. LRGB, color, RAW and narrowband
-   files can be used.
+1. If light files not already selects, script opens a file dialog. On that select 
+   all *.fit (or other) files. LRGB, color, RAW and narrowband files can be used.
 2. Optionally linear defect detection is run to find column and row defects. Defect information
    is used by the CosmeticCorrection.
 3. By default run CosmeticCorrection for each file.
-4. SubframeSelector is run on files to measure and generate SSWEIGHT for
+4. OSC/RAW files are debayered.
+5. SubframeSelector is run on files to measure and generate SSWEIGHT for
    each file. Output is *_a.xisf files.
-5. Files are scanned and the file with highest SSWEIGHT is selected as a
+6. Files are scanned and the file with highest SSWEIGHT is selected as a
    reference.
-6. StarAlign is run on all files and *_a_r.xisf files are
+7. StarAlign is run on all files and *_a_r.xisf files are
    generated.
-7. Optionally there is LocalNormalization on all files but
+8. Optionally there is LocalNormalization on all files but
    that does not seem to produce good results. There must be a bug...
 
 Steps with LRGB files
@@ -118,7 +134,7 @@ Steps for narrowband files are a bit similar to LRGB files but without L channel
 - Color calibration is not run on narrowband images
 - Saturation default setting 1 does not increase saturation on narrowband images.
 - Linear fit for can be used for R, G or B channels. In that case script runs linked STF 
-  stretch. Default is to use unlinked STF stretch for narrpwband files.
+  stretch. Default is to use unlinked STF stretch for narrowband files.
 - PixelMath expression can chosen from a list or edited manually for custom blending.
   Pixelmath expressions can also include RGB channels.
 
@@ -225,6 +241,8 @@ Linear Defect Detection:
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/ImageOp.jsh>
 
+var infoLabel;
+
 var close_windows = false;
 var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
@@ -236,6 +254,7 @@ var imageintegration_normalization = 0;         /* Default: additive */
 var skip_imageintegration_ssweight = false;
 var imageintegration_clipping = true;
 var use_noise_reduction_on_all_channels = false;
+var calibrate_only = false;
 var integrate_only = false;
 var channelcombination_only = false;
 var skip_subframeselector = false;
@@ -275,8 +294,14 @@ var image_stretching = 'STF';
 var MaskedStretch_targetBackground = 0.125;
 var fix_column_defects = false;
 var fix_row_defects = false;
-var cosmetic_sorrection_hot_sigma = 3;
-var cosmetic_sorrection_cold_sigma = 3;
+var cosmetic_correction_hot_sigma = 3;
+var cosmetic_correction_cold_sigma = 3;
+var create_superbias = true;
+var debayerPattern = Debayer.prototype.Auto;
+var stars_in_flats = false;
+var no_darks_on_flat_calibrate = false;
+var calibrate_darks_separately = true;
+var autodetect_files = true;
 
 var fix_narrowband_star_color = false;
 var run_hue_shift = false;
@@ -285,8 +310,11 @@ var leave_some_green = false;
 var skip_star_fix_mask = false;
 
 var processingDate;
-var dialogFileNames = null;
+var lightFileNames = null;
 var dialogFilePath = null;
+var darkFileNames = null;
+var biasFileNames = null;
+var flatFileNames = null;
 var all_files;
 var best_ssweight = 0;
 var best_image = null;
@@ -399,7 +427,8 @@ var start_images = {
       RGB_HT : 5,
       RGB_COLOR : 6,
       L_R_G_B : 7,
-      FINAL : 8
+      FINAL : 8,
+      CALIBRATE_ONLY : 9
 };
 
 // known window names
@@ -460,6 +489,20 @@ var fixed_windows = [
       "Measurements",
       "Expressions",
       "L_win_mask"
+];
+
+var calibrate_windows = [
+      "AutoMasterBias",
+      "AutoMasterSuperBias",
+      "AutoMasterDark",
+      "AutoMasterFlat_L",
+      "AutoMasterFlat_R",
+      "AutoMasterFlat_G",
+      "AutoMasterFlat_B",
+      "AutoMasterFlat_H",
+      "AutoMasterFlat_S",
+      "AutoMasterFlat_O",
+      "AutoMasterFlat_C"
 ];
 
 /* Final processed window names, depending on input data and options used.
@@ -801,27 +844,44 @@ function closeAllWindows(keep_integrated_imgs)
       }
       closeTempWindows();
       closeAllWindowsFromArray(fixed_windows);
+      closeAllWindowsFromArray(calibrate_windows);
       closeFinalWindowsFromArray(final_windows);
 }
 
-function saveWindow(path, id)
+function saveWindowEx(path, id, optional_unique_part)
 {
       if (path == null || id == null) {
-            return;
+            return null;
       }
-      console.writeln("saveWindow " + path + id + getUniqueFilenamePart() + ".xisf");
+      var fname = path + id + optional_unique_part + ".xisf";
+      console.writeln("saveWindowEx " + fname);
 
       var w = ImageWindow.windowById(id);
 
       if (w == null) {
-            return;
+            return null;
       }
 
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
-      if (!w.saveAs(path + id + getUniqueFilenamePart() + ".xisf", false, false, false, false)) {
-            throwFatalError("Failed to save image: " + path + id + ".xisf");
+      if (!w.saveAs(fname, false, false, false, false)) {
+            throwFatalError("Failed to save image: " + fname);
       }
+      return fname;
+}
+
+function saveProcessedWindow(path, id)
+{
+      return saveWindowEx(path, id, getOptionalUniqueFilenamePart());
+}
+
+function saveWorkWindow(path, id)
+{
+      var fname = saveWindowEx(path, id, "");
+      if (fname == null) {
+            throwFatalError("Failed to save work image: " + path + id);
+      }
+      return fname;
 }
 
 function saveBatchWindow(win, dir, name, bits)
@@ -835,10 +895,10 @@ function saveBatchWindow(win, dir, name, bits)
             var new_postfix = "_" + bits;
             var old_postfix = name.substr(name.len - new_postfix.len);
             if (old_postfix != new_postfix) {
-                  save_name = dir + "/" + name + new_postfix + getUniqueFilenamePart() + ".tif";
+                  save_name = dir + "/" + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
             } else {
                   // we already have bits added to name
-                  save_name = dir + "/" + name + getUniqueFilenamePart() + ".tif";
+                  save_name = dir + "/" + name + getOptionalUniqueFilenamePart() + ".tif";
             }
 
             if (copy_win.bitsPerSample != bits) {
@@ -846,7 +906,7 @@ function saveBatchWindow(win, dir, name, bits)
                   copy_win.setSampleFormat(bits, false);
             }
       } else {
-            save_name = dir + "/" + name + getUniqueFilenamePart() + ".xisf";
+            save_name = dir + "/" + name + getOptionalUniqueFilenamePart() + ".xisf";
       }
       console.writeln("saveBatchWindow:save name " + name);
       // Save image. No format options, no warning messages, 
@@ -948,18 +1008,23 @@ function newMaskWindow(sourceWindow, name)
       return targetWindow;
 }
 
-function openFitFiles()
+function openFitFiles(filetype)
 {
       var filenames;
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
-      ofd.caption = "Select Light Frames";
-      ofd.filters = [
-            ["FITS files", "*.fit *.fits"],
-            ["All files", "*.*"]
-         ];
+      ofd.caption = "Select " + filetype + " Images";
+      var fits_files = "*.fit *.fits *.fts";
+      var raw_files = "*.3fr *.ari *.arw *.bay *.braw *.crw *.cr2 *.cr3 *.cap *.data *.dcs *.dcr *.dng " +
+                      "*.drf *.eip *.erf *.fff *.gpr *.iiq *.k25 *.kdc *.mdc *.mef *.mos *.mrw *.nef *.nrw *.obm *.orf " +
+                      "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
+      var image_files = fits_files + " " + raw_files;
 
+      ofd.filters = [
+            ["Image files", image_files],
+            ["All files", "*.*"]
+      ];
       if (!ofd.execute()) {
             return null;
       }
@@ -1061,6 +1126,637 @@ function writeImage(filePath, imageWindow)
       fileFormatInstance.close();
    
       return true;
+}
+
+/* 
+ * Image calibration as dedscribed in Light Vortex Astronomy.
+ */
+
+// Integrate (stack) bias and dark images
+function runImageIntegrationBiasDarks(images, name)
+{
+      console.writeln("runImageIntegrationBiasDarks, images[0] " + images[0][1] + ", name " + name);
+
+      ensureThreeImages(images);
+
+      var P = new ImageIntegration;
+      P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+      P.rejection = getRejectionAlgorigthm(images.length);
+
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.combination = ImageIntegration.prototype.Average;
+      P.weightMode = ImageIntegration.prototype.DontCare;
+      P.weightKeyword = "";
+      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
+      P.adaptiveGridSize = 16;
+      P.adaptiveNoScale = false;
+      P.ignoreNoiseKeywords = false;
+      P.normalization = ImageIntegration.prototype.NoNormalization;
+      // P.rejection = ImageIntegration.prototype.NoRejection;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.minMaxLow = 1;
+      P.minMaxHigh = 1;
+      P.pcClipLow = 0.200;
+      P.pcClipHigh = 0.100;
+      P.sigmaLow = 4.000;
+      P.sigmaHigh = 3.000;
+      P.winsorizationCutoff = 5.000;
+      P.linearFitLow = 5.000;
+      P.linearFitHigh = 4.000;
+      P.esdOutliersFraction = 0.30;
+      P.esdAlpha = 0.05;
+      P.esdLowRelaxation = 1.50;
+      P.ccdGain = 1.00;
+      P.ccdReadNoise = 10.00;
+      P.ccdScaleNoise = 0.00;
+      P.clipLow = true;
+      P.clipHigh = true;
+      P.rangeClipLow = false;
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+      P.largeScaleClipLow = false;
+      P.largeScaleClipLowProtectedLayers = 2;
+      P.largeScaleClipLowGrowth = 2;
+      P.largeScaleClipHigh = false;
+      P.largeScaleClipHighProtectedLayers = 2;
+      P.largeScaleClipHighGrowth = 2;
+      P.generate64BitResult = false;
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+      P.bufferSizeMB = 16;
+      P.stackSizeMB = 1024;
+      P.autoMemorySize = true;
+      P.autoMemoryLimit = 0.75;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.useCache = true;
+      P.evaluateNoise = false;
+      P.mrsMinDataFraction = 0.010;
+      P.subtractPedestals = false;
+      P.truncateOnOutOfRange = false;
+      P.noGUIMessages = true;
+      P.showImages = true;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.useBufferThreads = true;
+      P.maxBufferThreads = 0;
+
+      P.executeGlobal();
+
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.lowRejectionMapImageId);
+      windowCloseif(P.slopeMapImageId);
+
+      var new_name = windowRename(P.integrationImageId, name);
+
+      console.writeln("runImageIntegrationBiasDarks, integrated image " + new_name);
+
+      return new_name;
+}
+
+// Generate SuperBias from integrated bias image
+function runSuberBias(biasWin)
+{
+      console.writeln("runSuberBias, bias " + biasWin.mainView.id);
+
+      var P = new Superbias;
+      P.columns = true;
+      P.rows = false;
+      P.medianTransform = true;
+      P.excludeLargeScale = true;
+      P.multiscaleLayers = 7;
+      P.trimmingFactor = 0.200;
+
+      biasWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(biasWin.mainView, false);
+
+      biasWin.mainView.endProcess();
+
+      var targetWindow = ImageWindow.activeWindow;
+
+      windowRenameKeepif(targetWindow.mainView.id, "AutoMasterSuperBias", true);
+
+      return targetWindow.mainView.id
+}
+
+// Run ImageCalibration to darks using master bias image
+// Output will be _c.xisf images
+function runCalibrateDarks(images, masterbiasPath)
+{
+      if (masterbiasPath == null) {
+            console.writeln("runCalibrateDarks, no master bias");
+            return imagesEnabledPathToFileList(images);
+      }
+
+      console.writeln("runCalibrateDarks, images[0] " + images[0][1] + ", master bias " + masterbiasPath);
+
+      var P = new ImageCalibration;
+      P.targetFrames = filesNamesToEnabledPath(images); // [ enabled, path ];
+      P.enableCFA = is_color_files && debayerPattern != null;
+      if (debayerPattern != null) {
+            P.cfaPattern = debayerPattern;
+      } else {
+            P.cfaPattern = ImageCalibration.prototype.Auto;
+      }
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
+      P.pedestal = 0;
+      P.pedestalMode = ImageCalibration.prototype.Keyword;
+      P.pedestalKeyword = "";
+      P.overscanEnabled = false;
+      P.overscanImageX0 = 0;
+      P.overscanImageY0 = 0;
+      P.overscanImageX1 = 0;
+      P.overscanImageY1 = 0;
+      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
+         [false, 0, 0, 0, 0, 0, 0, 0, 0],
+         [false, 0, 0, 0, 0, 0, 0, 0, 0],
+         [false, 0, 0, 0, 0, 0, 0, 0, 0],
+         [false, 0, 0, 0, 0, 0, 0, 0, 0]
+      ];
+      P.masterBiasEnabled = true;
+      P.masterBiasPath = masterbiasPath;
+      P.masterDarkEnabled = false;
+      P.masterDarkPath = "";
+      P.masterFlatEnabled = false;
+      P.masterFlatPath = "";
+      P.calibrateBias = false;
+      P.calibrateDark = false;
+      P.calibrateFlat = false;
+      P.optimizeDarks = true;
+      P.darkOptimizationThreshold = 0.00000;
+      P.darkOptimizationLow = 3.0000;
+      P.darkOptimizationWindow = 1024;
+      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
+      P.separateCFAFlatScalingFactors = true;
+      P.flatScaleClippingFactor = 0.05;
+      P.evaluateNoise = true;
+      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_c";
+      P.outputSampleFormat = ImageCalibration.prototype.f32;
+      P.outputPedestal = 0;
+      P.overwriteExistingFiles = true;
+      P.onError = ImageCalibration.prototype.Continue;
+      P.noGUIMessages = true;
+
+      P.executeGlobal();
+
+      return fileNamesFromOutputData(P.outputData);
+}
+
+// Run ImageCalibration to flats using master bias and master dark images
+// Output will be _c.xisf images
+function runCalibrateFlats(images, masterbiasPath, masterdarkPath)
+{
+      if (masterbiasPath == null && masterdarkPath == null) {
+            console.writeln("runCalibrateFlats, no master bias or dark");
+            return imagesEnabledPathToFileList(images);
+      }
+
+      console.writeln("runCalibrateFlats, images[0] " + images[0][1]);
+
+      var P = new ImageCalibration;
+      P.targetFrames = images; // [ // enabled, path ];
+      P.enableCFA = is_color_files && debayerPattern != null;
+      if (debayerPattern != null) {
+            P.cfaPattern = debayerPattern;
+      } else {
+            P.cfaPattern = ImageCalibration.prototype.Auto;
+      }
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
+      P.pedestal = 0;
+      P.pedestalMode = ImageCalibration.prototype.Keyword;
+      P.pedestalKeyword = "";
+      P.overscanEnabled = false;
+      P.overscanImageX0 = 0;
+      P.overscanImageY0 = 0;
+      P.overscanImageX1 = 0;
+      P.overscanImageY1 = 0;
+      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0]
+      ];
+      if (masterbiasPath != null) {
+            console.writeln("runCalibrateFlats, master bias " + masterbiasPath);
+            P.masterBiasEnabled = true;
+            P.masterBiasPath = masterbiasPath;
+      } else {
+            console.writeln("runCalibrateFlats, no master bias");
+            P.masterBiasEnabled = false;
+            P.masterBiasPath = "";
+      }
+      if (masterdarkPath != null && !no_darks_on_flat_calibrate) {
+            console.writeln("runCalibrateFlats, master dark " + masterdarkPath);
+            P.masterDarkEnabled = true;
+            P.masterDarkPath = masterdarkPath;
+      } else {
+            console.writeln("runCalibrateFlats, no master dark");
+            P.masterDarkEnabled = false;
+            P.masterDarkPath = "";
+      }
+      P.masterFlatEnabled = false;
+      P.masterFlatPath = "";
+      P.calibrateBias = false;
+      if (calibrate_darks_separately) {
+            P.calibrateDark = false;
+      } else {
+            P.calibrateDark = true;
+      }
+      P.calibrateFlat = false;
+      P.optimizeDarks = true;
+      P.darkOptimizationThreshold = 0.00000;
+      P.darkOptimizationLow = 3.0000;
+      P.darkOptimizationWindow = 1024;
+      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
+      P.separateCFAFlatScalingFactors = true;
+      P.flatScaleClippingFactor = 0.05;
+      P.evaluateNoise = true;
+      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_c";
+      P.outputSampleFormat = ImageCalibration.prototype.f32;
+      P.outputPedestal = 0;
+      P.overwriteExistingFiles = true;
+      P.onError = ImageCalibration.prototype.Continue;
+      P.noGUIMessages = true;
+
+      P.executeGlobal();
+
+      return fileNamesFromOutputData(P.outputData);
+}
+
+// Run image integration on flat frames
+// If you have stars in flat frames, set
+// P.pcClipLow and P.pcClipHigh to a 
+// tiny value like 0.010
+function runImageIntegrationFlats(images, name)
+{
+      console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
+
+      var P = new ImageIntegration;
+      P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.combination = ImageIntegration.prototype.Average;
+      P.weightMode = ImageIntegration.prototype.DontCare;
+      P.weightKeyword = "";
+      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
+      P.adaptiveGridSize = 16;
+      P.adaptiveNoScale = false;
+      P.ignoreNoiseKeywords = false;
+      P.normalization = ImageIntegration.prototype.MultiplicativeWithScaling;
+      P.rejection = ImageIntegration.prototype.PercentileClip;
+      P.rejectionNormalization = ImageIntegration.prototype.EqualizeFluxes;
+      P.minMaxLow = 1;
+      P.minMaxHigh = 1;
+      if (stars_in_flats) {
+            P.pcClipLow = 0.010;
+            P.pcClipHigh = 0.010;
+      } else {
+            P.pcClipLow = 0.200;
+            P.pcClipHigh = 0.100;
+      }
+      P.sigmaLow = 4.000;
+      P.sigmaHigh = 3.000;
+      P.winsorizationCutoff = 5.000;
+      P.linearFitLow = 5.000;
+      P.linearFitHigh = 4.000;
+      P.esdOutliersFraction = 0.30;
+      P.esdAlpha = 0.05;
+      P.esdLowRelaxation = 1.50;
+      P.ccdGain = 1.00;
+      P.ccdReadNoise = 10.00;
+      P.ccdScaleNoise = 0.00;
+      P.clipLow = true;
+      P.clipHigh = true;
+      P.rangeClipLow = false;
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+      P.largeScaleClipLow = false;
+      P.largeScaleClipLowProtectedLayers = 2;
+      P.largeScaleClipLowGrowth = 2;
+      P.largeScaleClipHigh = false;
+      P.largeScaleClipHighProtectedLayers = 2;
+      P.largeScaleClipHighGrowth = 2;
+      P.generate64BitResult = false;
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+      P.bufferSizeMB = 16;
+      P.stackSizeMB = 1024;
+      P.autoMemorySize = true;
+      P.autoMemoryLimit = 0.75;
+      P.useROI = false;
+      P.roiX0 = 0;
+      P.roiY0 = 0;
+      P.roiX1 = 0;
+      P.roiY1 = 0;
+      P.useCache = true;
+      P.evaluateNoise = true;
+      P.mrsMinDataFraction = 0.010;
+      P.subtractPedestals = false;
+      P.truncateOnOutOfRange = false;
+      P.noGUIMessages = true;
+      P.showImages = true;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.useBufferThreads = true;
+      P.maxBufferThreads = 0;
+
+      P.executeGlobal();
+
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.lowRejectionMapImageId);
+      windowCloseif(P.slopeMapImageId);
+
+      var new_name = windowRename(P.integrationImageId, name);
+
+      console.writeln("runImageIntegrationFlats, integrated image " + new_name);
+
+      return new_name;
+}
+
+function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath)
+{
+      if (masterbiasPath == null && masterdarkPath == null && masterflatPath == null) {
+            console.writeln("runCalibrateLights, no master bias, dark or flat");
+            return imagesEnabledPathToFileList(images);
+      }
+
+      console.writeln("runCalibrateLights, images[0] " + images[0][1]);
+
+      var P = new ImageCalibration;
+      P.targetFrames = images; // [ enabled, path ];
+      P.enableCFA = is_color_files && debayerPattern != null;
+      if (debayerPattern != null) {
+            P.cfaPattern = debayerPattern;
+      } else {
+            P.cfaPattern = ImageCalibration.prototype.Auto;
+      }
+      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
+      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
+      P.pedestal = 0;
+      P.pedestalMode = ImageCalibration.prototype.Keyword;
+      P.pedestalKeyword = "";
+      P.overscanEnabled = false;
+      P.overscanImageX0 = 0;
+      P.overscanImageY0 = 0;
+      P.overscanImageX1 = 0;
+      P.overscanImageY1 = 0;
+      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0],
+      [false, 0, 0, 0, 0, 0, 0, 0, 0]
+      ];
+      if (masterbiasPath != null) {
+            console.writeln("runCalibrateLights, master bias " + masterbiasPath);
+            P.masterBiasEnabled = true;
+            P.masterBiasPath = masterbiasPath;
+      } else {
+            console.writeln("runCalibrateLights, no master bias");
+            P.masterBiasEnabled = false;
+            P.masterBiasPath = "";
+      }
+      if (masterdarkPath != null) {
+            console.writeln("runCalibrateLights, master dark " + masterdarkPath);
+            P.masterDarkEnabled = true;
+            P.masterDarkPath = masterdarkPath;
+      } else {
+            console.writeln("runCalibrateLights, no master dark");
+            P.masterDarkEnabled = false;
+            P.masterDarkPath = "";
+      }
+      if (masterflatPath != null) {
+            console.writeln("runCalibrateLights, master flat " + masterflatPath);
+            P.masterFlatEnabled = true;
+            P.masterFlatPath = masterflatPath;
+      } else {
+            console.writeln("runCalibrateLights, no master flat");
+            P.masterFlatEnabled = false;
+            P.masterFlatPath = "";
+      }
+      P.calibrateBias = false;
+      if (calibrate_darks_separately) {
+            P.calibrateDark = false;
+      } else {
+            P.calibrateDark = false;
+      }
+      P.calibrateFlat = false;
+      P.optimizeDarks = true;
+      P.darkOptimizationThreshold = 0.00000;
+      P.darkOptimizationLow = 3.0000;
+      P.darkOptimizationWindow = 1024;
+      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
+      P.separateCFAFlatScalingFactors = true;
+      P.flatScaleClippingFactor = 0.05;
+      P.evaluateNoise = true;
+      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_c";
+      P.outputSampleFormat = ImageCalibration.prototype.f32;
+      P.outputPedestal = 0;
+      P.overwriteExistingFiles = true;
+      P.onError = ImageCalibration.prototype.Continue;
+      P.noGUIMessages = true;
+
+      P.executeGlobal();
+
+      return fileNamesFromOutputData(P.outputData);
+}
+
+function filesForImageIntegration(fileNames)
+{
+      var images = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            images[images.length] = [ true, fileNames[i] ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+      }
+      return images;
+}
+
+function filesNamesToEnabledPath(fileNames)
+{
+      var images = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            images[images.length] = [ true, fileNames[i] ]; // [ enabled, path ];
+      }
+      return images;
+}
+
+function filesNamesToEnabledPathFromFilearr(filearr)
+{
+      var images = [];
+      for (var i = 0; i < filearr.length; i++) {
+            images[images.length] = [ true, filearr[i].name ]; // [ enabled, path ];
+      }
+      return images;
+}
+
+function imagesEnabledPathToFileList(images)
+{
+      var fileNames = [];
+      for (var i = 0; i < images.length; i++) {
+            fileNames[fileNames.length] = images[i][1];
+      }
+      return fileNames;
+}
+
+
+// Calibration engine to run image calibration 
+// if bias, dark and/or flat files are selected.
+function calibrateEngine()
+{
+      if (biasFileNames == null) {
+            biasFileNames = [];
+      }
+      if (flatFileNames == null) {
+            flatFileNames = [];
+      }
+      if (darkFileNames == null) {
+            darkFileNames = [];
+      }
+      if (biasFileNames.length == 0
+          && flatFileNames.length == 0
+          && darkFileNames.length == 0)
+      {
+            // do not calibrate
+            addProcessingStep("calibrateEngine, no bias, flat or dark files");
+            return lightFileNames;
+      }
+
+      addProcessingStep("calibrateEngine");
+
+      // Collect filter files
+      var filtered_flats = getFilterFiles(flatFileNames, '');
+      var filtered_lights = getFilterFiles(lightFileNames, '');
+
+      if (flatFileNames.length > 0 && lightFileNames.length > 0) {
+            // we have flats and lights
+            // check that filtered files match
+            for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
+                  var is_flats = filtered_flats.allfilesarr[i][0].length > 0;
+                  var is_lights = filtered_lights.allfilesarr[i][0].length > 0;
+                  if (is_flats != is_lights) {
+                        // lights and flats do not match on filters
+                        throwFatalError("Filters on light and flat images do not match.");
+                  }
+            }
+      }
+
+      if (biasFileNames.length == 1) {
+            addProcessingStep("calibrateEngine use existing master bias " + biasFileNames[0]);
+            var masterbiasPath = biasFileNames[0];
+      } else if (biasFileNames.length > 0) {
+            addProcessingStep("calibrateEngine generate master bias using " + biasFileNames.length + " files");
+            // integrate bias images
+            var biasimages = filesForImageIntegration(biasFileNames);
+            var masterbiasid = runImageIntegrationBiasDarks(biasimages, "AutoMasterBias");
+
+            // optionally generate superbias
+            if (create_superbias) {
+                  var masterbiaswin = findWindow(masterbiasid);
+                  var mastersuperbiasid = runSuberBias(masterbiaswin);
+                  var masterbiasPath = saveWorkWindow(dialogFilePath, mastersuperbiasid);
+            } else {
+                  var masterbiasPath = saveWorkWindow(dialogFilePath, masterbiasid);
+            }
+      } else {
+            addProcessingStep("calibrateEngine no master bias");
+            var masterbiasPath = null;
+      }
+
+      if (darkFileNames.length == 1) {
+            addProcessingStep("calibrateEngine use existing master dark " + darkFileNames[0]);
+            var masterdarkPath = darkFileNames[0];
+      } else if (darkFileNames.length > 0) {
+            addProcessingStep("calibrateEngine generate master dark using " + darkFileNames.length + " files");
+            if (calibrate_darks_separately) {
+                  // calibrate dark frames with bias
+                  var darkcalFileNames = runCalibrateDarks(darkFileNames, masterbiasPath);
+                  var darkimages = filesForImageIntegration(darkcalFileNames);
+            } else {
+                  var darkimages = filesForImageIntegration(darkFileNames);
+            }
+            // generate master dark file
+            var masterdarkid = runImageIntegrationBiasDarks(darkimages, "AutoMasterDark");
+            var masterdarkPath = saveWorkWindow(dialogFilePath, masterdarkid);
+      } else {
+            addProcessingStep("calibrateEngine no master dark");
+            var masterdarkPath = null;
+      }
+
+      // generate master flat for each filter
+      addProcessingStep("calibrateEngine generate master flats");
+      var masterflatPath = [];
+      for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
+            var filterFiles = filtered_flats.allfilesarr[i][0];
+            var filterName = filtered_flats.allfilesarr[i][1];
+            if (filterFiles.length == 1) {
+                  addProcessingStep("calibrateEngine use existing " + filterName + " master flat " + filterFiles[0].name);
+                  masterflatPath[i] = filterFiles[0].name;
+            } else if (filterFiles.length > 0) {
+                  // calibrate flats for each filter with master bias and master dark
+                  addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
+                  var flatcalimages = filesNamesToEnabledPathFromFilearr(filterFiles);
+                  console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
+                  var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath);
+                  console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
+
+                  // integrate flats to generate master flat for each filter
+                  var flatimages = filesForImageIntegration(flatcalFileNames);
+                  console.writeln("flatimages[0] " + flatimages[0][1]);
+                  masterflatid = runImageIntegrationFlats(flatimages, "AutoMasterFlat_" + filterName);
+                  console.writeln("masterflatid " + masterflatid);
+                  masterflatPath[i] = saveWorkWindow(dialogFilePath, masterflatid);
+            } else {
+                  masterflatPath[i] = null;
+            }
+      }
+
+      addProcessingStep("calibrateEngine calibrate light images");
+      var calibratedLightFileNames = [];
+      for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
+            var filterFiles = filtered_lights.allfilesarr[i][0];
+            var filterName = filtered_lights.allfilesarr[i][1];
+            if (filterFiles.length > 0) {
+                  // calibrate light frames with master bias, master dark and master flat
+                  // optionally master dark can be left out
+                  addProcessingStep("calibrateEngine calibrate " + filterName + " lights using " + filterFiles.length + " files, " + filterFiles[0].name);
+                  var lightcalimages = filesNamesToEnabledPathFromFilearr(filterFiles);
+                  var lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i]);
+                  calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames);
+            }
+      }
+
+      // We now have calibrated light images
+      // We now proceed with cosmetic connection and
+      // after that debayering in case of OSC/RAW files
+
+      console.writeln("calibrateEngine, return calibrated images, calibratedLightFileNames[0] " + calibratedLightFileNames[0]);
+
+      return calibratedLightFileNames;
 }
 
 /* Linear Defect Detection from LinearDefectDetection.js script.
@@ -1799,7 +2495,7 @@ function runLinearDefectDetection(fileNames)
       return ccInfo;
 }
 
-function runCosmeticCorrection(fileNames, defects)
+function runCosmeticCorrection(fileNames, defects, color_images)
 {
       if (defects.length > 0) {
             addProcessingStep("run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
@@ -1810,14 +2506,7 @@ function runCosmeticCorrection(fileNames, defects)
 
       var P = new CosmeticCorrection;
 
-      var targets = new Array;
-      for (var i = 0; i < fileNames.length; i++) {
-            var oneimage = new Array(2);
-            oneimage[0] = true;           // enabled
-            oneimage[1] = fileNames[i];   // path
-            targets[targets.length] = oneimage;
-      }
-      P.targetFrames = targets;
+      P.targetFrames = filesNamesToEnabledPath(fileNames);
       P.masterDarkPath = "";
       P.outputDir = "";
       P.outputExtension = ".xisf";
@@ -1825,7 +2514,11 @@ function runCosmeticCorrection(fileNames, defects)
       P.postfix = "_cc";
       P.overwrite = true;
       P.amount = 1.00;
-      P.cfa = false;
+      if (color_images && debayerPattern != null) {
+            P.cfa = true;
+      } else {
+            P.cfa = false;
+      }
       P.useMasterDark = false;
       P.hotDarkCheck = false;
       P.hotDarkLevel = 1.0000000;
@@ -1833,9 +2526,9 @@ function runCosmeticCorrection(fileNames, defects)
       P.coldDarkLevel = 0.0000000;
       P.useAutoDetect = true;
       P.hotAutoCheck = true;
-      P.hotAutoValue = cosmetic_sorrection_hot_sigma;
+      P.hotAutoValue = cosmetic_correction_hot_sigma;
       P.coldAutoCheck = true;
-      P.coldAutoValue = cosmetic_sorrection_cold_sigma;
+      P.coldAutoValue = cosmetic_correction_cold_sigma;
       if (defects.length > 0) {
             P.useDefectList = true;
             P.defects = defects; // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
@@ -1867,14 +2560,7 @@ function SubframeSelectorMeasure(fileNames)
       
       var P = new SubframeSelector;
       P.routine = SubframeSelector.prototype.MeasureSubframes;
-      var targets = new Array;
-      for (var i = 0; i < fileNames.length; i++) {
-            var oneimage = new Array(2);
-            oneimage[0] = true;
-            oneimage[1] = fileNames[i];
-            targets[targets.length] = oneimage;
-      }
-      P.subframes = targets;
+      P.subframes = filesNamesToEnabledPath(fileNames);
       P.fileCache = true;
       P.subframeScale = 2.1514;
       P.cameraGain = 1.0000;
@@ -2254,35 +2940,26 @@ function getFileKeywords(filePath)
       return keywords;
 }
 
-function findLRGBchannels(alignedFiles, filename_postfix)
+// Filter files based on filter keyword/file name.
+function getFilterFiles(files, filename_postfix)
 {
       var rgb = false;
-
-      /* Loop through aligned files and find different channels.
-       */
-      addProcessingStep("Find L,R,G,B,H,S,O and color channels");
-
-      L_images = init_images();
-      R_images = init_images();
-      G_images = init_images();
-      B_images = init_images();
-      H_images = init_images();
-      S_images = init_images();
-      O_images = init_images();
-      C_images = init_images();
+      var narrowband = false;
+      var ssweight_set = false;
+      var allfilesarr = [];
 
       var allfiles = {
-            L: [], R: [], G: [], B: [], H: [], O: [], S: [], C: []
+            L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
       };
 
       /* Collect all different file types and some information about them.
        */
       var n = 0;
-      for (var i = 0; i < alignedFiles.length; i++) {
+      for (var i = 0; i < files.length; i++) {
             var filter = null;
             var ssweight = '0';
             var exptime = 0;
-            var filePath = alignedFiles[i];
+            var filePath = files[i];
             
             console.writeln("findLRGBchannels file " +  filePath);
             var keywords = getFileKeywords(filePath);
@@ -2327,49 +3004,102 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
-            switch (filter.trim()) {
+            switch (filter.trim().substring(0, 1)) {
                   case 'Luminance':
+                  case 'Lum':
                   case 'Clear':
                   case 'L':
+                  case 'l':
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         break;
                   case 'Red':
                   case 'R':
+                  case 'r':
                         allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         rgb = true;
                         break;
                   case 'Green':
                   case 'G':
+                  case 'g':
                         allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         rgb = true;
                         break;
                   case 'Blue':
                   case 'B':
+                  case 'b':
                         allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         rgb = true;
-                        break;
-                  case 'SII':
-                  case 'S':
-                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
-                        narrowband = true;
                         break;
                   case 'Halpha':
                   case 'Ha':
                   case 'H':
+                  case 'h':
                         allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        narrowband = true;
+                        break;
+                  case 'SII':
+                  case 'S':
+                  case 's':
+                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         narrowband = true;
                         break;
                   case 'OIII':
                   case 'O':
+                  case 'o':
                         allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
                         narrowband = true;
                         break;
                   case 'Color':
+                  case 'No filter':
                   default:
                         allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime};
+                        is_color_files = true;
                         break;
             }
       }
+
+      allfilesarr[0] = [ allfiles.L, 'L' ];
+      allfilesarr[1] = [ allfiles.R, 'R' ];
+      allfilesarr[2] = [ allfiles.G, 'G' ];
+      allfilesarr[3] = [ allfiles.B, 'B' ];
+      allfilesarr[4] = [ allfiles.H, 'H' ];
+      allfilesarr[5] = [ allfiles.S, 'S' ];
+      allfilesarr[6] = [ allfiles.O, 'O' ];
+      allfilesarr[7] = [ allfiles.C, 'C' ];
+
+      return { allfiles : allfiles, 
+               allfilesarr : allfilesarr,
+               rgb : rgb, 
+               narrowband : narrowband,
+               ssweight_set : ssweight_set 
+             };
+}
+
+function findLRGBchannels(alignedFiles, filename_postfix)
+{
+      /* Loop through aligned files and find different channels.
+       */
+      addProcessingStep("Find L,R,G,B,H,S,O and color channels");
+
+      L_images = init_images();
+      R_images = init_images();
+      G_images = init_images();
+      B_images = init_images();
+      H_images = init_images();
+      S_images = init_images();
+      O_images = init_images();
+      C_images = init_images();
+
+      /* Collect all different file types and some information about them.
+       */
+      var filter_info = getFilterFiles(alignedFiles, filename_postfix);
+
+      var allfiles = filter_info.allfiles;
+      var rgb = filter_info.rgb;
+
+      // update global variables
+      narrowband = filter_info.narrowband;
+      ssweight_set = filter_info.ssweight_set;
 
       // Check for synthetic images
       if (allfiles.C.length == 0) {
@@ -3150,7 +3880,7 @@ function runDrizzleIntegration(images, name)
       P.kernelGridSize = 16;
       P.originX = 0.50;
       P.originY = 0.50;
-      P.enableCFA = false;
+      P.enableCFA = is_color_files && debayerPattern != null;
       P.cfaPattern = "";
       P.enableRejection = true;
       P.enableImageWeighting = true;
@@ -3227,6 +3957,17 @@ function getRejectionAlgorigthm(numimages)
       }
 }
 
+function ensureThreeImages(images)
+{
+      if (images.length < 3) {
+            for (var i = 0; images.length < 3; i++) {
+                  addProcessingStep("  Image integration needs 3 files, have only " + images.length + ", add one existing file");
+                  append_image_for_integrate(images, images[i][1]);
+            }
+      }
+     
+}
+
 function runImageIntegration(images, name)
 {
       if (images == null || images.length == 0) {
@@ -3234,13 +3975,9 @@ function runImageIntegration(images, name)
       }
       addProcessingStep("Image " + name + " integration on " + images.length + " files");
 
-      if (images.length < 3) {
-            for (var i = 0; images.length < 3; i++) {
-                  addProcessingStep("  Image integration needs 3 files, have only " + images.length + ", add one existing file");
-                  append_image_for_integrate(images, images[i][1]);
-            }
-      }
-      if (use_local_normalization) {
+      ensureThreeImages(images);
+
+      if (use_local_normalization && name != 'LDD') {
             return runImageIntegrationNormalized(images, name);
       }
 
@@ -3719,6 +4456,8 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor)
                   } else {
                         rgbLinked = false;
                   }
+            } else if (iscolor) {
+                  rgbLinked = false;
             }
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
@@ -4363,7 +5102,7 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       imgView.mainView.endProcess();
 }
 
-function getUniqueFilenamePart()
+function getOptionalUniqueFilenamePart()
 {
       if (unique_file_names) {
             return format( "_%04d%02d%02d_%02d%02d%02d",
@@ -4400,7 +5139,7 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
                   basename = "AutoIntegrate";
             }
       }
-      logfname = basename + getUniqueFilenamePart() + ".log";
+      logfname = basename + getOptionalUniqueFilenamePart() + ".log";
 
       if (!ensureDialogFilePath(basename + ".log")) {
             return;
@@ -4413,10 +5152,10 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
 
       file.write(console.endLog());
       file.outTextLn("======================================");
-      if (dialogFileNames != null) {
+      if (lightFileNames != null) {
             file.outTextLn("Dialog files:");
-            for (var i = 0; i < dialogFileNames.length; i++) {
-                  file.outTextLn(dialogFileNames[i]);
+            for (var i = 0; i < lightFileNames.length; i++) {
+                  file.outTextLn(lightFileNames[i]);
             }
       }
       if (alignedFiles != null) {
@@ -4441,11 +5180,55 @@ function findProcessedImages()
       color_id = findWindowId("Integration_RGB");
 }
 
+function fileNamesFromOutputData(outputFileData)
+{
+      var newFileNames = [];
+      for (var i = 0; i < outputFileData.length; i++) {
+            newFileNames[i] = outputFileData[i][0];
+      }
+      return newFileNames;
+}
+
+function debayerImages(fileNames)
+{
+      addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
+      var P = new Debayer;
+      P.cfaPattern = debayerPattern;
+      P.debayerMethod = Debayer.prototype.VNG;
+      P.fbddNoiseReduction = 0;
+      P.evaluateNoise = true;
+      P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
+      P.showImages = true;
+      P.cfaSourceFilePath = "";
+      P.targetItems = filesNamesToEnabledPath(fileNames);
+      P.noGUIMessages = true;
+      P.inputHints = "raw cfa";
+      P.outputHints = "";
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_d";
+      P.overwriteExistingFiles = true;
+      P.onError = Debayer.prototype.OnError_Continue;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.maxFileReadThreads = 0;
+      P.maxFileWriteThreads = 0;
+      P.memoryLoadControl = true;
+      P.memoryLoadLimit = 0.85;
+
+      P.executeGlobal();
+
+      return fileNamesFromOutputData(P.outputFileData);
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
  * get files from dialog
+ * if we have bias, dark or flat files, run  image calibration
  * by default run cosmetic correction
+ * for color files do debayering
  * by default run subframe selector
  * run star alignment
  * optionally run local normalization 
@@ -4572,19 +5355,35 @@ function CreateChannelImages(auto_continue)
              * to assigns SSWEIGHT.
              */
             var fileNames;
-            if (dialogFileNames == null) {
-                  dialogFileNames = openFitFiles();
+            if (lightFileNames == null) {
+                  lightFileNames = openFitFiles("Light");
                   addProcessingStep("Get files from dialog");
             }
-            if (dialogFileNames == null) {
+            if (lightFileNames == null) {
                   console.writeln("No files to process");
                   return false;
             }
-            fileNames = dialogFileNames;
             var filename_postfix = '';
 
             /* Get path to current directory. */
-            dialogFilePath = parseFilePath(dialogFileNames[0]);
+            dialogFilePath = parseFilePath(lightFileNames[0]);
+
+            // Run image calibration if we have calibration frames
+            lightFileNames = calibrateEngine();
+
+            if (calibrate_only) {
+                  return(true);
+            }
+
+            var filtered_files = getFilterFiles(lightFileNames, '');
+            if (filtered_files.allfiles.C.length == 0) {
+                  is_color_files = false;
+            } else {
+                  is_color_files = true;
+            }
+
+            fileNames = lightFileNames;
+
 
             if (!skip_cosmeticcorrection) {
                   if (fix_column_defects || fix_row_defects) {
@@ -4592,7 +5391,7 @@ function CreateChannelImages(auto_continue)
                         var ccInfo = runLinearDefectDetection(fileNames);
                         for (var i = 0; i < ccInfo.length; i++) {
                               addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + ccInfo[i].ccFileNames.length + " files");
-                              var cc = runCosmeticCorrection(ccInfo[i].ccFileNames, ccInfo[i].ccDefects);
+                              var cc = runCosmeticCorrection(ccInfo[i].ccFileNames, ccInfo[i].ccDefects, is_color_files);
                               ccFileNames = ccFileNames.concat(cc);
                         }
                         fileNames = ccFileNames;
@@ -4601,9 +5400,15 @@ function CreateChannelImages(auto_continue)
                         /* Run CosmeticCorrection for each file.
                         * Output is *_cc.xisf files.
                         */
-                        fileNames = runCosmeticCorrection(fileNames, defects);
+                        fileNames = runCosmeticCorrection(fileNames, defects, is_color_files);
                   }
                   filename_postfix = filename_postfix + '_cc';
+            }
+
+            if (is_color_files && debayerPattern != null) {
+                  // after cosmetic correction we need to debayer
+                  // OSC/RAW images
+                  fileNames = debayerImages(fileNames);
             }
 
             if (!skip_subframeselector) {
@@ -5356,14 +6161,14 @@ function extraStarNet(imgView)
        */
       console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgView.mainView.id + "_stars");
       var copywin = copyWindow(star_mask_win, imgView.mainView.id + "_stars");
-      saveWindow(dialogFilePath, copywin.mainView.id);
+      saveProcessedWindow(dialogFilePath, copywin.mainView.id);
       addProcessingStep("StarNet stars image " + copywin.mainView.id);
 
       /* Make a copy of the starless image.
        */
       console.writeln("extraStarNet copy " + imgView.mainView.id + " to " + imgView.mainView.id + "_starless");
       var copywin = copyWindow(imgView, imgView.mainView.id + "_starless");
-      saveWindow(dialogFilePath, copywin.mainView.id);
+      saveProcessedWindow(dialogFilePath, copywin.mainView.id);
       addProcessingStep("StarNet starless image " + copywin.mainView.id);
 }
 
@@ -5760,7 +6565,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       setBatchKeyword(ImageWindow.windowById(palette_image));
       // save image
       console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image " + palette_image);
-      saveWindow(dialogFilePath, palette_image);
+      saveProcessedWindow(dialogFilePath, palette_image);
       addProcessingStep("Narrowband palette batch final image " + palette_image);
 }
 
@@ -5968,7 +6773,7 @@ function AutoIntegrateEngine(auto_continue)
             console.endLog();
             return false;
       }
-
+      
       /* Now we have L (Gray) and R, G and B images, or just RGB image
        * in case of color files.
        *
@@ -5977,7 +6782,9 @@ function AutoIntegrateEngine(auto_continue)
        * processing is not good enough.
        */
 
-      if (preprocessed_images == start_images.FINAL) {
+      if (calibrate_only) {
+            preprocessed_images = start_images.CALIBRATE_ONLY;
+      } else if (preprocessed_images == start_images.FINAL) {
             // We have a final image, just run run possible extra processing steps
             LRGB_ABE_HT_id = final_win.mainView.id;
       } else if (!integrate_only && preprocessed_images != start_images.FINAL) {
@@ -6084,21 +6891,24 @@ function AutoIntegrateEngine(auto_continue)
 
       ensureDialogFilePath("result files");
 
-      saveWindow(dialogFilePath, L_id);                    /* Integration_L */
-      saveWindow(dialogFilePath, R_id);                    /* Integration_R */
-      saveWindow(dialogFilePath, G_id);                    /* Integration_G */
-      saveWindow(dialogFilePath, B_id);                    /* Integration_B */
-      saveWindow(dialogFilePath, H_id);                    /* Integration_H */
-      saveWindow(dialogFilePath, S_id);                    /* Integraiton_S */
-      saveWindow(dialogFilePath, O_id);                    /* Integration_O */
-      saveWindow(dialogFilePath, RGB_win_id);              /* Integration_RGB */
-      saveWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
+      saveProcessedWindow(dialogFilePath, L_id);                    /* Integration_L */
+      saveProcessedWindow(dialogFilePath, R_id);                    /* Integration_R */
+      saveProcessedWindow(dialogFilePath, G_id);                    /* Integration_G */
+      saveProcessedWindow(dialogFilePath, B_id);                    /* Integration_B */
+      saveProcessedWindow(dialogFilePath, H_id);                    /* Integration_H */
+      saveProcessedWindow(dialogFilePath, S_id);                    /* Integraiton_S */
+      saveProcessedWindow(dialogFilePath, O_id);                    /* Integration_O */
+      saveProcessedWindow(dialogFilePath, RGB_win_id);              /* Integration_RGB */
+      saveProcessedWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
 
       /* All done, do cleanup on windows on screen 
        */
       addProcessingStep("Processing completed");
 
       closeTempWindows();
+      if (!calibrate_only) {
+            closeAllWindowsFromArray(calibrate_windows);
+      }
 
       windowIconizeif(L_id);                    /* Integration_L */
       windowIconizeif(R_id);                    /* Integration_R */
@@ -6126,7 +6936,7 @@ function AutoIntegrateEngine(auto_continue)
             /* Rename image based on first file directory name. 
              * First check possible device in Windows (like c:)
              */
-            var fname = dialogFileNames[0];
+            var fname = lightFileNames[0];
             console.writeln("Batch mode, get directory from file " + fname);
             var ss = fname.split(':');
             if (ss.length > 1) {
@@ -6276,18 +7086,18 @@ function Autorun(that)
             console.writeln("AutoRun");
       }
       do {
-            if (dialogFileNames == null) {
-                  dialogFileNames = openFitFiles();
-                  if (dialogFileNames != null) {
+            if (lightFileNames == null) {
+                  lightFileNames = openFitFiles("Light");
+                  if (lightFileNames != null) {
                         that .dialog.files_TreeBox.canUpdate = false;
-                        for (var i = 0; i < dialogFileNames.length; i++) {
+                        for (var i = 0; i < lightFileNames.length; i++) {
                               var node = new TreeBoxNode(that.dialog.files_TreeBox);
-                              node.setText(0, dialogFileNames[i]);
+                              node.setText(0, lightFileNames[i]);
                         }
                         that.dialog.files_TreeBox.canUpdate = true;
                   }
             }
-            if (dialogFileNames != null) {
+            if (lightFileNames != null) {
                   try {
                         if (batch_narrowband_palette_mode) {
                               AutoIntegrateNarrowbandPaletteBatch(false);
@@ -6301,7 +7111,7 @@ function Autorun(that)
                         writeProcessingSteps(null, false, null);
                   }
                   if (batch_mode) {
-                        dialogFileNames = null;
+                        lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
                         closeAllWindows(keep_integrated_images);
                   }
@@ -6377,6 +7187,335 @@ function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc, tip)
       return cb;
 }
 
+function filesOptionsSizer(parent, name)
+{
+      var label = aiSectionLabel(parent, name);
+      var labelempty = new Label( parent );
+      labelempty.text = " ";
+
+      var sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
+
+      sizer.add( label );
+      sizer.add( labelempty );
+
+      return sizer;
+}
+
+function lightsOptions(parent)
+{
+      var sizer = filesOptionsSizer(parent, "Add light images");
+
+      var label = new Label( parent );
+      label.text = "Debayer";
+      label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      label.toolTip = "Select bayer pattern for debayering color/OSC/RAW files. " +
+                      "Option node does not do debayering.";
+
+      var combobox = new ComboBox( parent );
+      combobox.toolTip = label.toolTip;
+      combobox.addItem( "Auto" );
+      combobox.addItem( "RGGB" );
+      combobox.addItem( "BGGR" );
+      combobox.addItem( "GBRG" );
+      combobox.addItem( "GRBG" );
+      combobox.addItem( "GRGB" );
+      combobox.addItem( "GBGR" );
+      combobox.addItem( "RGBG" );
+      combobox.addItem( "BGRG" );
+      combobox.addItem( "None" );
+      combobox.onItemSelected = function( itemIndex )
+      {
+            switch (itemIndex) {
+                  case 0:
+                        debayerPattern = Debayer.prototype.Auto;
+                        SetOptionValue("DeBayer" , "Auto");
+                        break;
+                  case 1:
+                        debayerPattern = Debayer.prototype.RGGB;
+                        SetOptionValue("DeBayer" , "RGGB");
+                        break;
+                  case 2:
+                        debayerPattern = Debayer.prototype.BGGR;
+                        SetOptionValue("DeBayer" , "BGGR");
+                        break;
+                  case 3:
+                        debayerPattern = Debayer.prototype.GBRG;
+                        SetOptionValue("DeBayer" , "GBRG");
+                        break;
+                  case 4:
+                        debayerPattern = Debayer.prototype.GRBG;
+                        SetOptionValue("DeBayer" , "GRBG");
+                        break;
+                  case 5:
+                        debayerPattern = Debayer.prototype.GRGB;
+                        SetOptionValue("DeBayer" , "GRGB");
+                        break;
+                  case 6:
+                        debayerPattern = Debayer.prototype.GBGR;
+                        SetOptionValue("DeBayer" , "GBGR");
+                        break;
+                  case 7:
+                        debayerPattern = Debayer.prototype.RGBG;
+                        SetOptionValue("DeBayer" , "RGBG");
+                        break;
+                  case 8:
+                        debayerPattern = Debayer.prototype.BGRG;
+                        SetOptionValue("DeBayer" , "BGRG");
+                        break;
+                  case 9:
+                        debayerPattern = null;
+                        SetOptionValue("DeBayer" , "None");
+                        break;
+            }
+      }
+
+      sizer.add(label);
+      sizer.add(combobox);
+      sizer.addStretch();
+
+      return sizer;
+}
+
+function biasOptions(parent)
+{
+      var sizer = filesOptionsSizer(parent, "Add bias images");
+
+      var checkbox = newCheckBox(parent, "SuperBias", create_superbias, 
+            "<p>Create SuperBias from bias files.</p>" );
+      checkbox.onClick = function(checked) { 
+            create_superbias = checked; 
+            SetOptionChecked("SuperBias", checked); 
+      }
+
+      sizer.add(checkbox);
+      sizer.addStretch();
+
+      return sizer;
+}
+
+function darksOptions(parent)
+{
+      var sizer = filesOptionsSizer(parent, "Add dark images");
+
+      var checkbox = newCheckBox(parent, "Calibrate", calibrate_darks_separately, 
+            "<p>If checked darks are calibrated separately with bias.</p>" );
+      checkbox.onClick = function(checked) { 
+            calibrate_darks_separately = checked; 
+            SetOptionChecked("Calibrate darks separately", checked); 
+      }
+
+      sizer.add(checkbox);
+      sizer.addStretch();
+
+      return sizer;
+}
+
+function flatsOptions(parent)
+{
+      var sizer = filesOptionsSizer(parent, "Add flat images");
+
+      var checkboxStars = newCheckBox(parent, "Stars in flats", stars_in_flats, 
+            "<p>If you have stars in your flats then checking this option will lower percentile " + 
+            "clip values and should help remove the stars.</p>" );
+      checkboxStars.onClick = function(checked) { 
+            stars_in_flats = checked; 
+            SetOptionChecked("Stars in flats", checked); 
+      }
+      var checkboxDarks = newCheckBox(parent, "Do not use darks", no_darks_on_flat_calibrate, 
+            "<p>For some sensors darks should not be used to calibrate flats.  " + 
+            "An example of such sensor is most CMOS sensors .</p>" );
+      checkboxDarks.onClick = function(checked) { 
+            no_darks_on_flat_calibrate = checked; 
+            SetOptionChecked("Do not use darks when calibrating flats", checked); 
+      }
+
+      sizer.add(checkboxStars);
+      sizer.add(checkboxDarks);
+      sizer.addStretch();
+
+      return sizer;
+}
+
+function addOneFilesButton(parent, setFiles, filetype, pageIndex)
+{
+      var filesAdd_Button = new PushButton( parent );
+      filesAdd_Button.text = "Add " + filetype;
+      filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
+      if (filetype == "Lights") {
+            filesAdd_Button.toolTip = "<p>Add image files to the images list. In only lights are added " + 
+                                      "they are assumed to be already calibrated.</p>";
+      } else {
+            filesAdd_Button.toolTip = "<p>Add image files to the images list. If only one file is added " + 
+                                      "it is assumed to be a master file.</p>";
+      }
+      filesAdd_Button.onClick = function()
+      {
+            var files_TreeBox = parent.treeBox[pageIndex];
+            var fitFileNames = openFitFiles(filetype);
+            if (fitFileNames != null) {
+                  files_TreeBox.canUpdate = false;
+                  for (var i = 0; i < fitFileNames.length; i++) {
+                        var node = new TreeBoxNode(files_TreeBox);
+                        node.setText(0, fitFileNames[i]);
+                        setFiles(fitFileNames[i]);
+                  }
+                  files_TreeBox.canUpdate = true;
+                  updateInfoLabel();
+                  parent.tabBox.currentPageIndex = pageIndex;
+            }
+      };
+      return filesAdd_Button;
+}
+
+function addFilesButtons(parent)
+{
+      var addLightsButton = addOneFilesButton(parent, lightFiles, "Lights", 0);
+      var addBiasButton = addOneFilesButton(parent, biasFiles, "Bias", 1);
+      var addDarksButton = addOneFilesButton(parent, darkFiles, "Darks", 2);
+      var addFlatsButton = addOneFilesButton(parent, flatFiles, "Flats", 3);
+      var filesButtons_Sizer = new HorizontalSizer;
+      filesButtons_Sizer.spacing = 4;
+      filesButtons_Sizer.add( addLightsButton );
+      filesButtons_Sizer.add( addBiasButton );
+      filesButtons_Sizer.add( addDarksButton );
+      filesButtons_Sizer.add( addFlatsButton );
+      filesButtons_Sizer.addStretch();
+      return filesButtons_Sizer;
+}
+
+function filesTreeBox(parent, setFiles, filetype, optionsSizer, pageIndex)
+{
+      /* Tree box to show files. */
+      var files_TreeBox = new TreeBox( parent );
+      files_TreeBox.multipleSelection = true;
+      files_TreeBox.rootDecoration = false;
+      files_TreeBox.alternateRowColor = true;
+      files_TreeBox.setScaledMinSize( 300, 100 );
+      files_TreeBox.numberOfColumns = 1;
+      files_TreeBox.headerVisible = false;
+
+      parent.treeBox[pageIndex] = files_TreeBox;
+
+      var filesButtonsSizer = addFilesButtons(parent);
+
+      /* Clear files button. */
+      var filesClear_Button = new PushButton( parent );
+      filesClear_Button.text = "Clear";
+      filesClear_Button.icon = parent.scaledResource( ":/icons/clear.png" );
+      filesClear_Button.toolTip = "<p>Clear the list of input images.</p>";
+      filesClear_Button.onClick = function()
+      {
+            files_TreeBox.clear();
+            setFiles(null);
+            updateInfoLabel();
+      };
+
+      var filesAndButtons_Sizer = new VerticalSizer;
+      filesAndButtons_Sizer.spacing = 4;
+      filesAndButtons_Sizer.add(files_TreeBox, parent.textEditWidth);
+      filesAndButtons_Sizer.add(filesButtonsSizer);
+
+      var optionsAndClear_Sizer = new VerticalSizer;
+      optionsAndClear_Sizer.spacing = 4;
+      optionsAndClear_Sizer.add(optionsSizer);
+      optionsAndClear_Sizer.addStretch();
+      optionsAndClear_Sizer.add(filesClear_Button);
+
+      var files_GroupBox = new GroupBox( parent );
+      //files_GroupBox.title = "Images";
+      files_GroupBox.sizer = new HorizontalSizer;
+      files_GroupBox.sizer.margin = 6;
+      files_GroupBox.sizer.spacing = 4;
+      files_GroupBox.sizer.add( filesAndButtons_Sizer );
+      files_GroupBox.sizer.add( optionsAndClear_Sizer );   
+
+      return files_GroupBox;
+}
+
+function appendInfoTxt(txt, fileNames, type)
+{
+      if (fileNames == null || fileNames.length == 0) {
+            return txt;
+      }
+      var newtxt = fileNames.length + " " + type + " files";
+      if (txt == "") {
+            return newtxt;
+      } else {
+            return txt + ", " + newtxt;
+      }
+}
+
+function updateInfoLabel()
+{
+      var txt = "";
+      txt = appendInfoTxt(txt, lightFileNames, "light");
+      txt = appendInfoTxt(txt, biasFileNames, "bias");
+      txt = appendInfoTxt(txt, darkFileNames, "dark");
+      txt = appendInfoTxt(txt, flatFileNames, "flat");
+
+      console.writeln(txt);
+
+      infoLabel.text = txt;
+}
+
+function lightFiles(fname)
+{
+      if (fname == null) {
+            lightFileNames = null;
+            // reset
+      } else {
+            // add file
+            if (lightFileNames == null) {
+                  lightFileNames = [];
+            }
+            lightFileNames[lightFileNames.length] = fname;
+      }
+}
+
+function darkFiles(fname)
+{
+      if (fname == null) {
+            darkFileNames = null;
+            // reset
+      } else {
+            // add file
+            if (darkFileNames == null) {
+                  darkFileNames = [];
+            }
+            darkFileNames[darkFileNames.length] = fname;
+      }
+}
+
+function biasFiles(fname)
+{
+      if (fname == null) {
+            biasFileNames = null;
+            // reset
+      } else {
+            // add file
+            if (biasFileNames == null) {
+                  biasFileNames = [];
+            }
+            biasFileNames[biasFileNames.length] = fname;
+      }
+}
+
+function flatFiles(fname)
+{
+      if (fname == null) {
+            flatFileNames = null;
+            // reset
+      } else {
+            // add file
+            if (flatFileNames == null) {
+                  flatFileNames = [];
+            }
+            flatFileNames[flatFileNames.length] = fname;
+      }
+}
+
 function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
@@ -6419,18 +7558,24 @@ function AutoIntegrateDialog()
       "Default options are typically a pretty good start for most images but sometimes "+
       "a few changes are needed for OSC (One Shot Color) files. If there is a strong color cast and/or "+
       "vignetting it is worth trying with Use ABE on combined images and Use BackgroudNeutralization options. "+
-      "Sometimes also choosing Unlinked in Link RGB channel option helps. "+
+      "For OSC/DSLR files Unlinked in Link RGB channel is the default option. "+
       "Examples where these options may be useful are DSRL files and Slooh Canary Three telescope. " +
       "</p><p>" +
       "Batch mode is intended to be used with mosaic images. In Batch mode script " +
       "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
       "and can be saved with Save batch result files buttons." +
       "</p><p>" +
+      "When using color/OSC/RAW files it is recommended to set Pure RAW in PixInsight settings." +
+      "</p><p>" +
       "For more details see:<br>" +
       "https://ruuth.xyz/AutoIntegrateInfo.html" +
       "</p><p>" +
       "This product is based on software from the PixInsight project, developed " +
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
+      "</p><p>" +
+      "Copyright (c) 2018-2021 Jarmo Ruuth<br>" +
+      "Copyright (c) 2019 Vicent Peris<br>" +
+      "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
 
       this.helpTips = new ToolButton( this );
@@ -6438,69 +7583,13 @@ function AutoIntegrateDialog()
       this.helpTips.setScaledFixedSize( 20, 20 );
       this.helpTips.toolTip = mainHelpTips;
 
-      /* Tree box to show files. */
-      this.files_TreeBox = new TreeBox( this );
-      this.files_TreeBox.multipleSelection = true;
-      this.files_TreeBox.rootDecoration = false;
-      this.files_TreeBox.alternateRowColor = true;
-      this.files_TreeBox.setScaledMinSize( 300, 100 );
-      this.files_TreeBox.numberOfColumns = 1;
-      this.files_TreeBox.headerVisible = false;
+      this.treeBox = [];
 
-      for (var i = 0; dialogFileNames != null && i < dialogFileNames.length; i++) {
-         var node = new TreeBoxNode( this.files_TreeBox );
-         node.setText(0, dialogFileNames[i]);
-      }
-   
-      /* Add files. */
-      this.filesAdd_Button = new PushButton( this );
-      this.filesAdd_Button.text = "Add";
-      this.filesAdd_Button.icon = this.scaledResource( ":/icons/add.png" );
-      this.filesAdd_Button.toolTip = "<p>Add image files to the input images list.</p>";
-      this.filesAdd_Button.onClick = function()
-      {
-            var fitFileNames = openFitFiles();
-            if (fitFileNames != null) {
-                  if (dialogFileNames == null) {
-                        dialogFileNames = [];
-                  }
-                  this.dialog.files_TreeBox.canUpdate = false;
-                  for (var i = 0; i < fitFileNames.length; i++) {
-                        var node = new TreeBoxNode(this.dialog.files_TreeBox);
-                        node.setText(0, fitFileNames[i]);
-                        dialogFileNames[dialogFileNames.length] = fitFileNames[i];
-                  }
-                  this.dialog.files_TreeBox.canUpdate = true;
-            }
-      };
-
-      /* Clear files. */
-      this.filesClear_Button = new PushButton( this );
-      this.filesClear_Button.text = "Clear";
-      this.filesClear_Button.icon = this.scaledResource( ":/icons/clear.png" );
-      this.filesClear_Button.toolTip = "<p>Clear the list of input images.</p>";
-      this.filesClear_Button.onClick = function()
-      {
-         this.dialog.files_TreeBox.clear();
-         dialogFileNames = null;
-      };
-   
-      /* Place buttons on dialog. */
-      this.filesButtons_Sizer = new HorizontalSizer;
-      this.filesButtons_Sizer.spacing = 4;
-      this.filesButtons_Sizer.add( this.filesAdd_Button );
-      this.filesButtons_Sizer.addStretch();
-      this.filesButtons_Sizer.add( this.filesClear_Button );    
-      //this.filesButtons_Sizer.addStretch();
-      
-      this.files_GroupBox = new GroupBox( this );
-      this.files_GroupBox.title = "Input Images";
-      this.files_GroupBox.sizer = new VerticalSizer;
-      this.files_GroupBox.sizer.margin = 6;
-      this.files_GroupBox.sizer.spacing = 4;
-      this.files_GroupBox.sizer.add( this.files_TreeBox, this.textEditWidth );
-      this.files_GroupBox.sizer.add( this.filesButtons_Sizer );   
-      //this.files_GroupBox.sizer.addStretch();
+      this.tabBox = new TabBox( this );
+      this.tabBox.addPage( new filesTreeBox( this, lightFiles, "Light", lightsOptions(this), 0 ), "Lights" );
+      this.tabBox.addPage( new filesTreeBox( this, biasFiles, "Bias", biasOptions(this), 1 ), "Bias" );
+      this.tabBox.addPage( new filesTreeBox( this, darkFiles, "Dark", darksOptions(this), 2 ), "Darks" );
+      this.tabBox.addPage( new filesTreeBox( this, flatFiles, "Flat", flatsOptions(this), 3 ), "Flats" );
 
       /* Paremeters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", use_local_normalization, 
@@ -6545,6 +7634,13 @@ function AutoIntegrateDialog()
       this.SubframeSelectorCheckBox.onClick = function(checked) { 
             skip_subframeselector = checked; 
             SetOptionChecked("No SubframeSelector", checked); 
+      }
+
+      this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", calibrate_only, 
+            "<p>Run only image calibration</p>" );
+      this.CalibrateOnlyCheckBox.onClick = function(checked) { 
+            calibrate_only = checked; 
+            SetOptionChecked("Calibrate only", checked); 
       }
 
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", integrate_only, 
@@ -6615,6 +7711,13 @@ function AutoIntegrateDialog()
       this.batch_mode_CheckBox.onClick = function(checked) { 
             batch_mode = checked; 
             SetOptionChecked("Batch mode", checked); 
+      }
+
+      this.autodetect_files_CheckBox = newCheckBox(this, "No autodetect", !autodetect_files, 
+      "<p>If selected do not try to autodetect light, bias, dark and flat files based on path or file name.</p>" );
+      this.autodetect_files_CheckBox.onClick = function(checked) { 
+            autodetect_files = !checked; 
+            SetOptionChecked("No autodetect", checked); 
       }
 
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", use_drizzle, 
@@ -6835,6 +7938,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1 = new VerticalSizer;
       this.otherParamsSet1.margin = 6;
       this.otherParamsSet1.spacing = 4;
+      this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
@@ -6852,6 +7956,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.monochrome_image_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
+      this.otherParamsSet2.add( this.autodetect_files_CheckBox );
 
       // Other Group parameters.
       this.otherParamsGroupBox = new newGroupBox( this );
@@ -6916,23 +8021,23 @@ function AutoIntegrateDialog()
       this.cosmeticCorrectionHotSigmaSpinBox = new SpinBox( this );
       this.cosmeticCorrectionHotSigmaSpinBox.minValue = 0;
       this.cosmeticCorrectionHotSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionHotSigmaSpinBox.value = cosmetic_sorrection_hot_sigma;
+      this.cosmeticCorrectionHotSigmaSpinBox.value = cosmetic_correction_hot_sigma;
       this.cosmeticCorrectionHotSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
       this.cosmeticCorrectionHotSigmaSpinBox.onValueUpdated = function( value )
       {
             SetOptionValue("CosmeticCorrection Hot Sigma", value);
-            cosmetic_sorrection_hot_sigma = value;
+            cosmetic_correction_hot_sigma = value;
       };
       this.cosmeticCorrectionColSigmaGroupBoxLabel = aiLabel(this, "Cold Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
       this.cosmeticCorrectionColdSigmaSpinBox = new SpinBox( this );
       this.cosmeticCorrectionColdSigmaSpinBox.minValue = 0;
       this.cosmeticCorrectionColdSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionColdSigmaSpinBox.value = cosmetic_sorrection_cold_sigma;
+      this.cosmeticCorrectionColdSigmaSpinBox.value = cosmetic_correction_cold_sigma;
       this.cosmeticCorrectionColdSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
       this.cosmeticCorrectionColdSigmaSpinBox.onValueUpdated = function( value )
       {
             SetOptionValue("CosmeticCorrection Cold Sigma", value);
-            cosmetic_sorrection_cold_sigma = value;
+            cosmetic_correction_cold_sigma = value;
       };
       this.cosmeticCorrectionSigmaGroupBoxSizer = new HorizontalSizer;
       this.cosmeticCorrectionSigmaGroupBoxSizer.margin = 6;
@@ -7051,9 +8156,9 @@ function AutoIntegrateDialog()
       this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.STFLabel.toolTip = 
       "<p>" +
-      "RGB channel linking in Screen Transfer Function. Using Unlinked can help reduce color cast with OSC images." +
+      "RGB channel linking in Screen Transfer Function." +
       "</p><p>" +
-      "With Auto the default for true RGB images is to use linked channels. For narrowband images the default " +
+      "With Auto the default for true RGB images is to use linked channels. For narrowband and OSC/DSLR images the default " +
       "is to use unlinked channels. But if linear fit is done with narrowband images, then linked channels are used." +
       "</p>";
       this.STFComboBox = new ComboBox( this );
@@ -8004,9 +9109,15 @@ function AutoIntegrateDialog()
          this.dialog.cancel();
       };
    
+      this.infoLabel = new Label( this );
+      this.infoLabel.text = "";
+
+      infoLabel = this.infoLabel;
+
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
       this.buttons_Sizer.add( this.helpTips );
+      this.buttons_Sizer.add( this.infoLabel );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.ok_Button );
       this.buttons_Sizer.add( this.cancel_Button );
@@ -8056,7 +9167,7 @@ function AutoIntegrateDialog()
       this.cols.addStretch();
 
       this.sizer = new VerticalSizer;
-      this.sizer.add( this.files_GroupBox, 300 );
+      this.sizer.add( this.tabBox, 300 );
       this.sizer.margin = 6;
       this.sizer.spacing = 6;
       this.sizer.add( this.cols );
@@ -8064,7 +9175,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v0.92";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 4";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
