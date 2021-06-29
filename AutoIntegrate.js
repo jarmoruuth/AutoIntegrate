@@ -47,17 +47,22 @@ intermediate files and autocontinue there.
 Calibration steps
 -----------------
 
-1. In each file page in GUI, select light, bias, dark and flat frames. If only light are selected
-   the calibration is skipped. Also bias, dark or flat files may be not selected, so
-   any one of those can be left out. Script tries to automatically detect different
-   filters, or OSC/RAW files.
+Calibration can run two basic worflows, one with bias files and one
+with flat dark files. There are some option to make small changes
+on those,
+
+1. In each file page in GUI, select light, bias, dark, flat and/or flat dark frames. 
+   If only light are selected the calibration is skipped. Also bias, dark, flat or 
+   flat dark files may be not selected, so any one of those can be left out. Script 
+   tries to automatically detect different filters, or OSC/RAW files.
 2. If bias files are present, those are integrated into master bias. Optionally a superbias
    file is created.
-3. If dark files are present, those are calibrated using master bias and then integrated 
+3. If dark files are present, those are optionally calibrated using master bias and then integrated 
    into master dark.
-4. If flat files are present, those are calibrated using master bias and master dark and then 
-   integrated into master flat.
-5. Light files are then calibrated using master bias, master dark and master flat.
+4. If flat dark files are present, those are integrated  into master flat dark.
+5. If flat files are present, those are calibrated using master bias and master dark, or master
+   flat dark, and then integrated into master flat.
+6. Light files are then calibrated using master bias, master dark and master flat.
 
 Generic steps for all files
 ---------------------------
@@ -161,6 +166,9 @@ Credits and Copyright notices
 PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
 was a great place to find details and best practises when using PixInsight.
+For calibration another useful link is a PixInsight forum post
+"For beginners: Guide to PI's ImageCalibration":
+https://pixinsight.com/forum/index.php?threads/for-beginners-guide-to-pis-imagecalibration.11547/
 
 Routines ApplyAutoSTF and applySTF are from PixInsight scripts that are 
 distributed with Pixinsight. 
@@ -300,7 +308,8 @@ var create_superbias = true;
 var debayerPattern = Debayer.prototype.Auto;
 var stars_in_flats = false;
 var no_darks_on_flat_calibrate = false;
-var calibrate_darks_separately = true;
+var pre_calibrate_darks = false;
+var optimize_darks = true;
 var autodetect_files = true;
 
 var fix_narrowband_star_color = false;
@@ -314,6 +323,7 @@ var lightFileNames = null;
 var dialogFilePath = null;
 var darkFileNames = null;
 var biasFileNames = null;
+var flatdarkFileNames = null;
 var flatFileNames = null;
 var all_files;
 var best_ssweight = 0;
@@ -401,6 +411,7 @@ var B_id;
 var H_id;
 var S_id;
 var O_id;
+var color_id;
 var R_ABE_id = null;
 var G_ABE_id = null;
 var B_ABE_id = null;
@@ -494,6 +505,7 @@ var fixed_windows = [
 var calibrate_windows = [
       "AutoMasterBias",
       "AutoMasterSuperBias",
+      "AutoMasterFlatDark",
       "AutoMasterDark",
       "AutoMasterFlat_L",
       "AutoMasterFlat_R",
@@ -1318,9 +1330,9 @@ function runCalibrateDarks(images, masterbiasPath)
 
 // Run ImageCalibration to flats using master bias and master dark images
 // Output will be _c.xisf images
-function runCalibrateFlats(images, masterbiasPath, masterdarkPath)
+function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdarkPath)
 {
-      if (masterbiasPath == null && masterdarkPath == null) {
+      if (masterbiasPath == null && masterdarkPath == null && masterflatdarkPath == null) {
             console.writeln("runCalibrateFlats, no master bias or dark");
             return imagesEnabledPathToFileList(images);
       }
@@ -1351,16 +1363,20 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath)
       [false, 0, 0, 0, 0, 0, 0, 0, 0],
       [false, 0, 0, 0, 0, 0, 0, 0, 0]
       ];
-      if (masterbiasPath != null) {
+      if (masterflatdarkPath != null) {
+            console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
+            P.masterBiasEnabled = true;
+            P.masterBiasPath = masterflatdarkPath;
+      } else if (masterbiasPath != null) {
             console.writeln("runCalibrateFlats, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
             P.masterBiasPath = masterbiasPath;
       } else {
-            console.writeln("runCalibrateFlats, no master bias");
+            console.writeln("runCalibrateFlats, no master bias or flat dark");
             P.masterBiasEnabled = false;
             P.masterBiasPath = "";
       }
-      if (masterdarkPath != null && !no_darks_on_flat_calibrate) {
+      if (masterdarkPath != null && !no_darks_on_flat_calibrate && masterflatdarkPath == null) {
             console.writeln("runCalibrateFlats, master dark " + masterdarkPath);
             P.masterDarkEnabled = true;
             P.masterDarkPath = masterdarkPath;
@@ -1372,7 +1388,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath)
       P.masterFlatEnabled = false;
       P.masterFlatPath = "";
       P.calibrateBias = false;
-      if (calibrate_darks_separately) {
+      if (pre_calibrate_darks) {
             P.calibrateDark = false;
       } else {
             P.calibrateDark = true;
@@ -1556,14 +1572,25 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             P.masterFlatEnabled = false;
             P.masterFlatPath = "";
       }
-      P.calibrateBias = false;
-      if (calibrate_darks_separately) {
-            P.calibrateDark = false;
+      if (optimize_darks) {
+            P.calibrateBias = false;
+            if (pre_calibrate_darks) {
+                  P.calibrateDark = false;
+            } else {
+                  P.calibrateDark = false;
+            }
+            P.calibrateFlat = false;
+            P.optimizeDarks = true;
+
       } else {
+            P.masterBiasEnabled = false;
+            P.masterBiasPath = "";
+
+            P.calibrateBias = false;
             P.calibrateDark = false;
+            P.calibrateFlat = false;
+            P.optimizeDarks = false;
       }
-      P.calibrateFlat = false;
-      P.optimizeDarks = true;
       P.darkOptimizationThreshold = 0.00000;
       P.darkOptimizationLow = 3.0000;
       P.darkOptimizationWindow = 1024;
@@ -1631,6 +1658,9 @@ function calibrateEngine()
       if (biasFileNames == null) {
             biasFileNames = [];
       }
+      if (flatdarkFileNames == null) {
+            flatdarkFileNames = [];
+      }
       if (flatFileNames == null) {
             flatFileNames = [];
       }
@@ -1638,6 +1668,7 @@ function calibrateEngine()
             darkFileNames = [];
       }
       if (biasFileNames.length == 0
+          && flatdarkFileNames.length == 0
           && flatFileNames.length == 0
           && darkFileNames.length == 0)
       {
@@ -1650,6 +1681,7 @@ function calibrateEngine()
 
       // Collect filter files
       var filtered_flats = getFilterFiles(flatFileNames, '');
+      var filtered_flatdarks = getFilterFiles(flatdarkFileNames, '');
       var filtered_lights = getFilterFiles(lightFileNames, '');
 
       if (flatFileNames.length > 0 && lightFileNames.length > 0) {
@@ -1687,12 +1719,26 @@ function calibrateEngine()
             var masterbiasPath = null;
       }
 
+      if (flatdarkFileNames.length == 1) {
+            addProcessingStep("calibrateEngine use existing master flat dark " + flatdarkFileNames[0]);
+            var masterflatdarkPath = flatdarkFileNames[0];
+      } else if (flatdarkFileNames.length > 0) {
+            addProcessingStep("calibrateEngine generate master flat dark using " + flatdarkFileNames.length + " files");
+            // integrate flat dark images
+            var flatdarkimages = filesForImageIntegration(flatdarkFileNames);
+            var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, "AutoMasterFlatDark");
+            var masterflatdarkPath = saveWorkWindow(dialogFilePath, masterflatdarkid);
+      } else {
+            addProcessingStep("calibrateEngine no master flat dark");
+            var masterflatdarkPath = null;
+      }
+
       if (darkFileNames.length == 1) {
             addProcessingStep("calibrateEngine use existing master dark " + darkFileNames[0]);
             var masterdarkPath = darkFileNames[0];
       } else if (darkFileNames.length > 0) {
             addProcessingStep("calibrateEngine generate master dark using " + darkFileNames.length + " files");
-            if (calibrate_darks_separately) {
+            if (pre_calibrate_darks && masterbiasPath != null) {
                   // calibrate dark frames with bias
                   var darkcalFileNames = runCalibrateDarks(darkFileNames, masterbiasPath);
                   var darkimages = filesForImageIntegration(darkcalFileNames);
@@ -1721,7 +1767,7 @@ function calibrateEngine()
                   addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
                   var flatcalimages = filesNamesToEnabledPathFromFilearr(filterFiles);
                   console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
-                  var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath);
+                  var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath);
                   console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
 
                   // integrate flats to generate master flat for each filter
@@ -7187,9 +7233,10 @@ function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc, tip)
       return cb;
 }
 
-function filesOptionsSizer(parent, name)
+function filesOptionsSizer(parent, name, toolTip)
 {
       var label = aiSectionLabel(parent, name);
+      label.toolTip = toolTip;
       var labelempty = new Label( parent );
       labelempty.text = " ";
 
@@ -7205,12 +7252,12 @@ function filesOptionsSizer(parent, name)
 
 function lightsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add light images");
+      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[0]);
 
       var label = new Label( parent );
       label.text = "Debayer";
       label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      label.toolTip = "Select bayer pattern for debayering color/OSC/RAW files. " +
+      label.toolTip = "Select bayer pattern for debayering color/OSC/RAW/DSLR files. " +
                       "Option node does not do debayering.";
 
       var combobox = new ComboBox( parent );
@@ -7280,7 +7327,7 @@ function lightsOptions(parent)
 
 function biasOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add bias images");
+      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[1]);
 
       var checkbox = newCheckBox(parent, "SuperBias", create_superbias, 
             "<p>Create SuperBias from bias files.</p>" );
@@ -7297,16 +7344,33 @@ function biasOptions(parent)
 
 function darksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add dark images");
+      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[2]);
 
-      var checkbox = newCheckBox(parent, "Calibrate", calibrate_darks_separately, 
-            "<p>If checked darks are calibrated separately with bias.</p>" );
+      var checkbox = newCheckBox(parent, "Pre-calibrate", pre_calibrate_darks, 
+            "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
+            "Normally this is not recommened and it is better to calibrate darks during " + 
+            "ImageCalibration.</p>" );
       checkbox.onClick = function(checked) { 
-            calibrate_darks_separately = checked; 
-            SetOptionChecked("Calibrate darks separately", checked); 
+            pre_calibrate_darks = checked; 
+            SetOptionChecked("Pre-calibrate darks", checked); 
+      }
+      var checkbox2 = newCheckBox(parent, "Optimize", optimize_darks, 
+            "<p>If checked darks are optimized when calibrating lights." + 
+            "</p><p>" +
+            "Normally using optimize flag should not cause any problems. " +
+            "With cameras without temperature control it can greatly improve the results. " +
+            'With cameras that have "amplifier glow" dark optimization may give worse results. ' +
+            "</p><p>" +
+            "When Optimize is not checked bias frames are ignored and dark and flat file optimize " + 
+            "and calibrate flags are disabled in light file calibration. " +
+            "</p>" );
+      checkbox2.onClick = function(checked) { 
+            optimize_darks = checked; 
+            SetOptionChecked("Optimize darks", checked); 
       }
 
       sizer.add(checkbox);
+      sizer.add(checkbox2);
       sizer.addStretch();
 
       return sizer;
@@ -7314,7 +7378,7 @@ function darksOptions(parent)
 
 function flatsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat images");
+      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[3]);
 
       var checkboxStars = newCheckBox(parent, "Stars in flats", stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
@@ -7325,7 +7389,9 @@ function flatsOptions(parent)
       }
       var checkboxDarks = newCheckBox(parent, "Do not use darks", no_darks_on_flat_calibrate, 
             "<p>For some sensors darks should not be used to calibrate flats.  " + 
-            "An example of such sensor is most CMOS sensors .</p>" );
+            "An example of such sensor is most CMOS sensors.</p>"  +
+            "<p>If flat darks are selected then darks are not used " + 
+            "to calibrate flats.</p>");
       checkboxDarks.onClick = function(checked) { 
             no_darks_on_flat_calibrate = checked; 
             SetOptionChecked("Do not use darks when calibrating flats", checked); 
@@ -7338,18 +7404,19 @@ function flatsOptions(parent)
       return sizer;
 }
 
-function addOneFilesButton(parent, setFiles, filetype, pageIndex)
+function flatdarksOptions(parent)
+{
+      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[4]);
+
+      return sizer;
+}
+
+function addOneFilesButton(parent, setFiles, filetype, pageIndex, toolTip)
 {
       var filesAdd_Button = new PushButton( parent );
       filesAdd_Button.text = "Add " + filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
-      if (filetype == "Lights") {
-            filesAdd_Button.toolTip = "<p>Add image files to the images list. In only lights are added " + 
-                                      "they are assumed to be already calibrated.</p>";
-      } else {
-            filesAdd_Button.toolTip = "<p>Add image files to the images list. If only one file is added " + 
-                                      "it is assumed to be a master file.</p>";
-      }
+      filesAdd_Button.toolTip = toolTip;
       filesAdd_Button.onClick = function()
       {
             var files_TreeBox = parent.treeBox[pageIndex];
@@ -7371,16 +7438,22 @@ function addOneFilesButton(parent, setFiles, filetype, pageIndex)
 
 function addFilesButtons(parent)
 {
-      var addLightsButton = addOneFilesButton(parent, lightFiles, "Lights", 0);
-      var addBiasButton = addOneFilesButton(parent, biasFiles, "Bias", 1);
-      var addDarksButton = addOneFilesButton(parent, darkFiles, "Darks", 2);
-      var addFlatsButton = addOneFilesButton(parent, flatFiles, "Flats", 3);
+      var defaultToolTip = "<p>Add image files to the images list. If only one file is added " + 
+                        "it is assumed to be a master file.</p>";
+
+      var addLightsButton = addOneFilesButton(parent, lightFiles, "Lights", 0, parent.filesToolTip[0]);
+      var addBiasButton = addOneFilesButton(parent, biasFiles, "Bias", 1, parent.filesToolTip[1]);
+      var addDarksButton = addOneFilesButton(parent, darkFiles, "Darks", 2, parent.filesToolTip[2]);
+      var addFlatsButton = addOneFilesButton(parent, flatFiles, "Flats", 3, parent.filesToolTip[3]);
+      var addFlatDarksButton = addOneFilesButton(parent, flatdarkFiles, "Flat Darks", 4, parent.filesToolTip[4]);
+
       var filesButtons_Sizer = new HorizontalSizer;
       filesButtons_Sizer.spacing = 4;
       filesButtons_Sizer.add( addLightsButton );
       filesButtons_Sizer.add( addBiasButton );
       filesButtons_Sizer.add( addDarksButton );
       filesButtons_Sizer.add( addFlatsButton );
+      filesButtons_Sizer.add( addFlatDarksButton );
       filesButtons_Sizer.addStretch();
       return filesButtons_Sizer;
 }
@@ -7454,6 +7527,7 @@ function updateInfoLabel()
       txt = appendInfoTxt(txt, biasFileNames, "bias");
       txt = appendInfoTxt(txt, darkFileNames, "dark");
       txt = appendInfoTxt(txt, flatFileNames, "flat");
+      txt = appendInfoTxt(txt, flatdarkFileNames, "flat dark");
 
       console.writeln(txt);
 
@@ -7513,6 +7587,20 @@ function flatFiles(fname)
                   flatFileNames = [];
             }
             flatFileNames[flatFileNames.length] = fname;
+      }
+}
+
+function flatdarkFiles(fname)
+{
+      if (fname == null) {
+            flatdarkFileNames = null;
+            // reset
+      } else {
+            // add file
+            if (flatdarkFileNames == null) {
+                  flatdarkFileNames = [];
+            }
+            flatdarkFileNames[flatdarkFileNames.length] = fname;
       }
 }
 
@@ -7583,6 +7671,20 @@ function AutoIntegrateDialog()
       this.helpTips.setScaledFixedSize( 20, 20 );
       this.helpTips.toolTip = mainHelpTips;
 
+      this.filesToolTip = [];
+      this.filesToolTip[0] = "<p>Add light files. If only lights are added " + 
+                             "they are assumed to be already calibrated.</p>";
+      this.filesToolTip[1] = "<p>Add bias files. If only one file is added " + 
+                             "it is assumed to be a master file.</p>";
+      this.filesToolTip[2] = "<p>Add dark files. If only one file is added " + 
+                             "it is assumed to be a master file.</p>";
+      this.filesToolTip[3] = "<p>Add flat files. If only one file is added " + 
+                             "it is assumed to be a master file.</p>";
+      this.filesToolTip[4] = "<p>Add flat dark image files. If only one file is added " + 
+                             "it is assumed to be a master file. If flat dark files are selected " + 
+                             "then master flat dark is used instead of master bias and master dark " + 
+                             "is not used to calibrate flats.</p>";
+
       this.treeBox = [];
 
       this.tabBox = new TabBox( this );
@@ -7590,6 +7692,7 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, biasFiles, "Bias", biasOptions(this), 1 ), "Bias" );
       this.tabBox.addPage( new filesTreeBox( this, darkFiles, "Dark", darksOptions(this), 2 ), "Darks" );
       this.tabBox.addPage( new filesTreeBox( this, flatFiles, "Flat", flatsOptions(this), 3 ), "Flats" );
+      this.tabBox.addPage( new filesTreeBox( this, flatdarkFiles, "Flat Dark", flatdarksOptions(this), 4 ), "Flat Darks" );
 
       /* Paremeters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", use_local_normalization, 
@@ -9175,7 +9278,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 4";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 5";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
