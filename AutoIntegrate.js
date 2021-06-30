@@ -251,72 +251,141 @@ Linear Defect Detection:
 
 var infoLabel;
 
+/*
+      Parameters that can be adjusted in the GUI
+      These can be saved to a process icon and later restored.
+*/
+var par = {
+      // Image processing parameters
+      use_local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },  /* color problems, maybe should be used only for L images */
+      use_noise_reduction_on_all_channels: { val: false, def: false, name : "Noise reduction on R, G, B", type : 'B' },
+      fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
+      fix_row_defects: { val: false, def: false, name : "Fix row defetcs", type : 'B' },
+      skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
+      skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
+      strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
+      ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
+      use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
+      color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
+      use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
+      skip_imageintegration_ssweight: { val: false, def: false, name : "No ImageIntegration SSWEIGHT", type : 'B' },
+      skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
+      skip_color_noise_reduction: { val: false, def: false, name : "No color noise reduction", type : 'B' },
+      stronger_noise_reduction: { val: false, def: false, name : "Stronger noise reduction", type : 'B' },
+      skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
+
+      // Other parameters
+      calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
+      integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
+      channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
+      RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
+      batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
+      autodetect_files: { val: true, def: true, name : "Autodetect files", type : 'B' },
+      all_files: { val: false, def: false, name : "All files", type : 'B' },
+      use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
+      keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
+      keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
+      use_uwf: { val: false, def: false, name : "UWF", type : 'B' },
+      monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
+      imageintegration_clipping: { val: true, def: true, name : "ImageIntegration clipping", type : 'B' },
+      synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },
+      synthetic_missing_images: { val: false, def: false, name : "Synthetic missing image", type : 'B' },
+      force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
+      unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
+      
+      // Narrowband processing
+      custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
+      custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
+      custom_B_mapping: { val: 'O', def: 'O', name : "Narrowband B mapping", type : 'S' },
+      custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
+      narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
+      mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
+
+      // Narrowband to RGB mappping
+      use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
+      use_RGB_image: { val: false, def: false, name : "Narrowband RGB mapping use RGB", type : 'B' },
+      L_mapping: { val: '',  def: '',  name : "Narrowband RGB mapping for L", type : 'S' },
+      R_mapping: { val: 'H', def: 'H', name : "Narrowband RGB mapping for R", type : 'S' },
+      G_mapping: { val: 'O', def: 'O', name : "Narrowband RGB mapping for G", type : 'S' },
+      B_mapping: { val: 'O', def: 'O', name : "Narrowband RGB mapping for B", type : 'S' },
+      L_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping L boost factor", type : 'R' },
+      R_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping R boost factor", type : 'R' },
+      G_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping G boost factor", type : 'R' },
+      B_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping B boost factor", type : 'R' },
+      L_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping L bandwidth", type : 'R' },
+      R_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping R bandwidth", type : 'R' },
+      G_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping G bandwidth", type : 'R' },
+      B_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping B bandwidth", type : 'R' },
+      H_bandwidth: { val: 7, def: 7, name : "Narrowband RGB mapping H bandwidth", type : 'R' },
+      S_bandwidth: { val: 8.5, def: 8.5, name : "Narrowband RGB mapping S bandwidth", type : 'R' },
+      O_bandwidth: { val: 8.5, def: 8.5, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
+
+      // Processing settings
+      use_weight: { val: 'Generic', def: 'Generic', name : "Weight calculation", type : 'S' },
+      use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
+      image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
+      STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
+      imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
+      use_clipping: { val: 'Auto1', def: 'Auto1', name : "ImageIntegration rejection", type : 'S' },
+      cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorection hot sigma", type : 'I' },
+      cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorection cold sigma", type : 'I' },
+      MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
+      LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
+      LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
+      linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
+      non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
+      
+      // Extra processing for narrowband
+      run_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
+      leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
+      run_narrowband_SCNR: { val: false, def: false, name : "Extra narrowband remove green", type : 'B' },
+      fix_narrowband_star_color: { val: false, def: false, name : "Extra narrowband fix star colors", type : 'B' },
+      skip_star_fix_mask: { val: false, def: false, name : "Extra narrowband no star mask", type : 'B' },
+
+      // Generic Extra processing
+      extra_StarNet: { val: false, def: false, name : "Extra StarNet", type : 'B' },
+      extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
+      extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
+      extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
+      extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
+      extra_STF: { val: false, def: false, name : "Extra STF", type : 'B' },
+      extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
+      extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
+
+      // Calibration settings
+      debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
+      create_superbias: { val: true, def: true, name : "Superbias", type : 'B' },
+      pre_calibrate_darks: { val: false, def: false, name : "Pre-calibrate darks", type : 'B' },
+      optimize_darks: { val: true, def: true, name : "Optimize darks", type : 'B' },
+      stars_in_flats: { val: false, def: false, name : "Stars in flats", type : 'B' },
+      no_darks_on_flat_calibrate: { val: false, def: false, name : "Do not use darks on flats", type : 'B' },
+};
+
+var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
+                              "GRBG", "GRGB", "GBGR", "RGBG", 
+                              "BGRG", "None" ];
+var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
+                             Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
+                             Debayer.prototype.BGRG, Debayer.prototype.Auto ];
+var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
+var use_weight_values = [ 'Generic', 'Noise', 'Stars' ];
+var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both' ];
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit' ]; 
+var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
+var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
+var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
+
 var close_windows = false;
-var use_local_normalization = false;            /* color problems, maybe should be used only for L images */
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
-var use_linear_fit = 'L';                       /* default */
-var use_clipping = 'D1';                        /* default */
 var ssweight_set = false;
-var use_weight = 'G';                           /* Default: Generic */
-var imageintegration_normalization = 0;         /* Default: additive */
-var skip_imageintegration_ssweight = false;
-var imageintegration_clipping = true;
-var use_noise_reduction_on_all_channels = false;
-var calibrate_only = false;
-var integrate_only = false;
-var channelcombination_only = false;
-var skip_subframeselector = false;
-var skip_cosmeticcorrection = false;
-var linear_increase_saturation = 1;             /* Keep to 1, or check narrowband. */
-var non_linear_increase_saturation = 1;         /* Keep to 1, or check narrowband. */
-var LRGBCombination_lightness = 0.5;
-var LRGBCombination_saturation = 0.5;
-var strict_StarAlign = false;
-var keep_integrated_images = false;
-var keep_temporary_images = false;
 var run_HT = true;
-var ABE_before_channel_combination = false;
-var use_ABE_on_L_RGB = false;
-var color_calibration_before_ABE = false;
-var use_background_neutralization = false;
-var use_drizzle = false;
-var batch_mode = false;
 var batch_narrowband_palette_mode = false;
-var use_uwf = false;
-var monochrome_image = false;
-var synthetic_l_image = false;
-var RRGB_image = false;
-var synthetic_missing_images = false;
-var force_file_name_filter = false;
-var unique_file_names = false;
-var skip_noise_reduction = false;
-var skip_color_noise_reduction = false;
-var stronger_noise_reduction = false;
 var noise_reduction_before_HistogramTransform = true;
 var narrowband = false;
 var autocontinue_narrowband = false;
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
-var STF_linking = 0;                // 0 = auto, 1 = linked, 2 = unlinked
-var image_stretching = 'STF';
-var MaskedStretch_targetBackground = 0.125;
-var fix_column_defects = false;
-var fix_row_defects = false;
-var cosmetic_correction_hot_sigma = 3;
-var cosmetic_correction_cold_sigma = 3;
-var create_superbias = true;
-var debayerPattern = Debayer.prototype.Auto;
-var stars_in_flats = false;
-var no_darks_on_flat_calibrate = false;
-var pre_calibrate_darks = false;
-var optimize_darks = true;
-var autodetect_files = true;
-
-var fix_narrowband_star_color = false;
-var run_hue_shift = false;
-var run_narrowband_SCNR = false;
-var leave_some_green = false;
-var skip_star_fix_mask = false;
 
 var processingDate;
 var lightFileNames = null;
@@ -338,44 +407,7 @@ var S_images;
 var O_images;
 var C_images;
 
-/* "default" custom mapping, somewhere referred as Hubble mapping. */
-var custom_R_mapping = "S";
-var custom_G_mapping = "H";
-var custom_B_mapping = "O";
-var custom_L_mapping = "L";
-var mapping_on_nonlinear_data = false;
-var narrowband_linear_fit = "Auto";
-
-var extra_StarNet = false;
-var extra_darker_background = false;
-var extra_HDRMLT= false;
-var extra_LHE = false;
-var extra_smaller_stars = false;
-var extra_smaller_stars_iterations = 1;
-var extra_contrast = false;
-var extra_STF = false;
 var extra_target_image = null;
-var skip_mask_contrast = false;
-
-/* RGBNB mapping. */
-var use_RGBNB_Mapping = false;
-var use_RGB_image = false;
-var L_BoostFactor = 1.2;
-var R_BoostFactor = 1.2;
-var G_BoostFactor = 1.2;
-var B_BoostFactor = 1.2;
-var L_mapping = 'H';
-var R_mapping = 'H';
-var G_mapping = 'O';
-var B_mapping = 'O';
-//var RGB_bandwidth = 300;
-var L_bandwidth = 100;
-var R_bandwidth = 100;
-var G_bandwidth = 100;
-var B_bandwidth = 100;
-var H_bandwidth = 7;
-var S_bandwidth = 8.5;
-var O_bandwidth = 8.5;
 
 var processing_steps = "";
 var all_windows = [];
@@ -557,36 +589,16 @@ var narrowBandPalettes = [
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
 
-var processingOptions = [];
-
-function RemoveOption(option) 
+function getProcessingOptions()
 {
-      for (var i = 0; i < processingOptions.length; i++) {
-            if (processingOptions[i][0] == option) {
-                  processingOptions.splice(i, 1);
-                  return;
+      var options = [];
+      for (let x in par) {
+            var param = par[x];
+            if (param.val != param.def) {
+                  options[options.length] = [ param.name, param.val ];
             }
       }
-}
-
-function SetOptionValue(option, val)
-{
-      RemoveOption(option);
-
-      var newopt = [];
-      newopt[0] = option;
-      newopt[1] = val;
-
-      processingOptions[processingOptions.length] = newopt;
-}
-
-function SetOptionChecked(option, checked)
-{
-      if (!checked) {
-            RemoveOption(option);
-      } else {
-            SetOptionValue(option, "");
-      }
+      return options;
 }
 
 function addProcessingStep(txt)
@@ -702,7 +714,7 @@ function windowCloseif(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            if (keep_temporary_images) {
+            if (par.keep_temporary_images.val) {
                   w.mainView.id = "tmp_" + w.mainView.id;
                   w.show();
                   console.writeln("Rename window to " + w.mainView.id);
@@ -775,7 +787,7 @@ function addScriptWindow(name)
 
 function forceCloseOneWindow(w)
 {
-      if (keep_temporary_images) {
+      if (par.keep_temporary_images.val) {
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
@@ -1022,7 +1034,7 @@ function newMaskWindow(sourceWindow, name)
 
       targetWindow.show();
 
-      if (!skip_mask_contrast) {
+      if (!par.skip_mask_contrast.val) {
             extraContrast(targetWindow);
       }
 
@@ -1042,10 +1054,17 @@ function openImageFiles(filetype)
                       "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
       var image_files = fits_files + " " + raw_files;
 
-      ofd.filters = [
-            ["Image files", image_files],
-            ["All files", "*.*"]
-      ];
+      if (par.all_files.val) {
+            ofd.filters = [
+                  ["All files", "*.*"],
+                  ["Image files", image_files]
+            ];
+      } else {
+            ofd.filters = [
+                  ["Image files", image_files],
+                  ["All files", "*.*"]
+            ];
+      }
       if (!ofd.execute()) {
             return null;
       }
@@ -1085,7 +1104,7 @@ function filterKeywords(imageWindow, keywordname)
 {
       var oldKeywords = [];
       var keywords = imageWindow.keywords;
-      for (var i = 0; i != keywords.length; i++) {
+      for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
             if (keyword.name != keywordname) {
                   oldKeywords[oldKeywords.length] = keyword;
@@ -1309,12 +1328,8 @@ function runCalibrateDarks(images, masterbiasPath)
 
       var P = new ImageCalibration;
       P.targetFrames = filesNamesToEnabledPath(images); // [ enabled, path ];
-      P.enableCFA = is_color_files && debayerPattern != null;
-      if (debayerPattern != null) {
-            P.cfaPattern = debayerPattern;
-      } else {
-            P.cfaPattern = ImageCalibration.prototype.Auto;
-      }
+      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
+      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
       P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
       P.pedestal = 0;
@@ -1377,12 +1392,8 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
-      P.enableCFA = is_color_files && debayerPattern != null;
-      if (debayerPattern != null) {
-            P.cfaPattern = debayerPattern;
-      } else {
-            P.cfaPattern = ImageCalibration.prototype.Auto;
-      }
+      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
+      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
       P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
       P.pedestal = 0;
@@ -1412,7 +1423,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
             P.masterBiasEnabled = false;
             P.masterBiasPath = "";
       }
-      if (masterdarkPath != null && !no_darks_on_flat_calibrate && masterflatdarkPath == null) {
+      if (masterdarkPath != null && !par.no_darks_on_flat_calibrate.val && masterflatdarkPath == null) {
             console.writeln("runCalibrateFlats, master dark " + masterdarkPath);
             P.masterDarkEnabled = true;
             P.masterDarkPath = masterdarkPath;
@@ -1424,7 +1435,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.masterFlatEnabled = false;
       P.masterFlatPath = "";
       P.calibrateBias = false;
-      if (pre_calibrate_darks) {
+      if (par.pre_calibrate_darks.val) {
             P.calibrateDark = false;
       } else {
             P.calibrateDark = true;
@@ -1477,7 +1488,7 @@ function runImageIntegrationFlats(images, name)
       P.rejectionNormalization = ImageIntegration.prototype.EqualizeFluxes;
       P.minMaxLow = 1;
       P.minMaxHigh = 1;
-      if (stars_in_flats) {
+      if (par.stars_in_flats.val) {
             P.pcClipLow = 0.010;
             P.pcClipHigh = 0.010;
       } else {
@@ -1559,12 +1570,8 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
-      P.enableCFA = is_color_files && debayerPattern != null;
-      if (debayerPattern != null) {
-            P.cfaPattern = debayerPattern;
-      } else {
-            P.cfaPattern = ImageCalibration.prototype.Auto;
-      }
+      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
+      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
       P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
       P.pedestal = 0;
@@ -1608,9 +1615,9 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             P.masterFlatEnabled = false;
             P.masterFlatPath = "";
       }
-      if (optimize_darks) {
+      if (par.optimize_darks.val) {
             P.calibrateBias = false;
-            if (pre_calibrate_darks) {
+            if (par.pre_calibrate_darks.val) {
                   P.calibrateDark = false;
             } else {
                   P.calibrateDark = true;
@@ -1742,7 +1749,7 @@ function calibrateEngine()
             var masterbiasid = runImageIntegrationBiasDarks(biasimages, "AutoMasterBias");
 
             // optionally generate superbias
-            if (create_superbias) {
+            if (par.create_superbias.val) {
                   var masterbiaswin = findWindow(masterbiasid);
                   var mastersuperbiasid = runSuberBias(masterbiaswin);
                   setImagetypKeyword(findWindow(mastersuperbiasid), "Master bias");
@@ -1776,7 +1783,7 @@ function calibrateEngine()
             var masterdarkPath = darkFileNames[0];
       } else if (darkFileNames.length > 0) {
             addProcessingStep("calibrateEngine generate master dark using " + darkFileNames.length + " files");
-            if (pre_calibrate_darks && masterbiasPath != null) {
+            if (par.pre_calibrate_darks.val && masterbiasPath != null) {
                   // calibrate dark frames with bias
                   var darkcalFileNames = runCalibrateDarks(darkFileNames, masterbiasPath);
                   var darkimages = filesForImageIntegration(darkcalFileNames);
@@ -2012,7 +2019,7 @@ function MultiscaleIsolation( image, LSImage, layersToRemove )
 /*
  * Function to create a list of vertical or horizontal lines in an image. It
  * can combine entire rows or columns and fragmented ones, if an array of
- * partial sections is specified in the input parameters. This list is used to
+ * partial sections is specified in the input par. This list is used to
  * input the selected regions in the IterativeStatistics function.
  */
 function LineList( correctEntireImage, partialColumnOrRow, partialStartPixel, partialEndPixel, maxPixelPara, maxPixelPerp )
@@ -2476,7 +2483,7 @@ function getLDDgroups(fileNames)
                   console.writeln("Chile slooh_uwf");
                   slooh_uwf = true;
             }
-            if (use_uwf) {
+            if (par.use_uwf.val) {
                   if (!slooh_uwf) {
                         continue;
                   }
@@ -2543,13 +2550,13 @@ function getDefectInfo(fileNames)
       var LDD_win = findWindow(LDD_id);
       var defects = [];
 
-      if (fix_column_defects) {
-            console.writeln("getDefectInfo, fix_column_defects");
+      if (par.fix_column_defects.val) {
+            console.writeln("getDefectInfo, par.fix_column_defects.val");
             var colDefects = getDefects(LDD_win, true);
             defects = defects.concat(colDefects);
       }
-      if (fix_row_defects) {
-            console.writeln("getDefectInfo, fix_row_defects");
+      if (par.fix_row_defects.val) {
+            console.writeln("getDefectInfo, par.fix_row_defects.val");
             var rowDefects = getDefects(LDD_win, false);
             defects = defects.concat(rowDefects);
       }
@@ -2601,7 +2608,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       P.postfix = "_cc";
       P.overwrite = true;
       P.amount = 1.00;
-      if (color_images && debayerPattern != null) {
+      if (color_images && par.debayerPattern.val != 'None') {
             P.cfa = true;
       } else {
             P.cfa = false;
@@ -2613,9 +2620,9 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       P.coldDarkLevel = 0.0000000;
       P.useAutoDetect = true;
       P.hotAutoCheck = true;
-      P.hotAutoValue = cosmetic_correction_hot_sigma;
+      P.hotAutoValue = par.cosmetic_correction_hot_sigma.val;
       P.coldAutoCheck = true;
-      P.coldAutoValue = cosmetic_correction_cold_sigma;
+      P.coldAutoValue = par.cosmetic_correction_cold_sigma.val;
       if (defects.length > 0) {
             P.useDefectList = true;
             P.defects = defects; // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
@@ -2728,7 +2735,7 @@ function SubframeSelectorMeasure(fileNames)
             if (FWHMMax == FWHMMin || EccentricityMax == EccentricityMin || SNRWeightMax == SNRWeightMin) {
                   // Avoid division by zero
                   SSWEIGHT = SNRWeight;
-            } else if (use_weight == 'N') {
+            } else if (par.use_weight.val == 'Noise') {
                   /* More weight on noise.
                    */
                   SSWEIGHT = (5*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) + 
@@ -2736,7 +2743,7 @@ function SubframeSelectorMeasure(fileNames)
                               20*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin))+
                               65;
 
-            } else if (use_weight == 'S') {
+            } else if (par.use_weight.val == 'Stars') {
                   /* More weight on stars.
                    */
                   SSWEIGHT = (35*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) + 
@@ -2877,7 +2884,7 @@ function findBestSSWEIGHT(fileNames)
             if (slooh_uwf) {
                   found_slooh_uwf = true;
             }
-            if (use_uwf) {
+            if (par.use_uwf.val) {
                   skip_this = !slooh_uwf;
             } else {
                   skip_this = slooh_uwf;
@@ -3080,14 +3087,14 @@ function getFilterFiles(files, filename_postfix)
                   }
             }
 
-            if (filter == null || force_file_name_filter) {
+            if (filter == null || par.force_file_name_filter.val) {
                   // No filter keyword. Try mapping based on file name.
                   filter = filterByFileName(filePath, filename_postfix);
             }
             if (filter == null) {
                   filter = 'Color';
             }
-            if (monochrome_image) {
+            if (par.monochrome_image.val) {
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
@@ -3258,8 +3265,8 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 
       // Check for synthetic images
       if (allfiles.C.length == 0) {
-            if (synthetic_l_image ||
-                  (synthetic_missing_images && allfiles.L.length == 0))
+            if (par.synthetic_l_image.val ||
+                  (par.synthetic_missing_images.val && allfiles.L.length == 0))
             {
                   if (allfiles.L.length == 0) {
                         addProcessingStep("No luminance images, synthetic luminance image from all other images");
@@ -3270,19 +3277,19 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   allfiles.L = allfiles.L.concat(allfiles.G);
                   allfiles.L = allfiles.L.concat(allfiles.B);
             }
-            if (allfiles.R.length == 0 && synthetic_missing_images) {
+            if (allfiles.R.length == 0 && par.synthetic_missing_images.val) {
                   addProcessingStep("No red images, synthetic red image from luminance images");
                   allfiles.R = allfiles.R.concat(allfiles.L);
             }
-            if (allfiles.G.length == 0 && synthetic_missing_images) {
+            if (allfiles.G.length == 0 && par.synthetic_missing_images.val) {
                   addProcessingStep("No green images, synthetic green image from luminance images");
                   allfiles.G = allfiles.G.concat(allfiles.L);
             }
-            if (allfiles.B.length == 0 && synthetic_missing_images) {
+            if (allfiles.B.length == 0 && par.synthetic_missing_images.val) {
                   addProcessingStep("No blue images, synthetic blue image from luminance images");
                   allfiles.B = allfiles.B.concat(allfiles.L);
             }
-            if (RRGB_image) {
+            if (par.RRGB_image.val) {
                   addProcessingStep("RRGB image, use R as L image");
                   console.writeln("L images " +  allfiles.L.length);
                   console.writeln("R images " +  allfiles.R.length);
@@ -3315,7 +3322,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   throwFatalError("Cannot mix color and green filter files");
             }
       } else {
-            if (monochrome_image) {
+            if (par.monochrome_image.val) {
                   // Monochrome
                   if (L_images.images.length == 0) {
                         throwFatalError("No Luminance images found");
@@ -3419,16 +3426,16 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
 {
       switch (targetChannel) {
             case 'R':
-                  var mapping = custom_R_mapping;
+                  var mapping = par.custom_R_mapping.val;
                   break;
             case 'G':
-                  var mapping = custom_G_mapping;
+                  var mapping = par.custom_G_mapping.val;
                   break;
             case 'B':
-                  var mapping = custom_B_mapping;
+                  var mapping = par.custom_B_mapping.val;
                   break;
             case 'L':
-                  var mapping = custom_L_mapping;
+                  var mapping = par.custom_L_mapping.val;
                   break;
             default:
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
@@ -3701,31 +3708,31 @@ function customMapping()
              */
             copyToMapImages(images);
 
-            if (ABE_before_channel_combination) {
+            if (par.ABE_before_channel_combination.val) {
                   // Optionally do ABE on channel images
                   for (var i = 0; i < images.length; i++) {
                         run_ABE_before_channel_combination(images[i]);
                   }
             }
 
-            if (use_noise_reduction_on_all_channels) {
+            if (par.use_noise_reduction_on_all_channels.val) {
                   // Optionally do noise reduction on linear state
                   for (var i = 0; i < images.length; i++) {
                         reduceNoiseOnChannelImage(images[i]);
                   }
             }
-            if (narrowband_linear_fit == "Auto"
-                && image_stretching == 'STF') 
+            if (par.narrowband_linear_fit.val == "Auto"
+                && par.image_stretching.val == 'Auto STF') 
             {
                   /* By default we do not do linear fit
                    * if we stretch with STF. If we stretch
                    * with MaskedStretch we use linear
                    * for to balance channels better.
                    * */
-                  narrowband_linear_fit = "None";
+                  par.narrowband_linear_fit.val = "None";
             }
 
-            if (!mapping_on_nonlinear_data) {
+            if (!par.mapping_on_nonlinear_data.val) {
                   /* We run PixelMath using linear images. 
                    */
                   addProcessingStep("Custom mapping, linear narrowband images");
@@ -3739,11 +3746,11 @@ function customMapping()
                   }
                   RBGmapping.stretched = true;
             }
-            if (narrowband_linear_fit != "None") {
+            if (par.narrowband_linear_fit.val != "None") {
                   /* Do a linear fit of images before PixelMath. We do this on both cases,
                   * linear and stretched.
                   */
-                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
+                  var refimage = findLinearFitHSOMapRefimage(images, par.narrowband_linear_fit.val);
                   linearFitArray(refimage, images);
             }
 
@@ -3787,7 +3794,7 @@ function mapLRGBchannels()
 
       var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null;
-      var custom_mapping = narrowband && !use_RGBNB_Mapping;
+      var custom_mapping = narrowband && !par.use_RGBNB_Mapping.val;
 
       if (rgb && narrowband) {
             addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
@@ -3850,19 +3857,19 @@ function runStarAlignment(imagetable, refImage)
             targets[targets.length] = oneimage;
       }
 
-      if (strict_StarAlign) {
+      if (par.strict_StarAlign.val) {
             P.structureLayers = 5;
       } else {
             P.structureLayers = 6;
       }
       P.noiseLayers = 0;
       P.hotPixelFilterRadius = 1;
-      if (strict_StarAlign) {
+      if (par.strict_StarAlign.val) {
             P.noiseReductionFilterRadius = 0;
       } else {
             P.noiseReductionFilterRadius = 5;
       }
-      if (strict_StarAlign) {
+      if (par.strict_StarAlign.val) {
             P.sensitivity = 0.100;
       } else {
             P.sensitivity = 0.010;
@@ -3877,7 +3884,7 @@ function runStarAlignment(imagetable, refImage)
       P.distortionMaxIterations = 20;
       P.distortionTolerance = 0.005;
       P.matcherTolerance = 0.0500;
-      if (strict_StarAlign) {
+      if (par.strict_StarAlign.val) {
             P.ransacTolerance = 2.00;
             P.ransacMaxIterations = 2000;
       } else {
@@ -3903,7 +3910,7 @@ function runStarAlignment(imagetable, refImage)
       P.mode = StarAlignment.prototype.RegisterMatch;
       P.writeKeywords = true;
       P.generateMasks = false;
-      if (use_drizzle) {
+      if (par.use_drizzle.val) {
             P.generateDrizzleData = true; /* Generate .zdrz files. */
       } else {
             P.generateDrizzleData = false;
@@ -4035,7 +4042,7 @@ function runDrizzleIntegration(images, name)
       P.kernelGridSize = 16;
       P.originX = 0.50;
       P.originY = 0.50;
-      P.enableCFA = is_color_files && debayerPattern != null;
+      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = "";
       P.enableRejection = true;
       P.enableImageWeighting = true;
@@ -4065,22 +4072,22 @@ function getRejectionAlgorigthm(numimages)
             addProcessingStep("  Using Percentile clip for rejection because number of images is " + numimages);
             return ImageIntegration.prototype.PercentileClip;
       }
-      if (use_clipping == 'P') {
+      if (par.use_clipping.val == 'Percentile') {
             addProcessingStep("  Using Percentile clip for rejection");
             return ImageIntegration.prototype.PercentileClip;
-      } else if (use_clipping == 'S') {
+      } else if (par.use_clipping.val == 'Sigma') {
             addProcessingStep("  Using Sigma clip for rejection");
             return ImageIntegration.prototype.SigmaClip;
-      } else if (use_clipping == 'W') {
+      } else if (par.use_clipping.val == 'Winsorised sigma') {
             addProcessingStep("  Using Winsorised sigma clip for rejection");
             return ImageIntegration.prototype.WinsorizedSigmaClip;
-      } else if (use_clipping == 'A') {
+      } else if (par.use_clipping.val == 'Averaged sigma') {
             addProcessingStep("  Using Averaged sigma clip for rejection");
             return ImageIntegration.prototype.AveragedSigmaClip;
-      } else if (use_clipping == 'L') {
+      } else if (par.use_clipping.val == 'Linear fit') {
             addProcessingStep("  Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
-      } else if (use_clipping == 'D2') {
+      } else if (par.use_clipping.val == 'Auto2') {
             /* In theory these should be good choises but sometime give much more uneven
              * highlights than Sigma.
              */
@@ -4101,7 +4108,7 @@ function getRejectionAlgorigthm(numimages)
                   return ImageIntegration.prototype.Rejection_ESD;
             }
       } else {
-            /* use_clipping == 'D1' */
+            /* par.use_clipping.val == 'Auto1' */
             if (numimages < 8) {
                   addProcessingStep("  Auto1 using percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
@@ -4132,7 +4139,7 @@ function runImageIntegration(images, name)
 
       ensureThreeImages(images);
 
-      if (use_local_normalization && name != 'LDD') {
+      if (par.use_local_normalization.val && name != 'LDD') {
             return runImageIntegrationNormalized(images, name);
       }
 
@@ -4160,9 +4167,9 @@ function runImageIntegration(images, name)
       P.ccdGain = 1.00;
       P.ccdReadNoise = 10.00;
       P.ccdScaleNoise = 0.00;
-      P.clipLow = imageintegration_clipping;             // def: true
-      P.clipHigh = imageintegration_clipping;            // def: true
-      P.rangeClipLow = imageintegration_clipping;        // def: true
+      P.clipLow = par.imageintegration_clipping.val;             // def: true
+      P.clipHigh = par.imageintegration_clipping.val;            // def: true
+      P.rangeClipLow = par.imageintegration_clipping.val;        // def: true
       P.rangeLow = 0.000000;
       P.rangeClipHigh = false;
       P.rangeHigh = 0.980000;
@@ -4201,16 +4208,16 @@ function runImageIntegration(images, name)
       P.maxBufferThreads = 8;
 
       P.combination = ImageIntegration.prototype.Average;
-      if (ssweight_set && !skip_imageintegration_ssweight) {
+      if (ssweight_set && !par.skip_imageintegration_ssweight.val) {
             // Using weightKeyword seem to give better results
             addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
-      if (imageintegration_normalization == 0) {
+      if (par.imageintegration_normalization.val == 'Additive') {
             addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
-      } else if (imageintegration_normalization == 1) {
+      } else if (par.imageintegration_normalization.val == 'Adaptive') {
             addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
       } else {
@@ -4226,7 +4233,7 @@ function runImageIntegration(images, name)
       
       P.evaluateNoise = true;
       
-      if (use_drizzle) {
+      if (par.use_drizzle.val) {
             var drizzleImages = new Array;
             for (var i = 0; i < images.length; i++) {
                   drizzleImages[i] = new Array(3);
@@ -4247,7 +4254,7 @@ function runImageIntegration(images, name)
       windowCloseif(P.lowRejectionMapImageId);
       windowCloseif(P.slopeMapImageId);
 
-      if (use_drizzle) {
+      if (par.use_drizzle.val) {
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
@@ -4265,7 +4272,7 @@ function runImageIntegrationNormalized(images, name)
             var oneimage = new Array(4);
             oneimage[0] = true;                                   // enabled
             oneimage[1] = images[i][1];                           // path
-            if (use_drizzle) {
+            if (par.use_drizzle.val) {
                   oneimage[2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
             } else {
                   oneimage[2] = "";                                     // drizzlePath
@@ -4277,7 +4284,7 @@ function runImageIntegrationNormalized(images, name)
       P.images = norm_images;
       P.inputHints = "";
       P.combination = ImageIntegration.prototype.Average;
-      if (ssweight_set && !skip_imageintegration_ssweight) {
+      if (ssweight_set && !par.skip_imageintegration_ssweight.val) {
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
@@ -4314,7 +4321,7 @@ function runImageIntegrationNormalized(images, name)
       P.generate64BitResult = false;
       P.generateRejectionMaps = true;
       P.generateIntegratedImage = true;
-      if (use_drizzle) {
+      if (par.use_drizzle.val) {
             P.generateDrizzleData = true;
       } else {
             P.generateDrizzleData = false;
@@ -4339,7 +4346,7 @@ function runImageIntegrationNormalized(images, name)
       windowCloseif(P.highRejectionMapImageId);
       windowCloseif(P.lowRejectionMapImageId);
 
-      if (use_drizzle) {
+      if (par.use_drizzle.val) {
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
@@ -4446,9 +4453,9 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    var mad = view.computeOrFetchProperty("MAD");
    mad.mul(1.4826); // coherent with a normal distribution
 
-   if (STF_linking == 1) {
+   if (par.STF_linking.val == 'Linked') {
       rgbLinked = true;  
-   } else if (STF_linking == 2) {
+   } else if (par.STF_linking.val == 'Unlinked') {
       rgbLinked = false;  
    } else {
          // auto, use default
@@ -4643,7 +4650,7 @@ function runHistogramTransformMaskedStretch(ABE_win)
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
 
       var P = new MaskedStretch;
-      P.targetBackground = MaskedStretch_targetBackground;
+      P.targetBackground = par.MaskedStretch_targetBackground.val;
       P.numberOfIterations = 100;
       P.clippingFraction = 0.00050000;
       P.backgroundReferenceViewId = "";
@@ -4673,19 +4680,19 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             return null;
       }
 
-      if (image_stretching == 'STF' 
+      if (par.image_stretching.val == 'Auto STF' 
           || type == 'mask'
-          || (image_stretching == 'Both' && type == 'L'))
+          || (par.image_stretching.val == 'Use both' && type == 'L'))
       {
             return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor);
 
-      } else if (image_stretching == 'Masked'
-                 || (image_stretching == 'Both' && type == 'RGB'))
+      } else if (par.image_stretching.val == 'Masked Stretch'
+                 || (par.image_stretching.val == 'Use both' && type == 'RGB'))
       {
             return runHistogramTransformMaskedStretch(ABE_win);
 
       } else {
-            throwFatalError("Bad image_stretching value " + image_stretching + " with type " + type);
+            throwFatalError("Bad image stretching value " + par.image_stretching.val + " with type " + type);
             return null;
       }
 }
@@ -4813,13 +4820,13 @@ function noiseMild()
 
 function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
 {
-      if (skip_noise_reduction) {
+      if (par.skip_noise_reduction.val) {
             return;
       }
 
       addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
 
-      if (stronger_noise_reduction) {
+      if (par.stronger_noise_reduction.val) {
             var P = noiseStrong();
        } else {
              var P = noiseMild();
@@ -4844,7 +4851,7 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
 
 function runColorReduceNoise(imgView)
 {
-      if (skip_color_noise_reduction) {
+      if (par.skip_color_noise_reduction.val) {
             return;
       }
       addProcessingStep("Color noise reduction on " + imgView.mainView.id);
@@ -5074,8 +5081,8 @@ function runLRGBCombination(RGB_id, L_id)
             [false, "", 1.00000],
             [true, L_id, 1.00000]
       ];
-      P.mL = LRGBCombination_lightness;
-      P.mc = LRGBCombination_saturation;
+      P.mL = par.LRGBCombination_lightness.val;
+      P.mc = par.LRGBCombination_saturation.val;
       P.clipHighlights = true;
       P.noiseReduction = true;
       P.layersRemoved = 4;
@@ -5096,7 +5103,7 @@ function runSCNR(RGBimgView, fixing_stars)
             addProcessingStep("SCNR on " + RGBimgView.id);
       }
       var P = new SCNR;
-      if (narrowband && leave_some_green && !fixing_stars) {
+      if (narrowband && par.leave_some_green.val && !fixing_stars) {
             P.amount = 0.50;
             addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
       } else {
@@ -5259,7 +5266,7 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
 
 function getOptionalUniqueFilenamePart()
 {
-      if (unique_file_names) {
+      if (par.unique_file_names.val) {
             return format( "_%04d%02d%02d_%02d%02d%02d",
                         processingDate.getFullYear(), processingDate.getMonth() + 1, processingDate.getDate(),
                         processingDate.getHours(), processingDate.getMinutes(), processingDate.getSeconds());
@@ -5348,7 +5355,7 @@ function debayerImages(fileNames)
 {
       addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
       var P = new Debayer;
-      P.cfaPattern = debayerPattern;
+      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.debayerMethod = Debayer.prototype.VNG;
       P.fbddNoiseReduction = 0;
       P.evaluateNoise = true;
@@ -5526,7 +5533,7 @@ function CreateChannelImages(auto_continue)
             // Run image calibration if we have calibration frames
             lightFileNames = calibrateEngine();
 
-            if (calibrate_only) {
+            if (par.calibrate_only.val) {
                   return(true);
             }
 
@@ -5540,8 +5547,8 @@ function CreateChannelImages(auto_continue)
             fileNames = lightFileNames;
 
 
-            if (!skip_cosmeticcorrection) {
-                  if (fix_column_defects || fix_row_defects) {
+            if (!par.skip_cosmeticcorrection.val) {
+                  if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
                         var ccInfo = runLinearDefectDetection(fileNames);
                         for (var i = 0; i < ccInfo.length; i++) {
@@ -5560,13 +5567,13 @@ function CreateChannelImages(auto_continue)
                   filename_postfix = filename_postfix + '_cc';
             }
 
-            if (is_color_files && debayerPattern != null) {
+            if (is_color_files && par.debayerPattern.val != 'None') {
                   // after cosmetic correction we need to debayer
                   // OSC/RAW images
                   fileNames = debayerImages(fileNames);
             }
 
-            if (!skip_subframeselector) {
+            if (!par.skip_subframeselector.val) {
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
                    * Output is *_a.xisf files.
                    */
@@ -5587,7 +5594,7 @@ function CreateChannelImages(auto_continue)
             alignedFiles = runStarAlignment(fileNames, best_image);
             filename_postfix = filename_postfix + '_r';
 
-            if (use_local_normalization) {
+            if (par.use_local_normalization.val) {
                   /* LocalNormalization
                    */
                   runLocalNormalization(alignedFiles, best_image);
@@ -5602,7 +5609,7 @@ function CreateChannelImages(auto_continue)
             */
             if (C_images.images.length == 0) {
                   /* We have LRGB files. */
-                  if (!monochrome_image) {
+                  if (!par.monochrome_image.val) {
                         if (is_luminance_images) {
                               addProcessingStep("Processing as LRGB files");
                         } else {
@@ -5618,7 +5625,7 @@ function CreateChannelImages(auto_continue)
                         luminance_id = L_id;
                   }
 
-                  if (!monochrome_image) {
+                  if (!par.monochrome_image.val) {
                         R_id = runImageIntegration(R_images.images, 'R');
                         G_id = runImageIntegration(G_images.images, 'G');
                         B_id = runImageIntegration(B_images.images, 'B');
@@ -5749,14 +5756,14 @@ function ProcessLimage(RBGmapping)
                   if (!RBGmapping.stretched) {
                         /* Optionally run ABE on L
                         */
-                        if (use_ABE_on_L_RGB && !ABE_before_channel_combination) {
+                        if (par.use_ABE_on_L_RGB.val && !par.ABE_before_channel_combination.val) {
                               L_ABE_id = runABE(L_win);
                         } else {
                               L_ABE_id = noABEcopyWin(L_win);
                         }
                   }
-                  if (use_RGBNB_Mapping) {
-                        var mapped_L_ABE_id = RGBNB_Channel_Mapping(L_ABE_id, 'L', L_bandwidth, L_mapping, L_BoostFactor);
+                  if (par.use_RGBNB_Mapping.val) {
+                        var mapped_L_ABE_id = RGBNB_Channel_Mapping(L_ABE_id, 'L', par.L_bandwidth.val, par.L_mapping.val, par.L_BoostFactor.val);
                         mapped_L_ABE_id = windowRename(mapped_L_ABE_id, L_ABE_id + "_NB");
                         closeOneWindow(L_ABE_id);
                         L_ABE_id = mapped_L_ABE_id;
@@ -5800,20 +5807,20 @@ function LinearFitLRGBchannels()
 {
       addProcessingStep("LinearFitLRGBchannels");
 
-      if (luminance_id == null && use_linear_fit == 'L') {
+      if (luminance_id == null && par.use_linear_fit.val == 'Luminance') {
             // no luminance
             if (narrowband) {
                   addProcessingStep("No Luminance, no linear fit with narrowband");
-                  use_linear_fit = 'no';
+                  par.use_linear_fit.val = 'No linear fit';
             } else {
                   addProcessingStep("No Luminance, linear fit using R with RGB");
-                  use_linear_fit = 'R';
+                  par.use_linear_fit.val = 'Red';
             }
       }
 
       /* Check for LinearFit
        */
-      if (use_linear_fit == 'R') {
+      if (par.use_linear_fit.val == 'Red') {
             /* Use R.
              */
             addProcessingStep("Linear fit using R");
@@ -5822,7 +5829,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(red_id, green_id);
             runLinearFit(red_id, blue_id);
-      } else if (use_linear_fit == 'G') {
+      } else if (par.use_linear_fit.val == 'Green') {
             /* Use G.
               */
             addProcessingStep("Linear fit using G");
@@ -5831,7 +5838,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(green_id, red_id);
             runLinearFit(green_id, blue_id);
-      } else if (use_linear_fit == 'B') {
+      } else if (par.use_linear_fit.val == 'Blue') {
             /* Use B.
               */
             addProcessingStep("Linear fit using B");
@@ -5840,7 +5847,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(blue_id, red_id);
             runLinearFit(blue_id, green_id);
-      } else if (use_linear_fit == 'L' && luminance_id != null) {
+      } else if (par.use_linear_fit.val == 'Luminance' && luminance_id != null) {
             /* Use L.
              */
             addProcessingStep("Linear fit using L");
@@ -5861,7 +5868,7 @@ function CombineRGBimage()
 {
       addProcessingStep("CombineRGBimage");
 
-      if (use_noise_reduction_on_all_channels && !narrowband) {
+      if (par.use_noise_reduction_on_all_channels.val && !narrowband) {
             reduceNoiseOnChannelImage(red_id);
             reduceNoiseOnChannelImage(green_id);
             reduceNoiseOnChannelImage(blue_id);
@@ -5952,14 +5959,14 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       switch (mapping) {
             case 'H':
                   var NB_id = H_id;
-                  var NB_bandwidth = H_bandwidth;
+                  var NB_bandwidth = par.H_bandwidth.val;
                   break;
             case 'S':
                   var NB_id = S_id;
-                  var NB_bandwidth = S_bandwidth;
+                  var NB_bandwidth = par.S_bandwidth.val;
                   break;
             case 'O':
-                  var NB_bandwidth = O_bandwidth;
+                  var NB_bandwidth = par.O_bandwidth.val;
                   var NB_id = O_id;
                   break;
             case '':
@@ -5970,9 +5977,9 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       if (NB_id == null) {
             throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
       }
-      if (use_RGB_image) {
+      if (par.use_RGB_image.val) {
             var sourceChannelId = RGB_id;
-            channel_bandwidth = R_bandwidth;
+            channel_bandwidth = par.R_bandwidth.val;
       } else {
             var sourceChannelId = channelId;
       }
@@ -6011,9 +6018,9 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
 function doRGBNBmapping(RGB_id)
 {
       addProcessingStep("Create mapped channel images from " + RGB_id);
-      var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', R_bandwidth, R_mapping, R_BoostFactor);
-      var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', G_bandwidth, G_mapping, G_BoostFactor);
-      var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', B_bandwidth, B_mapping, B_BoostFactor);
+      var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.R_bandwidth.val, par.R_mapping.val, par.R_BoostFactor.val);
+      var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.G_bandwidth.val, par.G_mapping.val, par.G_BoostFactor.val);
+      var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.B_bandwidth.val, par.B_mapping.val, par.B_BoostFactor.val);
 
       /* Combine RGB image from mapped channel images. */
       addProcessingStep("Combine mapped channel images to an RGB image");
@@ -6090,15 +6097,15 @@ function ProcessRGBimage(RBGstretched)
                   RGB_ABE_id = RGB_BE_win.mainView.id;
                   addProcessingStep("Start from image " + RGB_ABE_id);
             } else {
-                  if (color_calibration_before_ABE) {
-                        if (use_background_neutralization) {
+                  if (par.color_calibration_before_ABE.val) {
+                        if (par.use_background_neutralization.val) {
                               runBackgroundNeutralization(RGB_win.mainView);
                         }
                         /* Color calibration on RGB
                         */
                         runColorCalibration(RGB_win.mainView);
                   }
-                  if (use_ABE_on_L_RGB) {
+                  if (par.use_ABE_on_L_RGB.val) {
                         console.writeln("ABE RGB");
                         RGB_ABE_id = runABE(RGB_win);
                   } else {
@@ -6107,8 +6114,8 @@ function ProcessRGBimage(RBGstretched)
                   }
             }
 
-            if (!color_calibration_before_ABE) {
-                  if (use_background_neutralization) {
+            if (!par.color_calibration_before_ABE.val) {
+                  if (par.use_background_neutralization.val) {
                         runBackgroundNeutralization(ImageWindow.windowById(RGB_ABE_id).mainView);
                   }
                   /* Color calibration on RGB
@@ -6116,7 +6123,7 @@ function ProcessRGBimage(RBGstretched)
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
 
-            if (use_RGBNB_Mapping) {
+            if (par.use_RGBNB_Mapping.val) {
                   /* Do RGBNB mapping on combined and color calibrated RGB image. */
                   RGB_ABE_id = doRGBNBmapping(RGB_ABE_id);
             }
@@ -6125,15 +6132,15 @@ function ProcessRGBimage(RBGstretched)
                   /* Color or narrowband or RGB. */
                   ColorCreateMask(RGB_ABE_id, RBGstretched);
             }
-            if (narrowband && linear_increase_saturation > 0) {
+            if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
-                  linear_increase_saturation--;
+                  par.linear_increase_saturation.val--;
             }
-            if (linear_increase_saturation > 0 && !RBGstretched) {
+            if (par.linear_increase_saturation.val > 0 && !RBGstretched) {
                   /* Add saturation linear RGB
                   */
-                  console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
-                  for (var i = 0; i < linear_increase_saturation; i++) {
+                  console.writeln("Add saturation to linear RGB, " + par.linear_increase_saturation.val + " steps");
+                  for (var i = 0; i < par.linear_increase_saturation.val; i++) {
                         increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
                   }
             }
@@ -6170,14 +6177,14 @@ function ProcessRGBimage(RBGstretched)
             runColorReduceNoise(ImageWindow.windowById(RGB_ABE_HT_id));
       }
 
-      if (narrowband && non_linear_increase_saturation > 0) {
+      if (narrowband && par.non_linear_increase_saturation.val > 0) {
             /* Default 1 means no increase with narrowband. */
-            non_linear_increase_saturation--;
+            par.non_linear_increase_saturation.val--;
       }
-      if (non_linear_increase_saturation > 0) {
+      if (par.non_linear_increase_saturation.val > 0) {
             /* Add saturation on RGB
             */
-            for (var i = 0; i < non_linear_increase_saturation; i++) {
+            for (var i = 0; i < par.non_linear_increase_saturation.val; i++) {
                   increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
             }
       }
@@ -6249,9 +6256,9 @@ function fixNarrowbandStarColor(targetView)
 {
       var use_mask;
 
-      if (skip_star_fix_mask) {
+      if (par.skip_star_fix_mask.val) {
             use_mask = false;
-      } else if (!run_narrowband_SCNR || leave_some_green) {
+      } else if (!par.run_narrowband_SCNR.val || par.leave_some_green.val) {
             // If we do not remove all green we use mask protect
             // other than stars.
             use_mask = true;
@@ -6528,16 +6535,16 @@ function extraSmallerStars(imgView)
 
       createStarMask(imgView);
 
-      if (extra_StarNet) {
+      if (par.extra_StarNet.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
-                        " using " + extra_smaller_stars_iterations + " iterations");
+                        " using " + par.extra_smaller_stars_iterations.val + " iterations");
             targetView = star_mask_win;    
       } else {
             addProcessingStep("Smaller stars on " + imgView.mainView.id + " using mask " + star_mask_win.mainView.id + 
-                        " and " + extra_smaller_stars_iterations + " iterations");
+                        " and " + par.extra_smaller_stars_iterations.val + " iterations");
       }
 
-      if (extra_smaller_stars_iterations == 0) {
+      if (par.extra_smaller_stars_iterations.val == 0) {
             var P = new MorphologicalTransformation;
             P.operator = MorphologicalTransformation.prototype.Erosion;
             P.interlacingDistance = 1;
@@ -6563,7 +6570,7 @@ function extraSmallerStars(imgView)
             P.interlacingDistance = 1;
             P.lowThreshold = 0.000000;
             P.highThreshold = 0.000000;
-            P.numberOfIterations = extra_smaller_stars_iterations;
+            P.numberOfIterations = par.extra_smaller_stars_iterations.val;
             P.amount = 0.70;
             P.selectionPoint = 0.20;
             P.structureName = "";
@@ -6581,7 +6588,7 @@ function extraSmallerStars(imgView)
       
       targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (!extra_StarNet) {
+      if (!par.extra_StarNet.val) {
             /* Transform only light parts of the image. */
             targetView.setMask(star_mask_win);
             targetView.maskInverted = false;
@@ -6589,7 +6596,7 @@ function extraSmallerStars(imgView)
       
       P.executeOn(targetView.mainView, false);
 
-      if (!extra_StarNet) {
+      if (!par.extra_StarNet.val) {
             targetView.removeMask();
       }
 
@@ -6674,31 +6681,31 @@ function extraSTF(win)
 
 function is_non_starnet_option()
 {
-      return extra_darker_background || 
-             extra_HDRMLT || 
-             extra_LHE || 
-             extra_contrast ||
-             extra_STF ||
-             extra_smaller_stars;
+      return par.extra_darker_background.val || 
+             par.extra_HDRMLT.val || 
+             par.extra_LHE.val || 
+             par.extra_contrast.val ||
+             par.extra_STF.val ||
+             par.extra_smaller_stars.val;
 }
 
 function is_extra_option()
 {
-      return extra_StarNet || 
+      return par.extra_StarNet.val || 
              is_non_starnet_option();
 }
 
 function is_narrowband_option()
 {
-      return fix_narrowband_star_color ||
-             run_hue_shift ||
-             run_narrowband_SCNR ||
-             leave_some_green;
+      return par.fix_narrowband_star_color.val ||
+             par.run_hue_shift.val ||
+             par.run_narrowband_SCNR.val ||
+             par.leave_some_green.val;
 }
 
 function isbatchNarrowbandPaletteMode()
 {
-      return custom_R_mapping == "All" && custom_G_mapping == "All" && custom_B_mapping == "All";
+      return par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All";
 }
 
 // Rename and save palette batch image
@@ -6706,9 +6713,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 {
       // rename and save image using palette name
       console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename " + winId + " using " + palette_name);
-      var palette_image = palette_name;
-      palette_image = palette_image.replace(/ /g,"_");
-      palette_image = palette_image.replace(/-/g,"_");
+      var palette_image = mapBadChars(palette_name);
       palette_image = "Auto_" + palette_image;
       if (extra) {
             palette_image = palette_image + "_extra";
@@ -6734,10 +6739,10 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   if (auto_continue) {
                         ensureDialogFilePath("narrowband batch result files");
                   }
-                  custom_R_mapping = narrowBandPalettes[i].R;
-                  custom_G_mapping = narrowBandPalettes[i].G;
-                  custom_B_mapping = narrowBandPalettes[i].B;
-                  addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + custom_R_mapping + ", " + custom_G_mapping + ", " + custom_B_mapping);
+                  par.custom_R_mapping.val = narrowBandPalettes[i].R;
+                  par.custom_G_mapping.val = narrowBandPalettes[i].G;
+                  par.custom_B_mapping.val = narrowBandPalettes[i].B;
+                  addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
                   var succ = AutoIntegrateEngine(auto_continue);
                   if (!succ) {
@@ -6762,9 +6767,9 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 function extraProcessing(id, apply_directly)
 {
       var extraWin;
-      var need_L_mask = extra_darker_background || 
-                        extra_HDRMLT || 
-                        extra_LHE;
+      var need_L_mask = par.extra_darker_background.val || 
+                        par.extra_HDRMLT.val || 
+                        par.extra_LHE.val;
 
       if (apply_directly) {
             extraWin = ImageWindow.windowById(id);
@@ -6773,17 +6778,17 @@ function extraProcessing(id, apply_directly)
       }
 
       if (narrowband) {
-            if (run_hue_shift) {
+            if (par.run_hue_shift.val) {
                   narrowbandHueShift(extraWin.mainView);
             }
-            if (run_narrowband_SCNR || leave_some_green) {
+            if (par.run_narrowband_SCNR.val || par.leave_some_green.val) {
                   runSCNR(extraWin.mainView, false);
             }
-            if (fix_narrowband_star_color) {
+            if (par.fix_narrowband_star_color.val) {
                   fixNarrowbandStarColor(extraWin);
             }
       }
-      if (extra_StarNet) {
+      if (par.extra_StarNet.val) {
             extraStarNet(extraWin);
       }
       if (need_L_mask) {
@@ -6802,25 +6807,25 @@ function extraProcessing(id, apply_directly)
             }
             console.writeln("Use mask " + mask_win.mainView.id);
       }
-      if (extra_darker_background) {
+      if (par.extra_darker_background.val) {
             extraDarkerBackground(extraWin, mask_win);
       }
-      if (extra_HDRMLT) {
+      if (par.extra_HDRMLT.val) {
             extraHDRMultiscaleTansform(extraWin, mask_win);
       }
-      if (extra_LHE) {
+      if (par.extra_LHE.val) {
             extraLocalHistogramEqualization(extraWin, mask_win);
       }
-      if (extra_contrast) {
+      if (par.extra_contrast.val) {
             extraContrast(extraWin);
       }
-      if (extra_STF) {
+      if (par.extra_STF.val) {
             extraSTF(extraWin);
       }
-      if (extra_smaller_stars) {
+      if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
       }
-      if (extra_StarNet) {
+      if (par.extra_StarNet.val) {
              if (is_non_starnet_option() || is_narrowband_option()) {
                   /* Restore stars by combining starless image and stars. */
                   addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
@@ -6911,6 +6916,7 @@ function AutoIntegrateEngine(auto_continue)
       is_luminance_images = false;
 
       console.noteln("--------------------------------------");
+      var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
             addProcessingStep("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
@@ -6937,14 +6943,14 @@ function AutoIntegrateEngine(auto_continue)
        * processing is not good enough.
        */
 
-      if (calibrate_only) {
+      if (par.calibrate_only.val) {
             preprocessed_images = start_images.CALIBRATE_ONLY;
       } else if (preprocessed_images == start_images.FINAL) {
             // We have a final image, just run run possible extra processing steps
             LRGB_ABE_HT_id = final_win.mainView.id;
-      } else if (!integrate_only && preprocessed_images != start_images.FINAL) {
+      } else if (!par.integrate_only.val && preprocessed_images != start_images.FINAL) {
             var processRGB = !is_color_files && 
-                             !monochrome_image &&
+                             !par.monochrome_image.val &&
                              (preprocessed_images == start_images.NONE ||
                               preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
@@ -6957,7 +6963,7 @@ function AutoIntegrateEngine(auto_continue)
                    */
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
-                        if (ABE_before_channel_combination) {
+                        if (par.ABE_before_channel_combination.val) {
                               run_ABE_before_channel_combination(luminance_id);
                               run_ABE_before_channel_combination(red_id);
                               run_ABE_before_channel_combination(green_id);
@@ -6979,11 +6985,11 @@ function AutoIntegrateEngine(auto_continue)
                   CombineRGBimage();
             }
 
-            if (monochrome_image) {
-                  console.writeln("monochrome_image:rename windows")
+            if (par.monochrome_image.val) {
+                  console.writeln("par.monochrome_image.val:rename windows")
                   LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, "AutoMono");
 
-            } else if (!channelcombination_only) {
+            } else if (!par.channelcombination_only.val) {
 
                   RGB_ABE_HT_id = ProcessRGBimage(RBGmapping.stretched);
 
@@ -7008,7 +7014,7 @@ function AutoIntegrateEngine(auto_continue)
                         LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
                   }
 
-                  if (!narrowband && !use_RGBNB_Mapping) {
+                  if (!narrowband && !par.use_RGBNB_Mapping.val) {
                         /* Remove green cast, run SCNR
                         */
                         runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
@@ -7028,7 +7034,7 @@ function AutoIntegrateEngine(auto_continue)
                   */
                   if (!is_color_files && is_luminance_images) {
                         /* LRGB files */
-                        if (RRGB_image) {
+                        if (par.RRGB_image.val) {
                               LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoRRGB");
                         } else {
                               LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, "AutoLRGB");
@@ -7061,7 +7067,7 @@ function AutoIntegrateEngine(auto_continue)
       addProcessingStep("Processing completed");
 
       closeTempWindows();
-      if (!calibrate_only) {
+      if (!par.calibrate_only.val) {
             closeAllWindowsFromArray(calibrate_windows);
       }
 
@@ -7087,7 +7093,7 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
       windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
-      if (batch_mode > 0) {
+      if (par.batch_mode.val > 0) {
             /* Rename image based on first file directory name. 
              * First check possible device in Windows (like c:)
              */
@@ -7137,7 +7143,7 @@ function AutoIntegrateEngine(auto_continue)
                         printImageInfo(L_images, "L");
                   }
 
-                  if (!monochrome_image) {
+                  if (!par.monochrome_image.val) {
                         printImageInfo(R_images, "R");
                         printImageInfo(G_images, "G");
                         printImageInfo(B_images, "B");
@@ -7161,6 +7167,7 @@ function AutoIntegrateEngine(auto_continue)
       console.noteln("Processing steps:");
       console.writeln(processing_steps);
       console.writeln("--------------------------------------");
+      var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
             console.writeln("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
@@ -7232,7 +7239,7 @@ function Autorun(that)
 {
       var stopped = true;
       batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
-      if (batch_mode) {
+      if (par.batch_mode.val) {
             stopped = false;
             console.writeln("AutoRun in batch mode");
       } else if (batch_narrowband_palette_mode) {
@@ -7244,12 +7251,12 @@ function Autorun(that)
             if (lightFileNames == null) {
                   lightFileNames = openImageFiles("Light");
                   if (lightFileNames != null) {
-                        that .dialog.files_TreeBox.canUpdate = false;
+                        that.dialog.treeBox[pages.LIGHTS].canUpdate = false;
                         for (var i = 0; i < lightFileNames.length; i++) {
-                              var node = new TreeBoxNode(that.dialog.files_TreeBox);
+                              var node = new TreeBoxNode(that.dialog.treeBox[pages.LIGHTS]);
                               node.setText(0, lightFileNames[i]);
                         }
-                        that.dialog.files_TreeBox.canUpdate = true;
+                        that.dialog.treeBox[pages.LIGHTS].canUpdate = true;
                   }
             }
             if (lightFileNames != null) {
@@ -7265,10 +7272,10 @@ function Autorun(that)
                         console.criticalln("Processing stopped!");
                         writeProcessingSteps(null, false, null);
                   }
-                  if (batch_mode) {
+                  if (par.batch_mode.val) {
                         lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
-                        closeAllWindows(keep_integrated_images);
+                        closeAllWindows(par.keep_integrated_images.val);
                   }
             } else {
                   stopped = true;
@@ -7309,35 +7316,23 @@ function aiNumericEdit(parent, txt, defval, func, tip)
       return edt;
 }
 
-function ai_RGBNB_Mapping_ComboBox(parent, channel, defindex, setValueFunc, tip)
+
+function addArrayToComboBox(cb, arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            cb.addItem( arr[i] );
+      }
+}
+
+function ai_RGBNB_Mapping_ComboBox(parent, channel, defval, setValueFunc, tip)
 {
       var cb = new ComboBox( parent );
       cb.toolTip = tip;
-      cb.addItem( "H" );
-      cb.addItem( "S" );
-      cb.addItem( "O" );
-      cb.addItem( "-" );
-      cb.currentItem = defindex;
+      addArrayToComboBox(cb, RGBNB_mapping_values);
+      cb.currentItem = RGBNB_mapping_values.indexOf(defval);
       cb.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        RemoveOption("RGBNB mapping " + channel + " using H"); 
-                        setValueFunc('H');
-                        break;
-                  case 1:
-                        RemoveOption("RGBNB mapping " + channel + " using S"); 
-                        setValueFunc('S');
-                        break;
-                  case 2:
-                        RemoveOption("RGBNB mapping " + channel + " using O"); 
-                        setValueFunc('O');
-                        break;
-                  case 3:
-                        RemoveOption("No RGBNB mapping for " + channel); 
-                        setValueFunc('');
-                        break;
-                  }
+            setValueFunc(RGBNB_mapping_values[itemIndex]);
       };
       return cb;
 }
@@ -7371,60 +7366,11 @@ function lightsOptions(parent)
 
       var combobox = new ComboBox( parent );
       combobox.toolTip = label.toolTip;
-      combobox.addItem( "Auto" );
-      combobox.addItem( "RGGB" );
-      combobox.addItem( "BGGR" );
-      combobox.addItem( "GBRG" );
-      combobox.addItem( "GRBG" );
-      combobox.addItem( "GRGB" );
-      combobox.addItem( "GBGR" );
-      combobox.addItem( "RGBG" );
-      combobox.addItem( "BGRG" );
-      combobox.addItem( "None" );
+      addArrayToComboBox(combobox, debayerPattern_values);
+      combobox.currentItem = debayerPattern_values.indexOf(par.debayerPattern.val);
       combobox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        debayerPattern = Debayer.prototype.Auto;
-                        SetOptionValue("DeBayer" , "Auto");
-                        break;
-                  case 1:
-                        debayerPattern = Debayer.prototype.RGGB;
-                        SetOptionValue("DeBayer" , "RGGB");
-                        break;
-                  case 2:
-                        debayerPattern = Debayer.prototype.BGGR;
-                        SetOptionValue("DeBayer" , "BGGR");
-                        break;
-                  case 3:
-                        debayerPattern = Debayer.prototype.GBRG;
-                        SetOptionValue("DeBayer" , "GBRG");
-                        break;
-                  case 4:
-                        debayerPattern = Debayer.prototype.GRBG;
-                        SetOptionValue("DeBayer" , "GRBG");
-                        break;
-                  case 5:
-                        debayerPattern = Debayer.prototype.GRGB;
-                        SetOptionValue("DeBayer" , "GRGB");
-                        break;
-                  case 6:
-                        debayerPattern = Debayer.prototype.GBGR;
-                        SetOptionValue("DeBayer" , "GBGR");
-                        break;
-                  case 7:
-                        debayerPattern = Debayer.prototype.RGBG;
-                        SetOptionValue("DeBayer" , "RGBG");
-                        break;
-                  case 8:
-                        debayerPattern = Debayer.prototype.BGRG;
-                        SetOptionValue("DeBayer" , "BGRG");
-                        break;
-                  case 9:
-                        debayerPattern = null;
-                        SetOptionValue("DeBayer" , "None");
-                        break;
-            }
+            par.debayerPattern.val = debayerPattern_values[itemIndex];
       }
 
       sizer.add(label);
@@ -7438,11 +7384,10 @@ function biasOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[1]);
 
-      var checkbox = newCheckBox(parent, "SuperBias", create_superbias, 
+      var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias.val, 
             "<p>Create SuperBias from bias files.</p>" );
       checkbox.onClick = function(checked) { 
-            create_superbias = checked; 
-            SetOptionChecked("SuperBias", checked); 
+            par.create_superbias.val = checked; 
       }
 
       sizer.add(checkbox);
@@ -7455,15 +7400,14 @@ function darksOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[2]);
 
-      var checkbox = newCheckBox(parent, "Pre-calibrate", pre_calibrate_darks, 
+      var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks.val, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
             "Normally this is not recommened and it is better to calibrate darks during " + 
             "ImageCalibration.</p>" );
       checkbox.onClick = function(checked) { 
-            pre_calibrate_darks = checked; 
-            SetOptionChecked("Pre-calibrate darks", checked); 
+            par.pre_calibrate_darks.val = checked; 
       }
-      var checkbox2 = newCheckBox(parent, "Optimize", optimize_darks, 
+      var checkbox2 = newCheckBox(parent, "Optimize", par.optimize_darks.val, 
             "<p>If checked darks are optimized when calibrating lights." + 
             "</p><p>" +
             "Normally using optimize flag should not cause any problems. " +
@@ -7474,8 +7418,7 @@ function darksOptions(parent)
             "and calibrate flags are disabled in light file calibration. " +
             "</p>" );
       checkbox2.onClick = function(checked) { 
-            optimize_darks = checked; 
-            SetOptionChecked("Optimize darks", checked); 
+            par.optimize_darks.val = checked; 
       }
 
       sizer.add(checkbox);
@@ -7489,21 +7432,19 @@ function flatsOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[3]);
 
-      var checkboxStars = newCheckBox(parent, "Stars in flats", stars_in_flats, 
+      var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats.val, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
       checkboxStars.onClick = function(checked) { 
-            stars_in_flats = checked; 
-            SetOptionChecked("Stars in flats", checked); 
+            par.stars_in_flats.val = checked; 
       }
-      var checkboxDarks = newCheckBox(parent, "Do not use darks", no_darks_on_flat_calibrate, 
+      var checkboxDarks = newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate.val, 
             "<p>For some sensors darks should not be used to calibrate flats.  " + 
             "An example of such sensor is most CMOS sensors.</p>"  +
             "<p>If flat darks are selected then darks are not used " + 
             "to calibrate flats.</p>");
       checkboxDarks.onClick = function(checked) { 
-            no_darks_on_flat_calibrate = checked; 
-            SetOptionChecked("Do not use darks when calibrating flats", checked); 
+            par.no_darks_on_flat_calibrate.val = checked; 
       }
 
       sizer.add(checkboxStars);
@@ -7559,7 +7500,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       {
             var imageFileNames = openImageFiles(filetype);
             if (imageFileNames != null) {
-                  if (pageIndex == pages.LIGHTS && autodetect_files) {
+                  if (pageIndex == pages.LIGHTS && par.autodetect_files.val) {
                         var imagetypes = getImagetypFiles(imageFileNames);
                         for (var i = 0; i < pages.END; i++) {
                               if (imagetypes[i].length > 0) {
@@ -7744,6 +7685,59 @@ function flatdarkFiles(fname)
       }
 }
 
+function mapBadChars(str)
+{
+      str = str.replace(/ /g,"_");
+      str = str.replace(/-/g,"_");
+      str = str.replace(/,/g,"_");
+      return str;
+}
+
+function exportParameters() 
+{
+      console.writeln("exportParameters");
+      for (let x in par) {
+            var param = par[x];
+            if (param.val != param.def) {
+                  var name = mapBadChars(param.name);
+                  console.writeln(name + "=" + param.val);
+                  Parameters.set(name, param.val);
+            }
+      }
+}
+
+function importParameters() 
+{
+      console.writeln("importParameters");
+      for (let x in par) {
+            var param = par[x];
+            var name = mapBadChars(param.name);
+            if (Parameters.has(name)) {
+                  switch (param.type) {
+                        case 'S':
+                              param.val = Parameters.getString(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'B':
+                              param.val = Parameters.getBoolean(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'I':
+                              param.val = Parameters.getInteger(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'R':
+                              param.val = Parameters.getReal(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        default:
+                              console.writeln("Unknown type '" + param.type + '" for parameter ' + name);
+                              break;
+                  }
+            }
+      }
+}
+
 function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
@@ -7757,37 +7751,12 @@ function AutoIntegrateDialog()
       "<p>" +
       "<b>AutoIntegrate - Automatic image integration utility</b>" +
       "</p><p>" +
-      "<b>Some tips for using AutoIntegrate script</b>" +
-      "</p><p>" +
       "Script automates initial steps of image processing in PixInsight. "+ 
+      "It can calibrate images or it can be used with already calibrated iumages. "+ 
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in Pixinsight." +
       "</p><p>"+
       "Always remember to check you data with Blink tool and remove all bad images." +
-      "</p><p>" +
-      "Sometimes images need some shadow cleanup with HistogramTransformation tool. "+
-      "Depending on the image you can try clipping shadows between %0.01 and %0.1. " +
-      "If default stretch creates too bright image try moving the histogram to the left " +
-      "using HistogramTransformation tool." +
-      "</p><p>" +
-      "</p><p>" +
-      "If an image lacks contrast it can be enhanced with the CurvesTransformation tool. "+
-      "Changing the curve to a slight S can be helpful. " +
-      "CurvesTransformation can also be used to increase saturation." +
-      "</p><p>" +
-      "If background is not even then tools like AutomaticBackgroundExtractor or " +
-      "DynamicBackgroundExtractor can be helpful. Script can run AutomaticBackgroundExtractor "+
-      "automatically if needed." +
-      "</p><p>" +
-      "Further enhancements may include masking, noise reduction, sharpening and making " +
-      "stars smaller. Often tools like HDRMulticaleTransform and LocalHistogramEqualization "+
-      "can help with details in the image." +
-      "</p><p>" +
-      "Default options are typically a pretty good start for most images but sometimes "+
-      "a few changes are needed for OSC (One Shot Color) files. If there is a strong color cast and/or "+
-      "vignetting it is worth trying with Use ABE on combined images and Use BackgroudNeutralization options. "+
-      "For OSC/DSLR files Unlinked in Link RGB channel is the default option. "+
-      "Examples where these options may be useful are DSRL files and Slooh Canary Three telescope. " +
       "</p><p>" +
       "Batch mode is intended to be used with mosaic images. In Batch mode script " +
       "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
@@ -7813,7 +7782,9 @@ function AutoIntegrateDialog()
 
       this.filesToolTip = [];
       this.filesToolTip[pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
-                             "they are assumed to be already calibrated.</p>";
+                             "they are assumed to be already calibrated.</p>" +
+                             "<p>If IMAGETYP is set on images script tries to automatically detect "+
+                             "bias, dark flat and flat dark images. This can be disabled with No autodetect option.</p>";
       this.filesToolTip[pages.BIAS] = "<p>Add bias files. If only one file is added " + 
                              "it is assumed to be a master file.</p>";
       this.filesToolTip[pages.DARKS] = "<p>Add dark files. If only one file is added " + 
@@ -7835,230 +7806,204 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, flatdarkFiles, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
       /* Paremeters check boxes. */
-      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", use_local_normalization, 
+      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.use_local_normalization.val, 
             "<p>Run local normalization before StarAlign</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
-            use_local_normalization = checked; 
-            SetOptionChecked("Local Normalization", checked); 
+            par.use_local_normalization.val = checked; 
       }
 
-      this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", use_noise_reduction_on_all_channels, 
+      this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", par.use_noise_reduction_on_all_channels.val, 
             "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
       this.useNoiseReductionOnAllChannelsCheckBox.onClick = function(checked) { 
-            use_noise_reduction_on_all_channels = checked; 
-            SetOptionChecked("Noise reduction also on on R,G,B", checked); 
+            par.use_noise_reduction_on_all_channels.val = checked; 
       }
 
-      this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", fix_column_defects, 
+      this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects.val, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
       this.FixColumnDefectsCheckBox.onClick = function(checked) { 
-            fix_column_defects = checked; 
-            SetOptionChecked("Fix column defects", checked); 
+            par.fix_column_defects.val = checked; 
       }
 
-      this.FixRowDefectsCheckBox = newCheckBox(this, "Fix row defects", fix_row_defects, 
+      this.FixRowDefectsCheckBox = newCheckBox(this, "Fix row defects", par.fix_row_defects.val, 
             "If checked, fix linear row defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
       this.FixRowDefectsCheckBox.onClick = function(checked) { 
-            fix_row_defects = checked; 
-            SetOptionChecked("Fix linear row defects", checked); 
+            par.fix_row_defects.val = checked; 
       }
 
-      this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", skip_cosmeticcorrection, 
+      this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", par.skip_cosmeticcorrection.val, 
             "<p>Do not run CosmeticCorrection on image files</p>" );
       this.CosmeticCorrectionCheckBox.onClick = function(checked) { 
-            skip_cosmeticcorrection = checked; 
-            SetOptionChecked("No CosmeticCorrection", checked); 
+            par.skip_cosmeticcorrection.val = checked; 
       }
 
-      this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", skip_subframeselector, 
+      this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector.val, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.SubframeSelectorCheckBox.onClick = function(checked) { 
-            skip_subframeselector = checked; 
-            SetOptionChecked("No SubframeSelector", checked); 
+            par.skip_subframeselector.val = checked; 
       }
 
-      this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", calibrate_only, 
+      this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only.val, 
             "<p>Run only image calibration</p>" );
       this.CalibrateOnlyCheckBox.onClick = function(checked) { 
-            calibrate_only = checked; 
-            SetOptionChecked("Calibrate only", checked); 
+            par.calibrate_only.val = checked; 
       }
 
-      this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", integrate_only, 
+      this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only.val, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { 
-            integrate_only = checked; 
-            SetOptionChecked("Integrate only", checked); 
+            par.integrate_only.val = checked; 
       }
 
-      this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", channelcombination_only, 
+      this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only.val, 
             "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
       this.ChannelCombinationOnlyCheckBox.onClick = function(checked) { 
-            channelcombination_only = checked; 
-            SetOptionChecked("ChannelCombination only", checked); 
+            par.channelcombination_only.val = checked; 
       }
 
-      this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", strict_StarAlign, 
-            "<p>Use more strict StarAlign parameters. When set more files may fail to align.</p>" );
+      this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign.val, 
+            "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" );
       this.relaxedStartAlignCheckBox.onClick = function(checked) { 
-            strict_StarAlign = checked; 
-            SetOptionChecked("Strict StarAlign", checked); 
+            par.strict_StarAlign.val = checked; 
       }
       
-      this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", keep_integrated_images, 
+      this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images.val, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.keepIntegratedImagesCheckBox.onClick = function(checked) { 
-            keep_integrated_images = checked; 
-            SetOptionChecked("Keep integrated images", checked); 
+            par.keep_integrated_images.val = checked; 
       }
 
-      this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", keep_temporary_images, 
+      this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images.val, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.keepTemporaryImagesCheckBox.onClick = function(checked) { 
-            keep_temporary_images = checked; 
-            SetOptionChecked("Keep temporary images", checked); 
+            par.keep_temporary_images.val = checked; 
       }
 
-      this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", ABE_before_channel_combination, 
+      this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", par.ABE_before_channel_combination.val, 
       "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
       this.ABE_before_channel_combination_CheckBox.onClick = function(checked) { 
-            ABE_before_channel_combination = checked; 
-            SetOptionChecked("Use ABE on L, R, G, B channels", checked); 
+            par.ABE_before_channel_combination.val = checked; 
       }
 
-      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", use_ABE_on_L_RGB, 
+      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB.val, 
       "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
       this.useABE_L_RGB_CheckBox.onClick = function(checked) { 
-            use_ABE_on_L_RGB = checked; 
-            SetOptionChecked("Use ABE on L and RGB", checked); 
+            par.use_ABE_on_L_RGB.val = checked; 
       }
 
-      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", color_calibration_before_ABE, 
+      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE.val, 
       "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
-            color_calibration_before_ABE = checked; 
-            SetOptionChecked("Color calibration before ABE", checked); 
+            par.color_calibration_before_ABE.val = checked; 
       }
 
-      this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", use_background_neutralization, 
+      this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization.val, 
       "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
       this.use_background_neutralization_CheckBox.onClick = function(checked) { 
-            use_background_neutralization = checked; 
-            SetOptionChecked("Use BackgroundNeutralization", checked); 
+            par.use_background_neutralization.val = checked; 
       }
 
-      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", batch_mode, 
+      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", par.batch_mode.val, 
       "<p>Run in batch mode, continue until no files are given</p>" );
       this.batch_mode_CheckBox.onClick = function(checked) { 
-            batch_mode = checked; 
-            SetOptionChecked("Batch mode", checked); 
+            par.batch_mode.val = checked; 
       }
 
-      this.autodetect_files_CheckBox = newCheckBox(this, "No autodetect", !autodetect_files, 
+      this.autodetect_files_CheckBox = newCheckBox(this, "No autodetect", !par.autodetect_files.val, 
       "<p>If selected do not try to autodetect light, bias, dark and flat files based on path or file name.</p>" );
       this.autodetect_files_CheckBox.onClick = function(checked) { 
-            autodetect_files = !checked; 
-            SetOptionChecked("No autodetect", checked); 
+            par.autodetect_files.val = !checked; 
       }
 
-      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", use_drizzle, 
+      this.all_files_CheckBox = newCheckBox(this, "All files", par.all_files.val, 
+      "<p>If selected default file select pattern is all files (*.*).</p>" );
+      this.all_files_CheckBox.onClick = function(checked) { 
+            par.all_files.val = checked; 
+      }
+
+      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle.val, 
       "<p>Use Drizzle integration</p>" );
       this.use_drizzle_CheckBox.onClick = function(checked) { 
-            use_drizzle = checked; 
-            SetOptionChecked("Drizzle", checked); 
+            par.use_drizzle.val = checked; 
       }
 
-      this.use_uwf_CheckBox = newCheckBox(this, "Ultra Wide Field", use_uwf, 
+      this.use_uwf_CheckBox = newCheckBox(this, "Ultra Wide Field", par.use_uwf.val, 
       "<p>Use Slooh Ultra Wide Field (UWF) images for integration</p>" );
       this.use_uwf_CheckBox.onClick = function(checked) { 
-            use_uwf = checked; 
-            SetOptionChecked("UWF", checked); 
+            par.use_uwf.val = checked; 
       }
       
-      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", monochrome_image, 
+      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image.val, 
       "<p>Create monochrome image</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { 
-            monochrome_image = checked; 
-            SetOptionChecked("Monochrome", checked); 
+            par.monochrome_image.val = checked; 
       }
 
-      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration do not use weight", skip_imageintegration_ssweight, 
+      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration do not use weight", par.skip_imageintegration_ssweight.val, 
       "<p>Do not use use SSWEIGHT weight keyword during ImageIntegration</p>" );
       this.imageintegration_ssweight_CheckBox.onClick = function(checked) { 
-            skip_imageintegration_ssweight = checked; 
-            SetOptionChecked("ImageIntegration do not use weight", checked); 
+            par.skip_imageintegration_ssweight.val = checked; 
       }
 
-      this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !imageintegration_clipping, 
+      this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !par.imageintegration_clipping.val, 
       "<p>Do not use clipping in ImageIntegration</p>" );
       this.imageintegration_clipping_CheckBox.onClick = function(checked) { 
-            imageintegration_clipping = !checked; 
-            SetOptionChecked("No ImageIntegration clipping", checked); 
+            par.imageintegration_clipping.val = !checked; 
       }
 
-      this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", RRGB_image, 
+      this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", par.RRGB_image.val, 
       "<p>RRGB image using R as Luminance.</p>" );
       this.RRGB_image_CheckBox.onClick = function(checked) { 
-            RRGB_image = checked; 
-            SetOptionChecked("RRGB image", checked); 
+            par.RRGB_image.val = checked; 
       }
 
-      this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", synthetic_l_image, 
+      this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image.val, 
       "<p>Create synthetic L image from all LRGB images.</p>" );
       this.synthetic_l_image_CheckBox.onClick = function(checked) { 
-            synthetic_l_image = checked; 
-            SetOptionChecked("Synthetic L image", checked); 
+            par.synthetic_l_image.val = checked; 
       }
 
-      this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", synthetic_missing_images, 
+      this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", par.synthetic_missing_images.val, 
       "<p>Create synthetic image for any missing image.</p>" );
       this.synthetic_missing_images_CheckBox.onClick = function(checked) { 
-            synthetic_missing_images = checked; 
-            SetOptionChecked("Synthetic missing image", checked); 
+            par.synthetic_missing_images.val = checked; 
       }
 
-      this.force_file_name_filter_CheckBox = newCheckBox(this, "Use file name for filters", force_file_name_filter, 
+      this.force_file_name_filter_CheckBox = newCheckBox(this, "Use file name for filters", par.force_file_name_filter.val, 
       "<p>Use file name for recognizing filters and ignore FILTER keyword.</p>" );
       this.force_file_name_filter_CheckBox.onClick = function(checked) { 
-            force_file_name_filter = checked; 
-            SetOptionChecked("Use file name for filters", checked); 
+            par.force_file_name_filter.val = checked; 
       }
 
-      this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", unique_file_names, 
+      this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", par.unique_file_names.val, 
       "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.unique_file_names_CheckBox.onClick = function(checked) { 
-            unique_file_names = checked; 
-            SetOptionChecked("Use unique file names", checked); 
+            par.unique_file_names.val = checked; 
       }
 
-      this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", skip_noise_reduction, 
+      this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction.val, 
       "<p>Do not use noise reduction.</p>" );
       this.skip_noise_reduction_CheckBox.onClick = function(checked) { 
-            skip_noise_reduction = checked; 
-            SetOptionChecked("No noise reduction", checked); 
+            par.skip_noise_reduction.val = checked; 
       }
 
-      this.skip_color_noise_reduction_CheckBox = newCheckBox(this, "No color noise reduction", skip_color_noise_reduction, 
+      this.skip_color_noise_reduction_CheckBox = newCheckBox(this, "No color noise reduction", par.skip_color_noise_reduction.val, 
       "<p>Do not use color noise reduction.</p>" );
       this.skip_color_noise_reduction_CheckBox.onClick = function(checked) { 
-            skip_color_noise_reduction = checked; 
-            SetOptionChecked("No color noise reduction", checked); 
+            par.skip_color_noise_reduction.val = checked; 
       }
 
-      this.stronger_noise_reduction_CheckBox = newCheckBox(this, "Stronger noise reduction", stronger_noise_reduction, 
+      this.stronger_noise_reduction_CheckBox = newCheckBox(this, "Stronger noise reduction", par.stronger_noise_reduction.val, 
       "<p>Use stronger noise reduction.</p>" );
       this.stronger_noise_reduction_CheckBox.onClick = function(checked) { 
-            stronger_noise_reduction = checked; 
-            SetOptionChecked("Stronger noise reduction", checked); 
+            par.stronger_noise_reduction.val = checked; 
       }
 
-      this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", skip_mask_contrast, 
+      this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast.val, 
       "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_mask_contrast_CheckBox.onClick = function(checked) { 
-            skip_mask_contrast = checked; 
-            SetOptionChecked("No extra contrast on mask", checked); 
+            par.skip_mask_contrast.val = checked; 
       }
 
       // Image parameters set 1.
@@ -8090,7 +8035,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
       this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
 
-      // Image group parameters.
+      // Image group par.
       this.imageParamsGroupBox = new newGroupBox( this );
       this.imageParamsGroupBox.title = "Image processing parameters";
       this.imageParamsGroupBox.sizer = new HorizontalSizer;
@@ -8098,7 +8043,6 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox.sizer.spacing = 4;
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet1 );
       this.imageParamsGroupBox.sizer.add( this.imageParamsSet2 );
-      // Stop columns of buttons moving as dialog expands horizontally.
       //this.imageParamsGroupBox.sizer.addStretch();
 
       // LRGBCombination selection
@@ -8106,23 +8050,21 @@ function AutoIntegrateDialog()
       this.LRGBCombinationLightnessControl = new NumericControl( this );
       this.LRGBCombinationLightnessControl.label.text = "Lightness";
       this.LRGBCombinationLightnessControl.setRange(0, 1);
-      this.LRGBCombinationLightnessControl.setValue(LRGBCombination_lightness);
+      this.LRGBCombinationLightnessControl.setValue(par.LRGBCombination_lightness.val);
       this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>";
       this.LRGBCombinationLightnessControl.onValueUpdated = function( value )
       {
-            SetOptionValue("LRGBCombination lightness", value);
-            LRGBCombination_lightness = value;
+            par.LRGBCombination_lightness.val = value;
       };
 
       this.LRGBCombinationSaturationControl = new NumericControl( this );
       this.LRGBCombinationSaturationControl.label.text = "Saturation";
       this.LRGBCombinationSaturationControl.setRange(0, 1);
-      this.LRGBCombinationSaturationControl.setValue(LRGBCombination_saturation);
+      this.LRGBCombinationSaturationControl.setValue(par.LRGBCombination_saturation.val);
       this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>";
       this.LRGBCombinationSaturationControl.onValueUpdated = function( value )
       {
-            SetOptionValue("LRGBCombination saturation", value);
-            LRGBCombination_saturation = value;
+            par.LRGBCombination_saturation.val = value;
       };
 
       this.LRGBCombinationGroupBoxLabel = aiSectionLabel(this, "LRGBCombination settings");
@@ -8144,12 +8086,11 @@ function AutoIntegrateDialog()
       this.linearSaturationSpinBox = new SpinBox( this );
       this.linearSaturationSpinBox.minValue = 0;
       this.linearSaturationSpinBox.maxValue = 5;
-      this.linearSaturationSpinBox.value = linear_increase_saturation;
+      this.linearSaturationSpinBox.value = par.linear_increase_saturation.val;
       this.linearSaturationSpinBox.toolTip = this.linearSaturationLabel.toolTip;
       this.linearSaturationSpinBox.onValueUpdated = function( value )
       {
-            SetOptionValue("Linear saturation increase", value);
-            linear_increase_saturation = value;
+            par.linear_increase_saturation.val = value;
       };
 
       this.nonLinearSaturationLabel = new Label( this );
@@ -8159,12 +8100,11 @@ function AutoIntegrateDialog()
       this.nonLinearSaturationSpinBox = new SpinBox( this );
       this.nonLinearSaturationSpinBox.minValue = 0;
       this.nonLinearSaturationSpinBox.maxValue = 5;
-      this.nonLinearSaturationSpinBox.value = non_linear_increase_saturation;
+      this.nonLinearSaturationSpinBox.value = par.non_linear_increase_saturation.val;
       this.nonLinearSaturationSpinBox.toolTip = this.nonLinearSaturationLabel.toolTip;
       this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
       {
-            SetOptionValue("Non-linear saturation increase", value);
-            non_linear_increase_saturation = value;
+            par.non_linear_increase_saturation.val = value;
       };
 
       this.saturationGroupBoxLabel = aiSectionLabel(this, "Saturation setting");
@@ -8200,8 +8140,9 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
       this.otherParamsSet2.add( this.autodetect_files_CheckBox );
+      this.otherParamsSet2.add( this.all_files_CheckBox );
 
-      // Other Group parameters.
+      // Other Group par.
       this.otherParamsGroupBox = new newGroupBox( this );
       this.otherParamsGroupBox.title = "Other parameters";
       this.otherParamsGroupBox.sizer = new HorizontalSizer;
@@ -8209,7 +8150,6 @@ function AutoIntegrateDialog()
       this.otherParamsGroupBox.sizer.spacing = 4;
       this.otherParamsGroupBox.sizer.add( this.otherParamsSet1 );
       this.otherParamsGroupBox.sizer.add( this.otherParamsSet2 );
-      // Stop columns of buttons moving as dialog expands horizontally.
       //this.otherParamsGroupBox.sizer.addStretch();
       
       // Weight calculations
@@ -8224,25 +8164,11 @@ function AutoIntegrateDialog()
 
       this.weightComboBox = new ComboBox( this );
       this.weightComboBox.toolTip = weightHelpToolTips;
-      this.weightComboBox.addItem( "Generic" );
-      this.weightComboBox.addItem( "Noise" );
-      this.weightComboBox.addItem( "Stars" );
+      addArrayToComboBox(this.weightComboBox, use_weight_values);
+      this.weightComboBox.currentItem = use_weight_values.indexOf(par.use_weight.val);
       this.weightComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        RemoveOption("Weight"); 
-                        use_weight = 'G'; 
-                        break;
-                  case 1:
-                        SetOptionValue("Weight", "Noise"); 
-                        use_weight = 'N'; 
-                        break;
-                  case 2:
-                        SetOptionValue("Weight", "Stars"); 
-                        use_weight = 'S'; 
-                        break;
-            }
+            par.use_weight.val = use_weight_values[itemIndex];
       };
 
       this.weightGroupBoxLabel = aiSectionLabel(this, "Image weight calculation settings");
@@ -8251,7 +8177,6 @@ function AutoIntegrateDialog()
       this.weightGroupBoxSizer.spacing = 4;
       this.weightGroupBoxSizer.add( this.weightComboBox );
       this.weightGroupBoxSizer.toolTip = weightHelpToolTips;
-      // Stop columns of buttons moving as dialog expands horizontally.
       this.weightGroupBoxSizer.addStretch();
       
       // CosmeticCorrection Sigma values
@@ -8264,23 +8189,21 @@ function AutoIntegrateDialog()
       this.cosmeticCorrectionHotSigmaSpinBox = new SpinBox( this );
       this.cosmeticCorrectionHotSigmaSpinBox.minValue = 0;
       this.cosmeticCorrectionHotSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionHotSigmaSpinBox.value = cosmetic_correction_hot_sigma;
+      this.cosmeticCorrectionHotSigmaSpinBox.value = par.cosmetic_correction_hot_sigma.val;
       this.cosmeticCorrectionHotSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
       this.cosmeticCorrectionHotSigmaSpinBox.onValueUpdated = function( value )
       {
-            SetOptionValue("CosmeticCorrection Hot Sigma", value);
-            cosmetic_correction_hot_sigma = value;
+            par.cosmetic_correction_hot_sigma.val = value;
       };
       this.cosmeticCorrectionColSigmaGroupBoxLabel = aiLabel(this, "Cold Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
       this.cosmeticCorrectionColdSigmaSpinBox = new SpinBox( this );
       this.cosmeticCorrectionColdSigmaSpinBox.minValue = 0;
       this.cosmeticCorrectionColdSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionColdSigmaSpinBox.value = cosmetic_correction_cold_sigma;
+      this.cosmeticCorrectionColdSigmaSpinBox.value = par.cosmetic_correction_cold_sigma.val;
       this.cosmeticCorrectionColdSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
       this.cosmeticCorrectionColdSigmaSpinBox.onValueUpdated = function( value )
       {
-            SetOptionValue("CosmeticCorrection Cold Sigma", value);
-            cosmetic_correction_cold_sigma = value;
+            par.cosmetic_correction_cold_sigma.val = value;
       };
       this.cosmeticCorrectionSigmaGroupBoxSizer = new HorizontalSizer;
       this.cosmeticCorrectionSigmaGroupBoxSizer.margin = 6;
@@ -8290,7 +8213,6 @@ function AutoIntegrateDialog()
       this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionColSigmaGroupBoxLabel );
       this.cosmeticCorrectionSigmaGroupBoxSizer.add( this.cosmeticCorrectionColdSigmaSpinBox );
       this.cosmeticCorrectionSigmaGroupBoxSizer.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
-      // Stop columns of buttons moving as dialog expands horizontally.
       this.cosmeticCorrectionSigmaGroupBoxSizer.addStretch();
 
       this.cosmeticCorrectionGroupBoxSizer = new VerticalSizer;
@@ -8299,7 +8221,6 @@ function AutoIntegrateDialog()
       this.cosmeticCorrectionGroupBoxSizer.add( this.cosmeticCorrectionSigmaGroupBoxLabel );
       this.cosmeticCorrectionGroupBoxSizer.add( this.cosmeticCorrectionSigmaGroupBoxSizer );
       this.cosmeticCorrectionGroupBoxSizer.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
-      // Stop columns of buttons moving as dialog expands horizontally.
       this.cosmeticCorrectionGroupBoxSizer.addStretch();
 
       // Combined weight and sigma settings
@@ -8319,35 +8240,11 @@ function AutoIntegrateDialog()
 
       this.linearFitComboBox = new ComboBox( this );
       this.linearFitComboBox.toolTip = "Choose how to do linear fit of images.";
-      this.linearFitComboBox.addItem( "Luminance" );
-      this.linearFitComboBox.addItem( "Red" );
-      this.linearFitComboBox.addItem( "Green" );
-      this.linearFitComboBox.addItem( "Blue" );
-      this.linearFitComboBox.addItem( "No linear fit" );
+      addArrayToComboBox(this.linearFitComboBox, use_linear_fit_values);
+      this.linearFitComboBox.currentItem = use_linear_fit_values.indexOf(par.use_linear_fit.val);
       this.linearFitComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        use_linear_fit = 'L'; 
-                        RemoveOption("Linear fit");
-                        break;
-                  case 1:
-                        use_linear_fit = 'R'; 
-                        SetOptionValue("Linear fit", "Red"); 
-                        break;
-                  case 2:
-                        use_linear_fit = 'G'; 
-                        SetOptionValue("Linear fit", "Green"); 
-                        break;
-                  case 3:
-                        use_linear_fit = 'B'; 
-                        SetOptionValue("Linear fit", "Blue"); 
-                        break;
-                  case 4:
-                        use_linear_fit = 'no'; 
-                        SetOptionValue("Linear fit", "No linear fit"); 
-                        break;
-                  }
+            par.use_linear_fit.val = use_linear_fit_values[itemIndex]; 
       };
 
       this.linearFitGroupBoxLabel = aiSectionLabel(this, "Linear fit setting");
@@ -8355,7 +8252,6 @@ function AutoIntegrateDialog()
       this.linearFitGroupBoxSizer.margin = 6;
       this.linearFitGroupBoxSizer.spacing = 4;
       this.linearFitGroupBoxSizer.add( this.linearFitComboBox );
-      // Stop columns of buttons moving as dialog expands horizontally.
       this.linearFitGroupBoxSizer.addStretch();
 
       //
@@ -8367,25 +8263,11 @@ function AutoIntegrateDialog()
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
             "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.";
-      this.stretchingComboBox.addItem( "Auto STF" );
-      this.stretchingComboBox.addItem( "Masked Stretch" );
-      this.stretchingComboBox.addItem( "Use both" );
+      addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
+      this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
       this.stretchingComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        image_stretching = 'STF'; 
-                        SetOptionValue("Stretching", "Auto STF");
-                        break;
-                  case 1:
-                        image_stretching = 'Masked'; 
-                        SetOptionValue("Stretching", "Masked Stretch");
-                        break;
-                  case 2:
-                        image_stretching = 'Both'; 
-                        SetOptionValue("Stretching", "Auto STF and Masked Stretch");
-                        break;
-            }
+            par.image_stretching.val = image_stretching_values[itemIndex]; 
       };
 
       this.stretchingChoiceSizer = new HorizontalSizer;
@@ -8406,23 +8288,11 @@ function AutoIntegrateDialog()
       "</p>";
       this.STFComboBox = new ComboBox( this );
       this.STFComboBox.toolTip = this.STFLabel.toolTip;
-      this.STFComboBox.addItem( "Auto" );
-      this.STFComboBox.addItem( "Linked" );
-      this.STFComboBox.addItem( "Unlinked" );
+      addArrayToComboBox(this.STFComboBox, STF_linking_values);
+      this.STFComboBox.currentItem = STF_linking_values.indexOf(par.STF_linking.val);
       this.STFComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        SetOptionValue("Link RGB channels", "Auto"); 
-                        break;
-                  case 1:
-                        SetOptionValue("Link RGB channels", "Linked"); 
-                        break;
-                  case 2:
-                        SetOptionValue("Link RGB channels", "Unlinked"); 
-                        break;
-            }
-            STF_linking = itemIndex;
+            par.STF_linking.val = STF_linking_values[itemIndex];
       };
 
       this.STFSizer = new HorizontalSizer;
@@ -8434,12 +8304,11 @@ function AutoIntegrateDialog()
       this.MaskedStretchTargetBackgroundControl = new NumericControl( this );
       this.MaskedStretchTargetBackgroundControl.label.text = "Masked Stretch targetBackground";
       this.MaskedStretchTargetBackgroundControl.setRange(0, 1);
-      this.MaskedStretchTargetBackgroundControl.setValue(MaskedStretch_targetBackground);
+      this.MaskedStretchTargetBackgroundControl.setValue(par.MaskedStretch_targetBackground.val);
       this.MaskedStretchTargetBackgroundControl.toolTip = "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>";
       this.MaskedStretchTargetBackgroundControl.onValueUpdated = function( value )
       {
-            SetOptionValue("Masked Stretch targetBackground", value);
-            MaskedStretch_targetBackground = value;
+            par.MaskedStretch_targetBackground.val = value;
       };
 
       this.StretchingOptionsSizer = new VerticalSizer;
@@ -8456,7 +8325,6 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.spacing = 4;
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
-      // Stop columns of buttons moving as dialog expands horizontally.
       //this.StretchingGroupBoxSizer.addStretch();
 
       //
@@ -8490,23 +8358,11 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.ImageIntegrationNormalizationComboBox = new ComboBox( this );
-      this.ImageIntegrationNormalizationComboBox.addItem( "Additive" );
-      this.ImageIntegrationNormalizationComboBox.addItem( "Adaptive" );
-      this.ImageIntegrationNormalizationComboBox.addItem( "None" );
+      addArrayToComboBox(this.ImageIntegrationNormalizationComboBox, imageintegration_normalization_values);
+      this.ImageIntegrationNormalizationComboBox.currentItem  = imageintegration_normalization_values.indexOf(par.imageintegration_normalization.val);
       this.ImageIntegrationNormalizationComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        SetOptionValue("ImageIntegration Normalization", "Additive"); 
-                        break;
-                  case 1:
-                        SetOptionValue("ImageIntegration Normalization", "Adaptive"); 
-                        break;
-                  case 2:
-                        SetOptionValue("ImageIntegration Normalization", "None"); 
-                        break;
-            }
-            imageintegration_normalization = itemIndex;
+            par.imageintegration_normalization.val = imageintegration_normalization_values[itemIndex];
       };
    
       this.ImageIntegrationNormalizationSizer = new HorizontalSizer;
@@ -8514,7 +8370,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationSizer.add( this.ImageIntegrationNormalizationLabel );
       this.ImageIntegrationNormalizationSizer.add( this.ImageIntegrationNormalizationComboBox, 100 );
 
-      // Pixel rejection algorihtm/clipping
+      // Pixel rejection algorithm/clipping
       this.ImageIntegrationRejectionLabel = new Label( this );
       this.ImageIntegrationRejectionLabel.text = "Rejection";
       this.ImageIntegrationRejectionLabel.toolTip = ImageIntegrationHelpToolTips;
@@ -8522,45 +8378,11 @@ function AutoIntegrateDialog()
    
       this.ImageIntegrationRejectionComboBox = new ComboBox( this );
       this.ImageIntegrationRejectionComboBox.toolTip = ImageIntegrationHelpToolTips;
-      this.ImageIntegrationRejectionComboBox.addItem( "Auto1" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Auto2" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Percentile" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Sigma" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Winsorised sigma" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Averaged sigma" );
-      this.ImageIntegrationRejectionComboBox.addItem( "Linear fit" );
+      addArrayToComboBox(this.ImageIntegrationRejectionComboBox, use_clipping_values);
+      this.ImageIntegrationRejectionComboBox.currentItem = use_clipping_values.indexOf(par.use_clipping.val);
       this.ImageIntegrationRejectionComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        use_clipping = 'D1';
-                        SetOptionValue("ImageIntegration Rejection", "Auto1"); 
-                        break;
-                  case 1:
-                        use_clipping = 'D2';
-                        SetOptionValue("ImageIntegration Rejection", "Auto2"); 
-                        break;
-                  case 2:
-                        use_clipping = 'P';
-                        SetOptionValue("ImageIntegration Rejection", "Percentile"); 
-                        break;
-                  case 3:
-                        use_clipping = 'S';
-                        SetOptionValue("ImageIntegration Rejection", "Sigma"); 
-                        break;
-                  case 4:
-                        use_clipping = 'W';
-                        SetOptionValue("ImageIntegration Rejection", "Winsorised sigma"); 
-                        break;
-                  case 5:
-                        use_clipping = 'A';
-                        SetOptionValue("ImageIntegration Rejection", "Averaged sigma"); 
-                        break;
-                  case 6:
-                        use_clipping = 'L';
-                        SetOptionValue("ImageIntegration Rejection", "Linear fit"); 
-                        break;
-            }
+            par.use_clipping.val = use_clipping_values[itemIndex];
       };
    
       // Image integration
@@ -8576,7 +8398,6 @@ function AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationNormalizationSizer );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSizer );
       this.clippingGroupBoxSizer.toolTip = ImageIntegrationHelpToolTips;
-      // Stop columns of buttons moving as dialog expands horizontally.
       //this.clippingGroupBoxSizer.addStretch();
 
       // Narrowband palette
@@ -8628,9 +8449,9 @@ function AutoIntegrateDialog()
             this.dialog.narrowbandCustomPalette_G_ComboBox.editText = narrowBandPalettes[itemIndex].G;
             this.dialog.narrowbandCustomPalette_B_ComboBox.editText = narrowBandPalettes[itemIndex].B;
 
-            custom_R_mapping = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-            custom_G_mapping = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-            custom_B_mapping = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
+            par.custom_R_mapping.val = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
+            par.custom_G_mapping.val = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
+            par.custom_B_mapping.val = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
       };
 
       /* Create Editable boxes for R, G and B mapping. 
@@ -8646,12 +8467,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_R_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_R_ComboBox.enabled = true;
       this.narrowbandCustomPalette_R_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_R_ComboBox.addItem(custom_R_mapping);
+      this.narrowbandCustomPalette_R_ComboBox.addItem(par.custom_R_mapping.val);
       this.narrowbandCustomPalette_R_ComboBox.addItem("0.75*H + 0.25*S");
       this.narrowbandCustomPalette_R_ComboBox.toolTip = this.narrowbandCustomPalette_R_Label.toolTip;
       this.narrowbandCustomPalette_R_ComboBox.onEditTextUpdated = function() { 
-            custom_R_mapping = this.editText.trim(); 
-            SetOptionValue("Narrowband R mapping", this.editText); 
+            par.custom_R_mapping.val = this.editText.trim(); 
       };
 
       this.narrowbandCustomPalette_G_Label = new Label( this );
@@ -8665,12 +8485,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_G_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_G_ComboBox.enabled = true;
       this.narrowbandCustomPalette_G_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_G_ComboBox.addItem(custom_G_mapping);
+      this.narrowbandCustomPalette_G_ComboBox.addItem(par.custom_G_mapping.val);
       this.narrowbandCustomPalette_G_ComboBox.addItem("0.50*S + 0.50*O");
       this.narrowbandCustomPalette_G_ComboBox.toolTip = this.narrowbandCustomPalette_G_Label.toolTip;
       this.narrowbandCustomPalette_G_ComboBox.onEditTextUpdated = function() { 
-            custom_G_mapping = this.editText.trim(); 
-            SetOptionValue("Narrowband G mapping", this.editText); 
+            par.custom_G_mapping.val = this.editText.trim(); 
       };
 
       this.narrowbandCustomPalette_B_Label = new Label( this );
@@ -8684,12 +8503,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_B_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_B_ComboBox.enabled = true;
       this.narrowbandCustomPalette_B_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_B_ComboBox.addItem(custom_B_mapping);
+      this.narrowbandCustomPalette_B_ComboBox.addItem(par.custom_B_mapping.val);
       this.narrowbandCustomPalette_B_ComboBox.addItem("0.30*H + 0.70*O");
       this.narrowbandCustomPalette_B_ComboBox.toolTip = this.narrowbandCustomPalette_B_Label.toolTip;
       this.narrowbandCustomPalette_B_ComboBox.onEditTextUpdated = function() { 
-            custom_B_mapping = this.editText.trim(); 
-            SetOptionValue("Narrowband B mapping", this.editText); 
+            par.custom_B_mapping.val = this.editText.trim(); 
       };
 
       this.narrowbandCustomPalette_Sizer = new HorizontalSizer;
@@ -8704,13 +8522,12 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
 
-      this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", mapping_on_nonlinear_data, 
+      this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", par.mapping_on_nonlinear_data.val, 
             "<p>" +
             "Do narrowband mapping using non-linear data. Before running PixelMath images are stretched to non-linear state. " +
             "</p>" );
       this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
-            mapping_on_nonlinear_data = checked; 
-            SetOptionChecked("Narrowband mapping using non-linear data", checked); 
+            par.mapping_on_nonlinear_data.val = checked; 
       }
 
       this.narrowbandLinearFit_Label = new Label( this );
@@ -8727,34 +8544,13 @@ function AutoIntegrateDialog()
       this.narrowbandLinearFit_Label.margin = 6;
       this.narrowbandLinearFit_Label.spacing = 4;
       this.narrowbandLinearFit_ComboBox = new ComboBox( this );
-      this.narrowbandLinearFit_ComboBox.addItem( "Auto" );
-      this.narrowbandLinearFit_ComboBox.addItem( "H" );
-      this.narrowbandLinearFit_ComboBox.addItem( "S" );
-      this.narrowbandLinearFit_ComboBox.addItem( "O" );
-      this.narrowbandLinearFit_ComboBox.addItem( "None" );
+      addArrayToComboBox(this.narrowbandLinearFit_ComboBox, narrowband_linear_fit_values);
+      this.narrowbandLinearFit_ComboBox.currentItem = narrowband_linear_fit_values.indexOf(par.narrowband_linear_fit.val);
       this.narrowbandLinearFit_ComboBox.toolTip = this.narrowbandLinearFit_Label.toolTip;
       this.narrowbandLinearFit_ComboBox.onItemSelected = function( itemIndex )
       {
-            switch (itemIndex) {
-                  case 0:
-                        narrowband_linear_fit = "Auto";
-                        break;
-                  case 1:
-                        narrowband_linear_fit = "H";
-                        break;
-                  case 2:
-                        narrowband_linear_fit = "S";
-                        break;
-                  case 3:
-                        narrowband_linear_fit = "O";
-                        break;
-                  case 4:
-                        narrowband_linear_fit = "None";
-                        break;
-            }
-            SetOptionValue("Narrowband linear fit", narrowband_linear_fit); 
+            par.narrowband_linear_fit.val = narrowband_linear_fit_values[itemIndex];
       };
-
 
       this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
@@ -8779,8 +8575,7 @@ function AutoIntegrateDialog()
                         this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "max(L, H)";
                         break;
             }
-            custom_L_mapping = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
-            SetOptionValue("Narrowband L mapping", this.editText); 
+            par.custom_L_mapping.val = this.dialog.narrowbandCustomPalette_L_ComboBox.editText;
       };
 
       this.narrowbandCustomPalette_L_Label = new Label( this );
@@ -8790,12 +8585,11 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_L_ComboBox = new ComboBox( this );
       this.narrowbandCustomPalette_L_ComboBox.enabled = true;
       this.narrowbandCustomPalette_L_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_L_ComboBox.addItem(custom_L_mapping);
+      this.narrowbandCustomPalette_L_ComboBox.addItem(par.custom_L_mapping.val);
       this.narrowbandCustomPalette_L_ComboBox.addItem("max(L, H)");
       this.narrowbandCustomPalette_L_ComboBox.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip
       this.narrowbandCustomPalette_L_ComboBox.onEditTextUpdated = function() { 
-            custom_L_mapping = this.editText.trim(); 
-            SetOptionValue("Narrowband L mapping", this.editText); 
+            par.custom_L_mapping.val = this.editText.trim(); 
       };
 
       this.NbLuminanceLabel = new Label( this );
@@ -8835,19 +8629,17 @@ function AutoIntegrateDialog()
             "If there is no Luminance channel available then selections for L channel are ignored." +
             "</p>";
             
-      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", use_RGBNB_Mapping, RGBNB_tooltip);
+      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping.val, RGBNB_tooltip);
       this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
-            use_RGBNB_Mapping = checked; 
-            SetOptionChecked("Use Narrowband RGB mapping", checked); 
+            par.use_RGBNB_Mapping.val = checked; 
       }
-      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", use_RGB_image, 
+      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", par.use_RGB_image.val, 
             "<p>" +
             "Use RGB image for bandwidth mapping instead of separate R, G and B channel images. " +
             "R channel bandwidth is then used for the RGB image." +
             "</p>" );
       this.useRGBbandwidth_CheckBox.onClick = function(checked) { 
-            use_RGB_image = checked; 
-            SetOptionChecked("Use RGB image", checked); 
+            par.use_RGB_image.val = checked; 
       }
       this.useRGBNBmappingSizer = new HorizontalSizer;
       this.useRGBNBmappingSizer.margin = 6;
@@ -8872,7 +8664,7 @@ function AutoIntegrateDialog()
       this.testNarrowbandMappingButton.onClick = function()
       {
             console.writeln("Test narrowband mapping");
-            use_RGBNB_Mapping = true;
+            par.use_RGBNB_Mapping.val = true;
             try {
                   testRGBNBmapping();
             } 
@@ -8882,19 +8674,19 @@ function AutoIntegrateDialog()
                   writeProcessingSteps(null, true, "AutoRGBNB");
                   console.endLog();
             }
-            use_RGBNB_Mapping = false;
+            par.use_RGBNB_Mapping.val = false;
       };   
 
       // channel mapping
       this.RGBNB_MappingLabel = aiLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
       this.RGBNB_MappingLLabel = aiLabel(this, 'L', "Mapping of narrowband channel to L channel. If there is no L channel available then this setting is ignored.");
-      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", 0, function(value) { L_mapping = value; }, this.RGBNB_MappingLLabel.toolTip);
+      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", par.L_mapping.val, function(value) { par.L_mapping.val = value; }, this.RGBNB_MappingLLabel.toolTip);
       this.RGBNB_MappingRLabel = aiLabel(this, 'R', "Mapping of narrowband channel to R channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", 0, function(value) { R_mapping = value; }, this.RGBNB_MappingRLabel.toolTip);
+      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", par.R_mapping.val, function(value) { par.R_mapping.val = value; }, this.RGBNB_MappingRLabel.toolTip);
       this.RGBNB_MappingGLabel = aiLabel(this, 'G', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", 2, function(value) { G_mapping = value; }, this.RGBNB_MappingGLabel.toolTip);
+      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", par.G_mapping.val, function(value) { par.G_mapping.val = value; }, this.RGBNB_MappingGLabel.toolTip);
       this.RGBNB_MappingBLabel = aiLabel(this, 'B', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", 2, function(value) { B_mapping = value; }, this.RGBNB_MappingBLabel.toolTip);
+      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", par.B_mapping.val, function(value) { par.B_mapping.val = value; }, this.RGBNB_MappingBLabel.toolTip);
 
       this.RGBNB_MappingSizer = new HorizontalSizer;
       this.RGBNB_MappingSizer.margin = 6;
@@ -8912,10 +8704,10 @@ function AutoIntegrateDialog()
 
       // Boost factor for LRGB
       this.RGBNB_BoostLabel = aiLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
-      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', L_BoostFactor, function(value) { L_BoostFactor = value; }, "Boost, or multiplication factor, for the L channel.");
-      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', R_BoostFactor, function(value) { R_BoostFactor = value; }, "Boost, or multiplication factor, for the R channel.");
-      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', G_BoostFactor, function(value) { G_BoostFactor = value; }, "Boost, or multiplication factor, for the G channel.");
-      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', B_BoostFactor, function(value) { B_BoostFactor = value; }, "Boost, or multiplication factor, for the B channel.");
+      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', par.L_BoostFactor.val, function(value) { par.L_BoostFactor.val = value; }, "Boost, or multiplication factor, for the L channel.");
+      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', par.R_BoostFactor.val, function(value) { par.R_BoostFactor.val = value; }, "Boost, or multiplication factor, for the R channel.");
+      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', par.G_BoostFactor.val, function(value) { par.G_BoostFactor.val = value; }, "Boost, or multiplication factor, for the G channel.");
+      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', par.B_BoostFactor.val, function(value) { par.B_BoostFactor.val = value; }, "Boost, or multiplication factor, for the B channel.");
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       this.RGBNB_BoostSizer.margin = 6;
@@ -8935,13 +8727,13 @@ function AutoIntegrateDialog()
       // Bandwidth for different channels
       this.RGBNB_BandwidthLabel = aiLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
       //this.RGBNB_BandwidthRGBValue = aiNumericEdit(this, 'RGB', RGB_bandwidth, function(value) { RGB_bandwidth = value; } );
-      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', L_bandwidth, function(value) { L_bandwidth = value; }, "Bandwidth (nm) for the L filter.");
-      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', R_bandwidth, function(value) { R_bandwidth = value; }, "Bandwidth (nm) for the R filter.");
-      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', G_bandwidth, function(value) { G_bandwidth = value; }, "Bandwidth (nm) for the G filter.");
-      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', B_bandwidth, function(value) { B_bandwidth = value; }, "Bandwidth (nm) for the B filter.");
-      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', H_bandwidth, function(value) { H_bandwidth = value; }, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
-      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', S_bandwidth, function(value) { S_bandwidth = value; }, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
-      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', O_bandwidth, function(value) { O_bandwidth = value; }, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', par.L_bandwidth.val, function(value) { par.L_bandwidth.val = value; }, "Bandwidth (nm) for the L filter.");
+      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', par.R_bandwidth.val, function(value) { par.R_bandwidth.val = value; }, "Bandwidth (nm) for the R filter.");
+      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', par.G_bandwidth.val, function(value) { par.G_bandwidth.val = value; }, "Bandwidth (nm) for the G filter.");
+      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', par.B_bandwidth.val, function(value) { par.B_bandwidth.val = value; }, "Bandwidth (nm) for the B filter.");
+      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', par.H_bandwidth.val, function(value) { par.H_bandwidth.val = value; }, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
+      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', par.S_bandwidth.val, function(value) { par.S_bandwidth.val = value; }, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', par.O_bandwidth.val, function(value) { par.O_bandwidth.val = value; }, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       this.RGBNB_BandwidthSizer.margin = 6;
@@ -8987,37 +8779,32 @@ function AutoIntegrateDialog()
       //this.narrowbandRGBmappingGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
 
       // Narrowband extra processing
-      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", fix_narrowband_star_color, 
+      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color.val, 
       "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
       "Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
-            fix_narrowband_star_color = checked; 
-            SetOptionChecked("Fix star colors", checked); 
+            par.fix_narrowband_star_color.val = checked; 
       }
-      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", run_hue_shift, 
+      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_hue_shift.val, 
       "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.narrowband_hue_shift_CheckBox.onClick = function(checked) { 
-            run_hue_shift = checked; 
-            SetOptionChecked("Hue shift for more orange", checked); 
+            par.run_hue_shift.val = checked; 
       }
-      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", leave_some_green, 
+      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green.val, 
       "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. " +
       "Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.narrowband_leave_some_green_CheckBox.onClick = function(checked) { 
-            leave_some_green = checked; 
-            SetOptionChecked("Leave some green", checked); 
+            par.leave_some_green.val = checked; 
       }
-      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", run_narrowband_SCNR, 
+      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR.val, 
       "<p>Run SCNR to remove green cast. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
       this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
-            run_narrowband_SCNR = checked; 
-            SetOptionChecked("Remove green cast", checked); 
+            par.run_narrowband_SCNR.val = checked; 
       }
-      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", skip_star_fix_mask, 
+      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask.val, 
       "<p>Do not use star mask when fixing star colors</p>" );
       this.no_star_fix_mask_CheckBox.onClick = function(checked) { 
-            skip_star_fix_mask = checked; 
-            SetOptionChecked("No mask when fixing star colors", checked); 
+            par.skip_star_fix_mask.val = checked; 
       }
 
       this.narrowbandOptions1_sizer = new VerticalSizer;
@@ -9052,58 +8839,50 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
-      this.extraStarNet_CheckBox = newCheckBox(this, "StarNet", extra_StarNet, 
+      this.extraStarNet_CheckBox = newCheckBox(this, "StarNet", par.extra_StarNet.val, 
       "<p>Run Starnet on image to generate a starless image and a separate image for the stars. When Starnet is selected, extra processing is " +
       "applied to the starless image.</p>" );
       this.extraStarNet_CheckBox.onClick = function(checked) { 
-            extra_StarNet = checked; 
-            SetOptionChecked("StarNet", checked); 
+            par.extra_StarNet.val = checked; 
       }
-      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", extra_darker_background, 
+      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background.val, 
       "<p>Make image background darker.</p>" );
       this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
-            extra_darker_background = checked; 
-            SetOptionChecked("Darker background", checked); 
+            par.extra_darker_background.val = checked; 
       }
-      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", extra_HDRMLT, 
+      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", par.extra_HDRMLT.val, 
       "<p>Run HDRMultiscaleTansform on image.</p>" );
       this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
-            extra_HDRMLT = checked; 
-            SetOptionChecked("HDRMultiscaleTansform", checked); 
+            par.extra_HDRMLT.val = checked; 
       }
-      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", extra_LHE, 
+      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", par.extra_LHE.val, 
       "<p>Run LocalHistogramEqualization on image.</p>" );
       this.extra_LHE_CheckBox.onClick = function(checked) { 
-            extra_LHE = checked; 
-            SetOptionChecked("LocalHistogramEqualization", checked); 
+            par.extra_LHE.val = checked; 
       }
-      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", extra_contrast, 
+      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast.val, 
       "<p>Run LocalHistogramEqualization on image.</p>" );
       this.extra_Contrast_CheckBox.onClick = function(checked) { 
-            extra_contrast = checked; 
-            SetOptionChecked("Add contrast", checked); 
+            par.extra_contrast.val = checked; 
       }
-      this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", extra_STF, 
+      this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", par.extra_STF.val, 
       "<p>Run automatic ScreenTransferFunction on final image to brighten it.</p>" );
       this.extra_STF_CheckBox.onClick = function(checked) { 
-            extra_STF = checked; 
-            SetOptionChecked("Run STF", checked); 
+            par.extra_STF.val = checked; 
       }
-      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", extra_smaller_stars, 
+      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars.val, 
       "<p>Make stars smaller on image.</p>" );
       this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
-            extra_smaller_stars = checked; 
-            SetOptionChecked("Smaller stars", checked); 
+            par.extra_smaller_stars.val = checked; 
       }
       this.IterationsSpinBox = new SpinBox( this );
       this.IterationsSpinBox.minValue = 0;
       this.IterationsSpinBox.maxValue = 10;
-      this.IterationsSpinBox.value = extra_smaller_stars_iterations;
+      this.IterationsSpinBox.value = par.extra_smaller_stars_iterations.val;
       this.IterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection</p>";
       this.IterationsSpinBox.onValueUpdated = function( value )
       {
-            extra_smaller_stars_iterations = value;
-            SetOptionValue("Smaller stars iterations", value);
+            par.extra_smaller_stars_iterations.val = value;
       };
       this.IterationsLabel = new Label( this );
       this.IterationsLabel.text = "iterations";
@@ -9130,7 +8909,6 @@ function AutoIntegrateDialog()
       extra_target_image = windowList[0];
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
-            SetOptionValue("Extra processing target image", windowList[itemIndex]);
             extra_target_image = windowList[itemIndex];
       };
       this.extraApplyButton = new PushButton( this );
@@ -9280,7 +9058,7 @@ function AutoIntegrateDialog()
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
-            closeAllWindows(keep_integrated_images);
+            closeAllWindows(par.keep_integrated_images.val);
       };
 
       // Group box for AutoRun, AutoContinue and CloseAll
@@ -9352,6 +9130,17 @@ function AutoIntegrateDialog()
          this.dialog.cancel();
       };
    
+      this.newInstance_Button = new ToolButton(this);
+      this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
+      this.newInstance_Button.toolTip = "New Instance";
+      this.newInstance_Button.onMousePress = function()
+      {
+         this.hasFocus = true;
+         exportParameters();
+         this.pushed = false;
+         this.dialog.newInstance();
+      };
+   
       this.infoLabel = new Label( this );
       this.infoLabel.text = "";
 
@@ -9359,12 +9148,13 @@ function AutoIntegrateDialog()
 
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
-      this.buttons_Sizer.add( this.helpTips );
+      this.buttons_Sizer.add( this.newInstance_Button );
       this.buttons_Sizer.add( this.infoLabel );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.ok_Button );
       this.buttons_Sizer.add( this.cancel_Button );
-   
+      this.buttons_Sizer.add( this.helpTips );
+
       this.ProcessingGroupBox = new newGroupBox( this );
       this.ProcessingGroupBox.title = "Processing settings";
       this.ProcessingGroupBox.sizer = new VerticalSizer;
@@ -9430,6 +9220,10 @@ AutoIntegrateDialog.prototype = new Dialog;
 
 function main()
 {
+      if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
+            importParameters();
+      }
+      
       var dialog = new AutoIntegrateDialog();
 
       dialog.execute();
