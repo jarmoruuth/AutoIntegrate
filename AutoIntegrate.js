@@ -958,7 +958,7 @@ function saveAllFinalImageWindows(bits)
 {
       console.writeln("saveAllFinalImageWindows");
       var gdd = new GetDirectoryDialog;
-      gdd.caption = "Select Save Directory";
+      gdd.caption = "Select Final Image Save Directory";
 
       if (gdd.execute()) {
             // Find a windows that has a keyword which tells this is
@@ -6770,15 +6770,16 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 
 function extraProcessing(id, apply_directly)
 {
-      var extraWin;
       var need_L_mask = par.extra_darker_background.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val;
 
-      if (apply_directly) {
-            extraWin = ImageWindow.windowById(id);
-      } else {
-            extraWin = copyWindow(ImageWindow.windowById(id), id + "_extra");
+      var extraWin = ImageWindow.windowById(id);
+
+      checkWinFilePath(extraWin);
+
+      if (!apply_directly) {
+            extraWin = copyWindow(extraWin, id + "_extra");
       }
 
       if (narrowband) {
