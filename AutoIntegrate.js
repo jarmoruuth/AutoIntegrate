@@ -917,15 +917,19 @@ function saveWorkWindow(path, id)
       return fname;
 }
 
-function saveBatchWindow(win, dir, name, bits)
+function saveFinalImageWindow(win, dir, name, bits)
 {
-      console.writeln("saveBatchWindow " + name);
+      console.writeln("saveFinalImageWindow " + name);
       var copy_win = copyWindow(win, name + "_savetmp");
       var save_name;
 
       // 8 and 16 bite are TIFF, 32 is XISF
       if (bits != 32) {
-            var new_postfix = "_" + bits;
+            if (bits == 16) {
+                  var new_postfix = "";
+            } else {
+                  var new_postfix = "_" + bits;
+            }
             var old_postfix = name.substr(name.len - new_postfix.len);
             if (old_postfix != new_postfix) {
                   save_name = dir + "/" + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
@@ -935,13 +939,13 @@ function saveBatchWindow(win, dir, name, bits)
             }
 
             if (copy_win.bitsPerSample != bits) {
-                  console.writeln("saveBatchWindow:set bits to " + bits);
+                  console.writeln("saveFinalImageWindow:set bits to " + bits);
                   copy_win.setSampleFormat(bits, false);
             }
       } else {
             save_name = dir + "/" + name + getOptionalUniqueFilenamePart() + ".xisf";
       }
-      console.writeln("saveBatchWindow:save name " + name);
+      console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
@@ -950,16 +954,16 @@ function saveBatchWindow(win, dir, name, bits)
       forceCloseOneWindow(copy_win);
 }
 
-function saveAllbatchWindows(bits)
+function saveAllFinalImageWindows(bits)
 {
-      console.writeln("saveAllbatchWindows");
+      console.writeln("saveAllFinalImageWindows");
       var gdd = new GetDirectoryDialog;
       gdd.caption = "Select Save Directory";
 
       if (gdd.execute()) {
             // Find a windows that has a keyword which tells this is
             // a batch mode result file
-            console.writeln("saveAllbatchWindows:dir " + gdd.directory);
+            console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
             var images = ImageWindow.windows;
             for (var i in images) {
                   var imageWindow = images[i];
@@ -967,9 +971,9 @@ function saveAllbatchWindows(bits)
                   for (var j = 0; j != keywords.length; j++) {
                         var keyword = keywords[j].name;
                         var value = keywords[j].strippedValue.trim();
-                        if (keyword == "AstroMosaic" && value == "batch") {
+                        if (keyword == "AutoIntegrate" && value == "finalimage") {
                               // we have batch window 
-                              saveBatchWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
+                              saveFinalImageWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
                         }
                   }
             }
@@ -1138,13 +1142,13 @@ function setFITSKeyword(imageWindow, name, value, comment)
       ]);
 }
 
-function setBatchKeyword(imageWindow) 
+function setFinalImageKeyword(imageWindow) 
 {
       setFITSKeyword(
             imageWindow,
-            "AstroMosaic",
-            "batch",
-            "AstroMosaic batch processed file");
+            "AutoIntegrate",
+            "finalimage",
+            "AutoIntegrate processed final image");
 }
 
 function setImagetypKeyword(imageWindow, imagetype) 
@@ -6720,9 +6724,9 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       }
       console.writeln("AutoIntegrateNarrowbandPaletteBatch:new name " + palette_image);+
       windowRenameKeepif(winId, palette_image, true);
-      // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch:set batch keyword");
-      setBatchKeyword(ImageWindow.windowById(palette_image));
+      // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
+      console.writeln("AutoIntegrateNarrowbandPaletteBatch:set final image keyword");
+      setFinalImageKeyword(ImageWindow.windowById(palette_image));
       // save image
       console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image " + palette_image);
       saveProcessedWindow(dialogFilePath, palette_image);
@@ -7119,10 +7123,11 @@ function AutoIntegrateEngine(auto_continue)
             }
             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
             LRGB_ABE_HT_id = windowRenameKeepif(LRGB_ABE_HT_id, fname, true);
-            console.writeln("Batch mode, set batch keyword");
-            // set batch keyword so it easy to save all file e.g. as 16 bit TIFF
-            setBatchKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
       }
+
+      console.writeln("Set final image keyword");
+      // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
+      setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
 
       if (preprocessed_images == start_images.NONE) {
             /* Output some info of files.
@@ -9076,27 +9081,27 @@ function AutoIntegrateDialog()
       this.autoButtonGroupBox.sizer.addStretch();
       //this.autoButtonGroupBox.setFixedHeight(60);
 
-      // Buttons for mosaic save
+      // Buttons for saving final images in different formats
       this.mosaicSaveXisfButton = new PushButton( this );
       this.mosaicSaveXisfButton.text = "XISF";
       this.mosaicSaveXisfButton.onClick = function()
       {
             console.writeln("Save XISF");
-            saveAllbatchWindows(32);
+            saveAllFinalImageWindows(32);
       };   
       this.mosaicSave16bitButton = new PushButton( this );
       this.mosaicSave16bitButton.text = "16 bit TIFF";
       this.mosaicSave16bitButton.onClick = function()
       {
             console.writeln("Save 16 bit TIFF");
-            saveAllbatchWindows(16);
+            saveAllFinalImageWindows(16);
       };   
       this.mosaicSave8bitButton = new PushButton( this );
       this.mosaicSave8bitButton.text = "8 bit TIFF";
       this.mosaicSave8bitButton.onClick = function()
       {
             console.writeln("Save 8 bit TIFF");
-            saveAllbatchWindows(8);
+            saveAllFinalImageWindows(8);
       };   
       this.mosaicSaveSizer = new HorizontalSizer;
       this.mosaicSaveSizer.add( this.mosaicSaveXisfButton );
@@ -9105,7 +9110,7 @@ function AutoIntegrateDialog()
       this.mosaicSaveSizer.addSpacing( 4 );
       this.mosaicSaveSizer.add( this.mosaicSave8bitButton );
       this.mosaicSaveGroupBox = new newGroupBox( this );
-      this.mosaicSaveGroupBox.title = "Save batch result files";
+      this.mosaicSaveGroupBox.title = "Save final image files";
       this.mosaicSaveGroupBox.sizer = new HorizontalSizer;
       this.mosaicSaveGroupBox.sizer.margin = 6;
       this.mosaicSaveGroupBox.sizer.spacing = 4;
