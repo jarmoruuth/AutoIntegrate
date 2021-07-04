@@ -282,6 +282,7 @@ var par = {
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       autodetect_files: { val: true, def: true, name : "Autodetect files", type : 'B' },
       all_files: { val: false, def: false, name : "All files", type : 'B' },
+      no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
@@ -389,7 +390,7 @@ var is_luminance_images = false;    // Do we have luminance files from autoconti
 
 var processingDate;
 var lightFileNames = null;
-var dialogFilePath = null;
+var outputRootDir = "";
 var darkFileNames = null;
 var biasFileNames = null;
 var flatdarkFileNames = null;
@@ -413,6 +414,12 @@ var processing_steps = "";
 var all_windows = [];
 var iconPoint;
 var logfname;
+
+// These are initialzied by setDefaultDirs
+var AutoOutputDir = null;
+var AutoCalibratedDir = null;
+var AutoMasterDir = null;
+var AutoProcessedDir = null;
 
 /* Variable used during processing images.
  */
@@ -589,6 +596,22 @@ var narrowBandPalettes = [
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
 
+function setDefaultDirs()
+{
+      AutoOutputDir = "AutoOutput";
+      AutoCalibratedDir = "AutoCalibrated";
+      AutoMasterDir = "AutoMaster";
+      AutoProcessedDir = "AutoProcessed";
+}
+
+function clearDefaultDirs()
+{
+      AutoOutputDir = ".";
+      AutoCalibratedDir = ".";
+      AutoMasterDir = ".";
+      AutoProcessedDir = ".";
+}
+
 function getProcessingOptions()
 {
       var options = [];
@@ -607,14 +630,55 @@ function addProcessingStep(txt)
       processing_steps = processing_steps + "\n" + txt;
 }
 
-function parseFilePath(p)
+function ensurePathEndSlash(dir)
 {
-      var fname = p;
-      var filestart = fname.lastIndexOf('\\');
-      if (filestart == -1) {
-            filestart = fname.lastIndexOf('/');
+      if (dir.length > 0) {
+            switch (dir[dir.length-1]) {
+                  case '/':
+                  case '\\':
+                        return dir;
+                  default:
+                        return dir + '/';
+            }
       }
-      return fname.substring(0, filestart+1)
+      return dir;
+}
+
+function removePathEndSlash(dir)
+{
+      if (dir.length > 0) {
+            switch (dir[dir.length-1]) {
+                  case '/':
+                  case '\\':
+                        return dir.slice(0, -1);
+                  default:
+                        return dir;
+            }
+      }
+      return dir;
+}
+
+// parse full path from file name appended with '/
+function parseNewOutputRootDir(filePath, subdir)
+{
+      var path = ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
+      path = ensurePathEndSlash(path + subdir);
+      console.writeln("parseNewOutputRootDir " + path);
+      return path;
+}
+
+// If path is relativge and not absolute, we append it to the 
+// path of the imnage file
+function pathIsRelative(p)
+{
+      var dir = File.extractDirectory(p);
+      switch (dir[0]) {
+            case '/':
+            case '\\':
+                  return false;
+            default:
+                  return true;
+      }
 }
 
 function throwFatalError(txt)
@@ -630,14 +694,14 @@ function winIsValid(w)
 
 function checkWinFilePath(w)
 {
-      if (dialogFilePath == null) {
+      if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
             console.writeln("checkWinFilePath id ", w.mainView.id);
             var filePath = w.filePath;
             if (filePath != null) {
-                  dialogFilePath = parseFilePath(filePath);
+                  outputRootDir = parseNewOutputRootDir(filePath, outputRootDir);
                   console.writeln("checkWinFilePath filePath ", filePath);
             } else {
-                  console.writeln("checkWinFilePath null filePath");
+                  console.writeln("checkWinFilePath empty filePath");
             }
       }
 }
@@ -670,6 +734,22 @@ function findWindow(id)
             }
       }
       return null;
+}
+
+function closeAllWindowsSubstr(id_substr)
+{
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return;
+      }
+      for (var i in images) {
+            if (images[i].mainView != null
+                && images[i].mainView != undefined
+                && images[i].mainView.id.indexOf(id_substr) != -1) 
+            {
+               images[i].close;
+            }
+      }
 }
 
 function getWindowList()
@@ -881,6 +961,15 @@ function closeAllWindows(keep_integrated_imgs)
       closeFinalWindowsFromArray(final_windows);
 }
 
+function ensureDir(dir)
+{
+      var noslashdir = removePathEndSlash(dir);
+      if (!File.directoryExists(noslashdir)) {
+            console.writeln("Create directory " + noslashdir);
+            File.createDirectory(noslashdir);
+      }
+}
+
 function saveWindowEx(path, id, optional_unique_part)
 {
       if (path == null || id == null) {
@@ -905,14 +994,19 @@ function saveWindowEx(path, id, optional_unique_part)
 
 function saveProcessedWindow(path, id)
 {
-      return saveWindowEx(path, id, getOptionalUniqueFilenamePart());
+      var processedPath = path + AutoProcessedDir;
+      ensureDir(processedPath);
+      return saveWindowEx(processedPath + '/', id, getOptionalUniqueFilenamePart());
 }
 
-function saveWorkWindow(path, id)
+function saveMasterWindow(path, id)
 {
-      var fname = saveWindowEx(path, id, "");
+      var masterDir = path + AutoMasterDir;
+      ensureDir(outputRootDir);
+      ensureDir(masterDir);
+      var fname = saveWindowEx(masterDir + '/', id, "");
       if (fname == null) {
-            throwFatalError("Failed to save work image: " + path + id);
+            throwFatalError("Failed to save work image: " + masterDir + '/' + id);
       }
       return fname;
 }
@@ -1368,7 +1462,7 @@ function runCalibrateDarks(images, masterbiasPath)
       P.flatScaleClippingFactor = 0.05;
       P.evaluateNoise = true;
       P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_c";
@@ -1454,7 +1548,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.flatScaleClippingFactor = 0.05;
       P.evaluateNoise = true;
       P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_c";
@@ -1646,7 +1740,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       P.flatScaleClippingFactor = 0.05;
       P.evaluateNoise = true;
       P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoCalibratedDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_c";
@@ -1721,10 +1815,15 @@ function calibrateEngine()
       {
             // do not calibrate
             addProcessingStep("calibrateEngine, no bias, flat or dark files");
-            return lightFileNames;
+            return [ lightFileNames , '' ];
       }
 
       addProcessingStep("calibrateEngine");
+
+      ensureDir(outputRootDir);
+      ensureDir(outputRootDir + AutoMasterDir);
+      ensureDir(outputRootDir + AutoOutputDir);
+      ensureDir(outputRootDir + AutoCalibratedDir);
 
       // Collect filter files
       var filtered_flats = getFilterFiles(flatFileNames, '');
@@ -1752,15 +1851,16 @@ function calibrateEngine()
             var biasimages = filesForImageIntegration(biasFileNames);
             var masterbiasid = runImageIntegrationBiasDarks(biasimages, "AutoMasterBias");
 
+            // save master bias
+            setImagetypKeyword(findWindow(masterbiasid), "Master bias");
+            var masterbiasPath = saveMasterWindow(outputRootDir, masterbiasid);
+
             // optionally generate superbias
             if (par.create_superbias.val) {
                   var masterbiaswin = findWindow(masterbiasid);
                   var mastersuperbiasid = runSuberBias(masterbiaswin);
                   setImagetypKeyword(findWindow(mastersuperbiasid), "Master bias");
-                  var masterbiasPath = saveWorkWindow(dialogFilePath, mastersuperbiasid);
-            } else {
-                  setImagetypKeyword(findWindow(masterbiasid), "Master bias");
-                  var masterbiasPath = saveWorkWindow(dialogFilePath, masterbiasid);
+                  var masterbiasPath = saveMasterWindow(outputRootDir, mastersuperbiasid);
             }
       } else {
             addProcessingStep("calibrateEngine no master bias");
@@ -1776,7 +1876,7 @@ function calibrateEngine()
             var flatdarkimages = filesForImageIntegration(flatdarkFileNames);
             var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, "AutoMasterFlatDark");
             setImagetypKeyword(findWindow(masterflatdarkid), "Master flat dark");
-            var masterflatdarkPath = saveWorkWindow(dialogFilePath, masterflatdarkid);
+            var masterflatdarkPath = saveMasterWindow(outputRootDir, masterflatdarkid);
       } else {
             addProcessingStep("calibrateEngine no master flat dark");
             var masterflatdarkPath = null;
@@ -1797,7 +1897,7 @@ function calibrateEngine()
             // generate master dark file
             var masterdarkid = runImageIntegrationBiasDarks(darkimages, "AutoMasterDark");
             setImagetypKeyword(findWindow(masterdarkid), "Master dark");
-            var masterdarkPath = saveWorkWindow(dialogFilePath, masterdarkid);
+            var masterdarkPath = saveMasterWindow(outputRootDir, masterdarkid);
       } else {
             addProcessingStep("calibrateEngine no master dark");
             var masterdarkPath = null;
@@ -1827,7 +1927,7 @@ function calibrateEngine()
                   console.writeln("masterflatid " + masterflatid);
                   setImagetypKeyword(findWindow(masterflatid), "Master flat");
                   setFilterKeyword(findWindow(masterflatid), filterFiles[0].filter);
-                  masterflatPath[i] = saveWorkWindow(dialogFilePath, masterflatid);
+                  masterflatPath[i] = saveMasterWindow(outputRootDir, masterflatid);
             } else {
                   masterflatPath[i] = null;
             }
@@ -1854,7 +1954,7 @@ function calibrateEngine()
 
       console.writeln("calibrateEngine, return calibrated images, calibratedLightFileNames[0] " + calibratedLightFileNames[0]);
 
-      return calibratedLightFileNames;
+      return [ calibratedLightFileNames, '_c' ];
 }
 
 /* Linear Defect Detection from LinearDefectDetection.js script.
@@ -2593,6 +2693,20 @@ function runLinearDefectDetection(fileNames)
       return ccInfo;
 }
 
+function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
+{
+      var newFileNames = [];
+
+      console.writeln("generateNewFileNames, old " + oldFileNames[0]);
+
+      for (var i = 0; i < oldFileNames.length; i++) {
+            newFileNames[i] = outputdir + '/' + File.extractName(oldFileNames[i]) + postfix + extension;
+      }
+
+      console.writeln("generateNewFileNames, new " + newFileNames[0]);
+      return newFileNames;
+}
+
 function runCosmeticCorrection(fileNames, defects, color_images)
 {
       if (defects.length > 0) {
@@ -2606,7 +2720,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
 
       P.targetFrames = filesNamesToEnabledPath(fileNames);
       P.masterDarkPath = "";
-      P.outputDir = "";
+      P.outputDir = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.prefix = "";
       P.postfix = "_cc";
@@ -2638,15 +2752,8 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       console.writeln("runCosmeticCorrection:executeGlobal");
 
       P.executeGlobal();
-
-      for (var i = 0; i < fileNames.length; i++) {
-            var ext = '.' + fileNames[i].split('.').pop();
-            var newFileName = fileNames[i].replace(ext, "_cc.xisf");
-            if (newFileName == fileNames[i]) {
-                  throwFatalError("Cannot generate new output file name from " + filePath + ", extension " + ext);
-            }
-            fileNames[i] = newFileName;
-      }
+      
+      fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
       console.writeln("runCosmeticCorrection output[0] " + fileNames[0]);
 
       return fileNames;
@@ -2686,7 +2793,7 @@ function SubframeSelectorMeasure(fileNames)
       P.roiY1 = 0;
       P.inputHints = "";
       P.outputHints = "";
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_a";
@@ -2708,6 +2815,9 @@ function SubframeSelectorMeasure(fileNames)
 
       P.executeGlobal();
 
+      // Close measurements and expressions windows
+      closeAllWindowsSubstr("SubframeSelector");
+
       console.writeln("SubframeSelectorMeasure:calculate weight");
 
       /* Calculate weight */
@@ -2726,7 +2836,7 @@ function SubframeSelectorMeasure(fileNames)
       console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin);
       console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax);
 
-      var ssFiles = new Array;
+      var ssFiles = [];
 
       for (var i = 0; i < P.measurements.length; i++) {
             var FWHM = P.measurements[i][indexFWHM];
@@ -2767,10 +2877,7 @@ function SubframeSelectorMeasure(fileNames)
             P.measurements[i][0] = true;
             P.measurements[i][1] = false;
             addProcessingStep("FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + ", SSWEIGHT " + SSWEIGHT + ", " + P.measurements[i][indexPath]);
-            var onefile = new Array(2);
-            onefile[0] = P.measurements[i][indexPath];
-            onefile[1] = SSWEIGHT;
-            ssFiles[ssFiles.length] = onefile;
+            ssFiles[ssFiles.length] = [ P.measurements[i][indexPath], SSWEIGHT ];
       }
 
       return ssFiles;
@@ -3854,11 +3961,7 @@ function runStarAlignment(imagetable, refImage)
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
-            var oneimage = new Array(3);
-            oneimage[0] = true;
-            oneimage[1] = true;
-            oneimage[2] = imagetable[i];
-            targets[targets.length] = oneimage;
+            targets[targets.length] = [ true, true, imagetable[i] ];
       }
 
       if (par.strict_StarAlign.val) {
@@ -3943,17 +4046,9 @@ function runStarAlignment(imagetable, refImage)
       P.targets = targets;
       P.overwriteExistingFiles = true;
 
-
       P.executeGlobal();
 
-      alignedFiles = new Array;
-
-      for (var i = 0; i < P.outputData.length; ++i) {
-            var filePath = P.outputData[i][0];
-            if (filePath != null && filePath != "") {
-                  alignedFiles[alignedFiles.length] = filePath;
-            }
-      }
+      alignedFiles = fileNamesFromOutputData(P.outputData);
 
       addProcessingStep("runStarAlignment, " + alignedFiles.length + " files");
       console.writeln("output[0] " + alignedFiles[0]);
@@ -3967,10 +4062,7 @@ function runLocalNormalization(imagetable, refImage)
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
-            var oneimage = new Array(2);
-            oneimage[0] = true;
-            oneimage[1] = imagetable[i];
-            targets[targets.length] = oneimage;
+            targets[targets.length] = [ true, imagetable[i] ];
       }
       var P = new LocalNormalization;
       P.scale = 128;
@@ -3992,7 +4084,7 @@ function runLocalNormalization(imagetable, refImage)
       P.showRejectionMaps = false;
       P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
       P.noGUIMessages = false;
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_n";
@@ -5281,7 +5373,7 @@ function getOptionalUniqueFilenamePart()
 
 function ensureDialogFilePath(names)
 {
-      if (dialogFilePath == null) {
+      if (outputRootDir == "") {
             var gdd = new GetDirectoryDialog;
             gdd.caption = "Select Save Directory for " + names;
             console.noteln(gdd.caption);
@@ -5289,7 +5381,7 @@ function ensureDialogFilePath(names)
                   console.writeln("No path for " + names + ', nothing written');
                   return false;
             }
-            dialogFilePath = gdd.directory + '/';
+            outputRootDir = gdd.directory + '/';
             return true;
       } else {
             return true;
@@ -5311,10 +5403,12 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
             return;
       }
 
-      console.writeln("Write processing steps to " + dialogFilePath + logfname);
+      var processedPath = outputRootDir + AutoProcessedDir + '/';
+
+      console.writeln("Write processing steps to " + processedPath + logfname);
 
       var file = new File();
-      file.createForWriting(dialogFilePath + logfname);
+      file.createForWriting(processedPath + logfname);
 
       file.write(console.endLog());
       file.outTextLn("======================================");
@@ -5350,7 +5444,10 @@ function fileNamesFromOutputData(outputFileData)
 {
       var newFileNames = [];
       for (var i = 0; i < outputFileData.length; i++) {
-            newFileNames[i] = outputFileData[i][0];
+            var filePath = outputFileData[i][0];
+            if (filePath != null && filePath != "") {
+                  newFileNames[newFileNames.length] = filePath;
+            }
       }
       return newFileNames;
 }
@@ -5370,7 +5467,7 @@ function debayerImages(fileNames)
       P.noGUIMessages = true;
       P.inputHints = "raw cfa";
       P.outputHints = "";
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_d";
@@ -5529,19 +5626,31 @@ function CreateChannelImages(auto_continue)
                   console.writeln("No files to process");
                   return false;
             }
+
+            // We keep track of extensions added to the file names
+            // If we need to original file names we can substract
+            // added extensions.
             var filename_postfix = '';
 
-            /* Get path to current directory. */
-            dialogFilePath = parseFilePath(lightFileNames[0]);
+            if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
+                  /* Get path to current directory. */
+                  outputRootDir = parseNewOutputRootDir(lightFileNames[0], outputRootDir);
+            }
+
+            ensureDir(outputRootDir);
+            ensureDir(outputRootDir + AutoOutputDir);
+            ensureDir(outputRootDir + AutoProcessedDir);
 
             // Run image calibration if we have calibration frames
-            lightFileNames = calibrateEngine();
+            var calibrateInfo = calibrateEngine();
+            lightFileNames = calibrateInfo[0];
+            filename_postfix = filename_postfix + calibrateInfo[1];
 
             if (par.calibrate_only.val) {
                   return(true);
             }
 
-            var filtered_files = getFilterFiles(lightFileNames, '');
+            var filtered_files = getFilterFiles(lightFileNames, filename_postfix);
             if (filtered_files.allfiles.C.length == 0) {
                   is_color_files = false;
             } else {
@@ -5549,7 +5658,6 @@ function CreateChannelImages(auto_continue)
             }
 
             fileNames = lightFileNames;
-
 
             if (!par.skip_cosmeticcorrection.val) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
@@ -5575,6 +5683,7 @@ function CreateChannelImages(auto_continue)
                   // after cosmetic correction we need to debayer
                   // OSC/RAW images
                   fileNames = debayerImages(fileNames);
+                  filename_postfix = filename_postfix + '_b';
             }
 
             if (!par.skip_subframeselector.val) {
@@ -5602,7 +5711,6 @@ function CreateChannelImages(auto_continue)
                   /* LocalNormalization
                    */
                   runLocalNormalization(alignedFiles, best_image);
-                  filename_postfix = filename_postfix + '_n';
             }
 
             /* Find files for each L, R, G, B, H, O and S channels, or color files.
@@ -6323,18 +6431,20 @@ function extraStarNet(imgView)
       star_mask_win = ImageWindow.activeWindow;
       star_mask_win_id = star_mask_win.mainView.id;
 
+      ensureDir(outputRootDir);
+
       /* Make a copy of the stars image.
        */
       console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgView.mainView.id + "_stars");
       var copywin = copyWindow(star_mask_win, imgView.mainView.id + "_stars");
-      saveProcessedWindow(dialogFilePath, copywin.mainView.id);
+      saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet stars image " + copywin.mainView.id);
 
       /* Make a copy of the starless image.
        */
       console.writeln("extraStarNet copy " + imgView.mainView.id + " to " + imgView.mainView.id + "_starless");
       var copywin = copyWindow(imgView, imgView.mainView.id + "_starless");
-      saveProcessedWindow(dialogFilePath, copywin.mainView.id);
+      saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet starless image " + copywin.mainView.id);
 }
 
@@ -6729,7 +6839,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       setFinalImageKeyword(ImageWindow.windowById(palette_image));
       // save image
       console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image " + palette_image);
-      saveProcessedWindow(dialogFilePath, palette_image);
+      saveProcessedWindow(outputRootDir, palette_image);
       addProcessingStep("Narrowband palette batch final image " + palette_image);
 }
 
@@ -6777,6 +6887,9 @@ function extraProcessing(id, apply_directly)
       var extraWin = ImageWindow.windowById(id);
 
       checkWinFilePath(extraWin);
+      ensureDir(outputRootDir);
+      ensureDir(outputRootDir + AutoOutputDir);
+      ensureDir(outputRootDir + AutoProcessedDir);
 
       if (!apply_directly) {
             extraWin = copyWindow(extraWin, id + "_extra");
@@ -6914,7 +7027,6 @@ function AutoIntegrateEngine(auto_continue)
       processing_steps = "";
       all_windows = new Array;
       iconPoint = null;
-      dialogFilePath = null;
       L_stf = null;
       linear_fit_done = false;
       narrowband = autocontinue_narrowband;
@@ -7055,17 +7167,17 @@ function AutoIntegrateEngine(auto_continue)
             extraProcessing(LRGB_ABE_HT_id, false);
       }
 
-      ensureDialogFilePath("result files");
+      ensureDialogFilePath("processed files");
 
-      saveProcessedWindow(dialogFilePath, L_id);                    /* Integration_L */
-      saveProcessedWindow(dialogFilePath, R_id);                    /* Integration_R */
-      saveProcessedWindow(dialogFilePath, G_id);                    /* Integration_G */
-      saveProcessedWindow(dialogFilePath, B_id);                    /* Integration_B */
-      saveProcessedWindow(dialogFilePath, H_id);                    /* Integration_H */
-      saveProcessedWindow(dialogFilePath, S_id);                    /* Integraiton_S */
-      saveProcessedWindow(dialogFilePath, O_id);                    /* Integration_O */
-      saveProcessedWindow(dialogFilePath, RGB_win_id);              /* Integration_RGB */
-      saveProcessedWindow(dialogFilePath, LRGB_ABE_HT_id);          /* Final image. */
+      saveProcessedWindow(outputRootDir, L_id);                    /* Integration_L */
+      saveProcessedWindow(outputRootDir, R_id);                    /* Integration_R */
+      saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
+      saveProcessedWindow(outputRootDir, B_id);                    /* Integration_B */
+      saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
+      saveProcessedWindow(outputRootDir, S_id);                    /* Integraiton_S */
+      saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
+      saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
+      saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final image. */
 
       /* All done, do cleanup on windows on screen 
        */
@@ -7467,6 +7579,46 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
+function addOutputDir(parent)
+{
+      var lbl = new Label( parent );
+      lbl.text = "Output directory";
+      lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      lbl.toolTip = "<p>Give output root directory.</p>" +
+                    "<p>If no directory is given then the path to the " + 
+                    "first light file is used as the output root directory.</p>" +
+                    "<p>If a relative path is given then it will be appended " + 
+                    "to the first light file path.</p>" +
+                    "<p>If directory does not exist it is created.</p>";
+      var edt = new Edit( parent );
+      edt.text = outputRootDir;
+      edt.toolTip = lbl.toolTip;
+      edt.onEditCompleted = function() {
+            outputRootDir = ensurePathEndSlash(edt.text.trim());
+      };
+
+      var dirbutton = new ToolButton( parent );
+      dirbutton.icon = parent.scaledResource( ":/icons/select-file.png" );
+      dirbutton.toolTip = "<p>Select output root directory.</p>";
+      dirbutton.onClick = function() {
+            var gdd = new GetDirectoryDialog;
+            gdd.initialPath = outputRootDir;
+            gdd.caption = "Select Output Directory";
+            if (gdd.execute()) {
+                  outputRootDir = ensurePathEndSlash(gdd.directory);
+                  edt.text = outputRootDir;
+            }
+      };
+      
+      var outputdir_Sizer = new HorizontalSizer;
+      outputdir_Sizer.spacing = 4;
+      outputdir_Sizer.add( lbl );
+      outputdir_Sizer.add( edt );
+      outputdir_Sizer.add( dirbutton );
+
+      return outputdir_Sizer;
+}
+
 function addFilesToTreeBox(parent, pageIndex, imageFileNames)
 {
       var files_TreeBox = parent.treeBox[pageIndex];
@@ -7534,6 +7686,37 @@ function addFilesButtons(parent)
       var addFlatsButton = addOneFilesButton(parent, "Flats", pages.FLATS, parent.filesToolTip[pages.FLATS]);
       var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", pages.FLAT_DARKS, parent.filesToolTip[pages.FLAT_DARKS]);
 
+      /* Clear files button. */
+      var filesClear_Button = new PushButton( parent );
+      filesClear_Button.text = "Clear";
+      filesClear_Button.icon = parent.scaledResource( ":/icons/clear.png" );
+      filesClear_Button.toolTip = "<p>Clear the list of input images in the current page.</p>";
+      filesClear_Button.onClick = function()
+      {
+            var pageIndex = parent.tabBox.currentPageIndex;
+            parent.treeBox[pageIndex].clear();
+            switch (pageIndex) {
+                  case pages.LIGHTS:
+                        lightFiles(null);
+                        break;
+                  case pages.BIAS:
+                        biasFiles(null);
+                        break;
+                  case pages.DARKS:
+                        darkFiles(null);
+                        break;
+                  case pages.FLATS:
+                        flatFiles(null);
+                        break;
+                  case pages.FLAT_DARKS:
+                        flatdarkFiles(null);
+                        break;
+            }
+            updateInfoLabel();
+      };
+
+            var outputdir_sizer = addOutputDir(parent);
+
       var filesButtons_Sizer = new HorizontalSizer;
       filesButtons_Sizer.spacing = 4;
       filesButtons_Sizer.add( addLightsButton );
@@ -7541,11 +7724,13 @@ function addFilesButtons(parent)
       filesButtons_Sizer.add( addDarksButton );
       filesButtons_Sizer.add( addFlatsButton );
       filesButtons_Sizer.add( addFlatDarksButton );
+      filesButtons_Sizer.add( filesClear_Button );
       filesButtons_Sizer.addStretch();
+      filesButtons_Sizer.add( outputdir_sizer );
       return filesButtons_Sizer;
 }
 
-function filesTreeBox(parent, setFiles, optionsSizer, pageIndex)
+function filesTreeBox(parent, optionsSizer, pageIndex)
 {
       /* Tree box to show files. */
       var files_TreeBox = new TreeBox( parent );
@@ -7558,38 +7743,13 @@ function filesTreeBox(parent, setFiles, optionsSizer, pageIndex)
 
       parent.treeBox[pageIndex] = files_TreeBox;
 
-      var filesButtonsSizer = addFilesButtons(parent);
-
-      /* Clear files button. */
-      var filesClear_Button = new PushButton( parent );
-      filesClear_Button.text = "Clear";
-      filesClear_Button.icon = parent.scaledResource( ":/icons/clear.png" );
-      filesClear_Button.toolTip = "<p>Clear the list of input images.</p>";
-      filesClear_Button.onClick = function()
-      {
-            files_TreeBox.clear();
-            setFiles(null);
-            updateInfoLabel();
-      };
-
-      var filesAndButtons_Sizer = new VerticalSizer;
-      filesAndButtons_Sizer.spacing = 4;
-      filesAndButtons_Sizer.add(files_TreeBox, parent.textEditWidth);
-      filesAndButtons_Sizer.add(filesButtonsSizer);
-
-      var optionsAndClear_Sizer = new VerticalSizer;
-      optionsAndClear_Sizer.spacing = 4;
-      optionsAndClear_Sizer.add(optionsSizer);
-      optionsAndClear_Sizer.addStretch();
-      optionsAndClear_Sizer.add(filesClear_Button);
-
       var files_GroupBox = new GroupBox( parent );
       //files_GroupBox.title = "Images";
       files_GroupBox.sizer = new HorizontalSizer;
       files_GroupBox.sizer.margin = 6;
       files_GroupBox.sizer.spacing = 4;
-      files_GroupBox.sizer.add( filesAndButtons_Sizer );
-      files_GroupBox.sizer.add( optionsAndClear_Sizer );   
+      files_GroupBox.sizer.add( files_TreeBox, parent.textEditWidth );
+      files_GroupBox.sizer.add( optionsSizer );
 
       return files_GroupBox;
 }
@@ -7803,13 +7963,14 @@ function AutoIntegrateDialog()
                              "is not used to calibrate flats.</p>";
 
       this.treeBox = [];
+      this.filesButtonsSizer = addFilesButtons(this);
 
       this.tabBox = new TabBox( this );
-      this.tabBox.addPage( new filesTreeBox( this, lightFiles, lightsOptions(this), pages.LIGHTS ), "Lights" );
-      this.tabBox.addPage( new filesTreeBox( this, biasFiles, biasOptions(this), pages.BIAS ), "Bias" );
-      this.tabBox.addPage( new filesTreeBox( this, darkFiles, darksOptions(this), pages.DARKS ), "Darks" );
-      this.tabBox.addPage( new filesTreeBox( this, flatFiles, flatsOptions(this), pages.FLATS ), "Flats" );
-      this.tabBox.addPage( new filesTreeBox( this, flatdarkFiles, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
+      this.tabBox.addPage( new filesTreeBox( this, lightsOptions(this), pages.LIGHTS ), "Lights" );
+      this.tabBox.addPage( new filesTreeBox( this, biasOptions(this), pages.BIAS ), "Bias" );
+      this.tabBox.addPage( new filesTreeBox( this, darksOptions(this), pages.DARKS ), "Darks" );
+      this.tabBox.addPage( new filesTreeBox( this, flatsOptions(this), pages.FLATS ), "Flats" );
+      this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
       /* Paremeters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.use_local_normalization.val, 
@@ -7926,6 +8087,17 @@ function AutoIntegrateDialog()
       "<p>If selected default file select pattern is all files (*.*).</p>" );
       this.all_files_CheckBox.onClick = function(checked) { 
             par.all_files.val = checked; 
+      }
+
+      this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
+      "<p>If selected output files are not written into subdirectores</p>" );
+      this.no_subdirs_CheckBox.onClick = function(checked) { 
+            par.no_subdirs.val = checked;
+            if (par.no_subdirs.val) {
+                  clearDefaultDirs();
+            } else {
+                  setDefaultDirs();
+            }
       }
 
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle.val, 
@@ -8134,6 +8306,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
       this.otherParamsSet1.add( this.force_file_name_filter_CheckBox );
+      this.otherParamsSet1.add( this.no_subdirs_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -9207,6 +9380,7 @@ function AutoIntegrateDialog()
 
       this.sizer = new VerticalSizer;
       this.sizer.add( this.tabBox, 300 );
+      this.sizer.add( this.filesButtonsSizer);
       this.sizer.margin = 6;
       this.sizer.spacing = 6;
       this.sizer.add( this.cols );
@@ -9226,6 +9400,8 @@ AutoIntegrateDialog.prototype = new Dialog;
 
 function main()
 {
+      setDefaultDirs();
+
       if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
             importParameters();
       }
