@@ -6437,6 +6437,7 @@ function extraStarNet(imgView)
        */
       console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgView.mainView.id + "_stars");
       var copywin = copyWindow(star_mask_win, imgView.mainView.id + "_stars");
+      setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet stars image " + copywin.mainView.id);
 
@@ -6444,6 +6445,7 @@ function extraStarNet(imgView)
        */
       console.writeln("extraStarNet copy " + imgView.mainView.id + " to " + imgView.mainView.id + "_starless");
       var copywin = copyWindow(imgView, imgView.mainView.id + "_starless");
+      setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet starless image " + copywin.mainView.id);
 }
@@ -6880,6 +6882,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 
 function extraProcessing(id, apply_directly)
 {
+      var extra_id = id;
       var need_L_mask = par.extra_darker_background.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val;
@@ -6892,7 +6895,8 @@ function extraProcessing(id, apply_directly)
       ensureDir(outputRootDir + AutoProcessedDir);
 
       if (!apply_directly) {
-            extraWin = copyWindow(extraWin, id + "_extra");
+            extra_id = id + "_extra";
+            extraWin = copyWindow(extraWin, extra_id);
       }
 
       if (narrowband) {
@@ -6958,6 +6962,10 @@ function extraProcessing(id, apply_directly)
                   closeOneWindow(extraWin.mainView.id);
                   closeOneWindow(star_mask_win_id);
              }
+      }
+      setFinalImageKeyword(ImageWindow.windowById(extra_id));
+      if (!apply_directly) {
+            saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
       }
 }
 
