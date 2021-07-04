@@ -7238,10 +7238,11 @@ function AutoIntegrateEngine(auto_continue)
             LRGB_ABE_HT_id = windowRenameKeepif(LRGB_ABE_HT_id, fname, true);
       }
 
-      console.writeln("Set final image keyword");
-      // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
-      setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
-
+      if (LRGB_ABE_HT_id != null) {
+            console.writeln("Set final image keyword");
+            // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
+            setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
+      }
       if (preprocessed_images == start_images.NONE) {
             /* Output some info of files.
             */
