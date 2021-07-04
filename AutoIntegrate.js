@@ -7922,6 +7922,14 @@ function AutoIntegrateDialog()
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in Pixinsight." +
       "</p><p>"+
+      "By default output files goes to the following subdirectories:<br>" +
+      "- AutoOutput contains intermediate files generated during processing<br>" +
+      "- AutoMaster contains generated master calibration files<br>" +
+      "- AutoCalibrated contains calibrated light files<br>" +
+      "- AutoProcessed contains processed final images. Also integrated images and log output is here." +
+      "</p><p>" +
+      "User can give output root dir which can be relative or absolute path." +
+      "</p><p>"+
       "Always remember to check you data with Blink tool and remove all bad images." +
       "</p><p>" +
       "Batch mode is intended to be used with mosaic images. In Batch mode script " +
@@ -9388,7 +9396,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 7";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 8";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
