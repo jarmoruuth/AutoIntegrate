@@ -1211,6 +1211,31 @@ function filterKeywords(imageWindow, keywordname)
       return oldKeywords;
 }
 
+// Running PixelMath removes all keywords
+// We make a copy of selected keywords that are
+// put back to PixelMath generated image
+function getTargetFITSKeywordsForPixelmath(imageWindow)
+{
+      var oldKeywords = [];
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name != 'FILTER'
+                && keyword.name != 'COMMENT'
+                && keyword.name != 'HISTORY') 
+            {
+                  oldKeywords[oldKeywords.length] = keyword;
+            }
+      }
+      return oldKeywords;
+}
+
+// put keywords to PixelMath generated image
+function setTargetFITSKeywordsForPixelmath(imageWindow, keywords)
+{
+      imageWindow.keywords = keywords;
+}
+
 function setSSWEIGHTkeyword(imageWindow, SSWEIGHT) 
 {
       var oldKeywords = filterKeywords(imageWindow, "SSWEIGHT");
@@ -3576,6 +3601,10 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage)
             console.writeln("ERROR: No reference window found for PixelMath");
       }
 
+      if (createNewImage) {
+            var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
+      }
+
       var P = new PixelMath;
       P.expression = mapping;
       P.expression1 = "";
@@ -3606,6 +3635,10 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
+      if (createNewImage) {
+            setTargetFITSKeywordsForPixelmath(findWindow(P.newImageId), targetFITSKeywords);
+      }
+
       return P.newImageId;
 }
 
@@ -3635,6 +3668,11 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
       }
+
+      if (newId != null) {
+            var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
+      }
+
       var P = new PixelMath;
       P.expression = mapping_R;
       P.expression1 = mapping_G;
@@ -3671,6 +3709,10 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
+
+      if (newId != null) {
+            setTargetFITSKeywordsForPixelmath(findWindow(newId), targetFITSKeywords);
+      }
 
       return newId;
 }
