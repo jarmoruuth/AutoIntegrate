@@ -668,7 +668,7 @@ function parseNewOutputRootDir(filePath, subdir)
 }
 
 // If path is relativge and not absolute, we append it to the 
-// path of the imnage file
+// path of the image file
 function pathIsRelative(p)
 {
       var dir = File.extractDirectory(p);
@@ -2787,19 +2787,21 @@ function runCosmeticCorrection(fileNames, defects, color_images)
 function SubframeSelectorMeasure(fileNames)
 {
       console.writeln("SubframeSelectorMeasure");
-      
+
       var P = new SubframeSelector;
       P.routine = SubframeSelector.prototype.MeasureSubframes;
-      P.subframes = filesNamesToEnabledPath(fileNames);
+      P.nonInteractive = true;
+      P.subframes = filesNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
       P.fileCache = true;
-      P.subframeScale = 2.1514;
+      P.subframeScale = 1.0000;     // old version: 2.1514
       P.cameraGain = 1.0000;
       P.cameraResolution = SubframeSelector.prototype.Bits16;
       P.siteLocalMidnight = 24;
       P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
       P.dataUnit = SubframeSelector.prototype.Electron;
-      P.structureLayers = 4;
-      P.noiseLayers = 2;
+      P.trimmingFactor = 0.10;
+      P.structureLayers = 4;  // def: 5
+      P.noiseLayers = 2;      // def: 2
       P.hotPixelFilterRadius = 1;
       P.applyHotPixelFilter = false;
       P.noiseReductionFilterRadius = 0;
@@ -2811,14 +2813,16 @@ function SubframeSelectorMeasure(fileNames)
       P.xyStretch = 1.5000;
       P.psfFit = SubframeSelector.prototype.Gaussian;
       P.psfFitCircular = false;
-      P.pedestal = 0;
       P.roiX0 = 0;
       P.roiY0 = 0;
       P.roiX1 = 0;
       P.roiY1 = 0;
+      P.pedestalMode = SubframeSelector.prototype.Pedestal_Keyword;
+      P.pedestal = 0;
+      P.pedestalKeyword = "";
       P.inputHints = "";
       P.outputHints = "";
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = "";
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_a";
@@ -2826,16 +2830,12 @@ function SubframeSelectorMeasure(fileNames)
       P.overwriteExistingFiles = true;
       P.onError = SubframeSelector.prototype.Continue;
       P.approvalExpression = "";
-      P.weightingExpression = "10*(1-(FWHM-FWHMMin)/(FWHMMax-FWHMMin)) +\n" +
-      "15*(1-(Eccentricity-EccentricityMin)/(EccentricityMax-EccentricityMin)) +\n" +
-      "10*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin) +\n" +
-      "20*(Noise-NoiseMin)/(NoiseMax-NoiseMin) +\n" +
-      "50";      
+      P.weightingExpression = "";
       P.sortProperty = SubframeSelector.prototype.Index;
-      P.graphProperty = SubframeSelector.prototype.Eccentricity;
+      P.graphProperty = SubframeSelector.prototype.FWHM;
       P.measurements = [ // measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev
       ];
-
+     
       console.writeln("SubframeSelectorMeasure:executeGlobal");
 
       P.executeGlobal();
@@ -9447,7 +9447,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 8";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 9";
       this.userResizable = true;
       //this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
