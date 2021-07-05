@@ -317,9 +317,9 @@ var par = {
       R_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping R bandwidth", type : 'R' },
       G_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping G bandwidth", type : 'R' },
       B_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping B bandwidth", type : 'R' },
-      H_bandwidth: { val: 7, def: 7, name : "Narrowband RGB mapping H bandwidth", type : 'R' },
-      S_bandwidth: { val: 8.5, def: 8.5, name : "Narrowband RGB mapping S bandwidth", type : 'R' },
-      O_bandwidth: { val: 8.5, def: 8.5, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
+      H_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping H bandwidth", type : 'R' },
+      S_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping S bandwidth", type : 'R' },
+      O_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
 
       // Processing settings
       use_weight: { val: 'Generic', def: 'Generic', name : "Weight calculation", type : 'S' },
