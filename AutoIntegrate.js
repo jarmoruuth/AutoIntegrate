@@ -1051,25 +1051,40 @@ function saveFinalImageWindow(win, dir, name, bits)
 function saveAllFinalImageWindows(bits)
 {
       console.writeln("saveAllFinalImageWindows");
+
+      // Find a windows that has a keyword which tells this is
+      // a final image file
+      var images = ImageWindow.windows;
+      var finalimages = [];
+      for (var i in images) {
+            var imageWindow = images[i];
+            var keywords = imageWindow.keywords;
+            for (var j = 0; j != keywords.length; j++) {
+                  var keyword = keywords[j].name;
+                  var value = keywords[j].strippedValue.trim();
+                  if (keyword == "AutoIntegrate" && value == "finalimage") {
+                        // we have final image window 
+                        finalimages[finalimages.length] = imageWindow;
+                  }
+            }
+      }
+
+      if (finalimages.length == 0) {
+            console.noteln("No final iamges found");
+            return;
+      }
+
       var gdd = new GetDirectoryDialog;
       gdd.caption = "Select Final Image Save Directory";
+      var filePath = finalimages[0].filePath;
+      if (filePath != null) {
+            gdd.initialPath = File.extractDrive(filePath) + File.extractDirectory(filePath);
+      }
 
       if (gdd.execute()) {
-            // Find a windows that has a keyword which tells this is
-            // a batch mode result file
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
-            var images = ImageWindow.windows;
-            for (var i in images) {
-                  var imageWindow = images[i];
-                  var keywords = imageWindow.keywords;
-                  for (var j = 0; j != keywords.length; j++) {
-                        var keyword = keywords[j].name;
-                        var value = keywords[j].strippedValue.trim();
-                        if (keyword == "AutoIntegrate" && value == "finalimage") {
-                              // we have batch window 
-                              saveFinalImageWindow(imageWindow, gdd.directory, imageWindow.mainView.id, bits);
-                        }
-                  }
+            for (var i in finalimages) {
+                  saveFinalImageWindow(finalimages[i], gdd.directory, imageWindow.mainView.id, bits);
             }
       }
       console.writeln("All batch windows are saved!");
