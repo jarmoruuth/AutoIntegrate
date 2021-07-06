@@ -6473,6 +6473,9 @@ function extraStarNet(imgView)
       star_mask_win = ImageWindow.activeWindow;
       star_mask_win_id = star_mask_win.mainView.id;
 
+      var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgView);
+      setTargetFITSKeywordsForPixelmath(star_mask_win, FITSkeywords);
+
       ensureDir(outputRootDir);
 
       /* Make a copy of the stars image.
@@ -7531,7 +7534,7 @@ function lightsOptions(parent)
       label.text = "Debayer";
       label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       label.toolTip = "Select bayer pattern for debayering color/OSC/RAW/DSLR files. " +
-                      "Option node does not do debayering.";
+                      "Option none does not do debayering.";
 
       var combobox = new ComboBox( parent );
       combobox.toolTip = label.toolTip;
