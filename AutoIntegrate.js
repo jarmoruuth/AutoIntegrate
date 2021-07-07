@@ -699,7 +699,7 @@ function checkWinFilePath(w)
             var filePath = w.filePath;
             if (filePath != null) {
                   outputRootDir = parseNewOutputRootDir(filePath, outputRootDir);
-                  console.writeln("checkWinFilePath filePath ", filePath);
+                  console.writeln("checkWinFilePath, set outputRootDir ", outputRootDir);
             } else {
                   console.writeln("checkWinFilePath empty filePath");
             }
@@ -3423,7 +3423,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 
       var allfiles = filter_info.allfiles;
       var rgb = filter_info.rgb;
-      is_color_files = filtered_flats.color_files;
+      is_color_files = filter_info.color_files;
 
       // update global variables
       narrowband = filter_info.narrowband;
@@ -5454,6 +5454,7 @@ function ensureDialogFilePath(names)
                   return false;
             }
             outputRootDir = gdd.directory + '/';
+            console.writeln("ensureDialogFilePath, set outputRootDir ", outputRootDir);
             return true;
       } else {
             return true;
@@ -5707,6 +5708,7 @@ function CreateChannelImages(auto_continue)
             if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
                   /* Get path to current directory. */
                   outputRootDir = parseNewOutputRootDir(lightFileNames[0], outputRootDir);
+                  console.writeln("CreateChannelImages, set outputRootDir ", outputRootDir);
             }
 
             ensureDir(outputRootDir);
@@ -7679,6 +7681,7 @@ function addOutputDir(parent)
       edt.toolTip = lbl.toolTip;
       edt.onEditCompleted = function() {
             outputRootDir = ensurePathEndSlash(edt.text.trim());
+            console.writeln("addOutputDir, set outputRootDir ", outputRootDir);
       };
 
       var dirbutton = new ToolButton( parent );
@@ -7690,6 +7693,7 @@ function addOutputDir(parent)
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
                   outputRootDir = ensurePathEndSlash(gdd.directory);
+                  console.writeln("addOutputDir, set outputRootDir ", outputRootDir);
                   edt.text = outputRootDir;
             }
       };
