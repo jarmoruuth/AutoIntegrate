@@ -1869,6 +1869,8 @@ function calibrateEngine()
       var filtered_flats = getFilterFiles(flatFileNames, '');
       var filtered_lights = getFilterFiles(lightFileNames, '');
 
+      is_color_files = filtered_flats.color_files;
+
       if (flatFileNames.length > 0 && lightFileNames.length > 0) {
             // we have flats and lights
             // check that filtered files match
@@ -3188,10 +3190,13 @@ function getFileKeywords(filePath)
 // Filter files based on filter keyword/file name.
 function getFilterFiles(files, filename_postfix)
 {
+      var luminance = false;
       var rgb = false;
       var narrowband = false;
       var ssweight_set = false;
       var allfilesarr = [];
+      var error_text = "";
+      var color_files = false;
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
@@ -3256,6 +3261,7 @@ function getFilterFiles(files, filename_postfix)
                   case 'L':
                   case 'l':
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
+                        luminance = true;
                         break;
                   case 'Red':
                   case 'R':
@@ -3298,7 +3304,7 @@ function getFilterFiles(files, filename_postfix)
                   case 'No filter':
                   default:
                         allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
-                        is_color_files = true;
+                        color_files = true;
                         break;
             }
       }
@@ -3312,11 +3318,19 @@ function getFilterFiles(files, filename_postfix)
       allfilesarr[6] = [ allfiles.O, 'O' ];
       allfilesarr[7] = [ allfiles.C, 'C' ];
 
+      if (color_files && (luminance || rgb || narrowband)) {
+            error_text = "Error, cannot mix color and monochrome filter files";
+      } else if (rgb && (allfiles.R.length == 0 || allfiles.G.length == 0 || allfiles.B.length == 0)) {
+            error_text = "Error, with RBG files for all RGB channels must be given";
+      }
+
       return { allfiles : allfiles, 
                allfilesarr : allfilesarr,
                rgb : rgb, 
                narrowband : narrowband,
-               ssweight_set : ssweight_set 
+               color_files : color_files,
+               ssweight_set : ssweight_set,
+               error_text: error_text
              };
 }
 
@@ -3409,6 +3423,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 
       var allfiles = filter_info.allfiles;
       var rgb = filter_info.rgb;
+      is_color_files = filtered_flats.color_files;
 
       // update global variables
       narrowband = filter_info.narrowband;
@@ -7688,7 +7703,72 @@ function addOutputDir(parent)
       return outputdir_Sizer;
 }
 
-function addFilesToTreeBox(parent, pageIndex, imageFileNames)
+function addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
+{
+      // console.writeln("addFilteredFilesToTreeBox");
+
+      var filteredFiles = getFilterFiles(imageFileNames, '');
+      var files_TreeBox = parent.treeBox[pageIndex];
+
+      var rootnode = new TreeBoxNode(files_TreeBox);
+      rootnode.expanded = true;
+      if (filteredFiles.error_text != "") {
+            rootnode.useRichText = true;
+            var errortxt = "Files grouped by filter: " + filteredFiles.error_text;
+            var font = rootnode.font( 0 );
+            font.bold = true
+            rootnode.setFont( 0, font );
+            rootnode.setText( 0, errortxt);
+      } else {
+            rootnode.setText( 0, "Files grouped by filter" );
+      }
+      rootnode.nodeData_type = "FrameGroup";
+
+      files_TreeBox.canUpdate = false;
+
+      // console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
+
+      for (var i = 0; i < filteredFiles.allfilesarr.length; i++) {
+
+            var filterFiles = filteredFiles.allfilesarr[i][0];
+            var filterName = filteredFiles.allfilesarr[i][1];
+
+            if (filterFiles.length > 0) {
+                  // console.writeln("addFilteredFilesToTreeBox filterName " + filterName + ", " + filterFiles.length + " files");
+
+                  var filternode = new TreeBoxNode(rootnode);
+                  filternode.expanded = true;
+                  filternode.setText( 0, filterName +  ' (' + filterFiles[0].filter + ') ' + filterFiles.length + ' files');
+                  filternode.nodeData_type = "FrameGroup";
+            
+                  for (var j = 0; j < filterFiles.length; j++) {
+                        var node = new TreeBoxNode(filternode);
+                        var nodefile = filterFiles[j].name;
+                        node.setText(0, nodefile);
+                        switch (pageIndex) {
+                              case pages.LIGHTS:
+                                    lightFiles(nodefile);
+                                    break;
+                              case pages.BIAS:
+                                    biasFiles(nodefile);
+                                    break;
+                              case pages.DARKS:
+                                    darkFiles(nodefile);
+                                    break;
+                              case pages.FLATS:
+                                    flatFiles(nodefile);
+                                    break;
+                              case pages.FLAT_DARKS:
+                                    flatdarkFiles(nodefile);
+                                    break;
+                        }
+                  }
+            }
+      }
+      files_TreeBox.canUpdate = true;
+}
+
+function addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
 {
       var files_TreeBox = parent.treeBox[pageIndex];
 
@@ -7715,6 +7795,19 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames)
             }
       }
       files_TreeBox.canUpdate = true;
+}
+
+function addFilesToTreeBox(parent, pageIndex, imageFileNames)
+{
+      switch (pageIndex) {
+            case pages.LIGHTS:
+            case pages.FLATS:
+                  addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  break;
+            default:
+                  addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  break;
+      }
 }
 
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
