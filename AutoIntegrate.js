@@ -644,13 +644,27 @@ function ensurePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndSlash(dir)
+function removePathEndDot(dir)
 {
-      if (dir.length > 0) {
+      if (dir.length > 1) {
             switch (dir[dir.length-1]) {
                   case '/':
                   case '\\':
                         return dir.slice(0, -1);
+                  default:
+                        return dir;
+            }
+      }
+      return dir;
+}
+
+function removePathEndSlash(dir)
+{
+      if (dir.length > 0) {
+            switch (dir.substr(-2, 2)) {
+                  case '/.':
+                  case '\\.':
+                        return dir.slice(0, -2);
                   default:
                         return dir;
             }
@@ -7675,6 +7689,8 @@ function addOutputDir(parent)
                     "first light file is used as the output root directory.</p>" +
                     "<p>If a relative path is given then it will be appended " + 
                     "to the first light file path.</p>" +
+                    "<p>If output directory is given with AutoContinue then output " + 
+                    "goes to that directory and not into directory subtree.</p>" +
                     "<p>If directory does not exist it is created.</p>";
       var edt = new Edit( parent );
       edt.text = outputRootDir;
@@ -9377,6 +9393,8 @@ function AutoIntegrateDialog()
       this.autoContinueButton.onClick = function()
       {
             console.writeln("autoContinue");
+            // Do not create subdirectory strucure with AutoContinue
+            clearDefaultDirs();
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
             try {
                   autocontinue_narrowband = is_narrowband_option();
@@ -9386,12 +9404,14 @@ function AutoIntegrateDialog()
                         AutoIntegrateEngine(true);
                   }
                   autocontinue_narrowband = false;
+                  setDefaultDirs();
             } 
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
                   writeProcessingSteps(null, true, null);
                   autocontinue_narrowband = false;
+                  setDefaultDirs();
             }
       };   
 
