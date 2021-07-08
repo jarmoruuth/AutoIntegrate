@@ -775,7 +775,9 @@ function getWindowList()
       }
       for (var i in images) {
             try {
-                  windowList[windowList.length] = images[i].mainView.id;
+                  if (images[i].mainView != null && images[i].mainView != undefined) {
+                        windowList[windowList.length] = images[i].mainView.id;
+                  }
             } catch (err) {
                   // ignore errors
             }
@@ -8086,6 +8088,24 @@ function importParameters()
       }
 }
 
+function aiSectionBar(parent, control, title)
+{
+      var sb = new SectionBar(parent, title);
+      sb.setSection(control);
+      sb.onToggleSection = function(bar, beginToggle){
+            parent.dialog.adjustToContents();
+      };
+
+      var gb = new newGroupBox( parent );
+      gb.sizer = new VerticalSizer;
+      gb.sizer.margin = 6;
+      gb.sizer.spacing = 4;
+      gb.sizer.add( sb );
+      gb.sizer.add( control );
+
+      return gb;
+}
+
 function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
@@ -8095,6 +8115,10 @@ function AutoIntegrateDialog()
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
 
+      this.onToggleSection = function(bar, beginToggle){
+            this.dialog.adjustToContents();
+      };
+    
       var mainHelpTips = 
       "<p>" +
       "<b>AutoIntegrate - Automatic image integration utility</b>" +
@@ -8404,14 +8428,16 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
 
       // Image group par.
-      this.imageParamsGroupBox = new newGroupBox( this );
-      this.imageParamsGroupBox.title = "Image processing parameters";
-      this.imageParamsGroupBox.sizer = new HorizontalSizer;
-      this.imageParamsGroupBox.sizer.margin = 6;
-      this.imageParamsGroupBox.sizer.spacing = 4;
-      this.imageParamsGroupBox.sizer.add( this.imageParamsSet1 );
-      this.imageParamsGroupBox.sizer.add( this.imageParamsSet2 );
-      //this.imageParamsGroupBox.sizer.addStretch();
+      this.imageParamsControl = new Control( this );
+      // this.imageParamsControl.title = "Image processing parameters";
+      this.imageParamsControl.sizer = new HorizontalSizer;
+      this.imageParamsControl.sizer.margin = 6;
+      this.imageParamsControl.sizer.spacing = 4;
+      this.imageParamsControl.sizer.add( this.imageParamsSet1 );
+      this.imageParamsControl.sizer.add( this.imageParamsSet2 );
+      //this.imageParamsControl.sizer.addStretch();
+
+      this.imageParamsGroupBox = aiSectionBar(this, this.imageParamsControl, "Image processing parameters");
 
       // LRGBCombination selection
 
@@ -8512,15 +8538,17 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.all_files_CheckBox );
 
       // Other Group par.
-      this.otherParamsGroupBox = new newGroupBox( this );
-      this.otherParamsGroupBox.title = "Other parameters";
-      this.otherParamsGroupBox.sizer = new HorizontalSizer;
-      this.otherParamsGroupBox.sizer.margin = 6;
-      this.otherParamsGroupBox.sizer.spacing = 4;
-      this.otherParamsGroupBox.sizer.add( this.otherParamsSet1 );
-      this.otherParamsGroupBox.sizer.add( this.otherParamsSet2 );
-      //this.otherParamsGroupBox.sizer.addStretch();
+      this.otherParamsControl = new Control( this );
+      // this.otherParamsControl.title = "Other parameters";
+      this.otherParamsControl.sizer = new HorizontalSizer;
+      this.otherParamsControl.sizer.margin = 6;
+      this.otherParamsControl.sizer.spacing = 4;
+      this.otherParamsControl.sizer.add( this.otherParamsSet1 );
+      this.otherParamsControl.sizer.add( this.otherParamsSet2 );
+      //this.otherParamsControl.sizer.addStretch();
       
+      this.otherParamsGroupBox = aiSectionBar(this, this.otherParamsControl, "Other parameters");
+
       // Weight calculations
       var weightHelpToolTips =
             "<p>" +
@@ -9128,24 +9156,30 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
       this.RGBNB_Sizer.addStretch();
 
-      this.narrowbandGroupBox = new newGroupBox( this );
-      this.narrowbandGroupBox.title = "Narrowband processing";
-      this.narrowbandGroupBox.sizer = new VerticalSizer;
-      this.narrowbandGroupBox.sizer.margin = 6;
-      this.narrowbandGroupBox.sizer.spacing = 4;
-      this.narrowbandGroupBox.sizer.add( this.narrowbandColorPaletteLabel );
-      this.narrowbandGroupBox.sizer.add( this.narrowbandCustomPalette_Sizer );
-      this.narrowbandGroupBox.sizer.add( this.mapping_on_nonlinear_data_Sizer );
-      this.narrowbandGroupBox.sizer.add( this.NbLuminanceSizer );
-      //this.narrowbandGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
+      this.narrowbandControl = new Control( this );
+      // this.narrowbandControl.title = "Narrowband processing";
+      this.narrowbandControl.sizer = new VerticalSizer;
+      this.narrowbandControl.sizer.margin = 6;
+      this.narrowbandControl.sizer.spacing = 4;
+      this.narrowbandControl.sizer.add( this.narrowbandColorPaletteLabel );
+      this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
+      this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
+      this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
+      //this.narrowbandControl.sizer.add( this.narrowbandAutoContinue_sizer );
 
-      this.narrowbandRGBmappingGroupBox = new newGroupBox( this );
-      this.narrowbandRGBmappingGroupBox.title = "Narrowband to RGB mapping";
-      this.narrowbandRGBmappingGroupBox.sizer = new VerticalSizer;
-      this.narrowbandRGBmappingGroupBox.sizer.margin = 6;
-      this.narrowbandRGBmappingGroupBox.sizer.spacing = 4;
-      this.narrowbandRGBmappingGroupBox.sizer.add( this.RGBNB_Sizer );
-      //this.narrowbandRGBmappingGroupBox.sizer.add( this.narrowbandAutoContinue_sizer );
+      this.narrowbandGroupBox = aiSectionBar(this, this.narrowbandControl, "Narrowband processing");
+
+      this.narrowbandRGBmappingControl = new Control( this );
+      //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
+      this.narrowbandRGBmappingControl.sizer = new VerticalSizer;
+      this.narrowbandRGBmappingControl.sizer.margin = 6;
+      this.narrowbandRGBmappingControl.sizer.spacing = 4;
+      this.narrowbandRGBmappingControl.sizer.add( this.RGBNB_Sizer );
+      //this.narrowbandRGBmappingControl.sizer.add( this.narrowbandAutoContinue_sizer );
+      // hide this section by default
+      this.narrowbandRGBmappingControl.visible = false;
+
+      this.narrowbandRGBmappingGroupBox = aiSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping");
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color.val, 
@@ -9338,18 +9372,18 @@ function AutoIntegrateDialog()
       this.extraGroupBoxSizer.add( this.extra2 );
       this.extraGroupBoxSizer.addStretch();
 
-      this.extraGroupBox = new newGroupBox( this );
-      this.extraGroupBox.title = "Extra processing";
-      this.extraGroupBox.sizer = new VerticalSizer;
-      this.extraGroupBox.sizer.margin = 6;
-      this.extraGroupBox.sizer.spacing = 4;
-      this.extraGroupBox.sizer.add( this.narrowbandExtraLabel );
-      this.extraGroupBox.sizer.add( this.narrowbandExtraOptionsSizer );
-      this.extraGroupBox.sizer.add( this.extraLabel );
-      this.extraGroupBox.sizer.add( this.extraGroupBoxSizer );
-      this.extraGroupBox.sizer.add( this.extraImageSizer );
-      this.extraGroupBox.sizer.addStretch();
-      this.extraGroupBox.toolTip = 
+      this.extraControl = new Control( this );
+      // this.extraControl.title = "Extra processing";
+      this.extraControl.sizer = new VerticalSizer;
+      this.extraControl.sizer.margin = 6;
+      this.extraControl.sizer.spacing = 4;
+      this.extraControl.sizer.add( this.narrowbandExtraLabel );
+      this.extraControl.sizer.add( this.narrowbandExtraOptionsSizer );
+      this.extraControl.sizer.add( this.extraLabel );
+      this.extraControl.sizer.add( this.extraGroupBoxSizer );
+      this.extraControl.sizer.add( this.extraImageSizer );
+      this.extraControl.sizer.addStretch();
+      this.extraControl.toolTip = 
             "<p>" +
             "In case of Run or AutoContinue or AutoContinue narrowband " + 
             "extra processing options are always applied to a copy of the final image. " + 
@@ -9374,6 +9408,8 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
+
+      this.extraGroupBox = aiSectionBar(this, this.extraControl, "Extra processing");
 
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
@@ -9517,39 +9553,43 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.cancel_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      this.ProcessingGroupBox = new newGroupBox( this );
-      this.ProcessingGroupBox.title = "Processing settings";
-      this.ProcessingGroupBox.sizer = new VerticalSizer;
-      this.ProcessingGroupBox.sizer.margin = 6;
-      this.ProcessingGroupBox.sizer.spacing = 4;
-      //this.ProcessingGroupBox.sizer.add( this.weightGroupBoxLabel );
-      //this.ProcessingGroupBox.sizer.add( this.weightGroupBoxSizer );
-      this.ProcessingGroupBox.sizer.add( this.weightAndSigmaSizer );
-      this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.clippingGroupBoxSizer );
-      this.ProcessingGroupBox.sizer.add( this.linearFitGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.linearFitGroupBoxSizer );
-      this.ProcessingGroupBox.sizer.add( this.StretchingGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.StretchingGroupBoxSizer );
-      this.ProcessingGroupBox.sizer.add( this.LRGBCombinationGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.LRGBCombinationGroupBoxSizer );
-      this.ProcessingGroupBox.sizer.add( this.saturationGroupBoxLabel );
-      this.ProcessingGroupBox.sizer.add( this.saturationGroupBoxSizer );
+      this.ProcessingControl = new Control( this );
+      // this.ProcessingControl.title = "Processing settings";
+      this.ProcessingControl.sizer = new VerticalSizer;
+      this.ProcessingControl.sizer.margin = 6;
+      this.ProcessingControl.sizer.spacing = 4;
+      //this.ProcessingControl.sizer.add( this.weightGroupBoxLabel );
+      //this.ProcessingControl.sizer.add( this.weightGroupBoxSizer );
+      this.ProcessingControl.sizer.add( this.weightAndSigmaSizer );
+      this.ProcessingControl.sizer.add( this.clippingGroupBoxLabel );
+      this.ProcessingControl.sizer.add( this.clippingGroupBoxSizer );
+      this.ProcessingControl.sizer.add( this.linearFitGroupBoxLabel );
+      this.ProcessingControl.sizer.add( this.linearFitGroupBoxSizer );
+      this.ProcessingControl.sizer.add( this.StretchingGroupBoxLabel );
+      this.ProcessingControl.sizer.add( this.StretchingGroupBoxSizer );
+      this.ProcessingControl.sizer.add( this.LRGBCombinationGroupBoxLabel );
+      this.ProcessingControl.sizer.add( this.LRGBCombinationGroupBoxSizer );
+      this.ProcessingControl.sizer.add( this.saturationGroupBoxLabel );
+      this.ProcessingControl.sizer.add( this.saturationGroupBoxSizer );
+      // hide this section by default
+      this.ProcessingControl.visible = false;
+
+      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl, "Processing settings");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
       this.col1.spacing = 6;
       this.col1.add( this.imageParamsGroupBox );
       this.col1.add( this.otherParamsGroupBox );
-      this.col1.add( this.narrowbandGroupBox );
-      this.col1.add( this.narrowbandRGBmappingGroupBox );
+      this.col1.add( this.ProcessingGroupBox );
       this.col1.add( this.mosaicSaveGroupBox );
       this.col1.addStretch();
 
       this.col2 = new VerticalSizer;
       this.col2.margin = 6;
       this.col2.spacing = 6;
-      this.col2.add( this.ProcessingGroupBox );
+      this.col2.add( this.narrowbandGroupBox );
+      this.col2.add( this.narrowbandRGBmappingGroupBox );
       this.col2.add( this.extraGroupBox );
       this.col2.add( this.autoButtonGroupBox );
       this.col2.addStretch();
@@ -9561,6 +9601,8 @@ function AutoIntegrateDialog()
       this.cols.add( this.col2 );
       this.cols.addStretch();
 
+      /* ------------------------------- */
+
       this.sizer = new VerticalSizer;
       this.sizer.add( this.tabBox, 300 );
       this.sizer.add( this.filesButtonsSizer);
@@ -9571,9 +9613,9 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 9";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 10";
       this.userResizable = true;
-      //this.adjustToContents();
+      this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
 
       console.show(false);
