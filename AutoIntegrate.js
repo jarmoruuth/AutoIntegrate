@@ -9359,15 +9359,6 @@ function AutoIntegrateDialog()
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
-      // Button to run automatic processing
-      this.autoRunButton = new PushButton( this );
-      this.autoRunButton.text = "AutoRun";
-      this.autoRunButton.toolTip = "Run automatic integrate.";
-      this.autoRunButton.onClick = function()
-      {
-            Autorun(this);
-      };   
-
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
@@ -9414,10 +9405,8 @@ function AutoIntegrateDialog()
             closeAllWindows(par.keep_integrated_images.val);
       };
 
-      // Group box for AutoRun, AutoContinue and CloseAll
+      // Group box for AutoContinue and CloseAll
       this.autoButtonSizer = new HorizontalSizer;
-      this.autoButtonSizer.add( this.autoRunButton );
-      this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.autoContinueButton );
       this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
