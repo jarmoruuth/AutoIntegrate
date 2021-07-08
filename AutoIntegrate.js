@@ -280,7 +280,8 @@ var par = {
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
-      autodetect_files: { val: true, def: true, name : "Autodetect files", type : 'B' },
+      autodetect_filter: { val: true, def: true, name : "Autodetect FILTER keyword", type : 'B' },
+      autodetect_imagetyp: { val: true, def: true, name : "Autodetect IMAGETYP keyword", type : 'B' },
       all_files: { val: false, def: false, name : "All files", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
@@ -360,6 +361,8 @@ var par = {
       optimize_darks: { val: true, def: true, name : "Optimize darks", type : 'B' },
       stars_in_flats: { val: false, def: false, name : "Stars in flats", type : 'B' },
       no_darks_on_flat_calibrate: { val: false, def: false, name : "Do not use darks on flats", type : 'B' },
+      lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
+      flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
 };
 
 var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
@@ -415,6 +418,11 @@ var all_windows = [];
 var iconPoint;
 var logfname;
 
+var filterSectionbars = [];
+var filterSectionbarcontrols = [];
+var lightFilterSet = null;
+var lightFlatSet = null;
+    
 // These are initialzied by setDefaultDirs
 var AutoOutputDir = null;
 var AutoCalibratedDir = null;
@@ -595,6 +603,60 @@ var narrowBandPalettes = [
       { name: "User defined", R: "", G: "", B: "", all: false },
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
+
+function initFilterSets()
+{
+      return [
+            ['L', new Set],
+            ['R', new Set],
+            ['G', new Set],
+            ['B', new Set],
+            ['H', new Set],
+            ['S', new Set],
+            ['O', new Set],
+            ['C', new Set]
+      ];
+}
+
+// find Set object based on file type
+function findFilterSet(filterSet, filetype)
+{
+      for (var i = 0; i < filterSet.length; i++) {
+            if (filterSet[i][0] == filetype) {
+                  return filterSet[i][1];
+            }
+      }
+      throwFatalError("findFilterSet bad filetype " + filetype);
+      return null;
+}
+
+// Add file base name to the filter Set object
+// We use file base name to detect filter files
+function addFilterSetFile(filterSet, filePath, filetype)
+{
+      var basename = File.extractName(filePath);
+      console.writeln("addFilterSetFile add " + basename + " filter "+ filetype);
+      filterSet.add(basename);
+}
+
+// try to find base file name from filter Set objects
+function findFilterForFile(filterSet, filePath, filename_postfix)
+{
+      var basename = File.extractName(filePath);
+      if (filename_postfix.length > 0) {
+            // strip filename_postfix from the end
+            basename = basename.slice(0, basename.length - filename_postfix.length);
+      }
+      console.writeln("findFilterForFile " + basename);
+      for (var i = 0; i < filterSet.length; i++) {
+            var filterFileSet = filterSet[i][1];
+            if (filterFileSet.has(basename)) {
+                  console.writeln("findFilterForFile filter " + filterSet[i][0]);
+                  return filterSet[i][0];
+            }
+      }
+      return null;
+}
 
 function setDefaultDirs()
 {
@@ -1882,8 +1944,8 @@ function calibrateEngine()
       ensureDir(outputRootDir + AutoCalibratedDir);
 
       // Collect filter files
-      var filtered_flats = getFilterFiles(flatFileNames, '');
-      var filtered_lights = getFilterFiles(lightFileNames, '');
+      var filtered_flats = getFilterFiles(flatFileNames, pages.FLATS, '');
+      var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
 
       is_color_files = filtered_flats.color_files;
 
@@ -3204,7 +3266,7 @@ function getFileKeywords(filePath)
 }
 
 // Filter files based on filter keyword/file name.
-function getFilterFiles(files, filename_postfix)
+function getFilterFiles(files, pageIndex, filename_postfix)
 {
       var luminance = false;
       var rgb = false;
@@ -3213,10 +3275,20 @@ function getFilterFiles(files, filename_postfix)
       var allfilesarr = [];
       var error_text = "";
       var color_files = false;
+      var filterSet = null;
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
       };
+
+      switch (pageIndex) {
+            case pages.LIGHTS:
+                  filterSet = lightFilterSet;
+                  break;
+            case pages.FLATS:
+                  filterSet = flatFilterSet;
+                  break;
+      }
 
       /* Collect all different file types and some information about them.
        */
@@ -3228,6 +3300,11 @@ function getFilterFiles(files, filename_postfix)
             var filePath = files[i];
             
             console.writeln("getFilterFiles file " +  filePath);
+
+            if (filterSet != null) {
+                  filter = findFilterForFile(filterSet, filePath, filename_postfix);
+            }
+
             var keywords = getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
@@ -3235,23 +3312,29 @@ function getFilterFiles(files, filename_postfix)
                   switch (keywords[j].name) {
                         case "FILTER":
                         case "INSFLNAM":
-                              console.writeln("filter=" +  value);
-                              filter = value;
+                              if (filter != null) {
+                                    console.writeln("filter already found, ignored FILTER=" +  value);
+                              } else if (par.autodetect_filter.val) {
+                                    console.writeln("FILTER=" +  value);
+                                    filter = value;
+                              } else {
+                                    console.writeln("ignored FILTER=" +  value);
+                              }
                               break;
                         case "SSWEIGHT":
                               ssweight = value;
-                              console.writeln("ssweight=" +  ssweight);
+                              console.writeln("SWEIGHT=" +  ssweight);
                               ssweight_set = true;
                               break;
                         case "TELESCOP":
-                              console.writeln("telescop=" +  value);
+                              console.writeln("TELESCOP=" +  value);
                               break;
                         case "NAXIS1":
-                              console.writeln("naxis1=" + value);
+                              console.writeln("NAXIS1=" + value);
                               break;
                         case "EXPTIME":
                         case "EXPOSURE":
-                              console.writeln("exptime=" + value);
+                              console.writeln(keywords[j].name + "=" + value);
                               exptime = parseFloat(value);
                               break;
                         default:
@@ -3435,7 +3518,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 
       /* Collect all different file types and some information about them.
        */
-      var filter_info = getFilterFiles(alignedFiles, filename_postfix);
+      var filter_info = getFilterFiles(alignedFiles, pages.LIGHTS, filename_postfix);
 
       var allfiles = filter_info.allfiles;
       var rgb = filter_info.rgb;
@@ -5740,7 +5823,7 @@ function CreateChannelImages(auto_continue)
                   return(true);
             }
 
-            var filtered_files = getFilterFiles(lightFileNames, filename_postfix);
+            var filtered_files = getFilterFiles(lightFileNames, pages.LIGHTS, filename_postfix);
             if (filtered_files.allfiles.C.length == 0) {
                   is_color_files = false;
             } else {
@@ -7574,6 +7657,27 @@ function filesOptionsSizer(parent, name, toolTip)
       return sizer;
 }
 
+function showOrHideFilterSectionBar(pageIndex)
+{
+      switch (pageIndex) {
+            case pages.LIGHTS:
+                  var show = par.lights_add_manually.val || !par.autodetect_filter.val;
+                  break;
+            case pages.FLATS:
+                  var show = par.flats_add_manually.val || !par.autodetect_filter.val;
+                  break;
+            default:
+                  throwFatalError("showOrHideFilterSectionBar bad pageIndex " + pageIndex);
+      }
+      if (show) {
+            filterSectionbars[pageIndex].show();
+            filterSectionbarcontrols[pageIndex].visible = true;
+      } else {
+            filterSectionbars[pageIndex].hide();
+            filterSectionbarcontrols[pageIndex].visible = false;
+      }
+}
+
 function lightsOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[0]);
@@ -7593,8 +7697,16 @@ function lightsOptions(parent)
             par.debayerPattern.val = debayerPattern_values[itemIndex];
       }
 
+      var checkbox = newCheckBox(parent, "Add manually", par.lights_add_manually.val, 
+            "<p>Add light files manually by selecting files for each filter.</p>" );
+      checkbox.onClick = function(checked) { 
+            par.lights_add_manually.val = checked; 
+            showOrHideFilterSectionBar(pages.LIGHTS);
+      }
+
       sizer.add(label);
       sizer.add(combobox);
+      sizer.add(checkbox);
       sizer.addStretch();
 
       return sizer;
@@ -7666,9 +7778,16 @@ function flatsOptions(parent)
       checkboxDarks.onClick = function(checked) { 
             par.no_darks_on_flat_calibrate.val = checked; 
       }
+      var checkboxManual = newCheckBox(parent, "Add manually", par.flats_add_manually.val, 
+            "<p>Add flat files manually by selecting files for each filter.</p>" );
+      checkboxManual.onClick = function(checked) {
+            par.flats_add_manually.val = checked;
+            showOrHideFilterSectionBar(pages.FLATS);
+      }
 
       sizer.add(checkboxStars);
       sizer.add(checkboxDarks);
+      sizer.add(checkboxManual);
       sizer.addStretch();
 
       return sizer;
@@ -7725,12 +7844,42 @@ function addOutputDir(parent)
       return outputdir_Sizer;
 }
 
-function addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
+function addFilesToFileList(pageIndex, imageFileNames)
 {
-      // console.writeln("addFilteredFilesToTreeBox");
+      var allFileNames = null;
+      switch (pageIndex) {
+            case pages.LIGHTS:
+                  allFileNames = lightFiles(imageFileNames);
+                  break;
+            case pages.BIAS:
+                  allFileNames = biasFiles(imageFileNames);
+                  break;
+            case pages.DARKS:
+                  allFileNames = darkFiles(imageFileNames);
+                  break;
+            case pages.FLATS:
+                  allFileNames = flatFiles(imageFileNames);
+                  break;
+            case pages.FLAT_DARKS:
+                  allFileNames = flatdarkFiles(imageFileNames);
+                  break;
+            default:
+                  throwFatalError("addFilesToFileList bad pageIndex " + pageIndex);
 
-      var filteredFiles = getFilterFiles(imageFileNames, '');
+      }
+      console.writeln("addFilesToFileList, allFileNames " + allFileNames.length + " files");
+      return allFileNames;
+}
+
+function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
+{
+      console.writeln("addFilteredFilesToTreeBox");
+
+      var imageFileNames = addFilesToFileList(pageIndex, newImageFileNames);
+
+      var filteredFiles = getFilterFiles(imageFileNames, pageIndex, '');
       var files_TreeBox = parent.treeBox[pageIndex];
+      files_TreeBox.clear();
 
       var rootnode = new TreeBoxNode(files_TreeBox);
       rootnode.expanded = true;
@@ -7748,7 +7897,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
 
       files_TreeBox.canUpdate = false;
 
-      // console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
+      console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
 
       for (var i = 0; i < filteredFiles.allfilesarr.length; i++) {
 
@@ -7756,7 +7905,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
             var filterName = filteredFiles.allfilesarr[i][1];
 
             if (filterFiles.length > 0) {
-                  // console.writeln("addFilteredFilesToTreeBox filterName " + filterName + ", " + filterFiles.length + " files");
+                  console.writeln("addFilteredFilesToTreeBox filterName " + filterName + ", " + filterFiles.length + " files");
 
                   var filternode = new TreeBoxNode(rootnode);
                   filternode.expanded = true;
@@ -7767,54 +7916,23 @@ function addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
                         var node = new TreeBoxNode(filternode);
                         var nodefile = filterFiles[j].name;
                         node.setText(0, nodefile);
-                        switch (pageIndex) {
-                              case pages.LIGHTS:
-                                    lightFiles(nodefile);
-                                    break;
-                              case pages.BIAS:
-                                    biasFiles(nodefile);
-                                    break;
-                              case pages.DARKS:
-                                    darkFiles(nodefile);
-                                    break;
-                              case pages.FLATS:
-                                    flatFiles(nodefile);
-                                    break;
-                              case pages.FLAT_DARKS:
-                                    flatdarkFiles(nodefile);
-                                    break;
-                        }
                   }
             }
       }
       files_TreeBox.canUpdate = true;
 }
 
-function addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames)
+function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 {
       var files_TreeBox = parent.treeBox[pageIndex];
+      files_TreeBox.clear();
+
+      var imageFileNames = addFilesToFileList(pageIndex, newImageFileNames);
 
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < imageFileNames.length; i++) {
             var node = new TreeBoxNode(files_TreeBox);
             node.setText(0, imageFileNames[i]);
-            switch (pageIndex) {
-                  case pages.LIGHTS:
-                        lightFiles(imageFileNames[i]);
-                        break;
-                  case pages.BIAS:
-                        biasFiles(imageFileNames[i]);
-                        break;
-                  case pages.DARKS:
-                        darkFiles(imageFileNames[i]);
-                        break;
-                  case pages.FLATS:
-                        flatFiles(imageFileNames[i]);
-                        break;
-                  case pages.FLAT_DARKS:
-                        flatdarkFiles(imageFileNames[i]);
-                        break;
-            }
       }
       files_TreeBox.canUpdate = true;
 }
@@ -7842,7 +7960,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       {
             var imageFileNames = openImageFiles(filetype);
             if (imageFileNames != null) {
-                  if (pageIndex == pages.LIGHTS && par.autodetect_files.val) {
+                  if (pageIndex == pages.LIGHTS && par.autodetect_imagetyp.val) {
                         var imagetypes = getImagetypFiles(imageFileNames);
                         for (var i = 0; i < pages.END; i++) {
                               if (imagetypes[i].length > 0) {
@@ -7861,9 +7979,6 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 
 function addFilesButtons(parent)
 {
-      var defaultToolTip = "<p>Add image files to the images list. If only one file is added " + 
-                        "it is assumed to be a master file.</p>";
-
       var addLightsButton = addOneFilesButton(parent, "Lights", pages.LIGHTS, parent.filesToolTip[pages.LIGHTS]);
       var addBiasButton = addOneFilesButton(parent, "Bias", pages.BIAS, parent.filesToolTip[pages.BIAS]);
       var addDarksButton = addOneFilesButton(parent, "Darks", pages.DARKS, parent.filesToolTip[pages.DARKS]);
@@ -7899,7 +8014,7 @@ function addFilesButtons(parent)
             updateInfoLabel();
       };
 
-            var outputdir_sizer = addOutputDir(parent);
+      var outputdir_sizer = addOutputDir(parent);
 
       var filesButtons_Sizer = new HorizontalSizer;
       filesButtons_Sizer.spacing = 4;
@@ -7912,6 +8027,86 @@ function addFilesButtons(parent)
       filesButtons_Sizer.addStretch();
       filesButtons_Sizer.add( outputdir_sizer );
       return filesButtons_Sizer;
+}
+
+function addOneFileFilterButton(parent, filetype, pageIndex)
+{
+      var filesAdd_Button = new PushButton( parent );
+      filesAdd_Button.text = filetype;
+      filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
+      if (filetype == 'C') {
+            filesAdd_Button.toolTip = "Add color/OSC/DSLR files";
+      } else {
+            filesAdd_Button.toolTip = "Add " + filetype + " files";
+      }
+      filesAdd_Button.onClick = function() {
+            var imageFileNames = openImageFiles(filetype);
+            if (imageFileNames != null) {
+                  var filterSet;
+                  switch (pageIndex) {
+                        case pages.LIGHTS:
+                              if (lightFilterSet == null) {
+                                    lightFilterSet = initFilterSets();
+                              }
+                              filterSet = findFilterSet(lightFilterSet, filetype);
+                              break;
+                        case pages.FLATS:
+                              if (flatFilterSet == null) {
+                                    flatFilterSet = initFilterSets();
+                              }
+                              filterSet = findFilterSet(flatFilterSet, filetype);
+                              break;
+                        default:
+                              throwFatalError("addOneFileFilterButton bad pageIndex " + pageIndex);
+                  }
+                  console.writeln("addOneFileFilterButton add " + filetype + " files");
+                  for (var i = 0; i < imageFileNames.length; i++) {
+                        addFilterSetFile(filterSet, imageFileNames[i], filetype);
+                  }
+                  addFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  updateInfoLabel();
+            }
+      };
+      return filesAdd_Button;
+}
+
+function addFileFilterButtons(parent, pageIndex)
+{
+      var buttonsControl = new Control(parent);
+      buttonsControl.sizer = new HorizontalSizer;
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'L', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'R', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'G', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'B', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'H', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'S', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'O', pageIndex));
+      buttonsControl.sizer.add(addOneFileFilterButton(parent, 'C', pageIndex));
+      buttonsControl.visible = false;
+      return buttonsControl;
+}
+
+function addFileFilterButtonSectionBar(parent, pageIndex)
+{
+      var control = addFileFilterButtons(parent, pageIndex);
+
+      var sb = new SectionBar(parent, "Add filter files manually");
+      sb.setSection(control);
+      sb.hide();
+      sb.toolTip = "Select manually files for each filter. Useful if filters are not recognized automatically.";
+      sb.onToggleSection = function(bar, beginToggle){
+            parent.dialog.adjustToContents();
+      };
+
+      filterSectionbars[pageIndex] = sb;
+      filterSectionbarcontrols[pageIndex] = control;
+
+      var gb = new Control( parent );
+      gb.sizer = new VerticalSizer;
+      gb.sizer.add( sb );
+      gb.sizer.add( control );
+
+      return gb;
 }
 
 function filesTreeBox(parent, optionsSizer, pageIndex)
@@ -7927,12 +8122,21 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
 
       parent.treeBox[pageIndex] = files_TreeBox;
 
+      if (pageIndex == pages.LIGHTS || pageIndex == pages.FLATS) {
+            var filesControl = new Control(parent);
+            filesControl.sizer = new VerticalSizer;
+            filesControl.sizer.add(files_TreeBox);
+            filesControl.sizer.add(addFileFilterButtonSectionBar(parent, pageIndex));
+      } else {
+            var filesControl = files_TreeBox;
+      }
+
       var files_GroupBox = new GroupBox( parent );
       //files_GroupBox.title = "Images";
       files_GroupBox.sizer = new HorizontalSizer;
       files_GroupBox.sizer.margin = 6;
       files_GroupBox.sizer.spacing = 4;
-      files_GroupBox.sizer.add( files_TreeBox, parent.textEditWidth );
+      files_GroupBox.sizer.add( filesControl, parent.textEditWidth );
       files_GroupBox.sizer.add( optionsSizer );
 
       return files_GroupBox;
@@ -7965,74 +8169,84 @@ function updateInfoLabel()
       infoLabel.text = txt;
 }
 
-function lightFiles(fname)
+function lightFiles(fnameList)
 {
-      if (fname == null) {
-            lightFileNames = null;
+      if (fnameList == null) {
             // reset
+            console.writeln("lightFiles reset");
+            lightFileNames = null;
+            lightFilterSet = null;
       } else {
             // add file
+            console.writeln("lightFiles add " + fnameList[0]);
             if (lightFileNames == null) {
                   lightFileNames = [];
             }
-            lightFileNames[lightFileNames.length] = fname;
+            lightFileNames = lightFileNames.concat(fnameList);
       }
+      console.writeln("lightFiles " + lightFileNames.length + " files");
+      return lightFileNames;
 }
 
-function darkFiles(fname)
+function darkFiles(fnameList)
 {
-      if (fname == null) {
-            darkFileNames = null;
+      if (fnameList == null) {
             // reset
+            darkFileNames = null;
       } else {
             // add file
             if (darkFileNames == null) {
                   darkFileNames = [];
             }
-            darkFileNames[darkFileNames.length] = fname;
+            darkFileNames = darkFileNames.concat(fnameList);
       }
+      return darkFileNames;
 }
 
-function biasFiles(fname)
+function biasFiles(fnameList)
 {
-      if (fname == null) {
-            biasFileNames = null;
+      if (fnameList == null) {
             // reset
+            biasFileNames = null;
       } else {
             // add file
             if (biasFileNames == null) {
                   biasFileNames = [];
             }
-            biasFileNames[biasFileNames.length] = fname;
+            biasFileNames = biasFileNames.concat(fnameList);
       }
+      return biasFiles;
 }
 
-function flatFiles(fname)
+function flatFiles(fnameList)
 {
-      if (fname == null) {
-            flatFileNames = null;
+      if (fnameList == null) {
             // reset
+            flatFileNames = null;
+            lightFilterSet = null;
       } else {
             // add file
             if (flatFileNames == null) {
                   flatFileNames = [];
             }
-            flatFileNames[flatFileNames.length] = fname;
+            flatFileNames = flatFileNames.concat(fnameList);
       }
+      return flatFileNames;
 }
 
-function flatdarkFiles(fname)
+function flatdarkFiles(fnameList)
 {
-      if (fname == null) {
-            flatdarkFileNames = null;
+      if (fnameList == null) {
             // reset
+            flatdarkFileNames = null;
       } else {
             // add file
             if (flatdarkFileNames == null) {
                   flatdarkFileNames = [];
             }
-            flatdarkFileNames[flatdarkFileNames.length] = fname;
+            flatdarkFileNames = flatdarkFileNames.concat(fnameList);
       }
+      return flatdarkFileNames;
 }
 
 function mapBadChars(str)
@@ -8115,10 +8329,6 @@ function AutoIntegrateDialog()
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
 
-      this.onToggleSection = function(bar, beginToggle){
-            this.dialog.adjustToContents();
-      };
-    
       var mainHelpTips = 
       "<p>" +
       "<b>AutoIntegrate - Automatic image integration utility</b>" +
@@ -8291,10 +8501,21 @@ function AutoIntegrateDialog()
             par.batch_mode.val = checked; 
       }
 
-      this.autodetect_files_CheckBox = newCheckBox(this, "No autodetect", !par.autodetect_files.val, 
-      "<p>If selected do not try to autodetect light, bias, dark and flat files based on path or file name.</p>" );
-      this.autodetect_files_CheckBox.onClick = function(checked) { 
-            par.autodetect_files.val = !checked; 
+      this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", !par.autodetect_imagetyp.val, 
+      "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" 
+      );
+      this.autodetect_imagetyp_CheckBox.onClick = function(checked) { 
+            par.autodetect_imagetyp.val = !checked; 
+      }
+
+      this.autodetect_filter_CheckBox = newCheckBox(this, "Do not use FILTER keyword", !par.autodetect_filter.val, 
+      "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
+      "<p>Selecting this enables manual adding of filter files for lights and flats.</p>" 
+      );
+      this.autodetect_filter_CheckBox.onClick = function(checked) { 
+            par.autodetect_filter.val = !checked; 
+            showOrHideFilterSectionBar(pages.LIGHTS);
+            showOrHideFilterSectionBar(pages.FLATS);
       }
 
       this.all_files_CheckBox = newCheckBox(this, "All files", par.all_files.val, 
@@ -8521,8 +8742,8 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
-      this.otherParamsSet1.add( this.force_file_name_filter_CheckBox );
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
+      this.otherParamsSet1.add( this.all_files_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -8534,8 +8755,9 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.monochrome_image_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
-      this.otherParamsSet2.add( this.autodetect_files_CheckBox );
-      this.otherParamsSet2.add( this.all_files_CheckBox );
+      this.otherParamsSet2.add( this.force_file_name_filter_CheckBox );
+      this.otherParamsSet2.add( this.autodetect_filter_CheckBox );
+      this.otherParamsSet2.add( this.autodetect_imagetyp_CheckBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -9613,7 +9835,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 10";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 11";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
