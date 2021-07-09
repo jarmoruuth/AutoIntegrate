@@ -421,7 +421,7 @@ var logfname;
 var filterSectionbars = [];
 var filterSectionbarcontrols = [];
 var lightFilterSet = null;
-var lightFlatSet = null;
+var flatFilterSet = null;
     
 // These are initialzied by setDefaultDirs
 var AutoOutputDir = null;
@@ -706,7 +706,7 @@ function ensurePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndDot(dir)
+function removePathEndSlash(dir)
 {
       if (dir.length > 1) {
             switch (dir[dir.length-1]) {
@@ -720,7 +720,7 @@ function removePathEndDot(dir)
       return dir;
 }
 
-function removePathEndSlash(dir)
+function removePathEndDot(dir)
 {
       if (dir.length > 0) {
             switch (dir.substr(-2, 2)) {
@@ -7865,16 +7865,12 @@ function addFilesToFileList(pageIndex, imageFileNames)
                   break;
             default:
                   throwFatalError("addFilesToFileList bad pageIndex " + pageIndex);
-
       }
-      console.writeln("addFilesToFileList, allFileNames " + allFileNames.length + " files");
       return allFileNames;
 }
 
 function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 {
-      console.writeln("addFilteredFilesToTreeBox");
-
       var imageFileNames = addFilesToFileList(pageIndex, newImageFileNames);
 
       var filteredFiles = getFilterFiles(imageFileNames, pageIndex, '');
@@ -7944,9 +7940,13 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames)
             case pages.FLATS:
                   addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
                   break;
-            default:
+            case pages.BIAS:
+            case pages.DARKS:
+            case pages.FLAT_DARKS:
                   addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
                   break;
+            default:
+                  throwFatalError("addFilesToTreeBox bad pageIndex " + pageIndex);
       }
 }
 
@@ -8173,18 +8173,15 @@ function lightFiles(fnameList)
 {
       if (fnameList == null) {
             // reset
-            console.writeln("lightFiles reset");
             lightFileNames = null;
             lightFilterSet = null;
       } else {
             // add file
-            console.writeln("lightFiles add " + fnameList[0]);
             if (lightFileNames == null) {
                   lightFileNames = [];
             }
             lightFileNames = lightFileNames.concat(fnameList);
       }
-      console.writeln("lightFiles " + lightFileNames.length + " files");
       return lightFileNames;
 }
 
@@ -8215,7 +8212,7 @@ function biasFiles(fnameList)
             }
             biasFileNames = biasFileNames.concat(fnameList);
       }
-      return biasFiles;
+      return biasFileNames;
 }
 
 function flatFiles(fnameList)
@@ -8223,7 +8220,7 @@ function flatFiles(fnameList)
       if (fnameList == null) {
             // reset
             flatFileNames = null;
-            lightFilterSet = null;
+            flatFilterSet = null;
       } else {
             // add file
             if (flatFileNames == null) {
@@ -9835,7 +9832,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 11";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 12";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
