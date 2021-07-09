@@ -1102,7 +1102,7 @@ function saveFinalImageWindow(win, dir, name, bits)
             } else {
                   var new_postfix = "_" + bits;
             }
-            var old_postfix = name.substr(name.len - new_postfix.len);
+            var old_postfix = name.substr(name.length - new_postfix.length);
             if (old_postfix != new_postfix) {
                   save_name = dir + "/" + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
             } else {
@@ -1143,6 +1143,7 @@ function saveAllFinalImageWindows(bits)
                   if (keyword == "AutoIntegrate" && value == "finalimage") {
                         // we have final image window 
                         finalimages[finalimages.length] = imageWindow;
+                        break;
                   }
             }
       }
@@ -1162,10 +1163,10 @@ function saveAllFinalImageWindows(bits)
       if (gdd.execute()) {
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
             for (var i in finalimages) {
-                  saveFinalImageWindow(finalimages[i], gdd.directory, imageWindow.mainView.id, bits);
+                  saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
             }
       }
-      console.writeln("All batch windows are saved!");
+      console.writeln("All final image windows are saved!");
 }
 
 function copyWindow(sourceWindow, name)
@@ -1356,6 +1357,7 @@ function setFITSKeyword(imageWindow, name, value, comment)
 
 function setFinalImageKeyword(imageWindow) 
 {
+      console.writeln("setFinalImageKeyword to " + imageWindow.mainView.id);
       setFITSKeyword(
             imageWindow,
             "AutoIntegrate",
