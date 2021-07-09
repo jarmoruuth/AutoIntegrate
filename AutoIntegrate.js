@@ -282,7 +282,7 @@ var par = {
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       autodetect_filter: { val: true, def: true, name : "Autodetect FILTER keyword", type : 'B' },
       autodetect_imagetyp: { val: true, def: true, name : "Autodetect IMAGETYP keyword", type : 'B' },
-      all_files: { val: false, def: false, name : "All files", type : 'B' },
+      image_files: { val: false, def: false, name : "Image files", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
@@ -1246,15 +1246,15 @@ function openImageFiles(filetype)
                       "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
       var image_files = fits_files + " " + raw_files;
 
-      if (par.all_files.val) {
-            ofd.filters = [
-                  ["All files", "*.*"],
-                  ["Image files", image_files]
-            ];
-      } else {
+      if (par.image_files.val) {
             ofd.filters = [
                   ["Image files", image_files],
                   ["All files", "*.*"]
+            ];
+      } else {
+            ofd.filters = [
+                  ["All files", "*.*"],
+                  ["Image files", image_files]
             ];
       }
       if (!ofd.execute()) {
@@ -8517,10 +8517,10 @@ function AutoIntegrateDialog()
             showOrHideFilterSectionBar(pages.FLATS);
       }
 
-      this.all_files_CheckBox = newCheckBox(this, "All files", par.all_files.val, 
-      "<p>If selected default file select pattern is all files (*.*).</p>" );
-      this.all_files_CheckBox.onClick = function(checked) { 
-            par.all_files.val = checked; 
+      this.image_files_CheckBox = newCheckBox(this, "Image files", par.image_files.val, 
+      "<p>If selected default file select pattern is image files and not all files (*.*).</p>" );
+      this.image_files_CheckBox.onClick = function(checked) { 
+            par.image_files.val = checked; 
       }
 
       this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
@@ -8742,7 +8742,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet1.add( this.all_files_CheckBox );
+      this.otherParamsSet1.add( this.image_files_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
