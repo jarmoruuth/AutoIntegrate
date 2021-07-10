@@ -773,10 +773,11 @@ function checkWinFilePath(w)
       if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
             console.writeln("checkWinFilePath id ", w.mainView.id);
             var filePath = w.filePath;
-            if (filePath != null) {
+            if (filePath != null && filePath != "") {
                   outputRootDir = parseNewOutputRootDir(filePath, outputRootDir);
                   console.writeln("checkWinFilePath, set outputRootDir ", outputRootDir);
             } else {
+                  outputRootDir = "";
                   console.writeln("checkWinFilePath empty filePath");
             }
       }
@@ -1041,11 +1042,24 @@ function closeAllWindows(keep_integrated_imgs)
 
 function ensureDir(dir)
 {
+      console.writeln("ensureDir " + dir)
+      if (dir == "") {
+            return;
+      }
       var noslashdir = removePathEndSlash(dir);
       noslashdir = removePathEndDot(noslashdir);
       if (!File.directoryExists(noslashdir)) {
             console.writeln("Create directory " + noslashdir);
             File.createDirectory(noslashdir);
+      }
+}
+
+function combinePath(p1, p2)
+{
+      if (p1 == "") {
+            return "";
+      } else {
+            return p1 + p2;
       }
 }
 
@@ -1073,19 +1087,26 @@ function saveWindowEx(path, id, optional_unique_part)
 
 function saveProcessedWindow(path, id)
 {
-      var processedPath = path + AutoProcessedDir;
+      if (path == "") {
+            console.criticalln("No output directory, cannot save image "+ id);
+            return;
+      }
+      var processedPath = combinePath(path, AutoProcessedDir);
       ensureDir(processedPath);
-      return saveWindowEx(processedPath + '/', id, getOptionalUniqueFilenamePart());
+      saveWindowEx(ensurePathEndSlash(processedPath), id, getOptionalUniqueFilenamePart());
 }
 
 function saveMasterWindow(path, id)
 {
-      var masterDir = path + AutoMasterDir;
+      if (path == "") {
+            throwFatalError("No output directory, cannot save image "+ id);
+      }
+      var masterDir = combinePath(path, AutoMasterDir);
       ensureDir(outputRootDir);
       ensureDir(masterDir);
-      var fname = saveWindowEx(masterDir + '/', id, "");
+      var fname = saveWindowEx(ensurePathEndSlash(masterDir), id, "");
       if (fname == null) {
-            throwFatalError("Failed to save work image: " + masterDir + '/' + id);
+            throwFatalError("Failed to save work image: " + ensurePathEndSlash(masterDir) + id);
       }
       return fname;
 }
@@ -1105,10 +1126,10 @@ function saveFinalImageWindow(win, dir, name, bits)
             }
             var old_postfix = name.substr(name.length - new_postfix.length);
             if (old_postfix != new_postfix) {
-                  save_name = dir + "/" + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = ensurePathEndSlash(dir) + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
             } else {
                   // we already have bits added to name
-                  save_name = dir + "/" + name + getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = ensurePathEndSlash(dir) + name + getOptionalUniqueFilenamePart() + ".tif";
             }
 
             if (copy_win.bitsPerSample != bits) {
@@ -1116,7 +1137,7 @@ function saveFinalImageWindow(win, dir, name, bits)
                   copy_win.setSampleFormat(bits, false);
             }
       } else {
-            save_name = dir + "/" + name + getOptionalUniqueFilenamePart() + ".xisf";
+            save_name = ensurePathEndSlash(dir) + name + getOptionalUniqueFilenamePart() + ".xisf";
       }
       console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
@@ -1942,9 +1963,9 @@ function calibrateEngine()
       addProcessingStep("calibrateEngine");
 
       ensureDir(outputRootDir);
-      ensureDir(outputRootDir + AutoMasterDir);
-      ensureDir(outputRootDir + AutoOutputDir);
-      ensureDir(outputRootDir + AutoCalibratedDir);
+      ensureDir(combinePath(outputRootDir, AutoMasterDir));
+      ensureDir(combinePath(outputRootDir, AutoOutputDir));
+      ensureDir(combinePath(outputRootDir, AutoCalibratedDir));
 
       // Collect filter files
       var filtered_flats = getFilterFiles(flatFileNames, pages.FLATS, '');
@@ -2823,7 +2844,7 @@ function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
       console.writeln("generateNewFileNames, old " + oldFileNames[0]);
 
       for (var i = 0; i < oldFileNames.length; i++) {
-            newFileNames[i] = outputdir + '/' + File.extractName(oldFileNames[i]) + postfix + extension;
+            newFileNames[i] = ensurePathEndSlash(outputdir) + File.extractName(oldFileNames[i]) + postfix + extension;
       }
 
       console.writeln("generateNewFileNames, new " + newFileNames[0]);
@@ -5555,7 +5576,10 @@ function ensureDialogFilePath(names)
                   console.writeln("No path for " + names + ', nothing written');
                   return false;
             }
-            outputRootDir = gdd.directory + '/';
+            outputRootDir = gdd.directory;
+            if (outputRootDir != "") {
+                  outputRootDir = ensurePathEndSlash(outputRootDir);
+            }
             console.writeln("ensureDialogFilePath, set outputRootDir ", outputRootDir);
             return true;
       } else {
@@ -5578,7 +5602,8 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
             return;
       }
 
-      var processedPath = outputRootDir + AutoProcessedDir + '/';
+      var processedPath = combinePath(outputRootDir, AutoProcessedDir);
+      processedPath = ensurePathEndSlash(processedPath);
 
       console.writeln("Write processing steps to " + processedPath + logfname);
 
@@ -5814,8 +5839,8 @@ function CreateChannelImages(auto_continue)
             }
 
             ensureDir(outputRootDir);
-            ensureDir(outputRootDir + AutoOutputDir);
-            ensureDir(outputRootDir + AutoProcessedDir);
+            ensureDir(combinePath(outputRootDir, AutoOutputDir));
+            ensureDir(combinePath(outputRootDir, AutoProcessedDir));
 
             // Run image calibration if we have calibration frames
             var calibrateInfo = calibrateEngine();
@@ -7070,8 +7095,8 @@ function extraProcessing(id, apply_directly)
 
       checkWinFilePath(extraWin);
       ensureDir(outputRootDir);
-      ensureDir(outputRootDir + AutoOutputDir);
-      ensureDir(outputRootDir + AutoProcessedDir);
+      ensureDir(combinePath(outputRootDir, AutoOutputDir));
+      ensureDir(combinePath(outputRootDir, AutoProcessedDir));
 
       if (!apply_directly) {
             extra_id = id + "_extra";
@@ -7127,23 +7152,17 @@ function extraProcessing(id, apply_directly)
             extraSmallerStars(extraWin);
       }
       if (par.extra_StarNet.val) {
-             if (is_non_starnet_option() || is_narrowband_option()) {
-                  /* Restore stars by combining starless image and stars. */
-                  addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
-                  runPixelMathSingleMappingEx(
-                        extraWin.mainView.id, 
-                        extraWin.mainView.id + " + " + star_mask_win_id,
-                        false);
-                  // star_mask_win_id was a temp window with maybe smaller stars
-                  closeOneWindow(star_mask_win_id);
-             } else {
-                   // close the working windows as we did not change anything
-                  closeOneWindow(extraWin.mainView.id);
-                  closeOneWindow(star_mask_win_id);
-             }
+            /* Restore stars by combining starless image and stars. */
+            addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
+            runPixelMathSingleMappingEx(
+                  extraWin.mainView.id, 
+                  extraWin.mainView.id + " + " + star_mask_win_id,
+                  false);
+            // star_mask_win_id was a temp window with maybe smaller stars
+            closeOneWindow(star_mask_win_id);
       }
-      setFinalImageKeyword(ImageWindow.windowById(extra_id));
       if (!apply_directly) {
+            setFinalImageKeyword(ImageWindow.windowById(extra_id));
             saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
       }
 }
