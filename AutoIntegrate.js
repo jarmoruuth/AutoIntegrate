@@ -1042,6 +1042,7 @@ function closeAllWindows(keep_integrated_imgs)
 function ensureDir(dir)
 {
       var noslashdir = removePathEndSlash(dir);
+      noslashdir = removePathEndDot(noslashdir);
       if (!File.directoryExists(noslashdir)) {
             console.writeln("Create directory " + noslashdir);
             File.createDirectory(noslashdir);
@@ -7355,15 +7356,24 @@ function AutoIntegrateEngine(auto_continue)
 
       ensureDialogFilePath("processed files");
 
-      saveProcessedWindow(outputRootDir, L_id);                    /* Integration_L */
-      saveProcessedWindow(outputRootDir, R_id);                    /* Integration_R */
-      saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
-      saveProcessedWindow(outputRootDir, B_id);                    /* Integration_B */
-      saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
-      saveProcessedWindow(outputRootDir, S_id);                    /* Integraiton_S */
-      saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
-      saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
-      saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final image. */
+      if (preprocessed_images < start_images.L_R_G_B_BE) {
+            // We have generated integrated images, save them
+            saveProcessedWindow(outputRootDir, L_id);                    /* Integration_L */
+            saveProcessedWindow(outputRootDir, R_id);                    /* Integration_R */
+            saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
+            saveProcessedWindow(outputRootDir, B_id);                    /* Integration_B */
+            saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
+            saveProcessedWindow(outputRootDir, S_id);                    /* Integraiton_S */
+            saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
+      }
+      if (preprocessed_images >= start_images.L_R_G_B_BE) {
+            // We have generated RGB image, save it
+            saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
+      }
+      if (preprocessed_images < start_images.FINAL) {
+            // We have generated final image, save it
+            saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final image. */
+      }
 
       /* All done, do cleanup on windows on screen 
        */
