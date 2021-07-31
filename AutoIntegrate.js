@@ -1159,13 +1159,17 @@ function saveAllFinalImageWindows(bits)
       for (var i in images) {
             var imageWindow = images[i];
             var keywords = imageWindow.keywords;
-            for (var j = 0; j != keywords.length; j++) {
-                  var keyword = keywords[j].name;
-                  var value = keywords[j].strippedValue.trim();
-                  if (keyword == "AutoIntegrate" && value == "finalimage") {
-                        // we have final image window 
-                        finalimages[finalimages.length] = imageWindow;
-                        break;
+            if (keywords != null && keywords != undefined) {
+                  for (var j = 0; j != keywords.length; j++) {
+                        var keyword = keywords[j].name;
+                        var value = keywords[j].strippedValue.trim();
+                        if (keyword == "AutoIntegrate" && value == "finalimage") {
+                              // we have final image window 
+                              if (imageWindow.mainView != null && imageWindow.mainView != undefined) {
+                                    finalimages[finalimages.length] = imageWindow;
+                              }
+                              break;
+                        }
                   }
             }
       }
@@ -1184,7 +1188,7 @@ function saveAllFinalImageWindows(bits)
 
       if (gdd.execute()) {
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
-            for (var i in finalimages) {
+            for (var i = 0; i < finalimages.length; i++) {
                   saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
             }
       }
@@ -7161,7 +7165,9 @@ function extraProcessing(id, apply_directly)
             // star_mask_win_id was a temp window with maybe smaller stars
             closeOneWindow(star_mask_win_id);
       }
-      if (!apply_directly) {
+      if (apply_directly) {
+            setFinalImageKeyword(ImageWindow.windowById(extraWin.mainView.id));
+      } else {
             setFinalImageKeyword(ImageWindow.windowById(extra_id));
             saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
       }
