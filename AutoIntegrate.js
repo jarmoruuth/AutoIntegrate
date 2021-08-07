@@ -3370,6 +3370,10 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                   }
             }
 
+            if (filter != null && filter.trim().substring(0, 1) == 'F') {
+                  // Hubble FILTER starts with F, force using file name
+                  filter = null;
+            }
             if (filter == null || par.force_file_name_filter.val) {
                   // No filter keyword. Try mapping based on file name.
                   filter = filterByFileName(filePath, filename_postfix);
@@ -3381,54 +3385,77 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
-            switch (filter.trim().substring(0, 1)) {
+            // First check with full filter name
+            switch (filter.trim()) {
                   case 'Luminance':
                   case 'Lum':
                   case 'Clear':
+                        filter = 'L';
+                        break;
+                  case 'Red':
+                        filter = 'R';
+                        break;
+                  case 'Green':
+                        filter = 'G';
+                        break;
+                  case 'Blue':
+                        filter = 'B';
+                        break;
+                  case 'Halpha':
+                  case 'Ha':
+                        filter = 'H';
+                        break;
+                  case 'SII':
+                        filter = 'S';
+                        break;
+                  case 'OIII':
+                        filter = 'O';
+                        break;
+                  case 'Color':
+                  case 'No filter':
+                        filter = 'C';
+                        break;
+                  default:
+                        break;
+            }
+            // Do final resolve based on first letter in the filter
+            switch (filter.trim().substring(0, 1)) {
                   case 'L':
                   case 'l':
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         luminance = true;
                         break;
-                  case 'Red':
                   case 'R':
                   case 'r':
                         allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         rgb = true;
                         break;
-                  case 'Green':
                   case 'G':
                   case 'g':
                         allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         rgb = true;
                         break;
-                  case 'Blue':
                   case 'B':
                   case 'b':
                         allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         rgb = true;
                         break;
-                  case 'Halpha':
-                  case 'Ha':
                   case 'H':
                   case 'h':
                         allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         narrowband = true;
                         break;
-                  case 'SII':
                   case 'S':
                   case 's':
                         allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         narrowband = true;
                         break;
-                  case 'OIII':
                   case 'O':
                   case 'o':
                         allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         narrowband = true;
                         break;
-                  case 'Color':
-                  case 'No filter':
+                  case 'C':
                   default:
                         allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter};
                         color_files = true;
