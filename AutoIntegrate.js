@@ -9467,23 +9467,23 @@ function AutoIntegrateDialog()
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color.val, 
       "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
-      "Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "This is also run with AutoContinue and Extra processing.</p>" );
       this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
             par.fix_narrowband_star_color.val = checked; 
       }
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_hue_shift.val, 
-      "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
       this.narrowband_hue_shift_CheckBox.onClick = function(checked) { 
             par.run_hue_shift.val = checked; 
       }
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green.val, 
-      "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. " +
-      "Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Leave some green color on image when running SCNR (amount 0.50). Useful with SHO color palette. " +
+      "This is also run with AutoContinue and Extra processing.</p>" );
       this.narrowband_leave_some_green_CheckBox.onClick = function(checked) { 
             par.leave_some_green.val = checked; 
       }
       this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR.val, 
-      "<p>Run SCNR to remove green cast. Useful with SHO color palette. Also run with AutoContinue narrowband and Extra processing.</p>" );
+      "<p>Run SCNR to remove green cast. Useful with SHO color palette. This is also run with AutoContinue and Extra processing.</p>" );
       this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
             par.run_narrowband_SCNR.val = checked; 
       }
@@ -9527,7 +9527,8 @@ function AutoIntegrateDialog()
       // Extra processing
       this.extraStarNet_CheckBox = newCheckBox(this, "StarNet", par.extra_StarNet.val, 
       "<p>Run Starnet on image to generate a starless image and a separate image for the stars. When Starnet is selected, extra processing is " +
-      "applied to the starless image.</p>" );
+      "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
+      "from starless and star images.</p>" );
       this.extraStarNet_CheckBox.onClick = function(checked) { 
             par.extra_StarNet.val = checked; 
       }
@@ -9585,7 +9586,8 @@ function AutoIntegrateDialog()
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
       this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraImageLabel.toolTip = "<p>Target image for extra processing.</p>";
+      this.extraImageLabel.toolTip = "<p>Target image for extra processing. Target image is replaced with processed image. This can be useful " + 
+      "if extra processing is not done with Run or AutoContinue option.</p>";
       this.extraImageComboBox = new ComboBox( this );
       var windowList = getWindowListReverse();
       windowList.unshift("Auto");
@@ -9600,7 +9602,7 @@ function AutoIntegrateDialog()
       this.extraApplyButton = new PushButton( this );
       this.extraApplyButton.text = "Apply";
       this.extraApplyButton.toolTip = 
-            "Apply extra processing on the selected image.";
+            "Apply extra processing on the selected image. Auto option is used when extra processing is done with Run or AutoContinue option.";
       this.extraApplyButton.onClick = function()
       {
             if (!is_extra_option() && !is_narrowband_option()) {
@@ -9668,11 +9670,11 @@ function AutoIntegrateDialog()
       this.extraControl.sizer.addStretch();
       this.extraControl.toolTip = 
             "<p>" +
-            "In case of Run or AutoContinue or AutoContinue narrowband " + 
+            "In case of Run or AutoContinue " + 
             "extra processing options are always applied to a copy of the final image. " + 
             "A new image is created with _extra added to the name. " + 
             "For example if the final image is AutoLRGB then a new image AutoLRGB_extra is created. " + 
-            "AutoContinue or AutoContinue narrowband can be used to apply extra processing after the final image is created. " +
+            "AutoContinue can be used to apply extra processing after the final image is created. " +
             "</p><p>" +
             "In case of Apply button extra processing is run directly on the selected image. " +
             "</p><p>" +
@@ -9686,7 +9688,8 @@ function AutoIntegrateDialog()
             "3. HDRMultiscaleTansform<br>" +
             "4. LocalHistogramEqualization<br>" +
             "5. Add contrast<br>" +
-            "6. Smaller stars" +
+            "6. Auto STF<br>" +
+            "7. Smaller stars" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
@@ -9706,8 +9709,15 @@ function AutoIntegrateDialog()
             "Integration_L_BE + Integration_RGB_BE<br>" +
             "Integration_RGB_BE<br>" +
             "Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
+            "Integration_H + Integration_S + Integration_O<br>" +
             "Integration_L + Integration_R + Integration_G + Integration_B<br>" +
             "Final image (for extra processing)" +
+            "</p>" +
+            "<p>" +
+            "Not all images must be present, for example L image can be missing.<br>" +
+            "RGB = Combined image, can be RGB or HSO.<br>" +
+            "HT = Histogram Transformation, imnage is manually streched to non-liner state.<br>" +
+            "BE = Background Extracted, for example manual DBE is run on image.<br>" +
             "</p>";
       this.autoContinueButton.onClick = function()
       {
@@ -9896,7 +9906,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 13";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 14";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
