@@ -5221,9 +5221,9 @@ function noiseMild()
       return P;
 }
 
-function runMultiscaleLinearTransformReduceNoise(imgWin, MaskView, strength)
+function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 {
-      console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + MaskView.mainView.id + ", strength " + strength);
+      console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
 
       switch (strength) {
             case 3:
@@ -5239,38 +5239,38 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, MaskView, strength)
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (MaskView != null) {
+      if (maskWin != null) {
             /* Remove noise from dark parts of the image. */
-            imgWin.setMask(MaskView);
+            imgWin.setMask(maskWin);
             imgWin.maskInverted = true;
       }
 
       P.executeOn(imgWin.mainView, false);
 
-      if (MaskView != null) {
+      if (maskWin != null) {
             imgWin.removeMask();
       }
 
       imgWin.mainView.endProcess();
 }
 
-function runNoiseReduction(imgView, MaskView)
+function runNoiseReduction(imgWin, maskWin)
 {
       if (par.skip_noise_reduction.val) {
             return;
       }
 
-      addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
-      runMultiscaleLinearTransformReduceNoise(imgView, MaskView, par.noise_reduction_strength.val);
+      runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.noise_reduction_strength.val);
 }
 
-function runColorReduceNoise(imgView)
+function runColorReduceNoise(imgWin)
 {
       if (!par.use_color_noise_reduction.val) {
             return;
       }
-      addProcessingStep("Color noise reduction on " + imgView.mainView.id);
+      addProcessingStep("Color noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
       P.rgbkMode = false;
@@ -5296,12 +5296,12 @@ function runColorReduceNoise(imgView)
       P.supportHighlightsClip = 1.00000;
       P.supportMidtonesBalance = 0.50000;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Remove color noise from the whole image. */
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
 function runBackgroundNeutralization(imgView)
@@ -5378,9 +5378,9 @@ function runColorCalibration(imgView)
       }
 }
 
-function runColorSaturation(imgView, MaskView)
+function runColorSaturation(imgWin, maskWin)
 {
-      addProcessingStep("Color saturation on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       var P = new ColorSaturation;
       P.HS = [ // x, y
             [0.00000, 0.43636],
@@ -5395,22 +5395,22 @@ function runColorSaturation(imgView, MaskView)
       P.HSt = ColorSaturation.prototype.AkimaSubsplines;
       P.hueShift = 0.000;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Saturate only light parts of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = false;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
-function runCurvesTransformationSaturation(imgView, MaskView)
+function runCurvesTransformationSaturation(imgWin, maskWin)
 {
-      addProcessingStep("Curves transformation for saturation on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.R = [ // x, y
@@ -5470,23 +5470,23 @@ function runCurvesTransformationSaturation(imgView, MaskView)
       ];
       P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Saturate only light parts of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = false;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
-function increaseSaturation(imgView, MaskView)
+function increaseSaturation(imgWin, maskWin)
 {
-      //runColorSaturation(imgView, MaskView);
-      runCurvesTransformationSaturation(imgView, MaskView);
+      //runColorSaturation(imgWin, maskWin);
+      runCurvesTransformationSaturation(imgWin, maskWin);
 }
 
 function runLRGBCombination(RGB_id, L_id)
@@ -5611,9 +5611,9 @@ function narrowbandHueShift(imgView)
       imgView.endProcess();
 }
 
-function runMultiscaleLinearTransformSharpen(imgView, MaskView)
+function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
-      addProcessingStep("Sharpening on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
@@ -5671,17 +5671,17 @@ function runMultiscaleLinearTransformSharpen(imgView, MaskView)
       P.toChrominance = false;
       P.linear = false;
       
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Sharpen only light parts of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = false;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
 
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
 function getOptionalUniqueFilenamePart()
@@ -6693,7 +6693,7 @@ function createStarFixMask(imgView)
  * If we are not removing all green case we use mask ro protect
  * other areas than stars.
  */
-function fixNarrowbandStarColor(targetView)
+function fixNarrowbandStarColor(targetWin)
 {
       var use_mask;
 
@@ -6711,25 +6711,25 @@ function fixNarrowbandStarColor(targetView)
       addProcessingStep("Fix narrowband star color");
 
       if (use_mask) {
-            createStarFixMask(targetView.mainView);
+            createStarFixMask(targetWin.mainView);
       }
 
-      invertImage(targetView.mainView);
+      invertImage(targetWin.mainView);
 
       if (use_mask) {
             /* Use mask to change only star colors. */
             addProcessingStep("Using mask " + star_fix_mask_win.mainView.id + " when fixing star colors");
-            targetView.setMask(star_fix_mask_win);
-            targetView.maskInverted = false;
+            targetWin.setMask(star_fix_mask_win);
+            targetWin.maskInverted = false;
       }      
 
-      runSCNR(targetView.mainView, true);
+      runSCNR(targetWin.mainView, true);
 
       if (use_mask) {
-            targetView.removeMask();
+            targetWin.removeMask();
       }
 
-      invertImage(targetView.mainView);
+      invertImage(targetWin.mainView);
 }
 
 // When starnet is run we do some thins differently
@@ -6738,9 +6738,9 @@ function fixNarrowbandStarColor(targetView)
 // - Operations like HDMT and LHE are run on the starless image
 // - Star reduction is done on the stars image
 // - In the end starless and stars images are combined together
-function extraStarNet(imgView)
+function extraStarNet(imgWin)
 {
-      addProcessingStep("Run StarNet on " + imgView.mainView.id);
+      addProcessingStep("Run StarNet on " + imgWin.mainView.id);
 
       var P = new StarNet;
       P.stride = StarNet.prototype.Stride_128;
@@ -6748,11 +6748,11 @@ function extraStarNet(imgView)
 
       /* Execute StarNet on image.
        */
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 
       /* Get star mask.
        */
@@ -6760,31 +6760,31 @@ function extraStarNet(imgView)
       star_mask_win = ImageWindow.activeWindow;
       star_mask_win_id = star_mask_win.mainView.id;
 
-      var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgView);
+      var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
       setTargetFITSKeywordsForPixelmath(star_mask_win, FITSkeywords);
 
       ensureDir(outputRootDir);
 
       /* Make a copy of the stars image.
        */
-      console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgView.mainView.id + "_stars");
-      var copywin = copyWindow(star_mask_win, imgView.mainView.id + "_stars");
+      console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgWin.mainView.id + "_stars");
+      var copywin = copyWindow(star_mask_win, imgWin.mainView.id + "_stars");
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet stars image " + copywin.mainView.id);
 
       /* Make a copy of the starless image.
        */
-      console.writeln("extraStarNet copy " + imgView.mainView.id + " to " + imgView.mainView.id + "_starless");
-      var copywin = copyWindow(imgView, imgView.mainView.id + "_starless");
+      console.writeln("extraStarNet copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
+      var copywin = copyWindow(imgWin, imgWin.mainView.id + "_starless");
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet starless image " + copywin.mainView.id);
 }
 
-function extraDarkerBackground(imgView, MaskView)
+function extraDarkerBackground(imgWin, maskWin)
 {
-      addProcessingStep("Darker background on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("Darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.R = [ // x, y
@@ -6844,22 +6844,22 @@ function extraDarkerBackground(imgView, MaskView)
       ];
       P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Darken only dark parts (background) of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = true;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = true;
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
-function extraHDRMultiscaleTansform(imgView, MaskView)
+function extraHDRMultiscaleTansform(imgWin, maskWin)
 {
-      addProcessingStep("HDRMultiscaleTransform on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new HDRMultiscaleTransform;
       P.numberOfLayers = 6;
@@ -6895,22 +6895,22 @@ function extraHDRMultiscaleTansform(imgView, MaskView)
       P.preserveHue = false;
       P.luminanceMask = true;
       
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Transform only light parts of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = false;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
-function extraLocalHistogramEqualization(imgView, MaskView)
+function extraLocalHistogramEqualization(imgWin, maskWin)
 {
-      addProcessingStep("LocalHistogramEqualization on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
+      addProcessingStep("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new LocalHistogramEqualization;
       P.radius = 110;
@@ -6919,20 +6919,20 @@ function extraLocalHistogramEqualization(imgView, MaskView)
       P.amount = 1.000;
       P.circularKernel = true;
       
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Transform only light parts of the image. */
-      imgView.setMask(MaskView);
-      imgView.maskInverted = false;
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
       
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.removeMask();
+      imgWin.removeMask();
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
-function createStarMask(imgView)
+function createStarMask(imgWin)
 {
       if (star_mask_win == null) {
             star_mask_win = findWindow("star_mask");
@@ -6965,9 +6965,9 @@ function createStarMask(imgView)
       P.limit = 1.00000;
       P.mode = StarMask.prototype.StarMask;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(imgView.mainView, false);
-      imgView.mainView.endProcess();
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
 
       star_mask_win = ImageWindow.activeWindow;
 
@@ -6977,18 +6977,18 @@ function createStarMask(imgView)
       star_mask_win_id = star_mask_win.mainView.id;
 }
 
-function extraSmallerStars(imgView)
+function extraSmallerStars(imgWin)
 {
-      var targetView = imgView;
+      var targetWin = imgWin;
 
-      createStarMask(imgView);
+      createStarMask(imgWin);
 
       if (par.extra_StarNet.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
-            targetView = star_mask_win;    
+            targetWin = star_mask_win;    
       } else {
-            addProcessingStep("Smaller stars on " + imgView.mainView.id + " using mask " + star_mask_win.mainView.id + 
+            addProcessingStep("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
                         " and " + par.extra_smaller_stars_iterations.val + " iterations");
       }
 
@@ -7034,26 +7034,26 @@ function extraSmallerStars(imgView)
             ];
       }
       
-      targetView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       if (!par.extra_StarNet.val) {
             /* Transform only light parts of the image. */
-            targetView.setMask(star_mask_win);
-            targetView.maskInverted = false;
+            targetWin.setMask(star_mask_win);
+            targetWin.maskInverted = false;
       }
       
-      P.executeOn(targetView.mainView, false);
+      P.executeOn(targetWin.mainView, false);
 
       if (!par.extra_StarNet.val) {
-            targetView.removeMask();
+            targetWin.removeMask();
       }
 
-      targetView.mainView.endProcess();
+      targetWin.mainView.endProcess();
 }
 
-function extraContrast(imgView)
+function extraContrast(imgWin)
 {
-      addProcessingStep("Increase contrast on " + imgView.mainView.id);
+      addProcessingStep("Increase contrast on " + imgWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.R = [ // x, y
@@ -7114,11 +7114,11 @@ function extraContrast(imgView)
       ];
       P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(imgView.mainView, false);
+      P.executeOn(imgWin.mainView, false);
 
-      imgView.mainView.endProcess();
+      imgWin.mainView.endProcess();
 }
 
 function extraSTF(win)
@@ -7128,7 +7128,7 @@ function extraSTF(win)
 
 function extraNoiseReduction(win)
 {
-      addProcessingStep("Extra noise reduction on " + imgView.mainView.id);
+      addProcessingStep("Extra noise reduction on " + imgWin.mainView.id);
 
       runMultiscaleLinearTransformReduceNoise(
             win, 
