@@ -79,8 +79,7 @@ Generic steps for all files
    reference.
 7. StarAlign is run on all files and *_a_r.xisf files are
    generated.
-8. Optionally there is LocalNormalization on all files but
-   that does not seem to produce good results. There must be a bug...
+8. Optionally there is LocalNormalization on all files.
 
 Steps with LRGB files
 ---------------------
@@ -95,8 +94,8 @@ Steps with LRGB files
 5. Noise reduction is run on L image using a mask.
 6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
-7. If use_linear_fit is selected then LinearFit is run on RGB channels using L, R, G or B as a reference
-8. If use_noise_reduction_on_all_channels is selected then noise reduction is done separately 
+7. By default LinearFit is run on RGB channels using L, R, G or B as a reference
+8. If Channel noise reduction is non-zero then noise reduction is done separately 
    for each R,G and B images using a mask.
 9. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
@@ -258,7 +257,6 @@ var infoLabel;
 var par = {
       // Image processing parameters
       use_local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },  /* color problems, maybe should be used only for L images */
-      use_noise_reduction_on_all_channels: { val: false, def: false, name : "Noise reduction on R, G, B", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
       fix_row_defects: { val: false, def: false, name : "Fix row defetcs", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
@@ -266,12 +264,14 @@ var par = {
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
+      skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
       skip_imageintegration_ssweight: { val: false, def: false, name : "No ImageIntegration SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
-      skip_color_noise_reduction: { val: false, def: false, name : "No color noise reduction", type : 'B' },
-      stronger_noise_reduction: { val: false, def: false, name : "Stronger noise reduction", type : 'B' },
+      noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
+      channel_noise_reduction_strength: { val: 0, def: 0, name : "Noise reduction strength on color channels", type : 'I' },
+      use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
 
       // Other parameters
@@ -282,7 +282,7 @@ var par = {
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       autodetect_filter: { val: true, def: true, name : "Autodetect FILTER keyword", type : 'B' },
       autodetect_imagetyp: { val: true, def: true, name : "Autodetect IMAGETYP keyword", type : 'B' },
-      image_files: { val: false, def: false, name : "Image files", type : 'B' },
+      all_files: { val: false, def: false, name : "All files", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
@@ -351,6 +351,9 @@ var par = {
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_STF: { val: false, def: false, name : "Extra STF", type : 'B' },
+      
+      extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
+      extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
 
@@ -379,13 +382,13 @@ var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
+var noise_reduction_strength_values = [ '0', '3', '4', '5'];
 
 var close_windows = false;
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
 var ssweight_set = false;
 var run_HT = true;
 var batch_narrowband_palette_mode = false;
-var noise_reduction_before_HistogramTransform = true;
 var narrowband = false;
 var autocontinue_narrowband = false;
 var linear_fit_done = false;
@@ -1272,7 +1275,7 @@ function openImageFiles(filetype)
                       "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
       var image_files = fits_files + " " + raw_files;
 
-      if (par.image_files.val) {
+      if (!par.all_files.val) {
             ofd.filters = [
                   ["Image files", image_files],
                   ["All files", "*.*"]
@@ -2798,7 +2801,7 @@ function getDefectInfo(fileNames)
       }
       // Run image interation as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
-      var LDD_id = runImageIntegration(LDD_images.images, "LDD");
+      var LDD_id = runImageIntegration(LDD_images, "LDD");
       var LDD_win = findWindow(LDD_id);
       var defects = [];
 
@@ -3990,13 +3993,19 @@ function mapRGBchannel(images, refimage, mapping)
 
 function reduceNoiseOnChannelImage(image)
 {
-      console.writeln("reduceNoiseOnChannelImage " + image);
+      if (par.skip_noise_reduction.val) {
+            return;
+      }
+      addProcessingStep("Reduce noise on channe image " + image);
+
       /* Create a temporary stretched copy to be used as a mask. */
       var maskname = image + "_mask";
       var image_win = findWindow(image);
       var mask_win = copyWindow(image_win, maskname);
       runHistogramTransform(mask_win, null, false, 'mask');
-      runMultiscaleLinearTransformReduceNoise(image_win, mask_win);
+
+      runMultiscaleLinearTransformReduceNoise(image_win, mask_win, par.channel_noise_reduction_strength.val);
+
       closeOneWindow(maskname);
 }
 
@@ -4052,8 +4061,8 @@ function customMapping()
                   }
             }
 
-            if (par.use_noise_reduction_on_all_channels.val) {
-                  // Optionally do noise reduction on linear state
+            if (par.channel_noise_reduction_strength.val > 0) {
+                  // Optionally do noise reduction on color channels in linear state
                   for (var i = 0; i < images.length; i++) {
                         reduceNoiseOnChannelImage(images[i]);
                   }
@@ -4288,7 +4297,7 @@ function runLocalNormalization(imagetable, refImage)
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
-            targets[targets.length] = [ true, imagetable[i] ];
+            targets[targets.length] = [ true, imagetable[i][1] ];
       }
       var P = new LocalNormalization;
       P.scale = 128;
@@ -4452,18 +4461,19 @@ function ensureThreeImages(images)
      
 }
 
-function runImageIntegration(images, name)
+function runImageIntegration(channel_images, name)
 {
+      var images = channel_images.images;
       if (images == null || images.length == 0) {
             return null;
       }
       addProcessingStep("Image " + name + " integration on " + images.length + " files");
 
-      ensureThreeImages(images);
-
       if (par.use_local_normalization.val && name != 'LDD') {
-            return runImageIntegrationNormalized(images, name);
+            return runImageIntegrationNormalized(channel_images, name);
       }
+
+      ensureThreeImages(images);
 
       var P = new ImageIntegration;
 
@@ -4586,9 +4596,16 @@ function runImageIntegration(images, name)
       }
 }
 
-function runImageIntegrationNormalized(images, name)
+function runImageIntegrationNormalized(channel_images, name)
 {
-      addProcessingStep("  Using local normalized data in integrate");
+      var images = channel_images.images;
+
+      ensureThreeImages(images);
+
+      runLocalNormalization(images, channel_images.best_image);
+
+      addProcessingStep("  Using local normalized data in image integration");
+      
       var norm_images = new Array;
       for (var i = 0; i < images.length; i++) {
             var oneimage = new Array(4);
@@ -4602,6 +4619,7 @@ function runImageIntegrationNormalized(images, name)
             oneimage[3] = images[i][1].replace(".xisf", ".xnml");    // localNormalizationDataPath
             norm_images[norm_images.length] = oneimage;
       }
+      console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
       var P = new ImageIntegration;
       P.images = norm_images;
       P.inputHints = "";
@@ -4626,9 +4644,9 @@ function runImageIntegrationNormalized(images, name)
       P.ccdGain = 1.00;
       P.ccdReadNoise = 10.00;
       P.ccdScaleNoise = 0.00;
-      P.clipLow = true;
-      P.clipHigh = true;
-      P.rangeClipLow = true;
+      P.clipLow = par.imageintegration_clipping.val;             // def: true
+      P.clipHigh = par.imageintegration_clipping.val;            // def: true
+      P.rangeClipLow = par.imageintegration_clipping.val;        // def: true
       P.rangeLow = 0.000000;
       P.rangeClipHigh = true;       /* default: false */
       P.rangeHigh = 0.980000;
@@ -4667,6 +4685,7 @@ function runImageIntegrationNormalized(images, name)
 
       windowCloseif(P.highRejectionMapImageId);
       windowCloseif(P.lowRejectionMapImageId);
+      windowCloseif(P.slopeMapImageId);
 
       if (par.use_drizzle.val) {
             windowCloseif(P.integrationImageId);
@@ -5019,6 +5038,68 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       }
 }
 
+function noiseSuperStrong()
+{
+      var P = new MultiscaleLinearTransform;
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, true, 4.000, 0.70, 3],
+            [true, true, 0.000, true, 3.000, 0.60, 3],
+            [true, true, 0.000, true, 2.000, 0.60, 2],
+            [true, true, 0.000, true, 1.000, 0.50, 1],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+         ];
+      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
+      P.scaleDelta = 0;
+      P.scalingFunctionData = [
+         0.25,0.5,0.25,
+         0.5,1,0.5,
+         0.25,0.5,0.25
+      ];
+      P.scalingFunctionRowFilter = [
+         0.5,
+         1,
+         0.5
+      ];
+      P.scalingFunctionColFilter = [
+         0.5,
+         1,
+         0.5
+      ];
+      P.scalingFunctionNoiseSigma = [
+         0.8003,0.2729,0.1198,
+         0.0578,0.0287,0.0143,
+         0.0072,0.0036,0.0019,
+         0.001
+      ];
+      P.scalingFunctionName = "Linear Interpolation (3)";
+      P.linearMask = false;
+      P.linearMaskAmpFactor = 100;
+      P.linearMaskSmoothness = 1.00;
+      P.linearMaskInverted = true;
+      P.linearMaskPreview = false;
+      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
+      P.curveBreakPoint = 0.75;
+      P.noiseThresholding = false;
+      P.noiseThresholdingAmount = 1.00;
+      P.noiseThreshold = 3.00;
+      P.softThresholding = true;
+      P.useMultiresolutionSupport = false;
+      P.deringing = false;
+      P.deringingDark = 0.1000;
+      P.deringingBright = 0.0000;
+      P.outputDeringingMaps = false;
+      P.lowRange = 0.0000;
+      P.highRange = 0.0000;
+      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
+      P.previewLayer = 0;
+      P.toLuminance = true;
+      P.toChrominance = true;
+      P.linear = false;
+      
+      return P;
+}
+
 function noiseStrong()
 {
       var P = new MultiscaleLinearTransform;
@@ -5140,7 +5221,40 @@ function noiseMild()
       return P;
 }
 
-function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
+function runMultiscaleLinearTransformReduceNoise(imgWin, MaskView, strength)
+{
+      console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + MaskView.mainView.id + ", strength " + strength);
+
+      switch (strength) {
+            case 3:
+                  var P = noiseMild();
+                  break;
+            case 4:
+                  var P = noiseStrong();
+                  break;
+            case 5:
+                  var P = noiseSuperStrong();
+                  break;
+       } 
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      if (MaskView != null) {
+            /* Remove noise from dark parts of the image. */
+            imgWin.setMask(MaskView);
+            imgWin.maskInverted = true;
+      }
+
+      P.executeOn(imgWin.mainView, false);
+
+      if (MaskView != null) {
+            imgWin.removeMask();
+      }
+
+      imgWin.mainView.endProcess();
+}
+
+function runNoiseReduction(imgView, MaskView)
 {
       if (par.skip_noise_reduction.val) {
             return;
@@ -5148,32 +5262,12 @@ function runMultiscaleLinearTransformReduceNoise(imgView, MaskView)
 
       addProcessingStep("Noise reduction on " + imgView.mainView.id + " using mask " + MaskView.mainView.id);
 
-      if (par.stronger_noise_reduction.val) {
-            var P = noiseStrong();
-       } else {
-             var P = noiseMild();
-       } 
-
-      imgView.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-      if (MaskView != null) {
-            /* Remove noise from dark parts of the image. */
-            imgView.setMask(MaskView);
-            imgView.maskInverted = true;
-      }
-
-      P.executeOn(imgView.mainView, false);
-
-      if (MaskView != null) {
-            imgView.removeMask();
-      }
-
-      imgView.mainView.endProcess();
+      runMultiscaleLinearTransformReduceNoise(imgView, MaskView, par.noise_reduction_strength.val);
 }
 
 function runColorReduceNoise(imgView)
 {
-      if (par.skip_color_noise_reduction.val) {
+      if (!par.use_color_noise_reduction.val) {
             return;
       }
       addProcessingStep("Color noise reduction on " + imgView.mainView.id);
@@ -5235,7 +5329,11 @@ function runBackgroundNeutralization(imgView)
 function runColorCalibration(imgView)
 {
       if (narrowband) {
-            addProcessingStep("No Color calibration for narrowband");
+            addProcessingStep("No color calibration for narrowband");
+            return;
+      }
+      if (par.skip_color_calibration.val) {
+            addProcessingStep("No color calibration was selected");
             return;
       }
       try {
@@ -5939,12 +6037,6 @@ function CreateChannelImages(auto_continue)
             alignedFiles = runStarAlignment(fileNames, best_image);
             filename_postfix = filename_postfix + '_r';
 
-            if (par.use_local_normalization.val) {
-                  /* LocalNormalization
-                   */
-                  runLocalNormalization(alignedFiles, best_image);
-            }
-
             /* Find files for each L, R, G, B, H, O and S channels, or color files.
              */
             findLRGBchannels(alignedFiles, filename_postfix);
@@ -5965,17 +6057,17 @@ function CreateChannelImages(auto_continue)
                   is_color_files = false;
 
                   if (is_luminance_images) {
-                        L_id = runImageIntegration(L_images.images, 'L');
+                        L_id = runImageIntegration(L_images, 'L');
                         luminance_id = L_id;
                   }
 
                   if (!par.monochrome_image.val) {
-                        R_id = runImageIntegration(R_images.images, 'R');
-                        G_id = runImageIntegration(G_images.images, 'G');
-                        B_id = runImageIntegration(B_images.images, 'B');
-                        H_id = runImageIntegration(H_images.images, 'H');
-                        S_id = runImageIntegration(S_images.images, 'S');
-                        O_id = runImageIntegration(O_images.images, 'O');
+                        R_id = runImageIntegration(R_images, 'R');
+                        G_id = runImageIntegration(G_images, 'G');
+                        B_id = runImageIntegration(B_images, 'B');
+                        H_id = runImageIntegration(H_images, 'H');
+                        S_id = runImageIntegration(S_images, 'S');
+                        O_id = runImageIntegration(O_images, 'O');
 
                         windowShowif(R_id);
                         windowShowif(G_id);
@@ -5989,7 +6081,7 @@ function CreateChannelImages(auto_continue)
                   /* We have color files. */
                   addProcessingStep("Processing as color files");
                   is_color_files = true;
-                  var color_id = runImageIntegration(C_images.images, 'RGB');
+                  var color_id = runImageIntegration(C_images, 'RGB');
                   RGB_win = ImageWindow.windowById(color_id);
                   RGB_win.show();
                   RGB_win_id = color_id;
@@ -6079,6 +6171,8 @@ function ColorCreateMask(color_id, RBGstretched)
  */
 function ProcessLimage(RBGmapping)
 {
+      var noise_reduction_done = false;
+
       addProcessingStep("ProcessLimage");
 
       /* LRGB files */
@@ -6116,7 +6210,8 @@ function ProcessLimage(RBGmapping)
 
             if (!RBGmapping.combined) {
                   /* Noise reduction for L. */
-                  runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(L_ABE_id), mask_win);
+                  runNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                  noise_reduction_done = true;
             }
 
             /* On L image run HistogramTransform based on autostretch
@@ -6141,8 +6236,10 @@ function ProcessLimage(RBGmapping)
             ImageWindow.windowById(L_ABE_HT_id);      
       }
 
-      /* Noise reduction for L. */
-      runMultiscaleLinearTransformReduceNoise(L_ABE_HT_win, mask_win);
+      if (!noise_reduction_done) {
+            /* Noise reduction for L. */
+            runNoiseReduction(L_ABE_HT_win, mask_win);
+      }
 }
 
 /* Run linear fit in L, R, G and B images based on options set by user.
@@ -6212,7 +6309,7 @@ function CombineRGBimage()
 {
       addProcessingStep("CombineRGBimage");
 
-      if (par.use_noise_reduction_on_all_channels.val && !narrowband) {
+      if (par.channel_noise_reduction_strength.val > 0 && !narrowband) {
             reduceNoiseOnChannelImage(red_id);
             reduceNoiseOnChannelImage(green_id);
             reduceNoiseOnChannelImage(blue_id);
@@ -6492,7 +6589,7 @@ function ProcessRGBimage(RBGstretched)
             if (!is_color_files) {
                   /* Optional noise reduction for RGB
                    */
-                  runMultiscaleLinearTransformReduceNoise(
+                  runNoiseReduction(
                         ImageWindow.windowById(RGB_ABE_id),
                         mask_win);
             }
@@ -6515,7 +6612,7 @@ function ProcessRGBimage(RBGstretched)
       if (is_color_files) {
             /* Noise reduction for color RGB
              */
-            runMultiscaleLinearTransformReduceNoise(
+            runNoiseReduction(
                   ImageWindow.windowById(RGB_ABE_HT_id),
                   mask_win);
             runColorReduceNoise(ImageWindow.windowById(RGB_ABE_HT_id));
@@ -7029,6 +7126,15 @@ function extraSTF(win)
       runHistogramTransform(win, null, true, 'mask');
 }
 
+function extraNoiseReduction(win)
+{
+      addProcessingStep("Extra noise reduction on " + imgView.mainView.id);
+
+      runMultiscaleLinearTransformReduceNoise(
+            win, 
+            mask_win, 
+            par.extra_noise_reduction_strength.val);
+}
 
 function is_non_starnet_option()
 {
@@ -7037,6 +7143,7 @@ function is_non_starnet_option()
              par.extra_LHE.val || 
              par.extra_contrast.val ||
              par.extra_STF.val ||
+             par.extra_noise_reduction.val ||
              par.extra_smaller_stars.val;
 }
 
@@ -7120,7 +7227,8 @@ function extraProcessing(id, apply_directly)
       var extra_id = id;
       var need_L_mask = par.extra_darker_background.val || 
                         par.extra_HDRMLT.val || 
-                        par.extra_LHE.val;
+                        par.extra_LHE.val ||
+                        par.extra_noise_reduction.val;
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -7178,6 +7286,9 @@ function extraProcessing(id, apply_directly)
       }
       if (par.extra_STF.val) {
             extraSTF(extraWin);
+      }
+      if (par.extra_noise_reduction.val) {
+            extraNoiseReduction(extraWin);
       }
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
@@ -8381,6 +8492,18 @@ function aiSectionBar(parent, control, title)
       return gb;
 }
 
+function aiSectionBarAdd(parent, groupbox, control, title)
+{
+      var sb = new SectionBar(parent, title);
+      sb.setSection(control);
+      sb.onToggleSection = function(bar, beginToggle){
+            parent.dialog.adjustToContents();
+      };
+
+      groupbox.sizer.add( sb );
+      groupbox.sizer.add( control );
+}
+
 function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
@@ -8462,12 +8585,6 @@ function AutoIntegrateDialog()
             "<p>Run local normalization before StarAlign</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
             par.use_local_normalization.val = checked; 
-      }
-
-      this.useNoiseReductionOnAllChannelsCheckBox = newCheckBox(this, "Noise reduction also on on R,G,B", par.use_noise_reduction_on_all_channels.val, 
-            "<p>Run noise also reduction on R,G,B images in addition to L image</p>" );
-      this.useNoiseReductionOnAllChannelsCheckBox.onClick = function(checked) { 
-            par.use_noise_reduction_on_all_channels.val = checked; 
       }
 
       this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects.val, 
@@ -8579,10 +8696,10 @@ function AutoIntegrateDialog()
             showOrHideFilterSectionBar(pages.FLATS);
       }
 
-      this.image_files_CheckBox = newCheckBox(this, "Image files", par.image_files.val, 
-      "<p>If selected default file select pattern is image files and not all files (*.*).</p>" );
-      this.image_files_CheckBox.onClick = function(checked) { 
-            par.image_files.val = checked; 
+      this.all_files_CheckBox = newCheckBox(this, "All files", par.all_files.val, 
+      "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
+      this.all_files_CheckBox.onClick = function(checked) { 
+            par.all_files.val = checked; 
       }
 
       this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
@@ -8657,21 +8774,9 @@ function AutoIntegrateDialog()
       }
 
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction.val, 
-      "<p>Do not use noise reduction.</p>" );
+      "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
       this.skip_noise_reduction_CheckBox.onClick = function(checked) { 
             par.skip_noise_reduction.val = checked; 
-      }
-
-      this.skip_color_noise_reduction_CheckBox = newCheckBox(this, "No color noise reduction", par.skip_color_noise_reduction.val, 
-      "<p>Do not use color noise reduction.</p>" );
-      this.skip_color_noise_reduction_CheckBox.onClick = function(checked) { 
-            par.skip_color_noise_reduction.val = checked; 
-      }
-
-      this.stronger_noise_reduction_CheckBox = newCheckBox(this, "Stronger noise reduction", par.stronger_noise_reduction.val, 
-      "<p>Use stronger noise reduction.</p>" );
-      this.stronger_noise_reduction_CheckBox.onClick = function(checked) { 
-            par.stronger_noise_reduction.val = checked; 
       }
 
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast.val, 
@@ -8679,6 +8784,13 @@ function AutoIntegrateDialog()
       this.no_mask_contrast_CheckBox.onClick = function(checked) { 
             par.skip_mask_contrast.val = checked; 
       }
+
+      this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration.val, 
+      "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
+      this.skip_color_calibration_CheckBox.onClick = function(checked) { 
+            par.skip_color_calibration.val = checked; 
+      }
+     
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -8691,27 +8803,23 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
-      this.imageParamsSet1.add( this.use_background_neutralization_CheckBox );
-      this.imageParamsSet1.add( this.useLocalNormalizationCheckBox );
+      this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
-      this.imageParamsSet2.add( this.skip_color_noise_reduction_CheckBox );
-      this.imageParamsSet2.add( this.useNoiseReductionOnAllChannelsCheckBox );
-      this.imageParamsSet2.add( this.stronger_noise_reduction_CheckBox );
+      this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
+      this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
+      this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
-      //this.imageParamsSet2.add( this.useABE_final_CheckBox );   Not sure if this useful fo leaving off for now.
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
-      this.imageParamsSet2.add( this.no_mask_contrast_CheckBox );
 
       // Image group par.
       this.imageParamsControl = new Control( this );
-      // this.imageParamsControl.title = "Image processing parameters";
       this.imageParamsControl.sizer = new HorizontalSizer;
       this.imageParamsControl.sizer.margin = 6;
       this.imageParamsControl.sizer.spacing = 4;
@@ -8722,7 +8830,6 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox = aiSectionBar(this, this.imageParamsControl, "Image processing parameters");
 
       // LRGBCombination selection
-
       this.LRGBCombinationLightnessControl = new NumericControl( this );
       this.LRGBCombinationLightnessControl.label.text = "Lightness";
       this.LRGBCombinationLightnessControl.setRange(0, 1);
@@ -8752,7 +8859,6 @@ function AutoIntegrateDialog()
       this.LRGBCombinationGroupBoxSizer.spacing = 4;
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
-      //this.LRGBCombinationGroupBoxSizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -8793,6 +8899,54 @@ function AutoIntegrateDialog()
       this.saturationGroupBoxSizer.add( this.nonLinearSaturationSpinBox );
       //this.saturationGroupBoxSizer.addStretch();
 
+      // Noise reduction
+      var noiseReductionToolTipCommon = "<p>Noise reduction is done using a mask to target noise reduction on darker areas of the image. " +
+                                        "Bigger strength value means stronger noise reduction.</p>";
+      this.noiseReductionStrengthLabel = new Label( this );
+      this.noiseReductionStrengthLabel.text = "Noise reduction";
+      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for L and combined image.</p>" + noiseReductionToolTipCommon;
+      this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   
+      this.noiseReductionStrengthComboBox = new ComboBox( this );
+      this.noiseReductionStrengthComboBox.toolTip = this.noiseReductionStrengthLabel.toolTip;
+      addArrayToComboBox(this.noiseReductionStrengthComboBox, noise_reduction_strength_values);
+      this.noiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.noise_reduction_strength.val.toString());
+      this.noiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
+      {
+            par.noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
+      };
+
+      this.channelNoiseReductionStrengthLabel = new Label( this );
+      this.channelNoiseReductionStrengthLabel.text = "Channel noise reduction";
+      this.channelNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) images.</p>" + noiseReductionToolTipCommon;
+      this.channelNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   
+      this.channelNoiseReductionStrengthComboBox = new ComboBox( this );
+      this.channelNoiseReductionStrengthComboBox.toolTip = this.channelNoiseReductionStrengthLabel.toolTip;
+      addArrayToComboBox(this.channelNoiseReductionStrengthComboBox, noise_reduction_strength_values);
+      this.channelNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.channel_noise_reduction_strength.val.toString());
+      this.channelNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
+      {
+            par.channel_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
+      };
+
+      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction.val, 
+      "<p>Do color noise reduction.</p>" );
+      this.color_noise_reduction_CheckBox.onClick = function(checked) { 
+            par.use_color_noise_reduction.val = checked; 
+      }
+
+      this.noiseReductionGroupBoxLabel = aiSectionLabel(this, "Noise reduction settings");
+      this.noiseReductionGroupBoxSizer = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer.margin = 6;
+      this.noiseReductionGroupBoxSizer.spacing = 4;
+      this.noiseReductionGroupBoxSizer.add( this.noiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer.add( this.noiseReductionStrengthComboBox );
+      this.noiseReductionGroupBoxSizer.add( this.channelNoiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer.add( this.channelNoiseReductionStrengthComboBox );
+      this.noiseReductionGroupBoxSizer.add( this.color_noise_reduction_CheckBox );
+      //this.noiseReductionGroupBoxSizer.addStretch();
+
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
       this.otherParamsSet1.margin = 6;
@@ -8804,7 +8958,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet1.add( this.image_files_CheckBox );
+      this.otherParamsSet1.add( this.all_files_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -8822,7 +8976,6 @@ function AutoIntegrateDialog()
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
-      // this.otherParamsControl.title = "Other parameters";
       this.otherParamsControl.sizer = new HorizontalSizer;
       this.otherParamsControl.sizer.margin = 6;
       this.otherParamsControl.sizer.spacing = 4;
@@ -9548,15 +9701,16 @@ function AutoIntegrateDialog()
             par.extra_LHE.val = checked; 
       }
       this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast.val, 
-      "<p>Run LocalHistogramEqualization on image.</p>" );
+      "<p>Run slight curves transformation on image to add contrast.</p>" );
       this.extra_Contrast_CheckBox.onClick = function(checked) { 
             par.extra_contrast.val = checked; 
       }
       this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", par.extra_STF.val, 
-      "<p>Run automatic ScreenTransferFunction on final image to brighten it.</p>" );
+      "<p>Run automatic ScreenTransferFunction on image to brighten it.</p>" );
       this.extra_STF_CheckBox.onClick = function(checked) { 
             par.extra_STF.val = checked; 
       }
+
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars.val, 
       "<p>Make stars smaller on image.</p>" );
       this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
@@ -9582,6 +9736,33 @@ function AutoIntegrateDialog()
       this.SmallerStarsSizer.add( this.IterationsLabel );
       this.SmallerStarsSizer.toolTip = this.IterationsSpinBox.toolTip;
       this.SmallerStarsSizer.addStretch();
+
+      var extra_noise_reduction_tooltip = "<p>Noise reduction on image using luminance mask. Bigger strength value does more noise reduction.</p>";
+      this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction.val, 
+            extra_noise_reduction_tooltip);
+      this.extra_NoiseReduction_CheckBox.onClick = function(checked) { 
+            par.extra_noise_reduction.val = checked; 
+      }
+      this.extraNoiseReductionStrengthSpinBox = new SpinBox( this );
+      this.extraNoiseReductionStrengthSpinBox.minValue = 3;
+      this.extraNoiseReductionStrengthSpinBox.maxValue = 5;
+      this.extraNoiseReductionStrengthSpinBox.value = par.extra_noise_reduction_strength.val;
+      this.extraNoiseReductionStrengthSpinBox.toolTip = extra_noise_reduction_tooltip;
+      this.extraNoiseReductionStrengthSpinBox.onValueUpdated = function( value )
+      {
+            par.extra_noise_reduction_strength.val = value;
+      };
+      this.extraNoiseReductionStrengthLabel = new Label( this );
+      this.extraNoiseReductionStrengthLabel.text = "strength";
+      this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraNoiseReductionStrengthLabel.toolTip = extra_noise_reduction_tooltip;
+      this.extraNoiseReductionStrengthSizer = new HorizontalSizer;
+      this.extraNoiseReductionStrengthSizer.spacing = 4;
+      this.extraNoiseReductionStrengthSizer.add( this.extra_NoiseReduction_CheckBox );
+      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthSpinBox );
+      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthLabel );
+      this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
+      this.extraNoiseReductionStrengthSizer.addStretch();
 
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
@@ -9646,6 +9827,7 @@ function AutoIntegrateDialog()
       this.extra2.spacing = 4;
       this.extra2.add( this.extra_Contrast_CheckBox );
       this.extra2.add( this.extra_STF_CheckBox );
+      this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.SmallerStarsSizer );
 
       this.extraLabel = aiSectionLabel(this, "Generic extra processing");
@@ -9689,7 +9871,8 @@ function AutoIntegrateDialog()
             "4. LocalHistogramEqualization<br>" +
             "5. Add contrast<br>" +
             "6. Auto STF<br>" +
-            "7. Smaller stars" +
+            "7. Noise reduction<br>" +
+            "8. Smaller stars" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
@@ -9846,28 +10029,43 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.cancel_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      this.ProcessingControl = new Control( this );
-      // this.ProcessingControl.title = "Processing settings";
-      this.ProcessingControl.sizer = new VerticalSizer;
-      this.ProcessingControl.sizer.margin = 6;
-      this.ProcessingControl.sizer.spacing = 4;
-      //this.ProcessingControl.sizer.add( this.weightGroupBoxLabel );
-      //this.ProcessingControl.sizer.add( this.weightGroupBoxSizer );
-      this.ProcessingControl.sizer.add( this.weightAndSigmaSizer );
-      this.ProcessingControl.sizer.add( this.clippingGroupBoxLabel );
-      this.ProcessingControl.sizer.add( this.clippingGroupBoxSizer );
-      this.ProcessingControl.sizer.add( this.linearFitGroupBoxLabel );
-      this.ProcessingControl.sizer.add( this.linearFitGroupBoxSizer );
-      this.ProcessingControl.sizer.add( this.StretchingGroupBoxLabel );
-      this.ProcessingControl.sizer.add( this.StretchingGroupBoxSizer );
-      this.ProcessingControl.sizer.add( this.LRGBCombinationGroupBoxLabel );
-      this.ProcessingControl.sizer.add( this.LRGBCombinationGroupBoxSizer );
-      this.ProcessingControl.sizer.add( this.saturationGroupBoxLabel );
-      this.ProcessingControl.sizer.add( this.saturationGroupBoxSizer );
+      this.ProcessingControl1 = new Control( this );
+      this.ProcessingControl1.sizer = new VerticalSizer;
+      this.ProcessingControl1.sizer.margin = 6;
+      this.ProcessingControl1.sizer.spacing = 4;
+      this.ProcessingControl1.sizer.add( this.saturationGroupBoxLabel );
+      this.ProcessingControl1.sizer.add( this.saturationGroupBoxSizer );
+      this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxLabel );
+      this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxSizer );
       // hide this section by default
-      this.ProcessingControl.visible = false;
+      this.ProcessingControl1.visible = false;
 
-      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl, "Processing settings");
+      this.ProcessingControl2 = new Control( this );
+      this.ProcessingControl2.sizer = new VerticalSizer;
+      this.ProcessingControl2.sizer.margin = 6;
+      this.ProcessingControl2.sizer.spacing = 4;
+      this.ProcessingControl2.sizer.add( this.linearFitGroupBoxLabel );
+      this.ProcessingControl2.sizer.add( this.linearFitGroupBoxSizer );
+      this.ProcessingControl2.sizer.add( this.StretchingGroupBoxLabel );
+      this.ProcessingControl2.sizer.add( this.StretchingGroupBoxSizer );
+      // hide this section by default
+      this.ProcessingControl2.visible = false;
+
+      this.ProcessingControl3 = new Control( this );
+      this.ProcessingControl3.sizer = new VerticalSizer;
+      this.ProcessingControl3.sizer.margin = 6;
+      this.ProcessingControl3.sizer.spacing = 4;
+      this.ProcessingControl3.sizer.add( this.weightAndSigmaSizer );
+      this.ProcessingControl3.sizer.add( this.clippingGroupBoxLabel );
+      this.ProcessingControl3.sizer.add( this.clippingGroupBoxSizer );
+      this.ProcessingControl3.sizer.add( this.LRGBCombinationGroupBoxLabel );
+      this.ProcessingControl3.sizer.add( this.LRGBCombinationGroupBoxSizer );
+      // hide this section by default
+      this.ProcessingControl3.visible = false;
+
+      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl1, "Processing settings, saturation and noise");
+      aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
+      aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, other");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -9906,7 +10104,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 14";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 15";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
