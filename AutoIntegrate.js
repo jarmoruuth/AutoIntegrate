@@ -1262,6 +1262,20 @@ function newMaskWindow(sourceWindow, name)
       return targetWindow;
 }
 
+function maskIsCompatible(imgWin, maskWin)
+{
+      if (maskWin == null) {
+            return null;
+      }
+      try {
+            imgWin.setMask(maskWin);
+            imgWin.removeMask();
+      } catch(err) {
+            maskWin = null;
+      }
+      return maskWin;
+}
+
 function openImageFiles(filetype)
 {
       var filenames;
@@ -3993,7 +4007,7 @@ function mapRGBchannel(images, refimage, mapping)
 
 function reduceNoiseOnChannelImage(image)
 {
-      if (par.skip_noise_reduction.val) {
+      if (par.skip_noise_reduction.val || par.channel_noise_reduction_strength.val == 0) {
             return;
       }
       addProcessingStep("Reduce noise on channe image " + image);
@@ -5223,18 +5237,18 @@ function noiseMild()
 
 function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 {
+      if (strength == 0) {
+            return;
+      }
+
       console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
 
-      switch (strength) {
-            case 3:
-                  var P = noiseMild();
-                  break;
-            case 4:
-                  var P = noiseStrong();
-                  break;
-            case 5:
-                  var P = noiseSuperStrong();
-                  break;
+      if (strength <= 3) {
+            var P = noiseMild();
+      } else if (strength == 4) {
+            var P = noiseStrong();
+      } else {
+            var P = noiseSuperStrong();
        } 
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -5256,7 +5270,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 
 function runNoiseReduction(imgWin, maskWin)
 {
-      if (par.skip_noise_reduction.val) {
+      if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
             return;
       }
 
@@ -7126,9 +7140,12 @@ function extraSTF(win)
       runHistogramTransform(win, null, true, 'mask');
 }
 
-function extraNoiseReduction(win)
+function extraNoiseReduction(win, mask_win)
 {
-      addProcessingStep("Extra noise reduction on " + imgWin.mainView.id);
+      if (par.extra_noise_reduction_strength.val == 0) {
+            return;
+      }
+      addProcessingStep("Extra noise reduction on " + win.mainView.id);
 
       runMultiscaleLinearTransformReduceNoise(
             win, 
@@ -7260,14 +7277,16 @@ function extraProcessing(id, apply_directly)
             // Try find mask window
             // If we need to create a mask di it after we
             // have removed the stars
+            mask_win = maskIsCompatible(extraWin, mask_win);
             if (mask_win == null) {
-                  mask_win = findWindow("range_mask");
+                  mask_win = maskIsCompatible(extraWin, findWindow("range_mask"));
             }
             if (mask_win == null) {
-                  mask_win = findWindow("AutoMask");
+                  mask_win = maskIsCompatible(extraWin, findWindow("AutoMask"));
             }
             if (mask_win == null) {
                   mask_win_id = "AutoMask";
+                  closeOneWindow(mask_win_id);
                   mask_win = newMaskWindow(extraWin, mask_win_id);
             }
             console.writeln("Use mask " + mask_win.mainView.id);
@@ -7288,7 +7307,7 @@ function extraProcessing(id, apply_directly)
             extraSTF(extraWin);
       }
       if (par.extra_noise_reduction.val) {
-            extraNoiseReduction(extraWin);
+            extraNoiseReduction(extraWin, mask_win);
       }
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
@@ -10104,7 +10123,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 15";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 16";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
