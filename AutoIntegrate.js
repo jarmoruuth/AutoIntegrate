@@ -5797,6 +5797,8 @@ function fileNamesFromOutputData(outputFileData)
 
 function debayerImages(fileNames)
 {
+      var succ = true;
+
       addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
       var P = new Debayer;
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
@@ -5823,7 +5825,18 @@ function debayerImages(fileNames)
       P.memoryLoadControl = true;
       P.memoryLoadLimit = 0.85;
 
-      P.executeGlobal();
+      try {
+            succ = P.executeGlobal();
+      } catch(err) {
+            succ = false;
+            console.criticalln(err);
+      }
+
+      if (!succ) {
+            console.criticalln("Debayer failed");
+            addProcessingStep("Error, maybe debayer pattern was not correctly selected");
+            throwFatalError("Debayer failed");
+      }
 
       return fileNamesFromOutputData(P.outputFileData);
 }
@@ -6948,11 +6961,12 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
 function createStarMask(imgWin)
 {
+      star_mask_win = maskIsCompatible(imgWin, star_mask_win);
       if (star_mask_win == null) {
-            star_mask_win = findWindow("star_mask");
+            star_mask_win = maskIsCompatible(imgWin, findWindow("star_mask"));
       }
       if (star_mask_win == null) {
-            star_mask_win = findWindow("AutoStarMask");
+            star_mask_win = maskIsCompatible(imgWin, findWindow("AutoStarMask"));
       }
       if (star_mask_win != null) {
             // Use already created start mask
@@ -6960,6 +6974,8 @@ function createStarMask(imgWin)
             star_mask_win_id = star_mask_win.mainView.id;
             return;
       }
+
+      closeOneWindow("AutoStarMask");
 
       var P = new StarMask;
       P.shadowsClipping = 0.00000;
@@ -7879,8 +7895,9 @@ function lightsOptions(parent)
       var label = new Label( parent );
       label.text = "Debayer";
       label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      label.toolTip = "Select bayer pattern for debayering color/OSC/RAW/DSLR files. " +
-                      "Option none does not do debayering.";
+      label.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
+                      "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
+                      "<p>If images are already debayered choose none which does not do debayering.</p>";
 
       var combobox = new ComboBox( parent );
       combobox.toolTip = label.toolTip;
