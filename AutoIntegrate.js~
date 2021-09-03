@@ -627,14 +627,13 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
             //            console.writeln(" AINew remaining is " + arr[i]);
         }
     }
-
-    // add the window prefix to the array.
+      // add the window prefix to the array.
 
     for (var i = 0; i < arr.length; i++) {
         //        console.writeln(" AINew fixWindowArray: prepending prefix " + cur_prefix + " to " + arr[i]);
         arr[i] = cur_prefix + arr[i];
     }
-
+     
 }
 
 
