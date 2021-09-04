@@ -181,7 +181,11 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 Copyright (c) 2018-2021 Jarmo Ruuth. All Rights Reserved.
 
-The following copyright notice is for Linear Defect Detection
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile
+
+      The following copyright notice is for Linear Defect Detection
 
    Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
@@ -8673,6 +8677,7 @@ function AutoIntegrateDialog()
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p><p>" +
       "Copyright (c) 2018-2021 Jarmo Ruuth<br>" +
+      "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
