@@ -622,16 +622,16 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
         // in the UI and so the old prefix must be removed from the array before prepending the new one.
 
         for (var i = 0; i < arr.length; i++) {
-            //            console.writeln(" AINew fixWindowArray: removing prefix " + prev_prefix + " from "  + arr[i]);
+            // console.writeln(" AINew fixWindowArray: removing prefix " + prev_prefix + " from "  + arr[i]);
             arr[i] = arr[i].substring(arr[i].indexOf(prev_prefix.toString()) + prev_prefix.length);
-            //            console.writeln(" AINew remaining is " + arr[i]);
+            // console.writeln(" AINew remaining is " + arr[i]);
         }
     }
 
     // add the window prefix to the array.
 
     for (var i = 0; i < arr.length; i++) {
-        //        console.writeln(" AINew fixWindowArray: prepending prefix " + cur_prefix + " to " + arr[i]);
+        // console.writeln(" AINew fixWindowArray: prepending prefix " + cur_prefix + " to " + arr[i]);
         arr[i] = cur_prefix + arr[i];
     }
 
@@ -8112,18 +8112,26 @@ function addWinPrefix(parent)
       edt.toolTip = lbl.toolTip;
       edt.onEditCompleted = function() {
       win_prefix = edt.text.trim();
-      if (win_prefix != "") {
-          win_prefix = win_prefix.replace(/ +/g,'_');
+      if (win_prefix != last_win_prefix) {
+          win_prefix = win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
           win_prefix = win_prefix.replace(/_+$/,'');
-          win_prefix = win_prefix + "_";
+          if (win_prefix.match(/^\d/)) {
+              // if user tries to start prefix with a digit, prepend an underscore
+              win_prefix = "_" + win_prefix;
+          }
+          if (win_prefix != "") {
+              win_prefix = win_prefix + "_";
+          }
           fixWindowArray(integration_LRGB_windows, last_win_prefix, win_prefix);
           fixWindowArray(integration_color_windows, last_win_prefix, win_prefix);
           fixWindowArray(fixed_windows, last_win_prefix, win_prefix);
           fixWindowArray(calibrate_windows, last_win_prefix, win_prefix);
           fixWindowArray(final_windows, last_win_prefix, win_prefix);
           last_win_prefix = win_prefix;
+          edt.text = win_prefix;
 
       }
+
           console.writeln("addWinPrefix, set winPrefix ", win_prefix);
       };
 
