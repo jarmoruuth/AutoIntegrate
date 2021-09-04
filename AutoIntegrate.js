@@ -185,7 +185,7 @@ Window name prefix and icon location code
 
       Copyright (c) 2021 rob pfile
 
-      The following copyright notice is for Linear Defect Detection
+The following copyright notice is for Linear Defect Detection
 
    Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
@@ -290,7 +290,8 @@ var par = {
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       autodetect_filter: { val: true, def: true, name : "Autodetect FILTER keyword", type : 'B' },
       autodetect_imagetyp: { val: true, def: true, name : "Autodetect IMAGETYP keyword", type : 'B' },
-      all_files: { val: false, def: false, name : "All files", type : 'B' },
+      select_all_files: { val: false, def: false, name : "Select all files", type : 'B' },
+      save_all_files: { val: false, def: false, name : "Save all files", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
@@ -930,7 +931,7 @@ function windowShowif(id)
       }
 }
 
-function windowIconizeif(id)
+function windowIconizeAndKeywordif(id)
 {
       if (id == null) {
             return;
@@ -959,6 +960,11 @@ function windowIconizeif(id)
             w.position = new Point(iconPoint);  // set window position to get correct icon position
             w.iconize();
             w.position = oldpos;                // restore window position
+
+            // Set processed image keyword. It will not overwrite old
+            // keyword. If we later set a final image keyword it will overwrite
+            // this keyword.
+            setProcessedImageKeyword(w);
       }
 }
 
@@ -1209,8 +1215,13 @@ function saveAllFinalImageWindows(bits)
                   for (var j = 0; j != keywords.length; j++) {
                         var keyword = keywords[j].name;
                         var value = keywords[j].strippedValue.trim();
-                        if (keyword == "AutoIntegrate" && value == "finalimage") {
-                              // we have final image window 
+                        if (par.save_all_files.val) {
+                              var savefile = keyword == "AutoIntegrate" && (value == "finalimage" || value == "processedimage");
+                        } else {
+                              var savefile = keyword == "AutoIntegrate" && value == "finalimage";
+                        }
+                        if (savefile) {
+                              // we need to save this image window 
                               if (imageWindow.mainView != null && imageWindow.mainView != undefined) {
                                     finalimages[finalimages.length] = imageWindow;
                               }
@@ -1332,7 +1343,7 @@ function openImageFiles(filetype)
                       "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
       var image_files = fits_files + " " + raw_files;
 
-      if (!par.all_files.val) {
+      if (!par.select_all_files.val) {
             ofd.filters = [
                   ["Image files", image_files],
                   ["All files", "*.*"]
@@ -1391,6 +1402,18 @@ function filterKeywords(imageWindow, keywordname)
       return oldKeywords;
 }
 
+function findKeywords(imageWindow, keywordname) 
+{
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == keywordname) {
+                  return true;
+            }
+      }
+      return false;
+}
+
 // Running PixelMath removes all keywords
 // We make a copy of selected keywords that are
 // put back to PixelMath generated image
@@ -1441,6 +1464,15 @@ function setFITSKeyword(imageWindow, name, value, comment)
       ]);
 }
 
+function setFITSKeywordNoOverwrite(imageWindow, name, value, comment) 
+{
+      if (findKeywords(imageWindow, name)) {
+            console.writeln("keyword already set");
+            return;
+      }
+      setFITSKeyword(imageWindow, name, value, comment);
+}
+
 function setFinalImageKeyword(imageWindow) 
 {
       console.writeln("setFinalImageKeyword to " + imageWindow.mainView.id);
@@ -1449,6 +1481,16 @@ function setFinalImageKeyword(imageWindow)
             "AutoIntegrate",
             "finalimage",
             "AutoIntegrate processed final image");
+}
+
+function setProcessedImageKeyword(imageWindow) 
+{
+      console.writeln("setProcessedImageKeyword to " + imageWindow.mainView.id);
+      setFITSKeywordNoOverwrite(
+            imageWindow,
+            "AutoIntegrate",
+            "processedimage",
+            "AutoIntegrate processed intermediate image");
 }
 
 function setImagetypKeyword(imageWindow, imagetype) 
@@ -7405,9 +7447,9 @@ function extraProcessingEngine(id)
       extraProcessing(extra_target_image, true);
       console.show(false);
 
-      windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
-      windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
-      windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+      windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
       console.noteln("Processing steps:");
       console.writeln(processing_steps);
@@ -7625,27 +7667,27 @@ function AutoIntegrateEngine(auto_continue)
             closeAllWindowsFromArray(calibrate_windows);
       }
 
-      windowIconizeif(L_id);                    /* Integration_L */
-      windowIconizeif(R_id);                    /* Integration_R */
-      windowIconizeif(G_id);                    /* Integraion_G */
-      windowIconizeif(B_id);                    /* Integration_B */
-      windowIconizeif(H_id);                    /* Integration_H */
-      windowIconizeif(S_id);                    /* Integraion_S */
-      windowIconizeif(O_id);                    /* Integration_O */
-      windowIconizeif(RGB_win_id);              /* Integration_RGB */
+      windowIconizeAndKeywordif(L_id);                    /* Integration_L */
+      windowIconizeAndKeywordif(R_id);                    /* Integration_R */
+      windowIconizeAndKeywordif(G_id);                    /* Integraion_G */
+      windowIconizeAndKeywordif(B_id);                    /* Integration_B */
+      windowIconizeAndKeywordif(H_id);                    /* Integration_H */
+      windowIconizeAndKeywordif(S_id);                    /* Integraion_S */
+      windowIconizeAndKeywordif(O_id);                    /* Integration_O */
+      windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
 
-      windowIconizeif(L_ABE_id);
-      windowIconizeif(R_ABE_id);
-      windowIconizeif(G_ABE_id);
-      windowIconizeif(B_ABE_id);
-      windowIconizeif(RGB_ABE_id);
+      windowIconizeAndKeywordif(L_ABE_id);
+      windowIconizeAndKeywordif(R_ABE_id);
+      windowIconizeAndKeywordif(G_ABE_id);
+      windowIconizeAndKeywordif(B_ABE_id);
+      windowIconizeAndKeywordif(RGB_ABE_id);
 
-      windowIconizeif(RGB_ABE_HT_id);
-      windowIconizeif(L_ABE_HT_id);
-      windowIconizeif(LRGB_Combined);           /* LRGB Combined image */
-      windowIconizeif(mask_win_id);             /* AutoMask or range_mask window */
-      windowIconizeif(star_mask_win_id);        /* AutoStarMask or star_mask window */
-      windowIconizeif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+      windowIconizeAndKeywordif(RGB_ABE_HT_id);
+      windowIconizeAndKeywordif(L_ABE_HT_id);
+      windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
+      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+      windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
       if (par.batch_mode.val > 0) {
             /* Rename image based on first file directory name. 
@@ -8829,10 +8871,16 @@ function AutoIntegrateDialog()
             showOrHideFilterSectionBar(pages.FLATS);
       }
 
-      this.all_files_CheckBox = newCheckBox(this, "All files", par.all_files.val, 
+      this.select_all_files_CheckBox = newCheckBox(this, "Select all files", par.select_all_files.val, 
       "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
-      this.all_files_CheckBox.onClick = function(checked) { 
-            par.all_files.val = checked; 
+      this.select_all_files_CheckBox.onClick = function(checked) { 
+            par.select_all_files.val = checked; 
+      }
+
+      this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files.val, 
+      "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
+      this.save_all_files_CheckBox.onClick = function(checked) { 
+            par.save_all_files.val = checked; 
       }
 
       this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
@@ -9091,7 +9139,8 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet1.add( this.all_files_CheckBox );
+      this.otherParamsSet1.add( this.select_all_files_CheckBox );
+      this.otherParamsSet1.add( this.save_all_files_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -10255,7 +10304,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 16 (window prefix)";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 17";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
