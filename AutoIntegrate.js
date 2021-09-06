@@ -1089,7 +1089,10 @@ function closeAllWindows(keep_integrated_imgs)
       // used prefix before closing all windows. in that case some internal column of icons will
       // be blown away, and then the next run will cover over this run's icons.
       // would have to track this with an array of free columns if i really wanted to do it right.
-      if (columnCount>0) { columnCount--; }
+      if (columnCount>0 && !keep_integrated_imgs) { 
+          columnCount--; 
+      }
+
 }
 
 function ensureDir(dir)
@@ -8152,7 +8155,9 @@ function addWinPrefix(parent)
                     "<p>This makes all generated window names unique " +
                     "for the current run and allows you run multiple times " +
                     "without closing or manually renaming all the windows from previous runs, " +
-                    "as long as you change the prefix each time you run.";
+                    "as long as you change the prefix before each run." +
+                    "<p>The window prefix will be saved across script invocations " +
+                    "for convenience with the AutoContinue function.</p>";
       var edt = new Edit( parent );
       edt.text = win_prefix;
       edt.toolTip = lbl.toolTip;
@@ -10119,27 +10124,40 @@ function AutoIntegrateDialog()
       {
             console.writeln("closeAll");
             closeAllWindows(par.keep_integrated_images.val);
+            this.dialog.columnCountControlSpinBox.value = columnCount + 1;
       };
 
-      // Button to reset columnCount
-      this.resetColumnCountButton = new PushButton ( this );
-      this.resetColumnCountButton.text = "Reset Icon Column";
-      this.resetColumnCountButton.toolTip = "This resets the iconized window column back to the extreme top left.<p>" +
-                                            "This is useful when you have switched workspaces, or moved or closed " +
-                                            "AutoIntegrate's iconified images and want to start over from the left.";
-      this.resetColumnCountButton.onClick = function()
+      this.columnCountControlLabel = new Label( this );
+      this.columnCountControlLabel.text = "Icon Column ";
+      this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.columnCountControlLabel.toolTip = "<p>Set Icon Column for next run.</p> " + 
+                                             "<p>This keeps window icons from piling up on top of one another, " +
+                                             "as you change prefixes and run again.</p>" +
+                                             "Set to 1 if you have removed all the icons " + 
+                                             "created by AutoIntegrate or changed to a fresh workspace. " + 
+                                             "<p>Set to a free column if you have deleted a column of icons by hand.</p>" + 
+                                             "<p>Left alone the script will manage the value, incrementing after each run, " +
+                                             "decrementing if you close all windows, " +
+                                             "and saving the value between script invocations.</p>";
+      this.columnCountControlSpinBox = new SpinBox( this );
+      this.columnCountControlSpinBox.minValue = 1;
+      this.columnCountControlSpinBox.maxValue = 10;
+      this.columnCountControlSpinBox.value = columnCount + 1;
+      this.columnCountControlSpinBox.toolTip = this.columnCountControlLabel.toolTip;
+      this.columnCountControlSpinBox.onValueUpdated = function( value )
       {
-          console.writeln("resetting icon column position");
-          columnCount = 0;
+            columnCount = value - 1;
       };
+
 
       // Group box for AutoContinue and CloseAll
       this.autoButtonSizer = new HorizontalSizer;
       this.autoButtonSizer.add( this.autoContinueButton );
       this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
-      this.autoButtonSizer.addSpacing ( 50 );
-      this.autoButtonSizer.add( this.resetColumnCountButton );
+      this.autoButtonSizer.addSpacing ( 250 );
+      this.autoButtonSizer.add (this.columnCountControlLabel );
+      this.autoButtonSizer.add (this.columnCountControlSpinBox );
       this.autoButtonGroupBox = new newGroupBox( this );
       this.autoButtonGroupBox.sizer = new HorizontalSizer;
       this.autoButtonGroupBox.sizer.margin = 6;
@@ -10192,7 +10210,9 @@ function AutoIntegrateDialog()
       this.ok_Button.onClick = function()
       {
          Autorun(this);
+         Settings.write (SETTINGSKEY + "/winPrefix", DataType_String, win_prefix);
          columnCount++;
+         this.dialog.columnCountControlSpinBox.value = columnCount + 1;
       };
    
       this.cancel_Button = new PushButton( this );
@@ -10304,7 +10324,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 17";
+      this.windowTitle = "AutoIntegrate v1.00 Beta 18";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
@@ -10326,6 +10346,20 @@ function main()
            } else {
                //               console.writeln(" AINew columnCount not found in settings!");
            }
+           var tempSetting  = Settings.read(SETTINGSKEY + "/winPrefix", DataType_String);
+           if (Settings.lastReadOK) {
+               win_prefix = tempSetting;
+	       fixWindowArray(integration_LRGB_windows, last_win_prefix, win_prefix);
+	       fixWindowArray(integration_color_windows, last_win_prefix, win_prefix);
+	       fixWindowArray(fixed_windows, last_win_prefix, win_prefix);
+	       fixWindowArray(calibrate_windows, last_win_prefix, win_prefix);
+	       fixWindowArray(final_windows, last_win_prefix, win_prefix);
+	       last_win_prefix = win_prefix;
+               console.noteln("AutoIntegrate: Restored win_prefix " + win_prefix  + " from settings.");
+           } else {
+               //               console.writeln(" AINew win_prefix not found in settings!");
+           }
+
        }
        catch (x) {
             console.writeln( x );
