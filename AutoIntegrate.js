@@ -1707,7 +1707,7 @@ function runCalibrateDarks(images, masterbiasPath)
       P.optimizeDarks = true;
       P.darkOptimizationThreshold = 0.00000;
       P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 1024;
+      P.darkOptimizationWindow = 0;
       P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
       P.separateCFAFlatScalingFactors = true;
       P.flatScaleClippingFactor = 0.05;
@@ -1793,7 +1793,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.optimizeDarks = true;
       P.darkOptimizationThreshold = 0.00000;
       P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 1024;
+      P.darkOptimizationWindow = 0;
       P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
       P.separateCFAFlatScalingFactors = true;
       P.flatScaleClippingFactor = 0.05;
@@ -1985,7 +1985,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
       P.darkOptimizationThreshold = 0.00000;
       P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 1024;
+      P.darkOptimizationWindow = 0;
       P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
       P.separateCFAFlatScalingFactors = true;
       P.flatScaleClippingFactor = 0.05;
@@ -10325,7 +10325,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00";
+      this.windowTitle = "AutoIntegrate v1.01";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
