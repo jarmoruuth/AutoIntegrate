@@ -9086,8 +9086,9 @@ function AutoIntegrateDialog()
       //this.saturationGroupBoxSizer.addStretch();
 
       // Noise reduction
-      var noiseReductionToolTipCommon = "<p>Noise reduction is done using a mask to target noise reduction on darker areas of the image. " +
-                                        "Bigger strength value means stronger noise reduction.</p>";
+      var noiseReductionToolTipCommon = "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
+                                        "Bigger strength value means stronger noise reduction.</p>" + 
+                                        "<p>Noise reduction uses MultiscaleLinerTransaform. Strenght is the number of layers used to reduce noise.</p>";
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for L and combined image.</p>" + noiseReductionToolTipCommon;
@@ -9924,7 +9925,7 @@ function AutoIntegrateDialog()
       this.SmallerStarsSizer.toolTip = this.IterationsSpinBox.toolTip;
       this.SmallerStarsSizer.addStretch();
 
-      var extra_noise_reduction_tooltip = "<p>Noise reduction on image using luminance mask. Bigger strength value does more noise reduction.</p>";
+      var extra_noise_reduction_tooltip = "<p>Noise reduction on image.</p>" + noiseReductionToolTipCommon;
       this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction.val, 
             extra_noise_reduction_tooltip);
       this.extra_NoiseReduction_CheckBox.onClick = function(checked) { 
@@ -10324,7 +10325,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.00 Beta 18";
+      this.windowTitle = "AutoIntegrate v1.00";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
