@@ -642,22 +642,25 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
 
 }
 
-
+/// Init filter sets. We used to have actual Set object but
+// use a simple array so we can add object into it.
+// There are file sets for each possible filters and
+// each array element has file name and used flag.
 function initFilterSets()
 {
       return [
-            ['L', new Set],
-            ['R', new Set],
-            ['G', new Set],
-            ['B', new Set],
-            ['H', new Set],
-            ['S', new Set],
-            ['O', new Set],
-            ['C', new Set]
+            ['L', []],
+            ['R', []],
+            ['G', []],
+            ['B', []],
+            ['H', []],
+            ['S', []],
+            ['O', []],
+            ['C', []]
       ];
 }
 
-// find Set object based on file type
+// find filter set object based on file type
 function findFilterSet(filterSet, filetype)
 {
       for (var i = 0; i < filterSet.length; i++) {
@@ -669,16 +672,18 @@ function findFilterSet(filterSet, filetype)
       return null;
 }
 
-// Add file base name to the filter Set object
+// Add file base name to the filter set object
 // We use file base name to detect filter files
 function addFilterSetFile(filterSet, filePath, filetype)
 {
       var basename = File.extractName(filePath);
       console.writeln("addFilterSetFile add " + basename + " filter "+ filetype);
-      filterSet.add(basename);
+      filterSet[filterSet.length] = { name: basename, used: false };
 }
 
-// try to find base file name from filter Set objects
+// Try to find base file name from filter set objects.
+// We use simple linear search which should be fine
+// for most data sizes.
 function findFilterForFile(filterSet, filePath, filename_postfix)
 {
       var basename = File.extractName(filePath);
@@ -689,9 +694,24 @@ function findFilterForFile(filterSet, filePath, filename_postfix)
       console.writeln("findFilterForFile " + basename);
       for (var i = 0; i < filterSet.length; i++) {
             var filterFileSet = filterSet[i][1];
-            if (filterFileSet.has(basename)) {
-                  console.writeln("findFilterForFile filter " + filterSet[i][0]);
-                  return filterSet[i][0];
+            for (j = 0; j < filterFileSet.length; j++) {
+                  if (!filterFileSet[j].used && filterFileSet[j].name == basename) {
+                        console.writeln("findFilterForFile filter " + filterSet[i][0]);
+                        filterFileSet[j].used = true;
+                        return filterSet[i][0];
+                  }
+            }
+      }
+      return null;
+}
+
+function clearFilterFileUsedFlags(filterSet)
+{
+      console.writeln("clearUsedFilterForFiles");
+      for (var i = 0; i < filterSet.length; i++) {
+            var filterFileSet = filterSet[i][1];
+            for (j = 0; j < filterFileSet.length; j++) {
+                  filterFileSet[j].used = false;
             }
       }
       return null;
@@ -3421,6 +3441,10 @@ function getFilterFiles(files, pageIndex, filename_postfix)
             case pages.FLATS:
                   filterSet = flatFilterSet;
                   break;
+      }
+
+      if (filterSet != null) {
+            clearFilterFileUsedFlags(filterSet);
       }
 
       /* Collect all different file types and some information about them.
@@ -10325,7 +10349,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.01";
+      this.windowTitle = "AutoIntegrate v1.02";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
