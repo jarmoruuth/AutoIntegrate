@@ -355,6 +355,7 @@ var par = {
 
       // Generic Extra processing
       extra_StarNet: { val: false, def: false, name : "Extra StarNet", type : 'B' },
+      extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
@@ -4835,10 +4836,14 @@ function noABEcopyWin(win)
       return noABE_id;
 }
 
-function runABE(win)
+function runABE(win, replaceTarget)
 {
       addProcessingStep("ABE from " + win.mainView.id);
-      var ABE_id = win.mainView.id + "_ABE";
+      if (replaceTarget) {
+            var ABE_id = win.mainView.id + "_ABE";
+      } else {
+            var ABE_id = win.mainView.id;
+      }
       var ABE = new AutomaticBackgroundExtractor;
 
       console.writeln("runABE, target_id " + ABE_id);
@@ -4862,7 +4867,7 @@ function runABE(win)
       ABE.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
       ABE.normalize = false;
       ABE.discardModel = false;
-      ABE.replaceTarget = false;
+      ABE.replaceTarget = replaceTarget;
       ABE.correctedImageId = "";
       ABE.correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
       ABE.verboseCoefficients = false;
@@ -4887,7 +4892,7 @@ function run_ABE_before_channel_combination(id)
 {
       var id_win = ImageWindow.windowById(id);
 
-      var ABE_id = runABE(id_win);
+      var ABE_id = runABE(id_win, false);
 
       closeOneWindow(id);
       windowRename(ABE_id, id);
@@ -6334,7 +6339,7 @@ function ProcessLimage(RBGmapping)
                         /* Optionally run ABE on L
                         */
                         if (par.use_ABE_on_L_RGB.val && !par.ABE_before_channel_combination.val) {
-                              L_ABE_id = runABE(L_win);
+                              L_ABE_id = runABE(L_win, false);
                         } else {
                               L_ABE_id = noABEcopyWin(L_win);
                         }
@@ -6687,7 +6692,7 @@ function ProcessRGBimage(RBGstretched)
                   }
                   if (par.use_ABE_on_L_RGB.val) {
                         console.writeln("ABE RGB");
-                        RGB_ABE_id = runABE(RGB_win);
+                        RGB_ABE_id = runABE(RGB_win, false);
                   } else {
                         console.writeln("No ABE for RGB");
                         RGB_ABE_id = noABEcopyWin(RGB_win);
@@ -7281,9 +7286,15 @@ function extraNoiseReduction(win, mask_win)
             par.extra_noise_reduction_strength.val);
 }
 
+function extraABE(extraWin)
+{
+      runABE(extraWin, true);
+}
+
 function is_non_starnet_option()
 {
-      return par.extra_darker_background.val || 
+      return par.extra_ABE.val || 
+             par.extra_darker_background.val || 
              par.extra_HDRMLT.val || 
              par.extra_LHE.val || 
              par.extra_contrast.val ||
@@ -7400,6 +7411,9 @@ function extraProcessing(id, apply_directly)
       }
       if (par.extra_StarNet.val) {
             extraStarNet(extraWin);
+      }
+      if (par.extra_ABE.val) {
+            extraABE(extraWin);
       }
       if (need_L_mask) {
             // Try find mask window
@@ -9902,6 +9916,11 @@ function AutoIntegrateDialog()
       this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
             par.extra_darker_background.val = checked; 
       }
+      this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE.val, 
+      "<p>Run AutomaticBackgroundExtractor.</p>" );
+      this.extraABE_CheckBox.onClick = function(checked) { 
+            par.extra_ABE.val = checked; 
+      }
       this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", par.extra_HDRMLT.val, 
       "<p>Run HDRMultiscaleTansform on image.</p>" );
       this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
@@ -10030,6 +10049,7 @@ function AutoIntegrateDialog()
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
       this.extra1.add( this.extraStarNet_CheckBox );
+      this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_HDRMLT_CheckBox );
       this.extra1.add( this.extra_LHE_CheckBox );
@@ -10349,7 +10369,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.02";
+      this.windowTitle = "AutoIntegrate v1.03";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
