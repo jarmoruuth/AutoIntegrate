@@ -514,6 +514,7 @@ var pages = {
 var win_prefix = "";
 var last_win_prefix = "";
 var columnCount = 0;
+var haveIconized = 0;
 
 // known window names
 var integration_LRGB_windows = [
@@ -986,6 +987,8 @@ function windowIconizeAndKeywordif(id)
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             setProcessedImageKeyword(w);
+	    haveIconized = 1;
+
       }
 }
 
@@ -10254,10 +10257,13 @@ function AutoIntegrateDialog()
       this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
+	 haveIconized = 0;
          Autorun(this);
          Settings.write (SETTINGSKEY + "/winPrefix", DataType_String, win_prefix);
-         columnCount++;
-         this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+	 if (haveIconized) {
+	     columnCount++;
+             this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+	 }
       };
    
       this.cancel_Button = new PushButton( this );
@@ -10369,7 +10375,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.03";
+      this.windowTitle = "AutoIntegrate v1.04";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
