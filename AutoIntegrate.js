@@ -573,7 +573,11 @@ var fixed_windows = [
       "SubframeSelector",
       "Measurements",
       "Expressions",
-      "L_win_mask"
+      "L_win_mask",
+      "Integration_L_map_pm_ABE",
+      "Integration_L_map_pm_noABE",
+      "Integration_L_map_pm_ABE_HT",
+      "Integration_L_map_pm_noABE_HT"
 ];
 
 var calibrate_windows = [
@@ -2864,13 +2868,15 @@ function getLDDgroups(fileNames)
                   console.writeln("Chile slooh_uwf");
                   slooh_uwf = true;
             }
-            if (par.use_uwf.val) {
-                  if (!slooh_uwf) {
-                        continue;
-                  }
-            } else {
-                  if (slooh_uwf) {
-                        continue;
+            if (!par.lights_add_manually.val) {
+                  if (par.use_uwf.val) {
+                        if (!slooh_uwf) {
+                              continue;
+                        }
+                  } else {
+                        if (slooh_uwf) {
+                              continue;
+                        }
                   }
             }
             for (var j = 0; j < groups.length; j++) {
@@ -3272,10 +3278,12 @@ function findBestSSWEIGHT(fileNames)
             if (slooh_uwf) {
                   found_slooh_uwf = true;
             }
-            if (par.use_uwf.val) {
-                  skip_this = !slooh_uwf;
-            } else {
-                  skip_this = slooh_uwf;
+            if (!par.lights_add_manually.val) {
+                  if (par.use_uwf.val) {
+                        skip_this = !slooh_uwf;
+                  } else {
+                        skip_this = slooh_uwf;
+                  }
             }
             if (!skip_this) {
                   newFileNames[newFileNames.length] = fileNames[i];
@@ -3896,7 +3904,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
       }
       console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
       /* Replace letters with actual image identifiers. */
-      mapping = replaceMappingImageNames(mapping, "L", win_prefix + "Integration_O", images);
+      mapping = replaceMappingImageNames(mapping, "L", win_prefix + "Integration_L", images);
       mapping = replaceMappingImageNames(mapping, "R", win_prefix + "Integration_R", images);
       mapping = replaceMappingImageNames(mapping, "G", win_prefix + "Integration_G", images);
       mapping = replaceMappingImageNames(mapping, "B", win_prefix + "Integration_B", images);
@@ -4470,6 +4478,9 @@ function runLocalNormalization(imagetable, refImage)
 
 function runLinearFit(refViewId, targetId)
 {
+      if (refViewId == null || targetId == null) {
+            throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
+      }
       addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       linear_fit_done = true;
       var targetWin = ImageWindow.windowById(targetId);
@@ -4893,6 +4904,9 @@ function runABE(win, replaceTarget)
 // Run ABE and rename windows so that the final result has the same id
 function run_ABE_before_channel_combination(id)
 {
+      if (id == null) {
+            throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
+      }
       var id_win = ImageWindow.windowById(id);
 
       var ABE_id = runABE(id_win, false);
@@ -9727,14 +9741,17 @@ function AutoIntegrateDialog()
       {
             console.writeln("Test narrowband mapping");
             par.use_RGBNB_Mapping.val = true;
+            clearDefaultDirs();
             try {
                   testRGBNBmapping();
+                  setDefaultDirs();
             } 
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
                   writeProcessingSteps(null, true, win_prefix + "AutoRGBNB");
                   console.endLog();
+                  setDefaultDirs();
             }
             par.use_RGBNB_Mapping.val = false;
       };   
@@ -10272,6 +10289,7 @@ function AutoIntegrateDialog()
       this.cancel_Button.onClick = function()
       {
          Settings.write (SETTINGSKEY + "/columnCount", DataType_Int16, columnCount);
+         Settings.write (SETTINGSKEY + "/winPrefix", DataType_String, win_prefix);
          this.dialog.cancel();
       };
    
@@ -10375,7 +10393,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.04";
+      this.windowTitle = "AutoIntegrate v1.05";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
