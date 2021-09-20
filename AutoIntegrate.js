@@ -4854,9 +4854,9 @@ function runABE(win, replaceTarget)
 {
       addProcessingStep("ABE from " + win.mainView.id);
       if (replaceTarget) {
-            var ABE_id = win.mainView.id + "_ABE";
-      } else {
             var ABE_id = win.mainView.id;
+      } else {
+            var ABE_id = win.mainView.id + "_ABE";
       }
       var ABE = new AutomaticBackgroundExtractor;
 
@@ -4894,7 +4894,11 @@ function runABE(win, replaceTarget)
 
       win.mainView.endProcess();
 
-      windowCloseif(ABE_id + "_background");
+      if (replaceTarget) {
+            windowCloseif(ABE_id + "_ABE_background");
+      } else {
+            windowCloseif(ABE_id + "_background");
+      }
 
       addScriptWindow(ABE_id);
 
@@ -10393,7 +10397,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.05";
+      this.windowTitle = "AutoIntegrate v1.06";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
