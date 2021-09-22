@@ -256,7 +256,10 @@ Linear Defect Detection:
 #include <pjsr/DataType.jsh>
 
 
+// GUI variables
 var infoLabel;
+var windowPrefixHelpTips;     // For updating tooTip
+var closeAllPrefixButton;     // For updating toolTip
 
 /*
       Parameters that can be adjusted in the GUI
@@ -429,6 +432,7 @@ var extra_target_image = null;
 var processing_steps = "";
 var all_windows = [];
 var iconPoint;
+var iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position
 var logfname;
 
 var filterSectionbars = [];
@@ -516,9 +520,12 @@ var last_win_prefix = "";
 var columnCount = 0;
 var haveIconized = 0;
 
+// Array of prefix names and icon count
+var prefixArray = [];
+
 // known window names
 var integration_LRGB_windows = [
-      "Integration_L",
+      "Integration_L",  // must be first
       "Integration_R",
       "Integration_G",
       "Integration_B",
@@ -626,6 +633,55 @@ var narrowBandPalettes = [
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
 
+// Create a table of known prefix names for toolTip
+function setWindowPrefixHelpTip()
+{
+      var prefix_list = "<table><tr><th>Col</th><th>Name</th><th>Icon count</th></tr>";
+      for (var i = 0; i < prefixArray.length; i++) {
+            if (prefixArray[i][0] == '-') {
+                  prefix_list = prefix_list + "<tr><td>" + i + '</td><td>not used</td><td></td></tr>';
+            } else {
+                  prefix_list = prefix_list + "<tr><td>" + i + '</td><td>' + prefixArray[i][0] + '</td><td>' + prefixArray[i][1] + '</td></tr>';
+            }
+      }
+      prefix_list = prefix_list + "</table>";
+      windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p><p> " + prefix_list + "</p>";
+      closeAllPrefixButton.toolTip = "<p>Close all image windows by prefix</p>" +
+                                     windowPrefixHelpTips.toolTip;
+}
+
+// Find a prefix from the prefix array. Returns -1 if not
+// found.
+function findPrefixIndex(prefix)
+{
+      for (var i = 0; i < prefixArray.length; i++) {
+            if (prefixArray[i][0] == prefix) {
+                  return i;
+            }
+      }
+      return -1;
+}
+
+// Find a new free column position for a prefix. Prefix name '-'
+// is used to mark a free position.
+function findNewPrefixIndex()
+{
+      for (var i = 0; i < prefixArray.length; i++) {
+            if (prefixArray[i][0] == '-') {
+                  return i;
+            }
+      }
+      return i;
+}
+
+// Save prefix settings
+function saveSettings()
+{
+      Settings.write (SETTINGSKEY + "/prefixName", DataType_String, win_prefix);
+      Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(prefixArray));
+      setWindowPrefixHelpTip();
+}
+
 function fixWindowArray(arr, prev_prefix, cur_prefix)
 {
     if (prev_prefix != "") {
@@ -646,6 +702,25 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
         arr[i] = cur_prefix + arr[i];
     }
 
+}
+
+// Fix all fixed window names by having the given prefix
+// We find possible previous prefix from the known fixed
+// window name
+function fixAllWindowArrays(new_prefix)
+{
+      var basename = "Integration_L";
+      var curname = integration_LRGB_windows[0];
+      var old_prefix = curname.substring(0, curname.length - basename.length);
+      if (old_prefix == new_prefix) {
+            // no change
+            return;
+      }
+      fixWindowArray(integration_LRGB_windows, old_prefix, new_prefix);
+      fixWindowArray(integration_color_windows, old_prefix, new_prefix);
+      fixWindowArray(fixed_windows, old_prefix, new_prefix);
+      fixWindowArray(calibrate_windows, old_prefix, new_prefix);
+      fixWindowArray(final_windows, old_prefix, new_prefix);
 }
 
 /// Init filter sets. We used to have actual Set object but
@@ -976,7 +1051,7 @@ function windowIconizeAndKeywordif(id)
                   /* Get first icon to upper left corner. */
                   iconPoint = new Point(
                                     -(w.width / 2) + 5 + columnCount*300,
-                                    -(w.height / 2) + 5);
+                                    -(w.height / 2) + 5 + iconStartRow * 32);
                   //addProcessingStep("Icons start from position " + iconPoint);
             } else {
                   /* Put next icons in a nice row below the first icon.
@@ -991,8 +1066,7 @@ function windowIconizeAndKeywordif(id)
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             setProcessedImageKeyword(w);
-	    haveIconized = 1;
-
+            haveIconized++;
       }
 }
 
@@ -1113,14 +1187,6 @@ function closeAllWindows(keep_integrated_imgs)
       closeAllWindowsFromArray(fixed_windows);
       closeAllWindowsFromArray(calibrate_windows);
       closeFinalWindowsFromArray(final_windows);
-      // this really only works right if the user doesn't change the current prefix to a previously
-      // used prefix before closing all windows. in that case some internal column of icons will
-      // be blown away, and then the next run will cover over this run's icons.
-      // would have to track this with an array of free columns if i really wanted to do it right.
-      if (columnCount>0 && !keep_integrated_imgs) { 
-          columnCount--; 
-      }
-
 }
 
 function ensureDir(dir)
@@ -8221,34 +8287,38 @@ function addWinPrefix(parent)
       edt.text = win_prefix;
       edt.toolTip = lbl.toolTip;
       edt.onEditCompleted = function() {
-      win_prefix = edt.text.trim();
-      if (win_prefix != last_win_prefix) {
-          win_prefix = win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
-          win_prefix = win_prefix.replace(/_+$/,'');
-          if (win_prefix.match(/^\d/)) {
-              // if user tries to start prefix with a digit, prepend an underscore
-              win_prefix = "_" + win_prefix;
-          }
-          if (win_prefix != "") {
-              win_prefix = win_prefix + "_";
-          }
-          fixWindowArray(integration_LRGB_windows, last_win_prefix, win_prefix);
-          fixWindowArray(integration_color_windows, last_win_prefix, win_prefix);
-          fixWindowArray(fixed_windows, last_win_prefix, win_prefix);
-          fixWindowArray(calibrate_windows, last_win_prefix, win_prefix);
-          fixWindowArray(final_windows, last_win_prefix, win_prefix);
-          last_win_prefix = win_prefix;
-          edt.text = win_prefix;
+            win_prefix = edt.text.trim();
+            if (win_prefix != last_win_prefix) {
+                  win_prefix = win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
+                  win_prefix = win_prefix.replace(/_+$/,'');
+                  if (win_prefix.match(/^\d/)) {
+                        // if user tries to start prefix with a digit, prepend an underscore
+                        win_prefix = "_" + win_prefix;
+                  }
+                  if (win_prefix != "") {
+                        win_prefix = win_prefix + "_";
+                  }
+                  fixAllWindowArrays(win_prefix);
+                  last_win_prefix = win_prefix;
+                  edt.text = win_prefix;
 
-      }
+            }
 
-          console.writeln("addWinPrefix, set winPrefix ", win_prefix);
+            console.writeln("addWinPrefix, set winPrefix ", win_prefix);
       };
+
+      // Add help button to show known prefixes. Maybe this should be in
+      // label and edit box toolTips.
+      windowPrefixHelpTips = new ToolButton( parent );
+      windowPrefixHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
+      windowPrefixHelpTips.setScaledFixedSize( 20, 20 );
+      windowPrefixHelpTips.toolTip = "Current Window Prefixes:";
 
       var winprefix_Sizer = new HorizontalSizer;
       winprefix_Sizer.spacing = 4;
       winprefix_Sizer.add( lbl );
       winprefix_Sizer.add( edt );
+      winprefix_Sizer.add( windowPrefixHelpTips );
 
       return winprefix_Sizer;
 }
@@ -10167,10 +10237,27 @@ function AutoIntegrateDialog()
             clearDefaultDirs();
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
             try {
+                  columnCount = findPrefixIndex(win_prefix);
+                  if (columnCount == -1) {
+                        // prefix not found
+                        if (win_prefix == "") {
+                              // empty prefix is a special case, we 
+                              // create an entry for it
+                              columnCount = findNewPrefixIndex();
+                              prefixArray[columnCount] = [ "", 0 ];
+                              saveSettings();
+                        } else {
+                              // non-empty prerfix must be found from array
+                              throwFatalError("Window prefix " + win_prefix + " not found");
+                        }
+                  }
                   autocontinue_narrowband = is_narrowband_option();
                   if (batch_narrowband_palette_mode) {
                         AutoIntegrateNarrowbandPaletteBatch(true);
                   } else {
+                        // With AutoContinue start icons below current
+                        // icons.
+                        iconStartRow = prefixArray[columnCount][1];
                         AutoIntegrateEngine(true);
                   }
                   autocontinue_narrowband = false;
@@ -10188,14 +10275,73 @@ function AutoIntegrateDialog()
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
       this.closeAllButton.text = "Close all";
-      this.closeAllButton.toolTip = "Close all - Close all image windows created by this script";
+      this.closeAllButton.toolTip = "Close all image windows created by this script";
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
-            closeAllWindows(par.keep_integrated_images.val);
-            this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+            columnCount = findPrefixIndex(win_prefix);
+            if (columnCount == -1 && win_prefix != "") {
+                  // Non-empty prefix must be found
+                  console.criticalln("Window prefix " + win_prefix + " not found");
+            } else {
+                  closeAllWindows(par.keep_integrated_images.val);
+                  if (columnCount != -1) {
+                        // If prefix was found update array
+                        if (par.keep_integrated_images.val) {
+                              // If we keep integrated images then we can start
+                              // from zero icon position
+                              prefixArray[columnCount][1] = 0;
+                        } else {
+                              // Mark closedposition as empty/free
+                              prefixArray[columnCount] = [ '-', 0 ];
+                              // Clear tail of array
+                              while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
+                                    prefixArray.pop();
+                              }
+                        }
+                        saveSettings();
+                        //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+                  }
+            }
       };
 
+      closeAllPrefixButton = new PushButton( this );
+      closeAllPrefixButton.text = "Close all prefixes";
+      closeAllPrefixButton.toolTip = "Close all image windows by prefix";
+      closeAllPrefixButton.onClick = function()
+      {
+            console.writeln("closeAllPrefix");
+            try {
+                  // Always close default/empty prefix
+                  // For delete to work we need to update fioxed window
+                  // names with the current prefix
+                  fixAllWindowArrays("");
+                  closeAllWindows(par.keep_integrated_images.val);
+                  // Go through the prefix list
+                  for (columnCount = 0; columnCount < prefixArray.length; columnCount++) {
+                        if (prefixArray[columnCount][0] != '-') {
+                              console.writeln("Close prefix '" + prefixArray[columnCount][0] + "'");
+                              fixAllWindowArrays(prefixArray[columnCount][0]);
+                              closeAllWindows(par.keep_integrated_images.val);
+                              if (par.keep_integrated_images.val) {
+                                    prefixArray[columnCount][1] = 0;
+                              } else {
+                                    prefixArray[columnCount] = [ '-', 0 ];
+                              }
+                        }
+                  }
+                  // Remove emnpty/free positions at the tail of the array
+                  while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
+                        prefixArray.pop();
+                  }
+            } catch (e) {
+            }
+            saveSettings();
+            // restore original prefix
+            fixAllWindowArrays(win_prefix);
+      };
+
+      /* Using new prefix array so this code is not needed.
       this.columnCountControlLabel = new Label( this );
       this.columnCountControlLabel.text = "Icon Column ";
       this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -10217,7 +10363,7 @@ function AutoIntegrateDialog()
       {
             columnCount = value - 1;
       };
-
+      */
 
       // Group box for AutoContinue and CloseAll
       this.autoButtonSizer = new HorizontalSizer;
@@ -10225,8 +10371,9 @@ function AutoIntegrateDialog()
       this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
       this.autoButtonSizer.addSpacing ( 250 );
-      this.autoButtonSizer.add (this.columnCountControlLabel );
-      this.autoButtonSizer.add (this.columnCountControlSpinBox );
+      this.autoButtonSizer.add( closeAllPrefixButton );
+      //this.autoButtonSizer.add (this.columnCountControlLabel );
+      //this.autoButtonSizer.add (this.columnCountControlSpinBox );
       this.autoButtonGroupBox = new newGroupBox( this );
       this.autoButtonGroupBox.sizer = new HorizontalSizer;
       this.autoButtonGroupBox.sizer.margin = 6;
@@ -10278,13 +10425,21 @@ function AutoIntegrateDialog()
       this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
-	 haveIconized = 0;
-         Autorun(this);
-         Settings.write (SETTINGSKEY + "/winPrefix", DataType_String, win_prefix);
-	 if (haveIconized) {
-	     columnCount++;
-             this.dialog.columnCountControlSpinBox.value = columnCount + 1;
-	 }
+         haveIconized = 0;
+         columnCount = findPrefixIndex(win_prefix);
+         if (columnCount != -1) {
+            console.criticalln("Window prefix " + win_prefix + " already in use");
+         } else {
+            columnCount = findNewPrefixIndex();
+            iconStartRow = 0;
+            Autorun(this);
+            if (haveIconized) {
+                  // We have iconized something so update prefix array
+                  prefixArray[columnCount] = [ win_prefix, haveIconized ];
+                  //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+                  saveSettings();
+            }
+         }
       };
    
       this.cancel_Button = new PushButton( this );
@@ -10292,8 +10447,8 @@ function AutoIntegrateDialog()
       this.cancel_Button.icon = this.scaledResource( ":/icons/close.png" );
       this.cancel_Button.onClick = function()
       {
-         Settings.write (SETTINGSKEY + "/columnCount", DataType_Int16, columnCount);
-         Settings.write (SETTINGSKEY + "/winPrefix", DataType_String, win_prefix);
+         // save prefix setting at the end
+         saveSettings();
          this.dialog.cancel();
       };
    
@@ -10397,10 +10552,12 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.06";
+      this.windowTitle = "AutoIntegrate v1.07 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
+
+      setWindowPrefixHelpTip();
 
       console.show(false);
 }
@@ -10412,27 +10569,22 @@ function main()
       setDefaultDirs();
 
        try {
-           var tempSetting  = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int16);
+           // Read prefix info. We use new setting names to avoid conflict with
+           // older columnCOunt/winPrefix names
+           var tempSetting  = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
            if (Settings.lastReadOK) {
-               columnCount = tempSetting;
-               console.noteln("AutoIntegrate: Restored Icon column " + columnCount + " from settings.");
-           } else {
-               //               console.writeln(" AINew columnCount not found in settings!");
+                  console.noteln("AutoIntegrate: Restored winPrefix " + tempSetting + " from settings.");
+                  win_prefix = tempSetting;
+                  var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+                  if (Settings.lastReadOK) {
+                        console.noteln("AutoIntegrate: Restored prefixArray " + tempSetting + " from settings.");
+                        prefixArray = JSON.parse(tempSetting);
+                  }
+                  if (win_prefix != "") {
+                        fixAllWindowArrays(win_prefix);
+                  }
+                  last_win_prefix = win_prefix;
            }
-           var tempSetting  = Settings.read(SETTINGSKEY + "/winPrefix", DataType_String);
-           if (Settings.lastReadOK) {
-               win_prefix = tempSetting;
-	       fixWindowArray(integration_LRGB_windows, last_win_prefix, win_prefix);
-	       fixWindowArray(integration_color_windows, last_win_prefix, win_prefix);
-	       fixWindowArray(fixed_windows, last_win_prefix, win_prefix);
-	       fixWindowArray(calibrate_windows, last_win_prefix, win_prefix);
-	       fixWindowArray(final_windows, last_win_prefix, win_prefix);
-	       last_win_prefix = win_prefix;
-               console.noteln("AutoIntegrate: Restored win_prefix " + win_prefix  + " from settings.");
-           } else {
-               //               console.writeln(" AINew win_prefix not found in settings!");
-           }
-
        }
        catch (x) {
             console.writeln( x );
