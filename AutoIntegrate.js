@@ -7357,7 +7357,7 @@ function extraContrast(imgWin)
 
 function extraSTF(win)
 {
-      runHistogramTransform(win, null, true, 'mask');
+      runHistogramTransform(win, null, win.mainView.image.isColor, 'mask');
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -10552,7 +10552,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.07 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.08 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
