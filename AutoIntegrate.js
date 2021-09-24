@@ -10427,10 +10427,12 @@ function AutoIntegrateDialog()
       {
          haveIconized = 0;
          columnCount = findPrefixIndex(win_prefix);
-         if (columnCount != -1) {
+         if (columnCount != -1 && win_prefix != "") {
             console.criticalln("Window prefix " + win_prefix + " already in use");
          } else {
-            columnCount = findNewPrefixIndex();
+            if (columnCount == -1) {
+                  columnCount = findNewPrefixIndex();
+            }
             iconStartRow = 0;
             Autorun(this);
             if (haveIconized) {
