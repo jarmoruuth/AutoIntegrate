@@ -314,6 +314,7 @@ var par = {
       custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
+      narrowband_starnet: { val: false, def: false, name : "Narrowband starnet", type : 'B' },
 
       // Narrowband to RGB mappping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -4213,6 +4214,22 @@ function reduceNoiseOnChannelImage(image)
       closeOneWindow(maskname);
 }
 
+// Remove stars from an image. We do not create star mask here.
+function removeStars(imgWin)
+{
+      addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+
+      var P = new StarNet;
+      P.stride = StarNet.prototype.Stride_128;
+      P.mask = false;
+
+      /* Execute StarNet on image.
+       */
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+}
+
 /* Do custom mapping of channels to RGB image. We do some the same 
  * stuff here as in CombineRGBimage.
  */
@@ -4281,8 +4298,13 @@ function customMapping()
                    * */
                   par.narrowband_linear_fit.val = "None";
             }
+            if (par.narrowband_starnet.val) {
+                  var mapping_on_nonlinear_data = true;
+            } else {
+                  var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
+            }
 
-            if (!par.mapping_on_nonlinear_data.val) {
+            if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
                    */
                   addProcessingStep("Custom mapping, linear narrowband images");
@@ -4293,6 +4315,12 @@ function customMapping()
                   addProcessingStep("Custom mapping, stretched narrowband images");
                   for (var i = 0; i < images.length; i++) {
                         runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
+                  }
+                  if (par.narrowband_starnet.val) {
+                        addProcessingStep("Custom mapping, run StarNet to remove stars");
+                        for (var i = 0; i < images.length; i++) {
+                              removeStars(findWindow(images[i]));
+                        }
                   }
                   RBGmapping.stretched = true;
             }
@@ -9679,6 +9707,13 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
             par.mapping_on_nonlinear_data.val = checked; 
       }
+      this.narrowband_starnet_CheckBox = newCheckBox(this, "StarNet", par.narrowband_starnet.val, 
+            "<p>" +
+            "Run StarNet to remove stars before narrowband mapping. This needs non-linear data so images are stretched to non-linear state." +
+            "</p>" );
+      this.narrowband_starnet_CheckBox.onClick = function(checked) { 
+            par.narrowband_starnet.val = checked; 
+      }
 
       this.narrowbandLinearFit_Label = new Label( this );
       this.narrowbandLinearFit_Label.text = "Linear fit";
@@ -9706,6 +9741,7 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
+      this.mapping_on_nonlinear_data_Sizer.add( this.narrowband_starnet_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_ComboBox );
 
@@ -10554,7 +10590,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.08 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.09 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
