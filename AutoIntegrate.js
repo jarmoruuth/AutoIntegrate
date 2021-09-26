@@ -476,7 +476,7 @@ var B_id;
 var H_id;
 var S_id;
 var O_id;
-var color_id;
+var RGBcolor_id;
 var R_ABE_id = null;
 var G_ABE_id = null;
 var B_ABE_id = null;
@@ -6003,16 +6003,32 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
       file.close();
 }
 
-function findProcessedImages()
+function findWindowIdEx(name, check_base_name)
 {
-      L_id = findWindowId(win_prefix + "Integration_L");
-      R_id = findWindowId(win_prefix + "Integration_R");
-      G_id = findWindowId(win_prefix + "Integration_G");
-      B_id = findWindowId(win_prefix + "Integration_B");
-      H_id = findWindowId(win_prefix + "Integration_H");
-      S_id = findWindowId(win_prefix + "Integration_S");
-      O_id = findWindowId(win_prefix + "Integration_O");
-      color_id = findWindowId(win_prefix + "Integration_RGB");
+      var id = findWindowId(win_prefix + name);
+      if (id == null && check_base_name && win_prefix != "") {
+            console.writeln("findWindowIdEx not found with prefix");
+            id = findWindowId(name);
+      }
+      if (id == null) {
+            console.writeln("findWindowIdEx not found");
+      } else {
+            console.writeln("findWindowIdEx found " + id);
+      }
+      return id;
+}
+
+function findProcessedImages(check_base_name)
+{
+      L_id = findWindowIdEx("Integration_L", check_base_name);
+      R_id = findWindowIdEx("Integration_R", check_base_name);
+      G_id = findWindowIdEx("Integration_G", check_base_name);
+      B_id = findWindowIdEx("Integration_B", check_base_name);
+      H_id = findWindowIdEx("Integration_H", check_base_name);
+      S_id = findWindowIdEx("Integration_S", check_base_name);
+      O_id = findWindowIdEx("Integration_O", check_base_name);
+      RGBcolor_id = findWindowIdEx("Integration_RGB", check_base_name);
+      console.writeln("findProcessedImages RGBcolor_id " + RGBcolor_id);
 }
 
 function fileNamesFromOutputData(outputFileData)
@@ -6073,6 +6089,18 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
+function findAutoContinueWindow(id)
+{
+      var win = findWindow(win_prefix + id);
+      if (win == null && win_prefix != "") {
+            // Try to find without prefix so we can autocontinue
+            // from default run but will have new output
+            // file names.
+            win = findWindow(win_prefix + id);
+      }
+      return win;
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -6093,20 +6121,20 @@ function CreateChannelImages(auto_continue)
       final_win = null;
 
       /* Check if we have manually done histogram transformation. */
-      L_HT_win = findWindow(win_prefix + "L_HT");
-      RGB_HT_win = findWindow(win_prefix + "RGB_HT");
+      L_HT_win = findAutoContinueWindow("L_HT");
+      RGB_HT_win = findAutoContinueWindow("RGB_HT");
 
       /* Check if we have manual background extracted files. */
-      L_BE_win = findWindow(win_prefix + "Integration_L_BE");
-      R_BE_win = findWindow(win_prefix + "Integration_R_BE");
-      G_BE_win = findWindow(win_prefix + "Integration_G_BE");
-      B_BE_win = findWindow(win_prefix + "Integration_B_BE");
-      H_BE_win = findWindow(win_prefix + "Integration_H_BE");
-      S_BE_win = findWindow(win_prefix + "Integration_S_BE");
-      O_BE_win = findWindow(win_prefix + "Integration_O_BE");
-      RGB_BE_win = findWindow(win_prefix + "Integration_RGB_BE");
+      L_BE_win = findAutoContinueWindow("Integration_L_BE");
+      R_BE_win = findAutoContinueWindow("Integration_R_BE");
+      G_BE_win = findAutoContinueWindow("Integration_G_BE");
+      B_BE_win = findAutoContinueWindow("Integration_B_BE");
+      H_BE_win = findAutoContinueWindow("Integration_H_BE");
+      S_BE_win = findAutoContinueWindow("Integration_S_BE");
+      O_BE_win = findAutoContinueWindow("Integration_O_BE");
+      RGB_BE_win = findAutoContinueWindow("Integration_RGB_BE");
 
-      findProcessedImages();
+      findProcessedImages(true);
 
       if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
@@ -6124,6 +6152,8 @@ function CreateChannelImages(auto_continue)
 
       /* Check if we have manually created mask. */
       range_mask_win = null;
+
+      console.writeln("CreateChannelImages RGBcolor_id " + RGBcolor_id);
 
       if (final_win != null) {
             addProcessingStep("Final image " + final_win.mainView.id);
@@ -6145,9 +6175,9 @@ function CreateChannelImages(auto_continue)
             addProcessingStep("L,R,G,B background extracted");
             preprocessed_images = start_images.L_R_G_B_BE;
             narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
-      } else if (color_id != null) {                              /* RGB (color) integrated image */
-            addProcessingStep("RGB (color) integrated image " + color_id);
-            checkAutoCont(findWindow(color_id));
+      } else if (RGBcolor_id != null) {                              /* RGB (color) integrated image */
+            addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
+            checkAutoCont(findWindow(RGBcolor_id));
             preprocessed_images = start_images.RGB_COLOR;
       } else if ((R_id != null && G_id != null && B_id != null) ||
                  (H_id != null && O_id != null)) {                /* L,R,G,B integrated images */
@@ -6195,8 +6225,8 @@ function CreateChannelImages(auto_continue)
                   }
             }
             if (preprocessed_images == start_images.RGB_COLOR) {
-                  RGB_win = ImageWindow.windowById(color_id);
-                  RGB_win_id = color_id;
+                  RGB_win = ImageWindow.windowById(RGBcolor_id);
+                  RGB_win_id = RGBcolor_id;
             }
             /* Check if we have manually created mask. */
             mask_win_id = "range_mask";
@@ -6340,10 +6370,10 @@ function CreateChannelImages(auto_continue)
                   /* We have color files. */
                   addProcessingStep("Processing as color files");
                   is_color_files = true;
-                  var color_id = runImageIntegration(C_images, 'RGB');
-                  RGB_win = ImageWindow.windowById(color_id);
+                  var color_img_id = runImageIntegration(C_images, 'RGB');
+                  RGB_win = ImageWindow.windowById(color_img_id);
                   RGB_win.show();
-                  RGB_win_id = color_id;
+                  RGB_win_id = color_img_id;
             }
       }
       return true;
@@ -6394,7 +6424,7 @@ function LRGBCreateMask()
 /* Create mask for color processing. Mask is needed also in non-linear
  * so we do a separate runHistogramTransform here.
  */
-function ColorCreateMask(color_id, RBGstretched)
+function ColorCreateMask(color_img_id, RBGstretched)
 {
       addProcessingStep("ColorCreateMask");
 
@@ -6404,8 +6434,8 @@ function ColorCreateMask(color_id, RBGstretched)
             mask_win = range_mask_win;
       } else {
             var color_win;
-            color_win = ImageWindow.windowById(color_id);
-            addProcessingStep("Using image " + color_id + " for a mask");
+            color_win = ImageWindow.windowById(color_img_id);
+            addProcessingStep("Using image " + color_img_id + " for a mask");
             color_win = copyWindow(color_win, "color_win_mask");
 
             if (!RBGstretched) {
@@ -6745,17 +6775,17 @@ function testRGBNBmapping()
 
       addProcessingStep("Test narrowband mapping to RGB");
 
-      findProcessedImages();
+      findProcessedImages(false);
 
-      if (color_id == null) {
+      if (RGBcolor_id == null) {
             throwFatalError("Could not find RGB image");
       }
 
-      var color_win = findWindow(color_id);
+      var color_win = findWindow(RGBcolor_id);
 
       checkWinFilePath(color_win);
 
-      var test_win = copyWindow(color_win, color_id + "_test");
+      var test_win = copyWindow(color_win, RGBcolor_id + "_test");
 
       doRGBNBmapping(test_win.mainView.id);
       
@@ -10272,33 +10302,32 @@ function AutoIntegrateDialog()
 
             clearDefaultDirs();
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+            haveIconized = 0;
             try {
-                  columnCount = findPrefixIndex(win_prefix);
-                  if (columnCount == -1) {
-                        // prefix not found
-                        if (win_prefix == "") {
-                              // empty prefix is a special case, we 
-                              // create an entry for it
-                              columnCount = findNewPrefixIndex();
-                              prefixArray[columnCount] = [ "", 0 ];
-                              saveSettings();
-                        } else {
-                              // non-empty prerfix must be found from array
-                              throwFatalError("Window prefix " + win_prefix + " not found");
-                        }
-                  }
                   autocontinue_narrowband = is_narrowband_option();
                   if (batch_narrowband_palette_mode) {
                         AutoIntegrateNarrowbandPaletteBatch(true);
                   } else {
-                        // With AutoContinue start icons below current
-                        // icons.
-                        iconStartRow = prefixArray[columnCount][1];
+                        columnCount = findPrefixIndex(win_prefix);
+                        if (columnCount == -1) {
+                              iconStartRow = 0;
+                              columnCount = findNewPrefixIndex();
+                        } else {
+                              // With AutoContinue start icons below current
+                              // icons.
+                              iconStartRow = prefixArray[columnCount][1];
+                        }
                         AutoIntegrateEngine(true);
                   }
                   autocontinue_narrowband = false;
                   setDefaultDirs();
-            } 
+                  if (haveIconized) {
+                        // We have iconized something so update prefix array
+                        prefixArray[columnCount] = [ win_prefix, Math.max(haveIconized, iconStartRow) ];
+                        //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+                        saveSettings();
+                  }
+            }
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
@@ -10461,11 +10490,8 @@ function AutoIntegrateDialog()
       this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
-         haveIconized = 0;
-         columnCount = findPrefixIndex(win_prefix);
-         if (columnCount != -1 && win_prefix != "") {
-            console.criticalln("Window prefix " + win_prefix + " already in use");
-         } else {
+            haveIconized = 0;
+            columnCount = findPrefixIndex(win_prefix);
             if (columnCount == -1) {
                   columnCount = findNewPrefixIndex();
             }
@@ -10477,7 +10503,6 @@ function AutoIntegrateDialog()
                   //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
                   saveSettings();
             }
-         }
       };
    
       this.cancel_Button = new PushButton( this );
@@ -10590,7 +10615,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.09 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.10 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
