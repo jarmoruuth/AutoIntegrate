@@ -647,8 +647,20 @@ function setWindowPrefixHelpTip()
       }
       prefix_list = prefix_list + "</table>";
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p><p> " + prefix_list + "</p>";
-      closeAllPrefixButton.toolTip = "<p>Close all image windows by prefix</p>" +
+      closeAllPrefixButton.toolTip = "<p>Use all known window prefixes to close all image windows that are created by this script.</p>" +
+                                     "<p>Prefixes used to close windows are default empty prefix, prefix in the Window Prefix box and all saved window prefixes. " +
+                                     "All saved prefix information is cleared after this operation.</p>" +
+                                     "<p>To close windows with current prefix use Close all button.</p>" +
                                      windowPrefixHelpTips.toolTip;
+}
+
+function ensure_win_prefix(id)
+{
+      if (win_prefix != "" && !id.startsWith(win_prefix)) {
+            return win_prefix + id;
+      } else {
+            return id;
+      }
 }
 
 // Find a prefix from the prefix array. Returns -1 if not
@@ -1264,7 +1276,7 @@ function saveMasterWindow(path, id)
 function saveFinalImageWindow(win, dir, name, bits)
 {
       console.writeln("saveFinalImageWindow " + name);
-      var copy_win = copyWindow(win, name + "_savetmp");
+      var copy_win = copyWindow(win, ensure_win_prefix(name + "_savetmp"));
       var save_name;
 
       // 8 and 16 bite are TIFF, 32 is XISF
@@ -4169,7 +4181,7 @@ function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
-            var copyname = images[i] + "_map";
+            var copyname = ensure_win_prefix(images[i] + "_map");
             console.writeln("copyname", copyname);
             copyWindow(findWindow(images[i]), copyname);
             images[i] = copyname;
@@ -4204,7 +4216,7 @@ function reduceNoiseOnChannelImage(image)
       addProcessingStep("Reduce noise on channe image " + image);
 
       /* Create a temporary stretched copy to be used as a mask. */
-      var maskname = image + "_mask";
+      var maskname = ensure_win_prefix(image + "_mask");
       var image_win = findWindow(image);
       var mask_win = copyWindow(image_win, maskname);
       runHistogramTransform(mask_win, null, false, 'mask');
@@ -4937,7 +4949,7 @@ function runImageIntegrationNormalized(channel_images, name)
  */
 function noABEcopyWin(win)
 {
-      var noABE_id = win.mainView.id + "_noABE";
+      var noABE_id = ensure_win_prefix(win.mainView.id + "_noABE");
       addProcessingStep("No ABE for " + win.mainView.id);
       addScriptWindow(noABE_id);
       copyWindow(win, noABE_id);
@@ -4950,7 +4962,7 @@ function runABE(win, replaceTarget)
       if (replaceTarget) {
             var ABE_id = win.mainView.id;
       } else {
-            var ABE_id = win.mainView.id + "_ABE";
+            var ABE_id = ensure_win_prefix(win.mainView.id + "_ABE");
       }
       var ABE = new AutomaticBackgroundExtractor;
 
@@ -5737,7 +5749,9 @@ function increaseSaturation(imgWin, maskWin)
 
 function runLRGBCombination(RGB_id, L_id)
 {
-      var targetWin = copyWindow(ImageWindow.windowById(RGB_id), RGB_id.replace("RGB", "LRGB"));
+      var targetWin = copyWindow(
+                        ImageWindow.windowById(RGB_id), 
+                        ensure_win_prefix(RGB_id.replace("RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
       addProcessingStep("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
@@ -6003,32 +6017,42 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
       file.close();
 }
 
-function findWindowIdEx(name, check_base_name)
+// Find window and optinally search without a prefix
+function findWindowCheckBaseNameIf(id, check_base_name)
+{
+      var win = findWindow(win_prefix + id);
+      if (win == null && check_base_name && win_prefix != "") {
+            // Try to find without prefix so we can autocontinue
+            // from default run but will have new output
+            // file names.
+            win = findWindow(id);
+      }
+      return win;
+}
+
+// Find window id and optinally search without a prefix
+function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
       var id = findWindowId(win_prefix + name);
       if (id == null && check_base_name && win_prefix != "") {
-            console.writeln("findWindowIdEx not found with prefix");
+            // Try to find without prefix so we can autocontinue
+            // from default run but will have new output
+            // file names.
             id = findWindowId(name);
-      }
-      if (id == null) {
-            console.writeln("findWindowIdEx not found");
-      } else {
-            console.writeln("findWindowIdEx found " + id);
       }
       return id;
 }
 
 function findProcessedImages(check_base_name)
 {
-      L_id = findWindowIdEx("Integration_L", check_base_name);
-      R_id = findWindowIdEx("Integration_R", check_base_name);
-      G_id = findWindowIdEx("Integration_G", check_base_name);
-      B_id = findWindowIdEx("Integration_B", check_base_name);
-      H_id = findWindowIdEx("Integration_H", check_base_name);
-      S_id = findWindowIdEx("Integration_S", check_base_name);
-      O_id = findWindowIdEx("Integration_O", check_base_name);
-      RGBcolor_id = findWindowIdEx("Integration_RGB", check_base_name);
-      console.writeln("findProcessedImages RGBcolor_id " + RGBcolor_id);
+      L_id = findWindowIdCheckBaseNameIf("Integration_L", check_base_name);
+      R_id = findWindowIdCheckBaseNameIf("Integration_R", check_base_name);
+      G_id = findWindowIdCheckBaseNameIf("Integration_G", check_base_name);
+      B_id = findWindowIdCheckBaseNameIf("Integration_B", check_base_name);
+      H_id = findWindowIdCheckBaseNameIf("Integration_H", check_base_name);
+      S_id = findWindowIdCheckBaseNameIf("Integration_S", check_base_name);
+      O_id = findWindowIdCheckBaseNameIf("Integration_O", check_base_name);
+      RGBcolor_id = findWindowIdCheckBaseNameIf("Integration_RGB", check_base_name);
 }
 
 function fileNamesFromOutputData(outputFileData)
@@ -6089,18 +6113,6 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
-function findAutoContinueWindow(id)
-{
-      var win = findWindow(win_prefix + id);
-      if (win == null && win_prefix != "") {
-            // Try to find without prefix so we can autocontinue
-            // from default run but will have new output
-            // file names.
-            win = findWindow(win_prefix + id);
-      }
-      return win;
-}
-
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -6121,24 +6133,32 @@ function CreateChannelImages(auto_continue)
       final_win = null;
 
       /* Check if we have manually done histogram transformation. */
-      L_HT_win = findAutoContinueWindow("L_HT");
-      RGB_HT_win = findAutoContinueWindow("RGB_HT");
+      L_HT_win = findWindowCheckBaseNameIf("L_HT", auto_continue);
+      RGB_HT_win = findWindowCheckBaseNameIf("RGB_HT", auto_continue);
 
       /* Check if we have manual background extracted files. */
-      L_BE_win = findAutoContinueWindow("Integration_L_BE");
-      R_BE_win = findAutoContinueWindow("Integration_R_BE");
-      G_BE_win = findAutoContinueWindow("Integration_G_BE");
-      B_BE_win = findAutoContinueWindow("Integration_B_BE");
-      H_BE_win = findAutoContinueWindow("Integration_H_BE");
-      S_BE_win = findAutoContinueWindow("Integration_S_BE");
-      O_BE_win = findAutoContinueWindow("Integration_O_BE");
-      RGB_BE_win = findAutoContinueWindow("Integration_RGB_BE");
+      L_BE_win = findWindowCheckBaseNameIf("Integration_L_BE", auto_continue);
+      R_BE_win = findWindowCheckBaseNameIf("Integration_R_BE", auto_continue);
+      G_BE_win = findWindowCheckBaseNameIf("Integration_G_BE", auto_continue);
+      B_BE_win = findWindowCheckBaseNameIf("Integration_B_BE", auto_continue);
+      H_BE_win = findWindowCheckBaseNameIf("Integration_H_BE", auto_continue);
+      S_BE_win = findWindowCheckBaseNameIf("Integration_S_BE", auto_continue);
+      O_BE_win = findWindowCheckBaseNameIf("Integration_O_BE", auto_continue);
+      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_BE", auto_continue);
 
-      findProcessedImages(true);
+      findProcessedImages(auto_continue);
 
       if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
-                  final_win = findWindow(final_windows[i]);
+                  // remove prefix for function findWindowCheckBaseNameIf
+                  console.writeln("final_windows " + i + " " + final_windows[i] + " prefix " + win_prefix);
+                  if (win_prefix != "" && final_windows[i].startsWith(win_prefix)) {
+                        var win_name = final_windows[i].substring(win_prefix.length);
+                  } else {
+                        var win_name = final_windows[i];
+                  }
+                  console.writeln("win_name " + win_name);
+                  final_win = findWindowCheckBaseNameIf(win_name, auto_continue);
                   if (final_win != null) {
                         break;
                   }
@@ -6152,8 +6172,6 @@ function CreateChannelImages(auto_continue)
 
       /* Check if we have manually created mask. */
       range_mask_win = null;
-
-      console.writeln("CreateChannelImages RGBcolor_id " + RGBcolor_id);
 
       if (final_win != null) {
             addProcessingStep("Final image " + final_win.mainView.id);
@@ -6175,7 +6193,8 @@ function CreateChannelImages(auto_continue)
             addProcessingStep("L,R,G,B background extracted");
             preprocessed_images = start_images.L_R_G_B_BE;
             narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
-      } else if (RGBcolor_id != null) {                              /* RGB (color) integrated image */
+      } else if (RGBcolor_id != null 
+                 && H_id == null && O_id == null && L_id == null) { /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
             checkAutoCont(findWindow(RGBcolor_id));
             preprocessed_images = start_images.RGB_COLOR;
@@ -6436,7 +6455,7 @@ function ColorCreateMask(color_img_id, RBGstretched)
             var color_win;
             color_win = ImageWindow.windowById(color_img_id);
             addProcessingStep("Using image " + color_img_id + " for a mask");
-            color_win = copyWindow(color_win, "color_win_mask");
+            color_win = copyWindow(color_win, ensure_win_prefix("color_win_mask"));
 
             if (!RBGstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
@@ -6505,7 +6524,7 @@ function ProcessLimage(RBGmapping)
 
             /* On L image run HistogramTransform based on autostretch
             */
-            L_ABE_HT_id = L_ABE_id + "_HT";
+            L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
             if (!RBGmapping.stretched) {
                   L_stf = runHistogramTransform(
                               copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
@@ -6680,7 +6699,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       console.writeln("RGBNB_Channel_Mapping " + RGB_id);
 
       if (channel == 'L') {
-            var L_win_copy = copyWindow(findWindow(RGB_id), RGB_id + "_RGBNBcopy");
+            var L_win_copy = copyWindow(findWindow(RGB_id), ensure_win_prefix(RGB_id + "_RGBNBcopy"));
             var channelId = L_win_copy.mainView.id;
       } else {
             var channelId = extractRGBchannel(RGB_id, channel);
@@ -6785,7 +6804,7 @@ function testRGBNBmapping()
 
       checkWinFilePath(color_win);
 
-      var test_win = copyWindow(color_win, RGBcolor_id + "_test");
+      var test_win = copyWindow(color_win, ensure_win_prefix(RGBcolor_id + "_test"));
 
       doRGBNBmapping(test_win.mainView.id);
       
@@ -6885,7 +6904,7 @@ function ProcessRGBimage(RBGstretched)
             if (!RBGstretched) {
                   /* On RGB image run HistogramTransform based on autostretch
                   */
-                  RGB_ABE_HT_id = RGB_ABE_id + "_HT";
+                  RGB_ABE_HT_id = ensure_win_prefix(RGB_ABE_id + "_HT");
                   runHistogramTransform(
                         copyWindow(
                               ImageWindow.windowById(RGB_ABE_id), 
@@ -7057,7 +7076,7 @@ function extraStarNet(imgWin)
       /* Make a copy of the stars image.
        */
       console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgWin.mainView.id + "_stars");
-      var copywin = copyWindow(star_mask_win, imgWin.mainView.id + "_stars");
+      var copywin = copyWindow(star_mask_win, ensure_win_prefix(imgWin.mainView.id + "_stars"));
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet stars image " + copywin.mainView.id);
@@ -7065,7 +7084,7 @@ function extraStarNet(imgWin)
       /* Make a copy of the starless image.
        */
       console.writeln("extraStarNet copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
-      var copywin = copyWindow(imgWin, imgWin.mainView.id + "_starless");
+      var copywin = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_starless"));
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("StarNet starless image " + copywin.mainView.id);
@@ -7539,7 +7558,7 @@ function extraProcessing(id, apply_directly)
       ensureDir(combinePath(outputRootDir, AutoProcessedDir));
 
       if (!apply_directly) {
-            extra_id = id + "_extra";
+            extra_id = ensure_win_prefix(id + "_extra");
             extraWin = copyWindow(extraWin, extra_id);
       }
 
@@ -10340,48 +10359,51 @@ function AutoIntegrateDialog()
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
       this.closeAllButton.text = "Close all";
-      this.closeAllButton.toolTip = "Close all image windows created by this script";
+      this.closeAllButton.toolTip = "<p>Close all image windows created by this script</p>" +
+                                    "<p>If Window Prefix is used then all windows with that prefix are closed. " +
+                                    "To close all windows with all prefixes use button Close all prefixes</p>";
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
+            // Close all using the current win_prefix
+            closeAllWindows(par.keep_integrated_images.val);
             columnCount = findPrefixIndex(win_prefix);
-            if (columnCount == -1 && win_prefix != "") {
-                  // Non-empty prefix must be found
-                  console.criticalln("Window prefix " + win_prefix + " not found");
-            } else {
-                  closeAllWindows(par.keep_integrated_images.val);
-                  if (columnCount != -1) {
-                        // If prefix was found update array
-                        if (par.keep_integrated_images.val) {
-                              // If we keep integrated images then we can start
-                              // from zero icon position
-                              prefixArray[columnCount][1] = 0;
-                        } else {
-                              // Mark closedposition as empty/free
-                              prefixArray[columnCount] = [ '-', 0 ];
-                              // Clear tail of array
-                              while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
-                                    prefixArray.pop();
-                              }
+            if (columnCount != -1) {
+                  // If prefix was found update array
+                  if (par.keep_integrated_images.val) {
+                        // If we keep integrated images then we can start
+                        // from zero icon position
+                        prefixArray[columnCount][1] = 0;
+                  } else {
+                        // Mark closed position as empty/free
+                        prefixArray[columnCount] = [ '-', 0 ];
+                        // Clear tail of array
+                        while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
+                              prefixArray.pop();
                         }
-                        saveSettings();
-                        //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
                   }
+                  saveSettings();
+                  //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
             }
       };
 
       closeAllPrefixButton = new PushButton( this );
       closeAllPrefixButton.text = "Close all prefixes";
-      closeAllPrefixButton.toolTip = "Close all image windows by prefix";
+      closeAllPrefixButton.toolTip = "Updated in function setWindowPrefixHelpTip";
       closeAllPrefixButton.onClick = function()
       {
             console.writeln("closeAllPrefix");
             try {
                   // Always close default/empty prefix
-                  // For delete to work we need to update fioxed window
-                  // names with the current prefix
+                  // For delete to work we need to update fixed window
+                  // names with the prefix we use for closing
                   fixAllWindowArrays("");
                   closeAllWindows(par.keep_integrated_images.val);
+                  if (win_prefix != "" && findPrefixIndex(win_prefix) == -1) {
+                        // Window prefix box has unsaved prefix, clear that too.
+                        fixAllWindowArrays(win_prefix);
+                        closeAllWindows(par.keep_integrated_images.val);
+                  }
                   // Go through the prefix list
                   for (columnCount = 0; columnCount < prefixArray.length; columnCount++) {
                         if (prefixArray[columnCount][0] != '-') {
@@ -10395,12 +10417,13 @@ function AutoIntegrateDialog()
                               }
                         }
                   }
-                  // Remove emnpty/free positions at the tail of the array
+                  // Remove empty/free positions at the tail of the array
                   while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
                         prefixArray.pop();
                   }
-            } catch (e) {
-            }
+            }  catch (x) {
+                  console.writeln( x );
+             }
             saveSettings();
             // restore original prefix
             fixAllWindowArrays(win_prefix);
@@ -10615,7 +10638,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.10 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.11 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
@@ -10632,26 +10655,23 @@ function main()
       setDefaultDirs();
 
        try {
-           // Read prefix info. We use new setting names to avoid conflict with
-           // older columnCOunt/winPrefix names
-           var tempSetting  = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
-           if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored winPrefix " + tempSetting + " from settings.");
+            // Read prefix info. We use new setting names to avoid conflict with
+            // older columnCOunt/winPrefix names
+            var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
+            if (Settings.lastReadOK) {
                   win_prefix = tempSetting;
-                  var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
-                  if (Settings.lastReadOK) {
-                        console.noteln("AutoIntegrate: Restored prefixArray " + tempSetting + " from settings.");
-                        prefixArray = JSON.parse(tempSetting);
-                  }
-                  if (win_prefix != "") {
-                        fixAllWindowArrays(win_prefix);
-                  }
-                  last_win_prefix = win_prefix;
-           }
-       }
-       catch (x) {
+            }
+            var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+            if (Settings.lastReadOK) {
+                  prefixArray = JSON.parse(tempSetting);
+            }
+            fixAllWindowArrays(win_prefix);
+            last_win_prefix = win_prefix;
+            console.noteln("AutoIntegrate: Restored window prefix '" + win_prefix + "' and prefix array " + JSON.stringify(prefixArray) + " from settings.");
+      }
+      catch (x) {
             console.writeln( x );
-       }
+      }
 
 
       if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
