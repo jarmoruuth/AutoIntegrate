@@ -407,6 +407,7 @@ var narrowband = false;
 var autocontinue_narrowband = false;
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
+var run_auto_continue = false;
 
 var processingDate;
 var lightFileNames = null;
@@ -629,6 +630,7 @@ var narrowBandPalettes = [
       { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true }, 
       { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true }, 
       { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true }, 
+      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true }, 
       { name: "RGB", R: "R", G: "G", B: "B", all: false }, 
       { name: "User defined", R: "", G: "", B: "", all: false },
       { name: "All", R: "All", G: "All", B: "All", all: false }
@@ -2152,7 +2154,7 @@ function imagesEnabledPathToFileList(images)
 
 // Calibration engine to run image calibration 
 // if bias, dark and/or flat files are selected.
-function calibrateEngine()
+function calibrateEngine(filtered_lights)
 {
       if (biasFileNames == null) {
             biasFileNames = [];
@@ -2185,7 +2187,6 @@ function calibrateEngine()
 
       // Collect filter files
       var filtered_flats = getFilterFiles(flatFileNames, pages.FLATS, '');
-      var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
 
       is_color_files = filtered_flats.color_files;
 
@@ -3903,10 +3904,24 @@ function add_missing_image(images, to)
       }
 }
 
+function ensureLightImages(ch, check_filesarr)
+{
+      for (var i = 0; i < check_filesarr.length; i++) {
+            var filterFiles = check_filesarr[i][0];
+            var filterName = check_filesarr[i][1];
+            if (filterName == ch) {
+                  if (filterFiles.length == 0) {
+                        throwFatalError("No " + ch + " images that are needed for PixelMath mapping");
+                  }
+                  break;
+            }
+      }
+}
+
 /* Replace tag "from" with real image name "to" with _map added to the end (H -> Integration_H_map) . 
  * Images names listed in the mapping are put into images array without _map added (Integration_H).
  */
-function replaceMappingImageNames(mapping, from, to, images)
+function replaceMappingImageNames(mapping, from, to, images, check_filesarr)
 {
       //console.writeln("replaceMappingImageNames in " + mapping + " from " + from + " to " + to);
       mapping = mapping.trim();
@@ -3918,8 +3933,12 @@ function replaceMappingImageNames(mapping, from, to, images)
       }
       if (mapping.length == 1) {
             // only char must be the one we are looking for
-            //console.writeln("replaceMappingImageNames only one char");
-            add_missing_image(images, to);
+            //console.writeln("replaceMappingImageNames only one char")
+            if (check_filesarr != null) {
+                  ensureLightImages(from, check_filesarr);
+            } else {
+                  add_missing_image(images, to);
+            }
             return to + "_map";
       }
       // loop until all occurances are replaced
@@ -3938,10 +3957,14 @@ function replaceMappingImageNames(mapping, from, to, images)
                               replace = false;
                         }
                         if (replace) {
-                              if (findWindow(to) == null) {
-                                    throwFatalError("Could not find image window " + to + " that is needed for PixelMath mapping");
+                              if (check_filesarr != null) {
+                                    ensureLightImages(from, check_filesarr);
+                              } else {
+                                    if (findWindowNoPrefixIf(to, run_auto_continue) == null) {
+                                          throwFatalError("Could not find image window " + to + " that is needed for PixelMath mapping");
+                                    }
+                                    add_missing_image(images, to);
                               }
-                              add_missing_image(images, to);
                               mapping = mapping.substring(0, n) + to + "_map" + mapping.substring(n+1);
                               //console.writeln("replaceMappingImageNames mapped to " + mapping);
                               break;
@@ -3962,7 +3985,7 @@ function replaceMappingImageNames(mapping, from, to, images)
  * Tag is changed to a real image name with _map added to the end (H -> Integration_H_map) . 
  * Images names listed in the mapping are put into images array without _map added (Integration_H).
  */
-function mapCustomAndReplaceImageNames(targetChannel, images)
+function mapCustomAndReplaceImageNames(targetChannel, images, check_filesarr)
 {
       switch (targetChannel) {
             case 'R':
@@ -3981,16 +4004,21 @@ function mapCustomAndReplaceImageNames(targetChannel, images)
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
                   return null;
       }
-      console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
+      if (check_filesarr == null) {
+            console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
+      }
       /* Replace letters with actual image identifiers. */
-      mapping = replaceMappingImageNames(mapping, "L", win_prefix + "Integration_L", images);
-      mapping = replaceMappingImageNames(mapping, "R", win_prefix + "Integration_R", images);
-      mapping = replaceMappingImageNames(mapping, "G", win_prefix + "Integration_G", images);
-      mapping = replaceMappingImageNames(mapping, "B", win_prefix + "Integration_B", images);
-      mapping = replaceMappingImageNames(mapping, "H", win_prefix + "Integration_H", images);
-      mapping = replaceMappingImageNames(mapping, "S", win_prefix + "Integration_S", images);
-      mapping = replaceMappingImageNames(mapping, "O", win_prefix + "Integration_O", images);
-      console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping);
+      mapping = replaceMappingImageNames(mapping, "L", win_prefix + "Integration_L", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "R", win_prefix + "Integration_R", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "G", win_prefix + "Integration_G", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "B", win_prefix + "Integration_B", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "H", win_prefix + "Integration_H", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "S", win_prefix + "Integration_S", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "O", win_prefix + "Integration_O", images, check_filesarr);
+
+      if (check_filesarr == null) {
+            console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping);
+      }
 
       return mapping;
 }
@@ -4061,13 +4089,13 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       addProcessingStep("Run PixelMath mapping R " + mapping_R + ", G " + mapping_G + ", B " + mapping_B);
 
       if (idWin == null) {
-            idWin = findWindow(win_prefix + "Integration_H");
+            idWin = findWindowCheckBaseNameIf("Integration_H", run_auto_continue);
       }
       if (idWin == null) {
-            findWindow(win_prefix + "Integration_S");
+            idWin = findWindowCheckBaseNameIf("Integration_S", run_auto_continue);
       }
       if (idWin == null) {
-            findWindow(win_prefix + "Integration_O");
+            idWin = findWindowCheckBaseNameIf("Integration_O", run_auto_continue);
       }
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
@@ -4182,8 +4210,10 @@ function copyToMapImages(images)
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
             var copyname = ensure_win_prefix(images[i] + "_map");
-            console.writeln("copyname", copyname);
-            copyWindow(findWindow(images[i]), copyname);
+            console.writeln("copy from " + images[i] + " to " + copyname);
+            copyWindow(
+                  findWindowNoPrefixIf(images[i], run_auto_continue), 
+                  copyname);
             images[i] = copyname;
       }
 }
@@ -4245,11 +4275,15 @@ function removeStars(imgWin)
 /* Do custom mapping of channels to RGB image. We do some the same 
  * stuff here as in CombineRGBimage.
  */
-function customMapping()
+function customMapping(check_filesarr)
 {
       var RBGmapping = { combined: true, stretched: true};
 
-      addProcessingStep("Custom mapping");
+      if (check_filesarr != null) {
+            addProcessingStep("Check custom mapping");
+      } else {
+            addProcessingStep("Custom mapping");
+      }
 
       /* Get updated mapping strings and collect images
        * used in mapping.
@@ -4260,9 +4294,13 @@ function customMapping()
 
       /* Get a modfied mapping with tags replaced with real image names.
        */
-      var red_mapping = mapCustomAndReplaceImageNames('R', R_images);
-      var green_mapping = mapCustomAndReplaceImageNames('G', G_images);
-      var blue_mapping = mapCustomAndReplaceImageNames('B', B_images);
+      var red_mapping = mapCustomAndReplaceImageNames('R', R_images, check_filesarr);
+      var green_mapping = mapCustomAndReplaceImageNames('G', G_images, check_filesarr);
+      var blue_mapping = mapCustomAndReplaceImageNames('B', B_images, check_filesarr);
+
+      if (check_filesarr != null) {
+            return null;
+      }
 
       if (narrowband) {
             /* For narrowband we have two options:
@@ -4361,7 +4399,7 @@ function customMapping()
             addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (is_luminance_images) {
                   var L_images = [];
-                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images);
+                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, false);
                   luminance_id = mapRGBchannel(L_images, win_prefix + "Integration_L", luminance_mapping);
             }
 
@@ -4376,6 +4414,11 @@ function customMapping()
       return RBGmapping;
 }
 
+function isCustomMapping(narrowband)
+{
+      return narrowband && !par.use_RGBNB_Mapping.val;
+}
+
 /* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
  */
 function mapLRGBchannels()
@@ -4384,7 +4427,7 @@ function mapLRGBchannels()
 
       var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null;
-      var custom_mapping = narrowband && !par.use_RGBNB_Mapping.val;
+      var custom_mapping = isCustomMapping(narrowband);
 
       if (rgb && narrowband) {
             addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
@@ -4398,7 +4441,7 @@ function mapLRGBchannels()
 
       if (custom_mapping) {
             addProcessingStep("Narrowband files, use custom mapping");
-            RBGmapping = customMapping();
+            RBGmapping = customMapping(null);
       } else {
             addProcessingStep("Normal RGB processing");
             luminance_id = L_id;
@@ -6043,6 +6086,18 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
       return id;
 }
 
+// Find window with a prefix. If not foundf and check_base is true
+// the try without prefix
+function findWindowNoPrefixIf(id, check_base)
+{
+      var win = findWindow(id);
+      if (win == null && check_base && win_prefix != '' && id.startsWith(win_prefix)) {
+            // Try without prefix
+            var win = findWindow(id.substring(win_prefix.length));
+      }
+      return win;
+}
+
 function findProcessedImages(check_base_name)
 {
       L_id = findWindowIdCheckBaseNameIf("Integration_L", check_base_name);
@@ -6150,15 +6205,7 @@ function CreateChannelImages(auto_continue)
 
       if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
-                  // remove prefix for function findWindowCheckBaseNameIf
-                  console.writeln("final_windows " + i + " " + final_windows[i] + " prefix " + win_prefix);
-                  if (win_prefix != "" && final_windows[i].startsWith(win_prefix)) {
-                        var win_name = final_windows[i].substring(win_prefix.length);
-                  } else {
-                        var win_name = final_windows[i];
-                  }
-                  console.writeln("win_name " + win_name);
-                  final_win = findWindowCheckBaseNameIf(win_name, auto_continue);
+                  final_win = findWindowNoPrefixIf(final_windows[i], auto_continue);
                   if (final_win != null) {
                         break;
                   }
@@ -6279,8 +6326,15 @@ function CreateChannelImages(auto_continue)
             ensureDir(combinePath(outputRootDir, AutoOutputDir));
             ensureDir(combinePath(outputRootDir, AutoProcessedDir));
 
+            var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
+            if (isCustomMapping(filtered_lights.narrowband)) {
+                  // Do a check round in custom mapping to verify that all needed
+                  // channels have files.
+                  customMapping(filtered_lights.allfilesarr);
+            }
+
             // Run image calibration if we have calibration frames
-            var calibrateInfo = calibrateEngine();
+            var calibrateInfo = calibrateEngine(filtered_lights);
             lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
 
@@ -6288,7 +6342,13 @@ function CreateChannelImages(auto_continue)
                   return(true);
             }
 
-            var filtered_files = getFilterFiles(lightFileNames, pages.LIGHTS, filename_postfix);
+            if (filename_postfix != '') {
+                  // We did run calibration, filer again with calibrated lights
+                  var filtered_files = getFilterFiles(lightFileNames, pages.LIGHTS, filename_postfix);
+            } else {
+                  // Calibration was not run
+                  var filtered_files = filtered_lights;
+            }
             if (filtered_files.allfiles.C.length == 0) {
                   is_color_files = false;
             } else {
@@ -6455,7 +6515,7 @@ function ColorCreateMask(color_img_id, RBGstretched)
             var color_win;
             color_win = ImageWindow.windowById(color_img_id);
             addProcessingStep("Using image " + color_img_id + " for a mask");
-            color_win = copyWindow(color_win, ensure_win_prefix("color_win_mask"));
+            color_win = copyWindow(color_win, "color_win_mask");
 
             if (!RBGstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
@@ -6466,7 +6526,7 @@ function ColorCreateMask(color_img_id, RBGstretched)
              */
             mask_win_id = win_prefix + "AutoMask";
             mask_win = newMaskWindow(color_win, mask_win_id);
-            windowCloseif("color_win_mask")
+            windowCloseif("color_win_mask");
       }
 }
 
@@ -10324,6 +10384,7 @@ function AutoIntegrateDialog()
             haveIconized = 0;
             try {
                   autocontinue_narrowband = is_narrowband_option();
+                  run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
                         AutoIntegrateNarrowbandPaletteBatch(true);
                   } else {
@@ -10339,6 +10400,7 @@ function AutoIntegrateDialog()
                         AutoIntegrateEngine(true);
                   }
                   autocontinue_narrowband = false;
+                  run_auto_continue = false;
                   setDefaultDirs();
                   if (haveIconized) {
                         // We have iconized something so update prefix array
@@ -10352,6 +10414,7 @@ function AutoIntegrateDialog()
                   console.criticalln("Processing stopped!");
                   writeProcessingSteps(null, true, null);
                   autocontinue_narrowband = false;
+                  run_auto_continue = false;
                   setDefaultDirs();
             }
       };   
@@ -10638,7 +10701,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.11 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.12 (prefix-array)";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
