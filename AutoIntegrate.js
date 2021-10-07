@@ -10701,7 +10701,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.12 (prefix-array)";
+      this.windowTitle = "AutoIntegrate v1.12";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
