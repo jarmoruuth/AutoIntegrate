@@ -408,6 +408,7 @@ var autocontinue_narrowband = false;
 var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var run_auto_continue = false;
+var use_force_close = true;
 
 var processingDate;
 var lightFileNames = null;
@@ -1113,8 +1114,11 @@ function forceCloseOneWindow(w)
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
-      } else {
+      } else if (use_force_close) {
             w.forceClose();
+      } else {
+            // PixInsight will ask if file is changed but not saved
+            w.close();
       }
 }
 
@@ -1169,8 +1173,10 @@ function findFromArray(arr, id)
 }
 
 // close all windows created by this script
-function closeAllWindows(keep_integrated_imgs)
+function closeAllWindows(keep_integrated_imgs, force_close)
 {
+      closeTempWindows();
+
       if (keep_integrated_imgs) {
             var isLRGB = false;
             var integration_windows = integration_LRGB_windows;
@@ -1198,10 +1204,15 @@ function closeAllWindows(keep_integrated_imgs)
             closeAllWindowsFromArray(integration_LRGB_windows);
             closeAllWindowsFromArray(integration_color_windows);
       }
-      closeTempWindows();
       closeAllWindowsFromArray(fixed_windows);
       closeAllWindowsFromArray(calibrate_windows);
+
+      use_force_close = force_close;
+
       closeFinalWindowsFromArray(final_windows);
+
+      use_force_close = true;
+
 }
 
 function ensureDir(dir)
@@ -7596,7 +7607,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   auto_continue = true;
                   // close all but integrated images
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windows");
-                  closeAllWindows(true);
+                  closeAllWindows(true, true);
             }
       }
       addProcessingStep("Narrowband palette batch completed");
@@ -8139,7 +8150,7 @@ function Autorun(that)
                   if (par.batch_mode.val) {
                         lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
-                        closeAllWindows(par.keep_integrated_images.val);
+                        closeAllWindows(par.keep_integrated_images.val, true);
                   }
             } else {
                   stopped = true;
@@ -10429,7 +10440,7 @@ function AutoIntegrateDialog()
       {
             console.writeln("closeAll");
             // Close all using the current win_prefix
-            closeAllWindows(par.keep_integrated_images.val);
+            closeAllWindows(par.keep_integrated_images.val, false);
             columnCount = findPrefixIndex(win_prefix);
             if (columnCount != -1) {
                   // If prefix was found update array
@@ -10461,18 +10472,18 @@ function AutoIntegrateDialog()
                   // For delete to work we need to update fixed window
                   // names with the prefix we use for closing
                   fixAllWindowArrays("");
-                  closeAllWindows(par.keep_integrated_images.val);
+                  closeAllWindows(par.keep_integrated_images.val, false);
                   if (win_prefix != "" && findPrefixIndex(win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
                         fixAllWindowArrays(win_prefix);
-                        closeAllWindows(par.keep_integrated_images.val);
+                        closeAllWindows(par.keep_integrated_images.val, false);
                   }
                   // Go through the prefix list
                   for (columnCount = 0; columnCount < prefixArray.length; columnCount++) {
                         if (prefixArray[columnCount][0] != '-') {
                               console.writeln("Close prefix '" + prefixArray[columnCount][0] + "'");
                               fixAllWindowArrays(prefixArray[columnCount][0]);
-                              closeAllWindows(par.keep_integrated_images.val);
+                              closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
                                     prefixArray[columnCount][1] = 0;
                               } else {
@@ -10701,7 +10712,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.12";
+      this.windowTitle = "AutoIntegrate v1.13";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
