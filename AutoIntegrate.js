@@ -409,6 +409,7 @@ var linear_fit_done = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var run_auto_continue = false;
 var use_force_close = true;
+var write_processing_log_file = true;  // if we fail very early we set this to false
 
 var processingDate;
 var lightFileNames = null;
@@ -1093,6 +1094,9 @@ function windowRenameKeepif(old_name, new_name, keepif)
       if (!keepif) {
             addScriptWindow(new_name);
       }
+      if (w.mainView.id != new_name) {
+            fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
+      }
       return w.mainView.id;
 }
 
@@ -1375,6 +1379,13 @@ function saveAllFinalImageWindows(bits)
       console.writeln("All final image windows are saved!");
 }
 
+function fatalWindowNameFailed(txt)
+{
+      console.criticalln(txt);
+      console.criticalln("Close old images or use a different window prefix.");
+      throwFatalError("Processing stopped");
+}
+
 function copyWindow(sourceWindow, name)
 {
       if (sourceWindow == null) {
@@ -1396,6 +1407,10 @@ function copyWindow(sourceWindow, name)
       targetWindow.show();
 
       addScriptWindow(name);
+
+      if (targetWindow.mainView.id != name) {
+            fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
+      }
 
       return targetWindow;
 }
@@ -6041,6 +6056,11 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
       }
       logfname = basename + getOptionalUniqueFilenamePart() + ".log";
 
+      if (!write_processing_log_file) {
+            console.writeln(basename + " log file not written.");
+            return;
+      }
+
       if (!ensureDialogFilePath(basename + ".log")) {
             return;
       }
@@ -6097,8 +6117,8 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
       return id;
 }
 
-// Find window with a prefix. If not foundf and check_base is true
-// the try without prefix
+// Find window with a prefix. If not found and check_base is true
+// then try without prefix
 function findWindowNoPrefixIf(id, check_base)
 {
       var win = findWindow(id);
@@ -6197,6 +6217,7 @@ function CreateChannelImages(auto_continue)
       addProcessingStep("CreateChannelImages");
 
       final_win = null;
+      write_processing_log_file = false;  // do not write the log file if we fail very early
 
       /* Check if we have manually done histogram transformation. */
       L_HT_win = findWindowCheckBaseNameIf("L_HT", auto_continue);
@@ -6254,11 +6275,26 @@ function CreateChannelImages(auto_continue)
       } else if (RGBcolor_id != null 
                  && H_id == null && O_id == null && L_id == null) { /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
+            var check_name = win_prefix + "Integration_RGB_ABE";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                  "Close previously processed images or use a different window prefix.")
+            }
+            var check_name = win_prefix + "Integration_RGB_noABE";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                  "Close previously processed images or use a different window prefix.")
+            }
             checkAutoCont(findWindow(RGBcolor_id));
             preprocessed_images = start_images.RGB_COLOR;
       } else if ((R_id != null && G_id != null && B_id != null) ||
                  (H_id != null && O_id != null)) {                /* L,R,G,B integrated images */
             addProcessingStep("L,R,G,B integrated images");
+            var check_name = win_prefix + "Integration_RGB";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                  "Close previously processed images or use a different window prefix.")
+            }
             checkAutoCont(findWindow(R_id));
             checkAutoCont(findWindow(H_id));
             narrowband = H_id != null || S_id != null || O_id != null;
@@ -6280,6 +6316,8 @@ function CreateChannelImages(auto_continue)
                   return false;
             }  
       }
+
+      write_processing_log_file = true;
 
       if (preprocessed_images == start_images.FINAL) {
             return true;
@@ -6318,6 +6356,7 @@ function CreateChannelImages(auto_continue)
                   addProcessingStep("Get files from dialog");
             }
             if (lightFileNames == null) {
+                  write_processing_log_file = false;
                   console.writeln("No files to process");
                   return false;
             }
@@ -6341,7 +6380,10 @@ function CreateChannelImages(auto_continue)
             if (isCustomMapping(filtered_lights.narrowband)) {
                   // Do a check round in custom mapping to verify that all needed
                   // channels have files.
+                  // We exit with fatal error if some files are missing
+                  write_processing_log_file = false;
                   customMapping(filtered_lights.allfilesarr);
+                  write_processing_log_file = true;
             }
 
             // Run image calibration if we have calibration frames
@@ -6708,6 +6750,8 @@ function CombineRGBimage()
       ];
       model_win = ImageWindow.windowById(red_id);
 
+      var rgb_name = win_prefix + "Integration_RGB";
+
       RGB_win = new ImageWindow(
                         model_win.mainView.image.width,     // int width
                         model_win.mainView.image.height,    // int height
@@ -6715,8 +6759,12 @@ function CombineRGBimage()
                         32,                                 // int bitsPerSample=32
                         true,                               // bool floatSample=true
                         true,                               // bool color=false
-                        win_prefix + "Integration_RGB");                 // const IsoString &id=IsoString()
+                        rgb_name);                          // const IsoString &id=IsoString()
 
+      if (RGB_win.mainView.id != rgb_name) {
+            fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + RGB_win.mainView.id);
+      }
+                  
       RGB_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       cc.executeOn(RGB_win.mainView);
       RGB_win.mainView.endProcess();
@@ -8111,7 +8159,6 @@ function newGroupBox( parent, title, toolTip )
 
 function Autorun(that)
 {
-
       var stopped = true;
       batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (par.batch_mode.val) {
@@ -10393,6 +10440,7 @@ function AutoIntegrateDialog()
             clearDefaultDirs();
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
             haveIconized = 0;
+            write_processing_log_file = true;
             try {
                   autocontinue_narrowband = is_narrowband_option();
                   run_auto_continue = true;
@@ -10593,6 +10641,7 @@ function AutoIntegrateDialog()
                   columnCount = findNewPrefixIndex();
             }
             iconStartRow = 0;
+            write_processing_log_file = true;
             Autorun(this);
             if (haveIconized) {
                   // We have iconized something so update prefix array
@@ -10712,7 +10761,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.13";
+      this.windowTitle = "AutoIntegrate v1.14";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
