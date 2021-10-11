@@ -260,10 +260,13 @@ Linear Defect Detection:
 var infoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
+var windowPrefixComboBox;     // For updating prefix name list
 
 /*
       Parameters that can be adjusted in the GUI
       These can be saved to a process icon and later restored.
+      Note that there is another parameter set ppar which are
+      saved to settings.
 */
 var par = {
       // Image processing parameters
@@ -281,7 +284,7 @@ var par = {
       skip_imageintegration_ssweight: { val: false, def: false, name : "No ImageIntegration SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
-      channel_noise_reduction_strength: { val: 0, def: 0, name : "Noise reduction strength on color channels", type : 'I' },
+      channel_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on color channels", type : 'I' },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
 
@@ -306,6 +309,7 @@ var par = {
       synthetic_missing_images: { val: false, def: false, name : "Synthetic missing image", type : 'B' },
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
+      use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
       
       // Narrowband processing
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
@@ -314,7 +318,7 @@ var par = {
       custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
-      narrowband_starnet: { val: false, def: false, name : "Narrowband starnet", type : 'B' },
+      narrowband_removestars: { val: false, def: false, name : "Narrowband remove stars", type : 'B' },
 
       // Narrowband to RGB mappping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -358,7 +362,7 @@ var par = {
       skip_star_fix_mask: { val: false, def: false, name : "Extra narrowband no star mask", type : 'B' },
 
       // Generic Extra processing
-      extra_StarNet: { val: false, def: false, name : "Extra StarNet", type : 'B' },
+      extra_removestars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
@@ -382,6 +386,22 @@ var par = {
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
 };
 
+/*
+      Parameters that are persistent and are saved to settings and
+      restored from settings at the start.
+      Note that there is another parameter set par which are saved to 
+      process icon.
+*/
+var ppar = {
+      win_prefix: '',                           // Current active window name prefix
+      prefixArray: [],                          // Array of prefix names and icon count, 
+                                                // every array element is [icon-column, prefix-name, icon-count]
+      start_with_empty_window_prefix: false,    // Do we always start with empty prefix
+      use_manual_icon_column: false,                // Allow manual control of icon column
+      userColumnCount: -1,                      // User set column pos, if -1 use automatic column position
+      default_starxterminator: false            // Use StarXTerminator by default instead of StarNet
+};
+
 var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
                               "GRBG", "GRGB", "GBGR", "RGBG", 
                               "BGRG", "None" ];
@@ -397,6 +417,8 @@ var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
 var noise_reduction_strength_values = [ '0', '3', '4', '5'];
+var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+                            '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 
 var close_windows = false;
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
@@ -519,13 +541,9 @@ var pages = {
       END : 5
 };
 
-var win_prefix = "";
 var last_win_prefix = "";
-var columnCount = 0;
+var columnCount = 0;          // A column position
 var haveIconized = 0;
-
-// Array of prefix names and icon count
-var prefixArray = [];
 
 // known window names
 var integration_LRGB_windows = [
@@ -639,14 +657,13 @@ var narrowBandPalettes = [
 ];
 
 // Create a table of known prefix names for toolTip
+// Also update window prefix combo box list
 function setWindowPrefixHelpTip()
 {
       var prefix_list = "<table><tr><th>Col</th><th>Name</th><th>Icon count</th></tr>";
-      for (var i = 0; i < prefixArray.length; i++) {
-            if (prefixArray[i][0] == '-') {
-                  prefix_list = prefix_list + "<tr><td>" + i + '</td><td>not used</td><td></td></tr>';
-            } else {
-                  prefix_list = prefix_list + "<tr><td>" + i + '</td><td>' + prefixArray[i][0] + '</td><td>' + prefixArray[i][1] + '</td></tr>';
+      for (var i = 0; i < ppar.prefixArray.length; i++) {
+            if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
+                  prefix_list = prefix_list + "<tr><td>" + ppar.prefixArray[i][0] + '</td><td>' + ppar.prefixArray[i][1] + '</td><td>' + ppar.prefixArray[i][2] + '</td></tr>';
             }
       }
       prefix_list = prefix_list + "</table>";
@@ -656,12 +673,42 @@ function setWindowPrefixHelpTip()
                                      "All saved prefix information is cleared after this operation.</p>" +
                                      "<p>To close windows with current prefix use Close all button.</p>" +
                                      windowPrefixHelpTips.toolTip;
+
+      windowPrefixComboBox.clear();
+      var pa = get_win_prefix_combobox_array();
+      addArrayToComboBox(windowPrefixComboBox, pa);
+      windowPrefixComboBox.editText = validateWindowPrefix(ppar.win_prefix);
+      windowPrefixComboBox.currentItem = pa.indexOf(validateWindowPrefix(ppar.win_prefix));
+}
+
+function fix_win_prefix_array()
+{
+      var new_prefix_array = [];
+
+      for (var i = 0; i < ppar.prefixArray.length; i++) {
+            if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
+                  new_prefix_array[new_prefix_array.length] = ppar.prefixArray[i];
+            }
+      }
+      ppar.prefixArray = new_prefix_array;
+}
+
+function get_win_prefix_combobox_array()
+{
+      var name_array = [];
+
+      for (var i = 0; i < ppar.prefixArray.length; i++) {
+            if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
+                  name_array[name_array.length] = validateWindowPrefix(ppar.prefixArray[i][1]);
+            }
+      }
+      return name_array;
 }
 
 function ensure_win_prefix(id)
 {
-      if (win_prefix != "" && !id.startsWith(win_prefix)) {
-            return win_prefix + id;
+      if (ppar.win_prefix != "" && !id.startsWith(ppar.win_prefix)) {
+            return ppar.win_prefix + id;
       } else {
             return id;
       }
@@ -671,8 +718,8 @@ function ensure_win_prefix(id)
 // found.
 function findPrefixIndex(prefix)
 {
-      for (var i = 0; i < prefixArray.length; i++) {
-            if (prefixArray[i][0] == prefix) {
+      for (var i = 0; i < ppar.prefixArray.length; i++) {
+            if (ppar.prefixArray[i][1] == prefix) {
                   return i;
             }
       }
@@ -681,21 +728,43 @@ function findPrefixIndex(prefix)
 
 // Find a new free column position for a prefix. Prefix name '-'
 // is used to mark a free position.
-function findNewPrefixIndex()
+function findNewPrefixIndex(find_free_column)
 {
-      for (var i = 0; i < prefixArray.length; i++) {
-            if (prefixArray[i][0] == '-') {
-                  return i;
+      if (find_free_column) {
+            /* First mark all reserved column positions. */
+            var reserved_columns = [];
+            for (var i = 0; i < ppar.prefixArray.length; i++) {
+                  if (ppar.prefixArray[i][1] != '-') {
+                        reserved_columns[ppar.prefixArray[i][0]] = true;
+                  }
             }
+            /* Then find first unused column position. */
+            for (var i = 0; i < reserved_columns.length; i++) {
+                  if (reserved_columns[i] != true) {
+                        break;
+                  }
+            }
+            var index = ppar.prefixArray.length;
+            ppar.prefixArray[index] = [i, '-', 0];
+            return index;
+      } else {
+            // Just return a new slot at the end of the array
+            var index = ppar.prefixArray.length;
+            ppar.prefixArray[index] = [0, '-', 0];
+            return index;
       }
-      return i;
 }
 
-// Save prefix settings
-function saveSettings()
+// Save persistent settings
+function savePersistentSettings()
 {
-      Settings.write (SETTINGSKEY + "/prefixName", DataType_String, win_prefix);
-      Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(prefixArray));
+      Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
+      Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
+      Settings.write (SETTINGSKEY + "/defaultStarXTerminator", DataType_Boolean, ppar.default_starxterminator);
+      Settings.write (SETTINGSKEY + "/manualIconColumn", DataType_Boolean, ppar.use_manual_icon_column);
+      if (ppar.use_manual_icon_column) {
+            Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
+      }
       setWindowPrefixHelpTip();
 }
 
@@ -1159,6 +1228,7 @@ function closeFinalWindowsFromArray(arr)
 function closeTempWindows()
 {
       for (var i = 0; i < integration_LRGB_windows.length; i++) {
+            closeOneWindow(integration_LRGB_windows[i] + "_cABE");
             closeOneWindow(integration_LRGB_windows[i] + "_max");
             closeOneWindow(integration_LRGB_windows[i] + "_map");
             closeOneWindow(integration_LRGB_windows[i] + "_map_mask");
@@ -1794,7 +1864,7 @@ function runSuberBias(biasWin)
 
       var targetWindow = ImageWindow.activeWindow;
 
-      windowRenameKeepif(targetWindow.mainView.id, win_prefix + "AutoMasterSuperBias", true);
+      windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
 
       return targetWindow.mainView.id
 }
@@ -2236,7 +2306,7 @@ function calibrateEngine(filtered_lights)
             addProcessingStep("calibrateEngine generate master bias using " + biasFileNames.length + " files");
             // integrate bias images
             var biasimages = filesForImageIntegration(biasFileNames);
-            var masterbiasid = runImageIntegrationBiasDarks(biasimages, win_prefix + "AutoMasterBias");
+            var masterbiasid = runImageIntegrationBiasDarks(biasimages, ppar.win_prefix + "AutoMasterBias");
 
             // save master bias
             setImagetypKeyword(findWindow(masterbiasid), "Master bias");
@@ -2261,7 +2331,7 @@ function calibrateEngine(filtered_lights)
             addProcessingStep("calibrateEngine generate master flat dark using " + flatdarkFileNames.length + " files");
             // integrate flat dark images
             var flatdarkimages = filesForImageIntegration(flatdarkFileNames);
-            var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, win_prefix + "AutoMasterFlatDark");
+            var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark");
             setImagetypKeyword(findWindow(masterflatdarkid), "Master flat dark");
             var masterflatdarkPath = saveMasterWindow(outputRootDir, masterflatdarkid);
       } else {
@@ -2282,7 +2352,7 @@ function calibrateEngine(filtered_lights)
                   var darkimages = filesForImageIntegration(darkFileNames);
             }
             // generate master dark file
-            var masterdarkid = runImageIntegrationBiasDarks(darkimages, win_prefix + "AutoMasterDark");
+            var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark");
             setImagetypKeyword(findWindow(masterdarkid), "Master dark");
             var masterdarkPath = saveMasterWindow(outputRootDir, masterdarkid);
       } else {
@@ -2310,7 +2380,7 @@ function calibrateEngine(filtered_lights)
                   // integrate flats to generate master flat for each filter
                   var flatimages = filesForImageIntegration(flatcalFileNames);
                   console.writeln("flatimages[0] " + flatimages[0][1]);
-                  masterflatid = runImageIntegrationFlats(flatimages, win_prefix + "AutoMasterFlat_" + filterName);
+                  masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName);
                   console.writeln("masterflatid " + masterflatid);
                   setImagetypKeyword(findWindow(masterflatid), "Master flat");
                   setFilterKeyword(findWindow(masterflatid), filterFiles[0].filter);
@@ -4034,13 +4104,13 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_filesarr)
             console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
       }
       /* Replace letters with actual image identifiers. */
-      mapping = replaceMappingImageNames(mapping, "L", win_prefix + "Integration_L", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "R", win_prefix + "Integration_R", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "G", win_prefix + "Integration_G", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "B", win_prefix + "Integration_B", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "H", win_prefix + "Integration_H", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "S", win_prefix + "Integration_S", images, check_filesarr);
-      mapping = replaceMappingImageNames(mapping, "O", win_prefix + "Integration_O", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "L", ppar.win_prefix + "Integration_L", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "R", ppar.win_prefix + "Integration_R", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "G", ppar.win_prefix + "Integration_G", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "B", ppar.win_prefix + "Integration_B", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "H", ppar.win_prefix + "Integration_H", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "S", ppar.win_prefix + "Integration_S", images, check_filesarr);
+      mapping = replaceMappingImageNames(mapping, "O", ppar.win_prefix + "Integration_O", images, check_filesarr);
 
       if (check_filesarr == null) {
             console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping);
@@ -4209,16 +4279,16 @@ function findLinearFitHSOMapRefimage(images, suggestion)
       var refimage;
       console.writeln("findLinearFitHSOMapRefimage");
       if (suggestion == "Auto") {
-            refimage = win_prefix + "Integration_O_map";
+            refimage = ppar.win_prefix + "Integration_O_map";
             if (arrayFindImage(images, refimage)) {
                   return(refimage);
             }
-            refimage = win_prefix + "Integration_S_map";
+            refimage = ppar.win_prefix + "Integration_S_map";
             if (arrayFindImage(images, refimage)) {
                   return(refimage);
             }
       } else {
-            refimage = win_prefix + "Integration_" + suggestion + "_map";
+            refimage = ppar.win_prefix + "Integration_" + suggestion + "_map";
             if (arrayFindImage(images, refimage)) {
                   return(refimage);
             }
@@ -4282,20 +4352,39 @@ function reduceNoiseOnChannelImage(image)
       closeOneWindow(maskname);
 }
 
-// Remove stars from an image. We do not create star mask here.
-function removeStars(imgWin)
+function createNewStarXTerminator(star_mask, linear_data)
 {
-      addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+      var P = new StarXTerminator;
+      P.linear = linear_data;
+      P.stars = star_mask;
+      return P;
+}
 
+function createNewStarNet(star_mask)
+{
       var P = new StarNet;
       P.stride = StarNet.prototype.Stride_128;
-      P.mask = false;
+      P.mask = star_mask;
+      return P;
+}
 
-      /* Execute StarNet on image.
+// Remove stars from an image. We do not create star mask here.
+function removeStars(imgWin, nonlinear_data)
+{
+      if (par.use_starxterminator.val) {
+            addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
+            var P = createNewStarXTerminator(false, !nonlinear_data);
+      } else {
+            addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+            var P = createNewStarNet(false);
+      }
+      /* Execute on image.
        */
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       P.executeOn(imgWin.mainView, false);
+      
+      imgWin.mainView.endProcess();
 }
 
 /* Do custom mapping of channels to RGB image. We do some the same 
@@ -4354,7 +4443,7 @@ function customMapping(check_filesarr)
             if (par.ABE_before_channel_combination.val) {
                   // Optionally do ABE on channel images
                   for (var i = 0; i < images.length; i++) {
-                        run_ABE_before_channel_combination(images[i]);
+                        run_ABE_before_channel_combination(images[i], false);
                   }
             }
 
@@ -4374,7 +4463,9 @@ function customMapping(check_filesarr)
                    * */
                   par.narrowband_linear_fit.val = "None";
             }
-            if (par.narrowband_starnet.val) {
+            if (par.narrowband_removestars.val && !par.use_starxterminator.val) {
+                  // If we remove stars with starnet we need to stretch before
+                  // star removal
                   var mapping_on_nonlinear_data = true;
             } else {
                   var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
@@ -4392,13 +4483,13 @@ function customMapping(check_filesarr)
                   for (var i = 0; i < images.length; i++) {
                         runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
                   }
-                  if (par.narrowband_starnet.val) {
-                        addProcessingStep("Custom mapping, run StarNet to remove stars");
-                        for (var i = 0; i < images.length; i++) {
-                              removeStars(findWindow(images[i]));
-                        }
-                  }
                   RBGmapping.stretched = true;
+            }
+            if (par.narrowband_removestars.val) {
+                  addProcessingStep("Custom mapping, remove stars");
+                  for (var i = 0; i < images.length; i++) {
+                        removeStars(findWindow(images[i]), mapping_on_nonlinear_data);
+                  }
             }
             if (par.narrowband_linear_fit.val != "None") {
                   /* Do a linear fit of images before PixelMath. We do this on both cases,
@@ -4410,7 +4501,7 @@ function customMapping(check_filesarr)
 
             /* Run PixelMath to create a combined RGB image.
              */
-            RGB_win_id = runPixelMathRGBMapping(win_prefix + "Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
+            RGB_win_id = runPixelMathRGBMapping(ppar.win_prefix + "Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
 
             RGB_win = findWindow(RGB_win_id);
             RGB_win.show();
@@ -4426,12 +4517,12 @@ function customMapping(check_filesarr)
             if (is_luminance_images) {
                   var L_images = [];
                   var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, false);
-                  luminance_id = mapRGBchannel(L_images, win_prefix + "Integration_L", luminance_mapping);
+                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping);
             }
 
-            red_id = mapRGBchannel(R_images, win_prefix + "Integration_R", red_mapping);
-            green_id = mapRGBchannel(G_images, win_prefix + "Integration_G", green_mapping);
-            blue_id = mapRGBchannel(B_images, win_prefix + "Integration_B", blue_mapping);
+            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping);
+            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping);
+            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping);
             
             RBGmapping.combined = false;
             RBGmapping.stretched = false;
@@ -4708,7 +4799,7 @@ function runDrizzleIntegration(images, name)
 
       windowCloseif(P.weightImageId);
 
-      var new_name = windowRename(P.integrationImageId, win_prefix + "Integration_" + name);
+      var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
       //addScriptWindow(new_name);
       return new_name;
 }
@@ -4906,7 +4997,7 @@ function runImageIntegration(channel_images, name)
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
-            var new_name = windowRename(P.integrationImageId, win_prefix + "Integration_" + name);
+            var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
             //addScriptWindow(new_name);
             return new_name
       }
@@ -5007,7 +5098,7 @@ function runImageIntegrationNormalized(channel_images, name)
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
-            var new_name = windowRename(P.integrationImageId, win_prefix + "Integration_" + name);
+            var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
             //addScriptWindow(new_name);
             return new_name;
       }
@@ -5018,24 +5109,29 @@ function runImageIntegrationNormalized(channel_images, name)
  */
 function noABEcopyWin(win)
 {
-      var noABE_id = ensure_win_prefix(win.mainView.id + "_noABE");
+      var new_win_id = win.mainView.id;
+      if (new_win_id.endsWith("_cABE")) {
+            new_win_id = new_win_id.substring(0, new_win_id.length - 5);
+      }
+      var noABE_id = ensure_win_prefix(new_win_id + "_noABE");
       addProcessingStep("No ABE for " + win.mainView.id);
       addScriptWindow(noABE_id);
       copyWindow(win, noABE_id);
       return noABE_id;
 }
 
-function runABE(win, replaceTarget)
+function runABEex(win, replaceTarget, postfix)
 {
       addProcessingStep("ABE from " + win.mainView.id);
       if (replaceTarget) {
             var ABE_id = win.mainView.id;
       } else {
-            var ABE_id = ensure_win_prefix(win.mainView.id + "_ABE");
+            var ABE_id = ensure_win_prefix(win.mainView.id + postfix);
       }
-      var ABE = new AutomaticBackgroundExtractor;
 
       console.writeln("runABE, target_id " + ABE_id);
+
+      var ABE = new AutomaticBackgroundExtractor;
 
       ABE.correctedImageId = ABE_id;
 
@@ -5055,9 +5151,8 @@ function runABE(win, replaceTarget)
       ABE.justTrySamples = false;
       ABE.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
       ABE.normalize = false;
-      ABE.discardModel = false;
+      ABE.discardModel = true;
       ABE.replaceTarget = replaceTarget;
-      ABE.correctedImageId = "";
       ABE.correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
       ABE.verboseCoefficients = false;
       ABE.compareModel = false;
@@ -5069,29 +5164,35 @@ function runABE(win, replaceTarget)
 
       win.mainView.endProcess();
 
-      if (replaceTarget) {
-            windowCloseif(ABE_id + "_ABE_background");
-      } else {
-            windowCloseif(ABE_id + "_background");
-      }
-
       addScriptWindow(ABE_id);
+
+      console.writeln("ABE completed on " + ABE_id);
 
       return ABE_id;
 }
 
+function runABE(win, replaceTarget)
+{
+      return runABEex(win, replaceTarget, "_ABE");
+}
+
 // Run ABE and rename windows so that the final result has the same id
-function run_ABE_before_channel_combination(id)
+function run_ABE_before_channel_combination(id, create_new_image)
 {
       if (id == null) {
             throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
       }
       var id_win = ImageWindow.windowById(id);
 
-      var ABE_id = runABE(id_win, false);
+      var ABE_id = runABEex(id_win, false, "_cABE");
 
-      closeOneWindow(id);
-      windowRename(ABE_id, id);
+      if (create_new_image) {
+            return ABE_id;
+      } else {
+            closeOneWindow(id);
+            windowRename(ABE_id, id);
+            return id;
+      }
 }
 
 /*
@@ -6094,8 +6195,8 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
 // Find window and optinally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
-      var win = findWindow(win_prefix + id);
-      if (win == null && check_base_name && win_prefix != "") {
+      var win = findWindow(ppar.win_prefix + id);
+      if (win == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
@@ -6107,8 +6208,8 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 // Find window id and optinally search without a prefix
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
-      var id = findWindowId(win_prefix + name);
-      if (id == null && check_base_name && win_prefix != "") {
+      var id = findWindowId(ppar.win_prefix + name);
+      if (id == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
@@ -6122,9 +6223,9 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
 function findWindowNoPrefixIf(id, check_base)
 {
       var win = findWindow(id);
-      if (win == null && check_base && win_prefix != '' && id.startsWith(win_prefix)) {
+      if (win == null && check_base && ppar.win_prefix != '' && id.startsWith(ppar.win_prefix)) {
             // Try without prefix
-            var win = findWindow(id.substring(win_prefix.length));
+            var win = findWindow(id.substring(ppar.win_prefix.length));
       }
       return win;
 }
@@ -6275,12 +6376,12 @@ function CreateChannelImages(auto_continue)
       } else if (RGBcolor_id != null 
                  && H_id == null && O_id == null && L_id == null) { /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
-            var check_name = win_prefix + "Integration_RGB_ABE";
+            var check_name = ppar.win_prefix + "Integration_RGB_ABE";
             if (auto_continue && findWindow(check_name)) {
                   throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                   "Close previously processed images or use a different window prefix.")
             }
-            var check_name = win_prefix + "Integration_RGB_noABE";
+            var check_name = ppar.win_prefix + "Integration_RGB_noABE";
             if (auto_continue && findWindow(check_name)) {
                   throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                   "Close previously processed images or use a different window prefix.")
@@ -6290,7 +6391,7 @@ function CreateChannelImages(auto_continue)
       } else if ((R_id != null && G_id != null && B_id != null) ||
                  (H_id != null && O_id != null)) {                /* L,R,G,B integrated images */
             addProcessingStep("L,R,G,B integrated images");
-            var check_name = win_prefix + "Integration_RGB";
+            var check_name = ppar.win_prefix + "Integration_RGB";
             if (auto_continue && findWindow(check_name)) {
                   throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                   "Close previously processed images or use a different window prefix.")
@@ -6528,7 +6629,7 @@ function LRGBCreateMask()
             if (preprocessed_images == start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
-                  L_win = copyWindow(L_HT_win, win_prefix + "L_win_mask");
+                  L_win = copyWindow(L_HT_win, ppar.win_prefix + "L_win_mask");
             } else {
                   if (preprocessed_images == start_images.L_RGB_BE ||
                       preprocessed_images == start_images.L_R_G_B_BE) 
@@ -6540,16 +6641,16 @@ function LRGBCreateMask()
                         L_win = ImageWindow.windowById(luminance_id);
                         addProcessingStep("Using image " + luminance_id + " for a mask");
                   }
-                  L_win = copyWindow(L_win, win_prefix + "L_win_mask");
+                  L_win = copyWindow(L_win, ppar.win_prefix + "L_win_mask");
 
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
                   runHistogramTransform(L_win, null, false, 'mask');
             }
             /* Create mask.
              */
-            mask_win_id = win_prefix + "AutoMask";
+            mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(L_win, mask_win_id);
-            windowCloseif(win_prefix + "L_win_mask")
+            windowCloseif(ppar.win_prefix + "L_win_mask")
       }
 }
 
@@ -6577,7 +6678,7 @@ function ColorCreateMask(color_img_id, RBGstretched)
 
             /* Create mask.
              */
-            mask_win_id = win_prefix + "AutoMask";
+            mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(color_win, mask_win_id);
             windowCloseif("color_win_mask");
       }
@@ -6615,7 +6716,9 @@ function ProcessLimage(RBGmapping)
                   if (!RBGmapping.stretched) {
                         /* Optionally run ABE on L
                         */
-                        if (par.use_ABE_on_L_RGB.val && !par.ABE_before_channel_combination.val) {
+                        if (par.ABE_before_channel_combination.val) {
+                              L_ABE_id = noABEcopyWin(L_win);
+                        } else if (par.use_ABE_on_L_RGB.val && !par.ABE_before_channel_combination.val) {
                               L_ABE_id = runABE(L_win, false);
                         } else {
                               L_ABE_id = noABEcopyWin(L_win);
@@ -6750,7 +6853,7 @@ function CombineRGBimage()
       ];
       model_win = ImageWindow.windowById(red_id);
 
-      var rgb_name = win_prefix + "Integration_RGB";
+      var rgb_name = ppar.win_prefix + "Integration_RGB";
 
       RGB_win = new ImageWindow(
                         model_win.mainView.image.width,     // int width
@@ -6928,7 +7031,7 @@ function testRGBNBmapping()
       doRGBNBmapping(test_win.mainView.id);
       
       addProcessingStep("Processing completed");
-      writeProcessingSteps(null, true, win_prefix + "AutoRGBNB");
+      writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
 
       console.endLog();
 }
@@ -7073,10 +7176,10 @@ function invertImage(targetView)
 function createStarFixMask(imgView)
 {
       if (star_fix_mask_win == null) {
-            star_fix_mask_win = findWindow(win_prefix + "star_fix_mask");
+            star_fix_mask_win = findWindow(ppar.win_prefix + "star_fix_mask");
       }
       if (star_fix_mask_win == null) {
-            star_fix_mask_win = findWindow(win_prefix + "AutoStarFixMask");
+            star_fix_mask_win = findWindow(ppar.win_prefix + "AutoStarFixMask");
       }
       if (star_fix_mask_win != null) {
             // Use already created start mask
@@ -7109,7 +7212,7 @@ function createStarFixMask(imgView)
 
       star_fix_mask_win = ImageWindow.activeWindow;
 
-      windowRenameKeepif(star_fix_mask_win.mainView.id, win_prefix + "AutoStarFixMask", true);
+      windowRenameKeepif(star_fix_mask_win.mainView.id, ppar.win_prefix + "AutoStarFixMask", true);
       star_fix_mask_win_id = star_fix_mask_win.mainView.id;
 
       addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
@@ -7159,21 +7262,23 @@ function fixNarrowbandStarColor(targetWin)
       invertImage(targetWin.mainView);
 }
 
-// When starnet is run we do some thins differently
+// When start removal is run we do some things differently
 // - We make a copy of the starless image
 // - We make a copy of the stars image
 // - Operations like HDMT and LHE are run on the starless image
 // - Star reduction is done on the stars image
 // - In the end starless and stars images are combined together
-function extraStarNet(imgWin)
+function extraRemoveStars(imgWin)
 {
-      addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+      if (par.use_starxterminator.val) {
+            addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
+            var P = createNewStarXTerminator(true, false);
+      } else {
+            addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+            var P = createNewStarNet(true);
+      }
 
-      var P = new StarNet;
-      P.stride = StarNet.prototype.Stride_128;
-      P.mask = true;
-
-      /* Execute StarNet on image.
+      /* Remove stars from image.
        */
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -7181,11 +7286,30 @@ function extraStarNet(imgWin)
 
       imgWin.mainView.endProcess();
 
+      /* Close old star mask. StarNet will create an image called
+       * star_mask and with StarXTerminator we rename _stars image
+       * as star_mask 
+       */
+      closeOneWindow("AutoStarMask");
+
       /* Get star mask.
        */
-      console.writeln("extraStarNet star_mask_win_id " + ImageWindow.activeWindow.mainView.id);
-      star_mask_win = ImageWindow.activeWindow;
-      star_mask_win_id = star_mask_win.mainView.id;
+      if (par.use_starxterminator.val) {
+            star_mask_win_id = imgWin.mainView.id + "_stars";
+            star_mask_win = findWindow(star_mask_win_id);
+            console.writeln("extraRemoveStars star_mask_win_id " + star_mask_win_id);
+            if (star_mask_win == null) {
+                  throwFatalError("Could not find StarXTerminator stars window " + star_mask_win_id);
+            }
+            // StarNet generate window with name star_mask so we do the same
+            // with StarXTerminator
+            windowRename(star_mask_win_id, "star_mask");
+            star_mask_win_id = "star_mask";
+      } else {
+            console.writeln("extraRemoveStars star_mask_win_id " + ImageWindow.activeWindow.mainView.id);
+            star_mask_win = ImageWindow.activeWindow;
+            star_mask_win_id = star_mask_win.mainView.id;
+      }
 
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
       setTargetFITSKeywordsForPixelmath(star_mask_win, FITSkeywords);
@@ -7194,19 +7318,20 @@ function extraStarNet(imgWin)
 
       /* Make a copy of the stars image.
        */
-      console.writeln("extraStarNet copy " + star_mask_win_id + " to " + imgWin.mainView.id + "_stars");
-      var copywin = copyWindow(star_mask_win, ensure_win_prefix(imgWin.mainView.id + "_stars"));
+      var copywin_id = imgWin.mainView.id + "_stars";
+      console.writeln("extraRemoveStars copy " + star_mask_win_id + " to " + copywin_id);
+      var copywin = copyWindow(star_mask_win, ensure_win_prefix(copywin_id));
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
-      addProcessingStep("StarNet stars image " + copywin.mainView.id);
+      addProcessingStep("Stars image " + copywin.mainView.id);
 
       /* Make a copy of the starless image.
        */
-      console.writeln("extraStarNet copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
+      console.writeln("extraRemoveStars copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
       var copywin = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_starless"));
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
-      addProcessingStep("StarNet starless image " + copywin.mainView.id);
+      addProcessingStep("Starless image " + copywin.mainView.id);
 }
 
 function extraDarkerBackground(imgWin, maskWin)
@@ -7363,10 +7488,10 @@ function createStarMask(imgWin)
 {
       star_mask_win = maskIsCompatible(imgWin, star_mask_win);
       if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(win_prefix + "star_mask"));
+            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
       }
       if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(win_prefix + "AutoStarMask"));
+            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
       }
       if (star_mask_win != null) {
             // Use already created start mask
@@ -7413,7 +7538,7 @@ function extraSmallerStars(imgWin)
 
       createStarMask(imgWin);
 
-      if (par.extra_StarNet.val) {
+      if (par.extra_removestars.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
             targetWin = star_mask_win;    
@@ -7466,7 +7591,7 @@ function extraSmallerStars(imgWin)
       
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (!par.extra_StarNet.val) {
+      if (!par.extra_removestars.val) {
             /* Transform only light parts of the image. */
             targetWin.setMask(star_mask_win);
             targetWin.maskInverted = false;
@@ -7474,7 +7599,7 @@ function extraSmallerStars(imgWin)
       
       P.executeOn(targetWin.mainView, false);
 
-      if (!par.extra_StarNet.val) {
+      if (!par.extra_removestars.val) {
             targetWin.removeMask();
       }
 
@@ -7574,7 +7699,7 @@ function extraABE(extraWin)
       runABE(extraWin, true);
 }
 
-function is_non_starnet_option()
+function is_non_starless_option()
 {
       return par.extra_ABE.val || 
              par.extra_darker_background.val || 
@@ -7588,8 +7713,8 @@ function is_non_starnet_option()
 
 function is_extra_option()
 {
-      return par.extra_StarNet.val || 
-             is_non_starnet_option();
+      return par.extra_removestars.val || 
+             is_non_starless_option();
 }
 
 function is_narrowband_option()
@@ -7646,9 +7771,9 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                         addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
                   // rename and save the final image
-                  narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, win_prefix + "AutoRGB", false);
-                  if (findWindow(win_prefix + "AutoRGB_extra") != null) {
-                        narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, win_prefix + "AutoRGB_extra", true);
+                  narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
+                  if (findWindow(ppar.win_prefix + "AutoRGB_extra") != null) {
+                        narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
                   }
                   // next runs are always auto_continue
                   console.writeln("AutoIntegrateNarrowbandPaletteBatch:set auto_continue = true");
@@ -7692,8 +7817,8 @@ function extraProcessing(id, apply_directly)
                   fixNarrowbandStarColor(extraWin);
             }
       }
-      if (par.extra_StarNet.val) {
-            extraStarNet(extraWin);
+      if (par.extra_removestars.val) {
+            extraRemoveStars(extraWin);
       }
       if (par.extra_ABE.val) {
             extraABE(extraWin);
@@ -7704,13 +7829,13 @@ function extraProcessing(id, apply_directly)
             // have removed the stars
             mask_win = maskIsCompatible(extraWin, mask_win);
             if (mask_win == null) {
-                  mask_win = maskIsCompatible(extraWin, findWindow(win_prefix + "range_mask"));
+                  mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix + "range_mask"));
             }
             if (mask_win == null) {
-                  mask_win = maskIsCompatible(extraWin, findWindow(win_prefix +"AutoMask"));
+                  mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix +"AutoMask"));
             }
             if (mask_win == null) {
-                  mask_win_id = win_prefix + "AutoMask";
+                  mask_win_id = ppar.win_prefix + "AutoMask";
                   closeOneWindow(mask_win_id);
                   mask_win = newMaskWindow(extraWin, mask_win_id);
             }
@@ -7737,7 +7862,7 @@ function extraProcessing(id, apply_directly)
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
       }
-      if (par.extra_StarNet.val) {
+      if (par.extra_removestars.val) {
             /* Restore stars by combining starless image and stars. */
             addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
             runPixelMathSingleMappingEx(
@@ -7875,10 +8000,10 @@ function AutoIntegrateEngine(auto_continue)
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
                         if (par.ABE_before_channel_combination.val) {
-                              run_ABE_before_channel_combination(luminance_id);
-                              run_ABE_before_channel_combination(red_id);
-                              run_ABE_before_channel_combination(green_id);
-                              run_ABE_before_channel_combination(blue_id);
+                              luminance_id = run_ABE_before_channel_combination(luminance_id, true);
+                              red_id = run_ABE_before_channel_combination(red_id, true);
+                              green_id = run_ABE_before_channel_combination(green_id, true);
+                              blue_id = run_ABE_before_channel_combination(blue_id, true);
                         }
                         LinearFitLRGBchannels();
                   }
@@ -7898,7 +8023,7 @@ function AutoIntegrateEngine(auto_continue)
 
             if (par.monochrome_image.val) {
                   console.writeln("par.monochrome_image.val:rename windows")
-                  LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, win_prefix + "AutoMono");
+                  LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
 
             } else if (!par.channelcombination_only.val) {
 
@@ -7946,13 +8071,13 @@ function AutoIntegrateEngine(auto_continue)
                   if (!is_color_files && is_luminance_images) {
                         /* LRGB files */
                         if (par.RRGB_image.val) {
-                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, win_prefix + "AutoRRGB");
+                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRRGB");
                         } else {
-                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, win_prefix + "AutoLRGB");
+                              LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoLRGB");
                         }
                   } else {
                         /* Color or narrowband or RGB files */
-                        LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, win_prefix + "AutoRGB");
+                        LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
                   }
             }
       }
@@ -8464,6 +8589,35 @@ function addOutputDir(parent)
       return outputdir_Sizer;
 }
 
+function validateWindowPrefix(p)
+{
+      p = p.replace(/[^A-Za-z0-9]/gi,'_');
+      p = p.replace(/_+$/,'');
+      if (p.match(/^\d/)) {
+            // if user tries to start prefix with a digit, prepend an underscore
+            p = "_" + p;
+      }
+      return p;
+}
+
+// Update window prefix before using it.
+// Moved from windowPrefixComboBox.onEditTextUpdated
+// is that function is called for every character.
+function updateWindowPrefix()
+{
+      if (ppar.win_prefix != last_win_prefix) {
+            ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
+            windowPrefixComboBox.editText = ppar.win_prefix;
+            if (ppar.win_prefix != "") {
+                  ppar.win_prefix = ppar.win_prefix + "_";
+            }
+            fixAllWindowArrays(ppar.win_prefix);
+            last_win_prefix = ppar.win_prefix;
+      }
+
+      console.writeln("updateWindowPrefix, set winPrefix ", ppar.win_prefix);
+}
+
 function addWinPrefix(parent)
 {
       var lbl = new Label( parent );
@@ -8478,29 +8632,46 @@ function addWinPrefix(parent)
                     "as long as you change the prefix before each run." +
                     "<p>The window prefix will be saved across script invocations " +
                     "for convenience with the AutoContinue function.</p>";
+      
+      windowPrefixComboBox = new ComboBox( parent );
+      windowPrefixComboBox.enabled = true;
+      windowPrefixComboBox.editEnabled = true;
+      windowPrefixComboBox.toolTip = lbl.toolTip;
+      var pa = get_win_prefix_combobox_array();
+      addArrayToComboBox(windowPrefixComboBox, pa);
+      windowPrefixComboBox.editText = ppar.win_prefix;
+      windowPrefixComboBox.onEditTextUpdated = function() {
+            // This function is called for every character edit so actions
+            // are moved to function updateWindowPrefix
+            ppar.win_prefix = validateWindowPrefix(windowPrefixComboBox.editText.trim());
+            windowPrefixComboBox.editText = ppar.win_prefix;
+      };
+
+      /*
       var edt = new Edit( parent );
-      edt.text = win_prefix;
+      edt.text = ppar.win_prefix;
       edt.toolTip = lbl.toolTip;
       edt.onEditCompleted = function() {
-            win_prefix = edt.text.trim();
-            if (win_prefix != last_win_prefix) {
-                  win_prefix = win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
-                  win_prefix = win_prefix.replace(/_+$/,'');
-                  if (win_prefix.match(/^\d/)) {
+            ppar.win_prefix = edt.text.trim();
+            if (ppar.win_prefix != last_win_prefix) {
+                  ppar.win_prefix = ppar.win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
+                  ppar.win_prefix = ppar.win_prefix.replace(/_+$/,'');
+                  if (ppar.win_prefix.match(/^\d/)) {
                         // if user tries to start prefix with a digit, prepend an underscore
-                        win_prefix = "_" + win_prefix;
+                        ppar.win_prefix = "_" + ppar.win_prefix;
                   }
-                  if (win_prefix != "") {
-                        win_prefix = win_prefix + "_";
+                  if (ppar.win_prefix != "") {
+                        ppar.win_prefix = ppar.win_prefix + "_";
                   }
-                  fixAllWindowArrays(win_prefix);
-                  last_win_prefix = win_prefix;
-                  edt.text = win_prefix;
+                  fixAllWindowArrays(ppar.win_prefix);
+                  last_win_prefix = ppar.win_prefix;
+                  edt.text = ppar.win_prefix;
 
             }
 
-            console.writeln("addWinPrefix, set winPrefix ", win_prefix);
+            console.writeln("addWinPrefix, set winPrefix ", ppar.win_prefix);
       };
+      */
 
       // Add help button to show known prefixes. Maybe this should be in
       // label and edit box toolTips.
@@ -8512,7 +8683,7 @@ function addWinPrefix(parent)
       var winprefix_Sizer = new HorizontalSizer;
       winprefix_Sizer.spacing = 4;
       winprefix_Sizer.add( lbl );
-      winprefix_Sizer.add( edt );
+      winprefix_Sizer.add( windowPrefixComboBox );
       winprefix_Sizer.add( windowPrefixHelpTips );
 
       return winprefix_Sizer;
@@ -9301,6 +9472,11 @@ function AutoIntegrateDialog()
             par.skip_color_calibration.val = checked; 
       }
      
+      this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator.val, 
+      "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
+      this.use_starxterminator_CheckBox.onClick = function(checked) { 
+            par.use_starxterminator.val = checked; 
+      }
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -9471,6 +9647,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
       this.otherParamsSet1.add( this.select_all_files_CheckBox );
       this.otherParamsSet1.add( this.save_all_files_CheckBox );
+      this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -9874,12 +10051,13 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
             par.mapping_on_nonlinear_data.val = checked; 
       }
-      this.narrowband_starnet_CheckBox = newCheckBox(this, "StarNet", par.narrowband_starnet.val, 
+      this.narrowband_removestars_CheckBox = newCheckBox(this, "Remove stars", par.narrowband_removestars.val, 
             "<p>" +
-            "Run StarNet to remove stars before narrowband mapping. This needs non-linear data so images are stretched to non-linear state." +
+            "Remove stars before narrowband mapping. With StarNet this needs non-linear data so images are stretched to non-linear state. " +
+            "With StarXTerminator stars can be removed in linear state. " +
             "</p>" );
-      this.narrowband_starnet_CheckBox.onClick = function(checked) { 
-            par.narrowband_starnet.val = checked; 
+      this.narrowband_removestars_CheckBox.onClick = function(checked) { 
+            par.narrowband_removestars.val = checked; 
       }
 
       this.narrowbandLinearFit_Label = new Label( this );
@@ -9908,7 +10086,7 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
-      this.mapping_on_nonlinear_data_Sizer.add( this.narrowband_starnet_CheckBox );
+      this.mapping_on_nonlinear_data_Sizer.add( this.narrowband_removestars_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_ComboBox );
 
@@ -10026,7 +10204,7 @@ function AutoIntegrateDialog()
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true, win_prefix + "AutoRGBNB");
+                  writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
                   console.endLog();
                   setDefaultDirs();
             }
@@ -10201,12 +10379,12 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
-      this.extraStarNet_CheckBox = newCheckBox(this, "StarNet", par.extra_StarNet.val, 
-      "<p>Run Starnet on image to generate a starless image and a separate image for the stars. When Starnet is selected, extra processing is " +
+      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_removestars.val, 
+      "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars. When this is selected, extra processing is " +
       "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
       "from starless and star images.</p>" );
-      this.extraStarNet_CheckBox.onClick = function(checked) { 
-            par.extra_StarNet.val = checked; 
+      this.extraRemoveStars_CheckBox.onClick = function(checked) { 
+            par.extra_removestars.val = checked; 
       }
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background.val, 
       "<p>Make image background darker.</p>" );
@@ -10345,7 +10523,7 @@ function AutoIntegrateDialog()
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
-      this.extra1.add( this.extraStarNet_CheckBox );
+      this.extra1.add( this.extraRemoveStars_CheckBox );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_HDRMLT_CheckBox );
@@ -10394,7 +10572,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "If multiple extra processing options are selected they are executed in the following order" +
             "</p><p>" +
-            "1. StarNet<br>" +
+            "1. Remove stars<br>" +
             "2. Darker background<br>" +
             "3. HDRMultiscaleTansform<br>" +
             "4. LocalHistogramEqualization<br>" +
@@ -10442,30 +10620,40 @@ function AutoIntegrateDialog()
             haveIconized = 0;
             write_processing_log_file = true;
             try {
+                  updateWindowPrefix();
                   autocontinue_narrowband = is_narrowband_option();
                   run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
                         AutoIntegrateNarrowbandPaletteBatch(true);
                   } else {
-                        columnCount = findPrefixIndex(win_prefix);
-                        if (columnCount == -1) {
+                        var index = findPrefixIndex(ppar.win_prefix);
+                        if (index == -1) {
                               iconStartRow = 0;
-                              columnCount = findNewPrefixIndex();
+                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
                         } else {
                               // With AutoContinue start icons below current
                               // icons.
-                              iconStartRow = prefixArray[columnCount][1];
+                              iconStartRow = ppar.prefixArray[index][2];
+                        }
+                        if (ppar.userColumnCount == -1) {
+                              columnCount = ppar.prefixArray[index][0];
+                              console.writeln('Using auto icon column ' + columnCount);
+                        } else {
+                              columnCount = ppar.userColumnCount;
+                              iconStartRow = 11;
+                              console.writeln('Using user icon column ' + columnCount);
                         }
                         AutoIntegrateEngine(true);
                   }
                   autocontinue_narrowband = false;
                   run_auto_continue = false;
                   setDefaultDirs();
-                  if (haveIconized) {
+                  if (haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
-                        prefixArray[columnCount] = [ win_prefix, Math.max(haveIconized, iconStartRow) ];
-                        //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
-                        saveSettings();
+                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
+                        fix_win_prefix_array();
+                        //this.columnCountControlComboBox.currentItem = columnCount + 1;
+                        savePersistentSettings();
                   }
             }
             catch(err) {
@@ -10475,6 +10663,7 @@ function AutoIntegrateDialog()
                   autocontinue_narrowband = false;
                   run_auto_continue = false;
                   setDefaultDirs();
+                  fix_win_prefix_array();
             }
       };   
 
@@ -10487,25 +10676,23 @@ function AutoIntegrateDialog()
       this.closeAllButton.onClick = function()
       {
             console.writeln("closeAll");
-            // Close all using the current win_prefix
+            updateWindowPrefix();
+            // Close all using the current ppar.win_prefix
             closeAllWindows(par.keep_integrated_images.val, false);
-            columnCount = findPrefixIndex(win_prefix);
-            if (columnCount != -1) {
+            var index = findPrefixIndex(ppar.win_prefix);
+            if (index != -1) {
                   // If prefix was found update array
                   if (par.keep_integrated_images.val) {
                         // If we keep integrated images then we can start
                         // from zero icon position
-                        prefixArray[columnCount][1] = 0;
+                        ppar.prefixArray[index][2] = 0;
                   } else {
                         // Mark closed position as empty/free
-                        prefixArray[columnCount] = [ '-', 0 ];
-                        // Clear tail of array
-                        while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
-                              prefixArray.pop();
-                        }
+                        ppar.prefixArray[index] = [ 0, '-', 0 ];
+                        fix_win_prefix_array();
                   }
-                  saveSettings();
-                  //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
+                  savePersistentSettings();
+                  //this.columnCountControlComboBox.currentItem = columnCount + 1;
             }
       };
 
@@ -10516,74 +10703,92 @@ function AutoIntegrateDialog()
       {
             console.writeln("closeAllPrefix");
             try {
+                  updateWindowPrefix();
                   // Always close default/empty prefix
                   // For delete to work we need to update fixed window
                   // names with the prefix we use for closing
                   fixAllWindowArrays("");
                   closeAllWindows(par.keep_integrated_images.val, false);
-                  if (win_prefix != "" && findPrefixIndex(win_prefix) == -1) {
+                  if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
-                        fixAllWindowArrays(win_prefix);
+                        fixAllWindowArrays(ppar.win_prefix);
                         closeAllWindows(par.keep_integrated_images.val, false);
                   }
                   // Go through the prefix list
-                  for (columnCount = 0; columnCount < prefixArray.length; columnCount++) {
-                        if (prefixArray[columnCount][0] != '-') {
-                              console.writeln("Close prefix '" + prefixArray[columnCount][0] + "'");
-                              fixAllWindowArrays(prefixArray[columnCount][0]);
+                  for (var i = 0; i < ppar.prefixArray.length; i++) {
+                        if (ppar.prefixArray[i][1] != '-') {
+                              console.writeln("Close prefix '" + ppar.prefixArray[i][1] + "'");
+                              fixAllWindowArrays(ppar.prefixArray[i][1]);
                               closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
-                                    prefixArray[columnCount][1] = 0;
+                                    ppar.prefixArray[i] = 0;
                               } else {
-                                    prefixArray[columnCount] = [ '-', 0 ];
+                                    ppar.prefixArray[i] = [ 0, '-', 0 ];
                               }
                         }
                   }
-                  // Remove empty/free positions at the tail of the array
-                  while (prefixArray.length > 0 && prefixArray[prefixArray.length - 1][0] == '-') {
-                        prefixArray.pop();
+                  if (ppar.use_manual_icon_column && ppar.userColumnCount != -1) {
+                        ppar.userColumnCount = 0;
                   }
             }  catch (x) {
                   console.writeln( x );
-             }
-            saveSettings();
+            }
+            fix_win_prefix_array();
+            savePersistentSettings();
             // restore original prefix
-            fixAllWindowArrays(win_prefix);
+            fixAllWindowArrays(ppar.win_prefix);
       };
 
-      /* Using new prefix array so this code is not needed.
-      this.columnCountControlLabel = new Label( this );
-      this.columnCountControlLabel.text = "Icon Column ";
-      this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.columnCountControlLabel.toolTip = "<p>Set Icon Column for next run.</p> " + 
-                                             "<p>This keeps window icons from piling up on top of one another, " +
-                                             "as you change prefixes and run again.</p>" +
-                                             "Set to 1 if you have removed all the icons " + 
-                                             "created by AutoIntegrate or changed to a fresh workspace. " + 
-                                             "<p>Set to a free column if you have deleted a column of icons by hand.</p>" + 
-                                             "<p>Left alone the script will manage the value, incrementing after each run, " +
-                                             "decrementing if you close all windows, " +
-                                             "and saving the value between script invocations.</p>";
-      this.columnCountControlSpinBox = new SpinBox( this );
-      this.columnCountControlSpinBox.minValue = 1;
-      this.columnCountControlSpinBox.maxValue = 10;
-      this.columnCountControlSpinBox.value = columnCount + 1;
-      this.columnCountControlSpinBox.toolTip = this.columnCountControlLabel.toolTip;
-      this.columnCountControlSpinBox.onValueUpdated = function( value )
-      {
-            columnCount = value - 1;
-      };
-      */
+      if (ppar.use_manual_icon_column) {
+            this.columnCountControlLabel = new Label( this );
+            this.columnCountControlLabel.text = "Icon Column ";
+            this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.columnCountControlLabel.toolTip = "<p>Set Icon Column for next run.</p> " + 
+                                                "<p>This keeps window icons from piling up on top of one another, " +
+                                                "as you change prefixes and run again.</p>" +
+                                                "<p>Set to 1 if you have removed all the icons " + 
+                                                "created by AutoIntegrate or changed to a fresh workspace.</p>" + 
+                                                "<p>Set to a free column if you have deleted a column of icons by hand.</p>" + 
+                                                "<p>Left alone the script will manage the value, incrementing after each run, " +
+                                                "decrementing if you close all windows, " +
+                                                "and saving the value between script invocations.</p>";
+            this.columnCountControlComboBox = new ComboBox( this );
+            addArrayToComboBox(this.columnCountControlComboBox, column_count_values);
+            if (ppar.userColumnCount == -1) {
+                  this.columnCountControlComboBox.currentItem = 0;
+            } else {
+                  this.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
+            }
+            this.columnCountControlComboBox.toolTip = this.columnCountControlLabel.toolTip;
+            this.columnCountControlComboBox.onItemSelected = function( itemIndex )
+            {
+                  if (itemIndex == 0) {
+                        // Auto
+                        ppar.userColumnCount = -1;
+                  } else {
+                        // Combo box values start with one but in the code
+                        // we want values to start with zero.
+                        ppar.userColumnCount = parseInt(column_count_values[itemIndex]) - 1;
+                  }
+            };
+      }
 
       // Group box for AutoContinue and CloseAll
       this.autoButtonSizer = new HorizontalSizer;
       this.autoButtonSizer.add( this.autoContinueButton );
       this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
-      this.autoButtonSizer.addSpacing ( 250 );
+      if (ppar.use_manual_icon_column) {
+            this.autoButtonSizer.addSpacing ( 150 );
+      } else {
+            this.autoButtonSizer.addSpacing ( 250 );
+      }
       this.autoButtonSizer.add( closeAllPrefixButton );
-      //this.autoButtonSizer.add (this.columnCountControlLabel );
-      //this.autoButtonSizer.add (this.columnCountControlSpinBox );
+      if (ppar.use_manual_icon_column) {
+            this.autoButtonSizer.addSpacing ( 4 );
+            this.autoButtonSizer.add( this.columnCountControlLabel );
+            this.autoButtonSizer.add( this.columnCountControlComboBox );
+      }
       this.autoButtonGroupBox = new newGroupBox( this );
       this.autoButtonGroupBox.sizer = new HorizontalSizer;
       this.autoButtonGroupBox.sizer.margin = 6;
@@ -10629,25 +10834,37 @@ function AutoIntegrateDialog()
       this.mosaicSaveGroupBox.sizer.addStretch();
       //this.mosaicSaveGroupBox.setFixedHeight(60);
 
-      // OK and Cancel buttons
+      // Run and Exit buttons
       this.ok_Button = new PushButton( this );
       this.ok_Button.text = "Run";
       this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
+            updateWindowPrefix();
             haveIconized = 0;
-            columnCount = findPrefixIndex(win_prefix);
-            if (columnCount == -1) {
-                  columnCount = findNewPrefixIndex();
+            var index = findPrefixIndex(ppar.win_prefix);
+            if (index == -1) {
+                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
+            }
+            if (ppar.userColumnCount == -1) {
+                  columnCount = ppar.prefixArray[index][0];
+                  console.writeln('Using auto icon column ' + columnCount);
+            } else {
+                  columnCount = ppar.userColumnCount;
+                  console.writeln('Using user icon column ' + columnCount);
             }
             iconStartRow = 0;
             write_processing_log_file = true;
             Autorun(this);
             if (haveIconized) {
                   // We have iconized something so update prefix array
-                  prefixArray[columnCount] = [ win_prefix, haveIconized ];
-                  //this.dialog.columnCountControlSpinBox.value = columnCount + 1;
-                  saveSettings();
+                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
+                  fix_win_prefix_array();
+                  if (ppar.userColumnCount != -1 && ppar.use_manual_icon_column) {
+                        ppar.userColumnCount = columnCount;
+                        this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
+                  }
+                  savePersistentSettings();
             }
       };
    
@@ -10657,7 +10874,7 @@ function AutoIntegrateDialog()
       this.cancel_Button.onClick = function()
       {
          // save prefix setting at the end
-         saveSettings();
+         savePersistentSettings();
          this.dialog.cancel();
       };
    
@@ -10720,9 +10937,49 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl3.visible = false;
 
+      this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", ppar.start_with_empty_window_prefix, 
+      "<p>Start the script with empty window prefix</p>" );
+      this.StartWithEmptyWindowPrefixBox.onClick = function(checked) { 
+            ppar.start_with_empty_window_prefix = checked;
+            Settings.write (SETTINGSKEY + "/startWithEmptyPrefixName", DataType_Boolean, ppar.start_with_empty_window_prefix);
+      }
+      this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", ppar.use_manual_icon_column, 
+            "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
+            "<p>This setting is effective only after restart of the script.</p>" );
+      this.ManualIconColumnBox.onClick = function(checked) { 
+            ppar.use_manual_icon_column = checked;
+      }
+      this.StarXTerminatorColumnBox = newCheckBox(this, "Default StarXTerminator", ppar.default_starxterminator, 
+            "<p>Use StarXTerminator instead of StarNet as a default to remove stars.</p>" +
+            "<p>You need to install StarXTerminator before it can be used.</p>" );
+      this.StarXTerminatorColumnBox.onClick = function(checked) { 
+            ppar.default_starxterminator = checked;
+      }
+
+      this.PersistentParamsSet1 = new VerticalSizer;
+      this.PersistentParamsSet1.margin = 6;
+      this.PersistentParamsSet1.spacing = 4;
+      this.PersistentParamsSet1.add( this.StartWithEmptyWindowPrefixBox );
+      this.PersistentParamsSet1.add( this.StarXTerminatorColumnBox );
+
+      this.PersistentParamsSet2 = new VerticalSizer;
+      this.PersistentParamsSet2.margin = 6;
+      this.PersistentParamsSet2.spacing = 4;
+      this.PersistentParamsSet2.add( this.ManualIconColumnBox );
+
+      this.PersistentControl4 = new Control( this );
+      this.PersistentControl4.sizer = new HorizontalSizer;
+      this.PersistentControl4.sizer.margin = 6;
+      this.PersistentControl4.sizer.spacing = 4;
+      this.PersistentControl4.sizer.add( this.PersistentParamsSet1 );
+      this.PersistentControl4.sizer.add( this.PersistentParamsSet2 );
+      // hide this section by default
+      this.PersistentControl4.visible = false;
+
       this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl1, "Processing settings, saturation and noise");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, other");
+      aiSectionBarAdd(this, this.ProcessingGroupBox, this.PersistentControl4, "Persistent settings");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -10761,7 +11018,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.14";
+      this.windowTitle = "AutoIntegrate v1.15";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
@@ -10779,18 +11036,65 @@ function main()
 
        try {
             // Read prefix info. We use new setting names to avoid conflict with
-            // older columnCOunt/winPrefix names
+            // older columnCount/winPrefix names
             var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
             if (Settings.lastReadOK) {
-                  win_prefix = tempSetting;
+                  console.noteln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
+                  ppar.win_prefix = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/startWithEmptyPrefixName", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.noteln("AutoIntegrate: Restored startWithEmptyPrefixName '" + tempSetting + "' from settings.");
+                  ppar.start_with_empty_window_prefix = tempSetting;
+            }
+            if (ppar.start_with_empty_window_prefix) {
+                  ppar.win_prefix = '';
             }
             var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
             if (Settings.lastReadOK) {
-                  prefixArray = JSON.parse(tempSetting);
+                  console.noteln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
+                  ppar.prefixArray = JSON.parse(tempSetting);
+                  fix_win_prefix_array();
+                  if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
+                        // We have old format prefix array without column position
+                        // Add column position as the first array element
+                        console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
+                        for (var i = 0; i < ppar.prefixArray.length; i++) {
+                              if (ppar.prefixArray[i] == null) {
+                                    ppar.prefixArray[i] = [0, '-', 0];
+                              } else if (ppar.prefixArray[i][0] == '-') {
+                                    // free slot, use zero as column
+                                    ppar.prefixArray[i].unshift(0);
+                              } else {
+                                    // Used slot
+                                    ppar.prefixArray[i].unshift(i);
+                              }
+                        }
+                        fix_win_prefix_array();
+                  }
             }
-            fixAllWindowArrays(win_prefix);
-            last_win_prefix = win_prefix;
-            console.noteln("AutoIntegrate: Restored window prefix '" + win_prefix + "' and prefix array " + JSON.stringify(prefixArray) + " from settings.");
+            var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
+            if (Settings.lastReadOK) {
+                  console.noteln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
+                  ppar.userColumnCount = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/manualIconColumn", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.noteln("AutoIntegrate: Restored manualIconColumn '" + tempSetting + "' from settings.");
+                  ppar.use_manual_icon_column = tempSetting;
+            }
+            if (!ppar.use_manual_icon_column) {
+                  ppar.userColumnCount = -1;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/defaultStarXTerminator", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.noteln("AutoIntegrate: Restored defaultStarXTerminator '" + tempSetting + "' from settings.");
+                  ppar.default_starxterminator = tempSetting;
+                  par.use_starxterminator.val = ppar.default_starxterminator;
+            }
+
+            fixAllWindowArrays(ppar.win_prefix);
+            last_win_prefix = ppar.win_prefix;
       }
       catch (x) {
             console.writeln( x );
