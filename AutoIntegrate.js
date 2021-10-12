@@ -541,7 +541,6 @@ var pages = {
       END : 5
 };
 
-var last_win_prefix = "";
 var columnCount = 0;          // A column position
 var haveIconized = 0;
 
@@ -658,12 +657,12 @@ var narrowBandPalettes = [
 
 // Create a table of known prefix names for toolTip
 // Also update window prefix combo box list
-function setWindowPrefixHelpTip()
+function setWindowPrefixHelpTip(default_prefix)
 {
       var prefix_list = "<table><tr><th>Col</th><th>Name</th><th>Icon count</th></tr>";
       for (var i = 0; i < ppar.prefixArray.length; i++) {
             if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
-                  prefix_list = prefix_list + "<tr><td>" + ppar.prefixArray[i][0] + '</td><td>' + ppar.prefixArray[i][1] + '</td><td>' + ppar.prefixArray[i][2] + '</td></tr>';
+                  prefix_list = prefix_list + "<tr><td>" + (ppar.prefixArray[i][0] + 1) + '</td><td>' + ppar.prefixArray[i][1] + '</td><td>' + ppar.prefixArray[i][2] + '</td></tr>';
             }
       }
       prefix_list = prefix_list + "</table>";
@@ -675,7 +674,7 @@ function setWindowPrefixHelpTip()
                                      windowPrefixHelpTips.toolTip;
 
       windowPrefixComboBox.clear();
-      var pa = get_win_prefix_combobox_array();
+      var pa = get_win_prefix_combobox_array(default_prefix);
       addArrayToComboBox(windowPrefixComboBox, pa);
       windowPrefixComboBox.editText = validateWindowPrefix(ppar.win_prefix);
       windowPrefixComboBox.currentItem = pa.indexOf(validateWindowPrefix(ppar.win_prefix));
@@ -693,13 +692,17 @@ function fix_win_prefix_array()
       ppar.prefixArray = new_prefix_array;
 }
 
-function get_win_prefix_combobox_array()
+function get_win_prefix_combobox_array(default_prefix)
 {
-      var name_array = [];
+      default_prefix = validateWindowPrefix(default_prefix);
+      var name_array = [default_prefix];
 
       for (var i = 0; i < ppar.prefixArray.length; i++) {
             if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
-                  name_array[name_array.length] = validateWindowPrefix(ppar.prefixArray[i][1]);
+                  var add_name = validateWindowPrefix(ppar.prefixArray[i][1]);
+                  if (add_name != default_prefix) {
+                        name_array[name_array.length] = add_name;
+                  }
             }
       }
       return name_array;
@@ -765,7 +768,7 @@ function savePersistentSettings()
       if (ppar.use_manual_icon_column) {
             Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
       }
-      setWindowPrefixHelpTip();
+      setWindowPrefixHelpTip(ppar.win_prefix);
 }
 
 function fixWindowArray(arr, prev_prefix, cur_prefix)
@@ -800,8 +803,10 @@ function fixAllWindowArrays(new_prefix)
       var old_prefix = curname.substring(0, curname.length - basename.length);
       if (old_prefix == new_prefix) {
             // no change
+            console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
             return;
       }
+      console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
       fixWindowArray(integration_LRGB_windows, old_prefix, new_prefix);
       fixWindowArray(integration_color_windows, old_prefix, new_prefix);
       fixWindowArray(fixed_windows, old_prefix, new_prefix);
@@ -8605,17 +8610,13 @@ function validateWindowPrefix(p)
 // is that function is called for every character.
 function updateWindowPrefix()
 {
-      if (ppar.win_prefix != last_win_prefix) {
-            ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
-            windowPrefixComboBox.editText = ppar.win_prefix;
-            if (ppar.win_prefix != "") {
-                  ppar.win_prefix = ppar.win_prefix + "_";
-            }
-            fixAllWindowArrays(ppar.win_prefix);
-            last_win_prefix = ppar.win_prefix;
+      ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
+      windowPrefixComboBox.editText = ppar.win_prefix;
+      if (ppar.win_prefix != "") {
+            ppar.win_prefix = ppar.win_prefix + "_";
       }
-
-      console.writeln("updateWindowPrefix, set winPrefix ", ppar.win_prefix);
+      console.writeln("updateWindowPrefix, set winPrefix '" + ppar.win_prefix + "'");
+      fixAllWindowArrays(ppar.win_prefix);
 }
 
 function addWinPrefix(parent)
@@ -8636,8 +8637,9 @@ function addWinPrefix(parent)
       windowPrefixComboBox = new ComboBox( parent );
       windowPrefixComboBox.enabled = true;
       windowPrefixComboBox.editEnabled = true;
+      windowPrefixComboBox.minItemCharWidth = 10;
       windowPrefixComboBox.toolTip = lbl.toolTip;
-      var pa = get_win_prefix_combobox_array();
+      var pa = get_win_prefix_combobox_array(ppar.win_prefix);
       addArrayToComboBox(windowPrefixComboBox, pa);
       windowPrefixComboBox.editText = ppar.win_prefix;
       windowPrefixComboBox.onEditTextUpdated = function() {
@@ -10708,9 +10710,11 @@ function AutoIntegrateDialog()
                   // For delete to work we need to update fixed window
                   // names with the prefix we use for closing
                   fixAllWindowArrays("");
+                  console.writeln("Close default empty prefix");
                   closeAllWindows(par.keep_integrated_images.val, false);
                   if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
+                        console.writeln("Close prefix '" + ppar.win_prefix + "'");
                         fixAllWindowArrays(ppar.win_prefix);
                         closeAllWindows(par.keep_integrated_images.val, false);
                   }
@@ -10861,7 +10865,7 @@ function AutoIntegrateDialog()
                   ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
                   fix_win_prefix_array();
                   if (ppar.userColumnCount != -1 && ppar.use_manual_icon_column) {
-                        ppar.userColumnCount = columnCount;
+                        ppar.userColumnCount = columnCount + 1;
                         this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
                   }
                   savePersistentSettings();
@@ -11023,7 +11027,7 @@ function AutoIntegrateDialog()
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
 
-      setWindowPrefixHelpTip();
+      setWindowPrefixHelpTip(ppar.win_prefix);
 
       console.show(false);
 }
@@ -11094,7 +11098,6 @@ function main()
             }
 
             fixAllWindowArrays(ppar.win_prefix);
-            last_win_prefix = ppar.win_prefix;
       }
       catch (x) {
             console.writeln( x );
