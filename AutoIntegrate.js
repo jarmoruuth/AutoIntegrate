@@ -2,6 +2,8 @@
 
 Script to automate initial steps of image processing in PixInsight.
 
+For information check the page https://ruuth.xyz/AutoIntegrateInfo.html
+
 Script has a GUI interface where some processing options can be selected.
 
 In the end there will be integrated light files and automatically
