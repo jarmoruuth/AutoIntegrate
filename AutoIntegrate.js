@@ -5,7 +5,7 @@ Script to automate initial steps of image processing in PixInsight.
 Script has a GUI interface where some processing options can be selected.
 
 In the end there will be integrated light files and automatically
-processed final image. Scipt accepts LRGB, color and narrowband files. 
+processed final image. Script accepts LRGB, color and narrowband files. 
 It is also possible do only partial processing and continue manually.
 
 Clicking button AutoRun on GUI all the following steps listed below are performed.
@@ -47,7 +47,7 @@ intermediate files and autocontinue there.
 Calibration steps
 -----------------
 
-Calibration can run two basic worflows, one with bias files and one
+Calibration can run two basic workflows, one with bias files and one
 with flat dark files. There are some option to make small changes
 on those,
 
@@ -90,7 +90,7 @@ Steps with LRGB files
    or with narrowband Integration_H, Integration_S and Integration_O.
 2. Optionally ABE in run on L image. <lABE>
 3. HistogramTransform is run on L image. <lHT>
-4. Streched L image is stored as a mask unless user has a predefined mask named range_mask.
+4. Stretched L image is stored as a mask unless user has a predefined mask named range_mask.
 5. Noise reduction is run on L image using a mask.
 6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
@@ -140,14 +140,14 @@ Steps for narrowband files are a bit similar to LRGB files but without L channel
 - Linear fit for can be used for R, G or B channels. In that case script runs linked STF 
   stretch. Default is to use unlinked STF stretch for narrowband files.
 - PixelMath expression can chosen from a list or edited manually for custom blending.
-  Pixelmath expressions can also include RGB channels.
+  PixelMath expressions can also include RGB channels.
 
 Narrowband to RGB mapping
 -------------------------
 
 A special processing is used for narrowband to (L)RGB image mapping. It is used 
 to enhance (L)RGB channels with narrowband data. It cannot be used without RGB filters.
-This mapping is similar to NBRGBCombination script in Pixinsight or as described in 
+This mapping is similar to NBRGBCombination script in PixInsight or as described in 
 Light Vortex Astronomy tutorial Combining LRGB with Narrowband. You can find more 
 details on parameters from those sources.
 
@@ -164,17 +164,17 @@ Credits and Copyright notices
 
 PixInsight scripts that come with the product were a great help.
 Web site Light Vortex Astronomy (http://www.lightvortexastronomy.com/)
-was a great place to find details and best practises when using PixInsight.
+was a great place to find details and best practices when using PixInsight.
 For calibration another useful link is a PixInsight forum post
 "For beginners: Guide to PI's ImageCalibration":
 https://pixinsight.com/forum/index.php?threads/for-beginners-guide-to-pis-imagecalibration.11547/
 
 Routines ApplyAutoSTF and applySTF are from PixInsight scripts that are 
-distributed with Pixinsight. 
+distributed with PixInsight. 
 
 Routines for Linear Defect Detection are from PixInsight scripts 
 LinearDefectDetection.js and CommonFunctions.jsh that is distributed 
-with Pixinsight. 
+with PixInsight. 
 
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
@@ -272,7 +272,7 @@ var par = {
       // Image processing parameters
       use_local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },  /* color problems, maybe should be used only for L images */
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
-      fix_row_defects: { val: false, def: false, name : "Fix row defetcs", type : 'B' },
+      fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
       skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
@@ -302,7 +302,6 @@ var par = {
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
-      use_uwf: { val: false, def: false, name : "UWF", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
       imageintegration_clipping: { val: true, def: true, name : "ImageIntegration clipping", type : 'B' },
       synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },
@@ -310,6 +309,7 @@ var par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
+      win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       
       // Narrowband processing
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
@@ -320,7 +320,7 @@ var par = {
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
       narrowband_removestars: { val: false, def: false, name : "Narrowband remove stars", type : 'B' },
 
-      // Narrowband to RGB mappping
+      // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
       use_RGB_image: { val: false, def: false, name : "Narrowband RGB mapping use RGB", type : 'B' },
       L_mapping: { val: '',  def: '',  name : "Narrowband RGB mapping for L", type : 'S' },
@@ -346,8 +346,8 @@ var par = {
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto1', def: 'Auto1', name : "ImageIntegration rejection", type : 'S' },
-      cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorection hot sigma", type : 'I' },
-      cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorection cold sigma", type : 'I' },
+      cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
+      cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
@@ -397,8 +397,8 @@ var ppar = {
       prefixArray: [],                          // Array of prefix names and icon count, 
                                                 // every array element is [icon-column, prefix-name, icon-count]
       start_with_empty_window_prefix: false,    // Do we always start with empty prefix
-      use_manual_icon_column: false,                // Allow manual control of icon column
-      userColumnCount: -1,                      // User set column pos, if -1 use automatic column position
+      use_manual_icon_column: false,            // Allow manual control of icon column
+      userColumnCount: -1,                      // User set column position, if -1 use automatic column position
       default_starxterminator: false            // Use StarXTerminator by default instead of StarNet
 };
 
@@ -466,7 +466,7 @@ var filterSectionbarcontrols = [];
 var lightFilterSet = null;
 var flatFilterSet = null;
     
-// These are initialzied by setDefaultDirs
+// These are initialized by setDefaultDirs
 var AutoOutputDir = null;
 var AutoCalibratedDir = null;
 var AutoMasterDir = null;
@@ -490,17 +490,20 @@ var L_ABE_HT_win;
 var L_ABE_HT_id;
 var L_HT_win;
 var RGB_ABE_id;
-var luminance_id = null;
-var red_id = null;
+
+var luminance_id = null;      // These are working images and copies of 
+var red_id = null;            // original integrated images
 var green_id = null;
 var blue_id = null;
-var L_id;
+
+var L_id;                     // Original integrated images
 var R_id;
 var G_id;
 var B_id;
 var H_id;
 var S_id;
 var O_id;
+
 var RGBcolor_id;
 var R_ABE_id = null;
 var G_ABE_id = null;
@@ -624,7 +627,7 @@ var calibrate_windows = [
 ];
 
 /* Final processed window names, depending on input data and options used.
- * These may have Drizzle prefix if that option ise used.
+ * These may have Drizzle prefix if that option is used.
  */
 var final_windows = [
       "AutoLRGB",
@@ -974,7 +977,7 @@ function parseNewOutputRootDir(filePath, subdir)
       return path;
 }
 
-// If path is relativge and not absolute, we append it to the 
+// If path is relative and not absolute, we append it to the 
 // path of the image file
 function pathIsRelative(p)
 {
@@ -1233,7 +1236,6 @@ function closeFinalWindowsFromArray(arr)
 function closeTempWindows()
 {
       for (var i = 0; i < integration_LRGB_windows.length; i++) {
-            closeOneWindow(integration_LRGB_windows[i] + "_cABE");
             closeOneWindow(integration_LRGB_windows[i] + "_max");
             closeOneWindow(integration_LRGB_windows[i] + "_map");
             closeOneWindow(integration_LRGB_windows[i] + "_map_mask");
@@ -1434,7 +1436,7 @@ function saveAllFinalImageWindows(bits)
       }
 
       if (finalimages.length == 0) {
-            console.noteln("No final iamges found");
+            console.noteln("No final images found");
             return;
       }
 
@@ -1487,6 +1489,8 @@ function copyWindow(sourceWindow, name)
             fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
       }
 
+      console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
+
       return targetWindow;
 }
 
@@ -1495,7 +1499,7 @@ function newMaskWindow(sourceWindow, name)
       var targetWindow;
 
       if (sourceWindow.mainView.image.colorSpace != ColorSpace_Gray) {
-            /* If we have color files we extrack lightness component and
+            /* If we have color files we extract lightness component and
                use it as a mask.
             */
             addProcessingStep("Create mask by extracting lightness component from color image "+ sourceWindow.mainView.id);
@@ -1755,7 +1759,7 @@ function writeImage(filePath, imageWindow)
 }
 
 /* 
- * Image calibration as dedscribed in Light Vortex Astronomy.
+ * Image calibration as described in Light Vortex Astronomy.
  */
 
 // Integrate (stack) bias and dark images
@@ -3020,20 +3024,13 @@ function getLDDgroups(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             var keywords = getFileKeywords(fileNames[i]);
             var groupname = "";
-            var slooh_uwf = false;        // Slooh Chile or T2 UWF scope
             var naxis1 = 0;
-            var slooh_chile = false;      // Slooh Chile scope
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
                   switch (keywords[j].name) {
                         case "TELESCOP":
                               console.writeln("telescop=" + value);
                               groupname = groupname + value;
-                              if (value.indexOf("UWF") != -1) {
-                                    slooh_uwf = true;
-                              } else if (value.indexOf("C1HM") != -1) {
-                                    slooh_chile = true;
-                              }
                               break;
                         case "NAXIS1":
                               console.writeln("naxis1=" + value);
@@ -3042,22 +3039,6 @@ function getLDDgroups(fileNames)
                               break;
                         default:
                               break;
-                  }
-            }
-            if (slooh_chile && naxis1 < 1000) {
-                  // Slooh Chile UWF sometimes can be identified only by resolution
-                  console.writeln("Chile slooh_uwf");
-                  slooh_uwf = true;
-            }
-            if (!par.lights_add_manually.val) {
-                  if (par.use_uwf.val) {
-                        if (!slooh_uwf) {
-                              continue;
-                        }
-                  } else {
-                        if (slooh_uwf) {
-                              continue;
-                        }
                   }
             }
             for (var j = 0; j < groups.length; j++) {
@@ -3112,7 +3093,7 @@ function getDefectInfo(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             append_image_for_integrate(LDD_images.images, fileNames[i]);
       }
-      // Run image interation as-is to make line defects more visible
+      // Run image integration as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
       var LDD_id = runImageIntegration(LDD_images, "LDD");
       var LDD_win = findWindow(LDD_id);
@@ -3399,7 +3380,6 @@ function findBestSSWEIGHT(fileNames)
 {
       var ssweight;
       var newFileNames = [];
-      var found_slooh_uwf = false;
 
       run_HT = true;
       best_ssweight = 0;
@@ -3425,11 +3405,6 @@ function findBestSSWEIGHT(fileNames)
 
             n++;
 
-            var skip_this = false;
-            var slooh_uwf = false;        // Slooh Chile or T2 UWF scope
-            var naxis1 = 0;
-            var slooh_chile = false;      // Slooh Chile scope
-            
             // First check if we skip image since we do not know
             // the order for keywords
             for (var j = 0; j < keywords.length; j++) {
@@ -3437,11 +3412,6 @@ function findBestSSWEIGHT(fileNames)
                   switch (keywords[j].name) {
                         case "TELESCOP":
                               console.writeln("telescop=" +  value);
-                              if (value.indexOf("UWF") != -1) {
-                                    slooh_uwf = true;
-                              } else if (value.indexOf("C1HM") != -1) {
-                                    slooh_chile = true;
-                              }
                               break;
                         case "NAXIS1":
                               console.writeln("naxis1=" + value);
@@ -3451,59 +3421,36 @@ function findBestSSWEIGHT(fileNames)
                               break;
                   }
             }
-            if (slooh_chile && naxis1 < 1000) {
-                  // Slooh Chile UWF sometimes can be identified only by resolution
-                  console.writeln("Chile slooh_uwf");
-                  slooh_uwf = true;
-            }
-            if (slooh_uwf) {
-                  found_slooh_uwf = true;
-            }
-            if (!par.lights_add_manually.val) {
-                  if (par.use_uwf.val) {
-                        skip_this = !slooh_uwf;
-                  } else {
-                        skip_this = slooh_uwf;
+            newFileNames[newFileNames.length] = fileNames[i];
+            for (var j = 0; j < keywords.length; j++) {
+                  var value = keywords[j].strippedValue.trim();
+                  switch (keywords[j].name) {
+                        case "SSWEIGHT":
+                              ssweight_set = true;
+                              ssweight = value;
+                              console.writeln("ssweight=" +  ssweight);
+                              if (!first_image && naxis1 > best_ssweight_naxis) {
+                                    addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
+                              }
+                              if (first_image || 
+                                    naxis1 > best_ssweight_naxis ||
+                                    (parseFloat(ssweight) > parseFloat(best_ssweight) &&
+                                    naxis1 == best_ssweight_naxis))
+                              {
+                                    best_ssweight = ssweight;
+                                    console.writeln("new best_ssweight=" +  best_ssweight);
+                                    best_image = filePath;
+                                    best_ssweight_naxis = naxis1;
+                                    first_image = false;
+                              }
+                              break;
+                        default:
+                              break;
                   }
-            }
-            if (!skip_this) {
-                  newFileNames[newFileNames.length] = fileNames[i];
-                  for (var j = 0; j < keywords.length; j++) {
-                        var value = keywords[j].strippedValue.trim();
-                        switch (keywords[j].name) {
-                              case "SSWEIGHT":
-                                    ssweight_set = true;
-                                    ssweight = value;
-                                    console.writeln("ssweight=" +  ssweight);
-                                    if (!first_image && naxis1 > best_ssweight_naxis) {
-                                          addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
-                                    }
-                                    if (first_image || 
-                                        naxis1 > best_ssweight_naxis ||
-                                        (parseFloat(ssweight) > parseFloat(best_ssweight) &&
-                                         naxis1 == best_ssweight_naxis))
-                                    {
-                                          best_ssweight = ssweight;
-                                          console.writeln("new best_ssweight=" +  best_ssweight);
-                                          best_image = filePath;
-                                          best_ssweight_naxis = naxis1;
-                                          first_image = false;
-                                    }
-                                    break;
-                              default:
-                                    break;
-                        }
-                  }
-            } else {
-                  console.writeln("Skip this");
             }
       }
       if (newFileNames.length == 0) {
-            if (found_slooh_uwf) {
-                  throwFatalError("No files found for processing. Slooh UWF files found, to process those you need to set Ultra Wide Field check box.");
-            } else {
-                  throwFatalError("No files found for processing.");
-            }
+            throwFatalError("No files found for processing.");
       }
       if (best_image == null) {
             console.writeln("Unable to find image with best SSWEIGHT, using first image");
@@ -3913,11 +3860,14 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   if (allfiles.L.length == 0) {
                         addProcessingStep("No luminance images, synthetic luminance image from all other images");
                   } else {
-                        addProcessingStep("Synthetic luminance image from all LRGB images");
+                        addProcessingStep("Synthetic luminance image from all light images");
                   }
                   allfiles.L = allfiles.L.concat(allfiles.R);
                   allfiles.L = allfiles.L.concat(allfiles.G);
                   allfiles.L = allfiles.L.concat(allfiles.B);
+                  allfiles.L = allfiles.L.concat(allfiles.H);
+                  allfiles.L = allfiles.L.concat(allfiles.S);
+                  allfiles.L = allfiles.L.concat(allfiles.O);
             }
             if (allfiles.R.length == 0 && par.synthetic_missing_images.val) {
                   addProcessingStep("No red images, synthetic red image from luminance images");
@@ -4042,7 +3992,7 @@ function replaceMappingImageNames(mapping, from, to, images, check_filesarr)
             }
             return to + "_map";
       }
-      // loop until all occurances are replaced
+      // loop until all occurrences are replaced
       for (var i = mapping.length; i > 0; i--) {
             console.writeln("replaceMappingImageNames scan " + mapping);
             for (var n = 0; n < mapping.length; n++) {
@@ -4344,7 +4294,7 @@ function reduceNoiseOnChannelImage(image)
       if (par.skip_noise_reduction.val || par.channel_noise_reduction_strength.val == 0) {
             return;
       }
-      addProcessingStep("Reduce noise on channe image " + image);
+      addProcessingStep("Reduce noise on channel image " + image);
 
       /* Create a temporary stretched copy to be used as a mask. */
       var maskname = ensure_win_prefix(image + "_mask");
@@ -4359,17 +4309,31 @@ function reduceNoiseOnChannelImage(image)
 
 function createNewStarXTerminator(star_mask, linear_data)
 {
-      var P = new StarXTerminator;
-      P.linear = linear_data;
-      P.stars = star_mask;
+      try {
+            var P = new StarXTerminator;
+            P.linear = linear_data;
+            P.stars = star_mask;
+      } catch(err) {
+            console.criticalln("StarXTerminator failed");
+            console.criticalln(err);
+            addProcessingStep("Maybe StarXTerminator is not installed, AI is missing or platform is not supported");
+            throwFatalError("StarXTerminator failed");
+      }
       return P;
 }
 
 function createNewStarNet(star_mask)
 {
-      var P = new StarNet;
-      P.stride = StarNet.prototype.Stride_128;
-      P.mask = star_mask;
+      try {
+            var P = new StarNet;
+            P.stride = StarNet.prototype.Stride_128;
+            P.mask = star_mask;
+      } catch(err) {
+            console.criticalln("StarNet failed");
+            console.criticalln(err);
+            addProcessingStep("Maybe weight files are missing or platform is not supported");
+            throwFatalError("StarNet failed");
+      }
       return P;
 }
 
@@ -4412,7 +4376,7 @@ function customMapping(check_filesarr)
       var G_images = [];
       var B_images = [];
 
-      /* Get a modfied mapping with tags replaced with real image names.
+      /* Get a modified mapping with tags replaced with real image names.
        */
       var red_mapping = mapCustomAndReplaceImageNames('R', R_images, check_filesarr);
       var green_mapping = mapCustomAndReplaceImageNames('G', G_images, check_filesarr);
@@ -4426,9 +4390,9 @@ function customMapping(check_filesarr)
             /* For narrowband we have two options:
              *
              * 1. Do PixelMath mapping in linear format.
-             *    https://jonrista.com/the-astrophotographers-guide/pixinsights/narrow-band-combinations-with-pixelmath-hoo/
+             *    https://jonrista.com/the-astrophotographers-guide/PixInsights/narrow-band-combinations-with-pixelmath-hoo/
              * 2. We do auto-stretch of images before PixelMath. Stretch is done to make
-             *    images roughtly match with each other. In this case we have already stretched image.
+             *    images roughly match with each other. In this case we have already stretched image.
              *    https://www.lightvortexastronomy.com/tutorial-narrowband-bicolour-palette-combinations.html
              *    https://www.lightvortexastronomy.com/tutorial-narrowband-hubble-palette.html
              * 
@@ -4516,7 +4480,7 @@ function customMapping(check_filesarr)
             // We have both RGB and narrowband, do custom mapping on individual channels.
             // Here we just create different combined channels in linear format and
             // then continue as normal RGB processing.
-            // If we have multiple images in mappiong we use linmear fit to match
+            // If we have multiple images in mapping we use linear fit to match
             // them before PixelMath.
             addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (is_luminance_images) {
@@ -4539,6 +4503,18 @@ function customMapping(check_filesarr)
 function isCustomMapping(narrowband)
 {
       return narrowband && !par.use_RGBNB_Mapping.val;
+}
+
+// copy id to _map name if id not null
+function copyToMapIf(id)
+{
+      if (id != null) {
+            var new_id = ensure_win_prefix(id + "_map");
+            copyWindow(findWindow(id), new_id);
+            return new_id;
+      } else {
+            return id;
+      }
 }
 
 /* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
@@ -4566,10 +4542,15 @@ function mapLRGBchannels()
             RBGmapping = customMapping(null);
       } else {
             addProcessingStep("Normal RGB processing");
-            luminance_id = L_id;
-            red_id = R_id;
-            green_id = G_id;
-            blue_id = B_id;
+            /* Make a copy of original windows. */
+            if (luminance_id == null) {
+                  // We may already have copied L_id so we do it
+                  // here only if it is not copied yet.
+                  luminance_id = copyToMapIf(L_id);
+            }
+            red_id = copyToMapIf(R_id);
+            green_id = copyToMapIf(G_id);
+            blue_id = copyToMapIf(B_id);
       }
       return RBGmapping;
 }
@@ -4831,7 +4812,7 @@ function getRejectionAlgorigthm(numimages)
             addProcessingStep("  Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
       } else if (par.use_clipping.val == 'Auto2') {
-            /* In theory these should be good choises but sometime give much more uneven
+            /* In theory these should be good choices but sometime give much more uneven
              * highlights than Sigma.
              */
             if (numimages < 8) {
@@ -5115,8 +5096,9 @@ function runImageIntegrationNormalized(channel_images, name)
 function noABEcopyWin(win)
 {
       var new_win_id = win.mainView.id;
-      if (new_win_id.endsWith("_cABE")) {
-            new_win_id = new_win_id.substring(0, new_win_id.length - 5);
+      var fix_postfix = "_map";
+      if (new_win_id.endsWith(fix_postfix)) {
+            new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
       }
       var noABE_id = ensure_win_prefix(new_win_id + "_noABE");
       addProcessingStep("No ABE for " + win.mainView.id);
@@ -5127,14 +5109,13 @@ function noABEcopyWin(win)
 
 function runABEex(win, replaceTarget, postfix)
 {
-      addProcessingStep("ABE from " + win.mainView.id);
       if (replaceTarget) {
+            addProcessingStep("run ABE on image " + win.mainView.id);
             var ABE_id = win.mainView.id;
       } else {
             var ABE_id = ensure_win_prefix(win.mainView.id + postfix);
+            addProcessingStep("run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
-
-      console.writeln("runABE, target_id " + ABE_id);
 
       var ABE = new AutomaticBackgroundExtractor;
 
@@ -5171,8 +5152,6 @@ function runABEex(win, replaceTarget, postfix)
 
       addScriptWindow(ABE_id);
 
-      console.writeln("ABE completed on " + ABE_id);
-
       return ABE_id;
 }
 
@@ -5182,22 +5161,14 @@ function runABE(win, replaceTarget)
 }
 
 // Run ABE and rename windows so that the final result has the same id
-function run_ABE_before_channel_combination(id, create_new_image)
+function run_ABE_before_channel_combination(id)
 {
       if (id == null) {
             throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
       }
       var id_win = ImageWindow.windowById(id);
-
-      var ABE_id = runABEex(id_win, false, "_cABE");
-
-      if (create_new_image) {
-            return ABE_id;
-      } else {
-            closeOneWindow(id);
-            windowRename(ABE_id, id);
-            return id;
-      }
+      runABEex(id_win, true, "");
+      return id;
 }
 
 /*
@@ -5297,7 +5268,7 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    else
    {
       /*
-       * Unlinked RGB channnels: Compute automatic stretch functions for
+       * Unlinked RGB channels: Compute automatic stretch functions for
        * individual RGB channels separately.
        */
       var A = [ // c0, c1, m, r0, r1
@@ -6161,6 +6132,9 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
             }
       }
       logfname = basename + getOptionalUniqueFilenamePart() + ".log";
+      if (par.win_prefix_to_log_files.val) {
+            logfname = ppar.win_prefix + logfname;
+      }
 
       if (!write_processing_log_file) {
             console.writeln(basename + " log file not written.");
@@ -6197,7 +6171,7 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
       file.close();
 }
 
-// Find window and optinally search without a prefix
+// Find window and optionally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
       var win = findWindow(ppar.win_prefix + id);
@@ -6210,7 +6184,7 @@ function findWindowCheckBaseNameIf(id, check_base_name)
       return win;
 }
 
-// Find window id and optinally search without a prefix
+// Find window id and optionally search without a prefix
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
       var id = findWindowId(ppar.win_prefix + name);
@@ -6585,7 +6559,7 @@ function CreateChannelImages(auto_continue)
 
                   if (is_luminance_images) {
                         L_id = runImageIntegration(L_images, 'L');
-                        luminance_id = L_id;
+                        luminance_id = copyToMapIf(L_id);
                   }
 
                   if (!par.monochrome_image.val) {
@@ -6700,7 +6674,7 @@ function ProcessLimage(RBGmapping)
 {
       var noise_reduction_done = false;
 
-      addProcessingStep("ProcessLimage");
+      addProcessingStep("Process L image");
 
       /* LRGB files */
       console.writeln("BE L");
@@ -6722,10 +6696,13 @@ function ProcessLimage(RBGmapping)
                         /* Optionally run ABE on L
                         */
                         if (par.ABE_before_channel_combination.val) {
+                              // ABE already done
                               L_ABE_id = noABEcopyWin(L_win);
-                        } else if (par.use_ABE_on_L_RGB.val && !par.ABE_before_channel_combination.val) {
+                        } else if (par.use_ABE_on_L_RGB.val) {
+                              // run ABE
                               L_ABE_id = runABE(L_win, false);
                         } else {
+                              // no ABE
                               L_ABE_id = noABEcopyWin(L_win);
                         }
                   }
@@ -6839,6 +6816,7 @@ function CombineRGBimage()
       addProcessingStep("CombineRGBimage");
 
       if (par.channel_noise_reduction_strength.val > 0 && !narrowband) {
+            addProcessingStep("Noise reduction on channel images");
             reduceNoiseOnChannelImage(red_id);
             reduceNoiseOnChannelImage(green_id);
             reduceNoiseOnChannelImage(blue_id);
@@ -6923,7 +6901,7 @@ function extractRGBchannel(RGB_id, channel)
 
 function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, BoostFactor)
 {
-      console.writeln("RGBNB_Channel_Mapping " + RGB_id);
+      console.writeln("RGBNB channel mapping " + RGB_id);
 
       if (channel == 'L') {
             var L_win_copy = copyWindow(findWindow(RGB_id), ensure_win_prefix(RGB_id + "_RGBNBcopy"));
@@ -7052,7 +7030,7 @@ function testRGBNBmapping()
  */
 function ProcessRGBimage(RBGstretched)
 {
-      addProcessingStep("ProcessRGBimage, RBGstretched is " + RBGstretched);
+      addProcessingStep("Process RGB image, RBG stretched is " + RBGstretched);
 
       var RGB_ABE_HT_id;
 
@@ -7223,9 +7201,9 @@ function createStarFixMask(imgView)
       addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
 }
 
-/* Do a rough fix on magen stars by inverting the image, applying
+/* Do a rough fix on magenta stars by inverting the image, applying
  * SCNR to remove the now green cast on stars and then inverting back.
- * If we are not removing all green case we use mask ro protect
+ * If we are not removing all green case we use mask to protect
  * other areas than stars.
  */
 function fixNarrowbandStarColor(targetWin)
@@ -7414,7 +7392,7 @@ function extraDarkerBackground(imgWin, maskWin)
       imgWin.mainView.endProcess();
 }
 
-function extraHDRMultiscaleTansform(imgWin, maskWin)
+function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
       addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
@@ -7850,7 +7828,7 @@ function extraProcessing(id, apply_directly)
             extraDarkerBackground(extraWin, mask_win);
       }
       if (par.extra_HDRMLT.val) {
-            extraHDRMultiscaleTansform(extraWin, mask_win);
+            extraHDRMultiscaleTransform(extraWin, mask_win);
       }
       if (par.extra_LHE.val) {
             extraLocalHistogramEqualization(extraWin, mask_win);
@@ -8005,10 +7983,11 @@ function AutoIntegrateEngine(auto_continue)
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
                         if (par.ABE_before_channel_combination.val) {
-                              luminance_id = run_ABE_before_channel_combination(luminance_id, true);
-                              red_id = run_ABE_before_channel_combination(red_id, true);
-                              green_id = run_ABE_before_channel_combination(green_id, true);
-                              blue_id = run_ABE_before_channel_combination(blue_id, true);
+                              addProcessingStep("Run ABE on channel images");
+                              run_ABE_before_channel_combination(luminance_id);
+                              run_ABE_before_channel_combination(red_id);
+                              run_ABE_before_channel_combination(green_id);
+                              run_ABE_before_channel_combination(blue_id);
                         }
                         LinearFitLRGBchannels();
                   }
@@ -8027,7 +8006,7 @@ function AutoIntegrateEngine(auto_continue)
             }
 
             if (par.monochrome_image.val) {
-                  console.writeln("par.monochrome_image.val:rename windows")
+                  console.writeln("monochrome image, rename windows")
                   LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
 
             } else if (!par.channelcombination_only.val) {
@@ -8100,7 +8079,7 @@ function AutoIntegrateEngine(auto_continue)
             saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
             saveProcessedWindow(outputRootDir, B_id);                    /* Integration_B */
             saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
-            saveProcessedWindow(outputRootDir, S_id);                    /* Integraiton_S */
+            saveProcessedWindow(outputRootDir, S_id);                    /* Integration_S */
             saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
       }
       if (preprocessed_images >= start_images.L_R_G_B_BE) {
@@ -8123,10 +8102,10 @@ function AutoIntegrateEngine(auto_continue)
 
       windowIconizeAndKeywordif(L_id);                    /* Integration_L */
       windowIconizeAndKeywordif(R_id);                    /* Integration_R */
-      windowIconizeAndKeywordif(G_id);                    /* Integraion_G */
+      windowIconizeAndKeywordif(G_id);                    /* Integration_G */
       windowIconizeAndKeywordif(B_id);                    /* Integration_B */
       windowIconizeAndKeywordif(H_id);                    /* Integration_H */
-      windowIconizeAndKeywordif(S_id);                    /* Integraion_S */
+      windowIconizeAndKeywordif(S_id);                    /* Integration_S */
       windowIconizeAndKeywordif(O_id);                    /* Integration_O */
       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
 
@@ -8484,7 +8463,7 @@ function darksOptions(parent)
 
       var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks.val, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
-            "Normally this is not recommened and it is better to calibrate darks during " + 
+            "Normally this is not recommended and it is better to calibrate darks during " + 
             "ImageCalibration.</p>" );
       checkbox.onClick = function(checked) { 
             par.pre_calibrate_darks.val = checked; 
@@ -9194,9 +9173,9 @@ function AutoIntegrateDialog()
       "<b>AutoIntegrate - Automatic image integration utility</b>" +
       "</p><p>" +
       "Script automates initial steps of image processing in PixInsight. "+ 
-      "It can calibrate images or it can be used with already calibrated iumages. "+ 
+      "It can calibrate images or it can be used with already calibrated images. "+ 
       "Most often you get the best results by running the script with default " +
-      "settings and then continue processing in Pixinsight." +
+      "settings and then continue processing in PixInsight." +
       "</p><p>"+
       "By default output files goes to the following subdirectories:<br>" +
       "- AutoOutput contains intermediate files generated during processing<br>" +
@@ -9204,7 +9183,7 @@ function AutoIntegrateDialog()
       "- AutoCalibrated contains calibrated light files<br>" +
       "- AutoProcessed contains processed final images. Also integrated images and log output is here." +
       "</p><p>" +
-      "User can give output root dir which can be relative or absolute path." +
+      "User can give output root directory which can be relative or absolute path." +
       "</p><p>"+
       "Always remember to check you data with Blink tool and remove all bad images." +
       "</p><p>" +
@@ -9257,7 +9236,7 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, flatsOptions(this), pages.FLATS ), "Flats" );
       this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
-      /* Paremeters check boxes. */
+      /* Parameters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.use_local_normalization.val, 
             "<p>Run local normalization before StarAlign</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
@@ -9386,7 +9365,7 @@ function AutoIntegrateDialog()
       }
 
       this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
-      "<p>If selected output files are not written into subdirectores</p>" );
+      "<p>If selected output files are not written into subdirectories</p>" );
       this.no_subdirs_CheckBox.onClick = function(checked) { 
             par.no_subdirs.val = checked;
             if (par.no_subdirs.val) {
@@ -9402,12 +9381,6 @@ function AutoIntegrateDialog()
             par.use_drizzle.val = checked; 
       }
 
-      this.use_uwf_CheckBox = newCheckBox(this, "Ultra Wide Field", par.use_uwf.val, 
-      "<p>Use Slooh Ultra Wide Field (UWF) images for integration</p>" );
-      this.use_uwf_CheckBox.onClick = function(checked) { 
-            par.use_uwf.val = checked; 
-      }
-      
       this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image.val, 
       "<p>Create monochrome image</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { 
@@ -9433,7 +9406,7 @@ function AutoIntegrateDialog()
       }
 
       this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image.val, 
-      "<p>Create synthetic L image from all LRGB images.</p>" );
+      "<p>Create synthetic L image from all light images.</p>" );
       this.synthetic_l_image_CheckBox.onClick = function(checked) { 
             par.synthetic_l_image.val = checked; 
       }
@@ -9478,6 +9451,12 @@ function AutoIntegrateDialog()
       "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
       this.use_starxterminator_CheckBox.onClick = function(checked) { 
             par.use_starxterminator.val = checked; 
+      }
+
+      this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files.val, 
+      "<p>Add window prefix to AutoIntegrate.log and AUtoContinue.log files.</p>" );
+      this.win_prefix_to_log_files_CheckBox.onClick = function(checked) { 
+            par.win_prefix_to_log_files.val = checked; 
       }
 
       // Image parameters set 1.
@@ -9590,10 +9569,10 @@ function AutoIntegrateDialog()
       // Noise reduction
       var noiseReductionToolTipCommon = "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
                                         "Bigger strength value means stronger noise reduction.</p>" + 
-                                        "<p>Noise reduction uses MultiscaleLinerTransaform. Strenght is the number of layers used to reduce noise.</p>";
+                                        "<p>Noise reduction uses MultiscaleLinerTransform. Strength is the number of layers used to reduce noise.</p>";
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
-      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for L and combined image.</p>" + noiseReductionToolTipCommon;
+      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for L and combined RGB image.</p>" + noiseReductionToolTipCommon;
       this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.noiseReductionStrengthComboBox = new ComboBox( this );
@@ -9657,9 +9636,9 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.spacing = 4;
       this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
       this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
-      this.otherParamsSet2.add( this.use_uwf_CheckBox );
       this.otherParamsSet2.add( this.monochrome_image_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
+      this.otherParamsSet2.add( this.win_prefix_to_log_files_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
       this.otherParamsSet2.add( this.force_file_name_filter_CheckBox );
       this.otherParamsSet2.add( this.autodetect_filter_CheckBox );
@@ -9964,7 +9943,7 @@ function AutoIntegrateDialog()
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/pixinsight-dynamic-narrowband-combinations-with-pixelmath/" +
+            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/" +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
@@ -9985,7 +9964,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_R_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       this.narrowbandCustomPalette_R_Label.toolTip = 
             "<p>" +
-            "Mapping for R channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "Mapping for R channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_R_ComboBox = new ComboBox( this );
@@ -10003,7 +9982,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_G_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       this.narrowbandCustomPalette_G_Label.toolTip = 
             "<p>" +
-            "Mapping for G channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "Mapping for G channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_G_ComboBox = new ComboBox( this );
@@ -10021,7 +10000,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_B_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       this.narrowbandCustomPalette_B_Label.toolTip = 
             "<p>" +
-            "Mapping for B channel. Use one of the prefined mappings or edit and create your own mapping." +
+            "Mapping for B channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_B_ComboBox = new ComboBox( this );
@@ -10147,7 +10126,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "This mapping cannot be used without RGB filters. " + 
             "</p><p>" +
-            "This mapping is similar to NBRGBCombination script in Pixinsight or " +
+            "This mapping is similar to NBRGBCombination script in PixInsight or " +
             "as described in Light Vortex Astronomy tutorial Combining LRGB with Narrowband. " +
             "You can find more details on parameters from those sources. " +
             "</p><p>" +
@@ -10398,8 +10377,8 @@ function AutoIntegrateDialog()
       this.extraABE_CheckBox.onClick = function(checked) { 
             par.extra_ABE.val = checked; 
       }
-      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTansform", par.extra_HDRMLT.val, 
-      "<p>Run HDRMultiscaleTansform on image.</p>" );
+      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT.val, 
+      "<p>Run HDRMultiscaleTransform on image.</p>" );
       this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
             par.extra_HDRMLT.val = checked; 
       }
@@ -10576,7 +10555,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "1. Remove stars<br>" +
             "2. Darker background<br>" +
-            "3. HDRMultiscaleTansform<br>" +
+            "3. HDRMultiscaleTransform<br>" +
             "4. LocalHistogramEqualization<br>" +
             "5. Add contrast<br>" +
             "6. Auto STF<br>" +
@@ -10608,14 +10587,14 @@ function AutoIntegrateDialog()
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
-            "HT = Histogram Transformation, imnage is manually streched to non-liner state.<br>" +
+            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
             "BE = Background Extracted, for example manual DBE is run on image.<br>" +
             "</p>";
       this.autoContinueButton.onClick = function()
       {
             console.writeln("autoContinue");
 
-            // Do not create subdirectory strucure with AutoContinue
+            // Do not create subdirectory structure with AutoContinue
 
             clearDefaultDirs();
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
@@ -10960,19 +10939,27 @@ function AutoIntegrateDialog()
             ppar.default_starxterminator = checked;
       }
 
+      var persistentSettingsToolTip = "Options in the Persistent settings section are saved using the PixInsight Setting mechanism. " + 
+                                      "They are remembered and automatically set when the script starts. So there is no need to save " +
+                                      "these settings to a process icon."
+
       this.PersistentParamsSet1 = new VerticalSizer;
+      this.PersistentParamsSet1.toolTip = persistentSettingsToolTip;
       this.PersistentParamsSet1.margin = 6;
       this.PersistentParamsSet1.spacing = 4;
       this.PersistentParamsSet1.add( this.StartWithEmptyWindowPrefixBox );
       this.PersistentParamsSet1.add( this.StarXTerminatorColumnBox );
 
       this.PersistentParamsSet2 = new VerticalSizer;
+      this.PersistentParamsSet2.toolTip = persistentSettingsToolTip;
       this.PersistentParamsSet2.margin = 6;
       this.PersistentParamsSet2.spacing = 4;
       this.PersistentParamsSet2.add( this.ManualIconColumnBox );
 
       this.PersistentControl4 = new Control( this );
+      this.PersistentControl4.toolTip = persistentSettingsToolTip;
       this.PersistentControl4.sizer = new HorizontalSizer;
+      this.PersistentControl4.sizer.toolTip = persistentSettingsToolTip;
       this.PersistentControl4.sizer.margin = 6;
       this.PersistentControl4.sizer.spacing = 4;
       this.PersistentControl4.sizer.add( this.PersistentParamsSet1 );
@@ -11022,7 +11009,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.15";
+      this.windowTitle = "AutoIntegrate v1.16";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
