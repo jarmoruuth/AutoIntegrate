@@ -353,6 +353,8 @@ var par = {
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
+      Hyperbolic_D: { val: 10, def: 10, name : "Hyperbolic Stretch D value", type : 'I' },
+      Hyperbolic_b: { val: 2, def: 2, name : "Hyperbolic Stretch b value", type : 'I' }, 
       
       // Extra processing for narrowband
       run_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -411,7 +413,7 @@ var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Deb
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -5418,6 +5420,61 @@ function runHistogramTransformMaskedStretch(ABE_win)
       return null;
 }
 
+function runHistogramTransformHyperbolic(ABE_win)
+{
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+
+      var P = new PixelMath;
+      P.expression = "iif(b==0,EC=1,EC=0);\n" +
+      "iif(b>0,Ds=D*b,Ds=D);\n" +
+      "iif(b>0,bs=b,bs=1);\n" +
+      "iif(EC==1,q0=exp(-Ds*SP),q0=(1+Ds*SP)^(-1/bs));\n" +
+      "iif(EC==1,qWP=2-exp(-Ds*(HP-SP)),qWP=2-(1+Ds*(HP-SP))^(-1/bs));\n" +
+      "iif(EC==1,q1=2-2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-SP-1)),q1=2-2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-SP-1))^(-1/bs));\n" +
+      "iif($T<SP,EC*exp(-Ds*(SP-$T))+(1-EC)*(1+Ds*(SP-$T))^(-1/bs)-q0,iif($T>HP,2-EC*(2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-$T-SP)))+(1-EC)*(2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-$T-SP))^(-1/bs))-q0,2-EC*exp(-Ds*($T-SP))-(1-EC)*(1+Ds*($T-SP))^(-1/bs)-q0))/(q1-q0);";
+      P.expression1 = "";
+      P.expression2 = "";
+      P.expression3 = "";
+      P.useSingleExpression = true;
+      P.symbols = "D = " + par.Hyperbolic_D.val + ";\n" +
+      "b = " + par.Hyperbolic_b.val + ";\n" +
+      "SP =0.00;\n" +
+      "HP =1.00;\n" +
+      "Rnorm;\n" +
+      "q0;\n" +
+      "qWP;\n" +
+      "q1;\n" +
+      "Ds;\n" +
+      "bs;\n" +
+      "EC;";
+      P.clearImageCacheAndExit = false;
+      P.cacheGeneratedImages = false;
+      P.generateOutput = true;
+      P.singleThreaded = false;
+      P.optimization = true;
+      P.use64BitWorkingImage = false;
+      P.rescale = false;
+      P.rescaleLower = 0;
+      P.rescaleUpper = 1;
+      P.truncate = true;
+      P.truncateLower = 0;
+      P.truncateUpper = 1;
+      P.createNewImage = false;
+      P.showNewImage = true;
+      P.newImageId = "";
+      P.newImageWidth = 0;
+      P.newImageHeight = 0;
+      P.newImageAlpha = false;
+      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(ABE_win.mainView);
+
+      ABE_win.mainView.endProcess();
+}
+
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
 {
       if (!run_HT) {
@@ -5436,6 +5493,8 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       {
             return runHistogramTransformMaskedStretch(ABE_win);
 
+      } else if (par.image_stretching.val == 'Hyperbolic') {
+            return runHistogramTransformHyperbolic(ABE_win);
       } else {
             throwFatalError("Bad image stretching value " + par.image_stretching.val + " with type " + type);
             return null;
@@ -9765,7 +9824,8 @@ function AutoIntegrateDialog()
       this.stretchingComboBox.toolTip = 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
-            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.";
+            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear." +
+            "Hyperbolic - Generalized Hyperbolic stretching using PixelMath formulas by PixInsight forum member dapayne.";
       addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
       this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
       this.stretchingComboBox.onItemSelected = function( itemIndex )
@@ -9814,11 +9874,35 @@ function AutoIntegrateDialog()
             par.MaskedStretch_targetBackground.val = value;
       };
 
+      this.Hyperbolic_D_Control = new NumericControl( this );
+      this.Hyperbolic_D_Control.label.text = "Hyperbolic Stretch D value";
+      this.Hyperbolic_D_Control.setRange(0, 20);
+      this.Hyperbolic_D_Control.setValue(par.Hyperbolic_D.val);
+      this.Hyperbolic_D_Control.toolTip = "<p>Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>";
+      this.Hyperbolic_D_Control.onValueUpdated = function( value )
+      {
+            par.Hyperbolic_D.val = value;
+      };
+      this.Hyperbolic_b_Control = new NumericControl( this );
+      this.Hyperbolic_b_Control.label.text = "Hyperbolic Stretch b value";
+      this.Hyperbolic_b_Control.setRange(0, 10);
+      this.Hyperbolic_b_Control.setValue(par.Hyperbolic_b.val);
+      this.Hyperbolic_b_Control.toolTip = "<p>Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
+                                          "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
+                                          "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
+                                          "super-hyperbolic stretch. Often it is best to keep b<2.</p>";
+      this.Hyperbolic_b_Control.onValueUpdated = function( value )
+      {
+            par.Hyperbolic_b.val = value;
+      };
+
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
+      this.StretchingOptionsSizer.add( this.Hyperbolic_D_Control );
+      this.StretchingOptionsSizer.add( this.Hyperbolic_b_Control );
       //this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = aiSectionLabel(this, "Image stretching settings");
@@ -11009,7 +11093,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.16";
+      this.windowTitle = "AutoIntegrate v1.17";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
