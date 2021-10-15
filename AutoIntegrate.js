@@ -5424,8 +5424,6 @@ function runHistogramTransformMaskedStretch(ABE_win)
 
 function runHistogramTransformHyperbolic(ABE_win)
 {
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
-
       var P = new PixelMath;
       P.expression = "iif(b==0,EC=1,EC=0);\n" +
       "iif(b>0,Ds=D*b,Ds=D);\n" +
@@ -5469,6 +5467,9 @@ function runHistogramTransformHyperbolic(ABE_win)
       P.newImageAlpha = false;
       P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+      console.writeln("Symbols " + P.symbols);
 
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -9826,8 +9827,8 @@ function AutoIntegrateDialog()
       this.stretchingComboBox.toolTip = 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
-            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear." +
-            "Hyperbolic - Generalized Hyperbolic stretching using PixelMath formulas by PixInsight forum member dapayne.";
+            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.\n" +
+            "Hyperbolic - Generalized Hyperbolic Stretching using PixelMath formulas from PixInsight forum member dapayne.";
       addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
       this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
       this.stretchingComboBox.onItemSelected = function( itemIndex )
