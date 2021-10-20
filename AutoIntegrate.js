@@ -279,6 +279,7 @@ var par = {
       skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
+      ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
@@ -3142,6 +3143,11 @@ function runLinearDefectDetection(fileNames)
       return ccInfo;
 }
 
+function generateNewFileName(fileName, outputdir, postfix, extension)
+{
+      return ensurePathEndSlash(outputdir) + File.extractName(fileName) + postfix + extension;
+}
+
 function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
 {
       var newFileNames = [];
@@ -3149,10 +3155,58 @@ function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
       console.writeln("generateNewFileNames, old " + oldFileNames[0]);
 
       for (var i = 0; i < oldFileNames.length; i++) {
-            newFileNames[i] = ensurePathEndSlash(outputdir) + File.extractName(oldFileNames[i]) + postfix + extension;
+            newFileNames[i] = generateNewFileName(oldFileNames[i], outputdir, postfix, extension);
       }
 
       console.writeln("generateNewFileNames, new " + newFileNames[0]);
+      return newFileNames;
+}
+
+function runABEOnLights(fileNames)
+{
+      var newFileNames = [];
+      var outputDir = outputRootDir + AutoOutputDir;
+      var postfix = "_ABE";
+      var outputExtension = ".xisf";
+
+      addProcessingStep("run ABE on on light files, output *" + postfix + ".xisf");
+      console.writeln("runABEOnLights input[0] " + fileNames[0]);
+
+      for (var i = 0; i < fileNames.length; i++) {
+            // Open source image window from a file
+            var imageWindows = ImageWindow.open(fileNames[i]);
+            if (imageWindows.length != 1) {
+                  throwFatalError("*** runABEOnLights Error: imageWindows.length: ", imageWindows.length);
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  throwFatalError("*** runABEOnLights Error: Can't read file: ", filePath);
+            }
+            
+            // Run ABE which creates a new window with _ABE extension
+            var new_id = runABEex(imageWindow, false, postfix);
+            var new_win = findWindow(new_id);
+            if (new_win == null) {
+                  throwFatalError("*** runABEOnLights Error: could not find window: ", new_id);
+            }
+            
+            // Source image window is not needed any more
+            forceCloseOneWindow(imageWindow);
+
+            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+
+            // Save ABE window
+            if (!writeImage(filePath, new_win)) {
+                  throwFatalError("*** runABEOnLights Error: Can't write output image: ", new_id);
+            }
+            // Close ABE window
+            forceCloseOneWindow(new_win);
+
+            newFileNames[newFileNames.length] = filePath;
+      }
+
+      console.writeln("runABEOnLights output[0] " + newFileNames[0]);
+
       return newFileNames;
 }
 
@@ -4734,10 +4788,10 @@ function runLocalNormalization(imagetable, refImage)
 
 function runLinearFit(refViewId, targetId)
 {
+      addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       if (refViewId == null || targetId == null) {
             throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
       }
-      addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       linear_fit_done = true;
       var targetWin = ImageWindow.windowById(targetId);
       var P = new LinearFit;
@@ -6552,6 +6606,10 @@ function CreateChannelImages(auto_continue)
 
             fileNames = lightFileNames;
 
+            if (par.ABE_on_lights.val) {
+                  fileNames = runABEOnLights(fileNames);
+                  filename_postfix = filename_postfix + '_ABE';
+            }
             if (!par.skip_cosmeticcorrection.val) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
@@ -9373,6 +9431,12 @@ function AutoIntegrateDialog()
             par.ABE_before_channel_combination.val = checked; 
       }
 
+      this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights.val, 
+      "<p>Use AutomaticBackgroundExtractor on all light images as the first step.</p>" );
+      this.ABE_on_lights_CheckBox.onClick = function(checked) { 
+            par.ABE_on_lights.val = checked; 
+      }
+
       this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB.val, 
       "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
       this.useABE_L_RGB_CheckBox.onClick = function(checked) { 
@@ -9543,6 +9607,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
+      this.imageParamsSet2.add( this.ABE_on_lights_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
@@ -11096,7 +11161,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.17";
+      this.windowTitle = "AutoIntegrate v1.18";
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
