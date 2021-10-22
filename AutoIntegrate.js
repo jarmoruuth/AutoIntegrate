@@ -257,6 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
+var autointegrate_version = "AutoIntegrate v1.19";
 
 // GUI variables
 var infoLabel;
@@ -4701,7 +4702,7 @@ function runStarAlignment(imagetable, refImage)
       P.writeKeywords = true;
       P.generateMasks = false;
       if (par.use_drizzle.val) {
-            P.generateDrizzleData = true; /* Generate .zdrz files. */
+            P.generateDrizzleData = true; /* Generate .xdrz files. */
       } else {
             P.generateDrizzleData = false;
       }
@@ -4806,6 +4807,7 @@ function runLinearFit(refViewId, targetId)
 
 function runDrizzleIntegration(images, name)
 {
+      addProcessingStep("run DrizzleIntegration");
       var drizzleImages = new Array;
       for (var i = 0; i < images.length; i++) {
             drizzleImages[i] = new Array(3);
@@ -4824,7 +4826,8 @@ function runDrizzleIntegration(images, name)
       P.kernelGridSize = 16;
       P.originX = 0.50;
       P.originY = 0.50;
-      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
+      P.enableCFA = false; // is_color_files && par.debayerPattern.val != 'None';
+      console.writeln("enableCFA = " + P.enableCFA);
       P.cfaPattern = "";
       P.enableRejection = true;
       P.enableImageWeighting = true;
@@ -8057,6 +8060,7 @@ function AutoIntegrateEngine(auto_continue)
       console.noteln("--------------------------------------");
       var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
+            addProcessingStep(autointegrate_version);
             addProcessingStep("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
                   addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
@@ -11161,7 +11165,7 @@ function AutoIntegrateDialog()
       this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = "AutoIntegrate v1.18";
+      this.windowTitle = autointegrate_version; 
       this.userResizable = true;
       this.adjustToContents();
       //this.files_GroupBox.setFixedHeight();
