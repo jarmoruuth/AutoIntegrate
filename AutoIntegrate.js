@@ -257,7 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.19";
+var autointegrate_version = "AutoIntegrate v1.20";
 
 // GUI variables
 var infoLabel;
@@ -1563,7 +1563,7 @@ function openImageFiles(filetype)
       var fits_files = "*.fit *.fits *.fts";
       var raw_files = "*.3fr *.ari *.arw *.bay *.braw *.crw *.cr2 *.cr3 *.cap *.data *.dcs *.dcr *.dng " +
                       "*.drf *.eip *.erf *.fff *.gpr *.iiq *.k25 *.kdc *.mdc *.mef *.mos *.mrw *.nef *.nrw *.obm *.orf " +
-                      "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f";
+                      "*.pef *.ptx *.pxn *.r3d *.raf *.raw *.rwl *.rw2 *.rwz *.sr2 *.srf *.srw *.tif *.x3f *.xisf";
       var image_files = fits_files + " " + raw_files;
 
       if (!par.select_all_files.val) {
@@ -3451,7 +3451,6 @@ function findBestSSWEIGHT(fileNames)
       var first_image = true;
       var best_ssweight_naxis = 0;
       for (var i = 0; i < fileNames.length; i++) {
-            var filter;
             var filePath = fileNames[i];
             var ext = '.' + filePath.split('.').pop();
             console.writeln("File " +  filePath + " ext " +  ext);
@@ -3466,6 +3465,7 @@ function findBestSSWEIGHT(fileNames)
 
             // First check if we skip image since we do not know
             // the order for keywords
+            var naxis1 = 0;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
                   switch (keywords[j].name) {
