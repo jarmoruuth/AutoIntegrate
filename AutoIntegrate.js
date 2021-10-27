@@ -257,7 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.20";
+var autointegrate_version = "AutoIntegrate v1.21";
 
 // GUI variables
 var infoLabel;
@@ -322,7 +322,7 @@ var par = {
       custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
-      narrowband_removestars: { val: false, def: false, name : "Narrowband remove stars", type : 'B' },
+      remove_stars_early: { val: false, def: false, name : "Remove stars early", type : 'B' },
 
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -368,7 +368,7 @@ var par = {
       skip_star_fix_mask: { val: false, def: false, name : "Extra narrowband no star mask", type : 'B' },
 
       // Generic Extra processing
-      extra_removestars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
+      extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
@@ -1170,17 +1170,22 @@ function windowIconizeAndKeywordif(id)
       }
 }
 
-function windowRenameKeepif(old_name, new_name, keepif)
+function windowRenameKeepifEx(old_name, new_name, keepif, check_error)
 {
       var w = ImageWindow.windowById(old_name);
       w.mainView.id = new_name;
       if (!keepif) {
             addScriptWindow(new_name);
       }
-      if (w.mainView.id != new_name) {
+      if (check_error && w.mainView.id != new_name) {
             fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
       }
       return w.mainView.id;
+}
+
+function windowRenameKeepif(old_name, new_name, keepif)
+{
+      return windowRenameKeepifEx(old_name, new_name, keepif, true);
 }
 
 function windowRename(old_name, new_name)
@@ -4369,6 +4374,7 @@ function reduceNoiseOnChannelImage(image)
 function createNewStarXTerminator(star_mask, linear_data)
 {
       try {
+            console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask);
             var P = new StarXTerminator;
             P.linear = linear_data;
             P.stars = star_mask;
@@ -4397,15 +4403,18 @@ function createNewStarNet(star_mask)
 }
 
 // Remove stars from an image. We do not create star mask here.
-function removeStars(imgWin, nonlinear_data)
+function removeStars(imgWin, linear_data)
 {
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(false, !nonlinear_data);
+            var P = createNewStarXTerminator(false, linear_data);
+      } else if (linear_data) {
+            throwFatalError("StarNet cannot be used to remove stars while image is still in linear stage.");
       } else {
             addProcessingStep("Run StarNet on " + imgWin.mainView.id);
             var P = createNewStarNet(false);
       }
+
       /* Execute on image.
        */
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -4415,7 +4424,7 @@ function removeStars(imgWin, nonlinear_data)
       imgWin.mainView.endProcess();
 }
 
-/* Do custom mapping of channels to RGB image. We do some the same 
+/* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
  */
 function customMapping(check_filesarr)
@@ -4491,7 +4500,7 @@ function customMapping(check_filesarr)
                    * */
                   par.narrowband_linear_fit.val = "None";
             }
-            if (par.narrowband_removestars.val && !par.use_starxterminator.val) {
+            if (par.remove_stars_early.val && !par.use_starxterminator.val) {
                   // If we remove stars with starnet we need to stretch before
                   // star removal
                   var mapping_on_nonlinear_data = true;
@@ -4513,10 +4522,10 @@ function customMapping(check_filesarr)
                   }
                   RBGmapping.stretched = true;
             }
-            if (par.narrowband_removestars.val) {
+            if (par.remove_stars_early.val) {
                   addProcessingStep("Custom mapping, remove stars");
                   for (var i = 0; i < images.length; i++) {
-                        removeStars(findWindow(images[i]), mapping_on_nonlinear_data);
+                        removeStars(findWindow(images[i]), !mapping_on_nonlinear_data);
                   }
             }
             if (par.narrowband_linear_fit.val != "None") {
@@ -7200,6 +7209,11 @@ function ProcessRGBimage(RBGstretched)
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
 
+            if (is_color_files && par.remove_stars_early.val) {
+                  addProcessingStep("Remove stars from linear RGB color image");
+                  removeStars(findWindow(RGB_ABE_id), true);
+            }
+
             if (par.use_RGBNB_Mapping.val) {
                   /* Do RGBNB mapping on combined and color calibrated RGB image. */
                   RGB_ABE_id = doRGBNBmapping(RGB_ABE_id);
@@ -7644,7 +7658,7 @@ function extraSmallerStars(imgWin)
 
       createStarMask(imgWin);
 
-      if (par.extra_removestars.val) {
+      if (par.extra_remove_stars.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
             targetWin = star_mask_win;    
@@ -7697,7 +7711,7 @@ function extraSmallerStars(imgWin)
       
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (!par.extra_removestars.val) {
+      if (!par.extra_remove_stars.val) {
             /* Transform only light parts of the image. */
             targetWin.setMask(star_mask_win);
             targetWin.maskInverted = false;
@@ -7705,7 +7719,7 @@ function extraSmallerStars(imgWin)
       
       P.executeOn(targetWin.mainView, false);
 
-      if (!par.extra_removestars.val) {
+      if (!par.extra_remove_stars.val) {
             targetWin.removeMask();
       }
 
@@ -7819,7 +7833,7 @@ function is_non_starless_option()
 
 function is_extra_option()
 {
-      return par.extra_removestars.val || 
+      return par.extra_remove_stars.val || 
              is_non_starless_option();
 }
 
@@ -7923,7 +7937,7 @@ function extraProcessing(id, apply_directly)
                   fixNarrowbandStarColor(extraWin);
             }
       }
-      if (par.extra_removestars.val) {
+      if (par.extra_remove_stars.val) {
             extraRemoveStars(extraWin);
       }
       if (par.extra_ABE.val) {
@@ -7968,7 +7982,7 @@ function extraProcessing(id, apply_directly)
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
       }
-      if (par.extra_removestars.val) {
+      if (par.extra_remove_stars.val) {
             /* Restore stars by combining starless image and stars. */
             addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
             runPixelMathSingleMappingEx(
@@ -8106,6 +8120,7 @@ function AutoIntegrateEngine(auto_continue)
                    */
                   RBGmapping = mapLRGBchannels();
                   if (!RBGmapping.combined) {
+                        // We have not yet combined the RGB image
                         if (par.ABE_before_channel_combination.val) {
                               addProcessingStep("Run ABE on channel images");
                               run_ABE_before_channel_combination(luminance_id);
@@ -8114,6 +8129,12 @@ function AutoIntegrateEngine(auto_continue)
                               run_ABE_before_channel_combination(blue_id);
                         }
                         LinearFitLRGBchannels();
+                        if (par.remove_stars_early.val) {
+                              addProcessingStep("Remove stars from linear RGB channel images");
+                              removeStars(findWindow(red_id), true);
+                              removeStars(findWindow(green_id), true);
+                              removeStars(findWindow(blue_id), true);
+                        }
                   }
             }
 
@@ -8121,6 +8142,10 @@ function AutoIntegrateEngine(auto_continue)
                   /* This need to be run early as we create a mask from
                    * L image.
                    */
+                  if (par.remove_stars_early.val) {
+                        addProcessingStep("Remove stars from linear L channel image");
+                        removeStars(findWindow(luminance_id), true);
+                  }
                   LRGBCreateMask();
                   ProcessLimage(RBGmapping);
             }
@@ -8140,7 +8165,7 @@ function AutoIntegrateEngine(auto_continue)
                   if (is_color_files || !is_luminance_images) {
                         /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
                          * will be the final result file.
-                          */
+                         */
                         LRGB_ABE_HT_id = "copy_" + RGB_ABE_HT_id;
                         copyWindow(
                               ImageWindow.windowById(RGB_ABE_HT_id), 
@@ -8271,7 +8296,7 @@ function AutoIntegrateEngine(auto_continue)
                   fname = 'P' + fname;
             }
             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
-            LRGB_ABE_HT_id = windowRenameKeepif(LRGB_ABE_HT_id, fname, true);
+            LRGB_ABE_HT_id = windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, false);
       }
 
       if (LRGB_ABE_HT_id != null) {
@@ -9447,6 +9472,22 @@ function AutoIntegrateDialog()
             par.use_ABE_on_L_RGB.val = checked; 
       }
 
+      this.remove_stars_early_CheckBox = newCheckBox(this, "Remove stars early", par.remove_stars_early.val, 
+            "<p>NOTE! This option does not work correctly with linear images. This should be used " + 
+            "only for narrowband images when they are stretched to non-linear state before combining. " + 
+            "StarXTerminator should be able to handle linear images but in my tests it did not work from " + 
+            "a script although it worked when used directly.</p>" + 
+            "<p>With LRGB images remove stars from L, R, G and B images separately before channels are " + 
+            "combined and while images are still in linear stage. This needs StarXTerminator.</p>" +
+            "<p>With color images (DSLR/OSC) remove stars while image is still in linear stage. " + 
+            "This needs StarXTerminator.</p>" +
+            "<p>With narrowband images remove stars before narrowband mapping. With StarNet this needs " + 
+            "non-linear data so that images are stretched to non-linear state. With StarXTerminator stars " + 
+            "can be removed in linear state.");
+      this.remove_stars_early_CheckBox.onClick = function(checked) { 
+            par.remove_stars_early.val = checked; 
+      }
+
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE.val, 
       "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
@@ -9460,7 +9501,12 @@ function AutoIntegrateDialog()
       }
 
       this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", par.batch_mode.val, 
-      "<p>Run in batch mode, continue until no files are given</p>" );
+            "<p>Run in batch mode, continue until no files are given.</p>" +
+            "<p>Batch mode is intended for processing mosaic panels. When one set of files " + 
+            "is processed, batch mode will automatically ask for the next set of files. " + 
+            "In batch mode only final image windows are left visible. </p>" +
+            "<p>Final images are renamed using the subdirectory name. It is " + 
+            "recommended that each part of the batch is stored in a separate directory. </p>");
       this.batch_mode_CheckBox.onClick = function(checked) { 
             par.batch_mode.val = checked; 
       }
@@ -9512,7 +9558,8 @@ function AutoIntegrateDialog()
       }
 
       this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image.val, 
-      "<p>Create monochrome image</p>" );
+      "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
+      "Quite a few processing steps are skipped with this option.</p>" );
       this.monochrome_image_CheckBox.onClick = function(checked) { 
             par.monochrome_image.val = checked; 
       }
@@ -9601,6 +9648,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
+      this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
@@ -10188,14 +10236,6 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
             par.mapping_on_nonlinear_data.val = checked; 
       }
-      this.narrowband_removestars_CheckBox = newCheckBox(this, "Remove stars", par.narrowband_removestars.val, 
-            "<p>" +
-            "Remove stars before narrowband mapping. With StarNet this needs non-linear data so images are stretched to non-linear state. " +
-            "With StarXTerminator stars can be removed in linear state. " +
-            "</p>" );
-      this.narrowband_removestars_CheckBox.onClick = function(checked) { 
-            par.narrowband_removestars.val = checked; 
-      }
 
       this.narrowbandLinearFit_Label = new Label( this );
       this.narrowbandLinearFit_Label.text = "Linear fit";
@@ -10223,7 +10263,6 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
-      this.mapping_on_nonlinear_data_Sizer.add( this.narrowband_removestars_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
       this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_ComboBox );
 
@@ -10516,12 +10555,12 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
-      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_removestars.val, 
+      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars.val, 
       "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars. When this is selected, extra processing is " +
       "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
       "from starless and star images.</p>" );
       this.extraRemoveStars_CheckBox.onClick = function(checked) { 
-            par.extra_removestars.val = checked; 
+            par.extra_remove_stars.val = checked; 
       }
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background.val, 
       "<p>Make image background darker.</p>" );
