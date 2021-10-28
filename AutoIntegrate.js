@@ -257,7 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.21";
+var autointegrate_version = "AutoIntegrate v1.22";
 
 // GUI variables
 var infoLabel;
@@ -3674,12 +3674,12 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         case "FILTER":
                         case "INSFLNAM":
                               if (filter != null) {
-                                    console.writeln("filter already found, ignored FILTER=" +  value);
+                                    console.writeln("filter already found, ignored "+ keywords[j].name + "=" +  value);
                               } else if (par.autodetect_filter.val) {
-                                    console.writeln("FILTER=" +  value);
+                                    console.writeln(keywords[j].name + "=" + value);
                                     filter = value;
                               } else {
-                                    console.writeln("ignored FILTER=" +  value);
+                                    console.writeln("ignored " + keywords[j].name + "=" +  value);
                               }
                               break;
                         case "SSWEIGHT":
@@ -3689,6 +3689,14 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               break;
                         case "TELESCOP":
                               console.writeln("TELESCOP=" +  value);
+                              if (pageIndex == pages.LIGHTS
+                                  && par.debayerPattern.val == 'Auto'
+                                  && value.search(/slooh/i) != -1
+                                  && value.search(/T3/) != -1) 
+                              {
+                                    console.writeln("Set debayer pattern from Auto to None");
+                                    par.debayerPattern.val = 'None';
+                              }
                               break;
                         case "NAXIS1":
                               console.writeln("NAXIS1=" + value);
@@ -6604,7 +6612,7 @@ function CreateChannelImages(auto_continue)
             }
 
             if (filename_postfix != '') {
-                  // We did run calibration, filer again with calibrated lights
+                  // We did run calibration, filter again with calibrated lights
                   var filtered_files = getFilterFiles(lightFileNames, pages.LIGHTS, filename_postfix);
             } else {
                   // Calibration was not run
@@ -8297,6 +8305,7 @@ function AutoIntegrateEngine(auto_continue)
             }
             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
             LRGB_ABE_HT_id = windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, false);
+            saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
       }
 
       if (LRGB_ABE_HT_id != null) {
@@ -8418,6 +8427,7 @@ function newGroupBox( parent, title, toolTip )
 function Autorun(that)
 {
       var stopped = true;
+      var savedOutputRootDir = outputRootDir;
       batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (par.batch_mode.val) {
             stopped = false;
@@ -8453,6 +8463,7 @@ function Autorun(that)
                         writeProcessingSteps(null, false, null);
                   }
                   if (par.batch_mode.val) {
+                        outputRootDir = savedOutputRootDir;
                         lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
                         closeAllWindows(par.keep_integrated_images.val, true);
@@ -8461,6 +8472,7 @@ function Autorun(that)
                   stopped = true;
             }
       } while (!stopped);
+      outputRootDir = savedOutputRootDir;
 }
 
 function aiSectionLabel(parent, text)
@@ -9484,7 +9496,7 @@ function AutoIntegrateDialog()
             "<p>With narrowband images remove stars before narrowband mapping. With StarNet this needs " + 
             "non-linear data so that images are stretched to non-linear state. With StarXTerminator stars " + 
             "can be removed in linear state.");
-      this.remove_stars_early_CheckBox.onClick = function(checked) { 
+      this.remove_stars_early_CheckBox.onClick = function(checked) {
             par.remove_stars_early.val = checked; 
       }
 
