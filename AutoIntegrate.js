@@ -257,7 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.22";
+var autointegrate_version = "AutoIntegrate v1.23";
 
 // GUI variables
 var infoLabel;
@@ -694,7 +694,12 @@ function fix_win_prefix_array()
       var new_prefix_array = [];
 
       for (var i = 0; i < ppar.prefixArray.length; i++) {
-            if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
+            if (ppar.prefixArray[i] == null) {
+                  continue;
+            } else if (!Array.isArray(ppar.prefixArray[i])) {
+                  // bug fix, mark as free
+                  continue;
+            } else if (ppar.prefixArray[i][1] != '-') {
                   new_prefix_array[new_prefix_array.length] = ppar.prefixArray[i];
             }
       }
@@ -10911,8 +10916,11 @@ function AutoIntegrateDialog()
                               fixAllWindowArrays(ppar.prefixArray[i][1]);
                               closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
-                                    ppar.prefixArray[i] = 0;
+                                    // If we keep integrated images then we can start
+                                    // from zero icon position
+                                    ppar.prefixArray[i][2] = 0;
                               } else {
+                                    // Mark closed position as empty/free
                                     ppar.prefixArray[i] = [ 0, '-', 0 ];
                               }
                         }
@@ -11252,7 +11260,6 @@ function main()
             if (Settings.lastReadOK) {
                   console.noteln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
                   ppar.prefixArray = JSON.parse(tempSetting);
-                  fix_win_prefix_array();
                   if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
                         // We have old format prefix array without column position
                         // Add column position as the first array element
@@ -11261,15 +11268,15 @@ function main()
                               if (ppar.prefixArray[i] == null) {
                                     ppar.prefixArray[i] = [0, '-', 0];
                               } else if (ppar.prefixArray[i][0] == '-') {
-                                    // free slot, use zero as column
+                                    // add zero column position
                                     ppar.prefixArray[i].unshift(0);
                               } else {
-                                    // Used slot
+                                    // Used slot, add i as column position
                                     ppar.prefixArray[i].unshift(i);
                               }
                         }
-                        fix_win_prefix_array();
                   }
+                  fix_win_prefix_array();
             }
             var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
             if (Settings.lastReadOK) {
