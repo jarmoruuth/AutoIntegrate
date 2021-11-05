@@ -257,7 +257,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.23";
+var autointegrate_version = "AutoIntegrate v1.24";
 
 // GUI variables
 var infoLabel;
@@ -279,6 +279,7 @@ var par = {
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
       skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
+      binning: { val: 0, def: 0, name : "Binning", type : 'I' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
       ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
@@ -287,9 +288,6 @@ var par = {
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
       skip_imageintegration_ssweight: { val: false, def: false, name : "No ImageIntegration SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
-      noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
-      channel_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on color channels", type : 'I' },
-      use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
 
       // Other parameters
@@ -344,6 +342,11 @@ var par = {
       O_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
 
       // Processing settings
+      noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
+      luminance_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on luminance image", type : 'I' },
+      combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on combined image", type : 'B' },
+      use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
+      ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'Generic', def: 'Generic', name : "Weight calculation", type : 'S' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
@@ -422,9 +425,10 @@ var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
-var noise_reduction_strength_values = [ '0', '3', '4', '5'];
+var noise_reduction_strength_values = [ '0', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
+var binning_values = [ 'None', 'Color', 'L and color'];
 
 var close_windows = false;
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
@@ -1620,6 +1624,31 @@ function findMax(arr, idx)
             }
       }
       return maxval;
+}
+
+function updateBinningKeywords(imageWindow, binning_size)
+{
+      var newKeywords = [];
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == 'NAXIS1' 
+                || keyword.name == 'NAXIS2'
+                || keyword.name == 'IMAGEW'
+                || keyword.name == 'IMAGEH')
+            {
+                  var value = keyword.strippedValue.trim();
+                  var naxis = parseInt(value);
+                  var new_naxis = naxis / binning_size;
+                  newKeywords[newKeywords.length] = new FITSKeyword(
+                                                            keyword.name,
+                                                            new_naxis.toFixed(0),
+                                                            "");
+            } else {
+                  newKeywords[newKeywords.length] = keyword;
+            }
+      }
+      imageWindow.keywords = newKeywords;
 }
 
 function filterKeywords(imageWindow, keywordname) 
@@ -3173,6 +3202,83 @@ function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
       return newFileNames;
 }
 
+function isLuminanceFile(filtered_files, filePath)
+{
+      for (var i = 0; i < filtered_files.allfiles.L.length; i++) {
+            if (filtered_files.allfiles.L[i].name == filePath) {
+                  return true;
+            }
+      }
+      return false;
+}
+
+function runBinningOnLights(fileNames, filtered_files)
+{
+      var newFileNames = [];
+      var outputDir = outputRootDir + AutoOutputDir;
+      var postfix = "_b2";
+      var outputExtension = ".xisf";
+ 
+      addProcessingStep("do 2x2 binning using IntegerResample on light files, output *" + postfix + ".xisf");
+      console.writeln("runBinningOnLights input[0] " + fileNames[0]);
+
+      for (var i = 0; i < fileNames.length; i++) {
+            var do_binning = true;
+            if (par.binning.val == 1) {
+                  // Binning is done only for color channels, check if this is luminance file
+                  if (isLuminanceFile(filtered_files, fileNames[i])) {
+                        do_binning = false;
+                  }
+            }
+            if (do_binning) {
+                  // Open source image window from a file
+                  var imageWindows = ImageWindow.open(fileNames[i]);
+                  if (imageWindows.length != 1) {
+                        throwFatalError("*** runBinningOnLights Error: imageWindows.length: " + imageWindows.length);
+                  }
+                  var imageWindow = imageWindows[0];
+                  if (imageWindow == null) {
+                        throwFatalError("*** runBinningOnLights Error: Can't read file: " + fileNames[i]);
+                  }
+
+                  var P = new IntegerResample;
+                  P.zoomFactor = -2;
+                  P.downsamplingMode = IntegerResample.prototype.Average;
+                  P.xResolution = 72.000;
+                  P.yResolution = 72.000;
+                  P.metric = false;
+                  P.forceResolution = false;
+                  P.noGUIMessages = true;
+
+                  imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+                  P.executeOn(imageWindow.mainView, false);
+                  
+                  imageWindow.mainView.endProcess();
+
+                  updateBinningKeywords(imageWindow, 2);
+            
+                  var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+
+                  // Save window
+                  if (!writeImage(filePath, imageWindow)) {
+                        throwFatalError("*** runBinningOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+                  }
+                  // Close window
+                  forceCloseOneWindow(imageWindow);
+            } else{
+                  // keep the old file name
+                  var filePath = fileNames[i];
+            }
+
+            newFileNames[newFileNames.length] = filePath;
+      }
+
+      console.writeln("runBinningOnLights output[0] " + newFileNames[0]);
+
+      return newFileNames;
+}
+
 function runABEOnLights(fileNames)
 {
       var newFileNames = [];
@@ -3187,18 +3293,18 @@ function runABEOnLights(fileNames)
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (imageWindows.length != 1) {
-                  throwFatalError("*** runABEOnLights Error: imageWindows.length: ", imageWindows.length);
+                  throwFatalError("*** runABEOnLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
-                  throwFatalError("*** runABEOnLights Error: Can't read file: ", filePath);
+                  throwFatalError("*** runABEOnLights Error: Can't read file: " + fileNames[i]);
             }
             
             // Run ABE which creates a new window with _ABE extension
             var new_id = runABEex(imageWindow, false, postfix);
             var new_win = findWindow(new_id);
             if (new_win == null) {
-                  throwFatalError("*** runABEOnLights Error: could not find window: ", new_id);
+                  throwFatalError("*** runABEOnLights Error: could not find window: " + new_id);
             }
             
             // Source image window is not needed any more
@@ -3208,7 +3314,7 @@ function runABEOnLights(fileNames)
 
             // Save ABE window
             if (!writeImage(filePath, new_win)) {
-                  throwFatalError("*** runABEOnLights Error: Can't write output image: ", new_id);
+                  throwFatalError("*** runABEOnLights Error: Can't write output image: " + new_id);
             }
             // Close ABE window
             forceCloseOneWindow(new_win);
@@ -4366,20 +4472,31 @@ function mapRGBchannel(images, refimage, mapping)
       return target_image;
 }
 
-function reduceNoiseOnChannelImage(image)
+function luminanceNoiseReduction(imgWin, maskWin)
 {
-      if (par.skip_noise_reduction.val || par.channel_noise_reduction_strength.val == 0) {
+      if (par.skip_noise_reduction.val || par.luminance_noise_reduction_strength.val == 0) {
             return;
       }
-      addProcessingStep("Reduce noise on channel image " + image);
+
+      addProcessingStep("Reduce noise on luminance image " + imgWin.mainView.id);
+
+      runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.luminance_noise_reduction_strength.val);
+}
+
+function channelNoiseReduction(image_id)
+{
+      if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
+            return;
+      }
+      addProcessingStep("Reduce noise on channel image " + image_id);
 
       /* Create a temporary stretched copy to be used as a mask. */
-      var maskname = ensure_win_prefix(image + "_mask");
-      var image_win = findWindow(image);
+      var maskname = ensure_win_prefix(image_id + "_mask");
+      var image_win = findWindow(image_id);
       var mask_win = copyWindow(image_win, maskname);
       runHistogramTransform(mask_win, null, false, 'mask');
 
-      runMultiscaleLinearTransformReduceNoise(image_win, mask_win, par.channel_noise_reduction_strength.val);
+      runMultiscaleLinearTransformReduceNoise(image_win, mask_win, par.noise_reduction_strength.val);
 
       closeOneWindow(maskname);
 }
@@ -4497,10 +4614,10 @@ function customMapping(check_filesarr)
                   }
             }
 
-            if (par.channel_noise_reduction_strength.val > 0) {
+            if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
                   // Optionally do noise reduction on color channels in linear state
                   for (var i = 0; i < images.length; i++) {
-                        reduceNoiseOnChannelImage(images[i]);
+                        channelNoiseReduction(images[i]);
                   }
             }
             if (par.narrowband_linear_fit.val == "Auto"
@@ -4959,7 +5076,7 @@ function runImageIntegration(channel_images, name)
       P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
       P.adaptiveGridSize = 16;
       P.ignoreNoiseKeywords = false;
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;      // changed if adaptive normalization is used
       P.minMaxLow = 1;
       P.minMaxHigh = 1;
       P.pcClipLow = 0.200;
@@ -5028,6 +5145,7 @@ function runImageIntegration(channel_images, name)
       } else if (par.imageintegration_normalization.val == 'Adaptive') {
             addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
+            P.rejectionNormalization = ImageIntegration.prototype.AdaptiveRejectionNormalization;
       } else {
             addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.NoNormalization;
@@ -5583,6 +5701,72 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       }
 }
 
+function runACDNRReduceNoise(imgWin, maskWin)
+{
+      if (par.ACDNR_noise_reduction.val == 0.0) {
+            return;
+      }
+      addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id);
+
+      var P = new ACDNR;
+
+      P.applyToLightness = true;
+      P.applyToChrominance = false;
+      P.useMaskL = false;
+      P.useMaskC = false;
+      P.sigmaL = par.ACDNR_noise_reduction.val;
+      P.sigmaC = 2.0;
+      P.shapeL = 0.50;
+      P.shapeC = 0.50;
+      P.amountL = 0.50;
+      P.amountC = 1.00;
+      P.iterationsL = 3;
+      P.iterationsC = 3;
+      P.prefilterMethodL = ACDNR.prototype.None;
+      P.prefilterMethodC = ACDNR.prototype.None;
+      P.protectionMethodL = ACDNR.prototype.WeightedAverage3x3;
+      P.protectionMethodC = ACDNR.prototype.UnweightedAverage3x3;
+      P.minStructSizeL = 5;
+      P.minStructSizeC = 5;
+      P.protectDarkSidesL = true;
+      P.protectDarkSidesC = true;
+      P.darkSidesThresholdL = 0.015;
+      P.darkSidesThresholdC = 0.030;
+      P.darkSidesOverdriveL = 0.00;
+      P.darkSidesOverdriveC = 0.00;
+      P.protectBrightSidesL = true;
+      P.protectBrightSidesC = true;
+      P.brightSidesThresholdL = 0.015;
+      P.brightSidesThresholdC = 0.030;
+      P.brightSidesOverdriveL = 0.00;
+      P.brightSidesOverdriveC = 0.00;
+      P.starProtectionL = true;
+      P.starProtectionC = true;
+      P.starThresholdL = 0.030;
+      P.starThresholdC = 0.030;
+      P.previewMask = false;
+      P.maskRemovedWaveletLayers = 1;
+      P.maskShadowsClipping = 0.00000;
+      P.maskHighlightsClipping = 1.00000;
+      P.maskMTF = 0.50000;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      if (maskWin != null) {
+            /* Remove noise from dark parts of the image. */
+            imgWin.setMask(maskWin);
+            imgWin.maskInverted = true;
+      }
+
+      P.executeOn(imgWin.mainView, false);
+
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
+
+      imgWin.mainView.endProcess();
+}
+
 function noiseSuperStrong()
 {
       var P = new MultiscaleLinearTransform;
@@ -5593,7 +5777,69 @@ function noiseSuperStrong()
             [true, true, 0.000, true, 1.000, 0.50, 1],
             [true, true, 0.000, true, 0.500, 0.50, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
-         ];
+      ];
+      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
+      P.scaleDelta = 0;
+      P.scalingFunctionData = [
+         0.25,0.5,0.25,
+         0.5,1,0.5,
+         0.25,0.5,0.25
+      ];
+      P.scalingFunctionRowFilter = [
+         0.5,
+         1,
+         0.5
+      ];
+      P.scalingFunctionColFilter = [
+         0.5,
+         1,
+         0.5
+      ];
+      P.scalingFunctionNoiseSigma = [
+         0.8003,0.2729,0.1198,
+         0.0578,0.0287,0.0143,
+         0.0072,0.0036,0.0019,
+         0.001
+      ];
+      P.scalingFunctionName = "Linear Interpolation (3)";
+      P.linearMask = false;
+      P.linearMaskAmpFactor = 100;
+      P.linearMaskSmoothness = 1.00;
+      P.linearMaskInverted = true;
+      P.linearMaskPreview = false;
+      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
+      P.curveBreakPoint = 0.75;
+      P.noiseThresholding = false;
+      P.noiseThresholdingAmount = 1.00;
+      P.noiseThreshold = 3.00;
+      P.softThresholding = true;
+      P.useMultiresolutionSupport = false;
+      P.deringing = false;
+      P.deringingDark = 0.1000;
+      P.deringingBright = 0.0000;
+      P.outputDeringingMaps = false;
+      P.lowRange = 0.0000;
+      P.highRange = 0.0000;
+      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
+      P.previewLayer = 0;
+      P.toLuminance = true;
+      P.toChrominance = true;
+      P.linear = false;
+      
+      return P;
+}
+
+function noiseStronger()
+{
+      var P = new MultiscaleLinearTransform;
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, true, 5.000, 0.50, 3],
+            [true, true, 0.000, true, 3.000, 0.50, 3],
+            [true, true, 0.000, true, 2.000, 0.50, 2],
+            [true, true, 0.000, true, 1.000, 0.50, 1],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+      ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
       P.scaleDelta = 0;
       P.scalingFunctionData = [
@@ -5648,13 +5894,23 @@ function noiseSuperStrong()
 function noiseStrong()
 {
       var P = new MultiscaleLinearTransform;
-      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-      [true, true, 0.000, true, 3.000, 0.50, 3],
-      [true, true, 0.000, true, 2.000, 0.50, 2],
-      [true, true, 0.000, true, 1.000, 0.50, 2],
-      [true, true, 0.000, true, 0.500, 0.50, 1],
-      [true, true, 0.000, false, 3.000, 1.00, 1]
-      ];
+      if (0) {
+            P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+                  [true, true, 0.000, true, 3.000, 0.50, 3],
+                  [true, true, 0.000, true, 2.000, 0.50, 2],
+                  [true, true, 0.000, true, 1.000, 0.50, 2],
+                  [true, true, 0.000, true, 0.500, 0.50, 1],
+                  [true, true, 0.000, false, 3.000, 1.00, 1]
+            ];
+      } else {
+            P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+                  [true, true, 0.000, true, 4.000, 0.50, 3],
+                  [true, true, 0.000, true, 2.000, 0.50, 2],
+                  [true, true, 0.000, true, 1.000, 0.50, 2],
+                  [true, true, 0.000, true, 0.500, 0.50, 1],
+                  [true, true, 0.000, false, 3.000, 1.00, 1]
+            ];
+      }
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
       P.scaleDelta = 0;
       P.scalingFunctionData = [
@@ -5710,10 +5966,70 @@ function noiseMild()
 {
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-      [true, true, 0.000, true, 1.000, 0.50, 2],
-      [true, true, 0.000, true, 0.500, 0.50, 2],
-      [true, true, 0.000, true, 0.500, 0.50, 1],
-      [true, true, 0.000, false, 3.000, 1.00, 1]
+            [true, true, 0.000, true, 3.000, 0.50, 3],
+            [true, true, 0.000, true, 1.000, 0.50, 1],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+      ];
+      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
+      P.scaleDelta = 0;
+      P.scalingFunctionData = [
+      0.25,0.5,0.25,
+      0.5,1,0.5,
+      0.25,0.5,0.25
+      ];
+      P.scalingFunctionRowFilter = [
+      0.5,
+      1,
+      0.5
+      ];
+      P.scalingFunctionColFilter = [
+      0.5,
+      1,
+      0.5
+      ];
+      P.scalingFunctionNoiseSigma = [
+      0.8003,0.2729,0.1198,
+      0.0578,0.0287,0.0143,
+      0.0072,0.0036,0.0019,
+      0.001
+      ];
+      P.scalingFunctionName = "Linear Interpolation (3)";
+      P.linearMask = false;
+      P.linearMaskAmpFactor = 100;
+      P.linearMaskSmoothness = 1.00;
+      P.linearMaskInverted = true;
+      P.linearMaskPreview = false;
+      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
+      P.curveBreakPoint = 0.75;
+      P.noiseThresholding = false;
+      P.noiseThresholdingAmount = 1.00;
+      P.noiseThreshold = 3.00;
+      P.softThresholding = true;
+      P.useMultiresolutionSupport = false;
+      P.deringing = false;
+      P.deringingDark = 0.1000;
+      P.deringingBright = 0.0000;
+      P.outputDeringingMaps = false;
+      P.lowRange = 0.0000;
+      P.highRange = 0.0000;
+      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
+      P.previewLayer = 0;
+      P.toLuminance = true;
+      P.toChrominance = true;
+      P.linear = false;
+
+      return P;
+}
+
+function noiseVeryMild()
+{
+      var P = new MultiscaleLinearTransform;
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, true, 1.000, 0.50, 2],
+            [true, true, 0.000, true, 0.500, 0.50, 2],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
       P.scaleDelta = 0;
@@ -5774,13 +6090,25 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 
       console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
 
-      if (strength <= 3) {
-            var P = noiseMild();
-      } else if (strength == 4) {
-            var P = noiseStrong();
-      } else {
-            var P = noiseSuperStrong();
-       } 
+      switch (strength) {
+            case 2:
+                  var P = noiseVeryMild();
+                  break;
+            case 3:
+                  var P = noiseMild();
+                  break;
+            case 4:
+                  var P = noiseStrong();
+                  break;
+            case 5:
+                  var P = noiseStronger();
+                  break;
+            case 6:
+                  var P = noiseSuperStrong();
+                  break;
+            default:
+                  throwFatalError("Bad noise reduction value " + strength);
+      } 
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -5809,7 +6137,6 @@ function runNoiseReduction(imgWin, maskWin)
 
       runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.noise_reduction_strength.val);
 }
-
 function runColorReduceNoise(imgWin)
 {
       if (!par.use_color_noise_reduction.val) {
@@ -6420,6 +6747,91 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
+function findStartImages(auto_continue, check_base_name)
+{
+      /* Check if we have manually done histogram transformation. */
+      L_HT_win = findWindowCheckBaseNameIf("L_HT", check_base_name);
+      RGB_HT_win = findWindowCheckBaseNameIf("RGB_HT", check_base_name);
+
+      /* Check if we have manual background extracted files. */
+      L_BE_win = findWindowCheckBaseNameIf("Integration_L_BE", check_base_name);
+      R_BE_win = findWindowCheckBaseNameIf("Integration_R_BE", check_base_name);
+      G_BE_win = findWindowCheckBaseNameIf("Integration_G_BE", check_base_name);
+      B_BE_win = findWindowCheckBaseNameIf("Integration_B_BE", check_base_name);
+      H_BE_win = findWindowCheckBaseNameIf("Integration_H_BE", check_base_name);
+      S_BE_win = findWindowCheckBaseNameIf("Integration_S_BE", check_base_name);
+      O_BE_win = findWindowCheckBaseNameIf("Integration_O_BE", check_base_name);
+      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_BE", check_base_name);
+
+      findProcessedImages(check_base_name);
+
+      if (is_extra_option() || is_narrowband_option()) {
+            for (var i = 0; i < final_windows.length; i++) {
+                  final_win = findWindowNoPrefixIf(final_windows[i], check_base_name);
+                  if (final_win != null) {
+                        break;
+                  }
+            }
+      }
+      if (L_BE_win != null || L_HT_win != null || L_id != null) {
+            is_luminance_images = true;
+      } else {
+            is_luminance_images = false;
+      }
+
+      if (final_win != null) {
+            addProcessingStep("Final image " + final_win.mainView.id);
+            preprocessed_images = start_images.FINAL;
+      } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {      /* L,RGB HistogramTransformation */
+            addProcessingStep("L,RGB HistogramTransformation");
+            preprocessed_images = start_images.L_RGB_HT;
+      } else if (checkAutoCont(RGB_HT_win)) {                                 /* RGB (color) HistogramTransformation */
+            addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
+            preprocessed_images = start_images.RGB_HT;
+      } else if (checkAutoCont(L_BE_win) && checkAutoCont(RGB_BE_win)) {      /* L,RGB background extracted */
+            addProcessingStep("L,RGB background extracted");
+            preprocessed_images = start_images.L_RGB_BE;
+      } else if (checkAutoCont(RGB_BE_win)) {                                 /* RGB (color) background extracted */
+            addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
+            preprocessed_images = start_images.RGB_BE;
+      } else if ((checkAutoCont(R_BE_win) && checkAutoCont(G_BE_win) && checkAutoCont(B_BE_win)) ||
+                  (checkAutoCont(H_BE_win) && checkAutoCont(O_BE_win))) {     /* L,R,G,B background extracted */
+            addProcessingStep("L,R,G,B background extracted");
+            preprocessed_images = start_images.L_R_G_B_BE;
+            narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
+      } else if (RGBcolor_id != null 
+                  && H_id == null && O_id == null && L_id == null) {          /* RGB (color) integrated image */
+            addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
+            var check_name = ppar.win_prefix + "Integration_RGB_ABE";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                    "Close previously processed images or use a different window prefix.")
+            }
+            var check_name = ppar.win_prefix + "Integration_RGB_noABE";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                    "Close previously processed images or use a different window prefix.")
+            }
+            checkAutoCont(findWindow(RGBcolor_id));
+            preprocessed_images = start_images.RGB_COLOR;
+      } else if ((R_id != null && G_id != null && B_id != null) ||
+                  (H_id != null && O_id != null)) {                           /* L,R,G,B integrated images */
+            addProcessingStep("L,R,G,B integrated images");
+            var check_name = ppar.win_prefix + "Integration_RGB";
+            if (auto_continue && findWindow(check_name)) {
+                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+                                    "Close previously processed images or use a different window prefix.")
+            }
+            checkAutoCont(findWindow(R_id));
+            checkAutoCont(findWindow(H_id));
+            narrowband = H_id != null || S_id != null || O_id != null;
+            preprocessed_images = start_images.L_R_G_B;
+      } else {
+            preprocessed_images = start_images.NONE;
+      }
+      return preprocessed_images;
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -6440,89 +6852,16 @@ function CreateChannelImages(auto_continue)
       final_win = null;
       write_processing_log_file = false;  // do not write the log file if we fail very early
 
-      /* Check if we have manually done histogram transformation. */
-      L_HT_win = findWindowCheckBaseNameIf("L_HT", auto_continue);
-      RGB_HT_win = findWindowCheckBaseNameIf("RGB_HT", auto_continue);
-
-      /* Check if we have manual background extracted files. */
-      L_BE_win = findWindowCheckBaseNameIf("Integration_L_BE", auto_continue);
-      R_BE_win = findWindowCheckBaseNameIf("Integration_R_BE", auto_continue);
-      G_BE_win = findWindowCheckBaseNameIf("Integration_G_BE", auto_continue);
-      B_BE_win = findWindowCheckBaseNameIf("Integration_B_BE", auto_continue);
-      H_BE_win = findWindowCheckBaseNameIf("Integration_H_BE", auto_continue);
-      S_BE_win = findWindowCheckBaseNameIf("Integration_S_BE", auto_continue);
-      O_BE_win = findWindowCheckBaseNameIf("Integration_O_BE", auto_continue);
-      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_BE", auto_continue);
-
-      findProcessedImages(auto_continue);
-
-      if (is_extra_option() || is_narrowband_option()) {
-            for (var i = 0; i < final_windows.length; i++) {
-                  final_win = findWindowNoPrefixIf(final_windows[i], auto_continue);
-                  if (final_win != null) {
-                        break;
-                  }
+      if (auto_continue) {
+            console.writeln("AutoContinue, find start images with prefix");
+            preprocessed_images = findStartImages(true, false);
+            if (preprocessed_images == start_images.NONE && ppar.win_prefix != "") {
+                  console.writeln("AutoContinue, find start images without prefix");
+                  preprocessed_images = findStartImages(true, true);
             }
-      }
-      if (L_BE_win != null || L_HT_win != null || L_id != null) {
-            is_luminance_images = true;
       } else {
-            is_luminance_images = false;
-      }
-
-      /* Check if we have manually created mask. */
-      range_mask_win = null;
-
-      if (final_win != null) {
-            addProcessingStep("Final image " + final_win.mainView.id);
-            preprocessed_images = start_images.FINAL;
-      } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {        /* L,RGB HistogramTransformation */
-            addProcessingStep("L,RGB HistogramTransformation");
-            preprocessed_images = start_images.L_RGB_HT;
-      } else if (checkAutoCont(RGB_HT_win)) {                         /* RGB (color) HistogramTransformation */
-            addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
-            preprocessed_images = start_images.RGB_HT;
-      } else if (checkAutoCont(L_BE_win) && checkAutoCont(RGB_BE_win)) { /* L,RGB background extracted */
-            addProcessingStep("L,RGB background extracted");
-            preprocessed_images = start_images.L_RGB_BE;
-      } else if (checkAutoCont(RGB_BE_win)) {                         /* RGB (color) background extracted */
-            addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
-            preprocessed_images = start_images.RGB_BE;
-      } else if ((checkAutoCont(R_BE_win) && checkAutoCont(G_BE_win) && checkAutoCont(B_BE_win)) ||
-                 (checkAutoCont(H_BE_win) && checkAutoCont(O_BE_win))) {  /* L,R,G,B background extracted */
-            addProcessingStep("L,R,G,B background extracted");
-            preprocessed_images = start_images.L_R_G_B_BE;
-            narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
-      } else if (RGBcolor_id != null 
-                 && H_id == null && O_id == null && L_id == null) { /* RGB (color) integrated image */
-            addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
-            var check_name = ppar.win_prefix + "Integration_RGB_ABE";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                  "Close previously processed images or use a different window prefix.")
-            }
-            var check_name = ppar.win_prefix + "Integration_RGB_noABE";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                  "Close previously processed images or use a different window prefix.")
-            }
-            checkAutoCont(findWindow(RGBcolor_id));
-            preprocessed_images = start_images.RGB_COLOR;
-      } else if ((R_id != null && G_id != null && B_id != null) ||
-                 (H_id != null && O_id != null)) {                /* L,R,G,B integrated images */
-            addProcessingStep("L,R,G,B integrated images");
-            var check_name = ppar.win_prefix + "Integration_RGB";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                  "Close previously processed images or use a different window prefix.")
-            }
-            checkAutoCont(findWindow(R_id));
-            checkAutoCont(findWindow(H_id));
-            narrowband = H_id != null || S_id != null || O_id != null;
-            preprocessed_images = start_images.L_R_G_B;
-      } else {
-            addProcessingStep("No preprocessed images found");
-            preprocessed_images = start_images.NONE;
+            // find old images with prefix
+            preprocessed_images = findStartImages(false, false);
       }
 
       if (auto_continue) {
@@ -6537,6 +6876,9 @@ function CreateChannelImages(auto_continue)
                   return false;
             }  
       }
+
+      /* Check if we have manually created mask. */
+      range_mask_win = null;
 
       write_processing_log_file = true;
 
@@ -6598,7 +6940,10 @@ function CreateChannelImages(auto_continue)
             ensureDir(combinePath(outputRootDir, AutoProcessedDir));
 
             var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
-            if (isCustomMapping(filtered_lights.narrowband)) {
+            if (isCustomMapping(filtered_lights.narrowband)
+                && !par.integrate_only.val
+                && !par.calibrate_only.val)
+            {
                   // Do a check round in custom mapping to verify that all needed
                   // channels have files.
                   // We exit with fatal error if some files are missing
@@ -6631,6 +6976,14 @@ function CreateChannelImages(auto_continue)
 
             fileNames = lightFileNames;
 
+            if (par.binning.val > 0) {
+                  if (is_color_files) {
+                        addProcessingStep("No binning for color files");
+                  } else {
+                        fileNames = runBinningOnLights(fileNames, filtered_files);
+                        filename_postfix = filename_postfix + '_b2';
+                  }
+            }
             if (par.ABE_on_lights.val) {
                   fileNames = runABEOnLights(fileNames);
                   filename_postfix = filename_postfix + '_ABE';
@@ -6861,7 +7214,7 @@ function ProcessLimage(RBGmapping)
 
             if (!RBGmapping.combined) {
                   /* Noise reduction for L. */
-                  runNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                  luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
                   noise_reduction_done = true;
             }
 
@@ -6889,7 +7242,7 @@ function ProcessLimage(RBGmapping)
 
       if (!noise_reduction_done) {
             /* Noise reduction for L. */
-            runNoiseReduction(L_ABE_HT_win, mask_win);
+            luminanceNoiseReduction(L_ABE_HT_win, mask_win);
       }
 }
 
@@ -6960,11 +7313,11 @@ function CombineRGBimage()
 {
       addProcessingStep("CombineRGBimage");
 
-      if (par.channel_noise_reduction_strength.val > 0 && !narrowband) {
+      if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
             addProcessingStep("Noise reduction on channel images");
-            reduceNoiseOnChannelImage(red_id);
-            reduceNoiseOnChannelImage(green_id);
-            reduceNoiseOnChannelImage(blue_id);
+            channelNoiseReduction(red_id);
+            channelNoiseReduction(green_id);
+            channelNoiseReduction(blue_id);
       }
 
       /* ChannelCombination
@@ -7249,7 +7602,7 @@ function ProcessRGBimage(RBGstretched)
                   }
             }
       
-            if (!is_color_files) {
+            if (!is_color_files && par.combined_image_noise_reduction.val) {
                   /* Optional noise reduction for RGB
                    */
                   runNoiseReduction(
@@ -7278,7 +7631,6 @@ function ProcessRGBimage(RBGstretched)
             runNoiseReduction(
                   ImageWindow.windowById(RGB_ABE_HT_id),
                   mask_win);
-            runColorReduceNoise(ImageWindow.windowById(RGB_ABE_HT_id));
       }
 
       if (narrowband && par.non_linear_increase_saturation.val > 0) {
@@ -8136,7 +8488,9 @@ function AutoIntegrateEngine(auto_continue)
                         // We have not yet combined the RGB image
                         if (par.ABE_before_channel_combination.val) {
                               addProcessingStep("Run ABE on channel images");
-                              run_ABE_before_channel_combination(luminance_id);
+                              if (luminance_id != null) {
+                                    run_ABE_before_channel_combination(luminance_id);
+                              }
                               run_ABE_before_channel_combination(red_id);
                               run_ABE_before_channel_combination(green_id);
                               run_ABE_before_channel_combination(blue_id);
@@ -8196,16 +8550,21 @@ function AutoIntegrateEngine(auto_continue)
                         LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
                   }
 
-                  if (!narrowband && !par.use_RGBNB_Mapping.val) {
-                        /* Remove green cast, run SCNR
-                        */
-                        runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
-                  }
-          
+                  /* Optional ACDNR noise reduction for RGB. Used mostly to reduce black
+                   * spots left from previous noise reduction.
+                   */
+                  runACDNRReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id), mask_win);
+
                   /* Optional color noise reduction for RGB.
                    */
                   runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
 
+                  if (!narrowband && !par.use_RGBNB_Mapping.val) {
+                        /* Remove green cast, run SCNR
+                         */
+                        runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
+                  }
+          
                   /* Sharpen image, use mask to sharpen mostly the light parts of image.
                   */
                   runMultiscaleLinearTransformSharpen(
@@ -9478,7 +9837,7 @@ function AutoIntegrateDialog()
       }
 
       this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights.val, 
-      "<p>Use AutomaticBackgroundExtractor on all light images as the first step.</p>" );
+      "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.ABE_on_lights_CheckBox.onClick = function(checked) { 
             par.ABE_on_lights.val = checked; 
       }
@@ -9696,6 +10055,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationLightnessControl = new NumericControl( this );
       this.LRGBCombinationLightnessControl.label.text = "Lightness";
       this.LRGBCombinationLightnessControl.setRange(0, 1);
+      this.LRGBCombinationLightnessControl.setPrecision(1);
       this.LRGBCombinationLightnessControl.setValue(par.LRGBCombination_lightness.val);
       this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>";
       this.LRGBCombinationLightnessControl.onValueUpdated = function( value )
@@ -9706,6 +10066,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationSaturationControl = new NumericControl( this );
       this.LRGBCombinationSaturationControl.label.text = "Saturation";
       this.LRGBCombinationSaturationControl.setRange(0, 1);
+      this.LRGBCombinationSaturationControl.setPrecision(1);
       this.LRGBCombinationSaturationControl.setValue(par.LRGBCombination_saturation.val);
       this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>";
       this.LRGBCombinationSaturationControl.onValueUpdated = function( value )
@@ -9760,15 +10121,16 @@ function AutoIntegrateDialog()
       this.saturationGroupBoxSizer.add( this.linearSaturationSpinBox );
       this.saturationGroupBoxSizer.add( this.nonLinearSaturationLabel );
       this.saturationGroupBoxSizer.add( this.nonLinearSaturationSpinBox );
-      //this.saturationGroupBoxSizer.addStretch();
+      this.saturationGroupBoxSizer.addStretch();
 
       // Noise reduction
       var noiseReductionToolTipCommon = "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
                                         "Bigger strength value means stronger noise reduction.</p>" + 
-                                        "<p>Noise reduction uses MultiscaleLinerTransform. Strength is the number of layers used to reduce noise.</p>";
+                                        "<p>Noise reduction uses MultiscaleLinerTransform. Strength between 3 and 5 is the number of layers used to reduce noise. " + 
+                                        "Strength 2 is very mild three layer noise reduction and strength 6 is very aggressive five layer noise reduction</p>";
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
-      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for L and combined RGB image.</p>" + noiseReductionToolTipCommon;
+      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
       this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.noiseReductionStrengthComboBox = new ComboBox( this );
@@ -9780,19 +10142,25 @@ function AutoIntegrateDialog()
             par.noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
       };
 
-      this.channelNoiseReductionStrengthLabel = new Label( this );
-      this.channelNoiseReductionStrengthLabel.text = "Channel noise reduction";
-      this.channelNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) images.</p>" + noiseReductionToolTipCommon;
-      this.channelNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.luminanceNoiseReductionStrengthLabel = new Label( this );
+      this.luminanceNoiseReductionStrengthLabel.text = "Luminance noise reduction";
+      this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionToolTipCommon;
+      this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.channelNoiseReductionStrengthComboBox = new ComboBox( this );
-      this.channelNoiseReductionStrengthComboBox.toolTip = this.channelNoiseReductionStrengthLabel.toolTip;
-      addArrayToComboBox(this.channelNoiseReductionStrengthComboBox, noise_reduction_strength_values);
-      this.channelNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.channel_noise_reduction_strength.val.toString());
-      this.channelNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
+      this.luminanceNoiseReductionStrengthComboBox = new ComboBox( this );
+      this.luminanceNoiseReductionStrengthComboBox.toolTip = this.luminanceNoiseReductionStrengthLabel.toolTip;
+      addArrayToComboBox(this.luminanceNoiseReductionStrengthComboBox, noise_reduction_strength_values);
+      this.luminanceNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.luminance_noise_reduction_strength.val.toString());
+      this.luminanceNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
       {
-            par.channel_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
+            par.luminance_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
       };
+
+      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction.val,
+      "<p>Do noise reduction on combined image instead of each color channels separately.</p>" );
+      this.combined_noise_reduction_CheckBox.onClick = function(checked) { 
+            par.combined_image_noise_reduction.val = checked; 
+      }
 
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction.val, 
       "<p>Do color noise reduction.</p>" );
@@ -9800,16 +10168,70 @@ function AutoIntegrateDialog()
             par.use_color_noise_reduction.val = checked; 
       }
 
+      this.ACDNR_noise_reduction_Control = new NumericControl( this );
+      this.ACDNR_noise_reduction_Control.label.text = "ACDNR noise reduction";
+      this.ACDNR_noise_reduction_Control.setRange(0, 5);
+      this.ACDNR_noise_reduction_Control.setPrecision(1);
+      this.ACDNR_noise_reduction_Control.setValue(par.ACDNR_noise_reduction.val);
+      this.ACDNR_noise_reduction_Control.toolTip = 
+            "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
+            "<p>A mild ACDNR noise reduction with value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>";
+      this.ACDNR_noise_reduction_Control.onValueUpdated = function( value )
+      {
+            par.ACDNR_noise_reduction.val = value;
+      };
+
       this.noiseReductionGroupBoxLabel = aiSectionLabel(this, "Noise reduction settings");
-      this.noiseReductionGroupBoxSizer = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer1 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer1.margin = 6;
+      this.noiseReductionGroupBoxSizer1.spacing = 4;
+      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthComboBox );
+      this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthComboBox );
+      this.noiseReductionGroupBoxSizer1.add( this.ACDNR_noise_reduction_Control );
+      this.noiseReductionGroupBoxSizer1.addStretch();
+
+      this.noiseReductionGroupBoxSizer2 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer2.margin = 6;
+      this.noiseReductionGroupBoxSizer2.spacing = 4;
+      this.noiseReductionGroupBoxSizer2.add( this.color_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.combined_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.addStretch();
+
+      this.noiseReductionGroupBoxSizer = new VerticalSizer;
       this.noiseReductionGroupBoxSizer.margin = 6;
       this.noiseReductionGroupBoxSizer.spacing = 4;
-      this.noiseReductionGroupBoxSizer.add( this.noiseReductionStrengthLabel );
-      this.noiseReductionGroupBoxSizer.add( this.noiseReductionStrengthComboBox );
-      this.noiseReductionGroupBoxSizer.add( this.channelNoiseReductionStrengthLabel );
-      this.noiseReductionGroupBoxSizer.add( this.channelNoiseReductionStrengthComboBox );
-      this.noiseReductionGroupBoxSizer.add( this.color_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer1 );
+      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
       //this.noiseReductionGroupBoxSizer.addStretch();
+
+      this.binningLabel = new Label( this );
+      this.binningLabel.text = "Binning 2x2";
+      this.binningLabel.toolTip = 
+            "<p>Do 2x2 binning for each light file. Binning is done first on calibrated files before any other operations.<p>" +
+            "<p>With Color option binning is done only for color channel files.<p>" +
+            "<p>With L and Color option binning is done for both luminance color channel files.<p>" +
+            "<p>Binning uses IntegerResample process and should help to reduce noise at the cost of decreased resolution.<p>";
+      this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+   
+      // Binning
+      this.binningComboBox = new ComboBox( this );
+      this.binningComboBox.toolTip = this.binningLabel.toolTip;
+      addArrayToComboBox(this.binningComboBox, binning_values);
+      this.binningComboBox.currentItem = par.binning.val;
+      this.binningComboBox.onItemSelected = function( itemIndex )
+      {
+            par.binning.val = itemIndex;
+      };
+
+      this.binningGroupBoxLabel = aiSectionLabel(this, "Binning");
+      this.binningGroupBoxSizer = new HorizontalSizer;
+      this.binningGroupBoxSizer.margin = 6;
+      this.binningGroupBoxSizer.spacing = 4;
+      this.binningGroupBoxSizer.add( this.binningLabel );
+      this.binningGroupBoxSizer.add( this.binningComboBox );
+      this.binningGroupBoxSizer.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -10004,6 +10426,7 @@ function AutoIntegrateDialog()
       this.MaskedStretchTargetBackgroundControl = new NumericControl( this );
       this.MaskedStretchTargetBackgroundControl.label.text = "Masked Stretch targetBackground";
       this.MaskedStretchTargetBackgroundControl.setRange(0, 1);
+      this.MaskedStretchTargetBackgroundControl.setPrecision(1);
       this.MaskedStretchTargetBackgroundControl.setValue(par.MaskedStretch_targetBackground.val);
       this.MaskedStretchTargetBackgroundControl.toolTip = "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>";
       this.MaskedStretchTargetBackgroundControl.onValueUpdated = function( value )
@@ -10014,6 +10437,7 @@ function AutoIntegrateDialog()
       this.Hyperbolic_D_Control = new NumericControl( this );
       this.Hyperbolic_D_Control.label.text = "Hyperbolic Stretch D value";
       this.Hyperbolic_D_Control.setRange(0, 20);
+      this.Hyperbolic_D_Control.setPrecision(1);
       this.Hyperbolic_D_Control.setValue(par.Hyperbolic_D.val);
       this.Hyperbolic_D_Control.toolTip = "<p>Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>";
       this.Hyperbolic_D_Control.onValueUpdated = function( value )
@@ -10023,6 +10447,7 @@ function AutoIntegrateDialog()
       this.Hyperbolic_b_Control = new NumericControl( this );
       this.Hyperbolic_b_Control.label.text = "Hyperbolic Stretch b value";
       this.Hyperbolic_b_Control.setRange(0, 10);
+      this.Hyperbolic_b_Control.setPrecision(1);
       this.Hyperbolic_b_Control.setValue(par.Hyperbolic_b.val);
       this.Hyperbolic_b_Control.toolTip = "<p>Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
                                           "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
@@ -10642,14 +11067,14 @@ function AutoIntegrateDialog()
       this.extra_NoiseReduction_CheckBox.onClick = function(checked) { 
             par.extra_noise_reduction.val = checked; 
       }
-      this.extraNoiseReductionStrengthSpinBox = new SpinBox( this );
-      this.extraNoiseReductionStrengthSpinBox.minValue = 3;
-      this.extraNoiseReductionStrengthSpinBox.maxValue = 5;
-      this.extraNoiseReductionStrengthSpinBox.value = par.extra_noise_reduction_strength.val;
-      this.extraNoiseReductionStrengthSpinBox.toolTip = extra_noise_reduction_tooltip;
-      this.extraNoiseReductionStrengthSpinBox.onValueUpdated = function( value )
+
+      this.extraNoiseReductionStrengthComboBox = new ComboBox( this );
+      this.extraNoiseReductionStrengthComboBox.toolTip = extra_noise_reduction_tooltip;
+      addArrayToComboBox(this.extraNoiseReductionStrengthComboBox, noise_reduction_strength_values);
+      this.extraNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.extra_noise_reduction_strength.val.toString());
+      this.extraNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
       {
-            par.extra_noise_reduction_strength.val = value;
+            par.extra_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
       };
       this.extraNoiseReductionStrengthLabel = new Label( this );
       this.extraNoiseReductionStrengthLabel.text = "strength";
@@ -10658,7 +11083,7 @@ function AutoIntegrateDialog()
       this.extraNoiseReductionStrengthSizer = new HorizontalSizer;
       this.extraNoiseReductionStrengthSizer.spacing = 4;
       this.extraNoiseReductionStrengthSizer.add( this.extra_NoiseReduction_CheckBox );
-      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthSpinBox );
+      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthComboBox );
       this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthLabel );
       this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
       this.extraNoiseReductionStrengthSizer.addStretch();
@@ -11109,6 +11534,8 @@ function AutoIntegrateDialog()
       this.ProcessingControl1.sizer.add( this.saturationGroupBoxSizer );
       this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxLabel );
       this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxSizer );
+      this.ProcessingControl1.sizer.add( this.binningGroupBoxLabel );
+      this.ProcessingControl1.sizer.add( this.binningGroupBoxSizer );
       // hide this section by default
       this.ProcessingControl1.visible = false;
 
@@ -11182,7 +11609,7 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.PersistentControl4.visible = false;
 
-      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl1, "Processing settings, saturation and noise");
+      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, other");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.PersistentControl4, "Persistent settings");
