@@ -161,6 +161,12 @@ Common final steps for all images
    sharpening more on the light parts of the image.
 3. Extra windows are closed or minimized.
 
+Notes to self:
+- Start mask when set will target operation on stars.
+- Luminance mask when set will target operations on light parts of the image.
+- Range mask from RangeSelection is opposite to luminance mask. So user must invert range_mask.
+
+
 Credits and Copyright notices
 -----------------------------
 
@@ -257,7 +263,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.24";
+var autointegrate_version = "AutoIntegrate v1.25";
 
 // GUI variables
 var infoLabel;
@@ -273,7 +279,7 @@ var windowPrefixComboBox;     // For updating prefix name list
 */
 var par = {
       // Image processing parameters
-      use_local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },  /* color problems, maybe should be used only for L images */
+      skip_local_normalization: { val: false, def: false, name : "No local normalization", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
@@ -286,9 +292,10 @@ var par = {
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
-      skip_imageintegration_ssweight: { val: false, def: false, name : "No ImageIntegration SSWEIGHT", type : 'B' },
+      use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
+      skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
@@ -377,6 +384,7 @@ var par = {
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
+      extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
       extra_STF: { val: false, def: false, name : "Extra STF", type : 'B' },
       
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
@@ -1179,14 +1187,14 @@ function windowIconizeAndKeywordif(id)
       }
 }
 
-function windowRenameKeepifEx(old_name, new_name, keepif, check_error)
+function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
 {
       var w = ImageWindow.windowById(old_name);
       w.mainView.id = new_name;
       if (!keepif) {
             addScriptWindow(new_name);
       }
-      if (check_error && w.mainView.id != new_name) {
+      if (!allow_duplicate_name && w.mainView.id != new_name) {
             fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
       }
       return w.mainView.id;
@@ -1194,7 +1202,7 @@ function windowRenameKeepifEx(old_name, new_name, keepif, check_error)
 
 function windowRenameKeepif(old_name, new_name, keepif)
 {
-      return windowRenameKeepifEx(old_name, new_name, keepif, true);
+      return windowRenameKeepifEx(old_name, new_name, keepif, false);
 }
 
 function windowRename(old_name, new_name)
@@ -1260,6 +1268,8 @@ function closeTempWindows()
             closeOneWindow(integration_LRGB_windows[i] + "_map");
             closeOneWindow(integration_LRGB_windows[i] + "_map_mask");
             closeOneWindow(integration_LRGB_windows[i] + "_map_pm");
+            closeOneWindow(integration_LRGB_windows[i] + "_mask");
+            closeOneWindow(integration_LRGB_windows[i] + "_tmp");
       }
 }
 
@@ -1483,7 +1493,7 @@ function fatalWindowNameFailed(txt)
       throwFatalError("Processing stopped");
 }
 
-function copyWindow(sourceWindow, name)
+function copyWindowEx(sourceWindow, name, allow_duplicate_name)
 {
       if (sourceWindow == null) {
             throwFatalError("Window not found, cannot copy to " + name);
@@ -1505,7 +1515,7 @@ function copyWindow(sourceWindow, name)
 
       addScriptWindow(name);
 
-      if (targetWindow.mainView.id != name) {
+      if (targetWindow.mainView.id != name && !allow_duplicate_name) {
             fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
       }
 
@@ -1514,7 +1524,12 @@ function copyWindow(sourceWindow, name)
       return targetWindow;
 }
 
-function newMaskWindow(sourceWindow, name)
+function copyWindow(sourceWindow, name)
+{
+      return copyWindowEx(sourceWindow, name, false);
+}
+
+function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 {
       var targetWindow;
 
@@ -1537,11 +1552,11 @@ function newMaskWindow(sourceWindow, name)
             targetWindow = ImageWindow.activeWindow;
             sourceWindow.mainView.endProcess();
             
-            windowRenameKeepif(targetWindow.mainView.id, name, true);
+            windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
       } else {
             /* Default mask is the same as stretched image. */
             addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
-            targetWindow = copyWindow(sourceWindow, name);
+            targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
 
       targetWindow.show();
@@ -4104,13 +4119,13 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   }
             } else if (rgb) {
                   // LRGB or RGB
-                  if (R_images.images.length == 0) {
+                  if (R_images.images.length == 0 && !par.integrate_only.val) {
                         throwFatalError("No Red images found");
                   }
-                  if (B_images.images.length == 0) {
+                  if (B_images.images.length == 0 && !par.integrate_only.val) {
                         throwFatalError("No Blue images found");
                   }
-                  if (G_images.images.length == 0) {
+                  if (G_images.images.length == 0 && !par.integrate_only.val) {
                         throwFatalError("No Green images found");
                   }
             }
@@ -4490,15 +4505,14 @@ function channelNoiseReduction(image_id)
       }
       addProcessingStep("Reduce noise on channel image " + image_id);
 
-      /* Create a temporary stretched copy to be used as a mask. */
-      var maskname = ensure_win_prefix(image_id + "_mask");
       var image_win = findWindow(image_id);
-      var mask_win = copyWindow(image_win, maskname);
-      runHistogramTransform(mask_win, null, false, 'mask');
+
+      /* Create a temporary mask. */
+      var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
 
       runMultiscaleLinearTransformReduceNoise(image_win, mask_win, par.noise_reduction_strength.val);
 
-      closeOneWindow(maskname);
+      closeOneWindow(mask_win.mainView.id);
 }
 
 function createNewStarXTerminator(star_mask, linear_data)
@@ -5051,25 +5065,13 @@ function ensureThreeImages(images)
                   append_image_for_integrate(images, images[i][1]);
             }
       }
-     
 }
 
-function runImageIntegration(channel_images, name)
+function runImageIntegrationEx(images, name, local_normalization)
 {
-      var images = channel_images.images;
-      if (images == null || images.length == 0) {
-            return null;
-      }
-      addProcessingStep("Image " + name + " integration on " + images.length + " files");
-
-      if (par.use_local_normalization.val && name != 'LDD') {
-            return runImageIntegrationNormalized(channel_images, name);
-      }
-
-      ensureThreeImages(images);
-
       var P = new ImageIntegration;
 
+      P.images = images;
       P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
       P.weightMode = ImageIntegration.prototype.NoiseEvaluation;
       P.weightKeyword = "";
@@ -5133,13 +5135,16 @@ function runImageIntegration(channel_images, name)
       P.maxBufferThreads = 8;
 
       P.combination = ImageIntegration.prototype.Average;
-      if (ssweight_set && !par.skip_imageintegration_ssweight.val) {
+      if (ssweight_set && par.use_imageintegration_ssweight.val) {
             // Using weightKeyword seem to give better results
             addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
-      if (par.imageintegration_normalization.val == 'Additive') {
+      if (local_normalization) {
+            addProcessingStep("  Using LocalNormalization for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.LocalNormalization;
+      } else if (par.imageintegration_normalization.val == 'Additive') {
             addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
       } else if (par.imageintegration_normalization.val == 'Adaptive') {
@@ -5153,26 +5158,13 @@ function runImageIntegration(channel_images, name)
       if (name == 'LDD') {
             // Integration for LDDEngine, do not use rejection
             P.rejection = ImageIntegration.prototype.NoRejection;
+            P.generateDrizzleData = false;
       } else {
             P.rejection = getRejectionAlgorigthm(images.length);
+            P.generateDrizzleData = par.use_drizzle.val;
       }
       
       P.evaluateNoise = true;
-      
-      if (par.use_drizzle.val) {
-            var drizzleImages = new Array;
-            for (var i = 0; i < images.length; i++) {
-                  drizzleImages[i] = new Array(3);
-                  drizzleImages[i][0] = images[i][0];      // enabled
-                  drizzleImages[i][1] = images[i][1];      // path
-                  drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
-            }
-            P.generateDrizzleData = true; /* Generate .xdrz data. */
-            P.images = drizzleImages;
-      } else {
-            P.generateDrizzleData = false;
-            P.images = images;
-      }
 
       P.executeGlobal();
 
@@ -5180,25 +5172,22 @@ function runImageIntegration(channel_images, name)
       windowCloseif(P.lowRejectionMapImageId);
       windowCloseif(P.slopeMapImageId);
 
-      if (par.use_drizzle.val) {
+      if (par.use_drizzle.val && name != 'LDD') {
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name);
       } else {
             var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
-            //addScriptWindow(new_name);
             return new_name
       }
 }
 
-function runImageIntegrationNormalized(channel_images, name)
+function runImageIntegrationNormalized(images, best_image, name)
 {
-      var images = channel_images.images;
+      addProcessingStep("ImageIntegration with LocalNormalization");
 
-      ensureThreeImages(images);
+      runLocalNormalization(images, best_image);
 
-      runLocalNormalization(images, channel_images.best_image);
-
-      addProcessingStep("  Using local normalized data in image integration");
+      console.writeln("Using local normalized data in image integration");
       
       var norm_images = new Array;
       for (var i = 0; i < images.length; i++) {
@@ -5214,82 +5203,41 @@ function runImageIntegrationNormalized(channel_images, name)
             norm_images[norm_images.length] = oneimage;
       }
       console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
-      var P = new ImageIntegration;
-      P.images = norm_images;
-      P.inputHints = "";
-      P.combination = ImageIntegration.prototype.Average;
-      if (ssweight_set && !par.skip_imageintegration_ssweight.val) {
-            P.weightMode = ImageIntegration.prototype.KeywordWeight;
-            P.weightKeyword = "SSWEIGHT";
+
+      return runImageIntegrationEx(norm_images, name, true);
+}
+
+function runImageIntegration(channel_images, name)
+{
+      var images = channel_images.images;
+      if (images == null || images.length == 0) {
+            return null;
       }
-      P.weightScale = ImageIntegration.prototype.WeightScale_IKSS;
-      P.ignoreNoiseKeywords = false;
-      P.normalization = ImageIntegration.prototype.LocalNormalization;
-      P.rejection = getRejectionAlgorigthm(images.length);
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;
-      P.minMaxLow = 1;
-      P.minMaxHigh = 1;
-      P.pcClipLow = 0.200;
-      P.pcClipHigh = 0.100;
-      P.sigmaLow = 4.000;
-      P.sigmaHigh = 3.000;
-      P.linearFitLow = 5.000;
-      P.linearFitHigh = 2.500;
-      P.ccdGain = 1.00;
-      P.ccdReadNoise = 10.00;
-      P.ccdScaleNoise = 0.00;
-      P.clipLow = par.imageintegration_clipping.val;             // def: true
-      P.clipHigh = par.imageintegration_clipping.val;            // def: true
-      P.rangeClipLow = par.imageintegration_clipping.val;        // def: true
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = true;       /* default: false */
-      P.rangeHigh = 0.980000;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-      P.largeScaleClipLow = false;
-      P.largeScaleClipLowProtectedLayers = 2;
-      P.largeScaleClipLowGrowth = 2;
-      P.largeScaleClipHigh = false;
-      P.largeScaleClipHighProtectedLayers = 2;
-      P.largeScaleClipHighGrowth = 2;
-      P.generate64BitResult = false;
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
-      if (par.use_drizzle.val) {
-            P.generateDrizzleData = true;
+      addProcessingStep("Image " + name + " integration on " + images.length + " files");
+
+      ensureThreeImages(images);
+
+      if (par.skip_local_normalization.val || name == 'LDD') {
+            if (par.use_drizzle.val) {
+                  var drizzleImages = new Array;
+                  for (var i = 0; i < images.length; i++) {
+                        drizzleImages[i] = new Array(3);
+                        drizzleImages[i][0] = images[i][0];      // enabled
+                        drizzleImages[i][1] = images[i][1];      // path
+                        drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+                  }
+                  var integration_images = drizzleImages;
+            } else {
+                  var integration_images = images;
+            }
+
+            return runImageIntegrationEx(integration_images, name, false);
+
       } else {
-            P.generateDrizzleData = false;
-      }
-      P.closePreviousImages = false;
-      P.bufferSizeMB = 16;
-      P.stackSizeMB = 1024;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.useCache = true;
-      P.evaluateNoise = true;
-      P.mrsMinDataFraction = 0.010;
-      P.noGUIMessages = true;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-
-      P.executeGlobal();
-
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.lowRejectionMapImageId);
-      windowCloseif(P.slopeMapImageId);
-
-      if (par.use_drizzle.val) {
-            windowCloseif(P.integrationImageId);
-            return runDrizzleIntegration(images, name);
-      } else {
-            var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
-            //addScriptWindow(new_name);
-            return new_name;
+            return runImageIntegrationNormalized(images, channel_images.best_image, name);
       }
 }
+
 
 /* Do run ABE so just make copy of the source window as
  * is done by AutomaticBackgroundExtractor.
@@ -5706,7 +5654,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
       if (par.ACDNR_noise_reduction.val == 0.0) {
             return;
       }
-      addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id);
+      addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ACDNR;
 
@@ -6487,14 +6435,18 @@ function narrowbandHueShift(imgView)
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
+      if (par.skip_sharpening.val) {
+            console.writeln("No sharpening on " + imgWin.mainView.id);
+            return;
+      }
       addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-         [true, true, 0.000, false, 3.000, 0.50, 3],
-         [true, true, 0.025, false, 2.000, 0.50, 2],
-         [true, true, 0.025, false, 1.000, 0.50, 2],
-         [true, true, 0.012, false, 0.500, 0.50, 1],
+         [true, true, 0.000, false, 3.000, 1.00, 1],
+         [true, true, 0.050, false, 3.000, 1.00, 1],
+         [true, true, 0.075, false, 3.000, 1.00, 1],
+         [true, true, 0.000, false, 3.000, 1.00, 1],
          [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
@@ -6534,7 +6486,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       P.softThresholding = true;
       P.useMultiresolutionSupport = false;
       P.deringing = true;
-      P.deringingDark = 0.0100;
+      P.deringingDark = 0.1000;     // old value -> 1.24: 0.0100
       P.deringingBright = 0.0000;
       P.outputDeringingMaps = false;
       P.lowRange = 0.0000;
@@ -7089,13 +7041,34 @@ function CreateChannelImages(auto_continue)
       return true;
 }
 
-/* Create a mask to be used for LRGB processing. Used for example
+/* Create  a mask from linear image. This function
+ * used to create temporary masks.
+ */
+function CreateNewTempMaskFromLInearWin(imgWin, is_color)
+{
+      console.writeln("CreateNewTempMaskFromLInearWin from " + imgWin.mainView.id);
+
+      var winCopy = copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
+
+      /* Run HistogramTransform based on autostretch because mask should be non-linear. */
+      runHistogramTransform(winCopy, null, is_color, 'mask');
+
+      /* Create mask.
+       */
+      var maskWin = newMaskWindow(winCopy, imgWin.mainView.id + "_mask", true);
+
+      windowCloseif(winCopy.mainView.id);
+
+      return maskWin;
+}
+
+/* Ensure we have a mask to be used for LRGB processing. Used for example
  * for noise reduction and sharpening. We use luminance image as
  * mask.
  */
-function LRGBCreateMask()
+function LRGBEnsureMask()
 {
-      addProcessingStep("LRGBCreateMask");
+      addProcessingStep("LRGBEnsureMask");
 
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
@@ -7118,7 +7091,7 @@ function LRGBCreateMask()
                         L_win = ImageWindow.windowById(luminance_id);
                         addProcessingStep("Using image " + luminance_id + " for a mask");
                   }
-                  L_win = copyWindow(L_win, ppar.win_prefix + "L_win_mask");
+                  L_win = copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
 
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
                   runHistogramTransform(L_win, null, false, 'mask');
@@ -7126,39 +7099,39 @@ function LRGBCreateMask()
             /* Create mask.
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
-            mask_win = newMaskWindow(L_win, mask_win_id);
-            windowCloseif(ppar.win_prefix + "L_win_mask")
+            mask_win = newMaskWindow(L_win, mask_win_id, false);
+            windowCloseif(L_win.mainView.id);
       }
 }
 
-/* Create mask for color processing. Mask is needed also in non-linear
+/* Ensure we have mask for color processing. Mask is needed also in non-linear
  * so we do a separate runHistogramTransform here.
  */
-function ColorCreateMask(color_img_id, RBGstretched)
+function ColorEnsureMask(color_img_id, RBGstretched)
 {
-      addProcessingStep("ColorCreateMask");
+      addProcessingStep("ColorEnsureMask");
 
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
             addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
             mask_win = range_mask_win;
       } else {
-            var color_win;
-            color_win = ImageWindow.windowById(color_img_id);
+            var color_win = ImageWindow.windowById(color_img_id);
             addProcessingStep("Using image " + color_img_id + " for a mask");
-            color_win = copyWindow(color_win, "color_win_mask");
+            var color_win_copy = copyWindowEx(color_win, "color_win_mask", true);
 
             if (!RBGstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  runHistogramTransform(color_win, null, true, 'mask');
+                  runHistogramTransform(color_win_copy, null, true, 'mask');
             }
 
             /* Create mask.
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
-            mask_win = newMaskWindow(color_win, mask_win_id);
-            windowCloseif("color_win_mask");
+            mask_win = newMaskWindow(color_win_copy, mask_win_id, false);
+            windowCloseif(color_win_copy.mainView.id);
       }
+      console.writeln("ColorEnsureMask done");
 }
 
 /* Process L image
@@ -7170,8 +7143,6 @@ function ColorCreateMask(color_img_id, RBGstretched)
  */
 function ProcessLimage(RBGmapping)
 {
-      var noise_reduction_done = false;
-
       addProcessingStep("Process L image");
 
       /* LRGB files */
@@ -7215,10 +7186,9 @@ function ProcessLimage(RBGmapping)
             if (!RBGmapping.combined) {
                   /* Noise reduction for L. */
                   luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
-                  noise_reduction_done = true;
             }
 
-            /* On L image run HistogramTransform based on autostretch
+            /* On L image run HistogramTransform  to stretch image to non-linear
             */
             L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
             if (!RBGmapping.stretched) {
@@ -7238,11 +7208,6 @@ function ProcessLimage(RBGmapping)
 
             L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
             ImageWindow.windowById(L_ABE_HT_id);      
-      }
-
-      if (!noise_reduction_done) {
-            /* Noise reduction for L. */
-            luminanceNoiseReduction(L_ABE_HT_win, mask_win);
       }
 }
 
@@ -7539,7 +7504,7 @@ function ProcessRGBimage(RBGstretched)
             RGB_ABE_HT_id = RGB_HT_win.mainView.id;
             addProcessingStep("Start from image " + RGB_ABE_HT_id);
             if (preprocessed_images == start_images.RGB_HT) {
-                  ColorCreateMask(RGB_ABE_HT_id, true);
+                  ColorEnsureMask(RGB_ABE_HT_id, true);
             }
       } else {
             if (preprocessed_images == start_images.L_RGB_BE ||
@@ -7587,7 +7552,7 @@ function ProcessRGBimage(RBGstretched)
 
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
-                  ColorCreateMask(RGB_ABE_id, RBGstretched);
+                  ColorEnsureMask(RGB_ABE_id, RBGstretched);
             }
             if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
@@ -7601,8 +7566,8 @@ function ProcessRGBimage(RBGstretched)
                         increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
                   }
             }
-      
-            if (!is_color_files && par.combined_image_noise_reduction.val) {
+
+            if (is_color_files || par.combined_image_noise_reduction.val) {
                   /* Optional noise reduction for RGB
                    */
                   runNoiseReduction(
@@ -7610,7 +7575,7 @@ function ProcessRGBimage(RBGstretched)
                         mask_win);
             }
             if (!RBGstretched) {
-                  /* On RGB image run HistogramTransform based on autostretch
+                  /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_ABE_HT_id = ensure_win_prefix(RGB_ABE_id + "_HT");
                   runHistogramTransform(
@@ -7625,14 +7590,6 @@ function ProcessRGBimage(RBGstretched)
             }
       }
 
-      if (is_color_files) {
-            /* Noise reduction for color RGB
-             */
-            runNoiseReduction(
-                  ImageWindow.windowById(RGB_ABE_HT_id),
-                  mask_win);
-      }
-
       if (narrowband && par.non_linear_increase_saturation.val > 0) {
             /* Default 1 means no increase with narrowband. */
             par.non_linear_increase_saturation.val--;
@@ -7644,6 +7601,7 @@ function ProcessRGBimage(RBGstretched)
                   increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
             }
       }
+      console.writeln("ProcessRGBimage done");
       return RGB_ABE_HT_id;
 }
 
@@ -7969,27 +7927,11 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
       imgWin.mainView.endProcess();
 }
 
-function createStarMask(imgWin)
+function createNewStarMaskWin(imgWin)
 {
-      star_mask_win = maskIsCompatible(imgWin, star_mask_win);
-      if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
-      }
-      if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
-      }
-      if (star_mask_win != null) {
-            // Use already created start mask
-            console.writeln("Use existing star mask " + star_mask_win.mainView.id);
-            star_mask_win_id = star_mask_win.mainView.id;
-            return;
-      }
-
-      closeOneWindow("AutoStarMask");
-
       var P = new StarMask;
       P.shadowsClipping = 0.00000;
-      P.midtonesBalance = 0.50000;
+      P.midtonesBalance = 0.80000;        // old value -> 1.24: 0.50000
       P.highlightsClipping = 1.00000;
       P.waveletLayers = 6;
       P.structureContours = false;
@@ -8009,7 +7951,28 @@ function createStarMask(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      star_mask_win = ImageWindow.activeWindow;
+      return ImageWindow.activeWindow;
+}
+
+function createStarMaskIf(imgWin)
+{
+      star_mask_win = maskIsCompatible(imgWin, star_mask_win);
+      if (star_mask_win == null) {
+            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
+      }
+      if (star_mask_win == null) {
+            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
+      }
+      if (star_mask_win != null) {
+            // Use already created start mask
+            console.writeln("Use existing star mask " + star_mask_win.mainView.id);
+            star_mask_win_id = star_mask_win.mainView.id;
+            return;
+      }
+
+      closeOneWindow("AutoStarMask");
+
+      star_mask_win = createNewStarMaskWin(imgWin);
 
       windowRenameKeepif(star_mask_win.mainView.id, "AutoStarMask", true);
 
@@ -8021,7 +7984,7 @@ function extraSmallerStars(imgWin)
 {
       var targetWin = imgWin;
 
-      createStarMask(imgWin);
+      createStarMaskIf(imgWin);
 
       if (par.extra_remove_stars.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
@@ -8077,7 +8040,10 @@ function extraSmallerStars(imgWin)
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       if (!par.extra_remove_stars.val) {
-            /* Transform only light parts of the image. */
+            /* If we have removed stars we have only stars left and
+             * no mask is needed. Otherwise use a star mask
+             * to target operation only on stars.
+             */
             targetWin.setMask(star_mask_win);
             targetWin.maskInverted = false;
       }
@@ -8322,7 +8288,7 @@ function extraProcessing(id, apply_directly)
             if (mask_win == null) {
                   mask_win_id = ppar.win_prefix + "AutoMask";
                   closeOneWindow(mask_win_id);
-                  mask_win = newMaskWindow(extraWin, mask_win_id);
+                  mask_win = newMaskWindow(extraWin, mask_win_id, false);
             }
             console.writeln("Use mask " + mask_win.mainView.id);
       }
@@ -8336,7 +8302,9 @@ function extraProcessing(id, apply_directly)
             extraLocalHistogramEqualization(extraWin, mask_win);
       }
       if (par.extra_contrast.val) {
-            extraContrast(extraWin);
+            for (var i = 0; i < par.extra_contrast_iterations.val; i++) {
+                  extraContrast(extraWin);
+            }
       }
       if (par.extra_STF.val) {
             extraSTF(extraWin);
@@ -8513,7 +8481,7 @@ function AutoIntegrateEngine(auto_continue)
                         addProcessingStep("Remove stars from linear L channel image");
                         removeStars(findWindow(luminance_id), true);
                   }
-                  LRGBCreateMask();
+                  LRGBEnsureMask();
                   ProcessLimage(RBGmapping);
             }
 
@@ -8668,7 +8636,7 @@ function AutoIntegrateEngine(auto_continue)
                   fname = 'P' + fname;
             }
             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
-            LRGB_ABE_HT_id = windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, false);
+            LRGB_ABE_HT_id = windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, true);
             saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
       }
 
@@ -9762,10 +9730,10 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
       /* Parameters check boxes. */
-      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.use_local_normalization.val, 
-            "<p>Run local normalization before StarAlign</p>" );
+      this.useLocalNormalizationCheckBox = newCheckBox(this, "No local Normalization", par.skip_local_normalization.val, 
+            "<p>Do not use local normalization data for ImageIntegration</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
-            par.use_local_normalization.val = checked; 
+            par.skip_local_normalization.val = checked; 
       }
 
       this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects.val, 
@@ -9940,10 +9908,10 @@ function AutoIntegrateDialog()
             par.monochrome_image.val = checked; 
       }
 
-      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration do not use weight", par.skip_imageintegration_ssweight.val, 
-      "<p>Do not use use SSWEIGHT weight keyword during ImageIntegration</p>" );
+      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight.val, 
+      "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
       this.imageintegration_ssweight_CheckBox.onClick = function(checked) { 
-            par.skip_imageintegration_ssweight.val = checked; 
+            par.use_imageintegration_ssweight.val = checked; 
       }
 
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !par.imageintegration_clipping.val, 
@@ -9994,6 +9962,12 @@ function AutoIntegrateDialog()
             par.skip_mask_contrast.val = checked; 
       }
 
+      this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening.val, 
+      "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
+      this.no_sharpening_CheckBox.onClick = function(checked) { 
+            par.skip_sharpening.val = checked; 
+      }
+
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration.val, 
       "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.skip_color_calibration_CheckBox.onClick = function(checked) { 
@@ -10030,6 +10004,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
+      this.imageParamsSet2.add( this.no_sharpening_CheckBox );
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
@@ -11024,11 +10999,33 @@ function AutoIntegrateDialog()
       this.extra_LHE_CheckBox.onClick = function(checked) { 
             par.extra_LHE.val = checked; 
       }
+      
       this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast.val, 
-      "<p>Run slight curves transformation on image to add contrast.</p>" );
+      "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
       this.extra_Contrast_CheckBox.onClick = function(checked) { 
             par.extra_contrast.val = checked; 
       }
+      this.contrastIterationsSpinBox = new SpinBox( this );
+      this.contrastIterationsSpinBox.minValue = 1;
+      this.contrastIterationsSpinBox.maxValue = 5;
+      this.contrastIterationsSpinBox.value = par.extra_contrast_iterations.val;
+      this.contrastIterationsSpinBox.toolTip = "<p>Number of iterations for contrast enhancement</p>";
+      this.contrastIterationsSpinBox.onValueUpdated = function( value )
+      {
+            par.extra_contrast_iterations.val = value;
+      };
+      this.contrastIterationsLabel = new Label( this );
+      this.contrastIterationsLabel.text = "iterations";
+      this.contrastIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.contrastIterationsLabel.toolTip = this.contrastIterationsSpinBox.toolTip;
+      this.extraContrastSizer = new HorizontalSizer;
+      this.extraContrastSizer.spacing = 4;
+      this.extraContrastSizer.add( this.extra_Contrast_CheckBox );
+      this.extraContrastSizer.add( this.contrastIterationsSpinBox );
+      this.extraContrastSizer.add( this.contrastIterationsLabel );
+      this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
+      this.extraContrastSizer.addStretch();
+
       this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", par.extra_STF.val, 
       "<p>Run automatic ScreenTransferFunction on image to brighten it.</p>" );
       this.extra_STF_CheckBox.onClick = function(checked) { 
@@ -11040,26 +11037,26 @@ function AutoIntegrateDialog()
       this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
             par.extra_smaller_stars.val = checked; 
       }
-      this.IterationsSpinBox = new SpinBox( this );
-      this.IterationsSpinBox.minValue = 0;
-      this.IterationsSpinBox.maxValue = 10;
-      this.IterationsSpinBox.value = par.extra_smaller_stars_iterations.val;
-      this.IterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection</p>";
-      this.IterationsSpinBox.onValueUpdated = function( value )
+      this.smallerStarsIterationsSpinBox = new SpinBox( this );
+      this.smallerStarsIterationsSpinBox.minValue = 0;
+      this.smallerStarsIterationsSpinBox.maxValue = 10;
+      this.smallerStarsIterationsSpinBox.value = par.extra_smaller_stars_iterations.val;
+      this.smallerStarsIterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection</p>";
+      this.smallerStarsIterationsSpinBox.onValueUpdated = function( value )
       {
             par.extra_smaller_stars_iterations.val = value;
       };
-      this.IterationsLabel = new Label( this );
-      this.IterationsLabel.text = "iterations";
-      this.IterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.IterationsLabel.toolTip = this.IterationsSpinBox.toolTip;
-      this.SmallerStarsSizer = new HorizontalSizer;
-      this.SmallerStarsSizer.spacing = 4;
-      this.SmallerStarsSizer.add( this.extra_SmallerStars_CheckBox );
-      this.SmallerStarsSizer.add( this.IterationsSpinBox );
-      this.SmallerStarsSizer.add( this.IterationsLabel );
-      this.SmallerStarsSizer.toolTip = this.IterationsSpinBox.toolTip;
-      this.SmallerStarsSizer.addStretch();
+      this.smallerStarsIterationsLabel = new Label( this );
+      this.smallerStarsIterationsLabel.text = "iterations";
+      this.smallerStarsIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.smallerStarsIterationsLabel.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
+      this.extraSmallerStarsSizer = new HorizontalSizer;
+      this.extraSmallerStarsSizer.spacing = 4;
+      this.extraSmallerStarsSizer.add( this.extra_SmallerStars_CheckBox );
+      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsSpinBox );
+      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsLabel );
+      this.extraSmallerStarsSizer.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
+      this.extraSmallerStarsSizer.addStretch();
 
       var extra_noise_reduction_tooltip = "<p>Noise reduction on image.</p>" + noiseReductionToolTipCommon;
       this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction.val, 
@@ -11150,10 +11147,10 @@ function AutoIntegrateDialog()
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
-      this.extra2.add( this.extra_Contrast_CheckBox );
+      this.extra2.add( this.extraContrastSizer );
       this.extra2.add( this.extra_STF_CheckBox );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
-      this.extra2.add( this.SmallerStarsSizer );
+      this.extra2.add( this.extraSmallerStarsSizer );
 
       this.extraLabel = aiSectionLabel(this, "Generic extra processing");
 
