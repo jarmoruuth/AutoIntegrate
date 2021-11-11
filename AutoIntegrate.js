@@ -263,7 +263,7 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.25";
+var autointegrate_version = "AutoIntegrate v1.26";
 
 // GUI variables
 var infoLabel;
@@ -2073,7 +2073,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.flatScaleClippingFactor = 0.05;
       P.evaluateNoise = true;
       P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-      P.outputDirectory = outputRootDir + AutoOutputDir;;
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_c";
@@ -3432,7 +3432,7 @@ function SubframeSelectorMeasure(fileNames)
       P.pedestalKeyword = "";
       P.inputHints = "";
       P.outputHints = "";
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_a";
@@ -3446,7 +3446,7 @@ function SubframeSelectorMeasure(fileNames)
       P.measurements = [ // measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev
       ];
      
-      console.writeln("SubframeSelectorMeasure:executeGlobal");
+      console.writeln("SubframeSelectorMeasure:executeGlobal, P.outputDirectory=" + P.outputDirectory);
 
       P.executeGlobal();
 
@@ -3520,6 +3520,10 @@ function SubframeSelectorMeasure(fileNames)
 
 function runSubframeSelector(fileNames)
 {
+      var outputDir = outputRootDir + AutoOutputDir;
+      var postfix = "_a";
+      var outputExtension = ".xisf";
+
       addProcessingStep("runSubframeSelector");
       console.writeln("input[0] " + fileNames[0]);
       
@@ -3532,11 +3536,7 @@ function runSubframeSelector(fileNames)
             var filePath = ssWeights[i][0];
             if (filePath != null && filePath != "") {
                   var SSWEIGHT = ssWeights[i][1];
-                  var ext = '.' + filePath.split('.').pop();
-                  var newFilePath = filePath.replace(ext, "_a.xisf");
-                  if (newFilePath == filePath) {
-                        throwFatalError("Cannot generate new output file name from " + filePath + ", extension " + ext);
-                  }
+                  var newFilePath = generateNewFileName(filePath, outputDir, postfix, outputExtension);
                   console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
                   var imageWindows = ImageWindow.open(filePath);
                   if (imageWindows.length != 1) {
@@ -4865,7 +4865,7 @@ function runStarAlignment(imagetable, refImage)
       P.splineSmoothness = 0.25;
       P.pixelInterpolation = StarAlignment.prototype.Auto;
       P.clampingThreshold = 0.30;
-      P.outputDirectory = "";
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
       P.outputPostfix = "_r";
