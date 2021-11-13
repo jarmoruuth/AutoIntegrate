@@ -263,7 +263,9 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.26";
+var autointegrate_version = "AutoIntegrate v1.27";
+var pixinsight_version;
+var pixinsight_version_num;
 
 // GUI variables
 var infoLabel;
@@ -1987,6 +1989,17 @@ function runCalibrateDarks(images, masterbiasPath)
       P.flatScaleClippingFactor = 0.05;
       P.evaluateNoise = true;
       P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+      if (pixinsight_version_num >= 1080810) {
+            P.evaluateSignal = true;
+            P.structureLayers = 5;
+            P.noiseLayers = 1;
+            P.hotPixelFilterRadius = 1;
+            P.noiseReductionFilterRadius = 0;
+            P.minStructureSize = 0;
+            P.psfType = ImageCalibration.prototype.PSFType_Moffat4;
+            P.psfRejectionLimit = 5.00;
+            P.maxStars = 24576;
+      }
       P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
@@ -1996,6 +2009,12 @@ function runCalibrateDarks(images, masterbiasPath)
       P.overwriteExistingFiles = true;
       P.onError = ImageCalibration.prototype.Continue;
       P.noGUIMessages = true;
+      if (pixinsight_version_num >= 1080810) {
+            P.useFileThreads = true;
+            P.fileThreadOverload = 1.00;
+            P.maxFileReadThreads = 0;
+            P.maxFileWriteThreads = 0;
+      }
 
       P.executeGlobal();
 
@@ -3403,15 +3422,15 @@ function SubframeSelectorMeasure(fileNames)
       P.nonInteractive = true;
       P.subframes = filesNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
       P.fileCache = true;
-      P.subframeScale = 1.0000;     // old version: 2.1514
+      P.subframeScale = 1.0000;
       P.cameraGain = 1.0000;
       P.cameraResolution = SubframeSelector.prototype.Bits16;
       P.siteLocalMidnight = 24;
       P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
       P.dataUnit = SubframeSelector.prototype.Electron;
       P.trimmingFactor = 0.10;
-      P.structureLayers = 4;  // def: 5
-      P.noiseLayers = 2;      // def: 2
+      P.structureLayers = 5;  // old -> 1.26: 4
+      P.noiseLayers = 0;      // old -> 1.26: 2
       P.hotPixelFilterRadius = 1;
       P.applyHotPixelFilter = false;
       P.noiseReductionFilterRadius = 0;
@@ -3421,7 +3440,11 @@ function SubframeSelectorMeasure(fileNames)
       P.upperLimit = 1.0000;
       P.backgroundExpansion = 3;
       P.xyStretch = 1.5000;
-      P.psfFit = SubframeSelector.prototype.Gaussian;
+      if (pixinsight_version_num < 1080810) {
+            P.psfFit = SubframeSelector.prototype.Gaussian;
+      } else {
+            P.psfFit = SubframeSelector.prototype.Moffat4;
+      }
       P.psfFitCircular = false;
       P.roiX0 = 0;
       P.roiY0 = 0;
@@ -3442,10 +3465,17 @@ function SubframeSelectorMeasure(fileNames)
       P.approvalExpression = "";
       P.weightingExpression = "";
       P.sortProperty = SubframeSelector.prototype.Index;
-      P.graphProperty = SubframeSelector.prototype.FWHM;
-      P.measurements = [ // measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev
-      ];
-     
+      if (pixinsight_version_num < 1080810) {
+            P.graphProperty = SubframeSelector.prototype.FWHM;
+      } else {
+            P.graphProperty = SubframeSelector.prototype.PSFSignalWeight;
+            P.useFileThreads = true;
+            P.fileThreadOverload = 1.00;
+            P.maxFileReadThreads = 0;
+            P.maxFileWriteThreads = 0;
+      }
+      // P.measurements = [ measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev ];
+
       console.writeln("SubframeSelectorMeasure:executeGlobal, P.outputDirectory=" + P.outputDirectory);
 
       P.executeGlobal();
@@ -4899,7 +4929,20 @@ function runLocalNormalization(imagetable, refImage)
       var targets = new Array;
 
       for (var i = 0; i < imagetable.length; i++) {
-            targets[targets.length] = [ true, imagetable[i][1] ];
+            var enabled = true;
+            if (imagetable.length <= 3) {
+                  // we may have duplicates, filter them out
+                  for (j = 0; j < targets.length; j++) {
+                        if (targets[j][1] == imagetable[i][1]) {
+                              console.writeln("runLocalNormalization, remove duplicate " +imagetable[i][1]);
+                              enabled = false;
+                              break;
+                        }
+                  }
+            }
+            if (enabled) {
+                  targets[targets.length] = [ true, imagetable[i][1] ];
+            }
       }
       var P = new LocalNormalization;
       P.scale = 128;
@@ -4912,7 +4955,7 @@ function runLocalNormalization(imagetable, refImage)
       P.noiseReductionFilterRadius = 0;
       P.referencePathOrViewId = refImage;
       P.referenceIsView = false;
-      P.targetItems = targets;
+      P.targetItems = targets;            // [ enabled, image ]
       P.inputHints = "";
       P.outputHints = "";
       P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_ViewExecutionOnly;
@@ -4958,19 +5001,23 @@ function runLinearFit(refViewId, targetId)
       targetWin.mainView.endProcess();
 }
 
-function runDrizzleIntegration(images, name)
+function runDrizzleIntegration(images, name, local_normalization)
 {
       addProcessingStep("run DrizzleIntegration");
       var drizzleImages = new Array;
       for (var i = 0; i < images.length; i++) {
             drizzleImages[i] = new Array(3);
-            drizzleImages[i][0] = images[i][0];                           // enabled
-            drizzleImages[i][1] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
-            drizzleImages[i][2] = "";                                     // localNormalizationDataPath
+            drizzleImages[i][0] = images[i][0];                                 // enabled
+            drizzleImages[i][1] = images[i][1].replace(".xisf", ".xdrz");       // drizzlePath
+            if (local_normalization) {
+                  drizzleImages[i][2] = images[i][1].replace(".xisf", ".xnml"); // localNormalizationDataPath
+            } else {
+                  drizzleImages[i][2] = "";                                     // localNormalizationDataPath
+            }
       }
 
       var P = new DrizzleIntegration;
-      P.inputData = drizzleImages;
+      P.inputData = drizzleImages; // [ enabled, path, localNormalizationDataPath ]
       P.inputHints = "";
       P.inputDirectory = "";
       P.scale = 2.00;
@@ -4979,19 +5026,27 @@ function runDrizzleIntegration(images, name)
       P.kernelGridSize = 16;
       P.originX = 0.50;
       P.originY = 0.50;
-      P.enableCFA = false; // is_color_files && par.debayerPattern.val != 'None';
-      console.writeln("enableCFA = " + P.enableCFA);
+      P.enableCFA = false;
       P.cfaPattern = "";
       P.enableRejection = true;
       P.enableImageWeighting = true;
       P.enableSurfaceSplines = true;
-      P.enableLocalNormalization = false;
+      if (pixinsight_version_num >= 1080810) {
+            P.enableLocalDistortion = true;
+      }
+      P.enableLocalNormalization = local_normalization;
+      if (pixinsight_version_num >= 1080810) {
+            P.enableAdaptiveNormalization = false;
+      }
       P.useROI = false;
       P.roiX0 = 0;
       P.roiY0 = 0;
       P.roiX1 = 0;
       P.roiY1 = 0;
       P.closePreviousImages = false;
+      if (pixinsight_version_num >= 1080810) {
+            P.truncateOnOutOfRange = false;
+      }
       P.noGUIMessages = true;
       P.onError = DrizzleIntegration.prototype.Continue;
 
@@ -5071,14 +5126,48 @@ function runImageIntegrationEx(images, name, local_normalization)
 {
       var P = new ImageIntegration;
 
-      P.images = images;
+      P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
+      P.combination = ImageIntegration.prototype.Average;
       P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.weightMode = ImageIntegration.prototype.NoiseEvaluation;
-      P.weightKeyword = "";
+      if (ssweight_set && par.use_imageintegration_ssweight.val) {
+            addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
+            P.weightMode = ImageIntegration.prototype.KeywordWeight;
+            P.weightKeyword = "SSWEIGHT";
+      } else {
+            if (pixinsight_version_num < 1080810) {
+                  ImageIntegration.prototype.NoiseEvaluation;
+            } else {
+                  P.weightMode = ImageIntegration.prototype.PSFSignalWeight;
+            }
+            P.weightKeyword = "";
+      }
       P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
       P.adaptiveGridSize = 16;
       P.ignoreNoiseKeywords = false;
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;      // changed if adaptive normalization is used
+      if (local_normalization) {
+            addProcessingStep("  Using LocalNormalization for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.LocalNormalization;
+      } else if (par.imageintegration_normalization.val == 'Additive') {
+            addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
+      } else if (par.imageintegration_normalization.val == 'Adaptive') {
+            addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
+      } else {
+            addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
+            P.normalization = ImageIntegration.prototype.NoNormalization;
+      }
+      if (name == 'LDD') {
+            // Integration for LDDEngine, do not use rejection
+            P.rejection = ImageIntegration.prototype.NoRejection;
+      } else {
+            P.rejection = getRejectionAlgorigthm(images.length);
+      }
+      if (par.imageintegration_normalization.val == 'Adaptive') {
+            P.rejectionNormalization = ImageIntegration.prototype.AdaptiveRejectionNormalization;
+      } else {
+            P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      }
       P.minMaxLow = 1;
       P.minMaxHigh = 1;
       P.pcClipLow = 0.200;
@@ -5111,7 +5200,11 @@ function runImageIntegrationEx(images, name, local_normalization)
       P.generate64BitResult = false;
       P.generateRejectionMaps = true;
       P.generateIntegratedImage = true;
-      P.generateDrizzleData = false;
+      if (name == 'LDD') {
+            P.generateDrizzleData = false;
+      } else {
+            P.generateDrizzleData = par.use_drizzle.val;
+      }
       P.closePreviousImages = false;
       P.bufferSizeMB = 16;
       P.stackSizeMB = 1024;
@@ -5124,6 +5217,7 @@ function runImageIntegrationEx(images, name, local_normalization)
       P.roiY1 = 0;
       P.useCache = true;
       P.evaluateNoise = true;
+      P.evaluateNoise = true;
       P.mrsMinDataFraction = 0.010;
       P.subtractPedestals = false;
       P.truncateOnOutOfRange = false;
@@ -5132,39 +5226,7 @@ function runImageIntegrationEx(images, name, local_normalization)
       P.useFileThreads = true;
       P.fileThreadOverload = 1.00;
       P.useBufferThreads = true;
-      P.maxBufferThreads = 8;
-
-      P.combination = ImageIntegration.prototype.Average;
-      if (ssweight_set && par.use_imageintegration_ssweight.val) {
-            // Using weightKeyword seem to give better results
-            addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
-            P.weightMode = ImageIntegration.prototype.KeywordWeight;
-            P.weightKeyword = "SSWEIGHT";
-      }
-      if (local_normalization) {
-            addProcessingStep("  Using LocalNormalization for ImageIntegration normalization");
-            P.normalization = ImageIntegration.prototype.LocalNormalization;
-      } else if (par.imageintegration_normalization.val == 'Additive') {
-            addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
-            P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
-      } else if (par.imageintegration_normalization.val == 'Adaptive') {
-            addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
-            P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
-            P.rejectionNormalization = ImageIntegration.prototype.AdaptiveRejectionNormalization;
-      } else {
-            addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
-            P.normalization = ImageIntegration.prototype.NoNormalization;
-      }
-      if (name == 'LDD') {
-            // Integration for LDDEngine, do not use rejection
-            P.rejection = ImageIntegration.prototype.NoRejection;
-            P.generateDrizzleData = false;
-      } else {
-            P.rejection = getRejectionAlgorigthm(images.length);
-            P.generateDrizzleData = par.use_drizzle.val;
-      }
-      
-      P.evaluateNoise = true;
+      P.maxBufferThreads = 0;
 
       P.executeGlobal();
 
@@ -5174,7 +5236,7 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       if (par.use_drizzle.val && name != 'LDD') {
             windowCloseif(P.integrationImageId);
-            return runDrizzleIntegration(images, name);
+            return runDrizzleIntegration(images, name, local_normalization);
       } else {
             var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
             return new_name
@@ -6662,14 +6724,29 @@ function debayerImages(fileNames)
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.debayerMethod = Debayer.prototype.VNG;
       P.fbddNoiseReduction = 0;
-      P.evaluateNoise = true;
-      P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
       P.showImages = true;
       P.cfaSourceFilePath = "";
       P.targetItems = filesNamesToEnabledPath(fileNames);
       P.noGUIMessages = true;
+      P.evaluateNoise = true;
+      P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
+      if (pixinsight_version_num >= 1080810) {
+            P.evaluateSignal = true;
+            P.structureLayers = 5;
+            P.noiseLayers = 1;
+            P.hotPixelFilterRadius = 1;
+            P.noiseReductionFilterRadius = 0;
+            P.minStructureSize = 0;
+            P.psfType = Debayer.prototype.PSFType_Moffat4;
+            P.psfRejectionLimit = 5.00;
+            P.maxStars = 24576;
+      }
       P.inputHints = "raw cfa";
       P.outputHints = "";
+      if (pixinsight_version_num >= 1080810) {
+            P.outputRGBImages = true;
+            P.outputSeparateChannels = false;
+      }
       P.outputDirectory = outputRootDir + AutoOutputDir;
       P.outputExtension = ".xisf";
       P.outputPrefix = "";
@@ -8407,6 +8484,7 @@ function AutoIntegrateEngine(auto_continue)
       console.noteln("--------------------------------------");
       var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
+            addProcessingStep(pixinsight_version);
             addProcessingStep(autointegrate_version);
             addProcessingStep("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
@@ -11723,6 +11801,13 @@ function main()
             }
 
             fixAllWindowArrays(ppar.win_prefix);
+
+            pixinsight_version = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
+                                 CoreApplication.versionRelease + '.' + CoreApplication.versionRevision;
+            pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
+                                     CoreApplication.versionMinor * 1e4 + 
+                                     CoreApplication.versionRelease * 1e2 + 
+                                     CoreApplication.versionRevision;
       }
       catch (x) {
             console.writeln( x );
