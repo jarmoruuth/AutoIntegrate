@@ -263,9 +263,9 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.27";
-var pixinsight_version;
-var pixinsight_version_num;
+var autointegrate_version = "AutoIntegrate v1.28";
+var pixinsight_version_str;   // version string, e.g. 1.8.8.10
+var pixinsight_version_num;   // version number, e.h. 1808010 
 
 // GUI variables
 var infoLabel;
@@ -369,8 +369,6 @@ var par = {
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
-      Hyperbolic_D: { val: 10, def: 10, name : "Hyperbolic Stretch D value", type : 'I' },
-      Hyperbolic_b: { val: 2, def: 2, name : "Hyperbolic Stretch b value", type : 'I' }, 
       
       // Extra processing for narrowband
       run_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -430,7 +428,7 @@ var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Deb
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -1834,72 +1832,10 @@ function runImageIntegrationBiasDarks(images, name)
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       P.rejection = getRejectionAlgorigthm(images.length);
-
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.combination = ImageIntegration.prototype.Average;
       P.weightMode = ImageIntegration.prototype.DontCare;
-      P.weightKeyword = "";
-      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
-      P.adaptiveGridSize = 16;
-      P.adaptiveNoScale = false;
-      P.ignoreNoiseKeywords = false;
       P.normalization = ImageIntegration.prototype.NoNormalization;
-      // P.rejection = ImageIntegration.prototype.NoRejection;
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;
-      P.minMaxLow = 1;
-      P.minMaxHigh = 1;
-      P.pcClipLow = 0.200;
-      P.pcClipHigh = 0.100;
-      P.sigmaLow = 4.000;
-      P.sigmaHigh = 3.000;
-      P.winsorizationCutoff = 5.000;
-      P.linearFitLow = 5.000;
-      P.linearFitHigh = 4.000;
-      P.esdOutliersFraction = 0.30;
-      P.esdAlpha = 0.05;
-      P.esdLowRelaxation = 1.50;
-      P.ccdGain = 1.00;
-      P.ccdReadNoise = 10.00;
-      P.ccdScaleNoise = 0.00;
-      P.clipLow = true;
-      P.clipHigh = true;
       P.rangeClipLow = false;
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
-      P.rangeHigh = 0.980000;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-      P.largeScaleClipLow = false;
-      P.largeScaleClipLowProtectedLayers = 2;
-      P.largeScaleClipLowGrowth = 2;
-      P.largeScaleClipHigh = false;
-      P.largeScaleClipHighProtectedLayers = 2;
-      P.largeScaleClipHighGrowth = 2;
-      P.generate64BitResult = false;
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
-      P.generateDrizzleData = false;
-      P.closePreviousImages = false;
-      P.bufferSizeMB = 16;
-      P.stackSizeMB = 1024;
-      P.autoMemorySize = true;
-      P.autoMemoryLimit = 0.75;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.useCache = true;
       P.evaluateNoise = false;
-      P.mrsMinDataFraction = 0.010;
-      P.subtractPedestals = false;
-      P.truncateOnOutOfRange = false;
-      P.noGUIMessages = true;
-      P.showImages = true;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-      P.useBufferThreads = true;
-      P.maxBufferThreads = 0;
 
       P.executeGlobal();
 
@@ -1920,12 +1856,6 @@ function runSuberBias(biasWin)
       console.writeln("runSuberBias, bias " + biasWin.mainView.id);
 
       var P = new Superbias;
-      P.columns = true;
-      P.rows = false;
-      P.medianTransform = true;
-      P.excludeLargeScale = true;
-      P.multiscaleLayers = 7;
-      P.trimmingFactor = 0.200;
 
       biasWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -1955,66 +1885,12 @@ function runCalibrateDarks(images, masterbiasPath)
       P.targetFrames = filesNamesToEnabledPath(images); // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
-      P.pedestal = 0;
-      P.pedestalMode = ImageCalibration.prototype.Keyword;
-      P.pedestalKeyword = "";
-      P.overscanEnabled = false;
-      P.overscanImageX0 = 0;
-      P.overscanImageY0 = 0;
-      P.overscanImageX1 = 0;
-      P.overscanImageY1 = 0;
-      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
-         [false, 0, 0, 0, 0, 0, 0, 0, 0],
-         [false, 0, 0, 0, 0, 0, 0, 0, 0],
-         [false, 0, 0, 0, 0, 0, 0, 0, 0],
-         [false, 0, 0, 0, 0, 0, 0, 0, 0]
-      ];
       P.masterBiasEnabled = true;
       P.masterBiasPath = masterbiasPath;
       P.masterDarkEnabled = false;
-      P.masterDarkPath = "";
       P.masterFlatEnabled = false;
-      P.masterFlatPath = "";
-      P.calibrateBias = false;
-      P.calibrateDark = false;
-      P.calibrateFlat = false;
-      P.optimizeDarks = true;
-      P.darkOptimizationThreshold = 0.00000;
-      P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 0;
-      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
-      P.separateCFAFlatScalingFactors = true;
-      P.flatScaleClippingFactor = 0.05;
-      P.evaluateNoise = true;
-      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-      if (pixinsight_version_num >= 1080810) {
-            P.evaluateSignal = true;
-            P.structureLayers = 5;
-            P.noiseLayers = 1;
-            P.hotPixelFilterRadius = 1;
-            P.noiseReductionFilterRadius = 0;
-            P.minStructureSize = 0;
-            P.psfType = ImageCalibration.prototype.PSFType_Moffat4;
-            P.psfRejectionLimit = 5.00;
-            P.maxStars = 24576;
-      }
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_c";
-      P.outputSampleFormat = ImageCalibration.prototype.f32;
-      P.outputPedestal = 0;
       P.overwriteExistingFiles = true;
-      P.onError = ImageCalibration.prototype.Continue;
-      P.noGUIMessages = true;
-      if (pixinsight_version_num >= 1080810) {
-            P.useFileThreads = true;
-            P.fileThreadOverload = 1.00;
-            P.maxFileReadThreads = 0;
-            P.maxFileWriteThreads = 0;
-      }
 
       P.executeGlobal();
 
@@ -2036,22 +1912,6 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       P.targetFrames = images; // [ // enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
-      P.pedestal = 0;
-      P.pedestalMode = ImageCalibration.prototype.Keyword;
-      P.pedestalKeyword = "";
-      P.overscanEnabled = false;
-      P.overscanImageX0 = 0;
-      P.overscanImageY0 = 0;
-      P.overscanImageX1 = 0;
-      P.overscanImageY1 = 0;
-      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0]
-      ];
       if (masterflatdarkPath != null) {
             console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
             P.masterBiasEnabled = true;
@@ -2082,25 +1942,8 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       } else {
             P.calibrateDark = true;
       }
-      P.calibrateFlat = false;
-      P.optimizeDarks = true;
-      P.darkOptimizationThreshold = 0.00000;
-      P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 0;
-      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
-      P.separateCFAFlatScalingFactors = true;
-      P.flatScaleClippingFactor = 0.05;
-      P.evaluateNoise = true;
-      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_c";
-      P.outputSampleFormat = ImageCalibration.prototype.f32;
-      P.outputPedestal = 0;
       P.overwriteExistingFiles = true;
-      P.onError = ImageCalibration.prototype.Continue;
-      P.noGUIMessages = true;
 
       P.executeGlobal();
 
@@ -2115,21 +1958,13 @@ function runImageIntegrationFlats(images, name)
 {
       console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
 
+
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.combination = ImageIntegration.prototype.Average;
       P.weightMode = ImageIntegration.prototype.DontCare;
-      P.weightKeyword = "";
-      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
-      P.adaptiveGridSize = 16;
-      P.adaptiveNoScale = false;
-      P.ignoreNoiseKeywords = false;
       P.normalization = ImageIntegration.prototype.MultiplicativeWithScaling;
       P.rejection = ImageIntegration.prototype.PercentileClip;
       P.rejectionNormalization = ImageIntegration.prototype.EqualizeFluxes;
-      P.minMaxLow = 1;
-      P.minMaxHigh = 1;
       if (par.stars_in_flats.val) {
             P.pcClipLow = 0.010;
             P.pcClipHigh = 0.010;
@@ -2137,56 +1972,7 @@ function runImageIntegrationFlats(images, name)
             P.pcClipLow = 0.200;
             P.pcClipHigh = 0.100;
       }
-      P.sigmaLow = 4.000;
-      P.sigmaHigh = 3.000;
-      P.winsorizationCutoff = 5.000;
-      P.linearFitLow = 5.000;
-      P.linearFitHigh = 4.000;
-      P.esdOutliersFraction = 0.30;
-      P.esdAlpha = 0.05;
-      P.esdLowRelaxation = 1.50;
-      P.ccdGain = 1.00;
-      P.ccdReadNoise = 10.00;
-      P.ccdScaleNoise = 0.00;
-      P.clipLow = true;
-      P.clipHigh = true;
       P.rangeClipLow = false;
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
-      P.rangeHigh = 0.980000;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-      P.largeScaleClipLow = false;
-      P.largeScaleClipLowProtectedLayers = 2;
-      P.largeScaleClipLowGrowth = 2;
-      P.largeScaleClipHigh = false;
-      P.largeScaleClipHighProtectedLayers = 2;
-      P.largeScaleClipHighGrowth = 2;
-      P.generate64BitResult = false;
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
-      P.generateDrizzleData = false;
-      P.closePreviousImages = false;
-      P.bufferSizeMB = 16;
-      P.stackSizeMB = 1024;
-      P.autoMemorySize = true;
-      P.autoMemoryLimit = 0.75;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.useCache = true;
-      P.evaluateNoise = true;
-      P.mrsMinDataFraction = 0.010;
-      P.subtractPedestals = false;
-      P.truncateOnOutOfRange = false;
-      P.noGUIMessages = true;
-      P.showImages = true;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-      P.useBufferThreads = true;
-      P.maxBufferThreads = 0;
 
       P.executeGlobal();
 
@@ -2214,22 +2000,6 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       P.targetFrames = images; // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
-      P.outputHints = "properties fits-keywords no-compress-data no-embedded-data no-resolution";
-      P.pedestal = 0;
-      P.pedestalMode = ImageCalibration.prototype.Keyword;
-      P.pedestalKeyword = "";
-      P.overscanEnabled = false;
-      P.overscanImageX0 = 0;
-      P.overscanImageY0 = 0;
-      P.overscanImageX1 = 0;
-      P.overscanImageY1 = 0;
-      P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0],
-      [false, 0, 0, 0, 0, 0, 0, 0, 0]
-      ];
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
@@ -2276,23 +2046,8 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             P.calibrateFlat = false;
             P.optimizeDarks = false;
       }
-      P.darkOptimizationThreshold = 0.00000;
-      P.darkOptimizationLow = 3.0000;
-      P.darkOptimizationWindow = 0;
-      P.darkCFADetectionMode = ImageCalibration.prototype.DetectCFA;
-      P.separateCFAFlatScalingFactors = true;
-      P.flatScaleClippingFactor = 0.05;
-      P.evaluateNoise = true;
-      P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
       P.outputDirectory = outputRootDir + AutoCalibratedDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_c";
-      P.outputSampleFormat = ImageCalibration.prototype.f32;
-      P.outputPedestal = 0;
       P.overwriteExistingFiles = true;
-      P.onError = ImageCalibration.prototype.Continue;
-      P.noGUIMessages = true;
 
       P.executeGlobal();
 
@@ -3277,11 +3032,6 @@ function runBinningOnLights(fileNames, filtered_files)
 
                   var P = new IntegerResample;
                   P.zoomFactor = -2;
-                  P.downsamplingMode = IntegerResample.prototype.Average;
-                  P.xResolution = 72.000;
-                  P.yResolution = 72.000;
-                  P.metric = false;
-                  P.forceResolution = false;
                   P.noGUIMessages = true;
 
                   imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -3371,25 +3121,14 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       console.writeln("fileNames[0] " + fileNames[0]);
 
       var P = new CosmeticCorrection;
-
       P.targetFrames = filesNamesToEnabledPath(fileNames);
-      P.masterDarkPath = "";
-      P.outputDir = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.prefix = "";
-      P.postfix = "_cc";
       P.overwrite = true;
-      P.amount = 1.00;
       if (color_images && par.debayerPattern.val != 'None') {
             P.cfa = true;
       } else {
             P.cfa = false;
       }
-      P.useMasterDark = false;
-      P.hotDarkCheck = false;
-      P.hotDarkLevel = 1.0000000;
-      P.coldDarkCheck = false;
-      P.coldDarkLevel = 0.0000000;
+      P.outputDir = outputRootDir + AutoOutputDir;
       P.useAutoDetect = true;
       P.hotAutoCheck = true;
       P.hotAutoValue = par.cosmetic_correction_hot_sigma.val;
@@ -3397,7 +3136,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       P.coldAutoValue = par.cosmetic_correction_cold_sigma.val;
       if (defects.length > 0) {
             P.useDefectList = true;
-            P.defects = defects; // defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd
+            P.defects = defects; // [ defectEnabled, defectIsRow, defectAddress, defectIsRange, defectBegin, defectEnd ]
       } else {
             P.useDefectList = false;
             P.defects = [];
@@ -3415,68 +3154,14 @@ function runCosmeticCorrection(fileNames, defects, color_images)
 
 function SubframeSelectorMeasure(fileNames)
 {
-      console.writeln("SubframeSelectorMeasure");
+      console.writeln("SubframeSelectorMeasure, input[0] " + fileNames[0]);
 
       var P = new SubframeSelector;
-      P.routine = SubframeSelector.prototype.MeasureSubframes;
       P.nonInteractive = true;
       P.subframes = filesNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
-      P.fileCache = true;
-      P.subframeScale = 1.0000;
-      P.cameraGain = 1.0000;
-      P.cameraResolution = SubframeSelector.prototype.Bits16;
-      P.siteLocalMidnight = 24;
-      P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
-      P.dataUnit = SubframeSelector.prototype.Electron;
-      P.trimmingFactor = 0.10;
-      P.structureLayers = 5;  // old -> 1.26: 4
-      P.noiseLayers = 0;      // old -> 1.26: 2
-      P.hotPixelFilterRadius = 1;
-      P.applyHotPixelFilter = false;
-      P.noiseReductionFilterRadius = 0;
-      P.sensitivity = 0.1000;
-      P.peakResponse = 0.8000;
-      P.maxDistortion = 0.5000;
-      P.upperLimit = 1.0000;
-      P.backgroundExpansion = 3;
-      P.xyStretch = 1.5000;
-      if (pixinsight_version_num < 1080810) {
-            P.psfFit = SubframeSelector.prototype.Gaussian;
-      } else {
-            P.psfFit = SubframeSelector.prototype.Moffat4;
-      }
-      P.psfFitCircular = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.pedestalMode = SubframeSelector.prototype.Pedestal_Keyword;
-      P.pedestal = 0;
-      P.pedestalKeyword = "";
-      P.inputHints = "";
-      P.outputHints = "";
+      P.noiseLayers = 2;
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_a";
-      P.outputKeyword = "SSWEIGHT";
       P.overwriteExistingFiles = true;
-      P.onError = SubframeSelector.prototype.Continue;
-      P.approvalExpression = "";
-      P.weightingExpression = "";
-      P.sortProperty = SubframeSelector.prototype.Index;
-      if (pixinsight_version_num < 1080810) {
-            P.graphProperty = SubframeSelector.prototype.FWHM;
-      } else {
-            P.graphProperty = SubframeSelector.prototype.PSFSignalWeight;
-            P.useFileThreads = true;
-            P.fileThreadOverload = 1.00;
-            P.maxFileReadThreads = 0;
-            P.maxFileWriteThreads = 0;
-      }
-      // P.measurements = [ measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight, measurementFWHM, measurementEccentricity, measurementSNRWeight, measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars, measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev ];
-
-      console.writeln("SubframeSelectorMeasure:executeGlobal, P.outputDirectory=" + P.outputDirectory);
 
       P.executeGlobal();
 
@@ -3538,11 +3223,29 @@ function SubframeSelectorMeasure(fileNames)
                               25*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin))+
                               40;
             }
-            P.measurements[i][indexWeight] = SSWEIGHT;
-            P.measurements[i][0] = true;
-            P.measurements[i][1] = false;
             addProcessingStep("FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + ", SSWEIGHT " + SSWEIGHT + ", " + P.measurements[i][indexPath]);
             ssFiles[ssFiles.length] = [ P.measurements[i][indexPath], SSWEIGHT ];
+      }
+      console.writeln("SubframeSelectorMeasure, output[0] " + ssFiles[0][0]);
+
+      if (fileNames.length > ssFiles.length) {
+            /* There is a possible issue that sometimes SubframeSelector leaves some input files
+             * out from P.measurements. This loop is here to add missing images back to list.
+             */
+            console.writeln("SubframeSelectorMeasure, files missing, " +  + fileNames[i] + " input files, "+ ssFiles.length + " output files");
+            for (var i = 0; i < fileNames.length; i++) {
+                  var found = false;
+                  for (var j = 0; j < ssFiles.length; j++) {
+                        if (fileNames[i] == ssFiles[i][0]) {
+                              found = true;
+                              break;
+                        }
+                  }
+                  if (!found) {
+                        console.writeln("SubframeSelectorMeasure, adding missing image " + fileNames[i]);
+                        ssFiles[ssFiles.length] = [ fileNames[i], 0.0 ];
+                  }
+            }
       }
 
       return ssFiles;
@@ -3590,7 +3293,7 @@ function runSubframeSelector(fileNames)
                   ssFiles[ssFiles.length] = newFilePath;
             }
       }
-      addProcessingStep("runSubframeSelector, "+fileNames.length+" files");
+      addProcessingStep("runSubframeSelector, input " + fileNames.length + " files, output " + ssFiles.length + " files");
       console.writeln("output[0] " + ssFiles[0]);
 
       return ssFiles;
@@ -4318,29 +4021,9 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage)
 
       var P = new PixelMath;
       P.expression = mapping;
-      P.expression1 = "";
-      P.expression2 = "";
-      P.expression3 = "";
-      P.useSingleExpression = true;
-      P.symbols = "";
-      P.generateOutput = true;
-      P.singleThreaded = false;
-      P.optimization = true;
-      P.use64BitWorkingImage = false;
-      P.rescale = false;
-      P.rescaleLower = 0;
-      P.rescaleUpper = 1;
-      P.truncate = true;
-      P.truncateLower = 0;
-      P.truncateUpper = 1;
       P.createNewImage = createNewImage;
       P.showNewImage = false;
       P.newImageId = id + "_pm";
-      P.newImageWidth = 0;
-      P.newImageHeight = 0;
-      P.newImageAlpha = false;
-      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(idWin.mainView);
@@ -4388,21 +4071,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       P.expression = mapping_R;
       P.expression1 = mapping_G;
       P.expression2 = mapping_B;
-      P.expression3 = "";
       P.useSingleExpression = false;
-      P.symbols = "";
-      P.clearImageCacheAndExit = false;
-      P.cacheGeneratedImages = false;
-      P.generateOutput = true;
-      P.singleThreaded = false;
-      P.optimization = true;
-      P.use64BitWorkingImage = false;
-      P.rescale = false;
-      P.rescaleLower = 0;
-      P.rescaleUpper = 1;
-      P.truncate = true;
-      P.truncateLower = 0;
-      P.truncateUpper = 1;
       P.showNewImage = true;
       if (newId != null) {
             P.createNewImage = true;
@@ -4411,11 +4080,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
             P.createNewImage = false;
             P.newImageId = "";
       }
-      P.newImageWidth = 0;
-      P.newImageHeight = 0;
-      P.newImageAlpha = false;
       P.newImageColorSpace = PixelMath.prototype.RGB;
-      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(idWin.mainView);
@@ -4810,7 +4475,7 @@ function append_image_for_integrate(images, new_image)
 {
       console.writeln("append_image_for_integrate " + new_image);
       var len = images.length;
-      images[len] = new Array(2);
+      images[len] = [];
       images[len][0] = true;
       images[len][1] = new_image;
 }
@@ -4824,90 +4489,34 @@ function runStarAlignment(imagetable, refImage)
 
       addProcessingStep("Star alignment on " + imagetable.length + " files, reference image " + refImage);
       console.writeln("input[0] " + imagetable[0]);
-      var P = new StarAlignment;
-      var targets = new Array;
+
+      var targets = [];
 
       for (var i = 0; i < imagetable.length; i++) {
             targets[targets.length] = [ true, true, imagetable[i] ];
       }
 
+      var P = new StarAlignment;
       if (par.strict_StarAlign.val) {
             P.structureLayers = 5;
-      } else {
-            P.structureLayers = 6;
-      }
-      P.noiseLayers = 0;
-      P.hotPixelFilterRadius = 1;
-      if (par.strict_StarAlign.val) {
             P.noiseReductionFilterRadius = 0;
-      } else {
-            P.noiseReductionFilterRadius = 5;
-      }
-      if (par.strict_StarAlign.val) {
             P.sensitivity = 0.100;
-      } else {
-            P.sensitivity = 0.010;
-      }
-      P.peakResponse = 0.80;
-      P.maxStarDistortion = 0.500;
-      P.upperLimit = 1.000;
-      P.invert = false;
-      P.distortionModel = "";
-      P.undistortedReference = false;
-      P.distortionCorrection = false;
-      P.distortionMaxIterations = 20;
-      P.distortionTolerance = 0.005;
-      P.matcherTolerance = 0.0500;
-      if (par.strict_StarAlign.val) {
             P.ransacTolerance = 2.00;
             P.ransacMaxIterations = 2000;
       } else {
+            P.structureLayers = 6;
+            P.noiseReductionFilterRadius = 5;
+            P.sensitivity = 0.010;
             P.ransacTolerance = 6.00;
             P.ransacMaxIterations = 3000;
       }
-      P.ransacMaximizeInliers = 1.00;
-      P.ransacMaximizeOverlapping = 1.00;
-      P.ransacMaximizeRegularity = 1.00;
-      P.ransacMinimizeError = 1.00;
-      P.maxStars = 0;
-      P.useTriangles = false;
-      P.polygonSides = 5;
-      P.descriptorsPerStar = 20;
-      P.restrictToPreviews = true;
-      P.intersection = StarAlignment.prototype.MosaicOnly;
-      P.useBrightnessRelations = false;
-      P.useScaleDifferences = false;
-      P.scaleTolerance = 0.100;
-      P.referenceImage = "";
-      P.inputHints = "";
-      P.outputHints = "";
-      P.mode = StarAlignment.prototype.RegisterMatch;
-      P.writeKeywords = true;
-      P.generateMasks = false;
       if (par.use_drizzle.val) {
             P.generateDrizzleData = true; /* Generate .xdrz files. */
       } else {
             P.generateDrizzleData = false;
       }
-      P.frameAdaptation = false;
-      P.noGUIMessages = true;
-      P.useSurfaceSplines = false;
-      P.splineSmoothness = 0.25;
-      P.pixelInterpolation = StarAlignment.prototype.Auto;
-      P.clampingThreshold = 0.30;
+      P.splineSmoothness = 0.25;    // default 0.050
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_r";
-      P.maskPostfix = "_m";
-      P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
-      P.onError = StarAlignment.prototype.Continue;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.20;
-      P.maxFileReadThreads = 1;
-      P.maxFileWriteThreads = 1;      
-
-      // Overwrite defaults
       P.referenceImage = refImage;
       P.referenceIsFile = true;
       P.targets = targets;
@@ -4926,7 +4535,7 @@ function runStarAlignment(imagetable, refImage)
 function runLocalNormalization(imagetable, refImage)
 {
       addProcessingStep("Run local normalization using reference image " + refImage);
-      var targets = new Array;
+      var targets = [];
 
       for (var i = 0; i < imagetable.length; i++) {
             var enabled = true;
@@ -4945,40 +4554,10 @@ function runLocalNormalization(imagetable, refImage)
             }
       }
       var P = new LocalNormalization;
-      P.scale = 128;
-      P.noScale = false;
-      P.rejection = true;
-      P.backgroundRejectionLimit = 0.050;
-      P.referenceRejectionThreshold = 0.500;
-      P.targetRejectionThreshold = 0.500;
-      P.hotPixelFilterRadius = 2;
-      P.noiseReductionFilterRadius = 0;
       P.referencePathOrViewId = refImage;
-      P.referenceIsView = false;
       P.targetItems = targets;            // [ enabled, image ]
-      P.inputHints = "";
-      P.outputHints = "";
-      P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_ViewExecutionOnly;
-      P.generateNormalizationData = true;
-      P.showBackgroundModels = false;
-      P.showRejectionMaps = false;
-      P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
-      P.noGUIMessages = false;
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_n";
       P.overwriteExistingFiles = true;
-      P.onError = LocalNormalization.prototype.OnError_Continue;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-      P.maxFileReadThreads = 0;
-      P.maxFileWriteThreads = 0;
-      P.graphSize = 800;
-      P.graphTextSize = 12;
-      P.graphTitleSize = 18;
-      P.graphTransparent = false;
-      P.graphOutputDirectory = "";
 
       P.executeGlobal();
 }
@@ -4993,8 +4572,6 @@ function runLinearFit(refViewId, targetId)
       var targetWin = ImageWindow.windowById(targetId);
       var P = new LinearFit;
       P.referenceViewId = refViewId;
-      P.rejectLow = 0.000000;
-      P.rejectHigh = 0.920000;
 
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(targetWin.mainView);
@@ -5004,9 +4581,10 @@ function runLinearFit(refViewId, targetId)
 function runDrizzleIntegration(images, name, local_normalization)
 {
       addProcessingStep("run DrizzleIntegration");
-      var drizzleImages = new Array;
+
+      var drizzleImages = [];
       for (var i = 0; i < images.length; i++) {
-            drizzleImages[i] = new Array(3);
+            drizzleImages[i] = [];
             drizzleImages[i][0] = images[i][0];                                 // enabled
             drizzleImages[i][1] = images[i][1].replace(".xisf", ".xdrz");       // drizzlePath
             if (local_normalization) {
@@ -5018,37 +4596,7 @@ function runDrizzleIntegration(images, name, local_normalization)
 
       var P = new DrizzleIntegration;
       P.inputData = drizzleImages; // [ enabled, path, localNormalizationDataPath ]
-      P.inputHints = "";
-      P.inputDirectory = "";
-      P.scale = 2.00;
-      P.dropShrink = 0.90;
-      P.kernelFunction = DrizzleIntegration.prototype.Kernel_Square;
-      P.kernelGridSize = 16;
-      P.originX = 0.50;
-      P.originY = 0.50;
-      P.enableCFA = false;
-      P.cfaPattern = "";
-      P.enableRejection = true;
-      P.enableImageWeighting = true;
-      P.enableSurfaceSplines = true;
-      if (pixinsight_version_num >= 1080810) {
-            P.enableLocalDistortion = true;
-      }
       P.enableLocalNormalization = local_normalization;
-      if (pixinsight_version_num >= 1080810) {
-            P.enableAdaptiveNormalization = false;
-      }
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.closePreviousImages = false;
-      if (pixinsight_version_num >= 1080810) {
-            P.truncateOnOutOfRange = false;
-      }
-      P.noGUIMessages = true;
-      P.onError = DrizzleIntegration.prototype.Continue;
 
       P.executeGlobal();
 
@@ -5127,23 +4675,11 @@ function runImageIntegrationEx(images, name, local_normalization)
       var P = new ImageIntegration;
 
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
-      P.combination = ImageIntegration.prototype.Average;
-      P.inputHints = "fits-keywords normalize raw cfa signed-is-physical";
       if (ssweight_set && par.use_imageintegration_ssweight.val) {
             addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
-      } else {
-            if (pixinsight_version_num < 1080810) {
-                  ImageIntegration.prototype.NoiseEvaluation;
-            } else {
-                  P.weightMode = ImageIntegration.prototype.PSFSignalWeight;
-            }
-            P.weightKeyword = "";
       }
-      P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
-      P.adaptiveGridSize = 16;
-      P.ignoreNoiseKeywords = false;
       if (local_normalization) {
             addProcessingStep("  Using LocalNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.LocalNormalization;
@@ -5168,65 +4704,15 @@ function runImageIntegrationEx(images, name, local_normalization)
       } else {
             P.rejectionNormalization = ImageIntegration.prototype.Scale;
       }
-      P.minMaxLow = 1;
-      P.minMaxHigh = 1;
-      P.pcClipLow = 0.200;
-      P.pcClipHigh = 0.100;
-      P.sigmaLow = 4.000;
-      P.sigmaHigh = 3.000;
-      P.winsorizationCutoff = 5.000;
-      P.linearFitLow = 5.000;
-      P.linearFitHigh = 4.000;
-      P.esdOutliersFraction = 0.30;
-      P.esdAlpha = 0.05;
-      P.esdLowRelaxation = 1.50;
-      P.ccdGain = 1.00;
-      P.ccdReadNoise = 10.00;
-      P.ccdScaleNoise = 0.00;
       P.clipLow = par.imageintegration_clipping.val;             // def: true
       P.clipHigh = par.imageintegration_clipping.val;            // def: true
       P.rangeClipLow = par.imageintegration_clipping.val;        // def: true
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
-      P.rangeHigh = 0.980000;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-      P.largeScaleClipLow = false;
-      P.largeScaleClipLowProtectedLayers = 2;
-      P.largeScaleClipLowGrowth = 2;
-      P.largeScaleClipHigh = false;
-      P.largeScaleClipHighProtectedLayers = 2;
-      P.largeScaleClipHighGrowth = 2;
-      P.generate64BitResult = false;
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
       if (name == 'LDD') {
             P.generateDrizzleData = false;
       } else {
             P.generateDrizzleData = par.use_drizzle.val;
       }
-      P.closePreviousImages = false;
-      P.bufferSizeMB = 16;
-      P.stackSizeMB = 1024;
-      P.autoMemorySize = true;
-      P.autoMemoryLimit = 0.75;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.useCache = true;
       P.evaluateNoise = true;
-      P.evaluateNoise = true;
-      P.mrsMinDataFraction = 0.010;
-      P.subtractPedestals = false;
-      P.truncateOnOutOfRange = false;
-      P.noGUIMessages = true;
-      P.showImages = true;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-      P.useBufferThreads = true;
-      P.maxBufferThreads = 0;
 
       P.executeGlobal();
 
@@ -5251,9 +4737,9 @@ function runImageIntegrationNormalized(images, best_image, name)
 
       console.writeln("Using local normalized data in image integration");
       
-      var norm_images = new Array;
+      var norm_images = [];
       for (var i = 0; i < images.length; i++) {
-            var oneimage = new Array(4);
+            var oneimage = [];
             oneimage[0] = true;                                   // enabled
             oneimage[1] = images[i][1];                           // path
             if (par.use_drizzle.val) {
@@ -5281,9 +4767,9 @@ function runImageIntegration(channel_images, name)
 
       if (par.skip_local_normalization.val || name == 'LDD') {
             if (par.use_drizzle.val) {
-                  var drizzleImages = new Array;
+                  var drizzleImages = [];
                   for (var i = 0; i < images.length; i++) {
-                        drizzleImages[i] = new Array(3);
+                        drizzleImages[i] = [];
                         drizzleImages[i][0] = images[i][0];      // enabled
                         drizzleImages[i][1] = images[i][1];      // path
                         drizzleImages[i][2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
@@ -5328,36 +4814,13 @@ function runABEex(win, replaceTarget, postfix)
             addProcessingStep("run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
 
-      var ABE = new AutomaticBackgroundExtractor;
-
-      ABE.correctedImageId = ABE_id;
-
-      ABE.tolerance = 1.000;
-      ABE.deviatione = 0.800;
-      ABE.unbalance = 1.800;
-      ABE.minBoxFraction = 0.050;
-      ABE.maxBackground = 1.0000;
-      ABE.minBackground = 0.0000;
-      ABE.useBrightnessLimits = false;
-      ABE.polyDegree = 4;
-      ABE.boxSize = 5;
-      ABE.boxSeparation = 5;
-      ABE.modelImageSampleFormat = AutomaticBackgroundExtractor.prototype.f32;
-      ABE.abeDownsample = 2.00;
-      ABE.writeSampleBoxes = false;
-      ABE.justTrySamples = false;
-      ABE.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
-      ABE.normalize = false;
-      ABE.discardModel = true;
-      ABE.replaceTarget = replaceTarget;
-      ABE.correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
-      ABE.verboseCoefficients = false;
-      ABE.compareModel = false;
-      ABE.compareFactor = 10.00;
+      var P = new AutomaticBackgroundExtractor;
+      P.correctedImageId = ABE_id;
+      P.replaceTarget = replaceTarget;
 
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      ABE.executeOn(win.mainView, false);
+      P.executeOn(win.mainView, false);
 
       win.mainView.endProcess();
 
@@ -5607,17 +5070,6 @@ function runHistogramTransformMaskedStretch(ABE_win)
 
       var P = new MaskedStretch;
       P.targetBackground = par.MaskedStretch_targetBackground.val;
-      P.numberOfIterations = 100;
-      P.clippingFraction = 0.00050000;
-      P.backgroundReferenceViewId = "";
-      P.backgroundLow = 0.00000000;
-      P.backgroundHigh = 0.05000000;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.maskType = MaskedStretch.prototype.MaskType_Intensity;
 
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -5627,62 +5079,6 @@ function runHistogramTransformMaskedStretch(ABE_win)
       ABE_win.mainView.endProcess();
 
       return null;
-}
-
-function runHistogramTransformHyperbolic(ABE_win)
-{
-      var P = new PixelMath;
-      P.expression = "iif(b==0,EC=1,EC=0);\n" +
-      "iif(b>0,Ds=D*b,Ds=D);\n" +
-      "iif(b>0,bs=b,bs=1);\n" +
-      "iif(EC==1,q0=exp(-Ds*SP),q0=(1+Ds*SP)^(-1/bs));\n" +
-      "iif(EC==1,qWP=2-exp(-Ds*(HP-SP)),qWP=2-(1+Ds*(HP-SP))^(-1/bs));\n" +
-      "iif(EC==1,q1=2-2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-SP-1)),q1=2-2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-SP-1))^(-1/bs));\n" +
-      "iif($T<SP,EC*exp(-Ds*(SP-$T))+(1-EC)*(1+Ds*(SP-$T))^(-1/bs)-q0,iif($T>HP,2-EC*(2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-$T-SP)))+(1-EC)*(2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-$T-SP))^(-1/bs))-q0,2-EC*exp(-Ds*($T-SP))-(1-EC)*(1+Ds*($T-SP))^(-1/bs)-q0))/(q1-q0);";
-      P.expression1 = "";
-      P.expression2 = "";
-      P.expression3 = "";
-      P.useSingleExpression = true;
-      P.symbols = "D = " + par.Hyperbolic_D.val + ";\n" +
-      "b = " + par.Hyperbolic_b.val + ";\n" +
-      "SP =0.00;\n" +
-      "HP =1.00;\n" +
-      "Rnorm;\n" +
-      "q0;\n" +
-      "qWP;\n" +
-      "q1;\n" +
-      "Ds;\n" +
-      "bs;\n" +
-      "EC;";
-      P.clearImageCacheAndExit = false;
-      P.cacheGeneratedImages = false;
-      P.generateOutput = true;
-      P.singleThreaded = false;
-      P.optimization = true;
-      P.use64BitWorkingImage = false;
-      P.rescale = false;
-      P.rescaleLower = 0;
-      P.rescaleUpper = 1;
-      P.truncate = true;
-      P.truncateLower = 0;
-      P.truncateUpper = 1;
-      P.createNewImage = false;
-      P.showNewImage = true;
-      P.newImageId = "";
-      P.newImageWidth = 0;
-      P.newImageHeight = 0;
-      P.newImageAlpha = false;
-      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
-      console.writeln("Symbols " + P.symbols);
-
-      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-      P.executeOn(ABE_win.mainView);
-
-      ABE_win.mainView.endProcess();
 }
 
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
@@ -5703,8 +5099,6 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       {
             return runHistogramTransformMaskedStretch(ABE_win);
 
-      } else if (par.image_stretching.val == 'Hyperbolic') {
-            return runHistogramTransformHyperbolic(ABE_win);
       } else {
             throwFatalError("Bad image stretching value " + par.image_stretching.val + " with type " + type);
             return null;
@@ -5719,46 +5113,9 @@ function runACDNRReduceNoise(imgWin, maskWin)
       addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ACDNR;
-
-      P.applyToLightness = true;
       P.applyToChrominance = false;
-      P.useMaskL = false;
-      P.useMaskC = false;
       P.sigmaL = par.ACDNR_noise_reduction.val;
-      P.sigmaC = 2.0;
-      P.shapeL = 0.50;
-      P.shapeC = 0.50;
       P.amountL = 0.50;
-      P.amountC = 1.00;
-      P.iterationsL = 3;
-      P.iterationsC = 3;
-      P.prefilterMethodL = ACDNR.prototype.None;
-      P.prefilterMethodC = ACDNR.prototype.None;
-      P.protectionMethodL = ACDNR.prototype.WeightedAverage3x3;
-      P.protectionMethodC = ACDNR.prototype.UnweightedAverage3x3;
-      P.minStructSizeL = 5;
-      P.minStructSizeC = 5;
-      P.protectDarkSidesL = true;
-      P.protectDarkSidesC = true;
-      P.darkSidesThresholdL = 0.015;
-      P.darkSidesThresholdC = 0.030;
-      P.darkSidesOverdriveL = 0.00;
-      P.darkSidesOverdriveC = 0.00;
-      P.protectBrightSidesL = true;
-      P.protectBrightSidesC = true;
-      P.brightSidesThresholdL = 0.015;
-      P.brightSidesThresholdC = 0.030;
-      P.brightSidesOverdriveL = 0.00;
-      P.brightSidesOverdriveC = 0.00;
-      P.starProtectionL = true;
-      P.starProtectionC = true;
-      P.starThresholdL = 0.030;
-      P.starThresholdC = 0.030;
-      P.previewMask = false;
-      P.maskRemovedWaveletLayers = 1;
-      P.maskShadowsClipping = 0.00000;
-      P.maskHighlightsClipping = 1.00000;
-      P.maskMTF = 0.50000;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -5788,54 +5145,7 @@ function noiseSuperStrong()
             [true, true, 0.000, true, 0.500, 0.50, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-         0.25,0.5,0.25,
-         0.5,1,0.5,
-         0.25,0.5,0.25
-      ];
-      P.scalingFunctionRowFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionColFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-         0.8003,0.2729,0.1198,
-         0.0578,0.0287,0.0143,
-         0.0072,0.0036,0.0019,
-         0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
-      P.toChrominance = true;
-      P.linear = false;
-      
+
       return P;
 }
 
@@ -5850,53 +5160,6 @@ function noiseStronger()
             [true, true, 0.000, true, 0.500, 0.50, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-         0.25,0.5,0.25,
-         0.5,1,0.5,
-         0.25,0.5,0.25
-      ];
-      P.scalingFunctionRowFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionColFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-         0.8003,0.2729,0.1198,
-         0.0578,0.0287,0.0143,
-         0.0072,0.0036,0.0019,
-         0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
-      P.toChrominance = true;
-      P.linear = false;
       
       return P;
 }
@@ -5904,70 +5167,13 @@ function noiseStronger()
 function noiseStrong()
 {
       var P = new MultiscaleLinearTransform;
-      if (0) {
-            P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-                  [true, true, 0.000, true, 3.000, 0.50, 3],
-                  [true, true, 0.000, true, 2.000, 0.50, 2],
-                  [true, true, 0.000, true, 1.000, 0.50, 2],
-                  [true, true, 0.000, true, 0.500, 0.50, 1],
-                  [true, true, 0.000, false, 3.000, 1.00, 1]
-            ];
-      } else {
-            P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-                  [true, true, 0.000, true, 4.000, 0.50, 3],
-                  [true, true, 0.000, true, 2.000, 0.50, 2],
-                  [true, true, 0.000, true, 1.000, 0.50, 2],
-                  [true, true, 0.000, true, 0.500, 0.50, 1],
-                  [true, true, 0.000, false, 3.000, 1.00, 1]
-            ];
-      }
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-      0.25,0.5,0.25,
-      0.5,1,0.5,
-      0.25,0.5,0.25
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, true, 4.000, 0.50, 3],
+            [true, true, 0.000, true, 2.000, 0.50, 2],
+            [true, true, 0.000, true, 1.000, 0.50, 2],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.scalingFunctionRowFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionColFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-      0.8003,0.2729,0.1198,
-      0.0578,0.0287,0.0143,
-      0.0072,0.0036,0.0019,
-      0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
-      P.toChrominance = true;
-      P.linear = false;
 
       return P;
 }
@@ -5981,53 +5187,6 @@ function noiseMild()
             [true, true, 0.000, true, 0.500, 0.50, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-      0.25,0.5,0.25,
-      0.5,1,0.5,
-      0.25,0.5,0.25
-      ];
-      P.scalingFunctionRowFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionColFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-      0.8003,0.2729,0.1198,
-      0.0578,0.0287,0.0143,
-      0.0072,0.0036,0.0019,
-      0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
-      P.toChrominance = true;
-      P.linear = false;
 
       return P;
 }
@@ -6041,53 +5200,6 @@ function noiseVeryMild()
             [true, true, 0.000, true, 0.500, 0.50, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-      0.25,0.5,0.25,
-      0.5,1,0.5,
-      0.25,0.5,0.25
-      ];
-      P.scalingFunctionRowFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionColFilter = [
-      0.5,
-      1,
-      0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-      0.8003,0.2729,0.1198,
-      0.0578,0.0287,0.0143,
-      0.0072,0.0036,0.0019,
-      0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
-      P.deringing = false;
-      P.deringingDark = 0.1000;
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
-      P.toChrominance = true;
-      P.linear = false;
 
       return P;
 }
@@ -6158,25 +5270,7 @@ function runColorReduceNoise(imgWin)
       P.rgbkMode = false;
       P.filterEnabledL = false;
       P.filterEnabledC = true;
-      P.strengthL = 5.00000000;
-      P.strengthC = 7.00000000;
-      P.edgeProtectionL = 0.00200000;
-      P.edgeProtectionC = 0.00300000;
-      P.smoothnessL = 2.00000000;
-      P.smoothnessC = 2.00000000;
-      P.maxIterationsL = 100;
-      P.maxIterationsC = 100;
-      P.convergenceEnabledL = false;
-      P.convergenceEnabledC = false;
-      P.convergenceLimitL = 0.00400000;
-      P.convergenceLimitC = 0.00400000;
       P.supportEnabled = true;
-      P.supportViewId = "";
-      P.supportPreview = false;
-      P.supportRemovedWaveletLayers = 0;
-      P.supportShadowsClip = 0.00000;
-      P.supportHighlightsClip = 1.00000;
-      P.supportMidtonesBalance = 0.50000;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6189,17 +5283,8 @@ function runColorReduceNoise(imgWin)
 function runBackgroundNeutralization(imgView)
 {
       addProcessingStep("Background neutralization on " + imgView.id);
+
       var P = new BackgroundNeutralization;
-      P.backgroundReferenceViewId = "";
-      P.backgroundLow = 0.0000000;
-      P.backgroundHigh = 0.1000000;
-      P.useROI = false;
-      P.roiX0 = 0;
-      P.roiY0 = 0;
-      P.roiX1 = 0;
-      P.roiY1 = 0;
-      P.mode = BackgroundNeutralization.prototype.RescaleAsNeeded;
-      P.targetBackground = 0.0010000;
 
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6220,32 +5305,8 @@ function runColorCalibration(imgView)
       }
       try {
             addProcessingStep("Color calibration on " + imgView.id);
+
             var P = new ColorCalibration;
-            P.whiteReferenceViewId = "";
-            P.whiteLow = 0.0000000;
-            P.whiteHigh = 0.9000000;
-            P.whiteUseROI = false;
-            P.whiteROIX0 = 0;
-            P.whiteROIY0 = 0;
-            P.whiteROIX1 = 0;
-            P.whiteROIY1 = 0;
-            P.structureDetection = true;
-            P.structureLayers = 5;
-            P.noiseLayers = 1;
-            P.manualWhiteBalance = false;
-            P.manualRedFactor = 1.0000;
-            P.manualGreenFactor = 1.0000;
-            P.manualBlueFactor = 1.0000;
-            P.backgroundReferenceViewId = "";
-            P.backgroundLow = 0.0000000;
-            P.backgroundHigh = 0.1000000;
-            P.backgroundUseROI = false;
-            P.backgroundROIX0 = 0;
-            P.backgroundROIY0 = 0;
-            P.backgroundROIX1 = 0;
-            P.backgroundROIY1 = 0;
-            P.outputWhiteReferenceMask = false;
-            P.outputBackgroundReferenceMask = false;
 
             imgView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6274,8 +5335,7 @@ function runColorSaturation(imgWin, maskWin)
             [0.76744, 1.29091],
             [1.00000, 0.76364]
       ];
-      P.HSt = ColorSaturation.prototype.AkimaSubsplines;
-      P.hueShift = 0.000;
+
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6295,62 +5355,11 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       addProcessingStep("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
-      P.R = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.G = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.B = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.K = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.A = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.At = CurvesTransformation.prototype.AkimaSubsplines;
-      P.L = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.a = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.at = CurvesTransformation.prototype.AkimaSubsplines;
-      P.b = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.c = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
-      P.H = [ // x, y
-            [0.00000, 0.00000],
-            [1.00000, 1.00000]
-      ];
-      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
       P.S = [ // x, y
             [0.00000, 0.00000],
             [0.68734, 0.83204],
             [1.00000, 1.00000]
       ];
-      P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6387,10 +5396,7 @@ function runLRGBCombination(RGB_id, L_id)
       ];
       P.mL = par.LRGBCombination_lightness.val;
       P.mc = par.LRGBCombination_saturation.val;
-      P.clipHighlights = true;
       P.noiseReduction = true;
-      P.layersRemoved = 4;
-      P.layersProtected = 2;
 
       RGBimgView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6413,9 +5419,6 @@ function runSCNR(RGBimgView, fixing_stars)
       } else {
             P.amount = 1.00;
       }
-      P.protectionMethod = SCNR.prototype.AverageNeutral;
-      P.colorToRemove = SCNR.prototype.Green;
-      P.preserveLightness = true;
 
       RGBimgView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6430,63 +5433,12 @@ function narrowbandHueShift(imgView)
       addProcessingStep("Hue shift on " + imgView.id);
       
       var P = new CurvesTransformation;
-      P.R = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.G = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.B = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.K = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.A = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.At = CurvesTransformation.prototype.AkimaSubsplines;
-      P.L = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.a = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.at = CurvesTransformation.prototype.AkimaSubsplines;
-      P.b = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.c = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
       P.H = [ // x, y
          [0.00000, 0.00000],
          [0.30361, 0.18576],
          [0.47454, 0.47348],
          [1.00000, 1.00000]
       ];
-      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
-      P.S = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.St = CurvesTransformation.prototype.AkimaSubsplines;
       
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6505,59 +5457,15 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
-         [true, true, 0.000, false, 3.000, 1.00, 1],
-         [true, true, 0.050, false, 3.000, 1.00, 1],
-         [true, true, 0.075, false, 3.000, 1.00, 1],
-         [true, true, 0.000, false, 3.000, 1.00, 1],
-         [true, true, 0.000, false, 3.000, 1.00, 1]
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.050, false, 3.000, 1.00, 1],
+            [true, true, 0.075, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
-      P.transform = MultiscaleLinearTransform.prototype.StarletTransform;
-      P.scaleDelta = 0;
-      P.scalingFunctionData = [
-         0.25,0.5,0.25,
-         0.5,1,0.5,
-         0.25,0.5,0.25
-      ];
-      P.scalingFunctionRowFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionColFilter = [
-         0.5,
-         1,
-         0.5
-      ];
-      P.scalingFunctionNoiseSigma = [
-         0.8003,0.2729,0.1198,
-         0.0578,0.0287,0.0143,
-         0.0072,0.0036,0.0019,
-         0.001
-      ];
-      P.scalingFunctionName = "Linear Interpolation (3)";
-      P.linearMask = false;
-      P.linearMaskAmpFactor = 100;
-      P.linearMaskSmoothness = 1.00;
-      P.linearMaskInverted = true;
-      P.linearMaskPreview = false;
-      P.largeScaleFunction = MultiscaleLinearTransform.prototype.NoFunction;
-      P.curveBreakPoint = 0.75;
-      P.noiseThresholding = false;
-      P.noiseThresholdingAmount = 1.00;
-      P.noiseThreshold = 3.00;
-      P.softThresholding = true;
-      P.useMultiresolutionSupport = false;
       P.deringing = true;
       P.deringingDark = 0.1000;     // old value -> 1.24: 0.0100
-      P.deringingBright = 0.0000;
-      P.outputDeringingMaps = false;
-      P.lowRange = 0.0000;
-      P.highRange = 0.0000;
-      P.previewMode = MultiscaleLinearTransform.prototype.Disabled;
-      P.previewLayer = 0;
-      P.toLuminance = true;
       P.toChrominance = false;
-      P.linear = false;
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -6720,45 +5628,12 @@ function debayerImages(fileNames)
       var succ = true;
 
       addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
+
       var P = new Debayer;
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
-      P.debayerMethod = Debayer.prototype.VNG;
-      P.fbddNoiseReduction = 0;
-      P.showImages = true;
-      P.cfaSourceFilePath = "";
       P.targetItems = filesNamesToEnabledPath(fileNames);
-      P.noGUIMessages = true;
-      P.evaluateNoise = true;
-      P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
-      if (pixinsight_version_num >= 1080810) {
-            P.evaluateSignal = true;
-            P.structureLayers = 5;
-            P.noiseLayers = 1;
-            P.hotPixelFilterRadius = 1;
-            P.noiseReductionFilterRadius = 0;
-            P.minStructureSize = 0;
-            P.psfType = Debayer.prototype.PSFType_Moffat4;
-            P.psfRejectionLimit = 5.00;
-            P.maxStars = 24576;
-      }
-      P.inputHints = "raw cfa";
-      P.outputHints = "";
-      if (pixinsight_version_num >= 1080810) {
-            P.outputRGBImages = true;
-            P.outputSeparateChannels = false;
-      }
       P.outputDirectory = outputRootDir + AutoOutputDir;
-      P.outputExtension = ".xisf";
-      P.outputPrefix = "";
-      P.outputPostfix = "_d";
       P.overwriteExistingFiles = true;
-      P.onError = Debayer.prototype.OnError_Continue;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.00;
-      P.maxFileReadThreads = 0;
-      P.maxFileWriteThreads = 0;
-      P.memoryLoadControl = true;
-      P.memoryLoadLimit = 0.85;
 
       try {
             succ = P.executeGlobal();
@@ -7364,18 +6239,17 @@ function CombineRGBimage()
 
       /* ChannelCombination
        */
-      console.writeln("ChannelCombination");
-      var model_win;
-      var cc = new ChannelCombination;
-      cc.colorSpace = ChannelCombination.prototype.RGB;
       addProcessingStep("Channel combination using images " + red_id + "," + green_id + "," + blue_id);
-      cc.channels = [ // enabled, id
+
+      var P = new ChannelCombination;
+      P.colorSpace = ChannelCombination.prototype.RGB;
+      P.channels = [ // enabled, id
             [true, red_id],
             [true, green_id],
             [true, blue_id]
       ];
-      model_win = ImageWindow.windowById(red_id);
 
+      var model_win = ImageWindow.windowById(red_id);
       var rgb_name = ppar.win_prefix + "Integration_RGB";
 
       RGB_win = new ImageWindow(
@@ -7392,7 +6266,7 @@ function CombineRGBimage()
       }
                   
       RGB_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      cc.executeOn(RGB_win.mainView);
+      P.executeOn(RGB_win.mainView);
       RGB_win.mainView.endProcess();
       
       RGB_win.show();
@@ -7709,22 +6583,8 @@ function createStarFixMask(imgView)
       }
 
       var P = new StarMask;
-      P.shadowsClipping = 0.00000;
-      P.midtonesBalance = 0.50000;
-      P.highlightsClipping = 1.00000;
       P.waveletLayers = 8;
-      P.structureContours = false;
-      P.noiseThreshold = 0.10000;
-      P.aggregateStructures = false;
-      P.binarizeStructures = false;
-      P.largeScaleGrowth = 2;
-      P.smallScaleGrowth = 1;
-      P.growthCompensation = 2;
       P.smoothness = 8;
-      P.invert = false;
-      P.truncation = 1.00000;
-      P.limit = 1.00000;
-      P.mode = StarMask.prototype.StarMask;
 
       imgView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgView, false);
@@ -7859,62 +6719,11 @@ function extraDarkerBackground(imgWin, maskWin)
       addProcessingStep("Darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
-      P.R = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.G = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.B = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
       P.K = [ // x, y
          [0.00000, 0.00000],
          [0.53564, 0.46212],
          [1.00000, 1.00000]
       ];
-      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.A = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.At = CurvesTransformation.prototype.AkimaSubsplines;
-      P.L = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.a = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.at = CurvesTransformation.prototype.AkimaSubsplines;
-      P.b = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.c = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
-      P.H = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
-      P.S = [ // x, y
-         [0.00000, 0.00000],
-         [1.00000, 1.00000]
-      ];
-      P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -7934,39 +6743,11 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
       addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new HDRMultiscaleTransform;
-      P.numberOfLayers = 6;
-      P.numberOfIterations = 1;
-      P.invertedIterations = true;
-      P.overdrive = 0.000;
       P.medianTransform = true;
-      P.scalingFunctionData = [
-         0.003906,0.015625,0.023438,0.015625,0.003906,
-         0.015625,0.0625,0.09375,0.0625,0.015625,
-         0.023438,0.09375,0.140625,0.09375,0.023438,
-         0.015625,0.0625,0.09375,0.0625,0.015625,
-         0.003906,0.015625,0.023438,0.015625,0.003906
-      ];
-      P.scalingFunctionRowFilter = [
-         0.0625,0.25,
-         0.375,0.25,
-         0.0625
-      ];
-      P.scalingFunctionColFilter = [
-         0.0625,0.25,
-         0.375,0.25,
-         0.0625
-      ];
-      P.scalingFunctionName = "B3 Spline (5)";
       P.deringing = true;
-      P.smallScaleDeringing = 0.000;
-      P.largeScaleDeringing = 0.250;
-      P.outputDeringingMaps = false;
-      P.midtonesBalanceMode = HDRMultiscaleTransform.prototype.Automatic;
-      P.midtonesBalance = 0.500000;
       P.toLightness = true;
-      P.preserveHue = false;
       P.luminanceMask = true;
-      
+
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Transform only light parts of the image. */
@@ -7986,10 +6767,8 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       var P = new LocalHistogramEqualization;
       P.radius = 110;
-      P.histogramBins = LocalHistogramEqualization.prototype.Bit8;
       P.slopeLimit = 1.3;
       P.amount = 1.000;
-      P.circularKernel = true;
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -8007,22 +6786,9 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 function createNewStarMaskWin(imgWin)
 {
       var P = new StarMask;
-      P.shadowsClipping = 0.00000;
       P.midtonesBalance = 0.80000;        // old value -> 1.24: 0.50000
-      P.highlightsClipping = 1.00000;
       P.waveletLayers = 6;
-      P.structureContours = false;
-      P.noiseThreshold = 0.10000;
-      P.aggregateStructures = false;
-      P.binarizeStructures = false;
-      P.largeScaleGrowth = 2;
-      P.smallScaleGrowth = 1;
-      P.growthCompensation = 2;
-      P.smoothness = 8;
-      P.invert = false;
-      P.truncation = 1.00000;
-      P.limit = 1.00000;
-      P.mode = StarMask.prototype.StarMask;
+      P.smoothness = 8;    
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
@@ -8075,13 +6841,8 @@ function extraSmallerStars(imgWin)
       if (par.extra_smaller_stars_iterations.val == 0) {
             var P = new MorphologicalTransformation;
             P.operator = MorphologicalTransformation.prototype.Erosion;
-            P.interlacingDistance = 1;
-            P.lowThreshold = 0.000000;
-            P.highThreshold = 0.000000;
-            P.numberOfIterations = 1;
             P.amount = 0.30;
             P.selectionPoint = 0.20;
-            P.structureName = "";
             P.structureSize = 5;
             P.structureWayTable = [ // mask
                [[
@@ -8095,22 +6856,18 @@ function extraSmallerStars(imgWin)
       } else {
             var P = new MorphologicalTransformation;
             P.operator = MorphologicalTransformation.prototype.Selection;
-            P.interlacingDistance = 1;
-            P.lowThreshold = 0.000000;
-            P.highThreshold = 0.000000;
             P.numberOfIterations = par.extra_smaller_stars_iterations.val;
             P.amount = 0.70;
             P.selectionPoint = 0.20;
-            P.structureName = "";
             P.structureSize = 5;
             P.structureWayTable = [ // mask
-            [[
-                  0x00,0x01,0x01,0x01,0x00,
-                  0x01,0x01,0x01,0x01,0x01,
-                  0x01,0x01,0x01,0x01,0x01,
-                  0x01,0x01,0x01,0x01,0x01,
-                  0x00,0x01,0x01,0x01,0x00
-            ]]
+                  [[
+                        0x00,0x01,0x01,0x01,0x00,
+                        0x01,0x01,0x01,0x01,0x01,
+                        0x01,0x01,0x01,0x01,0x01,
+                        0x01,0x01,0x01,0x01,0x01,
+                        0x00,0x01,0x01,0x01,0x00
+                  ]]
             ];
       }
       
@@ -8139,63 +6896,12 @@ function extraContrast(imgWin)
       addProcessingStep("Increase contrast on " + imgWin.mainView.id);
 
       var P = new CurvesTransformation;
-      P.R = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.Rt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.G = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.Gt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.B = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.Bt = CurvesTransformation.prototype.AkimaSubsplines;
       P.K = [ // x, y
             [0.00000, 0.00000],
             [0.26884, 0.24432],
             [0.74542, 0.77652],
             [1.00000, 1.00000]
          ];
-      P.Kt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.A = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.At = CurvesTransformation.prototype.AkimaSubsplines;
-      P.L = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.Lt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.a = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.at = CurvesTransformation.prototype.AkimaSubsplines;
-      P.b = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.bt = CurvesTransformation.prototype.AkimaSubsplines;
-      P.c = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
-      P.H = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.Ht = CurvesTransformation.prototype.AkimaSubsplines;
-      P.S = [ // x, y
-      [0.00000, 0.00000],
-      [1.00000, 1.00000]
-      ];
-      P.St = CurvesTransformation.prototype.AkimaSubsplines;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -8474,7 +7180,7 @@ function AutoIntegrateEngine(auto_continue)
 
       processingDate = new Date;
       processing_steps = "";
-      all_windows = new Array;
+      all_windows = [];
       iconPoint = null;
       L_stf = null;
       linear_fit_done = false;
@@ -8482,10 +7188,10 @@ function AutoIntegrateEngine(auto_continue)
       is_luminance_images = false;
 
       console.noteln("--------------------------------------");
+      addProcessingStep("PixInsight version " + pixinsight_version_str);
+      addProcessingStep(autointegrate_version);
       var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
-            addProcessingStep(pixinsight_version);
-            addProcessingStep(autointegrate_version);
             addProcessingStep("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
                   addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
@@ -10436,8 +9142,7 @@ function AutoIntegrateDialog()
       this.stretchingComboBox.toolTip = 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
-            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.\n" +
-            "Hyperbolic - Generalized Hyperbolic Stretching using PixelMath formulas from PixInsight forum member dapayne.";
+            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.\n";
       addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
       this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
       this.stretchingComboBox.onItemSelected = function( itemIndex )
@@ -10487,37 +9192,11 @@ function AutoIntegrateDialog()
             par.MaskedStretch_targetBackground.val = value;
       };
 
-      this.Hyperbolic_D_Control = new NumericControl( this );
-      this.Hyperbolic_D_Control.label.text = "Hyperbolic Stretch D value";
-      this.Hyperbolic_D_Control.setRange(0, 20);
-      this.Hyperbolic_D_Control.setPrecision(1);
-      this.Hyperbolic_D_Control.setValue(par.Hyperbolic_D.val);
-      this.Hyperbolic_D_Control.toolTip = "<p>Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>";
-      this.Hyperbolic_D_Control.onValueUpdated = function( value )
-      {
-            par.Hyperbolic_D.val = value;
-      };
-      this.Hyperbolic_b_Control = new NumericControl( this );
-      this.Hyperbolic_b_Control.label.text = "Hyperbolic Stretch b value";
-      this.Hyperbolic_b_Control.setRange(0, 10);
-      this.Hyperbolic_b_Control.setPrecision(1);
-      this.Hyperbolic_b_Control.setValue(par.Hyperbolic_b.val);
-      this.Hyperbolic_b_Control.toolTip = "<p>Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
-                                          "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
-                                          "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
-                                          "super-hyperbolic stretch. Often it is best to keep b<2.</p>";
-      this.Hyperbolic_b_Control.onValueUpdated = function( value )
-      {
-            par.Hyperbolic_b.val = value;
-      };
-
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
-      this.StretchingOptionsSizer.add( this.Hyperbolic_D_Control );
-      this.StretchingOptionsSizer.add( this.Hyperbolic_b_Control );
       //this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = aiSectionLabel(this, "Image stretching settings");
@@ -11802,8 +10481,8 @@ function main()
 
             fixAllWindowArrays(ppar.win_prefix);
 
-            pixinsight_version = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                                 CoreApplication.versionRelease + '.' + CoreApplication.versionRevision;
+            pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
+                                     CoreApplication.versionRelease + '.' + CoreApplication.versionRevision;
             pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
                                      CoreApplication.versionMinor * 1e4 + 
                                      CoreApplication.versionRelease * 1e2 + 
