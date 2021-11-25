@@ -263,9 +263,14 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-var autointegrate_version = "AutoIntegrate v1.28";
-var pixinsight_version_str;   // version string, e.g. 1.8.8.10
-var pixinsight_version_num;   // version number, e.h. 1808010 
+// debugging
+var debug = false;
+var get_process_defaults = false;
+
+var autointegrate_version = "AutoIntegrate v1.29";
+
+var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
+var pixinsight_version_num;   // PixInsight version number, e.h. 1808010 
 
 // GUI variables
 var infoLabel;
@@ -590,9 +595,16 @@ var fixed_windows = [
       "Integration_G_ABE",
       "Integration_B_ABE",
       "Integration_RGB_ABE",
+      "Integration_L_BE",
+      "Integration_R_BE",
+      "Integration_G_BE",
+      "Integration_B_BE",
+      "Integration_RGB_BE",
       "Integration_RGB_ABE_NB",
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
+      "Integration_L_BE_HT",
+      "Integration_RGB_BE_HT",
       "copy_Integration_RGB_ABE_HT",
       "Integration_RGB_ABE_NB_HT",
       "copy_Integration_RGB_ABE_NB_HT",
@@ -1261,15 +1273,21 @@ function closeFinalWindowsFromArray(arr)
       }
 }
 
+function closeTempWindowsForOneImage(id)
+{
+      closeOneWindow(id + "_max");
+      closeOneWindow(id + "_map");
+      closeOneWindow(id + "_map_mask");
+      closeOneWindow(id + "_map_pm");
+      closeOneWindow(id + "_mask");
+      closeOneWindow(id + "_tmp");
+}
+
 function closeTempWindows()
 {
       for (var i = 0; i < integration_LRGB_windows.length; i++) {
-            closeOneWindow(integration_LRGB_windows[i] + "_max");
-            closeOneWindow(integration_LRGB_windows[i] + "_map");
-            closeOneWindow(integration_LRGB_windows[i] + "_map_mask");
-            closeOneWindow(integration_LRGB_windows[i] + "_map_pm");
-            closeOneWindow(integration_LRGB_windows[i] + "_mask");
-            closeOneWindow(integration_LRGB_windows[i] + "_tmp");
+            closeTempWindowsForOneImage(integration_LRGB_windows[i]);
+            closeTempWindowsForOneImage(integration_LRGB_windows[i] + "_BE");
       }
 }
 
@@ -4817,6 +4835,12 @@ function runABEex(win, replaceTarget, postfix)
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = ABE_id;
       P.replaceTarget = replaceTarget;
+      P.discardModel = true;
+      P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+
+      if (debug) {
+            console.writeln(P.toSource());
+      }
 
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -7142,6 +7166,36 @@ function extraProcessingEngine(id)
       console.noteln("Extra processing completed.");
 }
 
+/* Map background extracted channel images to start images.
+ */
+function mapBEchannels()
+{
+      if (L_BE_win != null) {
+            L_id = L_BE_win.mainView.id;
+      }
+      if (R_BE_win != null) {
+            R_id = R_BE_win.mainView.id;
+      }
+      if (G_BE_win != null) {
+            G_id = G_BE_win.mainView.id;
+      }
+      if (B_BE_win != null) {
+            B_id = B_BE_win.mainView.id;
+      }
+      if (H_BE_win != null) {
+            H_id = H_BE_win.mainView.id;
+      }
+      if (S_BE_win != null) {
+            S_id = S_BE_win.mainView.id;
+      }
+      if (O_BE_win != null) {
+            O_id = O_BE_win.mainView.id;
+      }
+      if (RGB_BE_win != null) {
+            RGBcolor_id = RGB_BE_win.mainView.id;
+      }
+}
+
 function AutoIntegrateEngine(auto_continue)
 {
       if (extra_target_image != "Auto") {
@@ -7230,6 +7284,9 @@ function AutoIntegrateEngine(auto_continue)
                               preprocessed_images == start_images.L_R_G_B);
             var RBGmapping = { combined: false, stretched: false};
 
+            if (preprocessed_images == start_images.L_R_G_B_BE) {
+                  mapBEchannels();
+            }
             if (processRGB) {
                   /* Do possible channel mapping. After that we 
                    * have red_id, green_id and blue_id.
@@ -7465,7 +7522,11 @@ function AutoIntegrateEngine(auto_continue)
       addProcessingStep("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
-      if (preprocessed_images != start_images.FINAL) {
+      if (get_process_defaults) {
+            getProcessDefaultValues();
+      }
+
+      if (preprocessed_images != start_images.FINAL || get_process_defaults) {
             writeProcessingSteps(alignedFiles, auto_continue, null);
       }
 
@@ -8404,6 +8465,52 @@ function importParameters()
                   }
             }
       }
+}
+
+function printProcessDefaultValues(name, obj)
+{
+      console.writeln(name);
+      console.writeln(obj.toSource());
+}
+
+function getProcessDefaultValues()
+{
+      write_processing_log_file = true;
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new ImageIntegration", new ImageIntegration);
+      printProcessDefaultValues("new Superbias", new Superbias);
+      printProcessDefaultValues("new ImageCalibration", new ImageCalibration);
+      printProcessDefaultValues("new IntegerResample", new IntegerResample);
+      printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
+      printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
+      printProcessDefaultValues("new PixelMath", new PixelMath);
+      printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      printProcessDefaultValues("new StarNet", new StarNet);
+      printProcessDefaultValues("new StarAlignment", new StarAlignment);
+      printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
+      printProcessDefaultValues("new LinearFit", new LinearFit);
+      printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
+      printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
+      printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
+      printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
+      printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
+      printProcessDefaultValues("new ACDNR", new ACDNR);
+      printProcessDefaultValues("new MultiscaleLinearTransform", new MultiscaleLinearTransform);
+      printProcessDefaultValues("new TGVDenoise", new TGVDenoise);
+      printProcessDefaultValues("new BackgroundNeutralization", new BackgroundNeutralization);
+      printProcessDefaultValues("new ColorCalibration", new ColorCalibration);
+      printProcessDefaultValues("new ColorSaturation", new ColorSaturation);
+      printProcessDefaultValues("new CurvesTransformation", new CurvesTransformation);
+      printProcessDefaultValues("new LRGBCombination", new LRGBCombination);
+      printProcessDefaultValues("new SCNR", new SCNR);
+      printProcessDefaultValues("new Debayer", new Debayer);
+      printProcessDefaultValues("new ChannelCombination", new ChannelCombination);
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new Invert", new Invert);
+      printProcessDefaultValues("new StarMask", new StarMask);
+      printProcessDefaultValues("new HDRMultiscaleTransform", new HDRMultiscaleTransform);
+      printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
+      printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
 }
 
 function aiSectionBar(parent, control, title)
@@ -9963,17 +10070,18 @@ function AutoIntegrateDialog()
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
       this.autoContinueButton.toolTip = 
-            "AutoContinue - Run automatic processing from previously created LRGB or Color images." +
+            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
             "<p>" +
             "Image check order is:<br>" +
-            "L_HT + RGB_HT<br>" +
-            "RGB_HT<br>" +
-            "Integration_L_BE + Integration_RGB_BE<br>" +
-            "Integration_RGB_BE<br>" +
-            "Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
-            "Integration_H + Integration_S + Integration_O<br>" +
-            "Integration_L + Integration_R + Integration_G + Integration_B<br>" +
-            "Final image (for extra processing)" +
+            "1. L_HT + RGB_HT<br>" +
+            "2. RGB_HT<br>" +
+            "3. Integration_L_BE + Integration_RGB_BE<br>" +
+            "4. Integration_RGB_BE<br>" +
+            "5. Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
+            "6. Integration_H_BE + Integration_S_BE + Integration_O_BE<br>" +
+            "7. Integration_L + Integration_R + Integration_G + Integration_B<br>" +
+            "8. Integration_H + Integration_S + Integration_O<br>" +
+            "9. Final image (for extra processing)" +
             "</p>" +
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
