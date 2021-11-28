@@ -191,7 +191,7 @@ Copyright (c) 2018-2021 Jarmo Ruuth. All Rights Reserved.
 
 Window name prefix and icon location code
 
-      Copyright (c) 2021 rob pfile
+      Copyright (c) 2021 rob pfile. All Rights Reserved.
 
 The following copyright notice is for Linear Defect Detection
 
@@ -243,9 +243,9 @@ Linear Defect Detection:
 
 */
 
-#feature-id   AutoIntegrate
+#feature-id   Batch Processing > AutoIntegrate
 
-#feature-info Tool for integrating and processing calibrated LRGB or color images
+#feature-info A script for running basic image processing workflow
 
 #define SETTINGSKEY "AutoIntegrate"
 
@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.29";
+var autointegrate_version = "AutoIntegrate v1.30";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1808010 
@@ -369,6 +369,7 @@ var par = {
       use_clipping: { val: 'Auto1', def: 'Auto1', name : "ImageIntegration rejection", type : 'S' },
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
+      STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
@@ -390,7 +391,7 @@ var par = {
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
-      extra_STF: { val: false, def: false, name : "Extra STF", type : 'B' },
+      extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
@@ -5048,7 +5049,7 @@ function applySTF(imgView, stf, iscolor)
       imgView.endProcess();
 }
 
-function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor)
+function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground)
 {
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
 
@@ -5066,7 +5067,7 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor)
             }
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
-                        DEFAULT_AUTOSTRETCH_TBGND,
+                        targetBackground,
                         rgbLinked);
             stf_to_use = ABE_win.mainView.stf;
       }
@@ -5114,9 +5115,15 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
 
       if (par.image_stretching.val == 'Auto STF' 
           || type == 'mask'
+          || type == 'extra'
           || (par.image_stretching.val == 'Use both' && type == 'L'))
       {
-            return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor);
+            if (type == 'mask') {
+                  targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
+            } else {
+                  targetBackground = par.STF_targetBackground.val;
+            }
+            return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
 
       } else if (par.image_stretching.val == 'Masked Stretch'
                  || (par.image_stretching.val == 'Use both' && type == 'RGB'))
@@ -6934,9 +6941,9 @@ function extraContrast(imgWin)
       imgWin.mainView.endProcess();
 }
 
-function extraSTF(win)
+function extraStretch(win)
 {
-      runHistogramTransform(win, null, win.mainView.image.isColor, 'mask');
+      runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB');
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -6964,7 +6971,7 @@ function is_non_starless_option()
              par.extra_HDRMLT.val || 
              par.extra_LHE.val || 
              par.extra_contrast.val ||
-             par.extra_STF.val ||
+             par.extra_stretch.val ||
              par.extra_noise_reduction.val ||
              par.extra_smaller_stars.val;
 }
@@ -7113,8 +7120,8 @@ function extraProcessing(id, apply_directly)
                   extraContrast(extraWin);
             }
       }
-      if (par.extra_STF.val) {
-            extraSTF(extraWin);
+      if (par.extra_stretch.val) {
+            extraStretch(extraWin);
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
@@ -9288,10 +9295,21 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFLabel );
       this.STFSizer.add( this.STFComboBox );
 
+      this.STFTargetBackgroundControl = new NumericControl( this );
+      this.STFTargetBackgroundControl.label.text = "STF targetBackground";
+      this.STFTargetBackgroundControl.setRange(0, 1);
+      this.STFTargetBackgroundControl.setPrecision(3);
+      this.STFTargetBackgroundControl.setValue(par.STF_targetBackground.val);
+      this.STFTargetBackgroundControl.toolTip = "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>";
+      this.STFTargetBackgroundControl.onValueUpdated = function( value )
+      {
+            par.STF_targetBackground.val = value;
+      };
+
       this.MaskedStretchTargetBackgroundControl = new NumericControl( this );
       this.MaskedStretchTargetBackgroundControl.label.text = "Masked Stretch targetBackground";
       this.MaskedStretchTargetBackgroundControl.setRange(0, 1);
-      this.MaskedStretchTargetBackgroundControl.setPrecision(1);
+      this.MaskedStretchTargetBackgroundControl.setPrecision(3);
       this.MaskedStretchTargetBackgroundControl.setValue(par.MaskedStretch_targetBackground.val);
       this.MaskedStretchTargetBackgroundControl.toolTip = "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>";
       this.MaskedStretchTargetBackgroundControl.onValueUpdated = function( value )
@@ -9303,6 +9321,7 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
+      this.StretchingOptionsSizer.add( this.STFTargetBackgroundControl );
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
       //this.StretchingOptionsSizer.addStretch();
 
@@ -9890,10 +9909,10 @@ function AutoIntegrateDialog()
       this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
       this.extraContrastSizer.addStretch();
 
-      this.extra_STF_CheckBox = newCheckBox(this, "Auto STF", par.extra_STF.val, 
-      "<p>Run automatic ScreenTransferFunction on image to brighten it.</p>" );
-      this.extra_STF_CheckBox.onClick = function(checked) { 
-            par.extra_STF.val = checked; 
+      this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch.val, 
+      "<p>Run automatic stretch on image. Can be helpful in some rare cases but most useful on testing stretching settings.</p>" );
+      this.extra_stretch_CheckBox.onClick = function(checked) { 
+            par.extra_stretch.val = checked; 
       }
 
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars.val, 
@@ -10012,7 +10031,7 @@ function AutoIntegrateDialog()
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
       this.extra2.add( this.extraContrastSizer );
-      this.extra2.add( this.extra_STF_CheckBox );
+      this.extra2.add( this.extra_stretch_CheckBox );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
 
