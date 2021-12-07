@@ -263,14 +263,14 @@ Linear Defect Detection:
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
 
-// debugging
+// temporary debugging
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.30";
+var autointegrate_version = "AutoIntegrate v1.31";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
-var pixinsight_version_num;   // PixInsight version number, e.h. 1808010 
+var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
 
 // GUI variables
 var infoLabel;
@@ -286,7 +286,7 @@ var windowPrefixComboBox;     // For updating prefix name list
 */
 var par = {
       // Image processing parameters
-      skip_local_normalization: { val: false, def: false, name : "No local normalization", type : 'B' },
+      local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
@@ -306,6 +306,7 @@ var par = {
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
+      image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
       integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
@@ -326,7 +327,9 @@ var par = {
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
-      
+      start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
+      generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
+            
       // Narrowband processing
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
       custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
@@ -362,11 +365,21 @@ var par = {
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'Generic', def: 'Generic', name : "Weight calculation", type : 'S' },
+      ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'I' },
+      outliers_ssweight: { val: false, def: false, name : "Outliers SSWEIGHT", type : 'B' },
+      outliers_fwhm: { val: false, def: false, name : "Outliers FWHM", type : 'B' },
+      outliers_ecc: { val: false, def: false, name : "Outliers eccentricity", type : 'B' },
+      outliers_snr: { val: false, def: false, name : "Outliers SNR", type : 'B' },
+      outliers_psfsignal: { val: false, def: false, name : "Outliers PSF Signal", type : 'B' },
+      outliers_psfpower: { val: false, def: false, name : "Outliers PSF Power", type : 'B' },
+      outliers_stars: { val: false, def: false, name : "Outliers Stars", type : 'B' },
+      outliers_method: { val: 'Two sigma', def: 'Two sigma', name : "Outlier method", type : 'S' },
+      outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
-      use_clipping: { val: 'Auto1', def: 'Auto1', name : "ImageIntegration rejection", type : 'S' },
+      use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
@@ -432,10 +445,11 @@ var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Deb
                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
-var use_weight_values = [ 'Generic', 'Noise', 'Stars' ];
+var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal' ];
+var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both' ];
-var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit' ]; 
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit', 'EDS' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
@@ -3171,6 +3185,85 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       return fileNames;
 }
 
+function getStandardDeviationAndMean(array)
+{
+      const n = array.length;
+      const mean = array.reduce((a, b) => a + b) / n;
+      const std = Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+      return { mean: mean, std: std };
+}
+
+function findOutlierMinMax(measurements, indexvalue)
+{
+      if (par.outliers_method.val == 'IQR') {
+            // Use IQR for filtering
+            var values = measurements.concat();
+      
+            values.sort( function(a, b) {
+                  return a[indexvalue] - b[indexvalue];
+            });
+      
+            var q1 = values[Math.floor((values.length / 4))][indexvalue];
+            var q3 = values[Math.ceil((values.length * (3 / 4)))][indexvalue];
+            var iqr = q3 - q1;
+      
+            console.writeln("findOutlierMinMax q1 " + q1 + ", q3 " + q3 + ", iqr " + iqr);
+
+            return { maxValue: q3 + iqr * 1.5, 
+                     minValue: q1 - iqr * 1.5 };
+
+      } else {
+            // Use one or two sigma for filtering
+            if (par.outliers_method.val == 'Two sigma') {
+                  var sigma_count = 2;
+            } else {
+                  var sigma_count = 1;
+            }
+            var number_array = []
+            for (var i = 0; i < measurements.length; i++) {
+                  number_array[number_array.length] = measurements[i][indexvalue];
+            }
+            var mean_std = getStandardDeviationAndMean(number_array);
+
+            console.writeln("findOutlierMinMax mean " + mean_std.mean + ", std " + mean_std.std);
+
+            return { maxValue: mean_std.mean + sigma_count * mean_std.std, 
+                     minValue: mean_std.mean - sigma_count * mean_std.std };
+      }
+}
+
+function filterOutliers(measurements, name, index, type, do_filtering, fileindex)
+{
+      if (measurements.length < 8) {
+            console.writeln("filterOutliers requires at last eight images, number of images is " + measurements.length);
+            return measurements;
+      }
+
+      var minmax = findOutlierMinMax(measurements, index);
+
+      console.writeln(name + " outliers min " + minmax.minValue + ", max " + minmax.maxValue);
+
+      if (!do_filtering) {
+            console.writeln("Outliers are not filtered");
+            return measurements;
+      }
+
+      console.writeln("filterOutliers");
+
+      var newMeasurements = [];
+      for (var i = 0; i < measurements.length; i++) {
+            if ((type == 'min' || par.outliers_minmax.val) && measurements[i][index] < minmax.minValue) {
+                  console.writeln(name + " below limit " + minmax.maxValue + ", ignoring file " + measurements[i][fileindex]);
+            } else if ((type == 'max' || par.outliers_minmax.val) && measurements[i][index] > minmax.maxValue) {
+                  console.writeln(name + " above limit " + minmax.maxValue + ", ignoring file " + measurements[i][fileindex]);
+            } else {
+                  newMeasurements[newMeasurements.length] = measurements[i];
+            }
+      }
+      addProcessingStep(name + " outliers filtered " + (measurements.length - newMeasurements.length) + " files");
+      return newMeasurements;
+}
+
 function SubframeSelectorMeasure(fileNames)
 {
       console.writeln("SubframeSelectorMeasure, input[0] " + fileNames[0]);
@@ -3181,41 +3274,93 @@ function SubframeSelectorMeasure(fileNames)
       P.noiseLayers = 2;
       P.outputDirectory = outputRootDir + AutoOutputDir;
       P.overwriteExistingFiles = true;
-
+      /*
+      P.measurements = [ 
+            measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                                              0-4
+            measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,                    5-9
+            measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                                   10-14
+            measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev, measurementAzimuth,      15-19
+            measurementAltitude                                                                                                                       20
+      ];
+      */
+      
       P.executeGlobal();
 
       // Close measurements and expressions windows
       closeAllWindowsSubstr("SubframeSelector");
 
-      console.writeln("SubframeSelectorMeasure:calculate weight");
-
-      /* Calculate weight */
       var indexPath = 3;
       var indexWeight = 4;
       var indexFWHM = 5;
       var indexEccentricity = 6;
-      var indexSNRWeight = 7;
-      var FWHMMin = findMin(P.measurements, indexFWHM);
-      var FWHMMax = findMax(P.measurements, indexFWHM);
-      var EccentricityMin = findMin(P.measurements, indexEccentricity);
-      var EccentricityMax = findMax(P.measurements, indexEccentricity);
-      var SNRWeightMin = findMin(P.measurements, indexSNRWeight);
-      var SNRWeightMax = findMax(P.measurements, indexSNRWeight);
+      var indexPSFSignal = 7;
+      var indexPSFPower = 8;
+      var indexStars = 14;
+      /* Index for indexSNRWeight has changed at some point.
+       * I assume it is in old position before version 1.8.8.10.
+       */
+      if (pixinsight_version_num < 1080810) {
+            var indexSNRWeight = 7;
+      } else {
+            var indexSNRWeight = 9;
+      }
 
-      console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin);
-      console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax);
+      // We filter outliers here so they are not included in the
+      // min/max calculations below
+      var measurements = P.measurements;
+      measurements = filterOutliers(measurements, "FWHM", indexFWHM, 'max', par.outliers_fwhm.val, indexPath);
+      measurements = filterOutliers(measurements, "Eccentricity", indexEccentricity, 'max', par.outliers_ecc.val, indexPath);
+      measurements = filterOutliers(measurements, "SNR", indexSNRWeight, 'min', par.outliers_snr.val, indexPath);
+      if (pixinsight_version_num >= 1080810) {
+            measurements = filterOutliers(measurements, "PSF Signal", indexPSFSignal, 'min', par.outliers_psfsignal.val, indexPath);
+            measurements = filterOutliers(measurements, "PSF Power", indexPSFPower, 'min', par.outliers_psfpower.val, indexPath);
+      }
+      measurements = filterOutliers(measurements, "Stars", indexStars, 'min', par.outliers_stars.val, indexPath);
+
+      console.writeln("SubframeSelectorMeasure:calculate weight");
+
+      /* Calculate weight */
+      var FWHMMin = findMin(measurements, indexFWHM);
+      var FWHMMax = findMax(measurements, indexFWHM);
+      var EccentricityMin = findMin(measurements, indexEccentricity);
+      var EccentricityMax = findMax(measurements, indexEccentricity);
+      var SNRWeightMin = findMin(measurements, indexSNRWeight);
+      var SNRWeightMax = findMax(measurements, indexSNRWeight);
+      if (pixinsight_version_num >= 1080810) {
+            var PSFSignalMin = findMin(measurements, indexPSFSignal);
+            var PSFSignalMax = findMax(measurements, indexPSFSignal);
+            var PSFPowerMin = findMin(measurements, indexPSFPower);
+            var PSFPowerMax = findMax(measurements, indexPSFPower);
+      } else {
+            var PSFSignalMin = 0;
+            var PSFSignalMax = 0;
+            var PSFPowerMin = 0;
+            var PSFPowerMax = 0;
+      }
+      var StarsMin = findMin(measurements, indexStars);
+      var StarsMax = findMax(measurements, indexStars);
+
+      console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin + ", PSFSignalMin " + PSFSignalMin + ", PSFPowerMin " + PSFPowerMin + ", StarsMin " + StarsMin);
+      console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax + ", PSFSignalMax " + PSFSignalMax + ", PSFPowerMax " + PSFPowerMax + ", StarsMax " + StarsMax);
 
       var ssFiles = [];
 
-      for (var i = 0; i < P.measurements.length; i++) {
-            var FWHM = P.measurements[i][indexFWHM];
-            var Eccentricity = P.measurements[i][indexEccentricity];
-            var SNRWeight = P.measurements[i][indexSNRWeight];
+      for (var i = 0; i < measurements.length; i++) {
+            var FWHM = measurements[i][indexFWHM];
+            var Eccentricity = measurements[i][indexEccentricity];
+            if (pixinsight_version_num < 1080810) {
+                  var SNRWeight = measurements[i][indexSNRWeight];
+            } else {
+                  // I think indexPSFSignal works better than actual SNRWeight
+                  var SNRWeight = measurements[i][indexPSFSignal];
+            }
             var SSWEIGHT;
             /* Defaults below are from script Weighted Batch Preprocessing v1.4.0
              * https://www.tommasorubechi.it/2019/11/15/the-new-weighted-batchpreprocessing/
              */
-            if (FWHMMax == FWHMMin || EccentricityMax == EccentricityMin || SNRWeightMax == SNRWeightMin) {
+            if (par.use_weight.val == 'PSF Signal' && pixinsight_version_num >= 1080810) {
+                  SSWEIGHT = measurements[i][indexPSFSignal];
+            } else if (FWHMMax == FWHMMin || EccentricityMax == EccentricityMin || SNRWeightMax == SNRWeightMin) {
                   // Avoid division by zero
                   SSWEIGHT = SNRWeight;
             } else if (par.use_weight.val == 'Noise') {
@@ -3242,29 +3387,21 @@ function SubframeSelectorMeasure(fileNames)
                               25*(SNRWeight-SNRWeightMin)/(SNRWeightMax-SNRWeightMin))+
                               40;
             }
-            addProcessingStep("FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + ", SSWEIGHT " + SSWEIGHT + ", " + P.measurements[i][indexPath]);
-            ssFiles[ssFiles.length] = [ P.measurements[i][indexPath], SSWEIGHT ];
+            addProcessingStep("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
+                              ", Stars " + measurements[i][indexStars] + ", PSFSignal " + measurements[i][indexPSFSignal] + ", PSFPower " + measurements[i][indexPSFPower] +
+                              ", " + measurements[i][indexPath]);
+            ssFiles[ssFiles.length] = [ measurements[i][indexPath], SSWEIGHT ];
       }
-      console.writeln("SubframeSelectorMeasure, output[0] " + ssFiles[0][0]);
+      console.writeln("SSWEIGHTMin " + findMin(ssFiles, 1) + " SSWEIGHTMax " + findMax(ssFiles, 1));
+      ssFiles = filterOutliers(ssFiles, "SSWEIGHT", 1, 'min', par.outliers_ssweight.val, 1);
 
-      if (fileNames.length > ssFiles.length) {
-            /* There is a possible issue that sometimes SubframeSelector leaves some input files
-             * out from P.measurements. This loop is here to add missing images back to list.
-             */
-            console.writeln("SubframeSelectorMeasure, files missing, " +  + fileNames[i] + " input files, "+ ssFiles.length + " output files");
-            for (var i = 0; i < fileNames.length; i++) {
-                  var found = false;
-                  for (var j = 0; j < ssFiles.length; j++) {
-                        if (fileNames[i] == ssFiles[i][0]) {
-                              found = true;
-                              break;
-                        }
-                  }
-                  if (!found) {
-                        console.writeln("SubframeSelectorMeasure, adding missing image " + fileNames[i]);
-                        ssFiles[ssFiles.length] = [ fileNames[i], 0.0 ];
-                  }
+      if (par.image_weight_testing.val) {
+            console.writeln("SubframeSelectorMeasure, " + ssFiles.length + " output files");
+            for (var i = 0; i < ssFiles.length; i++) {
+                  console.writeln(ssFiles[i][0]);
             }
+      } else {
+            console.writeln("SubframeSelectorMeasure, output[0] " + ssFiles[0][0]);
       }
 
       return ssFiles;
@@ -3272,56 +3409,80 @@ function SubframeSelectorMeasure(fileNames)
 
 function runSubframeSelector(fileNames)
 {
-      var outputDir = outputRootDir + AutoOutputDir;
-      var postfix = "_a";
-      var outputExtension = ".xisf";
-
       addProcessingStep("runSubframeSelector");
       console.writeln("input[0] " + fileNames[0]);
       
       var ssWeights = SubframeSelectorMeasure(fileNames);
       // SubframeSelectorOutput(P.measurements); Does not write weight keyword
 
-      var ssFiles = new Array;
+      var newFileNames = [];
 
-      for (var i = 0; i < ssWeights.length; i++) {
-            var filePath = ssWeights[i][0];
-            if (filePath != null && filePath != "") {
-                  var SSWEIGHT = ssWeights[i][1];
-                  var newFilePath = generateNewFileName(filePath, outputDir, postfix, outputExtension);
-                  console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
-                  var imageWindows = ImageWindow.open(filePath);
-                  if (imageWindows.length != 1) {
-                        console.writeln("*** Error: imageWindows.length: ", imageWindows.length);
-                        continue;
+      if (par.image_weight_testing.val) {
+            // Do not generate output files
+            var postfix = "";
+            for (var i = 0; i < ssWeights.length; i++) {
+                  var filePath = ssWeights[i][0];
+                  if (filePath != null && filePath != "") {
+                        newFileNames[newFileNames.length] = filePath;
                   }
-                  var imageWindow = imageWindows[0];
-                  if (imageWindow == null) {
-                        console.writeln("*** Error: Can't read subframe: ", filePath);
-                        continue;
-                  }
-                  setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
-                  if (!writeImage(newFilePath, imageWindow)) {
+            }
+      } else {
+            /* Basically we could skip writing SSWEIGHT to output files as we have that
+            * information in memory. But for some cases like starting from ImageIntegration
+            * and printing best files for each channel it is useful to write
+            * output files with SSWEIGHT on them.
+            */
+            var outputDir = outputRootDir + AutoOutputDir;
+            var postfix = "_a";
+            var outputExtension = ".xisf";
+            for (var i = 0; i < ssWeights.length; i++) {
+                  var filePath = ssWeights[i][0];
+                  if (filePath != null && filePath != "") {
+                        var SSWEIGHT = ssWeights[i][1];
+                        var newFilePath = generateNewFileName(filePath, outputDir, postfix, outputExtension);
+                        console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
+                        var imageWindows = ImageWindow.open(filePath);
+                        if (imageWindows.length != 1) {
+                              console.writeln("*** Error: imageWindows.length: ", imageWindows.length);
+                              continue;
+                        }
+                        var imageWindow = imageWindows[0];
+                        if (imageWindow == null) {
+                              console.writeln("*** Error: Can't read subframe: ", filePath);
+                              continue;
+                        }
+                        setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
+                        if (!writeImage(newFilePath, imageWindow)) {
+                              forceCloseOneWindow(imageWindow);
+                              console.writeln(
+                              "*** Error: Can't write output image: ", newFilePath
+                              );
+                              continue;
+                        }         
                         forceCloseOneWindow(imageWindow);
-                        console.writeln(
-                           "*** Error: Can't write output image: ", newFilePath
-                        );
-                        continue;
-                  }         
-                  forceCloseOneWindow(imageWindow);
-                  ssFiles[ssFiles.length] = newFilePath;
+                  }
+                  newFileNames[newFileNames.length] = newFilePath;
             }
       }
-      addProcessingStep("runSubframeSelector, input " + fileNames.length + " files, output " + ssFiles.length + " files");
-      console.writeln("output[0] " + ssFiles[0]);
+      addProcessingStep("runSubframeSelector, input " + fileNames.length + " files, output " + newFileNames.length + " files");
+      console.writeln("output[0] " + newFileNames[0]);
 
-      return ssFiles;
+      var names_and_weights = { filenames: newFileNames, ssweights: ssWeights, postfix: postfix };
+      return names_and_weights;
 }
 
-function findBestSSWEIGHT(fileNames)
+function findBestSSWEIGHT(names_and_weights)
 {
       var ssweight;
+      var fileNames = names_and_weights.filenames;
       var newFileNames = [];
+
+      if (names_and_weights.ssweights.length > 0
+          && names_and_weights.filenames.length != names_and_weights.ssweights.length) 
+      {
+            // we have inconsistent lengths
+            throwFatalError("Inconsistent lengths, filenames.length=" + names_and_weights.filenames.length + ", ssweights.length=" + names_and_weights.ssweights.length);
+      }
 
       run_HT = true;
       best_ssweight = 0;
@@ -3333,6 +3494,7 @@ function findBestSSWEIGHT(fileNames)
       var n = 0;
       var first_image = true;
       var best_ssweight_naxis = 0;
+      var user_specified_best_image = null;
       for (var i = 0; i < fileNames.length; i++) {
             var filePath = fileNames[i];
             var ext = '.' + filePath.split('.').pop();
@@ -3346,7 +3508,7 @@ function findBestSSWEIGHT(fileNames)
 
             n++;
 
-            // First check if we skip image since we do not know
+            // First get naxis1 since we do not know
             // the order for keywords
             var naxis1 = 0;
             for (var j = 0; j < keywords.length; j++) {
@@ -3363,64 +3525,83 @@ function findBestSSWEIGHT(fileNames)
                               break;
                   }
             }
-            newFileNames[newFileNames.length] = fileNames[i];
-            for (var j = 0; j < keywords.length; j++) {
-                  var value = keywords[j].strippedValue.trim();
-                  switch (keywords[j].name) {
-                        case "SSWEIGHT":
-                              ssweight_set = true;
-                              ssweight = value;
-                              console.writeln("ssweight=" +  ssweight);
-                              if (!first_image && naxis1 > best_ssweight_naxis) {
-                                    addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
-                              }
-                              if (first_image || 
-                                    naxis1 > best_ssweight_naxis ||
-                                    (parseFloat(ssweight) > parseFloat(best_ssweight) &&
-                                    naxis1 == best_ssweight_naxis))
-                              {
-                                    best_ssweight = ssweight;
-                                    console.writeln("new best_ssweight=" +  best_ssweight);
-                                    best_image = filePath;
-                                    best_ssweight_naxis = naxis1;
-                                    first_image = false;
-                              }
-                              break;
-                        default:
-                              break;
+            var accept_file = true;
+            var ssweight_found = false;
+            if (fileNames[i].indexOf("best_image") != -1) {
+                  // User has marked this image as the best
+                  user_specified_best_image = fileNames[i];
+                  console.writeln("found text 'best_image' from file name");
+            }
+            if (names_and_weights.ssweights.length > i) {
+                  // take SSWEIGHT from the calculated array
+                  ssweight_found = true;
+                  ssweight = names_and_weights.ssweights[i][1].toFixed(3);
+                  console.writeln("calculated ssweight=" +  ssweight);
+            } else {
+                  // try to find SSWEIGHT from the file
+                  for (var j = 0; j < keywords.length; j++) {
+                        var value = keywords[j].strippedValue.trim();
+                        switch (keywords[j].name) {
+                              case "SSWEIGHT":
+                                    ssweight_found = true;
+                                    ssweight = value;
+                                    console.writeln("file ssweight=" +  ssweight);
+                                    break;
+                              default:
+                                    break;
+                        }
                   }
+            }
+            if (ssweight_found) {
+                  ssweight_set = true;
+                  var ssweight_float = parseFloat(ssweight);
+                  if (ssweight_float < par.ssweight_limit.val) {
+                        console.writeln("below ssweight limit " + par.ssweight_limit.val + ", skip image");
+                        accept_file = false;
+                  } else {
+                        if (!first_image && naxis1 > best_ssweight_naxis) {
+                              addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
+                        }
+                        if (first_image || 
+                              naxis1 > best_ssweight_naxis ||
+                              (ssweight_float > parseFloat(best_ssweight) &&
+                              naxis1 == best_ssweight_naxis))
+                        {
+                              /* Set a new best image if
+                              - this is the first image
+                              - this has a bigger resolution
+                              - this has a bigger SSWEIGHT value and is the same resolution
+                              */
+                              best_ssweight = ssweight;
+                              console.writeln("new best_ssweight=" +  best_ssweight);
+                              best_image = filePath;
+                              best_ssweight_naxis = naxis1;
+                              first_image = false;
+                        }
+                  }
+            }
+            if (accept_file) {
+                  newFileNames[newFileNames.length] = fileNames[i];
             }
       }
       if (newFileNames.length == 0) {
             throwFatalError("No files found for processing.");
       }
-      if (best_image == null) {
+      if (user_specified_best_image != null) {
+            console.writeln("Using user specified best image " + user_specified_best_image);
+            best_image = user_specified_best_image;
+            if (best_ssweight < 100.0) {
+                  best_ssweight = 100.0;
+            } else {
+                  // maybe user given SSWEIGHT 
+                  best_ssweight = best_ssweight + 1.0;
+            }
+      } else if (best_image == null) {
             console.writeln("Unable to find image with best SSWEIGHT, using first image");
             best_image = newFileNames[0];
-            best_ssweight = 1;
+            best_ssweight = 1.0;
       }
       return [ best_image, newFileNames ];
-}
-
-function copy_image_list(target_images, source_images)
-{
-      console.writeln("copy_image_list");
-      for (var i = 0; i < source_images.length; i++) {
-            append_image_for_integrate(target_images, source_images[i][1]);
-      }
-}
-
-function find_best_image(weight_arr, image_arr)
-{
-      var best_weight = weight_arr[0];
-      var best_image = image_arr[0];
-
-      for (i = 1; i < weight_arr.length; i++) {
-            if (weight_arr[i] > best_weight) {
-                  best_image = image_arr[i];
-            }
-      }
-      return { wght: best_weight, img: best_image };
 }
 
 function filterByFileName(filePath, filename_postfix)
@@ -3871,13 +4052,13 @@ function findLRGBchannels(alignedFiles, filename_postfix)
                   }
             } else if (rgb) {
                   // LRGB or RGB
-                  if (R_images.images.length == 0 && !par.integrate_only.val) {
+                  if (R_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
                         throwFatalError("No Red images found");
                   }
-                  if (B_images.images.length == 0 && !par.integrate_only.val) {
+                  if (B_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
                         throwFatalError("No Blue images found");
                   }
-                  if (G_images.images.length == 0 && !par.integrate_only.val) {
+                  if (G_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
                         throwFatalError("No Green images found");
                   }
             }
@@ -4554,28 +4735,55 @@ function runStarAlignment(imagetable, refImage)
 function runLocalNormalization(imagetable, refImage)
 {
       addProcessingStep("Run local normalization using reference image " + refImage);
+
+      if (imagetable.length == 0) {
+            // No new files are needed
+            addProcessingStep("No files for local normalization");
+            return;
+      }
+
       var targets = [];
 
       for (var i = 0; i < imagetable.length; i++) {
-            var enabled = true;
+            var add_file = true;
             if (imagetable.length <= 3) {
                   // we may have duplicates, filter them out
                   for (j = 0; j < targets.length; j++) {
                         if (targets[j][1] == imagetable[i][1]) {
                               console.writeln("runLocalNormalization, remove duplicate " +imagetable[i][1]);
-                              enabled = false;
+                              add_file = false;
                               break;
                         }
                   }
             }
-            if (enabled) {
+            if (add_file && par.start_from_imageintegration.val) {
+                  // If we are starting from image integration then we
+                  // use existing .xnml files.
+                  var xnml_file = imagetable[i][1].replace(".xisf", ".xnml");
+                  if (File.exists(xnml_file)) {
+                        add_file = false;
+                  }
+            }
+            if (add_file) {
                   targets[targets.length] = [ true, imagetable[i][1] ];
             }
+      }
+      if (targets.length == 0) {
+            // No new files are needed
+            addProcessingStep("Using existing local normalization files");
+            return;
       }
       var P = new LocalNormalization;
       P.referencePathOrViewId = refImage;
       P.targetItems = targets;            // [ enabled, image ]
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      if (par.start_from_imageintegration.val) {
+            // We assume we are processing *_r.xisf files from
+            // outputRootDir + AutoOutputDir directory so we write
+            // output to the same directory.
+            P.outputDirectory = outputRootDir;
+      } else {
+            P.outputDirectory = outputRootDir + AutoOutputDir;
+      }
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -4647,6 +4855,9 @@ function getRejectionAlgorigthm(numimages)
       } else if (par.use_clipping.val == 'Linear fit') {
             addProcessingStep("  Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
+      } else if (par.use_clipping.val == 'EDS') {
+            addProcessingStep("  Using EDS clip for rejection");
+            return ImageIntegration.prototype.Rejection_ESD;
       } else if (par.use_clipping.val == 'Auto2') {
             /* In theory these should be good choices but sometime give much more uneven
              * highlights than Sigma.
@@ -4681,11 +4892,14 @@ function getRejectionAlgorigthm(numimages)
 
 function ensureThreeImages(images)
 {
-      if (images.length < 3) {
-            for (var i = 0; images.length < 3; i++) {
-                  addProcessingStep("  Image integration needs 3 files, have only " + images.length + ", add one existing file");
-                  append_image_for_integrate(images, images[i][1]);
-            }
+      if (images.length == 1) {
+            // Add existing image twice so we have three images
+            append_image_for_integrate(images, images[0][1]);
+            append_image_for_integrate(images, images[0][1]);
+      } else if (images.length == 2) {
+            // Duplicate both images so averages are not affected
+            append_image_for_integrate(images, images[0][1]);
+            append_image_for_integrate(images, images[1][1]);
       }
 }
 
@@ -4718,7 +4932,10 @@ function runImageIntegrationEx(images, name, local_normalization)
       } else {
             P.rejection = getRejectionAlgorigthm(images.length);
       }
-      if (par.imageintegration_normalization.val == 'Adaptive') {
+      if (local_normalization) {
+            P.rejectionNormalization = ImageIntegration.prototype.LocalRejectionNormalization;
+      } else if (0 && par.imageintegration_normalization.val == 'Adaptive') {
+            // Using AdaptiveRejectionNormalization seem to abort ImageIntegration with bad data sets
             P.rejectionNormalization = ImageIntegration.prototype.AdaptiveRejectionNormalization;
       } else {
             P.rejectionNormalization = ImageIntegration.prototype.Scale;
@@ -4729,7 +4946,7 @@ function runImageIntegrationEx(images, name, local_normalization)
       if (name == 'LDD') {
             P.generateDrizzleData = false;
       } else {
-            P.generateDrizzleData = par.use_drizzle.val;
+            P.generateDrizzleData = par.use_drizzle.val || par.generate_xdrz.val;
       }
       P.evaluateNoise = true;
 
@@ -4784,7 +5001,7 @@ function runImageIntegration(channel_images, name)
 
       ensureThreeImages(images);
 
-      if (par.skip_local_normalization.val || name == 'LDD') {
+      if (!par.local_normalization.val || name == 'LDD') {
             if (par.use_drizzle.val) {
                   var drizzleImages = [];
                   for (var i = 0; i < images.length; i++) {
@@ -4885,9 +5102,11 @@ function run_ABE_before_channel_combination(id)
 /* ApplyAutoSTF routine is from PixInsight scripts.
  *
  */
-function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
+function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked, silent)
 {
-   console.writeln("  Apply AutoSTF on " + view.id);
+   if (!silent) {
+       console.writeln("  Apply AutoSTF on " + view.id);
+   }
    var stf = new ScreenTransferFunction;
 
    var n = view.image.isColor ? 3 : 1;
@@ -4904,7 +5123,9 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
    } else {
          // auto, use default
    }
-   console.writeln("  RgbLinked " + rgbLinked);
+   if (!silent) {
+      console.writeln("  RgbLinked " + rgbLinked);
+   }
 
    if (rgbLinked)
    {
@@ -5001,22 +5222,25 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked)
       stf.STF = A;
    }
 
-   console.writeln("<end><cbr/><br/><b>", view.fullId, "</b>:");
-   for (var c = 0; c < n; ++c)
-   {
-      console.writeln("channel #", c);
-      console.writeln(format("c0 = %.6f", stf.STF[c][0]));
-      console.writeln(format("m  = %.6f", stf.STF[c][2]));
-      console.writeln(format("c1 = %.6f", stf.STF[c][1]));
+   if (!silent) {
+      console.writeln("<end><cbr/><br/><b>", view.fullId, "</b>:");
+      for (var c = 0; c < n; ++c)
+      {
+            console.writeln("channel #", c);
+            console.writeln(format("c0 = %.6f", stf.STF[c][0]));
+            console.writeln(format("m  = %.6f", stf.STF[c][2]));
+            console.writeln(format("c1 = %.6f", stf.STF[c][1]));
+      }
    }
-
    view.beginProcess(UndoFlag_NoSwapFile);
 
    stf.executeOn(view);
 
    view.endProcess();
 
-   console.writeln("<end><cbr/><br/>");
+   if (!silent) {
+      console.writeln("<end><cbr/><br/>");
+   }
 }
 
 /* applySTF routine is from PixInsight scripts.
@@ -5049,9 +5273,11 @@ function applySTF(imgView, stf, iscolor)
       imgView.endProcess();
 }
 
-function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground)
+function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, silent)
 {
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
+      if (!silent) {
+            addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
+      }
 
       if (stf_to_use == null) {
             /* Apply autostretch on image */
@@ -5068,7 +5294,8 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
                         targetBackground,
-                        rgbLinked);
+                        rgbLinked,
+                        silent);
             stf_to_use = ABE_win.mainView.stf;
       }
 
@@ -5076,17 +5303,26 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground
       applySTF(ABE_win.mainView, stf_to_use, iscolor);
 
       /* Undo autostretch */
-      console.writeln("  Undo STF on " + ABE_win.mainView.id);
+      if (!silent) {
+            console.writeln("  Undo STF on " + ABE_win.mainView.id);
+      }
       var stf = new ScreenTransferFunction;
 
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      console.writeln(" Execute autostretch on " + ABE_win.mainView.id);
+      if (!silent) {
+            console.writeln(" Execute autostretch on " + ABE_win.mainView.id);
+      }
       stf.executeOn(ABE_win.mainView);
 
       ABE_win.mainView.endProcess();
 
       return stf_to_use;
+}
+
+function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground)
+{
+      return runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, false);
 }
 
 function runHistogramTransformMaskedStretch(ABE_win)
@@ -5876,6 +6112,7 @@ function CreateChannelImages(auto_continue)
 
             var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
             if (isCustomMapping(filtered_lights.narrowband)
+                && !par.image_weight_testing.val
                 && !par.integrate_only.val
                 && !par.calibrate_only.val)
             {
@@ -5911,7 +6148,13 @@ function CreateChannelImages(auto_continue)
 
             fileNames = lightFileNames;
 
-            if (par.binning.val > 0) {
+            if (par.start_from_imageintegration.val || par.image_weight_testing.val) {
+                  var skip_early_steps = true;
+            } else {
+                  var skip_early_steps = false;
+            }
+
+            if (par.binning.val > 0 && !skip_early_steps) {
                   if (is_color_files) {
                         addProcessingStep("No binning for color files");
                   } else {
@@ -5919,11 +6162,11 @@ function CreateChannelImages(auto_continue)
                         filename_postfix = filename_postfix + '_b2';
                   }
             }
-            if (par.ABE_on_lights.val) {
+            if (par.ABE_on_lights.val && !skip_early_steps) {
                   fileNames = runABEOnLights(fileNames);
                   filename_postfix = filename_postfix + '_ABE';
             }
-            if (!par.skip_cosmeticcorrection.val) {
+            if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
                         var ccInfo = runLinearDefectDetection(fileNames);
@@ -5943,33 +6186,44 @@ function CreateChannelImages(auto_continue)
                   filename_postfix = filename_postfix + '_cc';
             }
 
-            if (is_color_files && par.debayerPattern.val != 'None') {
-                  // after cosmetic correction we need to debayer
-                  // OSC/RAW images
+            if (is_color_files && par.debayerPattern.val != 'None' && !skip_early_steps) {
+                  /* After cosmetic correction we need to debayer
+                   * OSC/RAW images
+                   */
                   fileNames = debayerImages(fileNames);
                   filename_postfix = filename_postfix + '_b';
             }
 
-            if (!par.skip_subframeselector.val) {
+            if (!par.skip_subframeselector.val && !par.start_from_imageintegration.val) {
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
                    * Output is *_a.xisf files.
                    */
-                  fileNames = runSubframeSelector(fileNames);
-                  filename_postfix = filename_postfix + '_a';
+                  var names_and_weights = runSubframeSelector(fileNames);
+                  filename_postfix = filename_postfix + names_and_weights.postfix;
+            } else {
+                  var names_and_weights = { filenames: fileNames, ssweights: [], postfix: '' };
             }
 
             /* Find file with best SSWEIGHT to be used
-            * as a reference image in StarAlign.
-            * Also possible file list filtering is done.
-            */
-            var retarr = findBestSSWEIGHT(fileNames);
+             * as a reference image in StarAlign.
+             * Also possible file list filtering is done.
+             */
+            var retarr = findBestSSWEIGHT(names_and_weights);
             best_image = retarr[0];
             fileNames = retarr[1];
 
+            if (par.image_weight_testing.val) {
+                  return true;
+            }
+
             /* StarAlign
             */
-            alignedFiles = runStarAlignment(fileNames, best_image);
-            filename_postfix = filename_postfix + '_r';
+            if (!par.start_from_imageintegration.val) {
+                  alignedFiles = runStarAlignment(fileNames, best_image);
+                  filename_postfix = filename_postfix + '_r';
+            } else {
+                  alignedFiles = fileNames;
+            }
 
             /* Find files for each L, R, G, B, H, O and S channels, or color files.
              */
@@ -7283,7 +7537,10 @@ function AutoIntegrateEngine(auto_continue)
       } else if (preprocessed_images == start_images.FINAL) {
             // We have a final image, just run run possible extra processing steps
             LRGB_ABE_HT_id = final_win.mainView.id;
-      } else if (!par.integrate_only.val && preprocessed_images != start_images.FINAL) {
+      } else if (!par.image_weight_testing.val 
+                 && !par.integrate_only.val 
+                 && preprocessed_images != start_images.FINAL) 
+      {
             var processRGB = !is_color_files && 
                              !par.monochrome_image.val &&
                              (preprocessed_images == start_images.NONE ||
@@ -7493,7 +7750,7 @@ function AutoIntegrateEngine(auto_continue)
             // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
             setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
       }
-      if (preprocessed_images == start_images.NONE) {
+      if (preprocessed_images == start_images.NONE && !par.image_weight_testing.val) {
             /* Output some info of files.
             */
             addProcessingStep("* All data files *");
@@ -8084,6 +8341,8 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         var node = new TreeBoxNode(filternode);
                         var nodefile = filterFiles[j].name;
                         node.setText(0, nodefile);
+                        node.nodeData_type = "";
+                        node.selectable = true;
                   }
             }
       }
@@ -8284,6 +8543,8 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       return gb;
 }
 
+var blink_window = null;
+
 function filesTreeBox(parent, optionsSizer, pageIndex)
 {
       /* Tree box to show files. */
@@ -8294,6 +8555,37 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       files_TreeBox.setScaledMinSize( 300, 100 );
       files_TreeBox.numberOfColumns = 1;
       files_TreeBox.headerVisible = false;
+      if (0) {    // experimental
+      files_TreeBox.onCurrentNodeUpdated = () =>
+      {
+            try {
+                  if (files_TreeBox.currentNode != null && files_TreeBox.currentNode.nodeData_type == "") {
+                        // Show "blink" window. 
+                        // Note: Files are added by routine addFilteredFilesToTreeBox
+                        console.hide();
+                        var imageWindows = ImageWindow.open(files_TreeBox.currentNode.text( 0 ));
+                        if (imageWindows == null || imageWindows.length != 1) {
+                              return;
+                        }
+                        var imageWindow = imageWindows[0];
+                        if (blink_window != null) {
+                              imageWindow.position = blink_window.position;
+                        } else {
+                              imageWindow.position = new Point(0, 0);
+                        }
+                        runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
+                        imageWindow.show();
+                        if (blink_window != null) {
+                              blink_window.forceClose();
+                        }
+                        blink_window = imageWindow;
+                  }
+            } catch(err) {
+                  console.show(true);
+                  console.criticalln(err);
+            }
+      }
+      }
 
       parent.treeBox[pageIndex] = files_TreeBox;
 
@@ -8550,6 +8842,14 @@ function aiSectionBarAdd(parent, groupbox, control, title)
       groupbox.sizer.add( control );
 }
 
+function exitFromDialog()
+{
+      console.show(true);
+      if (blink_window != null) {
+            blink_window.forceClose();
+      }
+}
+
 function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
@@ -8628,10 +8928,10 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
       /* Parameters check boxes. */
-      this.useLocalNormalizationCheckBox = newCheckBox(this, "No local Normalization", par.skip_local_normalization.val, 
-            "<p>Do not use local normalization data for ImageIntegration</p>" );
+      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization.val, 
+            "<p>Use local normalization data for ImageIntegration</p>" );
       this.useLocalNormalizationCheckBox.onClick = function(checked) { 
-            par.skip_local_normalization.val = checked; 
+            par.local_normalization.val = checked; 
       }
 
       this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects.val, 
@@ -8670,6 +8970,12 @@ function AutoIntegrateDialog()
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.IntegrateOnlyCheckBox.onClick = function(checked) { 
             par.integrate_only.val = checked; 
+      }
+
+      this.imageWeightTestingCheckBox = newCheckBox(this, "Image weight testing ", par.image_weight_testing.val, 
+            "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log. With this option no output files are written.</p>" );
+      this.imageWeightTestingCheckBox.onClick = function(checked) { 
+            par.image_weight_testing.val = checked; 
       }
 
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only.val, 
@@ -8879,9 +9185,28 @@ function AutoIntegrateDialog()
       }
 
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files.val, 
-      "<p>Add window prefix to AutoIntegrate.log and AUtoContinue.log files.</p>" );
+      "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.win_prefix_to_log_files_CheckBox.onClick = function(checked) { 
             par.win_prefix_to_log_files.val = checked; 
+      }
+
+      this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration.val, 
+      "<p>Start processing from ImageIntegration. File list should include star aligned files (*_r.xisf).</p>" +
+      "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
+      "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove from " + 
+      "bad files after alignment.</p>" +
+      "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
+      "filter files must be added manually to the file list.</p>" 
+      );
+      this.start_from_imageintegration_CheckBox.onClick = function(checked) { 
+            par.start_from_imageintegration.val = checked; 
+      }
+
+      this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz.val, 
+      "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
+      "integration later with Start from ImageIntegration option.</p>" );
+      this.generate_xdrz_CheckBox.onClick = function(checked) { 
+            par.generate_xdrz.val = checked; 
       }
 
       // Image parameters set 1.
@@ -9113,6 +9438,8 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
+      this.otherParamsSet1.add( this.imageWeightTestingCheckBox );
+      this.otherParamsSet1.add( this.start_from_imageintegration_CheckBox );
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
@@ -9134,6 +9461,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.force_file_name_filter_CheckBox );
       this.otherParamsSet2.add( this.autodetect_filter_CheckBox );
       this.otherParamsSet2.add( this.autodetect_imagetyp_CheckBox );
+      this.otherParamsSet2.add( this.generate_xdrz_CheckBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -9149,13 +9477,16 @@ function AutoIntegrateDialog()
       // Weight calculations
       var weightHelpToolTips =
             "<p>" +
-            "Generic - Use both noise and stars for the weight calculation." +
-            "</p><p>" +
-            "Noise - More weight on image noise." +
-            "</p><p>" +
-            "Stars - More weight on stars." +
+            "Generic - Use both noise and stars for the weight calculation.<br>" +
+            "Noise - More weight on image noise.<br>" +
+            "Stars - More weight on stars.<br>" +
+            "PSF Signal - Use PSF Signal value." +
             "</p>";
 
+      this.weightLabel = new Label( this );
+      this.weightLabel.text = "Weight calculation";
+      this.weightLabel.toolTip = weightHelpToolTips;
+      this.weightLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.weightComboBox = new ComboBox( this );
       this.weightComboBox.toolTip = weightHelpToolTips;
       addArrayToComboBox(this.weightComboBox, use_weight_values);
@@ -9165,14 +9496,110 @@ function AutoIntegrateDialog()
             par.use_weight.val = use_weight_values[itemIndex];
       };
 
+      var weightLimitToolTip = "Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
+                               "it is not included in the set of processed images.";
+      this.weightLimitSpinBoxLabel = aiLabel(this, "Limit", weightLimitToolTip);
+      this.weightLimitSpinBox = new SpinBox( this );
+      this.weightLimitSpinBox.value = par.ssweight_limit.val;
+      this.weightLimitSpinBox.minValue = 0;
+      this.weightLimitSpinBox.maxValue = 999999;
+      this.weightLimitSpinBox.toolTip = weightLimitToolTip;
+      this.weightLimitSpinBox.onValueUpdated = function( value )
+      {
+            par.ssweight_limit.val = value;
+      };
+
+      this.outlierMethodLabel = new Label( this );
+      this.outlierMethodLabel.text = "Outlier method";
+      this.outlierMethodLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.outlierMethodLabel.toolTip = 
+            "<p>Different methods are available for detecting outliers.<p>" +
+            "<p>Two sigma filters out outliers that are two sigmas away from mean value.</p>" +
+            "<p>One sigma filters out outliers that are one sigmas away from mean value. This option filters "+ 
+            "more outliers than the two other options.</p>" +
+            "<p>Interquartile range (IQR) measurement is based on median calculations. It should be " + 
+            "relatively close to two sigma method.</p>";
+      this.outlierMethodComboBox = new ComboBox( this );
+      this.outlierMethodComboBox.toolTip = this.outlierMethodLabel.toolTip;
+      addArrayToComboBox(this.outlierMethodComboBox, outliers_methods);
+      this.outlierMethodComboBox.currentItem = outliers_methods.indexOf(par.outliers_method.val);
+      this.outlierMethodComboBox.onItemSelected = function( itemIndex )
+      {
+            par.outliers_method.val = outliers_methods[itemIndex];
+      };
+
+      this.outlierMinMax_CheckBox = newCheckBox(this, "Min Max", par.outliers_minmax.val, 
+            "<p>If checked outliers are filtered using both min and max outlier threshold values.</p>" + 
+            "<p>By default FWHM and Eccentricity are filtered for too high values, and SNR and SSWEIGHT are filtered for too low values.</p>" );
+      this.outlierMinMax_CheckBox.onClick = function(checked) { 
+            par.outliers_minmax.val = checked; 
+      }
+
+      var outlier_filtering_tooltip = 
+            "<p>Skipping outliers can be useful when processing very large data sets and manual " +
+            "filtering gets too complicated</p>" +
+            "<p>Option 'SSWEIGHT' will filter out outliers based on the calculated SSWEIGHT value. It is an alternative " + 
+            "to using a fixed Limit value.</p>" + 
+            "<p>All other options will filter out outliers based on individual values.</p>";
+      this.outlierLabel = new Label( this );
+      this.outlierLabel.text = "Outlier filtering";
+      this.outlierLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.outlierLabel.toolTip = outlier_filtering_tooltip;
+      this.outlier_ssweight_CheckBox = newCheckBox(this, "SSWEIGHT", par.outliers_ssweight.val, outlier_filtering_tooltip);
+      this.outlier_ssweight_CheckBox.onClick = function(checked) { par.outliers_ssweight.val = checked; }
+      this.outlier_fwhm_CheckBox = newCheckBox(this, "FWHM", par.outliers_fwhm.val, outlier_filtering_tooltip);
+      this.outlier_fwhm_CheckBox.onClick = function(checked) { par.outliers_fwhm.val = checked; }
+      this.outlier_ecc_CheckBox = newCheckBox(this, "Ecc", par.outliers_ecc.val, outlier_filtering_tooltip);
+      this.outlier_ecc_CheckBox.onClick = function(checked) { par.outliers_ecc.val = checked; }
+      this.outlier_snr_CheckBox = newCheckBox(this, "SNR", par.outliers_snr.val, outlier_filtering_tooltip);
+      this.outlier_snr_CheckBox.onClick = function(checked) { par.outliers_snr.val = checked; }
+      this.outlier_psfsignal_CheckBox = newCheckBox(this, "PSF Signal", par.outliers_psfsignal.val, outlier_filtering_tooltip);
+      this.outlier_psfsignal_CheckBox.onClick = function(checked) { par.outliers_psfsignal.val = checked; }
+      this.outlier_psfpower_CheckBox = newCheckBox(this, "PSF Power", par.outliers_psfpower.val, outlier_filtering_tooltip);
+      this.outlier_psfpower_CheckBox.onClick = function(checked) { par.outliers_psfpower.val = checked; }
+      this.outlier_stars_CheckBox = newCheckBox(this, "Stars", par.outliers_stars.val, outlier_filtering_tooltip);
+      this.outlier_stars_CheckBox.onClick = function(checked) { par.outliers_stars.val = checked; }
+
       this.weightGroupBoxLabel = aiSectionLabel(this, "Image weight calculation settings");
+
       this.weightGroupBoxSizer = new HorizontalSizer;
       this.weightGroupBoxSizer.margin = 6;
       this.weightGroupBoxSizer.spacing = 4;
+      this.weightGroupBoxSizer.add( this.weightLabel );
       this.weightGroupBoxSizer.add( this.weightComboBox );
-      this.weightGroupBoxSizer.toolTip = weightHelpToolTips;
+      this.weightGroupBoxSizer.add( this.weightLimitSpinBoxLabel );
+      this.weightGroupBoxSizer.add( this.weightLimitSpinBox );
       this.weightGroupBoxSizer.addStretch();
-      
+
+      this.weightGroupBoxSizer2 = new HorizontalSizer;
+      this.weightGroupBoxSizer2.margin = 6;
+      this.weightGroupBoxSizer2.spacing = 4;
+      this.weightGroupBoxSizer2.add( this.outlierLabel );
+      this.weightGroupBoxSizer2.add( this.outlier_ssweight_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_fwhm_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_ecc_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_snr_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_psfsignal_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_psfpower_CheckBox );
+      this.weightGroupBoxSizer2.add( this.outlier_stars_CheckBox );
+      this.weightGroupBoxSizer2.addStretch();
+
+      this.weightGroupBoxSizer3 = new HorizontalSizer;
+      this.weightGroupBoxSizer3.margin = 6;
+      this.weightGroupBoxSizer3.spacing = 4;
+      this.weightGroupBoxSizer3.add( this.outlierMethodLabel );
+      this.weightGroupBoxSizer3.add( this.outlierMethodComboBox );
+      this.weightGroupBoxSizer3.add( this.outlierMinMax_CheckBox );
+      this.weightGroupBoxSizer3.addStretch();
+
+      this.weightSizer = new VerticalSizer;
+      //this.weightSizer.margin = 6;
+      //this.weightSizer.spacing = 4;
+      this.weightSizer.add( this.weightGroupBoxLabel );
+      this.weightSizer.add( this.weightGroupBoxSizer );
+      this.weightSizer.add( this.weightGroupBoxSizer2 );
+      this.weightSizer.add( this.weightGroupBoxSizer3 );
+
       // CosmeticCorrection Sigma values
       //
       this.cosmeticCorrectionSigmaGroupBoxLabel = aiSectionLabel(this, "CosmeticCorrection Sigma values");
@@ -9216,19 +9643,6 @@ function AutoIntegrateDialog()
       this.cosmeticCorrectionGroupBoxSizer.add( this.cosmeticCorrectionSigmaGroupBoxSizer );
       this.cosmeticCorrectionGroupBoxSizer.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
       this.cosmeticCorrectionGroupBoxSizer.addStretch();
-
-      // Combined weight and sigma settings
-      this.weightSizer = new VerticalSizer;
-      //this.weightSizer.margin = 6;
-      //this.weightSizer.spacing = 4;
-      this.weightSizer.add( this.weightGroupBoxLabel );
-      this.weightSizer.add( this.weightGroupBoxSizer );
-
-      this.weightAndSigmaSizer = new HorizontalSizer;
-      //this.weightAndSigmaSizer.margin = 6;
-      this.weightAndSigmaSizer.spacing = 8;
-      this.weightAndSigmaSizer.add( this.weightSizer );
-      this.weightAndSigmaSizer.add( this.cosmeticCorrectionGroupBoxSizer );
 
       // Linear Fit selection
 
@@ -9357,6 +9771,8 @@ function AutoIntegrateDialog()
             "Averaged - Averaged sigma clipping" +
             "</p><p>" +
             "Linear - Linear fit clipping" +
+            "</p><p>" +
+            "EDS - Extreme Studentized Deviate clipping" +
             "</p>";
 
       // normalization
@@ -10110,6 +10526,7 @@ function AutoIntegrateDialog()
             "</p>";
       this.autoContinueButton.onClick = function()
       {
+            exitFromDialog();
             console.writeln("autoContinue");
 
             // Do not create subdirectory structure with AutoContinue
@@ -10344,6 +10761,7 @@ function AutoIntegrateDialog()
       this.ok_Button.icon = this.scaledResource( ":/icons/power.png" );
       this.ok_Button.onClick = function()
       {
+            exitFromDialog();
             updateWindowPrefix();
             haveIconized = 0;
             var index = findPrefixIndex(ppar.win_prefix);
@@ -10377,6 +10795,7 @@ function AutoIntegrateDialog()
       this.cancel_Button.icon = this.scaledResource( ":/icons/close.png" );
       this.cancel_Button.onClick = function()
       {
+         exitFromDialog();
          // save prefix setting at the end
          savePersistentSettings();
          this.dialog.cancel();
@@ -10435,7 +10854,8 @@ function AutoIntegrateDialog()
       this.ProcessingControl3.sizer = new VerticalSizer;
       this.ProcessingControl3.sizer.margin = 6;
       this.ProcessingControl3.sizer.spacing = 4;
-      this.ProcessingControl3.sizer.add( this.weightAndSigmaSizer );
+      this.ProcessingControl3.sizer.add( this.weightSizer );
+      this.ProcessingControl3.sizer.add( this.cosmeticCorrectionGroupBoxSizer );
       this.ProcessingControl3.sizer.add( this.clippingGroupBoxLabel );
       this.ProcessingControl3.sizer.add( this.clippingGroupBoxSizer );
       this.ProcessingControl3.sizer.add( this.LRGBCombinationGroupBoxLabel );
@@ -10614,6 +11034,7 @@ function main()
                                      CoreApplication.versionMinor * 1e4 + 
                                      CoreApplication.versionRelease * 1e2 + 
                                      CoreApplication.versionRevision;
+            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str + " (" + pixinsight_version_num + ")");
       }
       catch (x) {
             console.writeln( x );
