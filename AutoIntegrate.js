@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.32";
+var autointegrate_version = "AutoIntegrate v1.33";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -4583,12 +4583,14 @@ function copyToMapImages(images)
 
 function mapRGBchannel(images, refimage, mapping)
 {
-      console.writeln("mapRGBchannel");
+      console.writeln("mapRGBchannel, refimage " + refimage + ", mapping " + mapping);
       // copy files to _map names to avoid changing original files
       copyToMapImages(images);
       refimage = refimage + "_map";
+      console.writeln("mapRGBchannel, new refimage " + refimage);
       if (findWindow(refimage) == null) {
             refimage = images[0];
+            console.writeln("mapRGBchannel, refimage from images[0] " + refimage);
       }
       if (images.length > 1) {
             // run linear fit to match images before PixelMath
@@ -4811,7 +4813,7 @@ function customMapping(check_allfilesarr)
             addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (is_luminance_images) {
                   var L_images = [];
-                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, false);
+                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, null);
                   luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping);
             }
 
@@ -11111,7 +11113,7 @@ function AutoIntegrateDialog()
       this.extraImageSizer.add( this.extraImageLabel );
       this.extraImageSizer.add( this.extraImageComboBox );
       this.extraImageSizer.add( this.extraApplyButton );
-      //this.extraImageSizer.addStretch();
+      this.extraImageSizer.addStretch();
 
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
