@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.33";
+var autointegrate_version = "AutoIntegrate v1.34";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -388,7 +388,10 @@ var par = {
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
-      
+      Hyperbolic_D: { val: 10, def: 10, name : "Hyperbolic Stretch D value", type : 'I' },
+      Hyperbolic_b: { val: 2, def: 2, name : "Hyperbolic Stretch b value", type : 'I' }, 
+      Hyperbolic_iterations: { val: 1, def: 1, name : "Hyperbolic Stretch iterations", type : 'I' }, 
+
       // Extra processing for narrowband
       run_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
       leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
@@ -421,22 +424,23 @@ var par = {
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       blink: { val: true, def: true, name : "Blink", type : 'B' },
+
+      // Old persistent settings, moved to generic settings
+      start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix
+      use_manual_icon_column: { val: false, def: false, name: "manualIconColumn", type: 'B' }                  // Allow manual control of icon column
 };
 
 /*
-      Parameters that are persistent and are saved to settings and
-      restored from settings at the start.
+      Parameters that are persistent and are saved to only Aettings and
+      restored only from Settings at the start.
       Note that there is another parameter set par which are saved to 
       process icon.
 */
 var ppar = {
-      win_prefix: '',                           // Current active window name prefix
-      prefixArray: [],                          // Array of prefix names and icon count, 
-                                                // every array element is [icon-column, prefix-name, icon-count]
-      start_with_empty_window_prefix: false,    // Do we always start with empty prefix
-      use_manual_icon_column: false,            // Allow manual control of icon column
-      userColumnCount: -1,                      // User set column position, if -1 use automatic column position
-      default_starxterminator: false            // Use StarXTerminator by default instead of StarNet
+      win_prefix: '',         // Current active window name prefix
+      prefixArray: [],        // Array of prefix names and icon count, 
+                              // every array element is [icon-column, prefix-name, icon-count]
+      userColumnCount: -1     // User set column position, if -1 use automatic column position
 };
 
 var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
@@ -449,7 +453,7 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit', 'EDS' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -831,9 +835,7 @@ function savePersistentSettings()
 {
       Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
       Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
-      Settings.write (SETTINGSKEY + "/defaultStarXTerminator", DataType_Boolean, ppar.default_starxterminator);
-      Settings.write (SETTINGSKEY + "/manualIconColumn", DataType_Boolean, ppar.use_manual_icon_column);
-      if (ppar.use_manual_icon_column) {
+      if (par.use_manual_icon_column.val) {
             Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
       }
       setWindowPrefixHelpTip(ppar.win_prefix);
@@ -5559,8 +5561,62 @@ function runHistogramTransformMaskedStretch(ABE_win)
       P.executeOn(ABE_win.mainView);
 
       ABE_win.mainView.endProcess();
+}
 
-      return null;
+function runHistogramTransformHyperbolic(ABE_win)
+{
+      var P = new PixelMath;
+      P.expression = "iif(b==0,EC=1,EC=0);\n" +
+      "iif(b>0,Ds=D*b,Ds=D);\n" +
+      "iif(b>0,bs=b,bs=1);\n" +
+      "iif(EC==1,q0=exp(-Ds*SP),q0=(1+Ds*SP)^(-1/bs));\n" +
+      "iif(EC==1,qWP=2-exp(-Ds*(HP-SP)),qWP=2-(1+Ds*(HP-SP))^(-1/bs));\n" +
+      "iif(EC==1,q1=2-2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-SP-1)),q1=2-2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-SP-1))^(-1/bs));\n" +
+      "iif($T<SP,EC*exp(-Ds*(SP-$T))+(1-EC)*(1+Ds*(SP-$T))^(-1/bs)-q0,iif($T>HP,2-EC*(2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-$T-SP)))+(1-EC)*(2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-$T-SP))^(-1/bs))-q0,2-EC*exp(-Ds*($T-SP))-(1-EC)*(1+Ds*($T-SP))^(-1/bs)-q0))/(q1-q0);";
+      P.expression1 = "";
+      P.expression2 = "";
+      P.expression3 = "";
+      P.useSingleExpression = true;
+      P.symbols = "D = " + par.Hyperbolic_D.val + ";\n" +
+      "b = " + par.Hyperbolic_b.val + ";\n" +
+      "SP =0.00;\n" +
+      "HP =1.00;\n" +
+      "Rnorm;\n" +
+      "q0;\n" +
+      "qWP;\n" +
+      "q1;\n" +
+      "Ds;\n" +
+      "bs;\n" +
+      "EC;";
+      P.clearImageCacheAndExit = false;
+      P.cacheGeneratedImages = false;
+      P.generateOutput = true;
+      P.singleThreaded = false;
+      P.optimization = true;
+      P.use64BitWorkingImage = false;
+      P.rescale = false;
+      P.rescaleLower = 0;
+      P.rescaleUpper = 1;
+      P.truncate = true;
+      P.truncateLower = 0;
+      P.truncateUpper = 1;
+      P.createNewImage = false;
+      P.showNewImage = true;
+      P.newImageId = "";
+      P.newImageWidth = 0;
+      P.newImageHeight = 0;
+      P.newImageAlpha = false;
+      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+      console.writeln("Symbols " + P.symbols);
+
+      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(ABE_win.mainView);
+
+      ABE_win.mainView.endProcess();
 }
 
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
@@ -5585,8 +5641,15 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       } else if (par.image_stretching.val == 'Masked Stretch'
                  || (par.image_stretching.val == 'Use both' && type == 'RGB'))
       {
-            return runHistogramTransformMaskedStretch(ABE_win);
+            runHistogramTransformMaskedStretch(ABE_win);
+            return null;
 
+      } else if (par.image_stretching.val == 'Hyperbolic') {
+            for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
+                  runHistogramTransformHyperbolic(ABE_win);
+            }
+            return null;
+            
       } else {
             throwFatalError("Bad image stretching value " + par.image_stretching.val + " with type " + type);
             return null;
@@ -9238,9 +9301,10 @@ function mapBadChars(str)
       return str;
 }
 
-function exportParameters() 
+// Write default parameters to process icon
+function saveParametersToProcessIcon()
 {
-      console.writeln("exportParameters");
+      console.writeln("saveParametersToProcessIcon");
       for (let x in par) {
             var param = par[x];
             if (param.val != param.def) {
@@ -9251,9 +9315,10 @@ function exportParameters()
       }
 }
 
-function importParameters() 
+// Read default parameters from process icon
+function readParametersFromProcessIcon() 
 {
-      console.writeln("importParameters");
+      console.writeln("readParametersFromProcessIcon");
       for (let x in par) {
             var param = par[x];
             var name = mapBadChars(param.name);
@@ -9276,9 +9341,82 @@ function importParameters()
                               console.writeln(name + "=" + param.val);
                               break;
                         default:
-                              console.writeln("Unknown type '" + param.type + '" for parameter ' + name);
+                              throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
                               break;
                   }
+            }
+      }
+}
+
+function setParameterDefaults()
+{
+      console.writeln("setParateterDefaults");
+      for (let x in par) {
+            param.val = param.def;
+      }
+}
+
+// Save default parameters to persistent module settings
+function saveParametersToPersistentModuleSettings()
+{
+      console.writeln("saveParametersToPersistentModuleSettings");
+      for (let x in par) {
+            var param = par[x];
+            var name = SETTINGSKEY + '/' + mapBadChars(param.name);
+            if (param.val != param.def) {
+                  // not a default value, save setting
+                  console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
+                  switch (param.type) {
+                        case 'S':
+                              Settings.write(name, DataType_String, param.val);
+                              break;
+                        case 'B':
+                              Settings.write(name, DataType_Boolean, param.val);
+                              break;
+                        case 'I':
+                              Settings.write(name, DataType_Int32, param.val);
+                              break;
+                        case 'R':
+                              Settings.write(name, DataType_Real32, param.val);
+                              break;
+                        default:
+                              throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                              break;
+                  }
+            } else {
+                  // default value, remove possible setting
+                  Settings.remove(name);
+            }
+      }
+}
+
+// Read default parameters from persistent module settings
+function ReadParametersFromPersistentModuleSettings()
+{
+      console.writeln("ReadParametersFromPersistentModuleSettings");
+      for (let x in par) {
+            var param = par[x];
+            var name = SETTINGSKEY + '/' + mapBadChars(param.name);
+            switch (param.type) {
+                  case 'S':
+                        var tempSetting = Settings.read(name, DataType_String);
+                        break;
+                  case 'B':
+                        var tempSetting = Settings.read(name, DataType_Boolean);
+                        break;
+                  case 'I':
+                        var tempSetting = Settings.read(name, DataType_Int32);
+                        break;
+                  case 'R':
+                        var tempSetting = Settings.read(name, DataType_Real32);
+                        break;
+                  default:
+                        throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                        break;
+            }
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+                  param.val = tempSetting;
             }
       }
 }
@@ -10351,7 +10489,8 @@ function AutoIntegrateDialog()
       this.stretchingComboBox.toolTip = 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
-            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear.\n";
+            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.\n" +
+            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
       addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
       this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
       this.stretchingComboBox.onItemSelected = function( itemIndex )
@@ -10412,6 +10551,45 @@ function AutoIntegrateDialog()
             par.MaskedStretch_targetBackground.val = value;
       };
 
+      this.Hyperbolic_D_Control = new NumericControl( this );
+      this.Hyperbolic_D_Control.label.text = "Hyperbolic Stretch D value";
+      this.Hyperbolic_D_Control.setRange(0, 20);
+      this.Hyperbolic_D_Control.setValue(par.Hyperbolic_D.val);
+      this.Hyperbolic_D_Control.toolTip = "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>";
+      this.Hyperbolic_D_Control.onValueUpdated = function( value )
+      {
+            par.Hyperbolic_D.val = value;
+      };
+      this.Hyperbolic_b_Control = new NumericControl( this );
+      this.Hyperbolic_b_Control.label.text = "Hyperbolic Stretch b value";
+      this.Hyperbolic_b_Control.setRange(0, 10);
+      this.Hyperbolic_b_Control.setValue(par.Hyperbolic_b.val);
+      this.Hyperbolic_b_Control.toolTip = "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
+                                          "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
+                                          "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
+                                          "super-hyperbolic stretch. Often it is best to keep b<2.</p>";
+      this.Hyperbolic_b_Control.onValueUpdated = function( value )
+      {
+            par.Hyperbolic_b.val = value;
+      };
+
+      this.hyperbolicIterationsLabel = aiSectionLabel(this, "Hyperbolic stretch iterations");
+      this.hyperbolicIterationsLabel.toolTip = "Experimental, Number of iterations for Hyperbolic Stretch.";
+      this.hyperbolicIterationsSpinBox = new SpinBox( this );
+      this.hyperbolicIterationsSpinBox.minValue = 1;
+      this.hyperbolicIterationsSpinBox.maxValue = 10;
+      this.hyperbolicIterationsSpinBox.value = par.Hyperbolic_iterations.val;
+      this.hyperbolicIterationsSpinBox.toolTip = this.hyperbolicIterationsLabel.toolTip;
+      this.hyperbolicIterationsSpinBox.onValueUpdated = function( value )
+      {
+            par.Hyperbolic_iterations.val = value;
+      };
+      this.hyperbolicIterationsSizer = new HorizontalSizer;
+      this.hyperbolicIterationsSizer.spacing = 4;
+      this.hyperbolicIterationsSizer.margin = 2;
+      this.hyperbolicIterationsSizer.add( this.hyperbolicIterationsLabel );
+      this.hyperbolicIterationsSizer.add( this.hyperbolicIterationsSpinBox );
+
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
@@ -10427,6 +10605,9 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.spacing = 4;
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
+      this.StretchingOptionsSizer.add( this.Hyperbolic_D_Control );
+      this.StretchingOptionsSizer.add( this.Hyperbolic_b_Control );
+      this.StretchingOptionsSizer.add( this.hyperbolicIterationsSizer );
       //this.StretchingGroupBoxSizer.addStretch();
 
       //
@@ -11330,7 +11511,7 @@ function AutoIntegrateDialog()
                               }
                         }
                   }
-                  if (ppar.use_manual_icon_column && ppar.userColumnCount != -1) {
+                  if (par.use_manual_icon_column.val && ppar.userColumnCount != -1) {
                         ppar.userColumnCount = 0;
                   }
             }  catch (x) {
@@ -11342,7 +11523,7 @@ function AutoIntegrateDialog()
             fixAllWindowArrays(ppar.win_prefix);
       };
 
-      if (ppar.use_manual_icon_column) {
+      if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
             this.columnCountControlLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11381,13 +11562,13 @@ function AutoIntegrateDialog()
       this.autoButtonSizer.add( this.autoContinueButton );
       this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
-      if (ppar.use_manual_icon_column) {
+      if (par.use_manual_icon_column.val) {
             this.autoButtonSizer.addSpacing ( 150 );
       } else {
             this.autoButtonSizer.addSpacing ( 250 );
       }
       this.autoButtonSizer.add( closeAllPrefixButton );
-      if (ppar.use_manual_icon_column) {
+      if (par.use_manual_icon_column.val) {
             this.autoButtonSizer.addSpacing ( 4 );
             this.autoButtonSizer.add( this.columnCountControlLabel );
             this.autoButtonSizer.add( this.columnCountControlComboBox );
@@ -11467,7 +11648,7 @@ function AutoIntegrateDialog()
                   // We have iconized something so update prefix array
                   ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
                   fix_win_prefix_array();
-                  if (ppar.userColumnCount != -1 && ppar.use_manual_icon_column) {
+                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
                         ppar.userColumnCount = columnCount + 1;
                         this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
                   }
@@ -11493,7 +11674,7 @@ function AutoIntegrateDialog()
       this.newInstance_Button.onMousePress = function()
       {
          this.hasFocus = true;
-         exportParameters();
+         saveParametersToProcessIcon();
          this.pushed = false;
          this.dialog.newInstance();
       };
@@ -11556,50 +11737,55 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl4.visible = false;
 
-      this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", ppar.start_with_empty_window_prefix, 
+      this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", par.start_with_empty_window_prefix.val, 
       "<p>Start the script with empty window prefix</p>" );
       this.StartWithEmptyWindowPrefixBox.onClick = function(checked) { 
-            ppar.start_with_empty_window_prefix = checked;
-            Settings.write (SETTINGSKEY + "/startWithEmptyPrefixName", DataType_Boolean, ppar.start_with_empty_window_prefix);
+            par.start_with_empty_window_prefix.val = checked;
       }
-      this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", ppar.use_manual_icon_column, 
+      this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column.val, 
             "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
             "<p>This setting is effective only after restart of the script.</p>" );
       this.ManualIconColumnBox.onClick = function(checked) { 
-            ppar.use_manual_icon_column = checked;
-      }
-      this.StarXTerminatorColumnBox = newCheckBox(this, "Default StarXTerminator", ppar.default_starxterminator, 
-            "<p>Use StarXTerminator instead of StarNet as a default to remove stars.</p>" +
-            "<p>You need to install StarXTerminator before it can be used.</p>" );
-      this.StarXTerminatorColumnBox.onClick = function(checked) { 
-            ppar.default_starxterminator = checked;
+            par.use_manual_icon_column.val = checked;
       }
 
-      var persistentSettingsToolTip = "Options in the Persistent settings section are saved using the PixInsight Setting mechanism. " + 
-                                      "They are remembered and automatically set when the script starts. So there is no need to save " +
-                                      "these settings to a process icon."
+      var persistentSettingsToolTip = 
+            "<p>Save all current parameter values using the PixInsight persistent module settings mechanism. Saved parameter " + 
+            "values are remembered and automatically restored when the script starts.</p> " +
+            "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>";
 
-      this.PersistentParamsSet1 = new VerticalSizer;
-      this.PersistentParamsSet1.toolTip = persistentSettingsToolTip;
+      this.persistentSettingsSaveButton = new PushButton( this );
+      this.persistentSettingsSaveButton.text = "Save";
+      this.persistentSettingsSaveButton.toolTip = persistentSettingsToolTip;
+      this.persistentSettingsSaveButton.onClick = function()
+      {
+            saveParametersToPersistentModuleSettings();
+      };   
+
+      this.persistentSettingsClearButton = new PushButton( this );
+      this.persistentSettingsClearButton.text = "Set defaults";
+      this.persistentSettingsClearButton.toolTip = "Set default values for all parameters. Note that this does not save values to persistent module settings.";
+      this.persistentSettingsClearButton.onClick = function()
+      {
+            setParateterDefaults();
+      };   
+
+      this.PersistentParamsSet1 = new HorizontalSizer;
+      this.PersistentParamsSet1.toolTip = "";
       this.PersistentParamsSet1.margin = 6;
       this.PersistentParamsSet1.spacing = 4;
       this.PersistentParamsSet1.add( this.StartWithEmptyWindowPrefixBox );
-      this.PersistentParamsSet1.add( this.StarXTerminatorColumnBox );
-
-      this.PersistentParamsSet2 = new VerticalSizer;
-      this.PersistentParamsSet2.toolTip = persistentSettingsToolTip;
-      this.PersistentParamsSet2.margin = 6;
-      this.PersistentParamsSet2.spacing = 4;
-      this.PersistentParamsSet2.add( this.ManualIconColumnBox );
+      this.PersistentParamsSet1.add( this.ManualIconColumnBox );
 
       this.PersistentControl4 = new Control( this );
       this.PersistentControl4.toolTip = persistentSettingsToolTip;
-      this.PersistentControl4.sizer = new HorizontalSizer;
+      this.PersistentControl4.sizer = new VerticalSizer;
       this.PersistentControl4.sizer.toolTip = persistentSettingsToolTip;
       this.PersistentControl4.sizer.margin = 6;
       this.PersistentControl4.sizer.spacing = 4;
       this.PersistentControl4.sizer.add( this.PersistentParamsSet1 );
-      this.PersistentControl4.sizer.add( this.PersistentParamsSet2 );
+      this.PersistentControl4.sizer.add( this.persistentSettingsSaveButton );
+      this.PersistentControl4.sizer.add( this.persistentSettingsClearButton );
       // hide this section by default
       this.PersistentControl4.visible = false;
 
@@ -11607,7 +11793,7 @@ function AutoIntegrateDialog()
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering");
       aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, other");
-      aiSectionBarAdd(this, this.ProcessingGroupBox, this.PersistentControl4, "Persistent settings");
+      aiSectionBarAdd(this, this.ProcessingGroupBox, this.PersistentControl4, "Persistent settings, other options");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -11661,27 +11847,35 @@ AutoIntegrateDialog.prototype = new Dialog;
 
 function main()
 {
-      setDefaultDirs();
+      try {
+            setDefaultDirs();
 
-       try {
+            // 1. Read saved parameters from persistent module settings
+            console.noteln("Read persistent module settings");
+            ReadParametersFromPersistentModuleSettings();
+
+            // 2. Read parameters saved to process icon, these overwrite persistent module settings
+            if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
+                  // read default parameters from saved settings/process icon
+                  console.noteln("Read process icon settings");
+                  readParametersFromProcessIcon();
+            }
+            
+            // 3. Read persistent module settings that are temporary work values
             // Read prefix info. We use new setting names to avoid conflict with
             // older columnCount/winPrefix names
+            console.noteln("Read window prefix settings");
             var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
             if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
+                  console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
                   ppar.win_prefix = tempSetting;
             }
-            var tempSetting = Settings.read(SETTINGSKEY + "/startWithEmptyPrefixName", DataType_Boolean);
-            if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored startWithEmptyPrefixName '" + tempSetting + "' from settings.");
-                  ppar.start_with_empty_window_prefix = tempSetting;
-            }
-            if (ppar.start_with_empty_window_prefix) {
+            if (par.start_with_empty_window_prefix.val) {
                   ppar.win_prefix = '';
             }
             var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
             if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
+                  console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
                   ppar.prefixArray = JSON.parse(tempSetting);
                   if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
                         // We have old format prefix array without column position
@@ -11703,22 +11897,11 @@ function main()
             }
             var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
             if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
+                  console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
                   ppar.userColumnCount = tempSetting;
             }
-            var tempSetting = Settings.read(SETTINGSKEY + "/manualIconColumn", DataType_Boolean);
-            if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored manualIconColumn '" + tempSetting + "' from settings.");
-                  ppar.use_manual_icon_column = tempSetting;
-            }
-            if (!ppar.use_manual_icon_column) {
+            if (!par.use_manual_icon_column.val) {
                   ppar.userColumnCount = -1;
-            }
-            var tempSetting = Settings.read(SETTINGSKEY + "/defaultStarXTerminator", DataType_Boolean);
-            if (Settings.lastReadOK) {
-                  console.noteln("AutoIntegrate: Restored defaultStarXTerminator '" + tempSetting + "' from settings.");
-                  ppar.default_starxterminator = tempSetting;
-                  par.use_starxterminator.val = ppar.default_starxterminator;
             }
 
             fixAllWindowArrays(ppar.win_prefix);
@@ -11736,10 +11919,6 @@ function main()
       }
 
 
-      if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
-            importParameters();
-      }
-      
       var dialog = new AutoIntegrateDialog();
 
       dialog.execute();
