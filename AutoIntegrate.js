@@ -280,9 +280,13 @@ var windowPrefixComboBox;     // For updating prefix name list
 
 /*
       Parameters that can be adjusted in the GUI
-      These can be saved to a process icon and later restored.
+      These can be saved to persistent module settings or 
+      process icon and later restored.
       Note that there is another parameter set ppar which are
-      saved to settings.
+      saved only to persistent module settings.
+      For reset, we need to keep track of GUI element where
+      these values are used. Fields where values are stored
+      are: .currentItem, .checked, .editText, .setValue, .value
 */
 var par = {
       // Image processing parameters
@@ -416,6 +420,7 @@ var par = {
 
       // Calibration settings
       debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
+      extract_channel_mapping: { val: "", def: "", name : "Extract channel mapping", type : 'S' },
       create_superbias: { val: true, def: true, name : "Superbias", type : 'B' },
       pre_calibrate_darks: { val: false, def: false, name : "Pre-calibrate darks", type : 'B' },
       optimize_darks: { val: true, def: true, name : "Optimize darks", type : 'B' },
@@ -449,6 +454,7 @@ var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG",
 var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
+var extract_channel_mapping_values = [ "", "LRGB", "HSO", "HOS" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
@@ -717,6 +723,7 @@ var narrowBandPalettes = [
       { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true }, 
       { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true }, 
       { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true }, 
       { name: "RGB", R: "R", G: "G", B: "B", all: false }, 
       { name: "User defined", R: "", G: "", B: "", all: false },
       { name: "All", R: "All", G: "All", B: "All", all: false }
@@ -1584,6 +1591,25 @@ function copyWindow(sourceWindow, name)
       return copyWindowEx(sourceWindow, name, false);
 }
 
+function extractLchannel(sourceWindow)
+{
+      var P = new ChannelExtraction;
+      P.colorSpace = ChannelExtraction.prototype.CIELab;
+      P.channels = [ // enabled, id
+            [true, ""],       // L
+            [false, ""],      // a
+            [false, ""]       // b
+      ];
+      P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+
+      sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(sourceWindow.mainView);
+      var targetWindow = ImageWindow.activeWindow;
+      sourceWindow.mainView.endProcess();
+
+      return targetWindow;
+}
+
 function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 {
       var targetWindow;
@@ -1593,19 +1619,8 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
                use it as a mask.
             */
             addProcessingStep("Create mask by extracting lightness component from color image "+ sourceWindow.mainView.id);
-            var P = new ChannelExtraction;
-            P.colorSpace = ChannelExtraction.prototype.CIELab;
-            P.channels = [ // enabled, id
-                  [true, ""],       // L
-                  [false, ""],      // a
-                  [false, ""]       // b
-            ];
-            P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
 
-            sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(sourceWindow.mainView);
-            targetWindow = ImageWindow.activeWindow;
-            sourceWindow.mainView.endProcess();
+            targetWindow = extractLchannel(sourceWindow);
             
             windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
       } else {
@@ -3598,7 +3613,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                         // create Json output string
                         let fileInfoList = [];
                         addJsonFileInfo(fileInfoList, pages.LIGHTS, treeboxfiles, null);
-                        let saveInfo = initJsonSaveInfo(fileInfoList);
+                        let saveInfo = initJsonSaveInfo(fileInfoList, false);
                         console.writeln("saveInfo " + saveInfo);
                         let saveInfoJson = JSON.stringify(saveInfo, null, 2);
                         console.writeln("saveInfoJson " + saveInfoJson);
@@ -3849,6 +3864,7 @@ function filterByFileName(filePath, filename_postfix)
 
 function updateFilesInfo(files, filearr, txt)
 {
+      console.writeln("updateFilesInfo, " + filearr.length + " " + txt + " files");
       for (var i = 0; i < filearr.length; i++) {
             if (files.best_image == null || parseFloat(filearr[i].ssweight) >= parseFloat(files.best_ssweight)) {
                   /* Add best images first in the array. */
@@ -4040,45 +4056,70 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                   default:
                         break;
             }
-            // Do final resolve based on first letter in the filter
-            switch (filter.trim().substring(0, 1)) {
+            // Do final resolve based on first letter in the filter'
+            var filter_keyword = filter.trim().substring(0, 1);
+            switch (filter_keyword) {
                   case 'L':
                   case 'l':
+                        if (allfiles.L.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         luminance = true;
                         break;
                   case 'R':
                   case 'r':
+                        if (allfiles.R.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         rgb = true;
                         break;
                   case 'G':
                   case 'g':
+                        if (allfiles.G.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         rgb = true;
                         break;
                   case 'B':
                   case 'b':
+                        if (allfiles.B.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         rgb = true;
                         break;
                   case 'H':
                   case 'h':
+                        if (allfiles.H.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         narrowband = true;
                         break;
                   case 'S':
                   case 's':
+                        if (allfiles.S.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         narrowband = true;
                         break;
                   case 'O':
                   case 'o':
+                        if (allfiles.O.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         narrowband = true;
                         break;
                   case 'C':
                   default:
+                        if (allfiles.C.length == 0) {
+                              console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
+                        }
                         allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
                         color_files = true;
                         break;
@@ -6202,6 +6243,82 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
+// Extract channels from color/OSC/DSLR files. As a result
+// we get a new file list with channel files.
+function extractChannels(fileNames)
+{
+      var newFileNames = [];
+      var outputDir = outputRootDir + AutoOutputDir;
+      var postfix;
+      var outputExtension = ".xisf";
+      if (par.extract_channel_mapping.val == 'LRGB') {
+            var channel_map = "RGB";
+      } else {
+            var channel_map = par.extract_channel_mapping.val;
+      }
+
+      addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
+      
+      for (var i = 0; i < fileNames.length; i++) {
+            // Open source image window from a file
+            var imageWindows = ImageWindow.open(fileNames[i]);
+            if (imageWindows.length != 1) {
+                  throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  throwFatalError("*** extractChannels Error: Can't read file: " + fileNames[i]);
+            }
+
+            // Extract channels and save each channel to a separate file.
+            if (par.extract_channel_mapping.val == 'LRGB') {
+                  var targetWindow = extractLchannel(imageWindow);
+                  var filePath = generateNewFileName(fileNames[i], outputDir, "_L", outputExtension);
+                  setFITSKeyword(targetWindow, "FILTER", "L", "AutoIntegrate extracted channel")
+                  // Save window
+                  if (!writeImage(filePath, targetWindow)) {
+                        throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+                  }
+                  newFileNames[newFileNames.length] = filePath;
+                  forceCloseOneWindow(targetWindow);
+            }
+
+            var rId = extractRGBchannel(imageWindow.mainView.id, 'R');
+            var rWin = findWindow(rId);
+            var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[0], outputExtension);
+            setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
+            if (!writeImage(filePath, rWin)) {
+                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+            }
+            newFileNames[newFileNames.length] = filePath;
+            forceCloseOneWindow(rWin);
+
+            var gId = extractRGBchannel(imageWindow.mainView.id, 'G');
+            var gWin = findWindow(gId);
+            var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[1], outputExtension);
+            setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
+            if (!writeImage(filePath, gWin)) {
+                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+            }
+            newFileNames[newFileNames.length] = filePath;
+            forceCloseOneWindow(gWin);
+
+            var bId = extractRGBchannel(imageWindow.mainView.id, 'B');
+            var bWin = findWindow(bId);
+            var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[2], outputExtension);
+            setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
+            if (!writeImage(filePath, bWin)) {
+                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+            }
+            newFileNames[newFileNames.length] = filePath;
+            forceCloseOneWindow(bWin);
+
+            // Close window
+            forceCloseOneWindow(imageWindow);
+      }
+      return newFileNames;
+}
+
 function findStartImages(auto_continue, check_base_name)
 {
       /* Check if we have manually done histogram transformation. */
@@ -6476,6 +6593,19 @@ function CreateChannelImages(auto_continue)
                    */
                   fileNames = debayerImages(fileNames);
                   filename_postfix = filename_postfix + '_b';
+            }
+
+            if (par.extract_channel_mapping.val != '') {
+                  // Extract channels from color/OSC/DSLR files. As a result
+                  // we get a new file list with channel files.
+                  fileNames = extractChannels(fileNames);
+
+                  // We extracted channels, filter again with extracted channels
+                  console.writeln("Filter again with extracted channels")
+                  filename_postfix = '';
+                  is_color_files = false;
+                  filtered_files = getFilterFiles(fileNames, pages.LIGHTS, filename_postfix);
+                  console.writeln("Continue with mono processing")
             }
 
             if (!par.skip_subframeselector.val && !par.start_from_imageintegration.val) {
@@ -8111,6 +8241,8 @@ function printImageInfo(images, name)
       addProcessingStep(name + " exptime: "+images.exptime);
 }
 
+// Dialog functions are below this point
+
 function newCheckBox( parent, checkboxText, checkboxState, toolTip )
 {
       var widget = new CheckBox( parent );
@@ -8293,20 +8425,44 @@ function lightsOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[0]);
 
-      var label = new Label( parent );
-      label.text = "Debayer";
-      label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      label.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
+      var debayerLabel = new Label( parent );
+      debayerLabel.text = "Debayer";
+      debayerLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      debayerLabel.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
                       "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
-      var combobox = new ComboBox( parent );
-      combobox.toolTip = label.toolTip;
-      addArrayToComboBox(combobox, debayerPattern_values);
-      combobox.currentItem = debayerPattern_values.indexOf(par.debayerPattern.val);
-      combobox.onItemSelected = function( itemIndex )
+      var debayerCombobox = new ComboBox( parent );
+      debayerCombobox.toolTip = debayerLabel.toolTip;
+      addArrayToComboBox(debayerCombobox, debayerPattern_values);
+      debayerCombobox.currentItem = debayerPattern_values.indexOf(par.debayerPattern.val);
+      debayerCombobox.onItemSelected = function( itemIndex )
       {
             par.debayerPattern.val = debayerPattern_values[itemIndex];
+      }
+
+      var extractChannelsLabel = new Label( parent );
+      extractChannelsLabel.text = "Extract channels";
+      extractChannelsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      extractChannelsLabel.toolTip = 
+            "<p>Extract channels from color/OSC/RAW/DSLR files.</p>" +
+            "<p>Channel extraction is done right after debayering. After channels are extracted " + 
+            "processing continues as mono processing with separate filter files.</p>" +
+            "<p>Option LRGB extract lightness channels as L and color channels as separate R, G and B files.</p>" +
+            "<p>Option HOS extract channels as RGB=HOS and option HSO extract channels RGB=HSO. " + 
+            "Resulting channels can then be mixed as needed using PixMath expressions in color " + 
+            "palette section.</p>" +
+            "<p>Channel files have a channel name (_L, _R, etc.) at the end of the file name. Script " + 
+            "can then automatically recognize files as filter files.</p>"
+            ;
+
+      var extractChannelsCombobox = new ComboBox( parent );
+      extractChannelsCombobox.toolTip = extractChannelsLabel.toolTip;
+      addArrayToComboBox(extractChannelsCombobox, extract_channel_mapping_values);
+      extractChannelsCombobox.currentItem = debayerPattern_values.indexOf(par.extract_channel_mapping.val);
+      extractChannelsCombobox.onItemSelected = function( itemIndex )
+      {
+            par.extract_channel_mapping.val = extract_channel_mapping_values[itemIndex];
       }
 
       var add_manually_checkbox = newCheckBox(parent, "Add manually", par.lights_add_manually.val, 
@@ -8316,8 +8472,10 @@ function lightsOptions(parent)
             showOrHideFilterSectionBar(pages.LIGHTS);
       }
 
-      sizer.add(label);
-      sizer.add(combobox);
+      sizer.add(debayerLabel);
+      sizer.add(debayerCombobox);
+      sizer.add(extractChannelsLabel);
+      sizer.add(extractChannelsCombobox);
       sizer.add(add_manually_checkbox);
       sizer.addStretch();
 
@@ -8572,10 +8730,16 @@ function parseJsonFile(fname, lights_only)
             console.criticalln("Could not parse Json data in file " + fname);
             return null;
       }
-      if (saveInfo.version != 1) {
+      if (saveInfo.version != 1 && saveInfo.version != 2) {
             console.criticalln("Incorrect version " +  saveInfo.version + " in file " + fname);
             return null;
       }
+      
+      if (saveInfo.version == 2) {
+            // read parameter values
+            getSettingsFromJson(saveInfo.settings);
+      }
+
       var pagearray = [];
       for (var i = 0; i < pages.END; i++) {
             pagearray[i] = null;
@@ -8643,14 +8807,55 @@ function addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterset)
       fileInfoList[fileInfoList.length] = { pageindex: pageIndex, pagename: name, files: treeboxfiles, filterset: filterset };
 }
 
-function initJsonSaveInfo(fileInfoList)
+function getChangedSettingsAsJson()
 {
-      return { version: 1, fileinfo: fileInfoList };
+      var settings = [];
+      console.writeln("getChangedSettingsAsJson");
+      for (let x in par) {
+            var param = par[x];
+            if (param.val != param.def) {
+                  console.writeln("getChangedSettingsAsJson, save " + param.name + "=" + param.val);
+                  settings[settings.length] = [ param.name, param.val ];
+            }
+      }
+      console.noteln("Saving " + settings.length + " settings");
+      return settings;
+}
+
+function getSettingsFromJson(settings)
+{
+
+      if (settings == null || settings == undefined) {
+            console.noteln("getSettingsFromJson: empty settings");
+            return;
+      }
+
+      console.noteln("Restore " + settings.length + " settings");
+
+      for (var i = 0; i < settings.length; i++) {
+            for (let x in par) {
+                  var param = par[x];
+                  if (param.name == settings[i][0]) {
+                        param.val = settings[i][1];
+                        console.writeln("getSettingsFromJson, save " + param.name + "=" + param.val);
+                  }
+            }
+      }
+}
+
+function initJsonSaveInfo(fileInfoList, save_settings)
+{
+      if (save_settings) {
+            var changed_settings = getChangedSettingsAsJson();
+            return { version: 2, fileinfo: fileInfoList, settings: changed_settings };
+      } else {
+            return { version: 1, fileinfo: fileInfoList };
+      }
 }
 
 /* Save file info to a file.
  */
-function saveJsonFile(parent)
+function saveJsonFile(parent, save_settings)
 {
       console.writeln("saveJsonFile");
 
@@ -8711,14 +8916,18 @@ function saveJsonFile(parent)
             return;
       }
 
-      let saveInfo = initJsonSaveInfo(fileInfoList);
+      let saveInfo = initJsonSaveInfo(fileInfoList, save_settings);
       let saveInfoJson = JSON.stringify(saveInfo, null, 2);
 
       let saveFileDialog = new SaveFileDialog();
       saveFileDialog.caption = "Save As";
       saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
       let outputDir = getOutputDir(fileInfoList[0].files[0][0]);
-      saveFileDialog.initialPath = outputDir + "/AutoFiles.json";
+      if (save_settings) {
+            saveFileDialog.initialPath = outputDir + "/AutoSetup.json";
+      } else {
+            saveFileDialog.initialPath = outputDir + "/AutoFiles.json";
+      }
       if (!saveFileDialog.execute()) {
             return;
       }
@@ -9204,7 +9413,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       files_TreeBox.multipleSelection = true;
       files_TreeBox.rootDecoration = false;
       files_TreeBox.alternateRowColor = true;
-      files_TreeBox.setScaledMinSize( 300, 100 );
+      files_TreeBox.setScaledMinSize( 300, 150 );
       files_TreeBox.numberOfColumns = 1;
       files_TreeBox.headerVisible = false;
       files_TreeBox.onCurrentNodeUpdated = () =>
@@ -9350,8 +9559,9 @@ function readParametersFromProcessIcon()
 
 function setParameterDefaults()
 {
-      console.writeln("setParateterDefaults");
+      console.writeln("setParameterDefaults");
       for (let x in par) {
+            var param = par[x];
             param.val = param.def;
       }
 }
@@ -9480,12 +9690,21 @@ function newPageButtonsSizer(parent)
       };
       var jsonSaveButton = new ToolButton( parent );
       jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
-      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status. Images from all pages are save including light and calibration files.</p>";
+      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Images from all pages are saved including light and calibration files.</p>";
       jsonSaveButton.setScaledFixedSize( 20, 20 );
       jsonSaveButton.onClick = function()
       {
-            saveJsonFile(parent.dialog);
+            saveJsonFile(parent.dialog, false);
       };
+      var jsonSaveWithSewttingsButton = new ToolButton( parent );
+      jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
+      jsonSaveWithSewttingsButton.toolTip = "<p>Save file lists and current settings to a Json file including checked status.</p><p>Images from all pages are saved including light and calibration files.</p>";
+      jsonSaveWithSewttingsButton.setScaledFixedSize( 20, 20 );
+      jsonSaveWithSewttingsButton.onClick = function()
+      {
+            saveJsonFile(parent.dialog, true);
+      };
+      
       var currentPageLabel = new Label( parent );
       currentPageLabel.text = "Current page";
       currentPageLabel.toolTip = "Operations on the current page.";
@@ -9537,6 +9756,8 @@ function newPageButtonsSizer(parent)
       
       var buttonsSizer = new HorizontalSizer;
 
+      buttonsSizer.margin = 4;
+
       buttonsSizer.add( blinkLabel );
       buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( blinkFitButton );
@@ -9549,6 +9770,8 @@ function newPageButtonsSizer(parent)
       buttonsSizer.add( jsonLoadButton );
       buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( jsonSaveButton );
+      buttonsSizer.addSpacing( 4 );
+      buttonsSizer.add( jsonSaveWithSewttingsButton );
 
       buttonsSizer.addSpacing( 20 );
       buttonsSizer.add( currentPageLabel );
@@ -9991,7 +10214,7 @@ function AutoIntegrateDialog()
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration.val, 
       "<p>Start processing from ImageIntegration. File list should include star aligned files (*_r.xisf).</p>" +
       "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
-      "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove from " + 
+      "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove " + 
       "bad files after alignment.</p>" +
       "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
       "filter files must be added manually to the file list.</p>" 
@@ -10725,7 +10948,8 @@ function AutoIntegrateDialog()
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/" +
+            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/<br>" +
+            "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for L-eXtreme filter." +
             "</p>" +
             narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
@@ -11584,6 +11808,7 @@ function AutoIntegrateDialog()
       // Buttons for saving final images in different formats
       this.mosaicSaveXisfButton = new PushButton( this );
       this.mosaicSaveXisfButton.text = "XISF";
+      // this.mosaicSaveXisfButton.icon = this.scaledResource( ":/file-format/xisf-format-icon.png" );
       this.mosaicSaveXisfButton.onClick = function()
       {
             console.writeln("Save XISF");
@@ -11591,6 +11816,7 @@ function AutoIntegrateDialog()
       };   
       this.mosaicSave16bitButton = new PushButton( this );
       this.mosaicSave16bitButton.text = "16 bit TIFF";
+      // this.mosaicSave16bitButton.icon = this.scaledResource( ":/file-format/tiff-format-icon.png" );
       this.mosaicSave16bitButton.onClick = function()
       {
             console.writeln("Save 16 bit TIFF");
@@ -11598,6 +11824,7 @@ function AutoIntegrateDialog()
       };   
       this.mosaicSave8bitButton = new PushButton( this );
       this.mosaicSave8bitButton.text = "8 bit TIFF";
+      // this.mosaicSave8bitButton.icon = this.scaledResource( ":/file-format/tiff-format-icon.png" );
       this.mosaicSave8bitButton.onClick = function()
       {
             console.writeln("Save 8 bit TIFF");
@@ -11767,7 +11994,8 @@ function AutoIntegrateDialog()
       this.persistentSettingsClearButton.toolTip = "Set default values for all parameters. Note that this does not save values to persistent module settings.";
       this.persistentSettingsClearButton.onClick = function()
       {
-            setParateterDefaults();
+            console.criticalln("Does not work yet");
+            setParameterDefaults();
       };   
 
       this.PersistentParamsSet1 = new HorizontalSizer;
