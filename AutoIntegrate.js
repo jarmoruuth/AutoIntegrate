@@ -315,8 +315,8 @@ var par = {
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
-      autodetect_filter: { val: true, def: true, name : "Autodetect FILTER keyword", type : 'B' },
-      autodetect_imagetyp: { val: true, def: true, name : "Autodetect IMAGETYP keyword", type : 'B' },
+      skip_autodetect_filter: { val: false, def: false, name : "Do not autodetect FILTER keyword", type : 'B' },
+      skip_autodetect_imagetyp: { val: false, def: false, name : "Do not autodetect IMAGETYP keyword", type : 'B' },
       select_all_files: { val: false, def: false, name : "Select all files", type : 'B' },
       save_all_files: { val: false, def: false, name : "Save all files", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
@@ -324,7 +324,7 @@ var par = {
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
-      imageintegration_clipping: { val: true, def: true, name : "ImageIntegration clipping", type : 'B' },
+      skip_imageintegration_clipping: { val: false, def: false, name : "No ImageIntegration clipping", type : 'B' },
       synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },
       synthetic_missing_images: { val: false, def: false, name : "Synthetic missing image", type : 'B' },
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
@@ -428,7 +428,7 @@ var par = {
       no_darks_on_flat_calibrate: { val: false, def: false, name : "Do not use darks on flats", type : 'B' },
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
-      blink: { val: true, def: true, name : "Blink", type : 'B' },
+      skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix
@@ -3972,7 +3972,7 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         case "INSFLNAM":
                               if (filter != null) {
                                     console.writeln("filter already found, ignored "+ keywords[j].name + "=" +  value);
-                              } else if (par.autodetect_filter.val) {
+                              } else if (!par.skip_autodetect_filter.val) {
                                     console.writeln(keywords[j].name + "=" + value);
                                     filter = value;
                               } else {
@@ -5204,9 +5204,9 @@ function runImageIntegrationEx(images, name, local_normalization)
       } else {
             P.rejectionNormalization = ImageIntegration.prototype.Scale;
       }
-      P.clipLow = par.imageintegration_clipping.val;             // def: true
-      P.clipHigh = par.imageintegration_clipping.val;            // def: true
-      P.rangeClipLow = par.imageintegration_clipping.val;        // def: true
+      P.clipLow = !par.skip_imageintegration_clipping.val;            // def: true
+      P.clipHigh = !par.skip_imageintegration_clipping.val;           // def: true
+      P.rangeClipLow = !par.skip_imageintegration_clipping.val;       // def: true
       if (name == 'LDD') {
             P.generateDrizzleData = false;
       } else {
@@ -8243,14 +8243,21 @@ function printImageInfo(images, name)
 
 // Dialog functions are below this point
 
-function newCheckBox( parent, checkboxText, checkboxState, toolTip )
+function newCheckBox( parent, checkboxText, param, toolTip )
 {
       var widget = new CheckBox( parent );
       widget.text = checkboxText;
-      widget.checked = checkboxState;
+      widget.checked = param.val;
+      widget.onClick = function(checked) { 
+            param.val = checked; 
+      }
       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
             widget.toolTip = toolTip; 
       }
+
+      param.reset = function() {
+            widget.checked = param.val;
+      };
 
       return widget;
 }
@@ -8329,7 +8336,7 @@ function Autorun(parent)
       outputRootDir = savedOutputRootDir;
 }
 
-function aiSectionLabel(parent, text)
+function newSectionLabel(parent, text)
 {
       var lbl = new Label( parent );
       lbl.useRichText = true;
@@ -8338,7 +8345,7 @@ function aiSectionLabel(parent, text)
       return lbl;
 }
 
-function aiLabel(parent, text, tip)
+function newLabel(parent, text, tip)
 {
       var lbl = new Label( parent );
       lbl.text = text;
@@ -8348,20 +8355,60 @@ function aiLabel(parent, text, tip)
       return lbl;
 }
 
-function aiNumericEdit(parent, txt, defval, func, tip)
+function newNumericEdit(parent, txt, param, tooltip)
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
       edt.real = true;
       edt.edit.setFixedWidth( 6 * parent.font.width( "0" ) );
-      edt.onValueUpdated = func;
+      edt.onValueUpdated = function(value) { 
+            param.val = value; 
+      };
       edt.setPrecision( 1 );
-      edt.setRange(0.1, 999)
-      edt.setValue(defval);
-      edt.toolTip = tip;
+      edt.setRange(0.1, 999);
+      edt.setValue(param.val);
+      edt.toolTip = tooltip;
+      param.reset = function() {
+            edt.setValue(param.val);
+      };
       return edt;
 }
 
+function newNumericControl(parent, txt, param, min, max, tooltip)
+{
+      var edt = new NumericControl( parent );
+      edt.label.text = txt;
+      edt.setRange(min, max);
+      edt.setPrecision(1);
+      edt.setValue(param.val);
+      edt.onValueUpdated = function(value) { 
+            param.val = value; 
+      };
+      edt.toolTip = tooltip;
+      param.reset = function() {
+            edt.setValue(param.val);
+      };
+      return edt;
+}
+
+function newSpinBox(parent, param, min, max, tooltip)
+{
+      var edt = new SpinBox( parent );
+      edt.minValue = min;
+      edt.maxValue = max;
+      edt.value = param.val;
+      edt.toolTip = tooltip;
+      edt.onValueUpdated = function( value )
+      {
+            par.linear_increase_saturation.val = value;
+      };
+
+      param.reset = function() {
+            edt.value = param.val;
+      };
+
+      return edt;
+}
 
 function addArrayToComboBox(cb, arr)
 {
@@ -8370,22 +8417,59 @@ function addArrayToComboBox(cb, arr)
       }
 }
 
-function ai_RGBNB_Mapping_ComboBox(parent, channel, defval, setValueFunc, tip)
+function newComboBox(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
-      cb.toolTip = tip;
-      addArrayToComboBox(cb, RGBNB_mapping_values);
-      cb.currentItem = RGBNB_mapping_values.indexOf(defval);
-      cb.onItemSelected = function( itemIndex )
-      {
-            setValueFunc(RGBNB_mapping_values[itemIndex]);
+      cb.toolTip = tooltip;
+      addArrayToComboBox(cb, valarray);
+      cb.currentItem = valarray.indexOf(param.val);
+      cb.onItemSelected = function( itemIndex ) {
+            param.val = valarray[itemIndex];
       };
+
+      param.reset = function() {
+            cb.currentItem = valarray.indexOf(param.val);
+      }
+      
+      return cb;
+}
+
+function newComboBoxStrvals(parent, param, valarray, tooltip)
+{
+      var cb = new ComboBox( parent );
+      cb.toolTip = tooltip;
+      addArrayToComboBox(cb, valarray);
+      cb.currentItem = valarray.indexOf(param.val.toString());
+      cb.onItemSelected = function( itemIndex ) {
+            param.val = parseInt(valarray[itemIndex]);
+      };
+
+      param.reset = function() {
+            cb.currentItem = valarray.indexOf(param.val.toString());
+      }
+      
+      return cb;
+}
+
+function newComboBoxpalette(parent, param, valarray, tooltip)
+{
+      var cb = new ComboBox( parent );
+      cb.enabled = true;
+      cb.editEnabled = true;
+      addArrayToComboBox(cb, valarray);
+      cb.toolTip = tooltip;
+      cb.onEditTextUpdated = function() { 
+            param.val = cb.editText.trim(); 
+      };
+      param.reset = function() {
+            cb.editText = param.val;
+      }
       return cb;
 }
 
 function filesOptionsSizer(parent, name, toolTip)
 {
-      var label = aiSectionLabel(parent, name);
+      var label = newSectionLabel(parent, name);
       label.toolTip = toolTip;
       var labelempty = new Label( parent );
       labelempty.text = " ";
@@ -8404,10 +8488,10 @@ function showOrHideFilterSectionBar(pageIndex)
 {
       switch (pageIndex) {
             case pages.LIGHTS:
-                  var show = par.lights_add_manually.val || !par.autodetect_filter.val;
+                  var show = par.lights_add_manually.val || par.skip_autodetect_filter.val;
                   break;
             case pages.FLATS:
-                  var show = par.flats_add_manually.val || !par.autodetect_filter.val;
+                  var show = par.flats_add_manually.val || par.skip_autodetect_filter.val;
                   break;
             default:
                   throwFatalError("showOrHideFilterSectionBar bad pageIndex " + pageIndex);
@@ -8432,14 +8516,7 @@ function lightsOptions(parent)
                       "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
-      var debayerCombobox = new ComboBox( parent );
-      debayerCombobox.toolTip = debayerLabel.toolTip;
-      addArrayToComboBox(debayerCombobox, debayerPattern_values);
-      debayerCombobox.currentItem = debayerPattern_values.indexOf(par.debayerPattern.val);
-      debayerCombobox.onItemSelected = function( itemIndex )
-      {
-            par.debayerPattern.val = debayerPattern_values[itemIndex];
-      }
+      var debayerCombobox = newComboBox(parent, par.debayerPattern, debayerPattern_values, debayerLabel.toolTip);
 
       var extractChannelsLabel = new Label( parent );
       extractChannelsLabel.text = "Extract channels";
@@ -8456,16 +8533,9 @@ function lightsOptions(parent)
             "can then automatically recognize files as filter files.</p>"
             ;
 
-      var extractChannelsCombobox = new ComboBox( parent );
-      extractChannelsCombobox.toolTip = extractChannelsLabel.toolTip;
-      addArrayToComboBox(extractChannelsCombobox, extract_channel_mapping_values);
-      extractChannelsCombobox.currentItem = debayerPattern_values.indexOf(par.extract_channel_mapping.val);
-      extractChannelsCombobox.onItemSelected = function( itemIndex )
-      {
-            par.extract_channel_mapping.val = extract_channel_mapping_values[itemIndex];
-      }
+      var extractChannelsCombobox = newComboBox(parent, par.extract_channel_mapping, extract_channel_mapping_values, extractChannelsLabel.toolTip);
 
-      var add_manually_checkbox = newCheckBox(parent, "Add manually", par.lights_add_manually.val, 
+      var add_manually_checkbox = newCheckBox(parent, "Add manually", par.lights_add_manually, 
             "<p>Add light files manually by selecting files for each filter.</p>" );
       add_manually_checkbox.onClick = function(checked) { 
             par.lights_add_manually.val = checked; 
@@ -8486,11 +8556,8 @@ function biasOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[1]);
 
-      var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias.val, 
+      var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" );
-      checkbox.onClick = function(checked) { 
-            par.create_superbias.val = checked; 
-      }
 
       sizer.add(checkbox);
       sizer.addStretch();
@@ -8502,14 +8569,11 @@ function darksOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[2]);
 
-      var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks.val, 
+      var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
             "Normally this is not recommended and it is better to calibrate darks during " + 
             "ImageCalibration.</p>" );
-      checkbox.onClick = function(checked) { 
-            par.pre_calibrate_darks.val = checked; 
-      }
-      var checkbox2 = newCheckBox(parent, "Optimize", par.optimize_darks.val, 
+      var checkbox2 = newCheckBox(parent, "Optimize", par.optimize_darks, 
             "<p>If checked darks are optimized when calibrating lights." + 
             "</p><p>" +
             "Normally using optimize flag should not cause any problems. " +
@@ -8519,9 +8583,6 @@ function darksOptions(parent)
             "When Optimize is not checked bias frames are ignored and dark and flat file optimize " + 
             "and calibrate flags are disabled in light file calibration. " +
             "</p>" );
-      checkbox2.onClick = function(checked) { 
-            par.optimize_darks.val = checked; 
-      }
 
       sizer.add(checkbox);
       sizer.add(checkbox2);
@@ -8534,21 +8595,15 @@ function flatsOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[3]);
 
-      var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats.val, 
+      var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
-      checkboxStars.onClick = function(checked) { 
-            par.stars_in_flats.val = checked; 
-      }
-      var checkboxDarks = newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate.val, 
+      var checkboxDarks = newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate, 
             "<p>For some sensors darks should not be used to calibrate flats.  " + 
             "An example of such sensor is most CMOS sensors.</p>"  +
             "<p>If flat darks are selected then darks are not used " + 
             "to calibrate flats.</p>");
-      checkboxDarks.onClick = function(checked) { 
-            par.no_darks_on_flat_calibrate.val = checked; 
-      }
-      var checkboxManual = newCheckBox(parent, "Add manually", par.flats_add_manually.val, 
+      var checkboxManual = newCheckBox(parent, "Add manually", par.flats_add_manually, 
             "<p>Add flat files manually by selecting files for each filter.</p>" );
       checkboxManual.onClick = function(checked) {
             par.flats_add_manually.val = checked;
@@ -8837,6 +8892,9 @@ function getSettingsFromJson(settings)
                   var param = par[x];
                   if (param.name == settings[i][0]) {
                         param.val = settings[i][1];
+                        if (param.reset != undefined) {
+                              param.reset();
+                        }
                         console.writeln("getSettingsFromJson, save " + param.name + "=" + param.val);
                   }
             }
@@ -9278,7 +9336,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
             if (pagearray.length == 1) {
                   // simple list of file names
                   var imageFileNames = pagearray[0];
-                  if (pageIndex == pages.LIGHTS && par.autodetect_imagetyp.val) {
+                  if (pageIndex == pages.LIGHTS && !par.skip_autodetect_imagetyp.val) {
                         var imagetypes = getImagetypFiles(imageFileNames);
                         for (var i = 0; i < pages.END; i++) {
                               if (imagetypes[i].length > 0) {
@@ -9418,7 +9476,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       files_TreeBox.headerVisible = false;
       files_TreeBox.onCurrentNodeUpdated = () =>
       {
-            if (!par.blink.val) {
+            if (par.skip_blink.val) {
                   return;
             }
             try {
@@ -9563,6 +9621,9 @@ function setParameterDefaults()
       for (let x in par) {
             var param = par[x];
             param.val = param.def;
+            if (param.reset != undefined) {
+                  param.reset();
+            }
       }
 }
 
@@ -9651,7 +9712,7 @@ function newPageButtonsSizer(parent)
       blinkFitButton.setScaledFixedSize( 20, 20 );
       blinkFitButton.onClick = function()
       {
-            if (!par.blink.val) {
+            if (par.skip_blink.val) {
                   return;
             }
             if (blink_window != null) {
@@ -9665,7 +9726,7 @@ function newPageButtonsSizer(parent)
       blinkZoomButton.setScaledFixedSize( 20, 20 );
       blinkZoomButton.onClick = function()
       {
-            if (!par.blink.val) {
+            if (par.skip_blink.val) {
                   return;
             }
             if (blink_window != null) {
@@ -9830,7 +9891,7 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
 }
 
-function aiSectionBar(parent, control, title)
+function newSectionBar(parent, control, title)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
@@ -9848,7 +9909,7 @@ function aiSectionBar(parent, control, title)
       return gb;
 }
 
-function aiSectionBarAdd(parent, groupbox, control, title)
+function newSectionBarAdd(parent, groupbox, control, title)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
@@ -9947,101 +10008,41 @@ function AutoIntegrateDialog()
       this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
 
       /* Parameters check boxes. */
-      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization.val, 
+      this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization, 
             "<p>Use local normalization data for ImageIntegration</p>" );
-      this.useLocalNormalizationCheckBox.onClick = function(checked) { 
-            par.local_normalization.val = checked; 
-      }
-
-      this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects.val, 
+      this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
-      this.FixColumnDefectsCheckBox.onClick = function(checked) { 
-            par.fix_column_defects.val = checked; 
-      }
-
-      this.FixRowDefectsCheckBox = newCheckBox(this, "Fix row defects", par.fix_row_defects.val, 
+      this.FixRowDefectsCheckBox = newCheckBox(this, "Fix row defects", par.fix_row_defects, 
             "If checked, fix linear row defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
-      this.FixRowDefectsCheckBox.onClick = function(checked) { 
-            par.fix_row_defects.val = checked; 
-      }
-
-      this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", par.skip_cosmeticcorrection.val, 
+      this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", par.skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection on image files</p>" );
-      this.CosmeticCorrectionCheckBox.onClick = function(checked) { 
-            par.skip_cosmeticcorrection.val = checked; 
-      }
-
-      this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector.val, 
+      this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
-      this.SubframeSelectorCheckBox.onClick = function(checked) { 
-            par.skip_subframeselector.val = checked; 
-      }
-
-      this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only.val, 
+      this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Run only image calibration</p>" );
-      this.CalibrateOnlyCheckBox.onClick = function(checked) { 
-            par.calibrate_only.val = checked; 
-      }
-
-      this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only.val, 
+      this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
-      this.IntegrateOnlyCheckBox.onClick = function(checked) { 
-            par.integrate_only.val = checked; 
-      }
-
-      this.imageWeightTestingCheckBox = newCheckBox(this, "Image weight testing ", par.image_weight_testing.val, 
+      this.imageWeightTestingCheckBox = newCheckBox(this, "Image weight testing ", par.image_weight_testing, 
             "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log AutoWeights.json. " +
             "Json file can be loaded as input file list.</p>" +
             "<p>With this option no output image files are written.</p>" );
-      this.imageWeightTestingCheckBox.onClick = function(checked) { 
-            par.image_weight_testing.val = checked; 
-      }
-
-      this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only.val, 
+      this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
-      this.ChannelCombinationOnlyCheckBox.onClick = function(checked) { 
-            par.channelcombination_only.val = checked; 
-      }
-
-      this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign.val, 
+      this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
             "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" );
-      this.relaxedStartAlignCheckBox.onClick = function(checked) { 
-            par.strict_StarAlign.val = checked; 
-      }
-      
-      this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images.val, 
+      this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
-      this.keepIntegratedImagesCheckBox.onClick = function(checked) { 
-            par.keep_integrated_images.val = checked; 
-      }
-
-      this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images.val, 
+      this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
-      this.keepTemporaryImagesCheckBox.onClick = function(checked) { 
-            par.keep_temporary_images.val = checked; 
-      }
-
-      this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", par.ABE_before_channel_combination.val, 
-      "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
-      this.ABE_before_channel_combination_CheckBox.onClick = function(checked) { 
-            par.ABE_before_channel_combination.val = checked; 
-      }
-
-      this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights.val, 
-      "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
-      this.ABE_on_lights_CheckBox.onClick = function(checked) { 
-            par.ABE_on_lights.val = checked; 
-      }
-
-      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB.val, 
-      "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
-      this.useABE_L_RGB_CheckBox.onClick = function(checked) { 
-            par.use_ABE_on_L_RGB.val = checked; 
-      }
-
-      this.remove_stars_early_CheckBox = newCheckBox(this, "Remove stars early", par.remove_stars_early.val, 
+      this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", par.ABE_before_channel_combination, 
+            "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
+      this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights, 
+            "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
+      this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB, 
+            "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
+      this.remove_stars_early_CheckBox = newCheckBox(this, "Remove stars early", par.remove_stars_early, 
             "<p>NOTE! This option does not work correctly with linear images. This should be used " + 
             "only for narrowband images when they are stretched to non-linear state before combining. " + 
             "StarXTerminator should be able to handle linear images but in my tests it did not work from " + 
@@ -10053,64 +10054,33 @@ function AutoIntegrateDialog()
             "<p>With narrowband images remove stars before narrowband mapping. With StarNet this needs " + 
             "non-linear data so that images are stretched to non-linear state. With StarXTerminator stars " + 
             "can be removed in linear state.");
-      this.remove_stars_early_CheckBox.onClick = function(checked) {
-            par.remove_stars_early.val = checked; 
-      }
-
-      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE.val, 
-      "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
-      this.color_calibration_before_ABE_CheckBox.onClick = function(checked) { 
-            par.color_calibration_before_ABE.val = checked; 
-      }
-
-      this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization.val, 
-      "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
-      this.use_background_neutralization_CheckBox.onClick = function(checked) { 
-            par.use_background_neutralization.val = checked; 
-      }
-
-      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", par.batch_mode.val, 
+      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
+            "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
+      this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
+            "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
+      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", par.batch_mode, 
             "<p>Run in batch mode, continue until no files are given.</p>" +
             "<p>Batch mode is intended for processing mosaic panels. When one set of files " + 
             "is processed, batch mode will automatically ask for the next set of files. " + 
             "In batch mode only final image windows are left visible. </p>" +
             "<p>Final images are renamed using the subdirectory name. It is " + 
             "recommended that each part of the batch is stored in a separate directory. </p>");
-      this.batch_mode_CheckBox.onClick = function(checked) { 
-            par.batch_mode.val = checked; 
-      }
-
-      this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", !par.autodetect_imagetyp.val, 
-      "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" 
-      );
-      this.autodetect_imagetyp_CheckBox.onClick = function(checked) { 
-            par.autodetect_imagetyp.val = !checked; 
-      }
-
-      this.autodetect_filter_CheckBox = newCheckBox(this, "Do not use FILTER keyword", !par.autodetect_filter.val, 
-      "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
-      "<p>Selecting this enables manual adding of filter files for lights and flats.</p>" 
-      );
+      this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", par.skip_autodetect_imagetyp, 
+            "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
+      this.autodetect_filter_CheckBox = newCheckBox(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
+            "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
+            "<p>Selecting this enables manual adding of filter files for lights and flats.</p>" );
       this.autodetect_filter_CheckBox.onClick = function(checked) { 
-            par.autodetect_filter.val = !checked; 
+            par.skip_autodetect_filter.val = checked; 
             showOrHideFilterSectionBar(pages.LIGHTS);
             showOrHideFilterSectionBar(pages.FLATS);
       }
-
-      this.select_all_files_CheckBox = newCheckBox(this, "Select all files", par.select_all_files.val, 
-      "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
-      this.select_all_files_CheckBox.onClick = function(checked) { 
-            par.select_all_files.val = checked; 
-      }
-
-      this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files.val, 
-      "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
-      this.save_all_files_CheckBox.onClick = function(checked) { 
-            par.save_all_files.val = checked; 
-      }
-
-      this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs.val, 
-      "<p>If selected output files are not written into subdirectories</p>" );
+      this.select_all_files_CheckBox = newCheckBox(this, "Select all files", par.select_all_files, 
+            "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
+      this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files, 
+            "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
+      this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs, 
+            "<p>If selected output files are not written into subdirectories</p>" );
       this.no_subdirs_CheckBox.onClick = function(checked) { 
             par.no_subdirs.val = checked;
             if (par.no_subdirs.val) {
@@ -10119,128 +10089,63 @@ function AutoIntegrateDialog()
                   setDefaultDirs();
             }
       }
-
-      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle.val, 
-      "<p>Use Drizzle integration</p>" );
-      this.use_drizzle_CheckBox.onClick = function(checked) { 
-            par.use_drizzle.val = checked; 
-      }
-
-      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image.val, 
-      "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
-      "Quite a few processing steps are skipped with this option.</p>" );
-      this.monochrome_image_CheckBox.onClick = function(checked) { 
-            par.monochrome_image.val = checked; 
-      }
-
-      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight.val, 
-      "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
-      this.imageintegration_ssweight_CheckBox.onClick = function(checked) { 
-            par.use_imageintegration_ssweight.val = checked; 
-      }
-
-      this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", !par.imageintegration_clipping.val, 
-      "<p>Do not use clipping in ImageIntegration</p>" );
-      this.imageintegration_clipping_CheckBox.onClick = function(checked) { 
-            par.imageintegration_clipping.val = !checked; 
-      }
-
-      this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", par.RRGB_image.val, 
-      "<p>RRGB image using R as Luminance.</p>" );
-      this.RRGB_image_CheckBox.onClick = function(checked) { 
-            par.RRGB_image.val = checked; 
-      }
-
-      this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image.val, 
-      "<p>Create synthetic L image from all light images.</p>" );
-      this.synthetic_l_image_CheckBox.onClick = function(checked) { 
-            par.synthetic_l_image.val = checked; 
-      }
-
-      this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", par.synthetic_missing_images.val, 
-      "<p>Create synthetic image for any missing image.</p>" );
-      this.synthetic_missing_images_CheckBox.onClick = function(checked) { 
-            par.synthetic_missing_images.val = checked; 
-      }
-
-      this.force_file_name_filter_CheckBox = newCheckBox(this, "Use file name for filters", par.force_file_name_filter.val, 
-      "<p>Use file name for recognizing filters and ignore FILTER keyword.</p>" );
-      this.force_file_name_filter_CheckBox.onClick = function(checked) { 
-            par.force_file_name_filter.val = checked; 
-      }
-
-      this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", par.unique_file_names.val, 
-      "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
-      this.unique_file_names_CheckBox.onClick = function(checked) { 
-            par.unique_file_names.val = checked; 
-      }
-
-      this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction.val, 
-      "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
-      this.skip_noise_reduction_CheckBox.onClick = function(checked) { 
-            par.skip_noise_reduction.val = checked; 
-      }
-
-      this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast.val, 
-      "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
-      this.no_mask_contrast_CheckBox.onClick = function(checked) { 
-            par.skip_mask_contrast.val = checked; 
-      }
-
-      this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening.val, 
-      "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
-      this.no_sharpening_CheckBox.onClick = function(checked) { 
-            par.skip_sharpening.val = checked; 
-      }
-
-      this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration.val, 
-      "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
-      this.skip_color_calibration_CheckBox.onClick = function(checked) { 
-            par.skip_color_calibration.val = checked; 
-      }
-     
-      this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator.val, 
-      "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
-      this.use_starxterminator_CheckBox.onClick = function(checked) { 
-            par.use_starxterminator.val = checked; 
-      }
-
-      this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files.val, 
-      "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
-      this.win_prefix_to_log_files_CheckBox.onClick = function(checked) { 
-            par.win_prefix_to_log_files.val = checked; 
-      }
-
-      this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration.val, 
-      "<p>Start processing from ImageIntegration. File list should include star aligned files (*_r.xisf).</p>" +
-      "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
-      "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove " + 
-      "bad files after alignment.</p>" +
-      "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
-      "filter files must be added manually to the file list.</p>" 
-      );
-      this.start_from_imageintegration_CheckBox.onClick = function(checked) { 
-            par.start_from_imageintegration.val = checked; 
-      }
-
-      this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz.val, 
-      "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
-      "integration later with Start from ImageIntegration option.</p>" );
-      this.generate_xdrz_CheckBox.onClick = function(checked) { 
-            par.generate_xdrz.val = checked; 
-      }
-
-      this.blink_checkbox = newCheckBox(this, "No blink", !par.blink.val, 
+      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle, 
+            "<p>Use Drizzle integration</p>" );
+      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image, 
+            "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
+            "Quite a few processing steps are skipped with this option.</p>" );
+      this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
+            "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
+      this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
+            "<p>Do not use clipping in ImageIntegration</p>" );
+      this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", par.RRGB_image, 
+            "<p>RRGB image using R as Luminance.</p>" );
+      this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image, 
+            "<p>Create synthetic L image from all light images.</p>" );
+      this.synthetic_missing_images_CheckBox = newCheckBox(this, "Synthetic missing image", par.synthetic_missing_images, 
+            "<p>Create synthetic image for any missing image.</p>" );
+      this.force_file_name_filter_CheckBox = newCheckBox(this, "Use file name for filters", par.force_file_name_filter, 
+            "<p>Use file name for recognizing filters and ignore FILTER keyword.</p>" );
+      this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", par.unique_file_names, 
+            "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
+      this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction, 
+            "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
+      this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
+            "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
+      this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
+            "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
+      this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
+            "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
+      this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
+            "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
+      this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
+            "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
+      this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
+            "<p>Start processing from ImageIntegration. File list should include star aligned files (*_r.xisf).</p>" +
+            "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
+            "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove " + 
+            "bad files after alignment.</p>" +
+            "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
+            "filter files must be added manually to the file list.</p>" );
+      this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
+            "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
+            "integration later with Start from ImageIntegration option.</p>" );
+      this.blink_checkbox = newCheckBox(this, "No blink", par.skip_blink, 
             "<p>Disable blinking of files.</p>" );
       this.blink_checkbox.onClick = function(checked) { 
-            par.blink.val = !checked;
-            if (!par.blink.val) {
+            par.skip_blink.val = checked;
+            if (par.skip_blink.val) {
                   if (blink_window != null) {
                         blink_window.forceClose();
                         blink_window = null;
                   }
             }
       }
+      this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", par.start_with_empty_window_prefix, 
+            "<p>Start the script with empty window prefix</p>" );
+      this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column, 
+            "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
+            "<p>This setting is effective only after restart of the script.</p>" );
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -10280,32 +10185,16 @@ function AutoIntegrateDialog()
       this.imageParamsControl.sizer.add( this.imageParamsSet2 );
       //this.imageParamsControl.sizer.addStretch();
 
-      this.imageParamsGroupBox = aiSectionBar(this, this.imageParamsControl, "Image processing parameters");
+      this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters");
 
       // LRGBCombination selection
-      this.LRGBCombinationLightnessControl = new NumericControl( this );
-      this.LRGBCombinationLightnessControl.label.text = "Lightness";
-      this.LRGBCombinationLightnessControl.setRange(0, 1);
-      this.LRGBCombinationLightnessControl.setPrecision(1);
-      this.LRGBCombinationLightnessControl.setValue(par.LRGBCombination_lightness.val);
-      this.LRGBCombinationLightnessControl.toolTip = "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>";
-      this.LRGBCombinationLightnessControl.onValueUpdated = function( value )
-      {
-            par.LRGBCombination_lightness.val = value;
-      };
+      this.LRGBCombinationLightnessControl = newNumericControl(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
+            "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>");
 
-      this.LRGBCombinationSaturationControl = new NumericControl( this );
-      this.LRGBCombinationSaturationControl.label.text = "Saturation";
-      this.LRGBCombinationSaturationControl.setRange(0, 1);
-      this.LRGBCombinationSaturationControl.setPrecision(1);
-      this.LRGBCombinationSaturationControl.setValue(par.LRGBCombination_saturation.val);
-      this.LRGBCombinationSaturationControl.toolTip = "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>";
-      this.LRGBCombinationSaturationControl.onValueUpdated = function( value )
-      {
-            par.LRGBCombination_saturation.val = value;
-      };
+      this.LRGBCombinationSaturationControl = newNumericControl(this, "Saturation", par.LRGBCombination_saturation, 0, 1, 
+            "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>");
 
-      this.LRGBCombinationGroupBoxLabel = aiSectionLabel(this, "LRGBCombination settings");
+      this.LRGBCombinationGroupBoxLabel = newSectionLabel(this, "LRGBCombination settings");
       this.LRGBCombinationGroupBoxLabel.toolTip = 
             "LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.";
@@ -10320,31 +10209,15 @@ function AutoIntegrateDialog()
       this.linearSaturationLabel.text = "Linear saturation increase";
       this.linearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.linearSaturationLabel.toolTip = "<p>Saturation increase in linear state using a mask.</p>";
-      this.linearSaturationSpinBox = new SpinBox( this );
-      this.linearSaturationSpinBox.minValue = 0;
-      this.linearSaturationSpinBox.maxValue = 5;
-      this.linearSaturationSpinBox.value = par.linear_increase_saturation.val;
-      this.linearSaturationSpinBox.toolTip = this.linearSaturationLabel.toolTip;
-      this.linearSaturationSpinBox.onValueUpdated = function( value )
-      {
-            par.linear_increase_saturation.val = value;
-      };
+      this.linearSaturationSpinBox = newSpinBox(this, par.linear_increase_saturation, 0, 5, this.linearSaturationLabel.toolTip);
 
       this.nonLinearSaturationLabel = new Label( this );
       this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
       this.nonLinearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.nonLinearSaturationLabel.toolTip = "<p>Saturation increase in non-linear state using a mask.</p>";
-      this.nonLinearSaturationSpinBox = new SpinBox( this );
-      this.nonLinearSaturationSpinBox.minValue = 0;
-      this.nonLinearSaturationSpinBox.maxValue = 5;
-      this.nonLinearSaturationSpinBox.value = par.non_linear_increase_saturation.val;
-      this.nonLinearSaturationSpinBox.toolTip = this.nonLinearSaturationLabel.toolTip;
-      this.nonLinearSaturationSpinBox.onValueUpdated = function( value )
-      {
-            par.non_linear_increase_saturation.val = value;
-      };
+      this.nonLinearSaturationSpinBox = newSpinBox(this, par.non_linear_increase_saturation, 0, 5, this.nonLinearSaturationLabel.toolTip);
 
-      this.saturationGroupBoxLabel = aiSectionLabel(this, "Saturation setting");
+      this.saturationGroupBoxLabel = newSectionLabel(this, "Saturation setting");
       this.saturationGroupBoxSizer = new HorizontalSizer;
       this.saturationGroupBoxSizer.margin = 6;
       this.saturationGroupBoxSizer.spacing = 4;
@@ -10364,55 +10237,25 @@ function AutoIntegrateDialog()
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
       this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.noiseReductionStrengthComboBox = new ComboBox( this );
-      this.noiseReductionStrengthComboBox.toolTip = this.noiseReductionStrengthLabel.toolTip;
-      addArrayToComboBox(this.noiseReductionStrengthComboBox, noise_reduction_strength_values);
-      this.noiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.noise_reduction_strength.val.toString());
-      this.noiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
-      {
-            par.noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
-      };
+      this.noiseReductionStrengthComboBox = newComboBoxStrvals(this, par.noise_reduction_strength, noise_reduction_strength_values, this.noiseReductionStrengthLabel.toolTip);
 
       this.luminanceNoiseReductionStrengthLabel = new Label( this );
       this.luminanceNoiseReductionStrengthLabel.text = "Luminance noise reduction";
       this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionToolTipCommon;
       this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.luminanceNoiseReductionStrengthComboBox = new ComboBox( this );
-      this.luminanceNoiseReductionStrengthComboBox.toolTip = this.luminanceNoiseReductionStrengthLabel.toolTip;
-      addArrayToComboBox(this.luminanceNoiseReductionStrengthComboBox, noise_reduction_strength_values);
-      this.luminanceNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.luminance_noise_reduction_strength.val.toString());
-      this.luminanceNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
-      {
-            par.luminance_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
-      };
+      this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvals(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
 
-      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction.val,
-      "<p>Do noise reduction on combined image instead of each color channels separately.</p>" );
-      this.combined_noise_reduction_CheckBox.onClick = function(checked) { 
-            par.combined_image_noise_reduction.val = checked; 
-      }
+      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction,
+            "<p>Do noise reduction on combined image instead of each color channels separately.</p>" );
+      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
+            "<p>Do color noise reduction.</p>" );
 
-      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction.val, 
-      "<p>Do color noise reduction.</p>" );
-      this.color_noise_reduction_CheckBox.onClick = function(checked) { 
-            par.use_color_noise_reduction.val = checked; 
-      }
-
-      this.ACDNR_noise_reduction_Control = new NumericControl( this );
-      this.ACDNR_noise_reduction_Control.label.text = "ACDNR noise reduction";
-      this.ACDNR_noise_reduction_Control.setRange(0, 5);
-      this.ACDNR_noise_reduction_Control.setPrecision(1);
-      this.ACDNR_noise_reduction_Control.setValue(par.ACDNR_noise_reduction.val);
-      this.ACDNR_noise_reduction_Control.toolTip = 
+      this.ACDNR_noise_reduction_Control = newNumericControl(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
             "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
-            "<p>A mild ACDNR noise reduction with value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>";
-      this.ACDNR_noise_reduction_Control.onValueUpdated = function( value )
-      {
-            par.ACDNR_noise_reduction.val = value;
-      };
+            "<p>A mild ACDNR noise reduction with value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>");
 
-      this.noiseReductionGroupBoxLabel = aiSectionLabel(this, "Noise reduction settings");
+      this.noiseReductionGroupBoxLabel = newSectionLabel(this, "Noise reduction settings");
       this.noiseReductionGroupBoxSizer1 = new HorizontalSizer;
       this.noiseReductionGroupBoxSizer1.margin = 6;
       this.noiseReductionGroupBoxSizer1.spacing = 4;
@@ -10447,16 +10290,9 @@ function AutoIntegrateDialog()
       this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       // Binning
-      this.binningComboBox = new ComboBox( this );
-      this.binningComboBox.toolTip = this.binningLabel.toolTip;
-      addArrayToComboBox(this.binningComboBox, binning_values);
-      this.binningComboBox.currentItem = par.binning.val;
-      this.binningComboBox.onItemSelected = function( itemIndex )
-      {
-            par.binning.val = itemIndex;
-      };
+      this.binningComboBox = newComboBox(this, par.binning, binning_values, this.binningLabel.toolTip);
 
-      this.binningGroupBoxLabel = aiSectionLabel(this, "Binning");
+      this.binningGroupBoxLabel = newSectionLabel(this, "Binning");
       this.binningGroupBoxSizer = new HorizontalSizer;
       this.binningGroupBoxSizer.margin = 6;
       this.binningGroupBoxSizer.spacing = 4;
@@ -10496,6 +10332,8 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.autodetect_imagetyp_CheckBox );
       this.otherParamsSet2.add( this.generate_xdrz_CheckBox );
       this.otherParamsSet2.add( this.blink_checkbox );
+      this.otherParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
+      this.otherParamsSet2.add( this.ManualIconColumnBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -10506,7 +10344,7 @@ function AutoIntegrateDialog()
       this.otherParamsControl.sizer.add( this.otherParamsSet2 );
       //this.otherParamsControl.sizer.addStretch();
       
-      this.otherParamsGroupBox = aiSectionBar(this, this.otherParamsControl, "Other parameters");
+      this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters");
 
       // Weight calculations
       var weightHelpToolTips =
@@ -10529,27 +10367,12 @@ function AutoIntegrateDialog()
       this.weightLabel.text = "Weight calculation";
       this.weightLabel.toolTip = weightHelpToolTips;
       this.weightLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.weightComboBox = new ComboBox( this );
-      this.weightComboBox.toolTip = weightHelpToolTips;
-      addArrayToComboBox(this.weightComboBox, use_weight_values);
-      this.weightComboBox.currentItem = use_weight_values.indexOf(par.use_weight.val);
-      this.weightComboBox.onItemSelected = function( itemIndex )
-      {
-            par.use_weight.val = use_weight_values[itemIndex];
-      };
+      this.weightComboBox = newComboBox(this, par.use_weight, use_weight_values, weightHelpToolTips);
 
       var weightLimitToolTip = "Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
                                "it is not included in the set of processed images.";
-      this.weightLimitSpinBoxLabel = aiLabel(this, "Limit", weightLimitToolTip);
-      this.weightLimitSpinBox = new SpinBox( this );
-      this.weightLimitSpinBox.value = par.ssweight_limit.val;
-      this.weightLimitSpinBox.minValue = 0;
-      this.weightLimitSpinBox.maxValue = 999999;
-      this.weightLimitSpinBox.toolTip = weightLimitToolTip;
-      this.weightLimitSpinBox.onValueUpdated = function( value )
-      {
-            par.ssweight_limit.val = value;
-      };
+      this.weightLimitSpinBoxLabel = newLabel(this, "Limit", weightLimitToolTip);
+      this.weightLimitSpinBox = newSpinBox(this, par.ssweight_limit, 0, 999999, weightLimitToolTip);
 
       this.outlierMethodLabel = new Label( this );
       this.outlierMethodLabel.text = "Outlier method";
@@ -10561,21 +10384,11 @@ function AutoIntegrateDialog()
             "more outliers than the two other options.</p>" +
             "<p>Interquartile range (IQR) measurement is based on median calculations. It should be " + 
             "relatively close to two sigma method.</p>";
-      this.outlierMethodComboBox = new ComboBox( this );
-      this.outlierMethodComboBox.toolTip = this.outlierMethodLabel.toolTip;
-      addArrayToComboBox(this.outlierMethodComboBox, outliers_methods);
-      this.outlierMethodComboBox.currentItem = outliers_methods.indexOf(par.outliers_method.val);
-      this.outlierMethodComboBox.onItemSelected = function( itemIndex )
-      {
-            par.outliers_method.val = outliers_methods[itemIndex];
-      };
+      this.outlierMethodComboBox = newComboBox(this, par.outliers_method, outliers_methods, this.outlierMethodLabel.toolTip);
 
-      this.outlierMinMax_CheckBox = newCheckBox(this, "Min Max", par.outliers_minmax.val, 
+      this.outlierMinMax_CheckBox = newCheckBox(this, "Min Max", par.outliers_minmax, 
             "<p>If checked outliers are filtered using both min and max outlier threshold values.</p>" + 
             "<p>By default FWHM and Eccentricity are filtered for too high values, and SNR and SSWEIGHT are filtered for too low values.</p>" );
-      this.outlierMinMax_CheckBox.onClick = function(checked) { 
-            par.outliers_minmax.val = checked; 
-      }
 
       var outlier_filtering_tooltip = 
             "<p>Skipping outliers can be useful when processing very large data sets and manual " +
@@ -10587,22 +10400,15 @@ function AutoIntegrateDialog()
       this.outlierLabel.text = "Outlier filtering";
       this.outlierLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.outlierLabel.toolTip = outlier_filtering_tooltip;
-      this.outlier_ssweight_CheckBox = newCheckBox(this, "SSWEIGHT", par.outliers_ssweight.val, outlier_filtering_tooltip);
-      this.outlier_ssweight_CheckBox.onClick = function(checked) { par.outliers_ssweight.val = checked; }
-      this.outlier_fwhm_CheckBox = newCheckBox(this, "FWHM", par.outliers_fwhm.val, outlier_filtering_tooltip);
-      this.outlier_fwhm_CheckBox.onClick = function(checked) { par.outliers_fwhm.val = checked; }
-      this.outlier_ecc_CheckBox = newCheckBox(this, "Ecc", par.outliers_ecc.val, outlier_filtering_tooltip);
-      this.outlier_ecc_CheckBox.onClick = function(checked) { par.outliers_ecc.val = checked; }
-      this.outlier_snr_CheckBox = newCheckBox(this, "SNR", par.outliers_snr.val, outlier_filtering_tooltip);
-      this.outlier_snr_CheckBox.onClick = function(checked) { par.outliers_snr.val = checked; }
-      this.outlier_psfsignal_CheckBox = newCheckBox(this, "PSF Signal", par.outliers_psfsignal.val, outlier_filtering_tooltip);
-      this.outlier_psfsignal_CheckBox.onClick = function(checked) { par.outliers_psfsignal.val = checked; }
-      this.outlier_psfpower_CheckBox = newCheckBox(this, "PSF Power", par.outliers_psfpower.val, outlier_filtering_tooltip);
-      this.outlier_psfpower_CheckBox.onClick = function(checked) { par.outliers_psfpower.val = checked; }
-      this.outlier_stars_CheckBox = newCheckBox(this, "Stars", par.outliers_stars.val, outlier_filtering_tooltip);
-      this.outlier_stars_CheckBox.onClick = function(checked) { par.outliers_stars.val = checked; }
+      this.outlier_ssweight_CheckBox = newCheckBox(this, "SSWEIGHT", par.outliers_ssweight, outlier_filtering_tooltip);
+      this.outlier_fwhm_CheckBox = newCheckBox(this, "FWHM", par.outliers_fwhm, outlier_filtering_tooltip);
+      this.outlier_ecc_CheckBox = newCheckBox(this, "Ecc", par.outliers_ecc, outlier_filtering_tooltip);
+      this.outlier_snr_CheckBox = newCheckBox(this, "SNR", par.outliers_snr, outlier_filtering_tooltip);
+      this.outlier_psfsignal_CheckBox = newCheckBox(this, "PSF Signal", par.outliers_psfsignal, outlier_filtering_tooltip);
+      this.outlier_psfpower_CheckBox = newCheckBox(this, "PSF Power", par.outliers_psfpower, outlier_filtering_tooltip);
+      this.outlier_stars_CheckBox = newCheckBox(this, "Stars", par.outliers_stars, outlier_filtering_tooltip);
 
-      this.weightGroupBoxLabel = aiSectionLabel(this, "Image weight calculation settings");
+      this.weightGroupBoxLabel = newSectionLabel(this, "Image weight calculation settings");
 
       this.weightGroupBoxSizer = new HorizontalSizer;
       this.weightGroupBoxSizer.margin = 6;
@@ -10644,30 +10450,14 @@ function AutoIntegrateDialog()
 
       // CosmeticCorrection Sigma values
       //
-      this.cosmeticCorrectionSigmaGroupBoxLabel = aiSectionLabel(this, "CosmeticCorrection Sigma values");
+      this.cosmeticCorrectionSigmaGroupBoxLabel = newSectionLabel(this, "CosmeticCorrection Sigma values");
       
       var cosmeticCorrectionSigmaGroupBoxLabeltoolTip = "Hot Sigma and Cold Sigma values for CosmeticCorrection";
 
-      this.cosmeticCorrectionHotSigmaGroupBoxLabel = aiLabel(this, "Hot Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
-      this.cosmeticCorrectionHotSigmaSpinBox = new SpinBox( this );
-      this.cosmeticCorrectionHotSigmaSpinBox.minValue = 0;
-      this.cosmeticCorrectionHotSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionHotSigmaSpinBox.value = par.cosmetic_correction_hot_sigma.val;
-      this.cosmeticCorrectionHotSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
-      this.cosmeticCorrectionHotSigmaSpinBox.onValueUpdated = function( value )
-      {
-            par.cosmetic_correction_hot_sigma.val = value;
-      };
-      this.cosmeticCorrectionColSigmaGroupBoxLabel = aiLabel(this, "Cold Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
-      this.cosmeticCorrectionColdSigmaSpinBox = new SpinBox( this );
-      this.cosmeticCorrectionColdSigmaSpinBox.minValue = 0;
-      this.cosmeticCorrectionColdSigmaSpinBox.maxValue = 10;
-      this.cosmeticCorrectionColdSigmaSpinBox.value = par.cosmetic_correction_cold_sigma.val;
-      this.cosmeticCorrectionColdSigmaSpinBox.toolTip = cosmeticCorrectionSigmaGroupBoxLabeltoolTip;
-      this.cosmeticCorrectionColdSigmaSpinBox.onValueUpdated = function( value )
-      {
-            par.cosmetic_correction_cold_sigma.val = value;
-      };
+      this.cosmeticCorrectionHotSigmaGroupBoxLabel = newLabel(this, "Hot Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
+      this.cosmeticCorrectionHotSigmaSpinBox = newSpinBox(this, par.cosmetic_correction_hot_sigma, 0, 10, cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
+      this.cosmeticCorrectionColSigmaGroupBoxLabel = newLabel(this, "Cold Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
+      this.cosmeticCorrectionColdSigmaSpinBox = newSpinBox(this, par.cosmetic_correction_cold_sigma, 0, 10, cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
       this.cosmeticCorrectionSigmaGroupBoxSizer = new HorizontalSizer;
       this.cosmeticCorrectionSigmaGroupBoxSizer.margin = 6;
       this.cosmeticCorrectionSigmaGroupBoxSizer.spacing = 4;
@@ -10688,16 +10478,9 @@ function AutoIntegrateDialog()
 
       // Linear Fit selection
 
-      this.linearFitComboBox = new ComboBox( this );
-      this.linearFitComboBox.toolTip = "Choose how to do linear fit of images.";
-      addArrayToComboBox(this.linearFitComboBox, use_linear_fit_values);
-      this.linearFitComboBox.currentItem = use_linear_fit_values.indexOf(par.use_linear_fit.val);
-      this.linearFitComboBox.onItemSelected = function( itemIndex )
-      {
-            par.use_linear_fit.val = use_linear_fit_values[itemIndex]; 
-      };
+      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, "Choose how to do linear fit of images.");
 
-      this.linearFitGroupBoxLabel = aiSectionLabel(this, "Linear fit setting");
+      this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit setting");
       this.linearFitGroupBoxSizer = new HorizontalSizer;
       this.linearFitGroupBoxSizer.margin = 6;
       this.linearFitGroupBoxSizer.spacing = 4;
@@ -10708,18 +10491,11 @@ function AutoIntegrateDialog()
       // Stretching
       //
 
-      this.stretchingComboBox = new ComboBox( this );
-      this.stretchingComboBox.toolTip = 
+      this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
             "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.\n" +
-            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
-      addArrayToComboBox(this.stretchingComboBox, image_stretching_values);
-      this.stretchingComboBox.currentItem = image_stretching_values.indexOf(par.image_stretching.val);
-      this.stretchingComboBox.onItemSelected = function( itemIndex )
-      {
-            par.image_stretching.val = image_stretching_values[itemIndex]; 
-      };
+            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.");
 
       this.stretchingChoiceSizer = new HorizontalSizer;
       this.stretchingChoiceSizer.margin = 6;
@@ -10737,14 +10513,7 @@ function AutoIntegrateDialog()
       "With Auto the default for true RGB images is to use linked channels. For narrowband and OSC/DSLR images the default " +
       "is to use unlinked channels. But if linear fit is done with narrowband images, then linked channels are used." +
       "</p>";
-      this.STFComboBox = new ComboBox( this );
-      this.STFComboBox.toolTip = this.STFLabel.toolTip;
-      addArrayToComboBox(this.STFComboBox, STF_linking_values);
-      this.STFComboBox.currentItem = STF_linking_values.indexOf(par.STF_linking.val);
-      this.STFComboBox.onItemSelected = function( itemIndex )
-      {
-            par.STF_linking.val = STF_linking_values[itemIndex];
-      };
+      this.STFComboBox = newComboBox(this, par.STF_linking, STF_linking_values, this.STFLabel.toolTip);
 
       this.STFSizer = new HorizontalSizer;
       this.STFSizer.spacing = 4;
@@ -10752,61 +10521,25 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFLabel );
       this.STFSizer.add( this.STFComboBox );
 
-      this.STFTargetBackgroundControl = new NumericControl( this );
-      this.STFTargetBackgroundControl.label.text = "STF targetBackground";
-      this.STFTargetBackgroundControl.setRange(0, 1);
+      this.STFTargetBackgroundControl = newNumericControl(this, "STF targetBackground", par.STF_targetBackground, 0, 1,
+            "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>");
       this.STFTargetBackgroundControl.setPrecision(3);
-      this.STFTargetBackgroundControl.setValue(par.STF_targetBackground.val);
-      this.STFTargetBackgroundControl.toolTip = "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>";
-      this.STFTargetBackgroundControl.onValueUpdated = function( value )
-      {
-            par.STF_targetBackground.val = value;
-      };
 
-      this.MaskedStretchTargetBackgroundControl = new NumericControl( this );
-      this.MaskedStretchTargetBackgroundControl.label.text = "Masked Stretch targetBackground";
-      this.MaskedStretchTargetBackgroundControl.setRange(0, 1);
+      this.MaskedStretchTargetBackgroundControl = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+            "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
       this.MaskedStretchTargetBackgroundControl.setPrecision(3);
-      this.MaskedStretchTargetBackgroundControl.setValue(par.MaskedStretch_targetBackground.val);
-      this.MaskedStretchTargetBackgroundControl.toolTip = "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>";
-      this.MaskedStretchTargetBackgroundControl.onValueUpdated = function( value )
-      {
-            par.MaskedStretch_targetBackground.val = value;
-      };
 
-      this.Hyperbolic_D_Control = new NumericControl( this );
-      this.Hyperbolic_D_Control.label.text = "Hyperbolic Stretch D value";
-      this.Hyperbolic_D_Control.setRange(0, 20);
-      this.Hyperbolic_D_Control.setValue(par.Hyperbolic_D.val);
-      this.Hyperbolic_D_Control.toolTip = "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>";
-      this.Hyperbolic_D_Control.onValueUpdated = function( value )
-      {
-            par.Hyperbolic_D.val = value;
-      };
-      this.Hyperbolic_b_Control = new NumericControl( this );
-      this.Hyperbolic_b_Control.label.text = "Hyperbolic Stretch b value";
-      this.Hyperbolic_b_Control.setRange(0, 10);
-      this.Hyperbolic_b_Control.setValue(par.Hyperbolic_b.val);
-      this.Hyperbolic_b_Control.toolTip = "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
-                                          "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
-                                          "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
-                                          "super-hyperbolic stretch. Often it is best to keep b<2.</p>";
-      this.Hyperbolic_b_Control.onValueUpdated = function( value )
-      {
-            par.Hyperbolic_b.val = value;
-      };
+      this.Hyperbolic_D_Control = newNumericControl(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 20,
+            "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>");
+      this.Hyperbolic_b_Control = newNumericControl(this, "Hyperbolic Stretch b value", par.Hyperbolic_b, 0, 10,
+            "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
+            "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
+            "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
+            "super-hyperbolic stretch. Often it is best to keep b<2.</p>");
 
-      this.hyperbolicIterationsLabel = aiSectionLabel(this, "Hyperbolic stretch iterations");
+      this.hyperbolicIterationsLabel = newSectionLabel(this, "Hyperbolic stretch iterations");
       this.hyperbolicIterationsLabel.toolTip = "Experimental, Number of iterations for Hyperbolic Stretch.";
-      this.hyperbolicIterationsSpinBox = new SpinBox( this );
-      this.hyperbolicIterationsSpinBox.minValue = 1;
-      this.hyperbolicIterationsSpinBox.maxValue = 10;
-      this.hyperbolicIterationsSpinBox.value = par.Hyperbolic_iterations.val;
-      this.hyperbolicIterationsSpinBox.toolTip = this.hyperbolicIterationsLabel.toolTip;
-      this.hyperbolicIterationsSpinBox.onValueUpdated = function( value )
-      {
-            par.Hyperbolic_iterations.val = value;
-      };
+      this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 10, this.hyperbolicIterationsLabel.toolTip);
       this.hyperbolicIterationsSizer = new HorizontalSizer;
       this.hyperbolicIterationsSizer.spacing = 4;
       this.hyperbolicIterationsSizer.margin = 2;
@@ -10821,7 +10554,7 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
       //this.StretchingOptionsSizer.addStretch();
 
-      this.StretchingGroupBoxLabel = aiSectionLabel(this, "Image stretching settings");
+      this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
       this.StretchingGroupBoxLabel.toolTip = "Settings for stretching linear image image to non-linear.";
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
@@ -10865,13 +10598,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationLabel.text = "Normalization";
       this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.ImageIntegrationNormalizationComboBox = new ComboBox( this );
-      addArrayToComboBox(this.ImageIntegrationNormalizationComboBox, imageintegration_normalization_values);
-      this.ImageIntegrationNormalizationComboBox.currentItem  = imageintegration_normalization_values.indexOf(par.imageintegration_normalization.val);
-      this.ImageIntegrationNormalizationComboBox.onItemSelected = function( itemIndex )
-      {
-            par.imageintegration_normalization.val = imageintegration_normalization_values[itemIndex];
-      };
+      this.ImageIntegrationNormalizationComboBox = newComboBox(this, par.imageintegration_normalization, imageintegration_normalization_values, '');
    
       this.ImageIntegrationNormalizationSizer = new HorizontalSizer;
       this.ImageIntegrationNormalizationSizer.spacing = 4;
@@ -10884,14 +10611,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionLabel.toolTip = ImageIntegrationHelpToolTips;
       this.ImageIntegrationRejectionLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.ImageIntegrationRejectionComboBox = new ComboBox( this );
-      this.ImageIntegrationRejectionComboBox.toolTip = ImageIntegrationHelpToolTips;
-      addArrayToComboBox(this.ImageIntegrationRejectionComboBox, use_clipping_values);
-      this.ImageIntegrationRejectionComboBox.currentItem = use_clipping_values.indexOf(par.use_clipping.val);
-      this.ImageIntegrationRejectionComboBox.onItemSelected = function( itemIndex )
-      {
-            par.use_clipping.val = use_clipping_values[itemIndex];
-      };
+      this.ImageIntegrationRejectionComboBox = newComboBox(this, par.use_clipping, use_clipping_values, ImageIntegrationHelpToolTips);
    
       // Image integration
       this.ImageIntegrationRejectionSizer = new HorizontalSizer;
@@ -10899,7 +10619,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionComboBox, 100 );
 
-      this.clippingGroupBoxLabel = aiSectionLabel(this, 'Image integration pixel rejection');
+      this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration pixel rejection');
       this.clippingGroupBoxSizer = new HorizontalSizer;
       this.clippingGroupBoxSizer.margin = 6;
       this.clippingGroupBoxSizer.spacing = 4;
@@ -10935,7 +10655,7 @@ function AutoIntegrateDialog()
       narrowbandAllTip + 
       "</p>";
 
-      this.narrowbandColorPaletteLabel = aiSectionLabel(this, "Color palette");
+      this.narrowbandColorPaletteLabel = newSectionLabel(this, "Color palette");
       this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
 
       /* Narrowband to RGB mappings. 
@@ -10973,15 +10693,8 @@ function AutoIntegrateDialog()
             "Mapping for R channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
-      this.narrowbandCustomPalette_R_ComboBox = new ComboBox( this );
-      this.narrowbandCustomPalette_R_ComboBox.enabled = true;
-      this.narrowbandCustomPalette_R_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_R_ComboBox.addItem(par.custom_R_mapping.val);
-      this.narrowbandCustomPalette_R_ComboBox.addItem("0.75*H + 0.25*S");
-      this.narrowbandCustomPalette_R_ComboBox.toolTip = this.narrowbandCustomPalette_R_Label.toolTip;
-      this.narrowbandCustomPalette_R_ComboBox.onEditTextUpdated = function() { 
-            par.custom_R_mapping.val = this.editText.trim(); 
-      };
+
+      this.narrowbandCustomPalette_R_ComboBox = newComboBoxpalette(this, par.custom_R_mapping, [par.custom_R_mapping.val, "0.75*H + 0.25*S"], this.narrowbandCustomPalette_R_Label.toolTip);
 
       this.narrowbandCustomPalette_G_Label = new Label( this );
       this.narrowbandCustomPalette_G_Label.text = "G";
@@ -10991,15 +10704,8 @@ function AutoIntegrateDialog()
             "Mapping for G channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
-      this.narrowbandCustomPalette_G_ComboBox = new ComboBox( this );
-      this.narrowbandCustomPalette_G_ComboBox.enabled = true;
-      this.narrowbandCustomPalette_G_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_G_ComboBox.addItem(par.custom_G_mapping.val);
-      this.narrowbandCustomPalette_G_ComboBox.addItem("0.50*S + 0.50*O");
-      this.narrowbandCustomPalette_G_ComboBox.toolTip = this.narrowbandCustomPalette_G_Label.toolTip;
-      this.narrowbandCustomPalette_G_ComboBox.onEditTextUpdated = function() { 
-            par.custom_G_mapping.val = this.editText.trim(); 
-      };
+
+      this.narrowbandCustomPalette_G_ComboBox = newComboBoxpalette(this, par.custom_G_mapping, [par.custom_G_mapping.val, "0.50*S + 0.50*O"], this.narrowbandCustomPalette_G_Label.toolTip);
 
       this.narrowbandCustomPalette_B_Label = new Label( this );
       this.narrowbandCustomPalette_B_Label.text = "B";
@@ -11009,15 +10715,8 @@ function AutoIntegrateDialog()
             "Mapping for B channel. Use one of the predefined mappings or edit and create your own mapping." +
             "</p>" +
             narrowbandToolTip;
-      this.narrowbandCustomPalette_B_ComboBox = new ComboBox( this );
-      this.narrowbandCustomPalette_B_ComboBox.enabled = true;
-      this.narrowbandCustomPalette_B_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_B_ComboBox.addItem(par.custom_B_mapping.val);
-      this.narrowbandCustomPalette_B_ComboBox.addItem("0.30*H + 0.70*O");
-      this.narrowbandCustomPalette_B_ComboBox.toolTip = this.narrowbandCustomPalette_B_Label.toolTip;
-      this.narrowbandCustomPalette_B_ComboBox.onEditTextUpdated = function() { 
-            par.custom_B_mapping.val = this.editText.trim(); 
-      };
+
+      this.narrowbandCustomPalette_B_ComboBox = newComboBoxpalette(this, par.custom_B_mapping, [par.custom_B_mapping.val, "0.30*H + 0.70*O"], this.narrowbandCustomPalette_B_Label.toolTip);
 
       this.narrowbandCustomPalette_Sizer = new HorizontalSizer;
       this.narrowbandCustomPalette_Sizer.margin = 6;
@@ -11031,13 +10730,10 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
 
-      this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", par.mapping_on_nonlinear_data.val, 
+      this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", par.mapping_on_nonlinear_data, 
             "<p>" +
             "Do narrowband mapping using non-linear data. Before running PixelMath images are stretched to non-linear state. " +
             "</p>" );
-      this.mapping_on_nonlinear_data_CheckBox.onClick = function(checked) { 
-            par.mapping_on_nonlinear_data.val = checked; 
-      }
 
       this.narrowbandLinearFit_Label = new Label( this );
       this.narrowbandLinearFit_Label.text = "Linear fit";
@@ -11052,14 +10748,7 @@ function AutoIntegrateDialog()
             "</p>";
       this.narrowbandLinearFit_Label.margin = 6;
       this.narrowbandLinearFit_Label.spacing = 4;
-      this.narrowbandLinearFit_ComboBox = new ComboBox( this );
-      addArrayToComboBox(this.narrowbandLinearFit_ComboBox, narrowband_linear_fit_values);
-      this.narrowbandLinearFit_ComboBox.currentItem = narrowband_linear_fit_values.indexOf(par.narrowband_linear_fit.val);
-      this.narrowbandLinearFit_ComboBox.toolTip = this.narrowbandLinearFit_Label.toolTip;
-      this.narrowbandLinearFit_ComboBox.onItemSelected = function( itemIndex )
-      {
-            par.narrowband_linear_fit.val = narrowband_linear_fit_values[itemIndex];
-      };
+      this.narrowbandLinearFit_ComboBox = newComboBox(this, par.narrowband_linear_fit, narrowband_linear_fit_values, this.narrowbandLinearFit_Label.toolTip);
 
       this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
@@ -11091,15 +10780,8 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_L_Label.text = "L";
       this.narrowbandCustomPalette_L_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       this.narrowbandCustomPalette_L_Label.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
-      this.narrowbandCustomPalette_L_ComboBox = new ComboBox( this );
-      this.narrowbandCustomPalette_L_ComboBox.enabled = true;
-      this.narrowbandCustomPalette_L_ComboBox.editEnabled = true;
-      this.narrowbandCustomPalette_L_ComboBox.addItem(par.custom_L_mapping.val);
-      this.narrowbandCustomPalette_L_ComboBox.addItem("max(L, H)");
-      this.narrowbandCustomPalette_L_ComboBox.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip
-      this.narrowbandCustomPalette_L_ComboBox.onEditTextUpdated = function() { 
-            par.custom_L_mapping.val = this.editText.trim(); 
-      };
+
+      this.narrowbandCustomPalette_L_ComboBox = newComboBoxpalette(this, par.custom_L_mapping, [par.custom_L_mapping.val, "max(L, H)"], this.narrowbandLuminancePalette_ComboBox.toolTip);
 
       this.NbLuminanceLabel = new Label( this );
       this.NbLuminanceLabel.text = "Luminance mapping";
@@ -11138,18 +10820,12 @@ function AutoIntegrateDialog()
             "If there is no Luminance channel available then selections for L channel are ignored." +
             "</p>";
             
-      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping.val, RGBNB_tooltip);
-      this.useRGBNBmapping_CheckBox.onClick = function(checked) { 
-            par.use_RGBNB_Mapping.val = checked; 
-      }
-      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", par.use_RGB_image.val, 
+      this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping, RGBNB_tooltip);
+      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", par.use_RGB_image, 
             "<p>" +
             "Use RGB image for bandwidth mapping instead of separate R, G and B channel images. " +
             "R channel bandwidth is then used for the RGB image." +
             "</p>" );
-      this.useRGBbandwidth_CheckBox.onClick = function(checked) { 
-            par.use_RGB_image.val = checked; 
-      }
       this.useRGBNBmappingSizer = new HorizontalSizer;
       this.useRGBNBmappingSizer.margin = 6;
       this.useRGBNBmappingSizer.spacing = 4;
@@ -11190,15 +10866,15 @@ function AutoIntegrateDialog()
       };   
 
       // channel mapping
-      this.RGBNB_MappingLabel = aiLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
-      this.RGBNB_MappingLLabel = aiLabel(this, 'L', "Mapping of narrowband channel to L channel. If there is no L channel available then this setting is ignored.");
-      this.RGBNB_MappingLValue = ai_RGBNB_Mapping_ComboBox(this, "L", par.L_mapping.val, function(value) { par.L_mapping.val = value; }, this.RGBNB_MappingLLabel.toolTip);
-      this.RGBNB_MappingRLabel = aiLabel(this, 'R', "Mapping of narrowband channel to R channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingRValue = ai_RGBNB_Mapping_ComboBox(this, "R", par.R_mapping.val, function(value) { par.R_mapping.val = value; }, this.RGBNB_MappingRLabel.toolTip);
-      this.RGBNB_MappingGLabel = aiLabel(this, 'G', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingGValue = ai_RGBNB_Mapping_ComboBox(this, "G", par.G_mapping.val, function(value) { par.G_mapping.val = value; }, this.RGBNB_MappingGLabel.toolTip);
-      this.RGBNB_MappingBLabel = aiLabel(this, 'B', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingBValue = ai_RGBNB_Mapping_ComboBox(this, "B", par.B_mapping.val, function(value) { par.B_mapping.val = value; }, this.RGBNB_MappingBLabel.toolTip);
+      this.RGBNB_MappingLabel = newLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
+      this.RGBNB_MappingLLabel = newLabel(this, 'L', "Mapping of narrowband channel to L channel. If there is no L channel available then this setting is ignored.");
+      this.RGBNB_MappingLValue = newComboBox(this, par.L_mapping, RGBNB_mapping_values, this.RGBNB_MappingLLabel.toolTip);
+      this.RGBNB_MappingRLabel = newLabel(this, 'R', "Mapping of narrowband channel to R channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingRValue = newComboBox(this, par.R_mapping, RGBNB_mapping_values, this.RGBNB_MappingRLabel.toolTip);
+      this.RGBNB_MappingGLabel = newLabel(this, 'G', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingGValue = newComboBox(this, par.G_mapping, RGBNB_mapping_values, this.RGBNB_MappingGLabel.toolTip);
+      this.RGBNB_MappingBLabel = newLabel(this, 'B', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
+      this.RGBNB_MappingBValue = newComboBox(this, par.B_mapping, RGBNB_mapping_values, this.RGBNB_MappingBLabel.toolTip);
 
       this.RGBNB_MappingSizer = new HorizontalSizer;
       this.RGBNB_MappingSizer.margin = 6;
@@ -11215,11 +10891,11 @@ function AutoIntegrateDialog()
       this.RGBNB_MappingSizer.addStretch();
 
       // Boost factor for LRGB
-      this.RGBNB_BoostLabel = aiLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
-      this.RGBNB_BoostLValue = aiNumericEdit(this, 'L', par.L_BoostFactor.val, function(value) { par.L_BoostFactor.val = value; }, "Boost, or multiplication factor, for the L channel.");
-      this.RGBNB_BoostRValue = aiNumericEdit(this, 'R', par.R_BoostFactor.val, function(value) { par.R_BoostFactor.val = value; }, "Boost, or multiplication factor, for the R channel.");
-      this.RGBNB_BoostGValue = aiNumericEdit(this, 'G', par.G_BoostFactor.val, function(value) { par.G_BoostFactor.val = value; }, "Boost, or multiplication factor, for the G channel.");
-      this.RGBNB_BoostBValue = aiNumericEdit(this, 'B', par.B_BoostFactor.val, function(value) { par.B_BoostFactor.val = value; }, "Boost, or multiplication factor, for the B channel.");
+      this.RGBNB_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
+      this.RGBNB_BoostLValue = newNumericEdit(this, 'L', par.L_BoostFactor, "Boost, or multiplication factor, for the L channel.");
+      this.RGBNB_BoostRValue = newNumericEdit(this, 'R', par.R_BoostFactor, "Boost, or multiplication factor, for the R channel.");
+      this.RGBNB_BoostGValue = newNumericEdit(this, 'G', par.G_BoostFactor, "Boost, or multiplication factor, for the G channel.");
+      this.RGBNB_BoostBValue = newNumericEdit(this, 'B', par.B_BoostFactor, "Boost, or multiplication factor, for the B channel.");
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       this.RGBNB_BoostSizer.margin = 6;
@@ -11237,15 +10913,14 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer1.addStretch();
 
       // Bandwidth for different channels
-      this.RGBNB_BandwidthLabel = aiLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
-      //this.RGBNB_BandwidthRGBValue = aiNumericEdit(this, 'RGB', RGB_bandwidth, function(value) { RGB_bandwidth = value; } );
-      this.RGBNB_BandwidthLValue = aiNumericEdit(this, 'L', par.L_bandwidth.val, function(value) { par.L_bandwidth.val = value; }, "Bandwidth (nm) for the L filter.");
-      this.RGBNB_BandwidthRValue = aiNumericEdit(this, 'R', par.R_bandwidth.val, function(value) { par.R_bandwidth.val = value; }, "Bandwidth (nm) for the R filter.");
-      this.RGBNB_BandwidthGValue = aiNumericEdit(this, 'G', par.G_bandwidth.val, function(value) { par.G_bandwidth.val = value; }, "Bandwidth (nm) for the G filter.");
-      this.RGBNB_BandwidthBValue = aiNumericEdit(this, 'B', par.B_bandwidth.val, function(value) { par.B_bandwidth.val = value; }, "Bandwidth (nm) for the B filter.");
-      this.RGBNB_BandwidthHValue = aiNumericEdit(this, 'H', par.H_bandwidth.val, function(value) { par.H_bandwidth.val = value; }, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
-      this.RGBNB_BandwidthSValue = aiNumericEdit(this, 'S', par.S_bandwidth.val, function(value) { par.S_bandwidth.val = value; }, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
-      this.RGBNB_BandwidthOValue = aiNumericEdit(this, 'O', par.O_bandwidth.val, function(value) { par.O_bandwidth.val = value; }, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthLabel = newLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
+      this.RGBNB_BandwidthLValue = newNumericEdit(this, 'L', par.L_bandwidth, "Bandwidth (nm) for the L filter.");
+      this.RGBNB_BandwidthRValue = newNumericEdit(this, 'R', par.R_bandwidth, "Bandwidth (nm) for the R filter.");
+      this.RGBNB_BandwidthGValue = newNumericEdit(this, 'G', par.G_bandwidth, "Bandwidth (nm) for the G filter.");
+      this.RGBNB_BandwidthBValue = newNumericEdit(this, 'B', par.B_bandwidth, "Bandwidth (nm) for the B filter.");
+      this.RGBNB_BandwidthHValue = newNumericEdit(this, 'H', par.H_bandwidth, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
+      this.RGBNB_BandwidthSValue = newNumericEdit(this, 'S', par.S_bandwidth, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthOValue = newNumericEdit(this, 'O', par.O_bandwidth, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       this.RGBNB_BandwidthSizer.margin = 6;
@@ -11282,7 +10957,7 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
       //this.narrowbandControl.sizer.add( this.narrowbandAutoContinue_sizer );
 
-      this.narrowbandGroupBox = aiSectionBar(this, this.narrowbandControl, "Narrowband processing");
+      this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing");
 
       this.narrowbandRGBmappingControl = new Control( this );
       //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
@@ -11294,36 +10969,21 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
 
-      this.narrowbandRGBmappingGroupBox = aiSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping");
+      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping");
 
       // Narrowband extra processing
-      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color.val, 
-      "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
-      "This is also run with AutoContinue and Extra processing.</p>" );
-      this.fix_narrowband_star_color_CheckBox.onClick = function(checked) { 
-            par.fix_narrowband_star_color.val = checked; 
-      }
-      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_hue_shift.val, 
-      "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
-      this.narrowband_hue_shift_CheckBox.onClick = function(checked) { 
-            par.run_hue_shift.val = checked; 
-      }
-      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green.val, 
-      "<p>Leave some green color on image when running SCNR (amount 0.50). Useful with SHO color palette. " +
-      "This is also run with AutoContinue and Extra processing.</p>" );
-      this.narrowband_leave_some_green_CheckBox.onClick = function(checked) { 
-            par.leave_some_green.val = checked; 
-      }
-      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR.val, 
-      "<p>Run SCNR to remove green cast. Useful with SHO color palette. This is also run with AutoContinue and Extra processing.</p>" );
-      this.run_narrowband_SCNR_CheckBox.onClick = function(checked) { 
-            par.run_narrowband_SCNR.val = checked; 
-      }
-      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask.val, 
-      "<p>Do not use star mask when fixing star colors</p>" );
-      this.no_star_fix_mask_CheckBox.onClick = function(checked) { 
-            par.skip_star_fix_mask.val = checked; 
-      }
+      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
+            "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
+            "This is also run with AutoContinue and Extra processing.</p>" );
+      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_hue_shift, 
+            "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
+      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
+            "<p>Leave some green color on image when running SCNR (amount 0.50). Useful with SHO color palette. " +
+            "This is also run with AutoContinue and Extra processing.</p>" );
+      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR, 
+            "<p>Run SCNR to remove green cast. Useful with SHO color palette. This is also run with AutoContinue and Extra processing.</p>" );
+      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask, 
+            "<p>Do not use star mask when fixing star colors</p>" );
 
       this.narrowbandOptions1_sizer = new VerticalSizer;
       this.narrowbandOptions1_sizer.margin = 6;
@@ -11338,7 +10998,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
-      this.narrowbandExtraLabel = aiSectionLabel(this, "Extra processing for narrowband");
+      this.narrowbandExtraLabel = newSectionLabel(this, "Extra processing for narrowband");
       this.narrowbandExtraLabel.toolTip = 
             "<p>" +
             "Extra processing options to be applied on narrowband images. "+
@@ -11357,48 +11017,21 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
-      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars.val, 
-      "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars. When this is selected, extra processing is " +
-      "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
-      "from starless and star images.</p>" );
-      this.extraRemoveStars_CheckBox.onClick = function(checked) { 
-            par.extra_remove_stars.val = checked; 
-      }
-      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background.val, 
-      "<p>Make image background darker.</p>" );
-      this.extraDarkerBackground_CheckBox.onClick = function(checked) { 
-            par.extra_darker_background.val = checked; 
-      }
-      this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE.val, 
-      "<p>Run AutomaticBackgroundExtractor.</p>" );
-      this.extraABE_CheckBox.onClick = function(checked) { 
-            par.extra_ABE.val = checked; 
-      }
-      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT.val, 
-      "<p>Run HDRMultiscaleTransform on image.</p>" );
-      this.extra_HDRMLT_CheckBox.onClick = function(checked) { 
-            par.extra_HDRMLT.val = checked; 
-      }
-      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", par.extra_LHE.val, 
-      "<p>Run LocalHistogramEqualization on image.</p>" );
-      this.extra_LHE_CheckBox.onClick = function(checked) { 
-            par.extra_LHE.val = checked; 
-      }
-      
-      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast.val, 
-      "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
-      this.extra_Contrast_CheckBox.onClick = function(checked) { 
-            par.extra_contrast.val = checked; 
-      }
-      this.contrastIterationsSpinBox = new SpinBox( this );
-      this.contrastIterationsSpinBox.minValue = 1;
-      this.contrastIterationsSpinBox.maxValue = 5;
-      this.contrastIterationsSpinBox.value = par.extra_contrast_iterations.val;
-      this.contrastIterationsSpinBox.toolTip = "<p>Number of iterations for contrast enhancement</p>";
-      this.contrastIterationsSpinBox.onValueUpdated = function( value )
-      {
-            par.extra_contrast_iterations.val = value;
-      };
+      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars, 
+            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars. When this is selected, extra processing is " +
+            "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
+            "from starless and star images.</p>" );
+      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
+            "<p>Make image background darker.</p>" );
+      this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
+            "<p>Run AutomaticBackgroundExtractor.</p>" );
+      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, 
+            "<p>Run HDRMultiscaleTransform on image.</p>" );
+      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", par.extra_LHE, 
+            "<p>Run LocalHistogramEqualization on image.</p>" );
+      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast, 
+            "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
+      this.contrastIterationsSpinBox = newSpinBox(this, par.extra_contrast_iterations, 1, 5, "Number of iterations for contrast enhancement");
       this.contrastIterationsLabel = new Label( this );
       this.contrastIterationsLabel.text = "iterations";
       this.contrastIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11411,26 +11044,13 @@ function AutoIntegrateDialog()
       this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
       this.extraContrastSizer.addStretch();
 
-      this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch.val, 
-      "<p>Run automatic stretch on image. Can be helpful in some rare cases but most useful on testing stretching settings.</p>" );
-      this.extra_stretch_CheckBox.onClick = function(checked) { 
-            par.extra_stretch.val = checked; 
-      }
+      this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
+            "<p>Run automatic stretch on image. Can be helpful in some rare cases but most useful on testing stretching settings.</p>" );
 
-      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars.val, 
-      "<p>Make stars smaller on image.</p>" );
-      this.extra_SmallerStars_CheckBox.onClick = function(checked) { 
-            par.extra_smaller_stars.val = checked; 
-      }
-      this.smallerStarsIterationsSpinBox = new SpinBox( this );
-      this.smallerStarsIterationsSpinBox.minValue = 0;
-      this.smallerStarsIterationsSpinBox.maxValue = 10;
-      this.smallerStarsIterationsSpinBox.value = par.extra_smaller_stars_iterations.val;
-      this.smallerStarsIterationsSpinBox.toolTip = "<p>Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection</p>";
-      this.smallerStarsIterationsSpinBox.onValueUpdated = function( value )
-      {
-            par.extra_smaller_stars_iterations.val = value;
-      };
+      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
+            "<p>Make stars smaller on image.</p>" );
+      this.smallerStarsIterationsSpinBox = newSpinBox(this, par.extra_smaller_stars_iterations, 0, 10, 
+            "Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection");
       this.smallerStarsIterationsLabel = new Label( this );
       this.smallerStarsIterationsLabel.text = "iterations";
       this.smallerStarsIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11444,20 +11064,10 @@ function AutoIntegrateDialog()
       this.extraSmallerStarsSizer.addStretch();
 
       var extra_noise_reduction_tooltip = "<p>Noise reduction on image.</p>" + noiseReductionToolTipCommon;
-      this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction.val, 
+      this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction, 
             extra_noise_reduction_tooltip);
-      this.extra_NoiseReduction_CheckBox.onClick = function(checked) { 
-            par.extra_noise_reduction.val = checked; 
-      }
 
-      this.extraNoiseReductionStrengthComboBox = new ComboBox( this );
-      this.extraNoiseReductionStrengthComboBox.toolTip = extra_noise_reduction_tooltip;
-      addArrayToComboBox(this.extraNoiseReductionStrengthComboBox, noise_reduction_strength_values);
-      this.extraNoiseReductionStrengthComboBox.currentItem = noise_reduction_strength_values.indexOf(par.extra_noise_reduction_strength.val.toString());
-      this.extraNoiseReductionStrengthComboBox.onItemSelected = function( itemIndex )
-      {
-            par.extra_noise_reduction_strength.val = parseInt(noise_reduction_strength_values[itemIndex]);
-      };
+      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvals(this, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
       this.extraNoiseReductionStrengthLabel = new Label( this );
       this.extraNoiseReductionStrengthLabel.text = "strength";
       this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11537,7 +11147,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
 
-      this.extraLabel = aiSectionLabel(this, "Generic extra processing");
+      this.extraLabel = newSectionLabel(this, "Generic extra processing");
 
       this.extraGroupBoxSizer = new HorizontalSizer;
       //this.extraGroupBoxSizer.margin = 6;
@@ -11585,7 +11195,7 @@ function AutoIntegrateDialog()
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
-      this.extraGroupBox = aiSectionBar(this, this.extraControl, "Extra processing");
+      this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing");
 
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
@@ -11843,9 +11453,44 @@ function AutoIntegrateDialog()
       this.mosaicSaveGroupBox.sizer.spacing = 4;
       this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
       this.mosaicSaveGroupBox.sizer.addStretch();
-      //this.mosaicSaveGroupBox.setFixedHeight(60);
 
-      //this.buttonsSizer = newPageButtonsSizer(this);
+      var paramSaveResetSettingsToolTip = 
+            "<p>Save all current parameter values using the PixInsight persistent module settings mechanism. Saved parameter " + 
+            "values are remembered and automatically restored when the script starts.</p> " +
+            "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>" +
+            "<p>Set default button sets default values for all parameters.</p>";
+      this.paramSaveResetSettingsSaveButton = new PushButton( this );
+      this.paramSaveResetSettingsSaveButton.text = "Save";
+      this.paramSaveResetSettingsSaveButton.toolTip = paramSaveResetSettingsToolTip;
+      this.paramSaveResetSettingsSaveButton.onClick = function()
+      {
+            saveParametersToPersistentModuleSettings();
+      };   
+
+      this.paramSaveResetSettingsClearButton = new PushButton( this );
+      this.paramSaveResetSettingsClearButton.text = "Set defaults";
+      this.paramSaveResetSettingsClearButton.toolTip = "Set default values for all parameters.";
+      this.paramSaveResetSettingsClearButton.onClick = function()
+      {
+            setParameterDefaults();
+      };   
+
+      this.paramSaveResetGroupBox = new newGroupBox( this );
+      this.paramSaveResetGroupBox.title = "Save and reset parameters";
+      this.paramSaveResetGroupBox.toolTip = paramSaveResetSettingsToolTip;
+      this.paramSaveResetGroupBox.sizer = new HorizontalSizer;
+      this.paramSaveResetGroupBox.sizer.toolTip = paramSaveResetSettingsToolTip;
+      this.paramSaveResetGroupBox.sizer.margin = 6;
+      this.paramSaveResetGroupBox.sizer.spacing = 4;
+      this.paramSaveResetGroupBox.sizer.add( this.paramSaveResetSettingsSaveButton );
+      this.paramSaveResetGroupBox.sizer.add( this.paramSaveResetSettingsClearButton );
+      this.paramSaveResetGroupBox.sizer.addStretch();
+
+      this.filesaveAndParamSizer = new HorizontalSizer;
+      this.filesaveAndParamSizer.margin = 6;
+      this.filesaveAndParamSizer.spacing = 4;
+      this.filesaveAndParamSizer.add( this.mosaicSaveGroupBox );
+      this.filesaveAndParamSizer.add( this.paramSaveResetGroupBox );
 
       // Run and Exit buttons
       this.run_Button = new PushButton( this );
@@ -11964,64 +11609,10 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl4.visible = false;
 
-      this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", par.start_with_empty_window_prefix.val, 
-      "<p>Start the script with empty window prefix</p>" );
-      this.StartWithEmptyWindowPrefixBox.onClick = function(checked) { 
-            par.start_with_empty_window_prefix.val = checked;
-      }
-      this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column.val, 
-            "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
-            "<p>This setting is effective only after restart of the script.</p>" );
-      this.ManualIconColumnBox.onClick = function(checked) { 
-            par.use_manual_icon_column.val = checked;
-      }
-
-      var persistentSettingsToolTip = 
-            "<p>Save all current parameter values using the PixInsight persistent module settings mechanism. Saved parameter " + 
-            "values are remembered and automatically restored when the script starts.</p> " +
-            "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>";
-
-      this.persistentSettingsSaveButton = new PushButton( this );
-      this.persistentSettingsSaveButton.text = "Save";
-      this.persistentSettingsSaveButton.toolTip = persistentSettingsToolTip;
-      this.persistentSettingsSaveButton.onClick = function()
-      {
-            saveParametersToPersistentModuleSettings();
-      };   
-
-      this.persistentSettingsClearButton = new PushButton( this );
-      this.persistentSettingsClearButton.text = "Set defaults";
-      this.persistentSettingsClearButton.toolTip = "Set default values for all parameters. Note that this does not save values to persistent module settings.";
-      this.persistentSettingsClearButton.onClick = function()
-      {
-            console.criticalln("Does not work yet");
-            setParameterDefaults();
-      };   
-
-      this.PersistentParamsSet1 = new HorizontalSizer;
-      this.PersistentParamsSet1.toolTip = "";
-      this.PersistentParamsSet1.margin = 6;
-      this.PersistentParamsSet1.spacing = 4;
-      this.PersistentParamsSet1.add( this.StartWithEmptyWindowPrefixBox );
-      this.PersistentParamsSet1.add( this.ManualIconColumnBox );
-
-      this.PersistentControl4 = new Control( this );
-      this.PersistentControl4.toolTip = persistentSettingsToolTip;
-      this.PersistentControl4.sizer = new VerticalSizer;
-      this.PersistentControl4.sizer.toolTip = persistentSettingsToolTip;
-      this.PersistentControl4.sizer.margin = 6;
-      this.PersistentControl4.sizer.spacing = 4;
-      this.PersistentControl4.sizer.add( this.PersistentParamsSet1 );
-      this.PersistentControl4.sizer.add( this.persistentSettingsSaveButton );
-      this.PersistentControl4.sizer.add( this.persistentSettingsClearButton );
-      // hide this section by default
-      this.PersistentControl4.visible = false;
-
-      this.ProcessingGroupBox = aiSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise");
-      aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
-      aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering");
-      aiSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, other");
-      aiSectionBarAdd(this, this.ProcessingGroupBox, this.PersistentControl4, "Persistent settings, other options");
+      this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, other");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
@@ -12037,7 +11628,7 @@ function AutoIntegrateDialog()
       this.col2.add( this.narrowbandGroupBox );
       this.col2.add( this.narrowbandRGBmappingGroupBox );
       this.col2.add( this.extraGroupBox );
-      this.col2.add( this.mosaicSaveGroupBox );
+      this.col2.add( this.filesaveAndParamSizer );
       this.col2.add( this.autoButtonGroupBox );
       this.col2.addStretch();
 
