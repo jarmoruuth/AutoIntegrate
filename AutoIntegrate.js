@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.34";
+var autointegrate_version = "AutoIntegrate v1.36";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -723,7 +723,7 @@ var narrowBandPalettes = [
       { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true }, 
       { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true }, 
       { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true }, 
-      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: false }, 
       { name: "RGB", R: "R", G: "G", B: "B", all: false }, 
       { name: "User defined", R: "", G: "", B: "", all: false },
       { name: "All", R: "All", G: "All", B: "All", all: false }
@@ -8968,7 +8968,7 @@ function saveJsonFile(parent, save_settings)
             addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
       }
 
-      if (fileInfoList.length == 0) {
+      if (fileInfoList.length == 0 && !save_settings) {
             // nothing to save
             console.writeln("No files to save.");
             return;
