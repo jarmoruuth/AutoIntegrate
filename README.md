@@ -12,7 +12,14 @@ Script can be used for both calibrated and non-calibrated images. More details
 of processing the files can be found from the header block of the source code or from 
 page https://ruuth.xyz/AutoIntegrateInfo.html
 
-Steps to run the script
+It is possible to automatically install and update AutoIntegrate script by adding it to 
+the PixInsight update repository. Whenever PixInsight is started it will then check for 
+updates to AutoIntegate.js. To enable automatic updates you need to add the following Url 
+to the PixInsight Resources/Updates/Manage Repositories.
+
+https://ruuth.xyz/autointegrate
+
+Alternatively the script can be run from the PixInsight Script Editor
 
 1. Open Script Editor in PixInsight
 2. Open file AutoIntegrate.js
