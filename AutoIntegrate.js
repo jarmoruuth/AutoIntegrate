@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.36";
+var autointegrate_version = "AutoIntegrate v1.37";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -6868,20 +6868,22 @@ function LinearFitLRGBchannels()
 {
       addProcessingStep("LinearFitLRGBchannels");
 
-      if (luminance_id == null && par.use_linear_fit.val == 'Luminance') {
+      var use_linear_fit = par.use_linear_fit.val;
+
+      if (luminance_id == null && use_linear_fit == 'Luminance') {
             // no luminance
             if (narrowband) {
                   addProcessingStep("No Luminance, no linear fit with narrowband");
-                  par.use_linear_fit.val = 'No linear fit';
+                  use_linear_fit = 'No linear fit';
             } else {
                   addProcessingStep("No Luminance, linear fit using R with RGB");
-                  par.use_linear_fit.val = 'Red';
+                  use_linear_fit = 'Red';
             }
       }
 
       /* Check for LinearFit
        */
-      if (par.use_linear_fit.val == 'Red') {
+      if (use_linear_fit == 'Red') {
             /* Use R.
              */
             addProcessingStep("Linear fit using R");
@@ -6890,7 +6892,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(red_id, green_id);
             runLinearFit(red_id, blue_id);
-      } else if (par.use_linear_fit.val == 'Green') {
+      } else if (use_linear_fit == 'Green') {
             /* Use G.
               */
             addProcessingStep("Linear fit using G");
@@ -6899,7 +6901,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(green_id, red_id);
             runLinearFit(green_id, blue_id);
-      } else if (par.use_linear_fit.val == 'Blue') {
+      } else if (use_linear_fit == 'Blue') {
             /* Use B.
               */
             addProcessingStep("Linear fit using B");
@@ -6908,7 +6910,7 @@ function LinearFitLRGBchannels()
             }
             runLinearFit(blue_id, red_id);
             runLinearFit(blue_id, green_id);
-      } else if (par.use_linear_fit.val == 'Luminance' && luminance_id != null) {
+      } else if (use_linear_fit == 'Luminance' && luminance_id != null) {
             /* Use L.
              */
             addProcessingStep("Linear fit using L");
@@ -7206,13 +7208,15 @@ function ProcessRGBimage(RBGstretched)
             }
             if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
-                  par.linear_increase_saturation.val--;
+                  var linear_increase_saturation = par.linear_increase_saturation.val - 1;
+            } else {
+                  var linear_increase_saturation = par.linear_increase_saturation.val;
             }
-            if (par.linear_increase_saturation.val > 0 && !RBGstretched) {
+            if (linear_increase_saturation > 0 && !RBGstretched) {
                   /* Add saturation linear RGB
                   */
-                  console.writeln("Add saturation to linear RGB, " + par.linear_increase_saturation.val + " steps");
-                  for (var i = 0; i < par.linear_increase_saturation.val; i++) {
+                  console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
+                  for (var i = 0; i < linear_increase_saturation; i++) {
                         increaseSaturation(ImageWindow.windowById(RGB_ABE_id), mask_win);
                   }
             }
@@ -7242,12 +7246,14 @@ function ProcessRGBimage(RBGstretched)
 
       if (narrowband && par.non_linear_increase_saturation.val > 0) {
             /* Default 1 means no increase with narrowband. */
-            par.non_linear_increase_saturation.val--;
+            var non_linear_increase_saturation = par.non_linear_increase_saturation.val - 1;
+      } else {
+            var non_linear_increase_saturation = par.non_linear_increase_saturation.val;
       }
-      if (par.non_linear_increase_saturation.val > 0) {
+      if (non_linear_increase_saturation > 0) {
             /* Add saturation on RGB
             */
-            for (var i = 0; i < par.non_linear_increase_saturation.val; i++) {
+            for (var i = 0; i < non_linear_increase_saturation; i++) {
                   increaseSaturation(ImageWindow.windowById(RGB_ABE_HT_id), mask_win);
             }
       }
@@ -8400,7 +8406,7 @@ function newSpinBox(parent, param, min, max, tooltip)
       edt.toolTip = tooltip;
       edt.onValueUpdated = function( value )
       {
-            par.linear_increase_saturation.val = value;
+            param.val = value;
       };
 
       param.reset = function() {
@@ -8980,11 +8986,15 @@ function saveJsonFile(parent, save_settings)
       let saveFileDialog = new SaveFileDialog();
       saveFileDialog.caption = "Save As";
       saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
-      let outputDir = getOutputDir(fileInfoList[0].files[0][0]);
-      if (save_settings) {
-            saveFileDialog.initialPath = outputDir + "/AutoSetup.json";
+      if (fileInfoList.length > 0) {
+            var outputDir = ensurePathEndSlash(getOutputDir(fileInfoList[0].files[0][0]));
       } else {
-            saveFileDialog.initialPath = outputDir + "/AutoFiles.json";
+            var outputDir = ensurePathEndSlash(getOutputDir(""));
+      }
+      if (save_settings) {
+            saveFileDialog.initialPath = outputDir + "AutoSetup.json";
+      } else {
+            saveFileDialog.initialPath = outputDir + "AutoFiles.json";
       }
       if (!saveFileDialog.execute()) {
             return;
