@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.37";
+var autointegrate_version = "AutoIntegrate v1.38";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -8264,19 +8264,6 @@ function newCheckBox( parent, checkboxText, param, toolTip )
       param.reset = function() {
             widget.checked = param.val;
       };
-
-      return widget;
-}
-
-function newSectionBar( parent, title, hasCheckBox )
-{
-      var widget = new SectionBar( parent );
-      if ( typeof title !== 'undefined' && title != null ) { 
-            widget.setTitle( title ); 
-      }
-      if ( typeof hasCheckBox !== 'undefined' && hasCheckBox ) { 
-            widget.enableCheckBox(); 
-      }
 
       return widget;
 }
