@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.38";
+var autointegrate_version = "AutoIntegrate v1.39 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -407,8 +407,11 @@ var par = {
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
+      extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
+      extra_ET_order: { val: 1.0, def: 1.9, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
+      extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
@@ -436,7 +439,7 @@ var par = {
 };
 
 /*
-      Parameters that are persistent and are saved to only Aettings and
+      Parameters that are persistent and are saved to only Settings and
       restored only from Settings at the start.
       Note that there is another parameter set par which are saved to 
       process icon.
@@ -445,7 +448,8 @@ var ppar = {
       win_prefix: '',         // Current active window name prefix
       prefixArray: [],        // Array of prefix names and icon count, 
                               // every array element is [icon-column, prefix-name, icon-count]
-      userColumnCount: -1     // User set column position, if -1 use automatic column position
+      userColumnCount: -1,    // User set column position, if -1 use automatic column position
+      lastDir: ''             // Last save or load dir, used as a default when dir is unknown
 };
 
 var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
@@ -880,10 +884,10 @@ function fixAllWindowArrays(new_prefix)
       var old_prefix = curname.substring(0, curname.length - basename.length);
       if (old_prefix == new_prefix) {
             // no change
-            console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
+            // console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
             return;
       }
-      console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
+      // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
       fixWindowArray(integration_LRGB_windows, old_prefix, new_prefix);
       fixWindowArray(integration_color_windows, old_prefix, new_prefix);
       fixWindowArray(fixed_windows, old_prefix, new_prefix);
@@ -1402,6 +1406,13 @@ function ensureDir(dir)
       }
 }
 
+function saveLastDir(dirname)
+{
+      ppar.lastDir = removePathEndSlash(dirname);
+      Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
+      console.writeln("Save lastDir '" + ppar.lastDir + "'");
+}
+
 function combinePath(p1, p2)
 {
       if (p1 == "") {
@@ -1537,10 +1548,13 @@ function saveAllFinalImageWindows(bits)
       var filePath = finalimages[0].filePath;
       if (filePath != null) {
             gdd.initialPath = File.extractDrive(filePath) + File.extractDirectory(filePath);
+      } else {
+            gdd.initialPath = ppar.lastDir;
       }
 
       if (gdd.execute()) {
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
+            saveLastDir(gdd.directory);
             for (var i = 0; i < finalimages.length; i++) {
                   saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
             }
@@ -1693,6 +1707,7 @@ function openImageFiles(filetype, lights_only, json_only)
       if (ofd.fileNames.length < 1) {
             return null;
       }
+      saveLastDir(File.extractDrive(ofd.fileNames[0]) + File.extractDirectory(ofd.fileNames[0]));
       if (json_only) {
             // accept any single file selected
             if (ofd.fileNames.length != 1)  {
@@ -4616,10 +4631,14 @@ function copyToMapImages(images)
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
             var copyname = ensure_win_prefix(images[i] + "_map");
-            console.writeln("copy from " + images[i] + " to " + copyname);
-            copyWindow(
-                  findWindowNoPrefixIf(images[i], run_auto_continue), 
-                  copyname);
+            if (findWindow(copyname) == null) {
+                  console.writeln("copy from " + images[i] + " to " + copyname);
+                  copyWindow(
+                        findWindowNoPrefixIf(images[i], run_auto_continue), 
+                        copyname);
+            } else {
+                  console.writeln("map image " + copyname + " already copied");
+            }
             images[i] = copyname;
       }
 }
@@ -6088,11 +6107,13 @@ function ensureDialogFilePath(names)
       if (outputRootDir == "") {
             var gdd = new GetDirectoryDialog;
             gdd.caption = "Select Save Directory for " + names;
+            gdd.initialPath = ppar.lastDir;
             console.noteln(gdd.caption);
             if (!gdd.execute()) {
                   console.writeln("No path for " + names + ', nothing written');
                   return false;
             }
+            saveLastDir(gdd.directory);
             outputRootDir = gdd.directory;
             if (outputRootDir != "") {
                   outputRootDir = ensurePathEndSlash(outputRootDir);
@@ -6660,6 +6681,9 @@ function CreateChannelImages(auto_continue)
 
                   if (is_luminance_images) {
                         L_id = runImageIntegration(L_images, 'L');
+                        // Make a copy of the luminance image so we do not
+                        // change the original image. Original image may be
+                        // needed in AutoContinue.
                         luminance_id = copyToMapIf(L_id);
                   }
 
@@ -7471,9 +7495,32 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
       addProcessingStep("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new LocalHistogramEqualization;
-      P.radius = 110;
+      P.radius = par.extra_LHE_kernelradius.val;
       P.slopeLimit = 1.3;
       P.amount = 1.000;
+      
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Transform only light parts of the image. */
+      imgWin.setMask(maskWin);
+      imgWin.maskInverted = false;
+      
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.removeMask();
+
+      imgWin.mainView.endProcess();
+}
+
+function extraExponentialTransformation(imgWin, maskWin)
+{
+      addProcessingStep("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+
+      var P = new ExponentialTransformation;
+      P.functionType = ExponentialTransformation.prototype.PIP;
+      P.order = par.extra_ET_order.val;
+      P.sigma = 0.00;
+      P.useLightnessMask = true;
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -7642,6 +7689,7 @@ function is_non_starless_option()
 {
       return par.extra_ABE.val || 
              par.extra_darker_background.val || 
+             par.extra_ET.val || 
              par.extra_HDRMLT.val || 
              par.extra_LHE.val || 
              par.extra_contrast.val ||
@@ -7729,6 +7777,7 @@ function extraProcessing(id, apply_directly)
 {
       var extra_id = id;
       var need_L_mask = par.extra_darker_background.val || 
+                        par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
                         par.extra_noise_reduction.val;
@@ -7782,6 +7831,9 @@ function extraProcessing(id, apply_directly)
       }
       if (par.extra_darker_background.val) {
             extraDarkerBackground(extraWin, mask_win);
+      }
+      if (par.extra_ET.val) {
+            extraExponentialTransformation(extraWin, mask_win);
       }
       if (par.extra_HDRMLT.val) {
             extraHDRMultiscaleTransform(extraWin, mask_win);
@@ -8348,7 +8400,7 @@ function newLabel(parent, text, tip)
       return lbl;
 }
 
-function newNumericEdit(parent, txt, param, tooltip)
+function newNumericEdit(parent, txt, param, min, max, tooltip)
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
@@ -8358,13 +8410,18 @@ function newNumericEdit(parent, txt, param, tooltip)
             param.val = value; 
       };
       edt.setPrecision( 1 );
-      edt.setRange(0.1, 999);
+      edt.setRange(min, max);
       edt.setValue(param.val);
       edt.toolTip = tooltip;
       param.reset = function() {
             edt.setValue(param.val);
       };
       return edt;
+}
+
+function newRGBNBNumericEdit(parent, txt, param, tooltip)
+{
+      return newNumericEdit(parent, txt, param, 0.1, 999, tooltip);
 }
 
 function newNumericControl(parent, txt, param, min, max, tooltip)
@@ -8644,7 +8701,11 @@ function addOutputDir(parent)
       dirbutton.toolTip = "<p>Select output root directory.</p>";
       dirbutton.onClick = function() {
             var gdd = new GetDirectoryDialog;
-            gdd.initialPath = outputRootDir;
+            if (outputRootDir == "") {
+                  gdd.initialPath = ppar.lastDir;
+            } else {
+                  gdd.initialPath = outputRootDir;
+            }
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
                   outputRootDir = ensurePathEndSlash(gdd.directory);
@@ -8977,6 +9038,9 @@ function saveJsonFile(parent, save_settings)
             var outputDir = ensurePathEndSlash(getOutputDir(fileInfoList[0].files[0][0]));
       } else {
             var outputDir = ensurePathEndSlash(getOutputDir(""));
+            if (outputDir == "") {
+                  outputDir = ensurePathEndSlash(ppar.lastDir);
+            }
       }
       if (save_settings) {
             saveFileDialog.initialPath = outputDir + "AutoSetup.json";
@@ -8986,6 +9050,7 @@ function saveJsonFile(parent, save_settings)
       if (!saveFileDialog.execute()) {
             return;
       }
+      saveLastDir(File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName));
       try {
             let file = new File();
             file.createForWriting(saveFileDialog.fileName);
@@ -10889,10 +10954,10 @@ function AutoIntegrateDialog()
 
       // Boost factor for LRGB
       this.RGBNB_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
-      this.RGBNB_BoostLValue = newNumericEdit(this, 'L', par.L_BoostFactor, "Boost, or multiplication factor, for the L channel.");
-      this.RGBNB_BoostRValue = newNumericEdit(this, 'R', par.R_BoostFactor, "Boost, or multiplication factor, for the R channel.");
-      this.RGBNB_BoostGValue = newNumericEdit(this, 'G', par.G_BoostFactor, "Boost, or multiplication factor, for the G channel.");
-      this.RGBNB_BoostBValue = newNumericEdit(this, 'B', par.B_BoostFactor, "Boost, or multiplication factor, for the B channel.");
+      this.RGBNB_BoostLValue = newRGBNBNumericEdit(this, 'L', par.L_BoostFactor, "Boost, or multiplication factor, for the L channel.");
+      this.RGBNB_BoostRValue = newRGBNBNumericEdit(this, 'R', par.R_BoostFactor, "Boost, or multiplication factor, for the R channel.");
+      this.RGBNB_BoostGValue = newRGBNBNumericEdit(this, 'G', par.G_BoostFactor, "Boost, or multiplication factor, for the G channel.");
+      this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.B_BoostFactor, "Boost, or multiplication factor, for the B channel.");
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       this.RGBNB_BoostSizer.margin = 6;
@@ -10911,13 +10976,13 @@ function AutoIntegrateDialog()
 
       // Bandwidth for different channels
       this.RGBNB_BandwidthLabel = newLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
-      this.RGBNB_BandwidthLValue = newNumericEdit(this, 'L', par.L_bandwidth, "Bandwidth (nm) for the L filter.");
-      this.RGBNB_BandwidthRValue = newNumericEdit(this, 'R', par.R_bandwidth, "Bandwidth (nm) for the R filter.");
-      this.RGBNB_BandwidthGValue = newNumericEdit(this, 'G', par.G_bandwidth, "Bandwidth (nm) for the G filter.");
-      this.RGBNB_BandwidthBValue = newNumericEdit(this, 'B', par.B_bandwidth, "Bandwidth (nm) for the B filter.");
-      this.RGBNB_BandwidthHValue = newNumericEdit(this, 'H', par.H_bandwidth, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
-      this.RGBNB_BandwidthSValue = newNumericEdit(this, 'S', par.S_bandwidth, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
-      this.RGBNB_BandwidthOValue = newNumericEdit(this, 'O', par.O_bandwidth, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthLValue = newRGBNBNumericEdit(this, 'L', par.L_bandwidth, "Bandwidth (nm) for the L filter.");
+      this.RGBNB_BandwidthRValue = newRGBNBNumericEdit(this, 'R', par.R_bandwidth, "Bandwidth (nm) for the R filter.");
+      this.RGBNB_BandwidthGValue = newRGBNBNumericEdit(this, 'G', par.G_bandwidth, "Bandwidth (nm) for the G filter.");
+      this.RGBNB_BandwidthBValue = newRGBNBNumericEdit(this, 'B', par.B_bandwidth, "Bandwidth (nm) for the B filter.");
+      this.RGBNB_BandwidthHValue = newRGBNBNumericEdit(this, 'H', par.H_bandwidth, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
+      this.RGBNB_BandwidthSValue = newRGBNBNumericEdit(this, 'S', par.S_bandwidth, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.O_bandwidth, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       this.RGBNB_BandwidthSizer.margin = 6;
@@ -11022,10 +11087,30 @@ function AutoIntegrateDialog()
             "<p>Make image background darker.</p>" );
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
             "<p>Run AutomaticBackgroundExtractor.</p>" );
+
+            var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
+      this.extra_ET_CheckBox = newCheckBox(this, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
+      this.extra_ET_edit = newNumericEdit(this, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
+      this.extra_ET_Sizer = new HorizontalSizer;
+      this.extra_ET_Sizer.spacing = 4;
+      this.extra_ET_Sizer.add( this.extra_ET_CheckBox );
+      this.extra_ET_Sizer.add( this.extra_ET_edit );
+      this.extra_ET_Sizer.toolTip = extra_ET_tooltip;
+      this.extra_ET_Sizer.addStretch();
+
       this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, 
-            "<p>Run HDRMultiscaleTransform on image.</p>" );
-      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization", par.extra_LHE, 
-            "<p>Run LocalHistogramEqualization on image.</p>" );
+            "<p>Run HDRMultiscaleTransform on image using a mask.</p>" );
+      
+      var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
+      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
+      this.extra_LHE_edit = newNumericEdit(this, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "Kernel radius value for LocalHistogramEqualization.");
+      this.extra_LHE_sizer = new HorizontalSizer;
+      this.extra_LHE_sizer.spacing = 4;
+      this.extra_LHE_sizer.add( this.extra_LHE_CheckBox );
+      this.extra_LHE_sizer.add( this.extra_LHE_edit );
+      this.extra_LHE_sizer.toolTip = extra_LHE_tooltip;
+      this.extra_LHE_sizer.addStretch();
+      
       this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast, 
             "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
       this.contrastIterationsSpinBox = newSpinBox(this, par.extra_contrast_iterations, 1, 5, "Number of iterations for contrast enhancement");
@@ -11042,7 +11127,7 @@ function AutoIntegrateDialog()
       this.extraContrastSizer.addStretch();
 
       this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
-            "<p>Run automatic stretch on image. Can be helpful in some rare cases but most useful on testing stretching settings.</p>" );
+            "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
 
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
             "<p>Make stars smaller on image.</p>" );
@@ -11133,16 +11218,17 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extraRemoveStars_CheckBox );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_CheckBox );
-      this.extra1.add( this.extra_LHE_CheckBox );
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
+      this.extra2.add( this.extra_LHE_sizer );
       this.extra2.add( this.extraContrastSizer );
-      this.extra2.add( this.extra_stretch_CheckBox );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
+      this.extra2.add( this.extra_stretch_CheckBox );
 
       this.extraLabel = newSectionLabel(this, "Generic extra processing");
 
@@ -11180,13 +11266,14 @@ function AutoIntegrateDialog()
             "If multiple extra processing options are selected they are executed in the following order" +
             "</p><p>" +
             "1. Remove stars<br>" +
-            "2. Darker background<br>" +
-            "3. HDRMultiscaleTransform<br>" +
-            "4. LocalHistogramEqualization<br>" +
-            "5. Add contrast<br>" +
-            "6. Auto STF<br>" +
-            "7. Noise reduction<br>" +
-            "8. Smaller stars" +
+            "2. AutomaticBackgroundExtractor<br>" +
+            "3. Darker background<br>" +
+            "4. ExponentialTransformation<br>" +
+            "5. HDRMultiscaleTransform<br>" +
+            "6. LocalHistogramEqualization<br>" +
+            "7. Add contrast<br>" +
+            "8. Noise reduction<br>" +
+            "9. Smaller stars" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
@@ -11719,6 +11806,16 @@ function main()
             if (!par.use_manual_icon_column.val) {
                   ppar.userColumnCount = -1;
             }
+            var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
+                  ppar.userColumnCount = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+                  ppar.lastDir = tempSetting;
+            }
 
             fixAllWindowArrays(ppar.win_prefix);
 
@@ -11728,7 +11825,16 @@ function main()
                                      CoreApplication.versionMinor * 1e4 + 
                                      CoreApplication.versionRelease * 1e2 + 
                                      CoreApplication.versionRevision;
-            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str + " (" + pixinsight_version_num + ")");
+            console.noteln("======================================================");
+            console.noteln("To enable automatic updates add the following link to ");
+            console.noteln("the PixInsight update repository: ");
+            console.noteln("https://ruuth.xyz/autointegrate ");
+            console.noteln("======================================================");
+            console.noteln("For more information visit the following link:");
+            console.noteln("https://ruuth.xyz/AutoIntegrateInfo.html");
+            console.noteln("======================================================");
+            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str);
+            console.noteln("======================================================");
       }
       catch (x) {
             console.writeln( x );
