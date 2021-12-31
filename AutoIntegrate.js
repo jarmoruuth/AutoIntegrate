@@ -92,7 +92,7 @@ Steps with LRGB files
    or with narrowband Integration_H, Integration_S and Integration_O.
 2. Optionally ABE in run on L image. <lABE>
 3. HistogramTransform is run on L image. <lHT>
-4. Stretched L image is stored as a mask unless user has a predefined mask named range_mask.
+4. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
 5. Noise reduction is run on L image using a mask.
 6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
@@ -164,7 +164,8 @@ Common final steps for all images
 Notes to self:
 - Start mask when set will target operation on stars.
 - Luminance mask when set will target operations on light parts of the image.
-- Range mask from RangeSelection is opposite to luminance mask. So user must invert range_mask.
+- Mask from RangeSelection is opposite to luminance mask. So user must invert 
+  range_mask and rename it as AutoMask.
 
 
 Credits and Copyright notices
@@ -267,7 +268,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.40 test2";
+var autointegrate_version = "AutoIntegrate v1.40 test3";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -6504,7 +6505,7 @@ function CreateChannelImages(auto_continue)
                   RGB_win_id = RGBcolor_id;
             }
             /* Check if we have manually created mask. */
-            mask_win_id = "range_mask";
+            mask_win_id = "AutoMask";
             range_mask_win = findWindow(mask_win_id);
       } else {
             /* Open dialog files and run SubframeSelector on them
@@ -7852,9 +7853,6 @@ function extraProcessing(id, apply_directly)
             // have removed the stars
             mask_win = maskIsCompatible(extraWin, mask_win);
             if (mask_win == null) {
-                  mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix + "range_mask"));
-            }
-            if (mask_win == null) {
                   mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix +"AutoMask"));
             }
             if (mask_win == null) {
@@ -7933,7 +7931,7 @@ function extraProcessingEngine(id)
       extraProcessing(extra_target_image, true);
       console.show(false);
 
-      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
       windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
@@ -8234,7 +8232,7 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeAndKeywordif(RGB_ABE_HT_id);
       windowIconizeAndKeywordif(L_ABE_HT_id);
       windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
-      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask or range_mask window */
+      windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
       windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
