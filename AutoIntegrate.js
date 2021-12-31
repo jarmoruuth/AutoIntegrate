@@ -267,7 +267,7 @@ Linear Defect Detection:
 var debug = false;
 var get_process_defaults = false;
 
-var autointegrate_version = "AutoIntegrate v1.39";
+var autointegrate_version = "AutoIntegrate v1.40 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -418,6 +418,10 @@ var par = {
       
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
+      extra_ACDNR: { val: false, def: false, name : "Extra ACDNR noise reduction", type : 'B' },
+      extra_color_noise: { val: false, def: false, name : "Extra color noise reduction", type : 'B' },
+      extra_sharpen: { val: false, def: false, name : "Extra sharpen", type : 'B' },
+      extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
 
@@ -1959,7 +1963,11 @@ function runImageIntegrationBiasDarks(images, name)
       P.weightMode = ImageIntegration.prototype.DontCare;
       P.normalization = ImageIntegration.prototype.NoNormalization;
       P.rangeClipLow = false;
-      P.evaluateNoise = false;
+      if (pixinsight_version_num < 1080812) {
+            P.evaluateNoise = false;
+      } else {
+            P.evaluateSNR = false;
+      }
 
       P.executeGlobal();
 
@@ -5231,7 +5239,11 @@ function runImageIntegrationEx(images, name, local_normalization)
       } else {
             P.generateDrizzleData = par.use_drizzle.val || par.generate_xdrz.val;
       }
-      P.evaluateNoise = true;
+      if (pixinsight_version_num < 1080812) {
+            P.evaluateNoise = true;
+      } else {
+            P.evaluateSNR = true;
+      }
 
       P.executeGlobal();
 
@@ -5872,9 +5884,6 @@ function runNoiseReduction(imgWin, maskWin)
 }
 function runColorReduceNoise(imgWin)
 {
-      if (!par.use_color_noise_reduction.val) {
-            return;
-      }
       addProcessingStep("Color noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
@@ -6060,23 +6069,18 @@ function narrowbandHueShift(imgView)
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
-      if (par.skip_sharpening.val) {
-            console.writeln("No sharpening on " + imgWin.mainView.id);
-            return;
-      }
       addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
             [true, true, 0.000, false, 3.000, 1.00, 1],
-            [true, true, 0.050, false, 3.000, 1.00, 1],
+            [true, true, 0.025, false, 3.000, 1.00, 1],
             [true, true, 0.075, false, 3.000, 1.00, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1],
             [true, true, 0.000, false, 3.000, 1.00, 1]
       ];
       P.deringing = true;
-      P.deringingDark = 0.1000;     // old value -> 1.24: 0.0100
-      P.toChrominance = false;
+      P.deringingDark = 0.0100;     // old value -> 1.24: 0.0100
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -7680,6 +7684,31 @@ function extraNoiseReduction(win, mask_win)
             par.extra_noise_reduction_strength.val);
 }
 
+function extraACDNR(extraWin, mask_win)
+{
+      if (par.ACDNR_noise_reduction.val == 0.0) {
+            addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
+            return;
+      }
+
+      runACDNRReduceNoise(extraWin, mask_win);
+}
+
+function extraColorNoise(extraWin)
+{
+      runColorReduceNoise(extraWin);
+}
+
+function extraSharpen(extraWin, mask_win)
+{
+      addProcessingStep("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
+
+      for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
+            runMultiscaleLinearTransformSharpen(extraWin, mask_win);
+      }
+}
+
+
 function extraABE(extraWin)
 {
       runABE(extraWin, true);
@@ -7695,6 +7724,9 @@ function is_non_starless_option()
              par.extra_contrast.val ||
              par.extra_stretch.val ||
              par.extra_noise_reduction.val ||
+             par.extra_ACDNR.val ||
+             par.extra_color_noise.val ||
+             par.extra_sharpen.val ||
              par.extra_smaller_stars.val;
 }
 
@@ -7780,7 +7812,10 @@ function extraProcessing(id, apply_directly)
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
-                        par.extra_noise_reduction.val;
+                        par.extra_noise_reduction.val ||
+                        par.extra_ACDNR.val ||
+                        par.extra_sharpen.val ||
+                        par.extra_color_noise.val;
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -7851,6 +7886,15 @@ function extraProcessing(id, apply_directly)
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
+      }
+      if (par.extra_ACDNR.val) {
+            extraACDNR(extraWin, mask_win);
+      }
+      if (par.extra_color_noise.val) {
+            extraColorNoise(extraWin);
+      }
+      if (par.extra_sharpen.val) {
+            extraSharpen(extraWin, mask_win);
       }
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
@@ -8102,7 +8146,9 @@ function AutoIntegrateEngine(auto_continue)
 
                   /* Optional color noise reduction for RGB.
                    */
-                  runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
+                  if (par.use_color_noise_reduction.val) {
+                        runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
+                  }
 
                   if (!narrowband && !par.use_RGBNB_Mapping.val) {
                         /* Remove green cast, run SCNR
@@ -8112,9 +8158,13 @@ function AutoIntegrateEngine(auto_continue)
           
                   /* Sharpen image, use mask to sharpen mostly the light parts of image.
                   */
-                  runMultiscaleLinearTransformSharpen(
-                        ImageWindow.windowById(LRGB_ABE_HT_id),
-                        mask_win);
+                  if (par.skip_sharpening.val) {
+                        console.writeln("No sharpening on " + LRGB_ABE_HT_id);
+                  } else {
+                        runMultiscaleLinearTransformSharpen(
+                              ImageWindow.windowById(LRGB_ABE_HT_id),
+                              mask_win);
+                  }
           
                   /* Rename some windows. Need to be done before iconize.
                   */
@@ -8484,7 +8534,7 @@ function newComboBox(parent, param, valarray, tooltip)
       return cb;
 }
 
-function newComboBoxStrvals(parent, param, valarray, tooltip)
+function newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
       cb.toolTip = tooltip;
@@ -10299,23 +10349,24 @@ function AutoIntegrateDialog()
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
       this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.noiseReductionStrengthComboBox = newComboBoxStrvals(this, par.noise_reduction_strength, noise_reduction_strength_values, this.noiseReductionStrengthLabel.toolTip);
+      this.noiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.noise_reduction_strength, noise_reduction_strength_values, this.noiseReductionStrengthLabel.toolTip);
 
       this.luminanceNoiseReductionStrengthLabel = new Label( this );
       this.luminanceNoiseReductionStrengthLabel.text = "Luminance noise reduction";
       this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionToolTipCommon;
       this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
-      this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvals(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
+      this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
 
       this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction,
             "<p>Do noise reduction on combined image instead of each color channels separately.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
             "<p>Do color noise reduction.</p>" );
 
+      var ACDNR_StdDev_tooltip = "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>";
       this.ACDNR_noise_reduction_Control = newNumericControl(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
             "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
-            "<p>A mild ACDNR noise reduction with value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>");
+            ACDNR_StdDev_tooltip);
 
       this.noiseReductionGroupBoxLabel = newSectionLabel(this, "Noise reduction settings");
       this.noiseReductionGroupBoxSizer1 = new HorizontalSizer;
@@ -11149,7 +11200,7 @@ function AutoIntegrateDialog()
       this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction, 
             extra_noise_reduction_tooltip);
 
-      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvals(this, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
+      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
       this.extraNoiseReductionStrengthLabel = new Label( this );
       this.extraNoiseReductionStrengthLabel.text = "strength";
       this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11162,6 +11213,29 @@ function AutoIntegrateDialog()
       this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
       this.extraNoiseReductionStrengthSizer.addStretch();
 
+      this.extra_ACDNR_CheckBox = newCheckBox(this, "ACDNR noise reduction", par.extra_ACDNR, 
+            "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from noise reduction section.</p>" + ACDNR_StdDev_tooltip);
+
+      this.extra_color_noise_CheckBox = newCheckBox(this, "Color noise reduction", par.extra_color_noise, 
+            "<p>Run color noise reduction on image.</p>" );
+
+      var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
+                                  "<p>Number of iterations specifies how many times the sharpening is run.</p>";
+      this.extra_sharpen_CheckBox = newCheckBox(this, "Sharpening", par.extra_sharpen, extra_sharpen_tooltip);
+
+      this.extraSharpenIterationsSpinBox = newSpinBox(this, par.extra_sharpen_iterations, 1, 10, extra_sharpen_tooltip);
+      this.extraSharpenIterationsLabel = new Label( this );
+      this.extraSharpenIterationsLabel.text = "iterations";
+      this.extraSharpenIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraSharpenIterationsLabel.toolTip = extra_sharpen_tooltip;
+      this.extraSharpenIterationsSizer = new HorizontalSizer;
+      this.extraSharpenIterationsSizer.spacing = 4;
+      this.extraSharpenIterationsSizer.add( this.extra_sharpen_CheckBox );
+      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsSpinBox );
+      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsLabel );
+      this.extraSharpenIterationsSizer.toolTip = extra_sharpen_tooltip;
+      this.extraSharpenIterationsSizer.addStretch();
+      
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
       this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -11211,6 +11285,7 @@ function AutoIntegrateDialog()
       this.extraImageSizer.add( this.extraImageComboBox );
       this.extraImageSizer.add( this.extraApplyButton );
       this.extraImageSizer.addStretch();
+      this.extraImageSizer.add( this.extra_stretch_CheckBox );
 
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
@@ -11220,15 +11295,17 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_CheckBox );
+      this.extra1.add( this.extra_LHE_sizer );
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
-      this.extra2.add( this.extra_LHE_sizer );
       this.extra2.add( this.extraContrastSizer );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
+      this.extra2.add( this.extra_ACDNR_CheckBox );
+      this.extra2.add( this.extra_color_noise_CheckBox );
+      this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
-      this.extra2.add( this.extra_stretch_CheckBox );
 
       this.extraLabel = newSectionLabel(this, "Generic extra processing");
 
@@ -11263,8 +11340,7 @@ function AutoIntegrateDialog()
             "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
             "narrowband options are selected then image is assumed to be narrowband." +
             "</p><p>" +
-            "If multiple extra processing options are selected they are executed in the following order" +
-            "</p><p>" +
+            "If multiple extra processing options are selected they are executed in the following order:<br>" +
             "1. Remove stars<br>" +
             "2. AutomaticBackgroundExtractor<br>" +
             "3. Darker background<br>" +
@@ -11273,7 +11349,11 @@ function AutoIntegrateDialog()
             "6. LocalHistogramEqualization<br>" +
             "7. Add contrast<br>" +
             "8. Noise reduction<br>" +
-            "9. Smaller stars" +
+            "9. ACDNR noise reduction<br>" +
+            "10. Color noise reduction<br>" +
+            "11. Sharpening<br>" +
+            "12. Smaller stars" +
+            "</p><p>" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
@@ -11441,6 +11521,14 @@ function AutoIntegrateDialog()
             fixAllWindowArrays(ppar.win_prefix);
       };
 
+      this.closeProcessConsoleButton = new PushButton( this );
+      this.closeProcessConsoleButton.text = "Hide";
+      this.closeProcessConsoleButton.icon = this.scaledResource( ":/auto-hide/hide.png" );
+      this.closeProcessConsoleButton.toolTip = "<p>Hide Process Console.</p>";
+      this.closeProcessConsoleButton.onClick = function() {
+            console.hide();
+      };
+
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -11497,6 +11585,7 @@ function AutoIntegrateDialog()
       this.autoButtonGroupBox.sizer.spacing = 4;
       this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
       this.autoButtonGroupBox.sizer.addStretch();
+      this.autoButtonGroupBox.sizer.add( this.closeProcessConsoleButton );
       //this.autoButtonGroupBox.setFixedHeight(60);
 
       // Buttons for saving final images in different formats
@@ -11820,7 +11909,7 @@ function main()
             fixAllWindowArrays(ppar.win_prefix);
 
             pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                                     CoreApplication.versionRelease + '.' + CoreApplication.versionRevision;
+                                     CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
             pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
                                      CoreApplication.versionMinor * 1e4 + 
                                      CoreApplication.versionRelease * 1e2 + 
@@ -11833,7 +11922,7 @@ function main()
             console.noteln("For more information visit the following link:");
             console.noteln("https://ruuth.xyz/AutoIntegrateInfo.html");
             console.noteln("======================================================");
-            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str);
+            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str + ' (' + pixinsight_version_num + ')');
             console.noteln("======================================================");
       }
       catch (x) {
