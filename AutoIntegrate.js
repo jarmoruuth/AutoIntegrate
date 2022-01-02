@@ -265,10 +265,10 @@ Linear Defect Detection:
 #include <pjsr/DataType.jsh>
 
 // temporary debugging
-var debug = false;
-var get_process_defaults = false;
+var debug = false;                  // temp setting for debugging
+var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.40 test3";
+var autointegrate_version = "AutoIntegrate v1.40 test4";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -308,6 +308,7 @@ var par = {
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
+      skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
@@ -369,7 +370,7 @@ var par = {
       combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on combined image", type : 'B' },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
-      use_weight: { val: 'Generic', def: 'Generic', name : "Weight calculation", type : 'S' },
+      use_weight: { val: 'PSF Signal', def: 'Generic', name : "Weight calculation", type : 'S' },
       ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'I' },
       outliers_ssweight: { val: false, def: false, name : "Outliers SSWEIGHT", type : 'B' },
       outliers_fwhm: { val: false, def: false, name : "Outliers FWHM", type : 'B' },
@@ -3515,13 +3516,6 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin + ", PSFSignalMin " + PSFSignalMin + ", PSFPowerMin " + PSFPowerMin + ", StarsMin " + StarsMin);
       console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax + ", PSFSignalMax " + PSFSignalMax + ", PSFPowerMax " + PSFPowerMax + ", StarsMax " + StarsMax);
 
-      if (0 && pixinsight_version_num >= 1080810) {
-            // I think indexPSFSignal works better than actual SNRWeight
-            indexSNRWeight = indexPSFSignal;
-            SNRWeightMin = PSFSignalMin;
-            SNRWeightMax = PSFSignalMax;
-      }
-
       for (var i = 0; i < measurements.length; i++) {
             var FWHM = measurements[i][indexFWHM];
             var Eccentricity = measurements[i][indexEccentricity];
@@ -5037,8 +5031,9 @@ function runLocalNormalization(imagetable, refImage)
       var targets = [];
 
       for (var i = 0; i < imagetable.length; i++) {
+            console.writeln("runLocalNormalization, check for duplicates imagetable["+i+"][1]=" + imagetable[i][1]);
             var add_file = true;
-            if (imagetable.length <= 3) {
+            if (imagetable.length <= 4) {
                   // we may have duplicates, filter them out
                   for (j = 0; j < targets.length; j++) {
                         if (targets[j][1] == imagetable[i][1]) {
@@ -5046,6 +5041,13 @@ function runLocalNormalization(imagetable, refImage)
                               add_file = false;
                               break;
                         }
+                  }
+            }            // we may have duplicates, filter them out
+            for (j = 0; j < targets.length; j++) {
+                  if (targets[j][1] == imagetable[i][1]) {
+                        console.writeln("runLocalNormalization, remove duplicate " + imagetable[i][1]);
+                        add_file = false;
+                        break;
                   }
             }
             if (add_file && par.start_from_imageintegration.val) {
@@ -5058,6 +5060,7 @@ function runLocalNormalization(imagetable, refImage)
             }
             if (add_file) {
                   targets[targets.length] = [ true, imagetable[i][1] ];
+                  console.writeln("runLocalNormalization, add targets["+targets.length+"][1]=" + targets[targets.length-1][1]);
             }
       }
       if (targets.length == 0) {
@@ -5189,9 +5192,8 @@ function ensureThreeImages(images)
             append_image_for_integrate(images, images[0][1]);
             append_image_for_integrate(images, images[0][1]);
       } else if (images.length == 2) {
-            // Duplicate both images so averages are not affected
+            // Duplicate first images which should be a better one
             append_image_for_integrate(images, images[0][1]);
-            append_image_for_integrate(images, images[1][1]);
       }
 }
 
@@ -5239,11 +5241,6 @@ function runImageIntegrationEx(images, name, local_normalization)
             P.generateDrizzleData = false;
       } else {
             P.generateDrizzleData = par.use_drizzle.val || par.generate_xdrz.val;
-      }
-      if (pixinsight_version_num < 1080812) {
-            P.evaluateNoise = true;
-      } else {
-            P.evaluateSNR = true;
       }
 
       P.executeGlobal();
@@ -6116,7 +6113,7 @@ function ensureDialogFilePath(names)
             console.noteln(gdd.caption);
             if (!gdd.execute()) {
                   console.writeln("No path for " + names + ', nothing written');
-                  return false;
+                  return 0;
             }
             saveLastDir(gdd.directory);
             outputRootDir = gdd.directory;
@@ -6124,9 +6121,9 @@ function ensureDialogFilePath(names)
                   outputRootDir = ensurePathEndSlash(outputRootDir);
             }
             console.writeln("ensureDialogFilePath, set outputRootDir ", outputRootDir);
-            return true;
+            return 1;
       } else {
-            return true;
+            return 2;
       }
 }
 
@@ -6149,11 +6146,19 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
             return;
       }
 
-      if (!ensureDialogFilePath(basename + ".log")) {
+      var dialogRet = ensureDialogFilePath(basename + ".log");
+      if (dialogRet == 0) {
+            // Canceled, do not save
             return;
       }
 
-      var processedPath = combinePath(outputRootDir, AutoProcessedDir);
+      if (dialogRet == 1) {
+            // User gave explicit directory
+            var processedPath = outputRootDir;
+      } else {
+            // Use defaults
+            var processedPath = combinePath(outputRootDir, AutoProcessedDir);
+      }
       processedPath = ensurePathEndSlash(processedPath);
 
       console.writeln("Write processing steps to " + processedPath + logfname);
@@ -7815,8 +7820,7 @@ function extraProcessing(id, apply_directly)
                         par.extra_LHE.val ||
                         par.extra_noise_reduction.val ||
                         par.extra_ACDNR.val ||
-                        par.extra_sharpen.val ||
-                        par.extra_color_noise.val;
+                        par.extra_sharpen.val;
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -8148,7 +8152,7 @@ function AutoIntegrateEngine(auto_continue)
                         runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
                   }
 
-                  if (!narrowband && !par.use_RGBNB_Mapping.val) {
+                  if (!narrowband && !par.use_RGBNB_Mapping.val && !par.skip_SCNR.val) {
                         /* Remove green cast, run SCNR
                          */
                         runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
@@ -8306,10 +8310,6 @@ function AutoIntegrateEngine(auto_continue)
       addProcessingStep("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
-      if (get_process_defaults) {
-            getProcessDefaultValues();
-      }
-
       if (preprocessed_images != start_images.FINAL || get_process_defaults) {
             writeProcessingSteps(alignedFiles, auto_continue, null);
       }
@@ -8345,6 +8345,61 @@ function printImageInfo(images, name)
       addProcessingStep(name + " images best ssweight: "+images.best_ssweight);
       addProcessingStep(name + " images best image: "+images.best_image);
       addProcessingStep(name + " exptime: "+images.exptime);
+}
+
+function printProcessDefaultValues(name, obj)
+{
+      console.writeln(name);
+      console.writeln(obj.toSource());
+}
+
+function getProcessDefaultValues()
+{
+      console.beginLog();
+
+      write_processing_log_file = true;
+      console.writeln("PixInsight process default values");
+      console.writeln("PixInsight version " + pixinsight_version_str);
+
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new ImageIntegration", new ImageIntegration);
+      printProcessDefaultValues("new Superbias", new Superbias);
+      printProcessDefaultValues("new ImageCalibration", new ImageCalibration);
+      printProcessDefaultValues("new IntegerResample", new IntegerResample);
+      printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
+      printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
+      printProcessDefaultValues("new PixelMath", new PixelMath);
+      if (par.use_starxterminator.val) {
+            printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      }
+      printProcessDefaultValues("new StarNet", new StarNet);
+      printProcessDefaultValues("new StarAlignment", new StarAlignment);
+      printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
+      printProcessDefaultValues("new LinearFit", new LinearFit);
+      printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
+      printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
+      printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
+      printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
+      printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
+      printProcessDefaultValues("new ACDNR", new ACDNR);
+      printProcessDefaultValues("new MultiscaleLinearTransform", new MultiscaleLinearTransform);
+      printProcessDefaultValues("new TGVDenoise", new TGVDenoise);
+      printProcessDefaultValues("new BackgroundNeutralization", new BackgroundNeutralization);
+      printProcessDefaultValues("new ColorCalibration", new ColorCalibration);
+      printProcessDefaultValues("new ColorSaturation", new ColorSaturation);
+      printProcessDefaultValues("new CurvesTransformation", new CurvesTransformation);
+      printProcessDefaultValues("new LRGBCombination", new LRGBCombination);
+      printProcessDefaultValues("new SCNR", new SCNR);
+      printProcessDefaultValues("new Debayer", new Debayer);
+      printProcessDefaultValues("new ChannelCombination", new ChannelCombination);
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new Invert", new Invert);
+      printProcessDefaultValues("new StarMask", new StarMask);
+      printProcessDefaultValues("new HDRMultiscaleTransform", new HDRMultiscaleTransform);
+      printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
+      printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
+
+      writeProcessingSteps(null, false, "AutoProcessDefaults_" + pixinsight_version_str);
 }
 
 // Dialog functions are below this point
@@ -9606,7 +9661,12 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
                         if (blink_zoom) {
-                              imageWindow.zoomFactor = 1;      
+                              var center = new Point(
+                                    imageWindow.mainView.image.width / 2 - imageWindow.viewportWidth / 2, 
+                                    imageWindow.mainView.image.height / 2 - imageWindow.viewportHeight / 2);
+                              imageWindow.zoomFactor = 1;
+                              imageWindow.viewportPosition = center;
+
                         }
                         imageWindow.show();
                         if (blink_window != null) {
@@ -9802,12 +9862,6 @@ function ReadParametersFromPersistentModuleSettings()
       }
 }
 
-function printProcessDefaultValues(name, obj)
-{
-      console.writeln(name);
-      console.writeln(obj.toSource());
-}
-
 function newPageButtonsSizer(parent)
 {
       // Blink
@@ -9959,46 +10013,6 @@ function newPageButtonsSizer(parent)
       buttonsSizer.addStretch();
 
       return buttonsSizer;
-}
-
-function getProcessDefaultValues()
-{
-      write_processing_log_file = true;
-      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
-      printProcessDefaultValues("new ImageIntegration", new ImageIntegration);
-      printProcessDefaultValues("new Superbias", new Superbias);
-      printProcessDefaultValues("new ImageCalibration", new ImageCalibration);
-      printProcessDefaultValues("new IntegerResample", new IntegerResample);
-      printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
-      printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
-      printProcessDefaultValues("new PixelMath", new PixelMath);
-      printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
-      printProcessDefaultValues("new StarNet", new StarNet);
-      printProcessDefaultValues("new StarAlignment", new StarAlignment);
-      printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
-      printProcessDefaultValues("new LinearFit", new LinearFit);
-      printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
-      printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
-      printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
-      printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
-      printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
-      printProcessDefaultValues("new ACDNR", new ACDNR);
-      printProcessDefaultValues("new MultiscaleLinearTransform", new MultiscaleLinearTransform);
-      printProcessDefaultValues("new TGVDenoise", new TGVDenoise);
-      printProcessDefaultValues("new BackgroundNeutralization", new BackgroundNeutralization);
-      printProcessDefaultValues("new ColorCalibration", new ColorCalibration);
-      printProcessDefaultValues("new ColorSaturation", new ColorSaturation);
-      printProcessDefaultValues("new CurvesTransformation", new CurvesTransformation);
-      printProcessDefaultValues("new LRGBCombination", new LRGBCombination);
-      printProcessDefaultValues("new SCNR", new SCNR);
-      printProcessDefaultValues("new Debayer", new Debayer);
-      printProcessDefaultValues("new ChannelCombination", new ChannelCombination);
-      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
-      printProcessDefaultValues("new Invert", new Invert);
-      printProcessDefaultValues("new StarMask", new StarMask);
-      printProcessDefaultValues("new HDRMultiscaleTransform", new HDRMultiscaleTransform);
-      printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
-      printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
 }
 
 function newSectionBar(parent, control, title)
@@ -10224,6 +10238,10 @@ function AutoIntegrateDialog()
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
             "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
+      this.no_SCNR_CheckBox = newCheckBox(this, "No SCNR", par.skip_SCNR, 
+            "<p>Do not use SCNR to remove green cast.</p>"  +
+            "<p>SCNR is automatically skipped when processing narrowband images.</p>" +
+            "<p>Skipping SCNR can be useful when processing for example comet images.</p>");
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
@@ -10270,6 +10288,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
+      this.imageParamsSet1.add( this.no_SCNR_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
@@ -11670,6 +11689,10 @@ function AutoIntegrateDialog()
       this.run_Button.onClick = function()
       {
             exitFromDialog();
+            if (get_process_defaults) {
+                  getProcessDefaultValues();
+                  return;
+            }     
             updateWindowPrefix();
             getFilesFromTreebox(this.dialog);
             haveIconized = 0;
