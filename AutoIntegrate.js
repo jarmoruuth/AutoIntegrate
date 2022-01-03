@@ -188,7 +188,7 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2021 Jarmo Ruuth. All Rights Reserved.
+Copyright (c) 2018-2022 Jarmo Ruuth. All Rights Reserved.
 
 Window name prefix and icon location code
 
@@ -268,13 +268,14 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.40";
+var autointegrate_version = "AutoIntegrate v1.41 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
 
 // GUI variables
 var infoLabel;
+var imageInfoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox;     // For updating prefix name list
@@ -470,7 +471,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
-var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit', 'EDS' ]; 
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit', 'EDS', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
@@ -481,6 +482,8 @@ var binning_values = [ 'None', 'Color', 'L and color'];
 
 var blink_window = null;
 var blink_zoom = false;
+var blink_zoom_x = 0;
+var blink_zoom_y = 0;
 var saved_measurements = null;
 
 var close_windows = false;
@@ -3408,6 +3411,10 @@ function getScaledValPos(val, min, max)
       }
 }
 
+// If weight_filtering == true and treebox_filtering == true
+//    returns array of [ filename, checked, weight ]
+// else
+//    returns array of [ filename, weight ]
 function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
 {
       console.writeln("SubframeSelectorMeasure, input[0] " + fileNames[0]);
@@ -3592,6 +3599,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       }
 
       if (weight_filtering) {
+            // sorting for files that are filtered out
             if (pixinsight_version_num < 1080810) {
                   var filteredSortIndex = indexFWHM;
             } else {
@@ -3600,6 +3608,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             filtered_files.sort( function(a, b) {
                   return b[filteredSortIndex] - a[filteredSortIndex];
             });
+            // sorting for measurements files
             measurements.sort( function(a, b) {
                   return b[indexWeight] - a[indexWeight];
             });
@@ -3611,20 +3620,20 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             for (var i = 0; i < measurements.length; i++) {
                   console.writeln(measurements[i][indexPath]);
             }
-            /* Create AutoWeights.json file sorted by weight. 
-             */
             var treeboxfiles = [];
             // add selected files as checked
             for (var i = 0; i < measurements.length; i++) {
-                  treeboxfiles[treeboxfiles.length] =  [ measurements[i][indexPath], true ];
+                  treeboxfiles[treeboxfiles.length] =  [ measurements[i][indexPath], true, measurements[i][indexWeight] ];
             }
             // add filtered files as unchecked
             for (var i = 0; i < filtered_files.length; i++) {
-                  treeboxfiles[treeboxfiles.length] =  [ filtered_files[i][indexPath], false ];
+                  treeboxfiles[treeboxfiles.length] =  [ filtered_files[i][indexPath], false, 0 ];
             }
             if (treebox_filtering) {
                   return treeboxfiles;
             } else {
+                  /* Create AutoWeights.json file sorted by weight. 
+                   */
                   if (treeboxfiles.length == 0) {
                         console.noteln("No files, AutoWeights.json not written");
                   } else {
@@ -3930,7 +3939,7 @@ function getFileKeywords(filePath)
 
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
-// or array having [ filename, checked ] members
+// or treeboxfiles array having [ filename, checked, weight ] members
 function getFilterFiles(files, pageIndex, filename_postfix)
 {
       var luminance = false;
@@ -3968,9 +3977,14 @@ function getFilterFiles(files, pageIndex, filename_postfix)
             var exptime = 0;
             var obj = files[i];
             if (Array.isArray(obj)) {
+                  // we have treeboxfiles array
                   var filePath = obj[0];
                   var checked = obj[1];
+                  if (obj.length > 2) {
+                        ssweight = obj[2].toFixed(0);
+                  }
             } else {
+                  // we have just a file name list
                   var filePath = obj;
                   var checked = true;
             }
@@ -5131,11 +5145,10 @@ function runDrizzleIntegration(images, name, local_normalization)
 
 function getRejectionAlgorigthm(numimages)
 {
-      if (numimages < 8) {
-            addProcessingStep("  Using Percentile clip for rejection because number of images is " + numimages);
-            return ImageIntegration.prototype.PercentileClip;
-      }
-      if (par.use_clipping.val == 'Percentile') {
+      if (par.use_clipping.val == 'None') {
+            addProcessingStep("  Using no rejection");
+            return ImageIntegration.prototype.NoRejection;
+      } else if (par.use_clipping.val == 'Percentile') {
             addProcessingStep("  Using Percentile clip for rejection");
             return ImageIntegration.prototype.PercentileClip;
       } else if (par.use_clipping.val == 'Sigma') {
@@ -9181,7 +9194,7 @@ function treeboxfilesToFilenames(treeboxfiles)
 function filenamesToTreeboxfiles(treeboxfiles, filenames, checked)
 {
       for (var i = 0; i < filenames.length; i++) {
-            treeboxfiles[treeboxfiles.length] =  [ filenames[i], checked ];
+            treeboxfiles[treeboxfiles.length] =  [ filenames[i], checked, 0 ];
       }
 }
 
@@ -9365,13 +9378,12 @@ function getNewTreeBoxFiles(parent, pageIndex, imageFileNames)
       for (var i = 0; i < imageFileNames.length; i++) {
             var obj = imageFileNames[i];
             if (Array.isArray(obj)) {
-                  var filename = imageFileNames[i][0];
-                  var checked = imageFileNames[i][1];
+                  // we have treeboxfiles array
+                  treeboxfiles[treeboxfiles.length] = obj;
             } else {
-                  var filename = imageFileNames[i];
-                  var checked = true;
+                  // we have file name list
+                  treeboxfiles[treeboxfiles.length] = [ obj, true, 0 ];
             }
-            treeboxfiles[treeboxfiles.length] = [ filename, checked ];
       }
       return treeboxfiles;
 }
@@ -9426,6 +9438,8 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.checkable = true;
                         node.checked = filterFiles[j].checked;
                         node.collapsable = false;
+                        node.ssweight = filterFiles[j].ssweight;
+                        node.exptime = filterFiles[j].exptime;
                   }
             }
       }
@@ -9629,6 +9643,80 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       return gb;
 }
 
+function blink_x(imageWindow, x)
+{
+      var overflow = false;
+      var imageWidth = imageWindow.mainView.image.width;
+      var viewportWidth = imageWindow.visibleViewportRect.width;
+      var viewportWidth = imageWindow.width;
+      var point_x = (imageWidth / 2) - (viewportWidth / 2) + (viewportWidth / 2) * (blink_zoom_x + x);
+      if (point_x < 0) {
+            point_x = 0;
+            overflow = true;
+      } else if (point_x > imageWidth) {
+            point_x = imageWidth;
+            overflow = true;
+      }
+      return { x: point_x, overflow: overflow, imageWidth: imageWidth, viewportWidth: viewportWidth};
+}
+
+function blink_y(imageWindow, y)
+{
+      var overflow = false;
+      var imageHeight = imageWindow.mainView.image.height;
+      var viewportHeight = imageWindow.visibleViewportRect.height;
+      var viewportHeight = imageWindow.height;
+      var point_y = (imageHeight) / 2 - (viewportHeight / 2) + (viewportHeight / 2) * (blink_zoom_y + y);
+      if (point_y < 0) {
+            point_y = 0;
+            overflow = true;
+      } else if (point_y > imageHeight) {
+            point_y = imageHeight;
+            overflow = true;
+      }
+      return { y: point_y, overflow: overflow, imageHeight: imageHeight, viewportHeight: viewportHeight};
+}
+
+function inside_image(imageWindow, x, y)
+{
+      var new_x = blink_x(imageWindow, x);
+      if (new_x.overflow) {
+            return false;
+      }
+      var new_y = blink_y(imageWindow, y);
+      if (new_y.overflow) {
+            return false;
+      }
+      return true;
+}
+
+function blinkWindowZoomedUpdate(imageWindow, x, y)
+{
+      console.writeln("blinkWindowZoomedUpdate, x=" + x + ", y=" + y);
+
+      if (inside_image(imageWindow, 0, 0) || inside_image(imageWindow, x, y)) {
+            // old or new position is inside image, update position
+            blink_zoom_x = blink_zoom_x + x;
+            blink_zoom_y = blink_zoom_y + y;
+            console.writeln("blinkWindowZoomedUpdate, new blink_zoom_x=" + blink_zoom_x + ", blink_zoom_y=" + blink_zoom_y);
+      } else {
+            console.writeln("blinkWindowZoomedUpdate, use old blink_zoom_x=" + blink_zoom_x + ", blink_zoom_y=" + blink_zoom_y);
+      }
+
+      var point_x = blink_x(imageWindow, 0);
+      var point_y = blink_y(imageWindow, 0);
+
+      console.writeln("blinkWindowZoomedUpdate, image.width=" + point_x.imageWidth + ", image.height=" + point_y.imageHeight);
+      console.writeln("blinkWindowZoomedUpdate, viewportWidth=" + point_x.viewportWidth + ", viewportHeight=" + point_y.viewportHeight);
+
+      console.writeln("blinkWindowZoomedUpdate, point_x=" + point_x.x + ", point_y=" + point_y.y);
+      
+      var center = new Point(point_x.x, point_y.y);
+      
+      imageWindow.zoomFactor = 1;
+      imageWindow.viewportPosition = center;
+}
+
 function filesTreeBox(parent, optionsSizer, pageIndex)
 {
       /* Tree box to show files. */
@@ -9659,14 +9747,25 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               imageWindow.position = new Point(0, 0);
                         }
+                        if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
+                              if (files_TreeBox.currentNode.ssweight == '0') {
+                                    var ssweighttxt = "";
+                              } else {
+                                    var ssweighttxt = " ssweight: " + files_TreeBox.currentNode.ssweight;
+                              }
+                        } else {
+                              var ssweighttxt = "";
+                        }
+                        if (files_TreeBox.currentNode.hasOwnProperty("exptime")) {
+                              var exptimetxt = " exptime: " + files_TreeBox.currentNode.exptime;
+                        } else {
+                              var exptimetxt = "";
+                        }
+                        updateImageInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
+                                             ssweighttxt + exptimetxt);
                         runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
                         if (blink_zoom) {
-                              var center = new Point(
-                                    imageWindow.mainView.image.width / 2 - imageWindow.viewportWidth / 2, 
-                                    imageWindow.mainView.image.height / 2 - imageWindow.viewportHeight / 2);
-                              imageWindow.zoomFactor = 1;
-                              imageWindow.viewportPosition = center;
-
+                              blinkWindowZoomedUpdate(imageWindow, 0, 0);
                         }
                         imageWindow.show();
                         if (blink_window != null) {
@@ -9728,6 +9827,13 @@ function updateInfoLabel(parent)
       console.writeln(txt);
 
       infoLabel.text = txt;
+}
+
+function updateImageInfoLabel(txt)
+{
+      console.writeln(txt);
+
+      imageInfoLabel.text = txt;
 }
 
 function mapBadChars(str)
@@ -9862,6 +9968,25 @@ function ReadParametersFromPersistentModuleSettings()
       }
 }
 
+function blinkArrowButton(parent, icon, x, y)
+{
+      var blinkArrowButton = new ToolButton( parent );
+      blinkArrowButton.icon = parent.scaledResource(icon);
+      blinkArrowButton.toolTip = "Blink window move zoomed area";
+      blinkArrowButton.setScaledFixedSize( 20, 20 );
+      blinkArrowButton.onClick = function()
+      {
+            if (par.skip_blink.val) {
+                  return;
+            }
+            if (blink_window != null && blink_zoom) {
+                  console.writeln("blinkArrowButton");
+                  blinkWindowZoomedUpdate(blink_window, x, y);
+            }
+      };
+      return blinkArrowButton;
+}
+
 function newPageButtonsSizer(parent)
 {
       // Blink
@@ -9894,10 +10019,16 @@ function newPageButtonsSizer(parent)
                   return;
             }
             if (blink_window != null) {
-                  blink_window.zoomFactor = 1;
                   blink_zoom = true;
+                  blink_zoom_x = 0;
+                  blink_zoom_y = 0;
+                  blinkWindowZoomedUpdate(blink_window, 0, 0);
             }
       };
+      var blinkLeft = blinkArrowButton(parent, ":/icons/arrow-left.png", -1, 0);
+      var blinkRight = blinkArrowButton(parent, ":/icons/arrow-right.png", 1, 0);
+      var blinkUp = blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
+      var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
 
       // Load and save
       var jsonLabel = new Label( parent );
@@ -9972,7 +10103,7 @@ function newPageButtonsSizer(parent)
       var currentPageFilterButton = new ToolButton( parent );
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
       currentPageFilterButton.toolTip = "Filter and sort files based on current weighting and filtering settings. Only checked files are used. " +
-                                      "Without any filtering rules files are just sorted by SSWEIGHT.";
+                                        "Without any filtering rules files are just sorted by weighting setting.";
       currentPageFilterButton.setScaledFixedSize( 20, 20 );
       currentPageFilterButton.onClick = function()
       {
@@ -9988,6 +10119,11 @@ function newPageButtonsSizer(parent)
       buttonsSizer.add( blinkFitButton );
       buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( blinkZoomButton );
+      buttonsSizer.addSpacing( 4 );
+      buttonsSizer.add( blinkLeft );
+      buttonsSizer.add( blinkRight );
+      buttonsSizer.add( blinkUp );
+      buttonsSizer.add( blinkDown );
 
       buttonsSizer.addSpacing( 20 );
       buttonsSizer.add( jsonLabel );
@@ -10052,6 +10188,7 @@ function exitFromDialog()
             blink_window.forceClose();
             blink_window = null;
       }
+      updateImageInfoLabel("");
 }
 
 function AutoIntegrateDialog()
@@ -10094,7 +10231,7 @@ function AutoIntegrateDialog()
       "This product is based on software from the PixInsight project, developed " +
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p><p>" +
-      "Copyright (c) 2018-2021 Jarmo Ruuth<br>" +
+      "Copyright (c) 2018-2022 Jarmo Ruuth<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
@@ -10721,6 +10858,8 @@ function AutoIntegrateDialog()
             "Linear - Linear fit clipping" +
             "</p><p>" +
             "EDS - Extreme Studentized Deviate clipping" +
+            "</p><p>" +
+            "None - No rejection. Useful for example with blown out comet core." +
             "</p>";
 
       // normalization
@@ -11750,10 +11889,17 @@ function AutoIntegrateDialog()
 
       infoLabel = this.infoLabel;
 
+      this.imageInfoLabel = new Label( this );
+      this.imageInfoLabel.text = "";
+
+      imageInfoLabel = this.imageInfoLabel;
+
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
       this.buttons_Sizer.add( this.newInstance_Button );
       this.buttons_Sizer.add( this.infoLabel );
+      this.buttons_Sizer.addSpacing( 6 );
+      this.buttons_Sizer.add( this.imageInfoLabel );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
@@ -11806,7 +11952,7 @@ function AutoIntegrateDialog()
       this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise");
       newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
       newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, other");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
