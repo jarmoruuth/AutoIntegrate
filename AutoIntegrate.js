@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.41 test1";
+var autointegrate_version = "AutoIntegrate v1.41 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -471,7 +471,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
-var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Winsorised sigma', 'Averaged sigma', 'Linear fit', 'EDS', 'None' ]; 
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'EDS', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
@@ -1633,6 +1633,24 @@ function extractLchannel(sourceWindow)
       return targetWindow;
 }
 
+function addMildBlur(imgWin)
+{
+      console.writeln("Add slight blur to image " + imgWin.mainView.id);
+
+      var P = new MultiscaleLinearTransform;
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [false, true, 0.000, false, 3.000, 1.00, 1],
+            [false, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView);
+      imgWin.mainView.endProcess();
+}
+
 function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 {
       var targetWindow;
@@ -1651,6 +1669,8 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
             addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
             targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
+
+      addMildBlur(targetWindow);
 
       targetWindow.show();
 
@@ -1964,7 +1984,7 @@ function runImageIntegrationBiasDarks(images, name)
 
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
-      P.rejection = getRejectionAlgorigthm(images.length);
+      P.rejection = getRejectionAlgorithm(images.length);
       P.weightMode = ImageIntegration.prototype.DontCare;
       P.normalization = ImageIntegration.prototype.NoNormalization;
       P.rangeClipLow = false;
@@ -5143,7 +5163,7 @@ function runDrizzleIntegration(images, name, local_normalization)
       return new_name;
 }
 
-function getRejectionAlgorigthm(numimages)
+function getRejectionAlgorithm(numimages)
 {
       if (par.use_clipping.val == 'None') {
             addProcessingStep("  Using no rejection");
@@ -5171,16 +5191,16 @@ function getRejectionAlgorigthm(numimages)
              * highlights than Sigma.
              */
             if (numimages < 8) {
-                  addProcessingStep("  Auto2 using percentile clip for rejection");
+                  addProcessingStep("  Auto2 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else if (numimages <= 10) {
-                  addProcessingStep("  Auto2 using Averaged sigma clip for rejection");
-                  return ImageIntegration.prototype.AveragedSigmaClip;
+                  addProcessingStep("  Auto2 using Sigma clip for rejection");
+                  return ImageIntegration.prototype.SigmaClip;
             } else if (numimages < 20) {
                   addProcessingStep("  Auto2 using Winsorised sigma clip for rejection");
                   return ImageIntegration.prototype.WinsorizedSigmaClip;
             } else if (numimages < 25 || ImageIntegration.prototype.Rejection_ESD === undefined) {
-                  addProcessingStep("  Auto2 using linear fit clip for rejection");
+                  addProcessingStep("  Auto2 using Linear fit clip for rejection");
                   return ImageIntegration.prototype.LinearFit;
             } else {
                   addProcessingStep("  Auto2 using ESD clip for rejection");
@@ -5189,7 +5209,7 @@ function getRejectionAlgorigthm(numimages)
       } else {
             /* par.use_clipping.val == 'Auto1' */
             if (numimages < 8) {
-                  addProcessingStep("  Auto1 using percentile clip for rejection");
+                  addProcessingStep("  Auto1 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else {
                   addProcessingStep("  Auto1 using Sigma clip for rejection");
@@ -5237,7 +5257,7 @@ function runImageIntegrationEx(images, name, local_normalization)
             // Integration for LDDEngine, do not use rejection
             P.rejection = ImageIntegration.prototype.NoRejection;
       } else {
-            P.rejection = getRejectionAlgorigthm(images.length);
+            P.rejection = getRejectionAlgorithm(images.length);
       }
       if (local_normalization) {
             P.rejectionNormalization = ImageIntegration.prototype.LocalRejectionNormalization;
@@ -10842,7 +10862,7 @@ function AutoIntegrateDialog()
             "and sigma clipping otherwise." +
             "</p><p>" +
             "Auto2 - Default set 2 uses percentile clipping for 1-7 images, " +
-            "averaged sigma clipping for 8 - 10 images, " +
+            "sigma clipping for 8 - 10 images, " +
             "winsorised sigma clipping for 11 - 19 images, " +
             "linear fit clipping for 20 - 24 images, " +
             "ESD clipping for more than 25 images" +
