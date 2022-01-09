@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.41";
+var autointegrate_version = "AutoIntegrate v1.42 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -387,6 +387,18 @@ var par = {
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
+
+      percentile_low: { val: 0.2, def: 0.2, name : "Percentile low", type : 'R' },
+      percentile_high: { val: 0.1, def: 0.1, name : "Percentile high", type : 'R' },
+      sigma_low: { val: 4.0, def: 4.0, name : "Sigma low", type : 'R' },
+      sigma_high: { val: 3.0, def: 3.0, name : "Sigma high", type : 'R' },
+      winsorised_cutoff: { val: 5.0, def: 5.0, name : "Winsorised cutoff", type : 'R' },
+      linearfit_low: { val: 5.0, def: 5.0, name : "Linear fit low", type : 'R' },
+      linearfit_high: { val: 4.0, def: 4.0, name : "Linear fit high", type : 'R' },
+      ESD_outliers: { val: 0.3, def: 0.3, name : "ESD outliers", type : 'R' },
+      ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
+      ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' },
+
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
@@ -411,7 +423,7 @@ var par = {
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
-      extra_ET_order: { val: 1.0, def: 1.9, name : "Extra ExponentialTransformation Order", type : 'I' },
+      extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
@@ -471,7 +483,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
-var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'EDS', 'None' ]; 
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
@@ -5183,8 +5195,8 @@ function getRejectionAlgorithm(numimages)
       } else if (par.use_clipping.val == 'Linear fit') {
             addProcessingStep("  Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
-      } else if (par.use_clipping.val == 'EDS') {
-            addProcessingStep("  Using EDS clip for rejection");
+      } else if (par.use_clipping.val == 'ESD') {
+            addProcessingStep("  Using ESD clip for rejection");
             return ImageIntegration.prototype.Rejection_ESD;
       } else if (par.use_clipping.val == 'Auto2') {
             /* In theory these should be good choices but sometime give much more uneven
@@ -5275,6 +5287,16 @@ function runImageIntegrationEx(images, name, local_normalization)
       } else {
             P.generateDrizzleData = par.use_drizzle.val || par.generate_xdrz.val;
       }
+      P.pcClipLow = par.percentile_low.val;
+      P.pcClipHigh = par.percentile_high.val;
+      P.sigmaLow = par.sigma_low.val;
+      P.sigmaHigh = par.sigma_high.val;
+      P.winsorizationCutoff = par.winsorised_cutoff.val;
+      P.linearFitLow = par.linearfit_low.val;
+      P.linearFitHigh = par.linearfit_high.val;
+      P.esdOutliersFraction = par.ESD_outliers.val;
+      P.esdAlpha = par.ESD_significance.val;
+      P.esdLowRelaxation = par.ESD_lowrelaxation.val;
 
       P.executeGlobal();
 
@@ -8545,7 +8567,7 @@ function newNumericEdit(parent, txt, param, min, max, tooltip)
       edt.onValueUpdated = function(value) { 
             param.val = value; 
       };
-      edt.setPrecision( 1 );
+      edt.setPrecision( 2 );
       edt.setRange(min, max);
       edt.setValue(param.val);
       edt.toolTip = tooltip;
@@ -10012,7 +10034,7 @@ function newPageButtonsSizer(parent)
       // Blink
       var blinkLabel = new Label( parent );
       blinkLabel.text = "Blink";
-      blinkLabel.toolTip = "Blink zoom control";
+      blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
       blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
       var blinkFitButton = new ToolButton( parent );
@@ -10474,21 +10496,22 @@ function AutoIntegrateDialog()
       this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters");
 
       // LRGBCombination selection
-      this.LRGBCombinationLightnessControl = newNumericControl(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
+      this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
             "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>");
 
-      this.LRGBCombinationSaturationControl = newNumericControl(this, "Saturation", par.LRGBCombination_saturation, 0, 1, 
+      this.LRGBCombinationSaturationControl = newNumericEdit(this, "Saturation", par.LRGBCombination_saturation, 0, 1, 
             "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>");
 
       this.LRGBCombinationGroupBoxLabel = newSectionLabel(this, "LRGBCombination settings");
       this.LRGBCombinationGroupBoxLabel.toolTip = 
             "LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.";
-      this.LRGBCombinationGroupBoxSizer = new VerticalSizer;
+      this.LRGBCombinationGroupBoxSizer = new HorizontalSizer;
       this.LRGBCombinationGroupBoxSizer.margin = 6;
       this.LRGBCombinationGroupBoxSizer.spacing = 4;
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
+      this.LRGBCombinationGroupBoxSizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -10816,22 +10839,26 @@ function AutoIntegrateDialog()
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
       this.MaskedStretchTargetBackgroundControl.setPrecision(3);
 
-      this.Hyperbolic_D_Control = newNumericControl(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 20,
+      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 20,
             "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>");
-      this.Hyperbolic_b_Control = newNumericControl(this, "Hyperbolic Stretch b value", par.Hyperbolic_b, 0, 10,
+      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 0, 10,
             "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
             "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
             "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
             "super-hyperbolic stretch. Often it is best to keep b<2.</p>");
-
-      this.hyperbolicIterationsLabel = newSectionLabel(this, "Hyperbolic stretch iterations");
-      this.hyperbolicIterationsLabel.toolTip = "Experimental, Number of iterations for Hyperbolic Stretch.";
+      this.hyperbolicIterationsLabel = new Label(this);
+      this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.hyperbolicIterationsLabel.text = "Iterations";
+      this.hyperbolicIterationsLabel.toolTip = "Experimental, number of iterations for Hyperbolic Stretch.";
       this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 10, this.hyperbolicIterationsLabel.toolTip);
-      this.hyperbolicIterationsSizer = new HorizontalSizer;
-      this.hyperbolicIterationsSizer.spacing = 4;
-      this.hyperbolicIterationsSizer.margin = 2;
-      this.hyperbolicIterationsSizer.add( this.hyperbolicIterationsLabel );
-      this.hyperbolicIterationsSizer.add( this.hyperbolicIterationsSpinBox );
+      this.hyperbolicSizer = new HorizontalSizer;
+      this.hyperbolicSizer.spacing = 4;
+      this.hyperbolicSizer.margin = 2;
+      this.hyperbolicSizer.add( this.Hyperbolic_D_Control );
+      this.hyperbolicSizer.add( this.Hyperbolic_b_Control );
+      this.hyperbolicSizer.add( this.hyperbolicIterationsLabel );
+      this.hyperbolicSizer.add( this.hyperbolicIterationsSpinBox );
+      this.hyperbolicSizer.addStretch();
 
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
@@ -10848,10 +10875,8 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.spacing = 4;
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
-      this.StretchingOptionsSizer.add( this.Hyperbolic_D_Control );
-      this.StretchingOptionsSizer.add( this.Hyperbolic_b_Control );
-      this.StretchingOptionsSizer.add( this.hyperbolicIterationsSizer );
-      //this.StretchingGroupBoxSizer.addStretch();
+      this.StretchingOptionsSizer.add( this.hyperbolicSizer );
+      this.StretchingGroupBoxSizer.addStretch();
 
       //
       // Image integration
@@ -10877,7 +10902,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "Linear - Linear fit clipping" +
             "</p><p>" +
-            "EDS - Extreme Studentized Deviate clipping" +
+            "ESD - Extreme Studentized Deviate clipping" +
             "</p><p>" +
             "None - No rejection. Useful for example with blown out comet core." +
             "</p>";
@@ -10908,13 +10933,50 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionComboBox, 100 );
 
+      this.ImageIntegrationPercentileLow = newNumericEdit(this, 'Percentile Low', par.percentile_low, 0, 1, "Percentile low clipping factor");
+      this.ImageIntegrationPercentileHigh = newNumericEdit(this, 'High', par.percentile_high, 0, 1, "Percentile high clipping factor");
+      this.ImageIntegrationSigmaLow = newNumericEdit(this, 'Sigma Low', par.sigma_low, 0, 10, "Sigma low clipping factor for sigma and averaged sigma.");
+      this.ImageIntegrationSigmaHigh = newNumericEdit(this, 'High', par.sigma_high, 0, 10, "Sigma high clipping factor for sigma and averaged sigma.");
+      this.ImageIntegrationWinsorisedCutoff = newNumericEdit(this, 'Winsorization cutoff', par.winsorised_cutoff, 3, 10, "Cutoff point for Winsorised sigma clipping");
+      this.ImageIntegrationLinearFitLow = newNumericEdit(this, 'Linear fit Low', par.linearfit_low, 0, 10, "Tolerance of low values for linear fit low clipping");
+      this.ImageIntegrationLinearFitHigh = newNumericEdit(this, 'High', par.linearfit_high, 0, 10, "Tolerance of high values for linear fit low clipping");
+      this.ImageIntegrationESDOutliers = newNumericEdit(this, 'ESD Outliers', par.ESD_outliers, 0, 1, "ESD outliers");
+      this.ImageIntegrationESDSignificance = newNumericEdit(this, 'Significance', par.ESD_significance, 0, 1, "ESD significance");
+      this.ImageIntegrationESDLowrelaxation = newNumericEdit(this, 'Low relaxation', par.ESD_lowrelaxation, 1, 5, "ESD low relaxation");
+
+      this.ImageIntegrationRejectionSettingsSizer1 = new HorizontalSizer;
+      this.ImageIntegrationRejectionSettingsSizer1.spacing = 4;
+      this.ImageIntegrationRejectionSettingsSizer1.toolTip = ImageIntegrationHelpToolTips;
+      this.ImageIntegrationRejectionSettingsSizer1.add( this.ImageIntegrationNormalizationSizer );
+      this.ImageIntegrationRejectionSettingsSizer1.add( this.ImageIntegrationRejectionSizer );
+      this.ImageIntegrationRejectionSettingsSizer1.addStretch();
+
+      this.ImageIntegrationRejectionSettingsSizer2 = new HorizontalSizer;
+      this.ImageIntegrationRejectionSettingsSizer2.spacing = 4;
+      this.ImageIntegrationRejectionSettingsSizer2.add( this.ImageIntegrationPercentileLow );
+      this.ImageIntegrationRejectionSettingsSizer2.add( this.ImageIntegrationPercentileHigh );
+      this.ImageIntegrationRejectionSettingsSizer2.add( this.ImageIntegrationSigmaLow );
+      this.ImageIntegrationRejectionSettingsSizer2.add( this.ImageIntegrationSigmaHigh );
+      this.ImageIntegrationRejectionSettingsSizer2.add( this.ImageIntegrationWinsorisedCutoff );
+      this.ImageIntegrationRejectionSettingsSizer2.addStretch();
+
+      this.ImageIntegrationRejectionSettingsSizer3 = new HorizontalSizer;
+      this.ImageIntegrationRejectionSettingsSizer3.spacing = 4;
+      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationLinearFitLow );
+      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationLinearFitHigh );
+      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDOutliers );
+      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDSignificance );
+      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDLowrelaxation );
+      this.ImageIntegrationRejectionSettingsSizer3.addStretch();
+
       this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration pixel rejection');
-      this.clippingGroupBoxSizer = new HorizontalSizer;
+      this.clippingGroupBoxSizer = new VerticalSizer;
       this.clippingGroupBoxSizer.margin = 6;
       this.clippingGroupBoxSizer.spacing = 4;
-      this.clippingGroupBoxSizer.add( this.ImageIntegrationNormalizationSizer );
-      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSizer );
       this.clippingGroupBoxSizer.toolTip = ImageIntegrationHelpToolTips;
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer1 );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer2 );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer3 );
       //this.clippingGroupBoxSizer.addStretch();
 
       // Narrowband palette
