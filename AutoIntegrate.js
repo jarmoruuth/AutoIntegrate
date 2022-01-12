@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.42 test1";
+var autointegrate_version = "AutoIntegrate v1.42";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -10881,38 +10881,12 @@ function AutoIntegrateDialog()
       //
       // Image integration
       //
-      var ImageIntegrationHelpToolTips = 
-            "<p>" +
-            "Auto1 - Default set 1 uses percentile clipping for less than 8 images " +
-            "and sigma clipping otherwise." +
-            "</p><p>" +
-            "Auto2 - Default set 2 uses percentile clipping for 1-7 images, " +
-            "sigma clipping for 8 - 10 images, " +
-            "winsorised sigma clipping for 11 - 19 images, " +
-            "linear fit clipping for 20 - 24 images, " +
-            "ESD clipping for more than 25 images" +
-            "</p><p>" +
-            "Percentile - Percentile clip" +
-            "</p><p>" +
-            "Sigma - Sigma clipping" +
-            "</p><p>" +
-            "Winsorised - Winsorised sigma clipping" +
-            "</p><p>" +
-            "Averaged - Averaged sigma clipping" +
-            "</p><p>" +
-            "Linear - Linear fit clipping" +
-            "</p><p>" +
-            "ESD - Extreme Studentized Deviate clipping" +
-            "</p><p>" +
-            "None - No rejection. Useful for example with blown out comet core." +
-            "</p>";
-
       // normalization
       this.ImageIntegrationNormalizationLabel = new Label( this );
       this.ImageIntegrationNormalizationLabel.text = "Normalization";
+      this.ImageIntegrationNormalizationLabel.toolTip = "Rejection normalization. This is value is ignored if local normalization is used.";
       this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-   
-      this.ImageIntegrationNormalizationComboBox = newComboBox(this, par.imageintegration_normalization, imageintegration_normalization_values, '');
+      this.ImageIntegrationNormalizationComboBox = newComboBox(this, par.imageintegration_normalization, imageintegration_normalization_values, this.ImageIntegrationNormalizationLabel.toolTip);
    
       this.ImageIntegrationNormalizationSizer = new HorizontalSizer;
       this.ImageIntegrationNormalizationSizer.spacing = 4;
@@ -10920,6 +10894,37 @@ function AutoIntegrateDialog()
       this.ImageIntegrationNormalizationSizer.add( this.ImageIntegrationNormalizationComboBox, 100 );
 
       // Pixel rejection algorithm/clipping
+      var sigma_tips = "If you are not happy with the rejection result you can lower the High sigma for example to 2.8.";
+      var winsorised_tips = "To remove satellite trails with Winsorised sigma use lower high sigma value like 2.2 or even 1.8.";
+      var ESD_tips = "If you are not happy with the rejection result you can try higher ESD Significance like 0.2 and lower Low relaxation like 1.0.";
+      var ImageIntegrationHelpToolTips = 
+            "<p>" +
+            "<b>Auto1</b><br>" + 
+            "- Percentile clipping for 1-7 images<br>" +
+            "- Sigma clipping otherwise." +
+            "</p><p>" +
+            "<b>Auto2</b><br>" + 
+            "- Percentile clipping for 1-7 images<br>" +
+            "- Sigma clipping for 8 - 10 images<br>" +
+            "- Winsorised sigma clipping for 11 - 19 images<br>" +
+            "- Linear fit clipping for 20 - 24 images<br>" +
+            "- ESD clipping for more than 25 images" +
+            "</p><p>" +
+            "<b>Percentile</b> - Percentile clip" +
+            "</p><p>" +
+            "<b>Sigma</b> - Sigma clipping. " + sigma_tips +
+            "</p><p>" +
+            "<b>Winsorised</b> - Winsorised sigma clipping. " + winsorised_tips +
+            "</p><p>" +
+            "<b>Averaged</b> - Averaged sigma clipping. " + sigma_tips +
+            "</p><p>" +
+            "<b>Linear</b> - Linear fit clipping" +
+            "</p><p>" +
+            "<b>ESD</b> - Extreme Studentized Deviate clipping. " + ESD_tips +
+            "</p><p>" +
+            "<b>None</b> - No rejection. Useful for example with blown out comet core." +
+            "</p>";
+
       this.ImageIntegrationRejectionLabel = new Label( this );
       this.ImageIntegrationRejectionLabel.text = "Rejection";
       this.ImageIntegrationRejectionLabel.toolTip = ImageIntegrationHelpToolTips;
@@ -10933,16 +10938,16 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionLabel );
       this.ImageIntegrationRejectionSizer.add( this.ImageIntegrationRejectionComboBox, 100 );
 
-      this.ImageIntegrationPercentileLow = newNumericEdit(this, 'Percentile Low', par.percentile_low, 0, 1, "Percentile low clipping factor");
-      this.ImageIntegrationPercentileHigh = newNumericEdit(this, 'High', par.percentile_high, 0, 1, "Percentile high clipping factor");
-      this.ImageIntegrationSigmaLow = newNumericEdit(this, 'Sigma Low', par.sigma_low, 0, 10, "Sigma low clipping factor for sigma and averaged sigma.");
-      this.ImageIntegrationSigmaHigh = newNumericEdit(this, 'High', par.sigma_high, 0, 10, "Sigma high clipping factor for sigma and averaged sigma.");
-      this.ImageIntegrationWinsorisedCutoff = newNumericEdit(this, 'Winsorization cutoff', par.winsorised_cutoff, 3, 10, "Cutoff point for Winsorised sigma clipping");
-      this.ImageIntegrationLinearFitLow = newNumericEdit(this, 'Linear fit Low', par.linearfit_low, 0, 10, "Tolerance of low values for linear fit low clipping");
-      this.ImageIntegrationLinearFitHigh = newNumericEdit(this, 'High', par.linearfit_high, 0, 10, "Tolerance of high values for linear fit low clipping");
-      this.ImageIntegrationESDOutliers = newNumericEdit(this, 'ESD Outliers', par.ESD_outliers, 0, 1, "ESD outliers");
-      this.ImageIntegrationESDSignificance = newNumericEdit(this, 'Significance', par.ESD_significance, 0, 1, "ESD significance");
-      this.ImageIntegrationESDLowrelaxation = newNumericEdit(this, 'Low relaxation', par.ESD_lowrelaxation, 1, 5, "ESD low relaxation");
+      this.ImageIntegrationPercentileLow = newNumericEdit(this, 'Percentile Low', par.percentile_low, 0, 1, "<p>Percentile low clipping factor.</p>");
+      this.ImageIntegrationPercentileHigh = newNumericEdit(this, 'High', par.percentile_high, 0, 1, "<p>Percentile high clipping factor.</p>");
+      this.ImageIntegrationSigmaLow = newNumericEdit(this, 'Sigma Low', par.sigma_low, 0, 10, "<p>Sigma low clipping factor.</p>");
+      this.ImageIntegrationSigmaHigh = newNumericEdit(this, 'High', par.sigma_high, 0, 10, "<p>Sigma high clipping factor.</p><p>" + sigma_tips + "</p><p>" + winsorised_tips + "</p>");
+      this.ImageIntegrationWinsorisedCutoff = newNumericEdit(this, 'Winsorization cutoff', par.winsorised_cutoff, 3, 10, "<p>Cutoff point for Winsorised sigma clipping.</p>");
+      this.ImageIntegrationLinearFitLow = newNumericEdit(this, 'Linear fit Low', par.linearfit_low, 0, 10, "<p>Tolerance of low values for linear fit low clipping.</p>");
+      this.ImageIntegrationLinearFitHigh = newNumericEdit(this, 'High', par.linearfit_high, 0, 10, "<p>Tolerance of high values for linear fit low clipping.</p>");
+      this.ImageIntegrationESDOutliers = newNumericEdit(this, 'ESD Outliers', par.ESD_outliers, 0, 1, "<p>ESD outliers.</p>");
+      this.ImageIntegrationESDSignificance = newNumericEdit(this, 'Significance', par.ESD_significance, 0, 1, "<p>ESD significance.</p><p>" + ESD_tips + "</p>");
+      this.ImageIntegrationESDLowrelaxation = newNumericEdit(this, 'Low relaxation', par.ESD_lowrelaxation, 1, 5, "<p>ESD low relaxation.</p><p>" + ESD_tips + "</p>");
 
       this.ImageIntegrationRejectionSettingsSizer1 = new HorizontalSizer;
       this.ImageIntegrationRejectionSettingsSizer1.spacing = 4;
