@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.42";
+var autointegrate_version = "AutoIntegrate v1.43 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -371,7 +371,7 @@ var par = {
       combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on combined image", type : 'B' },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
-      use_weight: { val: 'PSF Signal', def: 'Generic', name : "Weight calculation", type : 'S' },
+      use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
       ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'I' },
       outliers_ssweight: { val: false, def: false, name : "Outliers SSWEIGHT", type : 'B' },
       outliers_fwhm: { val: false, def: false, name : "Outliers FWHM", type : 'B' },
@@ -420,6 +420,7 @@ var par = {
 
       // Generic Extra processing
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
+      extra_remove_stars_combine: { val: 'Add', def: 'Add', name : "Extra remove stars combine", type : 'S' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
@@ -430,6 +431,8 @@ var par = {
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
+      extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
+      extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
       
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
@@ -491,6 +494,7 @@ var noise_reduction_strength_values = [ '0', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
+var extra_remove_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
 
 var blink_window = null;
 var blink_zoom = false;
@@ -1663,6 +1667,98 @@ function addMildBlur(imgWin)
       imgWin.mainView.endProcess();
 }
 
+function findPeak(histogramMatrix, row)
+{
+      var peakValue = 0;
+      for (var i = 0; i < histogramMatrix.cols; i++) {
+            if (histogramMatrix.at(row, i) > peakValue) {
+                  peakValue = histogramMatrix.at(row, i);
+            }
+      }
+      console.writeln("Histogram peak for matrix row " + row + " is " + peakValue);
+      return peakValue;
+}
+
+function findShadowClipPoint(histogramMatrix, row, val)
+{
+      for (var i = 0; i < histogramMatrix.cols; i++) {
+            if (histogramMatrix.at(row, i) > val) {
+                  console.writeln("Shadow clip point for matrix row " + row + " is " + i + ", image value is " + histogramMatrix.at(row, i));
+                  break;
+            }
+      }
+      return i;
+}
+
+function countPixels(histogramMatrix, row)
+{
+      var cnt = 0;
+      for (var i = 0; i < histogramMatrix.cols; i++) {
+            cnt += histogramMatrix.at(row, i);
+      }
+      console.writeln("Pixel count for matrix row " + row + " is " + cnt);
+      return cnt;
+}
+
+function clipShadows(win, perc)
+{
+      console.writeln("Clip " + perc + "% of shadows from image " + win.mainView.id);
+
+      // Get image histogram
+      var view = win.mainView;
+	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
+
+      // Count pixels for each row
+      var pixelCount = 0;
+      for (var i = 0; i < histogramMatrix.rows; i++) {
+            pixelCount += countPixels(histogramMatrix, i);
+      }
+      console.writeln("Total pixel count for matrix is " + pixelCount);
+
+      var maxClip = (perc / 100) * pixelCount;
+      console.writeln("Clip max " + maxClip + " pixels");
+
+      // Clip shadows
+      var clipCount = 0;
+      for (var col = 0; col < histogramMatrix.cols; col++) {
+            for (var row = 0; row < histogramMatrix.rows; row++) {
+                  clipCount += histogramMatrix.at(row, col)
+            }
+            if (clipCount > maxClip) {
+                  break;
+            }
+      }
+      if (col > 0) {
+            col = col - 1;
+      }
+      var normalizedShadowClipping = col / histogramMatrix.cols;
+      console.writeln("Normalized shadow clipping value is " + normalizedShadowClipping);
+
+      var P = new HistogramTransformation;
+      if (histogramMatrix.rows == 1) {
+            P.H = [ // c0, m, c1, r0, r1
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
+                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+            ];
+      } else {
+            P.H = [ // c0, m, c1, r0, r1
+                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // R
+                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // G
+                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // B
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+            ];
+      }
+      view.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(view, false);
+
+      view.endProcess();
+}
+
 function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 {
       var targetWindow;
@@ -1682,11 +1778,12 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
             targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
 
-      addMildBlur(targetWindow);
+      // addMildBlur(targetWindow); Not sure if this actually helps
 
       targetWindow.show();
 
       if (!par.skip_mask_contrast.val) {
+            //clipShadows(targetWindow, 1.0);   Not sure if this actually helps
             extraContrast(targetWindow);
       }
 
@@ -4861,7 +4958,8 @@ function customMapping(check_allfilesarr)
                         channelNoiseReduction(images[i]);
                   }
             }
-            if (par.narrowband_linear_fit.val == "Auto"
+            var narrowband_linear_fit = par.narrowband_linear_fit.val;
+            if (narrowband_linear_fit == "Auto"
                 && par.image_stretching.val == 'Auto STF') 
             {
                   /* By default we do not do linear fit
@@ -4869,7 +4967,7 @@ function customMapping(check_allfilesarr)
                    * with MaskedStretch we use linear
                    * for to balance channels better.
                    * */
-                  par.narrowband_linear_fit.val = "None";
+                  narrowband_linear_fit = "None";
             }
             if (par.remove_stars_early.val && !par.use_starxterminator.val) {
                   // If we remove stars with starnet we need to stretch before
@@ -4899,11 +4997,11 @@ function customMapping(check_allfilesarr)
                         removeStars(findWindow(images[i]), !mapping_on_nonlinear_data);
                   }
             }
-            if (par.narrowband_linear_fit.val != "None") {
+            if (narrowband_linear_fit != "None") {
                   /* Do a linear fit of images before PixelMath. We do this on both cases,
                   * linear and stretched.
                   */
-                  var refimage = findLinearFitHSOMapRefimage(images, par.narrowband_linear_fit.val);
+                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
                   linearFitArray(refimage, images);
             }
 
@@ -6790,7 +6888,7 @@ function CreateNewTempMaskFromLInearWin(imgWin, is_color)
 
       var winCopy = copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
 
-      /* Run HistogramTransform based on autostretch because mask should be non-linear. */
+      /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
       runHistogramTransform(winCopy, null, is_color, 'mask');
 
       /* Create mask.
@@ -6833,7 +6931,7 @@ function LRGBEnsureMask()
                   }
                   L_win = copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
 
-                  /* Run HistogramTransform based on autostretch because mask should be non-linear. */
+                  /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
                   runHistogramTransform(L_win, null, false, 'mask');
             }
             /* Create mask.
@@ -7729,7 +7827,16 @@ function extraContrast(imgWin)
 
 function extraStretch(win)
 {
+      addProcessingStep("Extra stretch on " + win.mainView.id);
+
       runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB');
+}
+
+function extraShadowClipping(win, perc)
+{
+      addProcessingStep("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
+
+      clipShadows(win, perc);
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -7784,6 +7891,7 @@ function is_non_starless_option()
              par.extra_LHE.val || 
              par.extra_contrast.val ||
              par.extra_stretch.val ||
+             par.extra_shadowclipping.val ||
              par.extra_noise_reduction.val ||
              par.extra_ACDNR.val ||
              par.extra_color_noise.val ||
@@ -7889,6 +7997,9 @@ function extraProcessing(id, apply_directly)
             extraWin = copyWindow(extraWin, extra_id);
       }
 
+      if (par.extra_stretch.val) {
+            extraStretch(extraWin);
+      }
       if (narrowband) {
             if (par.run_hue_shift.val) {
                   narrowbandHueShift(extraWin.mainView);
@@ -7938,9 +8049,6 @@ function extraProcessing(id, apply_directly)
                   extraContrast(extraWin);
             }
       }
-      if (par.extra_stretch.val) {
-            extraStretch(extraWin);
-      }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
       }
@@ -7956,13 +8064,34 @@ function extraProcessing(id, apply_directly)
       if (par.extra_smaller_stars.val) {
             extraSmallerStars(extraWin);
       }
+      if (par.extra_shadowclipping.val) {
+            extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
+      }
       if (par.extra_remove_stars.val) {
             /* Restore stars by combining starless image and stars. */
-            addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id);
-            runPixelMathSingleMappingEx(
-                  extraWin.mainView.id, 
-                  extraWin.mainView.id + " + " + star_mask_win_id,
-                  false);
+            addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id + " using " + par.extra_remove_stars_combine.val);
+            switch (par.extra_remove_stars_combine.val) {
+                  case 'Screen':
+                        runPixelMathSingleMappingEx(
+                              extraWin.mainView.id, 
+                              "combine(" + extraWin.mainView.id + ", " + star_mask_win_id + ", op_screen())",
+                              false);
+                        break;
+                        break;
+                  case 'Lighten':
+                        runPixelMathSingleMappingEx(
+                              extraWin.mainView.id, 
+                              "max(" + extraWin.mainView.id + ", " + star_mask_win_id + ")",
+                              false);
+                        break;
+                  case 'Add':
+                  default:
+                        runPixelMathSingleMappingEx(
+                              extraWin.mainView.id, 
+                              extraWin.mainView.id + " + " + star_mask_win_id,
+                              false);
+                        break;
+            }
             // star_mask_win_id was a temp window with maybe smaller stars
             closeOneWindow(star_mask_win_id);
       }
@@ -8260,6 +8389,8 @@ function AutoIntegrateEngine(auto_continue)
             saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
       }
       if (preprocessed_images < start_images.FINAL) {
+            // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
+            setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
             // We have generated final image, save it
             saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final image. */
       }
@@ -8324,11 +8455,6 @@ function AutoIntegrateEngine(auto_continue)
             saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
       }
 
-      if (LRGB_ABE_HT_id != null) {
-            console.writeln("Set final image keyword");
-            // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
-            setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
-      }
       if (preprocessed_images == start_images.NONE && !par.image_weight_testing.val) {
             /* Output some info of files.
             */
@@ -11373,10 +11499,20 @@ function AutoIntegrateDialog()
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
-      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars, 
-            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars. When this is selected, extra processing is " +
-            "applied to the starless image. Smaller stars option is run on star images. At the end of the processing also a combined image is created " + 
-            "from starless and star images.</p>" );
+      var extraRemoveStars_Tooltip = 
+            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
+            "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
+            "<p>At the end of the processing a combined image is created from starless and star images. Combine operation can be " + 
+            "selected from the combo box.</p>";
+      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars, combine with", par.extra_remove_stars, extraRemoveStars_Tooltip);
+      this.extraRemoveStars_ComboBox = newComboBox(this, par.extra_remove_stars_combine, extra_remove_stars_combine_values, extraRemoveStars_Tooltip);
+      this.extraRemoveStars_Sizer = new HorizontalSizer;
+      this.extraRemoveStars_Sizer.spacing = 4;
+      this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
+      this.extraRemoveStars_Sizer.add( this.extraRemoveStars_ComboBox );
+      this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraRemoveStars_Sizer.addStretch();
+      
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker.</p>" );
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
@@ -11422,6 +11558,16 @@ function AutoIntegrateDialog()
 
       this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
             "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
+
+      var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
+      this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
+      this.extra_shadowclipperc_edit = newNumericEdit(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip);
+      this.extra_shadowclip_Sizer = new HorizontalSizer;
+      this.extra_shadowclip_Sizer.spacing = 4;
+      this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
+      this.extra_shadowclip_Sizer.add( this.extra_shadowclipperc_edit );
+      this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
+      this.extra_shadowclip_Sizer.addStretch();
 
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
             "<p>Make stars smaller on image.</p>" );
@@ -11533,7 +11679,8 @@ function AutoIntegrateDialog()
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
-      this.extra1.add( this.extraRemoveStars_CheckBox );
+      this.extra1.add( this.extraRemoveStars_Sizer );
+      this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_ET_Sizer );
@@ -11579,23 +11726,27 @@ function AutoIntegrateDialog()
             "AutoContinue can be used to apply extra processing after the final image is created. " +
             "</p><p>" +
             "In case of Apply button extra processing is run directly on the selected image. " +
+            "Apply button can be used to execute extra options one by one in custom order." +
             "</p><p>" +
             "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
             "narrowband options are selected then image is assumed to be narrowband." +
             "</p><p>" +
             "If multiple extra processing options are selected they are executed in the following order:<br>" +
-            "1. Remove stars<br>" +
-            "2. AutomaticBackgroundExtractor<br>" +
-            "3. Darker background<br>" +
-            "4. ExponentialTransformation<br>" +
-            "5. HDRMultiscaleTransform<br>" +
-            "6. LocalHistogramEqualization<br>" +
-            "7. Add contrast<br>" +
-            "8. Noise reduction<br>" +
-            "9. ACDNR noise reduction<br>" +
-            "10. Color noise reduction<br>" +
-            "11. Sharpening<br>" +
-            "12. Smaller stars" +
+            "1. Auto stretch<br>" +
+            "2. Narrowband options<br>" +
+            "3. Remove stars<br>" +
+            "4. Clip shadows<br>" +
+            "5. AutomaticBackgroundExtractor<br>" +
+            "6. Darker background<br>" +
+            "7. ExponentialTransformation<br>" +
+            "8. HDRMultiscaleTransform<br>" +
+            "9. LocalHistogramEqualization<br>" +
+            "10. Add contrast<br>" +
+            "11. Noise reduction<br>" +
+            "12. ACDNR noise reduction<br>" +
+            "13. Color noise reduction<br>" +
+            "14. Sharpening<br>" +
+            "15. Smaller stars" +
             "</p><p>" +
             "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
             "</p><p>" +
