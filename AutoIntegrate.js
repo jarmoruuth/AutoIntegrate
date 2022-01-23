@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.43";
+var autointegrate_version = "AutoIntegrate v1.44 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -8368,6 +8368,8 @@ function AutoIntegrateEngine(auto_continue)
             }
       }
 
+      console.writeln("Basic processing completed");
+
       if (is_extra_option() || is_narrowband_option()) {
             extraProcessing(LRGB_ABE_HT_id, false);
       }
@@ -8376,6 +8378,7 @@ function AutoIntegrateEngine(auto_continue)
 
       if (preprocessed_images < start_images.L_R_G_B_BE) {
             // We have generated integrated images, save them
+            console.writeln("Save processed windows");
             saveProcessedWindow(outputRootDir, L_id);                    /* Integration_L */
             saveProcessedWindow(outputRootDir, R_id);                    /* Integration_R */
             saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
@@ -8386,9 +8389,11 @@ function AutoIntegrateEngine(auto_continue)
       }
       if (preprocessed_images >= start_images.L_R_G_B_BE) {
             // We have generated RGB image, save it
+            console.writeln("Save generated RGB image");
             saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
       }
-      if (preprocessed_images < start_images.FINAL) {
+      if (preprocessed_images < start_images.FINAL && LRGB_ABE_HT_id != null) {
+            console.writeln("Save final image");
             // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
             setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
             // We have generated final image, save it
