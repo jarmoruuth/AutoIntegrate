@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.44 test1";
+var autointegrate_version = "AutoIntegrate v1.44 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -345,6 +345,7 @@ var par = {
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
       remove_stars_early: { val: false, def: false, name : "Remove stars early", type : 'B' },
+      remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
 
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -384,6 +385,8 @@ var par = {
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
+      stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
+      stars_combine: { val: 'InvMult', def: 'InvMult', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
@@ -403,6 +406,7 @@ var par = {
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
+      ArcsinhStretchFactor: { val: 100, def: 100, name : "Arcsinh Stretch Factor", type : 'R' },    
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
@@ -485,7 +489,7 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Use both', 'Hyperbolic' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Use both', 'Hyperbolic' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -494,7 +498,7 @@ var noise_reduction_strength_values = [ '0', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
-var extra_remove_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
+var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten', 'InvMult' ];
 
 var blink_window = null;
 var blink_zoom = false;
@@ -584,6 +588,13 @@ var B_id;
 var H_id;
 var S_id;
 var O_id;
+
+var RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
+var RGB_stars_HT_id = null;         // stretched RGB_stars_win
+var LRGB_stars_HT_id = null;        // stretched combined L_stars_HT_id and RGB_stars_HT_id
+var L_stars_HT_id = null;           // stretched L stars
+var RGB_stars = [];                 // linear RGB channel star image ids
+var L_stars = [];                   // linear L channel star image id
 
 var RGBcolor_id;
 var R_ABE_id = null;
@@ -1274,6 +1285,9 @@ function windowIconizeAndKeywordif(id)
 
 function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
 {
+      if (old_name == new_name) {
+            return new_name;
+      }
       var w = ImageWindow.windowById(old_name);
       w.mainView.id = new_name;
       if (!keepif) {
@@ -1302,13 +1316,13 @@ function addScriptWindow(name)
       all_windows[all_windows.length] = name;
 }
 
-function forceCloseOneWindow(w)
+function forceCloseOneWindowEx(w, force_close)
 {
       if (par.keep_temporary_images.val) {
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
-      } else if (use_force_close) {
+      } else if (use_force_close || force_close) {
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
@@ -1316,12 +1330,25 @@ function forceCloseOneWindow(w)
       }
 }
 
+function forceCloseOneWindow(w)
+{
+      forceCloseOneWindowEx(w, true)
+}
+
 // close one window
 function closeOneWindow(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            forceCloseOneWindow(w);
+            forceCloseOneWindowEx(w, false);
+      }
+}
+
+function forceCloseOneWindowId(id)
+{
+      var w = findWindow(id);
+      if (w != null) {
+            forceCloseOneWindowEx(w, true);
       }
 }
 
@@ -1329,7 +1356,8 @@ function closeOneWindow(id)
 function closeAllWindowsFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
-          //          console.writeln(" AINew Closing Window: " + arr[i]);
+            // console.writeln(" AINew Closing Window: " + arr[i]);
+            closeOneWindow(arr[i]+"_stars");
             closeOneWindow(arr[i]);
       }
 }
@@ -1340,6 +1368,8 @@ function closeFinalWindowsFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
             closeOneWindow(arr[i]);
+            closeOneWindow(arr[i]+"_stars");
+            closeOneWindow(arr[i]+"_starless");
             closeOneWindow(arr[i]+"_extra");
             closeOneWindow(arr[i]+"_extra_starless");
             closeOneWindow(arr[i]+"_extra_stars");
@@ -1350,7 +1380,9 @@ function closeTempWindowsForOneImage(id)
 {
       closeOneWindow(id + "_max");
       closeOneWindow(id + "_map");
+      closeOneWindow(id + "_stars");
       closeOneWindow(id + "_map_mask");
+      closeOneWindow(id + "_map_stars");
       closeOneWindow(id + "_map_pm");
       closeOneWindow(id + "_mask");
       closeOneWindow(id + "_tmp");
@@ -4870,17 +4902,36 @@ function createNewStarNet(star_mask)
       return P;
 }
 
-// Remove stars from an image. We do not create star mask here.
-function removeStars(imgWin, linear_data)
+function getStarMaskWin(imgWin, name)
+{
+      if (par.use_starxterminator.val) {
+            var win_id = imgWin.mainView.id + "_stars";
+            var win = findWindow(win_id);
+            console.writeln("getStarMaskWin win_id " + win_id);
+            if (win == null) {
+                  throwFatalError("Could not find StarXTerminator stars window " + win_id);
+            }
+            windowRename(win_id, name);
+      } else {
+            console.writeln("getStarMaskWin win_id " + ImageWindow.activeWindow.mainView.id);
+            var win = ImageWindow.activeWindow;
+            windowRename(win.mainView.id, name);
+      }
+      return win;
+}
+
+// Remove stars from an image. We save star mask for later processing and combining
+// for star image.
+function removeStars(imgWin, linear_data, save_stars, save_array)
 {
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(false, linear_data);
+            var P = createNewStarXTerminator(save_stars, linear_data);
       } else if (linear_data) {
             throwFatalError("StarNet cannot be used to remove stars while image is still in linear stage.");
       } else {
             addProcessingStep("Run StarNet on " + imgWin.mainView.id);
-            var P = createNewStarNet(false);
+            var P = createNewStarNet(save_stars);
       }
 
       /* Execute on image.
@@ -4890,6 +4941,16 @@ function removeStars(imgWin, linear_data)
       P.executeOn(imgWin.mainView, false);
       
       imgWin.mainView.endProcess();
+
+      if (save_stars) {
+            var star_win = getStarMaskWin(imgWin, imgWin.mainView.id + "_stars");
+            if (save_array != null) {
+                  save_array[save_array.length] = star_win.mainView.id;
+            }
+            return star_win;
+      } else {
+            return null;
+      }
 }
 
 /* Do custom mapping of channels to RGB image. We do some of the same 
@@ -4965,17 +5026,11 @@ function customMapping(check_allfilesarr)
                   /* By default we do not do linear fit
                    * if we stretch with STF. If we stretch
                    * with MaskedStretch we use linear
-                   * for to balance channels better.
+                   * fit to balance channels better.
                    * */
                   narrowband_linear_fit = "None";
             }
-            if (par.remove_stars_early.val && !par.use_starxterminator.val) {
-                  // If we remove stars with starnet we need to stretch before
-                  // star removal
-                  var mapping_on_nonlinear_data = true;
-            } else {
-                  var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
-            }
+            var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
 
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
@@ -4991,12 +5046,6 @@ function customMapping(check_allfilesarr)
                   }
                   RBGmapping.stretched = true;
             }
-            if (par.remove_stars_early.val) {
-                  addProcessingStep("Custom mapping, remove stars");
-                  for (var i = 0; i < images.length; i++) {
-                        removeStars(findWindow(images[i]), !mapping_on_nonlinear_data);
-                  }
-            }
             if (narrowband_linear_fit != "None") {
                   /* Do a linear fit of images before PixelMath. We do this on both cases,
                   * linear and stretched.
@@ -5010,6 +5059,12 @@ function customMapping(check_allfilesarr)
             RGB_win_id = runPixelMathRGBMapping(ppar.win_prefix + "Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
 
             RGB_win = findWindow(RGB_win_id);
+
+            if (par.remove_stars_channel.val) {
+                  addProcessingStep("Custom mapping, remove stars");
+                  RGB_stars_win = removeStars(RGB_win, !mapping_on_nonlinear_data, true, null);
+            }
+
             RGB_win.show();
             addScriptWindow(RGB_win_id);
 
@@ -5786,6 +5841,21 @@ function runHistogramTransformMaskedStretch(ABE_win)
       ABE_win.mainView.endProcess();
 }
 
+function runHistogramTransformArcsinhStretch(ABE_win)
+{
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
+
+      var P = new ArcsinhStretch;
+      P.stretch = par.ArcsinhStretchFactor.val;
+
+      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      console.writeln("Execute ArcsinhStretch on " + ABE_win.mainView.id);
+      P.executeOn(ABE_win.mainView);
+
+      ABE_win.mainView.endProcess();
+}
+
 function runHistogramTransformHyperbolic(ABE_win)
 {
       var P = new PixelMath;
@@ -5849,10 +5919,16 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             return null;
       }
 
-      if (par.image_stretching.val == 'Auto STF' 
+      if (type == 'stars') {
+            var image_stretching = par.stars_stretching.val;
+      } else {
+            var image_stretching = par.image_stretching.val;
+      }
+
+      if (image_stretching == 'Auto STF' 
           || type == 'mask'
           || type == 'extra'
-          || (par.image_stretching.val == 'Use both' && type == 'L'))
+          || (image_stretching == 'Use both' && type == 'L'))
       {
             if (type == 'mask') {
                   targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
@@ -5861,20 +5937,23 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             }
             return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
 
-      } else if (par.image_stretching.val == 'Masked Stretch'
-                 || (par.image_stretching.val == 'Use both' && type == 'RGB'))
+      } else if (image_stretching == 'Masked Stretch'
+                 || (image_stretching == 'Use both' && type == 'RGB'))
       {
             runHistogramTransformMaskedStretch(ABE_win);
             return null;
+      } else if (image_stretching == 'Arcsinh Stretch') {
+            runHistogramTransformArcsinhStretch(ABE_win);
+            return null;
 
-      } else if (par.image_stretching.val == 'Hyperbolic') {
+      } else if (image_stretching == 'Hyperbolic') {
             for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
                   runHistogramTransformHyperbolic(ABE_win);
             }
             return null;
             
       } else {
-            throwFatalError("Bad image stretching value " + par.image_stretching.val + " with type " + type);
+            throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
             return null;
       }
 }
@@ -6904,17 +6983,24 @@ function CreateNewTempMaskFromLInearWin(imgWin, is_color)
  * for noise reduction and sharpening. We use luminance image as
  * mask.
  */
-function LRGBEnsureMask()
+function LRGBEnsureMask(L_id)
 {
       addProcessingStep("LRGBEnsureMask");
 
+      if (L_id != null) {
+            range_mask_win = null;
+            forceCloseOneWindowId(mask_win_id);
+      }
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
             addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
             mask_win = range_mask_win;
       } else {
             var L_win;
-            if (preprocessed_images == start_images.L_RGB_HT) {
+            if (L_id != null) {
+                  L_win = copyWindowEx(ImageWindow.windowById(L_id), ppar.win_prefix + "L_win_mask", true);
+                  runHistogramTransform(L_win, null, false, 'mask');
+            } else if (preprocessed_images == start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
                   L_win = copyWindow(L_HT_win, ppar.win_prefix + "L_win_mask");
@@ -6945,9 +7031,14 @@ function LRGBEnsureMask()
 /* Ensure we have mask for color processing. Mask is needed also in non-linear
  * so we do a separate runHistogramTransform here.
  */
-function ColorEnsureMask(color_img_id, RBGstretched)
+function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
 {
       addProcessingStep("ColorEnsureMask");
+
+      if (force_new_mask) {
+            range_mask_win = null;
+            forceCloseOneWindowId(mask_win_id);
+      }
 
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
@@ -7030,11 +7121,31 @@ function ProcessLimage(RBGmapping)
             */
             L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
             if (!RBGmapping.stretched) {
+                  if (par.remove_stars_early.val) {
+                        removeStars(
+                              ImageWindow.windowById(L_ABE_id), 
+                              true,
+                              true,
+                              L_stars);
+                        // use starless L image as mask
+                        LRGBEnsureMask(L_ABE_id);
+                  }
                   L_stf = runHistogramTransform(
                               copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
                               false,
                               'L');
+                  if (L_stars.length > 0) {
+                        if (L_stars.length != 1) {
+                              throwFatalError("Bad L_stars length " + L_stars.length);
+                        }
+                        L_stars_HT_id = L_ABE_HT_id + "_stars";
+                        runHistogramTransform(
+                              copyWindow(ImageWindow.windowById(L_stars[0]), L_stars_HT_id), 
+                              L_stf,
+                              false,
+                              'stars');
+                  }
                   if (!same_stf_for_all_images) {
                         L_stf = null;
                   }
@@ -7114,33 +7225,35 @@ function LinearFitLRGBchannels()
  * optionally reduce noise on each separate R, G and B images using a mask
  * run channel combination to create RGB image
  */
-function CombineRGBimage()
+function CombineRGBimageEx(target_name, images)
 {
       addProcessingStep("CombineRGBimage");
 
       if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
             addProcessingStep("Noise reduction on channel images");
-            channelNoiseReduction(red_id);
-            channelNoiseReduction(green_id);
-            channelNoiseReduction(blue_id);
+            channelNoiseReduction(images[0]);
+            channelNoiseReduction(images[1]);
+            channelNoiseReduction(images[1]);
       }
 
       /* ChannelCombination
        */
-      addProcessingStep("Channel combination using images " + red_id + "," + green_id + "," + blue_id);
+      addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
 
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.prototype.RGB;
       P.channels = [ // enabled, id
-            [true, red_id],
-            [true, green_id],
-            [true, blue_id]
+            [true, images[0]],
+            [true, images[1]],
+            [true, images[2]]
       ];
 
-      var model_win = ImageWindow.windowById(red_id);
-      var rgb_name = ppar.win_prefix + "Integration_RGB";
+      var model_win = ImageWindow.windowById(images[0]);
+      var rgb_name = ppar.win_prefix + target_name;
 
-      RGB_win = new ImageWindow(
+      console.writeln("CombineRGBimageEx, rgb_name " + rgb_name + ", model_win " + images[0]);
+
+      var win = new ImageWindow(
                         model_win.mainView.image.width,     // int width
                         model_win.mainView.image.height,    // int height
                         3,                                  // int numberOfChannels=1
@@ -7149,17 +7262,31 @@ function CombineRGBimage()
                         true,                               // bool color=false
                         rgb_name);                          // const IsoString &id=IsoString()
 
-      if (RGB_win.mainView.id != rgb_name) {
-            fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + RGB_win.mainView.id);
+      if (win.mainView.id != rgb_name) {
+            fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
       }
                   
-      RGB_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(RGB_win.mainView);
-      RGB_win.mainView.endProcess();
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(win.mainView);
+      win.mainView.endProcess();
       
-      RGB_win.show();
-      addScriptWindow(RGB_win.mainView.id);
+      return win;
+}
+
+function CombineRGBimage()
+{
+      RGB_win = CombineRGBimageEx("Integration_RGB", [red_id, green_id, blue_id]);
+
       RGB_win_id = RGB_win.mainView.id;
+      addScriptWindow(RGB_win_id);
+      RGB_win.show();
+
+      if (RGB_stars.length > 0) {
+            if (RGB_stars.length != 3) {
+                  throwFatalError("Bad RGB_stars length " + RGB_stars.length);
+            }
+            RGB_stars_win = CombineRGBimageEx("Integration_RGB_stars", RGB_stars);
+      }
 }
 
 function extractRGBchannel(RGB_id, channel)
@@ -7343,7 +7470,7 @@ function ProcessRGBimage(RBGstretched)
             RGB_ABE_HT_id = RGB_HT_win.mainView.id;
             addProcessingStep("Start from image " + RGB_ABE_HT_id);
             if (preprocessed_images == start_images.RGB_HT) {
-                  ColorEnsureMask(RGB_ABE_HT_id, true);
+                  ColorEnsureMask(RGB_ABE_HT_id, true, false);
             }
       } else {
             if (preprocessed_images == start_images.L_RGB_BE ||
@@ -7379,9 +7506,10 @@ function ProcessRGBimage(RBGstretched)
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
 
-            if (is_color_files && par.remove_stars_early.val) {
+            if (is_color_files && par.remove_stars_channel.val) {
                   addProcessingStep("Remove stars from linear RGB color image");
-                  removeStars(findWindow(RGB_ABE_id), true);
+                  RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null);
+                  windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
             }
 
             if (par.use_RGBNB_Mapping.val) {
@@ -7391,7 +7519,7 @@ function ProcessRGBimage(RBGstretched)
 
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
-                  ColorEnsureMask(RGB_ABE_id, RBGstretched);
+                  ColorEnsureMask(RGB_ABE_id, RBGstretched, false);
             }
             if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
@@ -7416,16 +7544,37 @@ function ProcessRGBimage(RBGstretched)
                         mask_win);
             }
             if (!RBGstretched) {
+                  if (par.remove_stars_early.val) {
+                        RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null);
+                        windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
+                        if (!is_luminance_images) {
+                              // use starless RGB image as mask
+                              ColorEnsureMask(RGB_ABE_id, false, true);
+                        }
+                  }
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_ABE_HT_id = ensure_win_prefix(RGB_ABE_id + "_HT");
-                  runHistogramTransform(
-                        copyWindow(
-                              ImageWindow.windowById(RGB_ABE_id), 
-                              RGB_ABE_HT_id), 
-                        L_stf,
-                        true,
-                        'RGB');
+                  var stf = runHistogramTransform(
+                              copyWindow(
+                                    ImageWindow.windowById(RGB_ABE_id), 
+                                    RGB_ABE_HT_id), 
+                              L_stf,
+                              true,
+                              'RGB');
+                  /* If we have stars image stretch it too.
+                   */
+                  if (RGB_stars_win != null)  {
+                        RGB_stars_HT_id = RGB_ABE_HT_id + "_stars";
+                        runHistogramTransform(
+                              copyWindow(
+                                    RGB_stars_win, 
+                                    RGB_stars_HT_id), 
+                              L_stf == null ? stf : L_stf,
+                              true,
+                              'stars');
+     
+                  }
             } else {
                   RGB_ABE_HT_id = RGB_ABE_id;
             }
@@ -7566,22 +7715,8 @@ function extraRemoveStars(imgWin)
 
       /* Get star mask.
        */
-      if (par.use_starxterminator.val) {
-            star_mask_win_id = imgWin.mainView.id + "_stars";
-            star_mask_win = findWindow(star_mask_win_id);
-            console.writeln("extraRemoveStars star_mask_win_id " + star_mask_win_id);
-            if (star_mask_win == null) {
-                  throwFatalError("Could not find StarXTerminator stars window " + star_mask_win_id);
-            }
-            // StarNet generate window with name star_mask so we do the same
-            // with StarXTerminator
-            windowRename(star_mask_win_id, "star_mask");
-            star_mask_win_id = "star_mask";
-      } else {
-            console.writeln("extraRemoveStars star_mask_win_id " + ImageWindow.activeWindow.mainView.id);
-            star_mask_win = ImageWindow.activeWindow;
-            star_mask_win_id = star_mask_win.mainView.id;
-      }
+      star_mask_win = getStarMaskWin("star_mask");
+      star_mask_win_id = star_mask_win.mainView.id;
 
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
       setTargetFITSKeywordsForPixelmath(star_mask_win, FITSkeywords);
@@ -7974,6 +8109,43 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
       addProcessingStep("Narrowband palette batch completed");
 }
 
+function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNewImage)
+{
+      /* Restore stars by combining starless image and stars. */
+      addProcessingStep("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
+      switch (stars_combine) {
+            case 'Screen':
+                  var new_id = runPixelMathSingleMappingEx(
+                                    starless_id, 
+                                    "combine(" + starless_id + ", " + stars_id + ", op_screen())",
+                                    createNewImage);
+                  break;
+            case 'Lighten':
+                  var new_id = runPixelMathSingleMappingEx(
+                                    starless_id, 
+                                    "max(" + starless_id + ", " + stars_id + ")",
+                                    createNewImage);
+                  break;
+            case 'InvMult':
+                  var new_id = runPixelMathSingleMappingEx(
+                                    starless_id, 
+                                    "~(~"+ starless_id + "*~" + stars_id + ")",
+                                    createNewImage);
+                  break;
+            case 'Add':
+            default:
+                  var new_id = runPixelMathSingleMappingEx(
+                                    starless_id, 
+                                    starless_id + " + " + stars_id,
+                                    createNewImage);
+                  break;
+      }
+      // star_mask_win_id was a temp window with maybe smaller stars
+      closeOneWindow(star_mask_win_id);
+
+      return new_id;
+}
+
 function extraProcessing(id, apply_directly)
 {
       var extra_id = id;
@@ -8069,29 +8241,11 @@ function extraProcessing(id, apply_directly)
       }
       if (par.extra_remove_stars.val) {
             /* Restore stars by combining starless image and stars. */
-            addProcessingStep("Restore stars by combining " + extraWin.mainView.id + " and " + star_mask_win_id + " using " + par.extra_remove_stars_combine.val);
-            switch (par.extra_remove_stars_combine.val) {
-                  case 'Screen':
-                        runPixelMathSingleMappingEx(
-                              extraWin.mainView.id, 
-                              "combine(" + extraWin.mainView.id + ", " + star_mask_win_id + ", op_screen())",
-                              false);
-                        break;
-                        break;
-                  case 'Lighten':
-                        runPixelMathSingleMappingEx(
-                              extraWin.mainView.id, 
-                              "max(" + extraWin.mainView.id + ", " + star_mask_win_id + ")",
-                              false);
-                        break;
-                  case 'Add':
-                  default:
-                        runPixelMathSingleMappingEx(
-                              extraWin.mainView.id, 
-                              extraWin.mainView.id + " + " + star_mask_win_id,
-                              false);
-                        break;
-            }
+            combineStarsAndStarless(
+                  par.extra_remove_stars_combine.val,
+                  extraWin.mainView.id, 
+                  star_mask_win_id, 
+                  false);
             // star_mask_win_id was a temp window with maybe smaller stars
             closeOneWindow(star_mask_win_id);
       }
@@ -8192,6 +8346,13 @@ function AutoIntegrateEngine(auto_continue)
       star_fix_mask_win = null;
       ssweight_set = false;
 
+      RGB_stars_win = null;
+      RGB_stars_HT_id = null;
+      LRGB_stars_HT_id = null;
+      L_stars_HT_id = null;
+      RGB_stars = [];
+      L_stars = [];
+
       console.beginLog();
       console.show(true);
 
@@ -8203,6 +8364,7 @@ function AutoIntegrateEngine(auto_continue)
       linear_fit_done = false;
       narrowband = autocontinue_narrowband;
       is_luminance_images = false;
+      var stars_id = null;
 
       console.noteln("--------------------------------------");
       addProcessingStep("PixInsight version " + pixinsight_version_str);
@@ -8271,11 +8433,11 @@ function AutoIntegrateEngine(auto_continue)
                               run_ABE_before_channel_combination(blue_id);
                         }
                         LinearFitLRGBchannels();
-                        if (par.remove_stars_early.val) {
+                        if (par.remove_stars_channel.val) {
                               addProcessingStep("Remove stars from linear RGB channel images");
-                              removeStars(findWindow(red_id), true);
-                              removeStars(findWindow(green_id), true);
-                              removeStars(findWindow(blue_id), true);
+                              removeStars(findWindow(red_id), true, true, RGB_stars);
+                              removeStars(findWindow(green_id), true, true, RGB_stars);
+                              removeStars(findWindow(blue_id), true, true, RGB_stars);
                         }
                   }
             }
@@ -8284,11 +8446,11 @@ function AutoIntegrateEngine(auto_continue)
                   /* This need to be run early as we create a mask from
                    * L image.
                    */
-                  if (par.remove_stars_early.val) {
+                  if (par.remove_stars_channel.val) {
                         addProcessingStep("Remove stars from linear L channel image");
-                        removeStars(findWindow(luminance_id), true);
+                        removeStars(findWindow(luminance_id), true, true, L_stars);
                   }
-                  LRGBEnsureMask();
+                  LRGBEnsureMask(null);
                   ProcessLimage(RBGmapping);
             }
 
@@ -8323,8 +8485,20 @@ function AutoIntegrateEngine(auto_continue)
                               ImageWindow.windowById(LRGB_ABE_HT_id), 
                               "copy_" + LRGB_ABE_HT_id);
                         LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
+                        if (0 && RGB_stars_HT_id != null && L_stars_HT_id != null) {
+                              // combine L and RGB stars
+                              LRGB_stars_HT_id = runLRGBCombination(
+                                                      RGB_stars_HT_id,
+                                                      L_stars_HT_id);
+                        }
                   }
-
+                  if (LRGB_stars_HT_id != null) {
+                        stars_id = LRGB_stars_HT_id;
+                        closeOneWindow(RGB_stars_HT_id);
+                  } else if (RGB_stars_HT_id != null) {
+                        stars_id = RGB_stars_HT_id;
+                  }
+            
                   /* Optional ACDNR noise reduction for RGB. Used mostly to reduce black
                    * spots left from previous noise reduction.
                    */
@@ -8340,6 +8514,9 @@ function AutoIntegrateEngine(auto_continue)
                         /* Remove green cast, run SCNR
                          */
                         runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);
+                        if (stars_id != null) {
+                              runSCNR(ImageWindow.windowById(stars_id).mainView, false);
+                        }
                   }
           
                   /* Sharpen image, use mask to sharpen mostly the light parts of image.
@@ -8351,7 +8528,14 @@ function AutoIntegrateEngine(auto_continue)
                               ImageWindow.windowById(LRGB_ABE_HT_id),
                               mask_win);
                   }
-          
+
+                  /* Color calibration on RGB
+                   */
+                  runColorCalibration(ImageWindow.windowById(LRGB_ABE_HT_id).mainView);
+                  if (stars_id != null) {
+                        runColorCalibration(ImageWindow.windowById(stars_id).mainView);
+                  }
+
                   /* Rename some windows. Need to be done before iconize.
                   */
                   if (!is_color_files && is_luminance_images) {
@@ -8366,6 +8550,30 @@ function AutoIntegrateEngine(auto_continue)
                         LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
                   }
             }
+            if (stars_id != null) {
+                  console.writeln("Stars image is " + stars_id);
+                  setFinalImageKeyword(ImageWindow.windowById(stars_id));
+                  stars_id = windowRename(stars_id, LRGB_ABE_HT_id + "_stars");
+      
+                  var starless_id = LRGB_ABE_HT_id + "_starless";
+                  console.writeln("Rename " + LRGB_ABE_HT_id + " as " + starless_id);
+                  windowRename(LRGB_ABE_HT_id, starless_id);
+                  var new_image = combineStarsAndStarless(
+                                    par.stars_combine.val,
+                                    starless_id, 
+                                    stars_id, 
+                                    true);
+                  // restore original final image name
+                  console.writeln("Rename " + new_image + " as " + LRGB_ABE_HT_id);
+                  windowRename(new_image, LRGB_ABE_HT_id);
+                  ImageWindow.windowById(LRGB_ABE_HT_id).show();
+      
+                  setFinalImageKeyword(ImageWindow.windowById(starless_id));
+      
+                  saveProcessedWindow(outputRootDir, stars_id);
+                  saveProcessedWindow(outputRootDir, starless_id);
+            }
+      
       }
 
       console.writeln("Basic processing completed");
@@ -8416,13 +8624,22 @@ function AutoIntegrateEngine(auto_continue)
       windowIconizeAndKeywordif(H_id);                    /* Integration_H */
       windowIconizeAndKeywordif(S_id);                    /* Integration_S */
       windowIconizeAndKeywordif(O_id);                    /* Integration_O */
+      if (L_stars.length > 0) {
+            windowIconizeAndKeywordif(L_stars[0]);        /* Integration_L_stars (linear) */
+      }
       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
+      if (RGB_stars_win != null) {
+            windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
+      }
 
       windowIconizeAndKeywordif(L_ABE_id);
       windowIconizeAndKeywordif(R_ABE_id);
       windowIconizeAndKeywordif(G_ABE_id);
       windowIconizeAndKeywordif(B_ABE_id);
       windowIconizeAndKeywordif(RGB_ABE_id);
+
+      closeOneWindow(L_stars_HT_id);
+      closeAllWindowsFromArray(RGB_stars);
 
       windowIconizeAndKeywordif(RGB_ABE_HT_id);
       windowIconizeAndKeywordif(L_ABE_HT_id);
@@ -10476,18 +10693,24 @@ function AutoIntegrateDialog()
             "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB, 
             "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
+      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Image stretching settings section.</p>"
       this.remove_stars_early_CheckBox = newCheckBox(this, "Remove stars early", par.remove_stars_early, 
-            "<p>NOTE! This option does not work correctly with linear images. This should be used " + 
-            "only for narrowband images when they are stretched to non-linear state before combining. " + 
-            "StarXTerminator should be able to handle linear images but in my tests it did not work from " + 
-            "a script although it worked when used directly.</p>" + 
-            "<p>With LRGB images remove stars from L, R, G and B images separately before channels are " + 
-            "combined and while images are still in linear stage. This needs StarXTerminator.</p>" +
-            "<p>With color images (DSLR/OSC) remove stars while image is still in linear stage. " + 
+            "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
+            "Stars are used only from RGB image, stars from L image are not used. " + 
+            "This needs StarXTerminator.</p>" + 
+            "<p>When stars are removed before stretching then a different stretching can be used for the stars and potentially " + 
+            "get better star colors.</p>" + 
+            "<p>For OSC data this may not work well. Separating channels might help.</p>" +
+            remove_stars_Tooltip);
+      this.remove_stars_channel_CheckBox = newCheckBox(this, "Remove stars from channels", par.remove_stars_channel, 
+            "<p>With LRGB images remove stars from L, R, G and B channel images separately before channels are " + 
+            "combined and after linear fit, and while images are still in linear stage. Star images are then combined " +
+            "to create a RGB star image. This needs StarXTerminator.</p>" +
+            "<p>With color images (DSLR/OSC) remove stars after color calibration while image is still in linear stage. " + 
             "This needs StarXTerminator.</p>" +
-            "<p>With narrowband images remove stars before narrowband mapping. With StarNet this needs " + 
-            "non-linear data so that images are stretched to non-linear state. With StarXTerminator stars " + 
-            "can be removed in linear state.");
+            "<p>With narrowband images remove stars after narrowband mapping while image is still in linear stage. " + 
+            "This needs StarXTerminator.<p>" + 
+            remove_stars_Tooltip);
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
@@ -10597,6 +10820,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
+      this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
       this.imageParamsSet1.add( this.no_SCNR_CheckBox );
       
@@ -10932,16 +11156,32 @@ function AutoIntegrateDialog()
       // Stretching
       //
 
-      this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, 
+      var stretchingTootip = 
             "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
+            "Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.\n" +
             "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.\n" +
-            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.");
-
+            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
+      this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
+      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if start are extracted from image.");
+      this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
+      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:\n" +
+                                             "Add - Use stars+starless formula in Pixelmath\n" +
+                                             "Screen - Similar to screen in Photoshop\n" +
+                                             "Lighten - Similar to lighten in Photoshop\n" +
+                                             "InvMult - Use formula ~(~starless*~stars) in Pixelmath<p>";
+      var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
+      this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
+      this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
+      
       this.stretchingChoiceSizer = new HorizontalSizer;
       this.stretchingChoiceSizer.margin = 6;
       this.stretchingChoiceSizer.spacing = 4;
       this.stretchingChoiceSizer.add( this.stretchingComboBox );
+      this.stretchingChoiceSizer.add( this.starsStretchingLabel );
+      this.stretchingChoiceSizer.add( this.starsStretchingComboBox );
+      this.stretchingChoiceSizer.add( this.starsCombineLabel );
+      this.stretchingChoiceSizer.add( this.starsCombineComboBox );
       this.stretchingChoiceSizer.addStretch();
 
       this.STFLabel = new Label( this );
@@ -10969,6 +11209,9 @@ function AutoIntegrateDialog()
       this.MaskedStretchTargetBackgroundControl = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
       this.MaskedStretchTargetBackgroundControl.setPrecision(3);
+      this.ArcsinhStretchFactorControl = newNumericControl(this, "Arcsinh Stretch Factor", par.ArcsinhStretchFactor, 1, 1000,
+            "<p>Arcsinh Stretch Factor value. Most useful for stretching stars. Smaller values are usually better.</p>" +
+            "<p>Depending on the star combine method you may need to use a different values. For less stars you ca use a smaller value.</p>");
 
       this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 20,
             "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>");
@@ -10997,6 +11240,7 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.add( this.STFSizer );
       this.StretchingOptionsSizer.add( this.STFTargetBackgroundControl );
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
+      this.StretchingOptionsSizer.add( this.ArcsinhStretchFactorControl );
       //this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
@@ -11508,13 +11752,14 @@ function AutoIntegrateDialog()
             "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
             "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
             "<p>At the end of the processing a combined image is created from starless and star images. Combine operation can be " + 
-            "selected from the combo box.</p>";
+            "selected from the combo box.</p>" +
+            stars_combine_operations_Tooltip;
       this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars, combine with", par.extra_remove_stars, extraRemoveStars_Tooltip);
-      this.extraRemoveStars_ComboBox = newComboBox(this, par.extra_remove_stars_combine, extra_remove_stars_combine_values, extraRemoveStars_Tooltip);
+      this.extraRemoveStarsCombine_ComboBox = newComboBox(this, par.extra_remove_stars_combine, starless_and_stars_combine_values, extraRemoveStars_Tooltip);
       this.extraRemoveStars_Sizer = new HorizontalSizer;
       this.extraRemoveStars_Sizer.spacing = 4;
       this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
-      this.extraRemoveStars_Sizer.add( this.extraRemoveStars_ComboBox );
+      this.extraRemoveStars_Sizer.add( this.extraRemoveStarsCombine_ComboBox );
       this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
       this.extraRemoveStars_Sizer.addStretch();
       
