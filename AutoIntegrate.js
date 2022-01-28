@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.44 test2";
+var autointegrate_version = "AutoIntegrate v1.44 test3";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -307,6 +307,7 @@ var par = {
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
+      skip_star_noise_reduction: { val: false, def: false, name : "No star noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
@@ -1316,13 +1317,13 @@ function addScriptWindow(name)
       all_windows[all_windows.length] = name;
 }
 
-function forceCloseOneWindowEx(w, force_close)
+function forceCloseOneWindow(w)
 {
       if (par.keep_temporary_images.val) {
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
-      } else if (use_force_close || force_close) {
+      } else if (use_force_close) {
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
@@ -1330,25 +1331,12 @@ function forceCloseOneWindowEx(w, force_close)
       }
 }
 
-function forceCloseOneWindow(w)
-{
-      forceCloseOneWindowEx(w, true)
-}
-
 // close one window
 function closeOneWindow(id)
 {
       var w = findWindow(id);
       if (w != null) {
-            forceCloseOneWindowEx(w, false);
-      }
-}
-
-function forceCloseOneWindowId(id)
-{
-      var w = findWindow(id);
-      if (w != null) {
-            forceCloseOneWindowEx(w, true);
+            forceCloseOneWindow(w);
       }
 }
 
@@ -6130,6 +6118,44 @@ function runColorReduceNoise(imgWin)
       imgWin.mainView.endProcess();
 }
 
+function starReduceNoise(imgWin)
+{
+      if (par.skip_star_noise_reduction.val) {
+            return;
+      }
+      addProcessingStep("Star noise reduction on " + imgWin.mainView.id);
+
+      var P = new TGVDenoise;
+      P.rgbkMode = false;
+      P.filterEnabledL = true;
+      P.filterEnabledC = true;
+      P.strengthL = 3.10000000;
+      P.strengthC = 8.50000000;
+      P.edgeProtectionL = 0.00310000;
+      P.edgeProtectionC = 0.00570000;
+      P.smoothnessL = 2.00000000;
+      P.smoothnessC = 6.20000000;
+      P.maxIterationsL = 15;
+      P.maxIterationsC = 100;
+      P.convergenceEnabledL = false;
+      P.convergenceEnabledC = false;
+      P.convergenceLimitL = 0.00400000;
+      P.convergenceLimitC = 0.00400000;
+      P.supportEnabled = false;
+      P.supportViewId = "";
+      P.supportPreview = false;
+      P.supportRemovedWaveletLayers = 0;
+      P.supportShadowsClip = 0.00000;
+      P.supportHighlightsClip = 1.00000;
+      P.supportMidtonesBalance = 0.50000;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
+}
+
 function runBackgroundNeutralization(imgView)
 {
       addProcessingStep("Background neutralization on " + imgView.id);
@@ -6299,7 +6325,11 @@ function narrowbandHueShift(imgView)
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
-      addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      if (maskWin != null) {
+            addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      } else {
+            addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      }
 
       var P = new MultiscaleLinearTransform;
       P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
@@ -6314,13 +6344,17 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      /* Sharpen only light parts of the image. */
-      imgWin.setMask(maskWin);
-      imgWin.maskInverted = false;
+      if (maskWin != null) {
+            /* Sharpen only light parts of the image. */
+            imgWin.setMask(maskWin);
+            imgWin.maskInverted = false;
+      }
 
       P.executeOn(imgWin.mainView, false);
 
-      imgWin.removeMask();
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
 
       imgWin.mainView.endProcess();
 }
@@ -6989,7 +7023,7 @@ function LRGBEnsureMask(L_id)
 
       if (L_id != null) {
             range_mask_win = null;
-            forceCloseOneWindowId(mask_win_id);
+            closeOneWindow(mask_win_id);
       }
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
@@ -7037,7 +7071,7 @@ function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
 
       if (force_new_mask) {
             range_mask_win = null;
-            forceCloseOneWindowId(mask_win_id);
+            closeOneWindow(mask_win_id);
       }
 
       if (winIsValid(range_mask_win)) {
@@ -8510,6 +8544,10 @@ function AutoIntegrateEngine(auto_continue)
                         runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
                   }
 
+                  if (stars_id != null) {
+                        starReduceNoise(ImageWindow.windowById(stars_id));
+                  }
+
                   if (!narrowband && !par.use_RGBNB_Mapping.val && !par.skip_SCNR.val) {
                         /* Remove green cast, run SCNR
                          */
@@ -8527,6 +8565,11 @@ function AutoIntegrateEngine(auto_continue)
                         runMultiscaleLinearTransformSharpen(
                               ImageWindow.windowById(LRGB_ABE_HT_id),
                               mask_win);
+                        if (stars_id != null) {
+                              runMultiscaleLinearTransformSharpen(
+                                    ImageWindow.windowById(stars_id),
+                                    null);
+                        }
                   }
 
                   /* Color calibration on RGB
@@ -10767,6 +10810,8 @@ function AutoIntegrateDialog()
             "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction, 
             "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
+      this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
+            "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
@@ -10830,6 +10875,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.spacing = 4;
       this.imageParamsSet2.add( this.no_sharpening_CheckBox );
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
+      this.imageParamsSet2.add( this.skip_star_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
@@ -12096,7 +12142,7 @@ function AutoIntegrateDialog()
                                     "To close all windows with all prefixes use button Close all prefixes</p>";
       this.closeAllButton.onClick = function()
       {
-            console.writeln("closeAll");
+            console.writeln("Close all");
             updateWindowPrefix();
             // Close all using the current ppar.win_prefix
             closeAllWindows(par.keep_integrated_images.val, false);
@@ -12115,6 +12161,7 @@ function AutoIntegrateDialog()
                   savePersistentSettings();
                   //this.columnCountControlComboBox.currentItem = columnCount + 1;
             }
+            console.writeln("Close completed");
       };
 
       closeAllPrefixButton = new PushButton( this );
@@ -12122,7 +12169,7 @@ function AutoIntegrateDialog()
       closeAllPrefixButton.toolTip = "Updated in function setWindowPrefixHelpTip";
       closeAllPrefixButton.onClick = function()
       {
-            console.writeln("closeAllPrefix");
+            console.writeln("Close all prefixes");
             try {
                   updateWindowPrefix();
                   // Always close default/empty prefix
@@ -12163,6 +12210,7 @@ function AutoIntegrateDialog()
             savePersistentSettings();
             // restore original prefix
             fixAllWindowArrays(ppar.win_prefix);
+            console.writeln("Close completed");
       };
 
       this.closeProcessConsoleButton = new PushButton( this );
