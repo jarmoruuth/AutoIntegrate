@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.44 test4";
+var autointegrate_version = "AutoIntegrate v1.44";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -444,6 +444,7 @@ var par = {
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
       extra_ACDNR: { val: false, def: false, name : "Extra ACDNR noise reduction", type : 'B' },
       extra_color_noise: { val: false, def: false, name : "Extra color noise reduction", type : 'B' },
+      extra_star_noise_reduction: { val: false, def: false, name : "Extra star noise reduction", type : 'B' },
       extra_sharpen: { val: false, def: false, name : "Extra sharpen", type : 'B' },
       extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
@@ -6140,9 +6141,6 @@ function runColorReduceNoise(imgWin)
 
 function starReduceNoise(imgWin)
 {
-      if (par.skip_star_noise_reduction.val) {
-            return;
-      }
       addProcessingStep("Star noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
@@ -8297,6 +8295,9 @@ function extraProcessing(id, apply_directly)
             extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
       }
       if (par.extra_remove_stars.val) {
+            if (par.extra_star_noise_reduction.val) {
+                  starReduceNoise(ImageWindow.windowById(star_mask_win_id));
+            }
             /* Restore stars by combining starless image and stars. */
             combineStarsAndStarless(
                   par.extra_remove_stars_combine.val,
@@ -8567,7 +8568,7 @@ function AutoIntegrateEngine(auto_continue)
                         runColorReduceNoise(ImageWindow.windowById(LRGB_ABE_HT_id));
                   }
 
-                  if (stars_id != null) {
+                  if (stars_id != null && !par.skip_star_noise_reduction.val) {
                         starReduceNoise(ImageWindow.windowById(stars_id));
                   }
 
@@ -11929,9 +11930,10 @@ function AutoIntegrateDialog()
 
       this.extra_ACDNR_CheckBox = newCheckBox(this, "ACDNR noise reduction", par.extra_ACDNR, 
             "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from noise reduction section.</p>" + ACDNR_StdDev_tooltip);
-
       this.extra_color_noise_CheckBox = newCheckBox(this, "Color noise reduction", par.extra_color_noise, 
             "<p>Run color noise reduction on image.</p>" );
+      this.extra_star_noise_reduction_CheckBox = newCheckBox(this, "Star noise reduction", par.extra_star_noise_reduction, 
+            "<p>Run star noise reduction on star image.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>";
@@ -12019,6 +12021,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extra_ACDNR_CheckBox );
       this.extra2.add( this.extra_color_noise_CheckBox );
+      this.extra2.add( this.extra_star_noise_reduction_CheckBox );
       this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
 
