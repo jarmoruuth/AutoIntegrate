@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.44 test3";
+var autointegrate_version = "AutoIntegrate v1.44 test4";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -334,6 +334,7 @@ var par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
+      use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
@@ -407,7 +408,7 @@ var par = {
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
-      ArcsinhStretchFactor: { val: 100, def: 100, name : "Arcsinh Stretch Factor", type : 'R' },    
+      ArcsinhStretchFactor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
@@ -4890,6 +4891,21 @@ function createNewStarNet(star_mask)
       return P;
 }
 
+function createNewStarNet2(star_mask)
+{
+      try {
+            var P = new StarNet2;
+            P.stride = StarNet2.prototype.itemOne;
+            P.mask = star_mask;
+      } catch(err) {
+            console.criticalln("StarNet2 failed");
+            console.criticalln(err);
+            addProcessingStep("Maybe StarNet2 is not installed, weight files are missing or platform is not supported");
+            throwFatalError("StarNet2 failed");
+      }
+      return P;
+}
+
 function getStarMaskWin(imgWin, name)
 {
       if (par.use_starxterminator.val) {
@@ -4905,6 +4921,7 @@ function getStarMaskWin(imgWin, name)
             var win = ImageWindow.activeWindow;
             windowRename(win.mainView.id, name);
       }
+      console.writeln("getStarMaskWin completed " + name);
       return win;
 }
 
@@ -4916,7 +4933,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array)
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(save_stars, linear_data);
       } else if (linear_data) {
-            throwFatalError("StarNet cannot be used to remove stars while image is still in linear stage.");
+            throwFatalError("StarNet/StarNet2 cannot be used to remove stars while image is still in linear stage.");
+      } else if (par.use_starnet2.val) {
+            addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
+            var P = createNewStarNet2(save_stars);
       } else {
             addProcessingStep("Run StarNet on " + imgWin.mainView.id);
             var P = createNewStarNet(save_stars);
@@ -7728,6 +7748,9 @@ function extraRemoveStars(imgWin)
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(true, false);
+      } else if (par.use_starnet2.val) {
+            addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
+            var P = createNewStarNet2(true);
       } else {
             addProcessingStep("Run StarNet on " + imgWin.mainView.id);
             var P = createNewStarNet(true);
@@ -7749,7 +7772,7 @@ function extraRemoveStars(imgWin)
 
       /* Get star mask.
        */
-      star_mask_win = getStarMaskWin("star_mask");
+      star_mask_win = getStarMaskWin(imgWin, "star_mask");
       star_mask_win_id = star_mask_win.mainView.id;
 
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
@@ -8817,6 +8840,9 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new PixelMath", new PixelMath);
       if (par.use_starxterminator.val) {
             printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      }
+      if (par.use_starnet2.val) {
+            printProcessDefaultValues("new StarNet2", new StarNet2);
       }
       printProcessDefaultValues("new StarNet", new StarNet);
       printProcessDefaultValues("new StarAlignment", new StarAlignment);
@@ -10824,6 +10850,8 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
+      this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
+            "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -11027,6 +11055,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.select_all_files_CheckBox );
       this.otherParamsSet1.add( this.save_all_files_CheckBox );
       this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
+      this.otherParamsSet1.add( this.use_starnet2_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
