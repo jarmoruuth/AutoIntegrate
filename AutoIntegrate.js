@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.44";
+var autointegrate_version = "AutoIntegrate v1.45 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -12659,6 +12659,18 @@ function main()
             console.noteln("======================================================");
             console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str + ' (' + pixinsight_version_num + ')');
             console.noteln("======================================================");
+            
+            if (pixinsight_version_num < 1080810) {
+                  var old_default = 'Generic';
+                  if (par.use_weight.val == par.use_weight.def 
+                      && par.use_weight.def != old_default) 
+                  {
+                        console.noteln("PixInsight version is older than 1.8.8-10, using " + old_default + " instead of " + 
+                                       par.use_weight.def + " for " + par.use_weight.name);
+                        par.use_weight.val = old_default;
+                        par.use_weight.def = old_default;
+                  }
+            }
       }
       catch (x) {
             console.writeln( x );
