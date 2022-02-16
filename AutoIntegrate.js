@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45 test1";
+var autointegrate_version = "AutoIntegrate v1.45 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -418,7 +418,8 @@ var par = {
       Hyperbolic_iterations: { val: 1, def: 1, name : "Hyperbolic Stretch iterations", type : 'I' }, 
 
       // Extra processing for narrowband
-      run_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
+      run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
+      run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
       leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
       run_narrowband_SCNR: { val: false, def: false, name : "Extra narrowband remove green", type : 'B' },
       fix_narrowband_star_color: { val: false, def: false, name : "Extra narrowband fix star colors", type : 'B' },
@@ -432,6 +433,8 @@ var par = {
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
       extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
+      extra_HDRMLT_layers: { val: 6, def: 6, name : "Extra HDRMLT layers", type : 'I' },
+      extra_HDRMLT_color: { val: 'None', def: 'None', name : "Extra HDRMLT hue", type : 'S' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
@@ -502,6 +505,7 @@ var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
 var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten', 'InvMult' ];
+var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 
 var blink_window = null;
 var blink_zoom = false;
@@ -1321,6 +1325,9 @@ function addScriptWindow(name)
 
 function forceCloseOneWindow(w)
 {
+      if (w == null) {
+            return;
+      }
       if (par.keep_temporary_images.val) {
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
@@ -1363,6 +1370,7 @@ function closeFinalWindowsFromArray(arr)
             closeOneWindow(arr[i]+"_extra");
             closeOneWindow(arr[i]+"_extra_starless");
             closeOneWindow(arr[i]+"_extra_stars");
+            closeOneWindow(arr[i]+"_extra_combined");
       }
 }
 
@@ -1650,6 +1658,59 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
 function copyWindow(sourceWindow, name)
 {
       return copyWindowEx(sourceWindow, name, false);
+}
+
+function extractHSchannels(sourceWindow)
+{
+      var P = new ChannelExtraction;
+      P.colorSpace = ChannelExtraction.prototype.HSI;
+      P.channels = [ // enabled, id
+            [true,  ""],       // H
+            [false, ""],       // S
+            [false, ""]        // I
+      ];
+      P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+
+      sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(sourceWindow.mainView);
+      var hueWindow = ImageWindow.activeWindow;
+      sourceWindow.mainView.endProcess();
+
+      var P = new ChannelExtraction;
+      P.colorSpace = ChannelExtraction.prototype.HSI;
+      P.channels = [ // enabled, id
+            [false, ""],       // H
+            [true,  ""],       // S
+            [false, ""]        // I
+      ];
+      P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+
+      sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(sourceWindow.mainView);
+      var saturationWindow = ImageWindow.activeWindow;
+      sourceWindow.mainView.endProcess();
+
+      return [ hueWindow , saturationWindow ];
+}
+
+function extractIchannel(sourceWindow)
+{
+      var P = new ChannelExtraction;
+      P.colorSpace = ChannelExtraction.prototype.HSI;
+      P.channels = [ // enabled, id
+            [false, ""],       // H
+            [false, ""],       // S
+            [true,  ""]        // I
+      ];
+      P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
+
+      sourceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(sourceWindow.mainView);
+      var intensityWindow = ImageWindow.activeWindow;
+      sourceWindow.mainView.endProcess();
+
+
+      return intensityWindow;
 }
 
 function extractLchannel(sourceWindow)
@@ -4234,6 +4295,7 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         break;
                   case 'Color':
                   case 'No filter':
+                  case 'L_En':
                         filter = 'C';
                         break;
                   default:
@@ -6322,7 +6384,7 @@ function runSCNR(RGBimgView, fixing_stars)
 }
 
 // Run hue shift on narrowband image to enhance orange.
-function narrowbandHueShift(imgView)
+function narrowbandOrangeHueShift(imgView)
 {
       addProcessingStep("Hue shift on " + imgView.id);
       
@@ -6641,14 +6703,14 @@ function findStartImages(auto_continue, check_base_name)
       RGB_HT_win = findWindowCheckBaseNameIf("RGB_HT", check_base_name);
 
       /* Check if we have manual background extracted files. */
-      L_BE_win = findWindowCheckBaseNameIf("Integration_L_BE", check_base_name);
-      R_BE_win = findWindowCheckBaseNameIf("Integration_R_BE", check_base_name);
-      G_BE_win = findWindowCheckBaseNameIf("Integration_G_BE", check_base_name);
-      B_BE_win = findWindowCheckBaseNameIf("Integration_B_BE", check_base_name);
-      H_BE_win = findWindowCheckBaseNameIf("Integration_H_BE", check_base_name);
-      S_BE_win = findWindowCheckBaseNameIf("Integration_S_BE", check_base_name);
-      O_BE_win = findWindowCheckBaseNameIf("Integration_O_BE", check_base_name);
-      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_BE", check_base_name);
+      L_BE_win = findWindowCheckBaseNameIf("Integration_L_DBE", check_base_name);
+      R_BE_win = findWindowCheckBaseNameIf("Integration_R_DBE", check_base_name);
+      G_BE_win = findWindowCheckBaseNameIf("Integration_G_DBE", check_base_name);
+      B_BE_win = findWindowCheckBaseNameIf("Integration_B_DBE", check_base_name);
+      H_BE_win = findWindowCheckBaseNameIf("Integration_H_DBE", check_base_name);
+      S_BE_win = findWindowCheckBaseNameIf("Integration_S_DBE", check_base_name);
+      O_BE_win = findWindowCheckBaseNameIf("Integration_O_DBE", check_base_name);
+      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_DBE", check_base_name);
 
       findProcessedImages(check_base_name);
 
@@ -7824,23 +7886,70 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
       addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
-      var P = new HDRMultiscaleTransform;
-      P.medianTransform = true;
-      P.deringing = true;
-      P.toLightness = true;
-      P.luminanceMask = true;
+      var failed = false;
+      var hsChannels = null;
+      var iChannel = null;
 
-      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      try {
+            var P = new HDRMultiscaleTransform;
+            P.numberOfLayers = par.extra_HDRMLT_layers.val;
+            P.medianTransform = true;
+            P.deringing = true;
+            P.toLightness = true;
+            P.luminanceMask = true;
+            if (par.extra_HDRMLT_color.val == 'Preserve hue') {
+                  P.preserveHue = true;
+            } else {
+                  P.preserveHue = false;
+            }
 
-      /* Transform only light parts of the image. */
-      imgWin.setMask(maskWin);
-      imgWin.maskInverted = false;
-      
-      P.executeOn(imgWin.mainView, false);
+            if (par.extra_HDRMLT_color.val == 'Color corrected') {
+                  hsChannels = extractHSchannels(imgWin);
+            }
 
-      imgWin.removeMask();
+            imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      imgWin.mainView.endProcess();
+            /* Transform only light parts of the image. */
+            imgWin.setMask(maskWin);
+            imgWin.maskInverted = false;
+            
+            P.executeOn(imgWin.mainView, false);
+
+            imgWin.removeMask();
+
+            imgWin.mainView.endProcess();
+
+            if (par.extra_HDRMLT_color.val == 'Color corrected') {
+                  iChannel = extractIchannel(imgWin);
+
+                  var P = new ChannelCombination;
+                  P.colorSpace = ChannelCombination.prototype.HSI;
+                  P.channels = [ // enabled, id
+                        [true, hsChannels[0].mainView.id],
+                        [true, hsChannels[1].mainView.id],
+                        [true, iChannel.mainView.id]
+                  ];
+
+                  var win = imgWin;
+
+                  win.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  P.executeOn(win.mainView);
+                  win.mainView.endProcess();
+            }
+      } catch (err) {
+            failed = true;
+            console.criticalln(err);
+      }
+      if (hsChannels != null) {
+            forceCloseOneWindow(hsChannels[0]);
+            forceCloseOneWindow(hsChannels[1]);
+      }
+      if (iChannel != null) {
+            forceCloseOneWindow(iChannel);
+      }
+      if (failed) {
+            throwFatalError("HDRMultiscaleTransform failed");
+      }
 }
 
 function extraLocalHistogramEqualization(imgWin, maskWin)
@@ -8072,6 +8181,52 @@ function extraABE(extraWin)
       runABE(extraWin, true);
 }
 
+function extraSHOHueShift(imgWin)
+{
+      // Hue 1
+      var P = new CurvesTransformation;
+      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
+      P.H = [ // x, y
+      [0.00000, 0.00000],
+      [0.42857, 0.53600],
+      [1.00000, 1.00000]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+
+      // Hue 2
+      var P = new CurvesTransformation;
+      P.ct = CurvesTransformation.prototype.AkimaSubsplines;
+      P.H = [ // x, y
+      [0.00000, 0.00000],
+      [0.25944, 0.17200],
+      [0.49754, 0.50600],
+      [0.77176, 0.68400],
+      [1.00000, 1.00000]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+
+      // Hue 3
+      var P = new CurvesTransformation;
+      P.H = [ // x, y
+      [0.00000, 0.00000],
+      [0.21511, 0.16400],
+      [0.41872, 0.42000],
+      [0.46962, 0.46800],
+      [0.65353, 0.64400],
+      [1.00000, 1.00000]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView, false);
+      imgWin.mainView.endProcess();
+}
+
 function is_non_starless_option()
 {
       return par.extra_ABE.val || 
@@ -8098,6 +8253,7 @@ function is_extra_option()
 function is_narrowband_option()
 {
       return par.fix_narrowband_star_color.val ||
+             par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_narrowband_SCNR.val ||
              par.leave_some_green.val;
@@ -8228,8 +8384,11 @@ function extraProcessing(id, apply_directly)
             extraStretch(extraWin);
       }
       if (narrowband) {
+            if (par.run_orange_hue_shift.val) {
+                  narrowbandOrangeHueShift(extraWin.mainView);
+            }
             if (par.run_hue_shift.val) {
-                  narrowbandHueShift(extraWin.mainView);
+                  extraSHOHueShift(extraWin);
             }
             if (par.run_narrowband_SCNR.val || par.leave_some_green.val) {
                   runSCNR(extraWin.mainView, false);
@@ -10785,7 +10944,7 @@ function AutoIntegrateDialog()
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
-      this.batch_mode_CheckBox = newCheckBox(this, "Batch mode", par.batch_mode, 
+      this.batch_mode_CheckBox = newCheckBox(this, "Batch/mosaic mode", par.batch_mode, 
             "<p>Run in batch mode, continue until no files are given.</p>" +
             "<p>Batch mode is intended for processing mosaic panels. When one set of files " + 
             "is processed, batch mode will automatically ask for the next set of files. " + 
@@ -11782,8 +11941,10 @@ function AutoIntegrateDialog()
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
             "This is also run with AutoContinue and Extra processing.</p>" );
-      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_hue_shift, 
+      this.narrowband_orange_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_orange_hue_shift, 
             "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
+      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
+            "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR (amount 0.50). Useful with SHO color palette. " +
             "This is also run with AutoContinue and Extra processing.</p>" );
@@ -11795,14 +11956,15 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer = new VerticalSizer;
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
-      this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_leave_some_green_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.fix_narrowband_star_color_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
-      this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_CheckBox );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
       this.narrowbandExtraLabel = newSectionLabel(this, "Extra processing for narrowband");
@@ -11844,7 +12006,7 @@ function AutoIntegrateDialog()
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
             "<p>Run AutomaticBackgroundExtractor.</p>" );
 
-            var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
+      var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
       this.extra_ET_CheckBox = newCheckBox(this, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
       this.extra_ET_edit = newNumericEdit(this, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
       this.extra_ET_Sizer = new HorizontalSizer;
@@ -11854,9 +12016,38 @@ function AutoIntegrateDialog()
       this.extra_ET_Sizer.toolTip = extra_ET_tooltip;
       this.extra_ET_Sizer.addStretch();
 
-      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, 
-            "<p>Run HDRMultiscaleTransform on image using a mask.</p>" );
-      
+      var extra_HDRMLT_tooltip = "<p>Run HDRMultiscaleTransform on image using a mask.</p>" +
+                                 "<p>Color option is used select different methods to keep hue and saturation. " + 
+                                 "Option 'Preserve hue' uses HDRMLT preserve  hue option. " + 
+                                 "Option 'Color corrected' uses a method described by Russell Croman</p>" + 
+                                 "<p>Layers selection specifies the layers value for HDRMLT.</p>";
+      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Layers_Label = new Label( this );
+      this.extra_HDRMLT_Layers_Label.text = "Layers";
+      this.extra_HDRMLT_Layers_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extra_HDRMLT_Layers_Label.toolTip = extra_HDRMLT_tooltip;
+      this.extra_HDRMLT_Layers_SpinBox = newSpinBox(this, par.extra_HDRMLT_layers, 2, 10, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Color_Label = new Label( this );
+      this.extra_HDRMLT_Color_Label.text = "Color";
+      this.extra_HDRMLT_Color_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extra_HDRMLT_Color_Label.toolTip = extra_HDRMLT_tooltip;
+      this.extra_HDRMLT_color_ComboBox = newComboBox(this, par.extra_HDRMLT_color, extra_HDRMLT_color_values, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Options_Sizer = new HorizontalSizer;
+      this.extra_HDRMLT_Options_Sizer.spacing = 4;
+      this.extra_HDRMLT_Options_Sizer.addSpacing(20);
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Color_Label );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_color_ComboBox );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_Label );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_SpinBox );
+      this.extra_HDRMLT_Options_Sizer.addStretch();
+      this.extra_HDRMLT_Sizer = new VerticalSizer;
+      this.extra_HDRMLT_Sizer.spacing = 4;
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_CheckBox );
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer );
+            
       var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
       this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
       this.extra_LHE_edit = newNumericEdit(this, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "Kernel radius value for LocalHistogramEqualization.");
@@ -12011,7 +12202,7 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_ET_Sizer );
-      this.extra1.add( this.extra_HDRMLT_CheckBox );
+      this.extra1.add( this.extra_HDRMLT_Sizer );
       this.extra1.add( this.extra_LHE_sizer );
 
       this.extra2 = new VerticalSizer;
