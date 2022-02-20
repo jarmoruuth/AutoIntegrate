@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45 test2";
+var autointegrate_version = "AutoIntegrate v1.45 test3";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -10770,13 +10770,25 @@ function newPageButtonsSizer(parent)
       return buttonsSizer;
 }
 
-function newSectionBar(parent, control, title)
+function getSectionVisible(name, control)
+{
+      var tempSetting = Settings.read(name, DataType_Boolean);
+      if (Settings.lastReadOK) {
+            // console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            control.visible = tempSetting;
+      }
+}
+
+function newSectionBar(parent, control, title, name)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
-      sb.onToggleSection = function(bar, beginToggle){
+      sb.onToggleSection = function(bar, beginToggle) {
+            Settings.write(name, DataType_Boolean, control.visible);
             parent.dialog.adjustToContents();
       };
+
+      getSectionVisible(name, control);
 
       var gb = new newGroupBox( parent );
       gb.sizer = new VerticalSizer;
@@ -10788,13 +10800,16 @@ function newSectionBar(parent, control, title)
       return gb;
 }
 
-function newSectionBarAdd(parent, groupbox, control, title)
+function newSectionBarAdd(parent, groupbox, control, title, name)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
-      sb.onToggleSection = function(bar, beginToggle){
+      sb.onToggleSection = function(bar, beginToggle) {
+            Settings.write(name, DataType_Boolean, control.visible);
             parent.dialog.adjustToContents();
       };
+
+      getSectionVisible(name, control);
 
       groupbox.sizer.add( sb );
       groupbox.sizer.add( control );
@@ -11082,7 +11097,7 @@ function AutoIntegrateDialog()
       this.imageParamsControl.sizer.add( this.imageParamsSet2 );
       //this.imageParamsControl.sizer.addStretch();
 
-      this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters");
+      this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
 
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
@@ -11244,7 +11259,7 @@ function AutoIntegrateDialog()
       this.otherParamsControl.sizer.add( this.otherParamsSet2 );
       //this.otherParamsControl.sizer.addStretch();
       
-      this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters");
+      this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters", "Other1");
 
       // Weight calculations
       var weightHelpToolTips =
@@ -11923,7 +11938,7 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
       //this.narrowbandControl.sizer.add( this.narrowbandAutoContinue_sizer );
 
-      this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing");
+      this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
 
       this.narrowbandRGBmappingControl = new Control( this );
       //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
@@ -11935,7 +11950,7 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
 
-      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping");
+      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRBG1");
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
@@ -12272,7 +12287,7 @@ function AutoIntegrateDialog()
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
-      this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing");
+      this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing", "Extra1");
 
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
@@ -12708,10 +12723,10 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl4.visible = false;
 
-      this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination");
+      this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
+      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
 
       this.col1 = new VerticalSizer;
       this.col1.margin = 6;
