@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45 test3";
+var autointegrate_version = "AutoIntegrate v1.45 test4";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -276,6 +276,7 @@ var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
 // GUI variables
 var infoLabel;
 var imageInfoLabel;
+var statusInfoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox;     // For updating prefix name list
@@ -1047,6 +1048,12 @@ function addProcessingStep(txt)
       processing_steps = processing_steps + "\n" + txt;
 }
 
+function addProcessingStep1(txt)
+{
+      addProcessingStep(txt);
+      updateStatusInfoLabel(txt);
+}
+
 function ensurePathEndSlash(dir)
 {
       if (dir.length > 0) {
@@ -1114,7 +1121,7 @@ function pathIsRelative(p)
 
 function throwFatalError(txt)
 {
-      addProcessingStep(txt);
+      addProcessingStep1(txt);
       throw new Error(txt);
 }
 
@@ -1850,13 +1857,15 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
             /* If we have color files we extract lightness component and
                use it as a mask.
             */
-            addProcessingStep("Create mask by extracting lightness component from color image "+ sourceWindow.mainView.id);
+            addProcessingStep1("Create mask by extracting lightness component from color image");
+            addProcessingStep("Create mask by extracting lightness component from color image " + sourceWindow.mainView.id);
 
             targetWindow = extractLchannel(sourceWindow);
             
             windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
       } else {
             /* Default mask is the same as stretched image. */
+            addProcessingStep1("Create mask");
             addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
             targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
@@ -2466,7 +2475,7 @@ function calibrateEngine(filtered_lights)
             return [ lightFileNames , '' ];
       }
 
-      addProcessingStep("calibrateEngine");
+      addProcessingStep1("Image calibration");
 
       ensureDir(outputRootDir);
       ensureDir(combinePath(outputRootDir, AutoMasterDir));
@@ -2553,7 +2562,7 @@ function calibrateEngine(filtered_lights)
       }
 
       // generate master flat for each filter
-      addProcessingStep("calibrateEngine generate master flats");
+      addProcessingStep1("Image calibration, generate master flats");
       var masterflatPath = [];
       for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
             var filterFiles = filtered_flats.allfilesarr[i].files;
@@ -2582,7 +2591,7 @@ function calibrateEngine(filtered_lights)
             }
       }
 
-      addProcessingStep("calibrateEngine calibrate light images");
+      addProcessingStep1("Image calibration, calibrate light images");
       var calibratedLightFileNames = [];
       for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
             var filterFiles = filtered_lights.allfilesarr[i].files;
@@ -3300,7 +3309,7 @@ function getDefectInfo(fileNames)
 
 function runLinearDefectDetection(fileNames)
 {
-      addProcessingStep("run Linear Defect Detection");
+      addProcessingStep1("Run Linear Defect Detection");
       console.writeln("runLinearDefectDetection, fileNames[0]=" + fileNames[0]);
       var ccInfo = [];
 
@@ -3358,7 +3367,8 @@ function runBinningOnLights(fileNames, filtered_files)
       var postfix = "_b2";
       var outputExtension = ".xisf";
  
-      addProcessingStep("do 2x2 binning using IntegerResample on light files, output *" + postfix + ".xisf");
+      addProcessingStep1("Do 2x2 binning using IntegerResample on light files");
+      addProcessingStep("Do 2x2 binning using IntegerResample on light files, output *" + postfix + ".xisf");
       console.writeln("runBinningOnLights input[0] " + fileNames[0]);
 
       for (var i = 0; i < fileNames.length; i++) {
@@ -3420,7 +3430,9 @@ function runABEOnLights(fileNames)
       var postfix = "_ABE";
       var outputExtension = ".xisf";
 
-      addProcessingStep("run ABE on on light files, output *" + postfix + ".xisf");
+      addProcessingStep1("Run ABE on on light files");
+
+      console.writeln("runABEOnLights output *" + postfix + ".xisf");
       console.writeln("runABEOnLights input[0] " + fileNames[0]);
 
       for (var i = 0; i < fileNames.length; i++) {
@@ -3463,10 +3475,11 @@ function runABEOnLights(fileNames)
 
 function runCosmeticCorrection(fileNames, defects, color_images)
 {
+      addProcessingStep1("Run CosmeticCorrection, number of line defects to fix is " + defects.length);
       if (defects.length > 0) {
-            addProcessingStep("run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
+            addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
       } else {
-            addProcessingStep("run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
+            addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
       }
       console.writeln("fileNames[0] " + fileNames[0]);
 
@@ -3876,7 +3889,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
 
 function runSubframeSelector(fileNames)
 {
-      addProcessingStep("runSubframeSelector");
+      addProcessingStep1("Run SubframeSelector");
       console.writeln("input[0] " + fileNames[0]);
       
       var ssWeights = SubframeSelectorMeasure(fileNames, par.image_weight_testing.val, false);
@@ -3957,7 +3970,7 @@ function findBestSSWEIGHT(names_and_weights)
 
       /* Loop through files and find image with best SSWEIGHT.
        */
-      addProcessingStep("Find best SSWEIGHT");
+      addProcessingStep1("Find best SSWEIGHT");
       var n = 0;
       var first_image = true;
       var best_ssweight_naxis = 0;
@@ -4027,7 +4040,7 @@ function findBestSSWEIGHT(names_and_weights)
                         accept_file = false;
                   } else {
                         if (!first_image && naxis1 > best_ssweight_naxis) {
-                              addProcessingStep("  Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
+                              addProcessingStep("Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
                         }
                         if (first_image || 
                               naxis1 > best_ssweight_naxis ||
@@ -4467,7 +4480,7 @@ function findLRGBchannels(alignedFiles, filename_postfix)
 {
       /* Loop through aligned files and find different channels.
        */
-      addProcessingStep("Find L,R,G,B,H,S,O and color channels");
+      addProcessingStep1("Find L,R,G,B,H,S,O and color channels");
 
       L_images = init_images();
       R_images = init_images();
@@ -4715,6 +4728,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 /* Run single expression PixelMath and optionally create new image. */
 function runPixelMathSingleMappingEx(id, mapping, createNewImage)
 {
+      addProcessingStep1("Run PixelMath single mapping");
       addProcessingStep("Run PixelMath single mapping " + mapping + " using image " + id);
 
       var idWin = findWindow(id);
@@ -4755,6 +4769,7 @@ function runPixelMathSingleMapping(id, mapping)
 */
 function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
 {
+      addProcessingStep1("Run PixelMath RGB mapping");
       addProcessingStep("Run PixelMath mapping R " + mapping_R + ", G " + mapping_G + ", B " + mapping_B);
 
       if (idWin == null) {
@@ -4901,6 +4916,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
             return;
       }
 
+      addProcessingStep1("Reduce noise on luminance image");
       addProcessingStep("Reduce noise on luminance image " + imgWin.mainView.id);
 
       runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.luminance_noise_reduction_strength.val);
@@ -4911,6 +4927,7 @@ function channelNoiseReduction(image_id)
       if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
             return;
       }
+      addProcessingStep1("Reduce noise on channel image");
       addProcessingStep("Reduce noise on channel image " + image_id);
 
       var image_win = findWindow(image_id);
@@ -4992,6 +5009,7 @@ function getStarMaskWin(imgWin, name)
 // for star image.
 function removeStars(imgWin, linear_data, save_stars, save_array)
 {
+      addProcessingStep1("Remove stars");
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(save_stars, linear_data);
@@ -5034,7 +5052,7 @@ function customMapping(check_allfilesarr)
       if (check_allfilesarr != null) {
             addProcessingStep("Check custom mapping");
       } else {
-            addProcessingStep("Custom mapping");
+            addProcessingStep1("Custom mapping");
       }
 
       /* Get updated mapping strings and collect images
@@ -5198,7 +5216,7 @@ function mapLRGBchannels()
             addProcessingStep("Processing as narrowband image");
       }
 
-      addProcessingStep("Map LRGB channels");
+      addProcessingStep1("Map LRGB channels");
 
       if (custom_mapping) {
             addProcessingStep("Narrowband files, use custom mapping");
@@ -5243,8 +5261,9 @@ function runStarAlignment(imagetable, refImage)
 {
       var alignedFiles;
 
-      addProcessingStep("Star alignment on " + imagetable.length + " files, reference image " + refImage);
-      console.writeln("input[0] " + imagetable[0]);
+      addProcessingStep1("Star alignment on " + imagetable.length + " files");
+      addProcessingStep("Star alignment reference image " + refImage);
+      console.writeln("runStarAlignment input[0] " + imagetable[0]);
 
       var targets = [];
 
@@ -5290,7 +5309,8 @@ function runStarAlignment(imagetable, refImage)
 
 function runLocalNormalization(imagetable, refImage)
 {
-      addProcessingStep("Run local normalization using reference image " + refImage);
+      addProcessingStep1("Run local normalization");
+      addProcessingStep("Local normalization reference image " + refImage);
 
       if (imagetable.length == 0) {
             // No new files are needed
@@ -5356,7 +5376,7 @@ function runLocalNormalization(imagetable, refImage)
 
 function runLinearFit(refViewId, targetId)
 {
-      addProcessingStep("Run linear fit on " + targetId + " using " + refViewId + " as reference");
+      addProcessingStep1("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       if (refViewId == null || targetId == null) {
             throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
       }
@@ -5372,7 +5392,7 @@ function runLinearFit(refViewId, targetId)
 
 function runDrizzleIntegration(images, name, local_normalization)
 {
-      addProcessingStep("run DrizzleIntegration");
+      addProcessingStep1("Run DrizzleIntegration");
 
       var drizzleImages = [];
       for (var i = 0; i < images.length; i++) {
@@ -5402,53 +5422,53 @@ function runDrizzleIntegration(images, name, local_normalization)
 function getRejectionAlgorithm(numimages)
 {
       if (par.use_clipping.val == 'None') {
-            addProcessingStep("  Using no rejection");
+            addProcessingStep("Using no rejection");
             return ImageIntegration.prototype.NoRejection;
       } else if (par.use_clipping.val == 'Percentile') {
-            addProcessingStep("  Using Percentile clip for rejection");
+            addProcessingStep("Using Percentile clip for rejection");
             return ImageIntegration.prototype.PercentileClip;
       } else if (par.use_clipping.val == 'Sigma') {
-            addProcessingStep("  Using Sigma clip for rejection");
+            addProcessingStep("Using Sigma clip for rejection");
             return ImageIntegration.prototype.SigmaClip;
       } else if (par.use_clipping.val == 'Winsorised sigma') {
-            addProcessingStep("  Using Winsorised sigma clip for rejection");
+            addProcessingStep("Using Winsorised sigma clip for rejection");
             return ImageIntegration.prototype.WinsorizedSigmaClip;
       } else if (par.use_clipping.val == 'Averaged sigma') {
-            addProcessingStep("  Using Averaged sigma clip for rejection");
+            addProcessingStep("Using Averaged sigma clip for rejection");
             return ImageIntegration.prototype.AveragedSigmaClip;
       } else if (par.use_clipping.val == 'Linear fit') {
-            addProcessingStep("  Using Linear fit clip for rejection");
+            addProcessingStep("Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
       } else if (par.use_clipping.val == 'ESD') {
-            addProcessingStep("  Using ESD clip for rejection");
+            addProcessingStep("Using ESD clip for rejection");
             return ImageIntegration.prototype.Rejection_ESD;
       } else if (par.use_clipping.val == 'Auto2') {
             /* In theory these should be good choices but sometime give much more uneven
              * highlights than Sigma.
              */
             if (numimages < 8) {
-                  addProcessingStep("  Auto2 using Percentile clip for rejection");
+                  addProcessingStep("Auto2 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else if (numimages <= 10) {
-                  addProcessingStep("  Auto2 using Sigma clip for rejection");
+                  addProcessingStep("Auto2 using Sigma clip for rejection");
                   return ImageIntegration.prototype.SigmaClip;
             } else if (numimages < 20) {
-                  addProcessingStep("  Auto2 using Winsorised sigma clip for rejection");
+                  addProcessingStep("Auto2 using Winsorised sigma clip for rejection");
                   return ImageIntegration.prototype.WinsorizedSigmaClip;
             } else if (numimages < 25 || ImageIntegration.prototype.Rejection_ESD === undefined) {
-                  addProcessingStep("  Auto2 using Linear fit clip for rejection");
+                  addProcessingStep("Auto2 using Linear fit clip for rejection");
                   return ImageIntegration.prototype.LinearFit;
             } else {
-                  addProcessingStep("  Auto2 using ESD clip for rejection");
+                  addProcessingStep("Auto2 using ESD clip for rejection");
                   return ImageIntegration.prototype.Rejection_ESD;
             }
       } else {
             /* par.use_clipping.val == 'Auto1' */
             if (numimages < 8) {
-                  addProcessingStep("  Auto1 using Percentile clip for rejection");
+                  addProcessingStep("Auto1 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else {
-                  addProcessingStep("  Auto1 using Sigma clip for rejection");
+                  addProcessingStep("Auto1 using Sigma clip for rejection");
                   return ImageIntegration.prototype.SigmaClip;
             }
       }
@@ -5472,21 +5492,21 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
       if (ssweight_set && par.use_imageintegration_ssweight.val) {
-            addProcessingStep("  Using SSWEIGHT for ImageIntegration weightMode");
+            addProcessingStep("Using SSWEIGHT for ImageIntegration weightMode");
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
       if (local_normalization) {
-            addProcessingStep("  Using LocalNormalization for ImageIntegration normalization");
+            addProcessingStep("Using LocalNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.LocalNormalization;
       } else if (par.imageintegration_normalization.val == 'Additive') {
-            addProcessingStep("  Using AdditiveWithScaling for ImageIntegration normalization");
+            addProcessingStep("Using AdditiveWithScaling for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
       } else if (par.imageintegration_normalization.val == 'Adaptive') {
-            addProcessingStep("  Using AdaptiveNormalization for ImageIntegration normalization");
+            addProcessingStep("Using AdaptiveNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
       } else {
-            addProcessingStep("  Using NoNormalization for ImageIntegration normalization");
+            addProcessingStep("Using NoNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.NoNormalization;
       }
       if (name == 'LDD') {
@@ -5539,7 +5559,7 @@ function runImageIntegrationEx(images, name, local_normalization)
 
 function runImageIntegrationNormalized(images, best_image, name)
 {
-      addProcessingStep("ImageIntegration with LocalNormalization");
+      addProcessingStep1("ImageIntegration with LocalNormalization");
 
       runLocalNormalization(images, best_image);
 
@@ -5569,7 +5589,7 @@ function runImageIntegration(channel_images, name)
       if (images == null || images.length == 0) {
             return null;
       }
-      addProcessingStep("Image " + name + " integration on " + images.length + " files");
+      addProcessingStep1("Image " + name + " integration on " + images.length + " files");
 
       ensureThreeImages(images);
 
@@ -5615,11 +5635,11 @@ function noABEcopyWin(win)
 function runABEex(win, replaceTarget, postfix)
 {
       if (replaceTarget) {
-            addProcessingStep("run ABE on image " + win.mainView.id);
+            addProcessingStep1("Run ABE on image " + win.mainView.id);
             var ABE_id = win.mainView.id;
       } else {
             var ABE_id = ensure_win_prefix(win.mainView.id + postfix);
-            addProcessingStep("run ABE from image " + win.mainView.id + ", target image " + ABE_id);
+            addProcessingStep1("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
 
       var P = new AutomaticBackgroundExtractor;
@@ -5899,6 +5919,7 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground
 
 function runHistogramTransformMaskedStretch(ABE_win)
 {
+      addProcessingStep1("Run histogram transform using MaskedStretch");
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
 
       var P = new MaskedStretch;
@@ -5914,6 +5935,7 @@ function runHistogramTransformMaskedStretch(ABE_win)
 
 function runHistogramTransformArcsinhStretch(ABE_win)
 {
+      addProcessingStep1("Run histogram transform using ArcsinhStretch");
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
 
       var P = new ArcsinhStretch;
@@ -5973,6 +5995,7 @@ function runHistogramTransformHyperbolic(ABE_win)
       P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
+      addProcessingStep1("Run histogram transform using Generalized Hyperbolic Stretching");
       addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
       console.writeln("Symbols " + P.symbols);
 
@@ -6034,6 +6057,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
       if (par.ACDNR_noise_reduction.val == 0.0) {
             return;
       }
+      addProcessingStep1("ACDNR noise reduction");
       addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ACDNR;
@@ -6179,12 +6203,14 @@ function runNoiseReduction(imgWin, maskWin)
             return;
       }
 
+      addProcessingStep1("Noise reduction");
       addProcessingStep("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.noise_reduction_strength.val);
 }
 function runColorReduceNoise(imgWin)
 {
+      addProcessingStep1("Color noise reduction");
       addProcessingStep("Color noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
@@ -6203,6 +6229,7 @@ function runColorReduceNoise(imgWin)
 
 function starReduceNoise(imgWin)
 {
+      addProcessingStep1("Star noise reduction");
       addProcessingStep("Star noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
@@ -6238,6 +6265,7 @@ function starReduceNoise(imgWin)
 
 function runBackgroundNeutralization(imgView)
 {
+      addProcessingStep1("Background neutralization");
       addProcessingStep("Background neutralization on " + imgView.id);
 
       var P = new BackgroundNeutralization;
@@ -6260,6 +6288,7 @@ function runColorCalibration(imgView)
             return;
       }
       try {
+            addProcessingStep1("Color calibration");
             addProcessingStep("Color calibration on " + imgView.id);
 
             var P = new ColorCalibration;
@@ -6279,6 +6308,7 @@ function runColorCalibration(imgView)
 
 function runColorSaturation(imgWin, maskWin)
 {
+      addProcessingStep1("Color saturation");
       addProcessingStep("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       var P = new ColorSaturation;
       P.HS = [ // x, y
@@ -6308,6 +6338,7 @@ function runColorSaturation(imgWin, maskWin)
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
 {
+      addProcessingStep1("Curves transformation for saturation");
       addProcessingStep("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
@@ -6342,6 +6373,7 @@ function runLRGBCombination(RGB_id, L_id)
                         ImageWindow.windowById(RGB_id), 
                         ensure_win_prefix(RGB_id.replace("RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
+      addProcessingStep1("LRGB combination");
       addProcessingStep("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
@@ -6366,6 +6398,7 @@ function runLRGBCombination(RGB_id, L_id)
 function runSCNR(RGBimgView, fixing_stars)
 {
       if (!fixing_stars) {
+            addProcessingStep1("Run SCNR");
             addProcessingStep("SCNR on " + RGBimgView.id);
       }
       var P = new SCNR;
@@ -6386,6 +6419,7 @@ function runSCNR(RGBimgView, fixing_stars)
 // Run hue shift on narrowband image to enhance orange.
 function narrowbandOrangeHueShift(imgView)
 {
+      addProcessingStep1("Run hue shift");
       addProcessingStep("Hue shift on " + imgView.id);
       
       var P = new CurvesTransformation;
@@ -6405,6 +6439,7 @@ function narrowbandOrangeHueShift(imgView)
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
+      addProcessingStep1("Run sharpening");
       if (maskWin != null) {
             addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       } else {
@@ -6596,6 +6631,7 @@ function debayerImages(fileNames)
 {
       var succ = true;
 
+      addProcessingStep1("Debayer " + fileNames.length + " images");
       addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
 
       var P = new Debayer;
@@ -6634,6 +6670,7 @@ function extractChannels(fileNames)
             var channel_map = par.extract_channel_mapping.val;
       }
 
+      addProcessingStep1("Extract channels, " + par.extract_channel_mapping.val);
       addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
       
       for (var i = 0; i < fileNames.length; i++) {
@@ -6796,7 +6833,7 @@ function findStartImages(auto_continue, check_base_name)
  */
 function CreateChannelImages(auto_continue)
 {
-      addProcessingStep("CreateChannelImages");
+      addProcessingStep1("Create channel images");
 
       final_win = null;
       write_processing_log_file = false;  // do not write the log file if we fail very early
@@ -7026,12 +7063,12 @@ function CreateChannelImages(auto_continue)
                   /* We have LRGB files. */
                   if (!par.monochrome_image.val) {
                         if (is_luminance_images) {
-                              addProcessingStep("Processing as LRGB files");
+                              addProcessingStep1("Processing as LRGB files");
                         } else {
-                              addProcessingStep("Processing as RGB files");
+                              addProcessingStep1("Processing as RGB files");
                         }
                   } else {
-                        addProcessingStep("Processing as monochrome files");
+                        addProcessingStep1("Processing as monochrome files");
                   }
                   is_color_files = false;
 
@@ -7061,7 +7098,7 @@ function CreateChannelImages(auto_continue)
 
             } else {
                   /* We have color files. */
-                  addProcessingStep("Processing as color files");
+                  addProcessingStep1("Processing as color files");
                   is_color_files = true;
                   var color_img_id = runImageIntegration(C_images, 'RGB');
                   RGB_win = ImageWindow.windowById(color_img_id);
@@ -7099,7 +7136,7 @@ function CreateNewTempMaskFromLInearWin(imgWin, is_color)
  */
 function LRGBEnsureMask(L_id)
 {
-      addProcessingStep("LRGBEnsureMask");
+      addProcessingStep1("LRGB ensure mask");
 
       if (L_id != null) {
             range_mask_win = null;
@@ -7147,7 +7184,7 @@ function LRGBEnsureMask(L_id)
  */
 function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
 {
-      addProcessingStep("ColorEnsureMask");
+      addProcessingStep1("Color ensure mask");
 
       if (force_new_mask) {
             range_mask_win = null;
@@ -7186,7 +7223,7 @@ function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
  */
 function ProcessLimage(RBGmapping)
 {
-      addProcessingStep("Process L image");
+      addProcessingStep1("Process L image");
 
       /* LRGB files */
       console.writeln("BE L");
@@ -7278,7 +7315,7 @@ function ProcessLimage(RBGmapping)
  */
 function LinearFitLRGBchannels()
 {
-      addProcessingStep("LinearFitLRGBchannels");
+      addProcessingStep1("Linear fit LRGB channels");
 
       var use_linear_fit = par.use_linear_fit.val;
 
@@ -7341,7 +7378,7 @@ function LinearFitLRGBchannels()
  */
 function CombineRGBimageEx(target_name, images)
 {
-      addProcessingStep("CombineRGBimage");
+      addProcessingStep1("Combine RGB image");
 
       if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
             addProcessingStep("Noise reduction on channel images");
@@ -7405,6 +7442,7 @@ function CombineRGBimage()
 
 function extractRGBchannel(RGB_id, channel)
 {
+      addProcessingStep1("Extract " + channel);
       addProcessingStep("Extract " + channel + " from " + RGB_id);
       var sourceWindow = findWindow(RGB_id);
       var P = new ChannelExtraction;
@@ -7481,7 +7519,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
             var sourceChannelId = channelId;
       }
 
-      addProcessingStep("Run " + channel + " mapping using " + NB_id + ", " + 
+      addProcessingStep1("Run " + channel + " mapping using " + NB_id + ", " + 
                         channel + " bandwidth " + channel_bandwidth + ", " + 
                         mapping + " bandwidth " + NB_bandwidth + 
                         " and boost factor " + BoostFactor);
@@ -7514,7 +7552,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
 
 function doRGBNBmapping(RGB_id)
 {
-      addProcessingStep("Create mapped channel images from " + RGB_id);
+      addProcessingStep1("Create mapped channel images from " + RGB_id);
       var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.R_bandwidth.val, par.R_mapping.val, par.R_BoostFactor.val);
       var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.G_bandwidth.val, par.G_mapping.val, par.G_BoostFactor.val);
       var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.B_bandwidth.val, par.B_mapping.val, par.B_BoostFactor.val);
@@ -7573,6 +7611,7 @@ function testRGBNBmapping()
  */
 function ProcessRGBimage(RBGstretched)
 {
+      addProcessingStep1("Process RGB image");
       addProcessingStep("Process RGB image, RBG stretched is " + RBGstretched);
 
       var RGB_ABE_HT_id;
@@ -7773,7 +7812,7 @@ function fixNarrowbandStarColor(targetWin)
             use_mask = false;
       }
 
-      addProcessingStep("Fix narrowband star color");
+      addProcessingStep1("Fix narrowband star color");
 
       if (use_mask) {
             createStarFixMask(targetWin.mainView);
@@ -7805,6 +7844,8 @@ function fixNarrowbandStarColor(targetWin)
 // - In the end starless and stars images are combined together
 function extraRemoveStars(imgWin)
 {
+      addProcessingStep1("Extra remove stars");
+
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(true, false);
@@ -7860,7 +7901,8 @@ function extraRemoveStars(imgWin)
 
 function extraDarkerBackground(imgWin, maskWin)
 {
-      addProcessingStep("Darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStep1("Extra darker background");
+      addProcessingStep("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -7884,6 +7926,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
+      addProcessingStep1("Run HDRMultiscaleTransform");
       addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var failed = false;
@@ -7954,6 +7997,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
 function extraLocalHistogramEqualization(imgWin, maskWin)
 {
+      addProcessingStep1("Run LocalHistogramEqualization");
       addProcessingStep("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new LocalHistogramEqualization;
@@ -7976,6 +8020,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
 function extraExponentialTransformation(imgWin, maskWin)
 {
+      addProcessingStep1("Run ExponentialTransformation");
       addProcessingStep("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ExponentialTransformation;
@@ -8043,6 +8088,7 @@ function extraSmallerStars(imgWin)
 
       createStarMaskIf(imgWin);
 
+      addProcessingStep1("Extra smaller stars");
       if (par.extra_remove_stars.val) {
             addProcessingStep("Smaller stars on " + star_mask_win_id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
@@ -8107,6 +8153,7 @@ function extraSmallerStars(imgWin)
 
 function extraContrast(imgWin)
 {
+      addProcessingStep1("Increase contrast");
       addProcessingStep("Increase contrast on " + imgWin.mainView.id);
 
       var P = new CurvesTransformation;
@@ -8126,6 +8173,7 @@ function extraContrast(imgWin)
 
 function extraStretch(win)
 {
+      addProcessingStep1("Extra stretch");
       addProcessingStep("Extra stretch on " + win.mainView.id);
 
       runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB');
@@ -8133,6 +8181,7 @@ function extraStretch(win)
 
 function extraShadowClipping(win, perc)
 {
+      addProcessingStep1("Extra shadow clipping");
       addProcessingStep("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
 
       clipShadows(win, perc);
@@ -8143,6 +8192,7 @@ function extraNoiseReduction(win, mask_win)
       if (par.extra_noise_reduction_strength.val == 0) {
             return;
       }
+      addProcessingStep1("Extra noise reduction");
       addProcessingStep("Extra noise reduction on " + win.mainView.id);
 
       runMultiscaleLinearTransformReduceNoise(
@@ -8153,6 +8203,7 @@ function extraNoiseReduction(win, mask_win)
 
 function extraACDNR(extraWin, mask_win)
 {
+      addProcessingStep1("Extra ACDNR");
       if (par.ACDNR_noise_reduction.val == 0.0) {
             addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
             return;
@@ -8168,6 +8219,7 @@ function extraColorNoise(extraWin)
 
 function extraSharpen(extraWin, mask_win)
 {
+      addProcessingStep1("Extra sharpening");
       addProcessingStep("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
 
       for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
@@ -8178,6 +8230,7 @@ function extraSharpen(extraWin, mask_win)
 
 function extraABE(extraWin)
 {
+      addProcessingStep1("Extra ABE");
       runABE(extraWin, true);
 }
 
@@ -8298,6 +8351,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   par.custom_R_mapping.val = narrowBandPalettes[i].R;
                   par.custom_G_mapping.val = narrowBandPalettes[i].G;
                   par.custom_B_mapping.val = narrowBandPalettes[i].B;
+                  addProcessingStep1("Narrowband palette " + narrowBandPalettes[i].name + " batch");
                   addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
                   var succ = AutoIntegrateEngine(auto_continue);
@@ -8323,6 +8377,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
 function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNewImage)
 {
       /* Restore stars by combining starless image and stars. */
+      addProcessingStep1("Combining starless and star images using " + stars_combine);
       addProcessingStep("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
             case 'Screen':
@@ -8596,7 +8651,7 @@ function AutoIntegrateEngine(auto_continue)
             addProcessingStep("Using default processing options");
       }
       console.noteln("--------------------------------------");
-      addProcessingStep("Start processing...");
+      addProcessingStep1("Start processing...");
 
       /* Create images for each L, R, G and B channels, or Color image. */
       if (!CreateChannelImages(auto_continue)) {
@@ -8641,7 +8696,7 @@ function AutoIntegrateEngine(auto_continue)
                   if (!RBGmapping.combined) {
                         // We have not yet combined the RGB image
                         if (par.ABE_before_channel_combination.val) {
-                              addProcessingStep("Run ABE on channel images");
+                              addProcessingStep1("Run ABE on channel images");
                               if (luminance_id != null) {
                                     run_ABE_before_channel_combination(luminance_id);
                               }
@@ -8651,7 +8706,7 @@ function AutoIntegrateEngine(auto_continue)
                         }
                         LinearFitLRGBchannels();
                         if (par.remove_stars_channel.val) {
-                              addProcessingStep("Remove stars from linear RGB channel images");
+                              addProcessingStep1("Remove stars from linear RGB channel images");
                               removeStars(findWindow(red_id), true, true, RGB_stars);
                               removeStars(findWindow(green_id), true, true, RGB_stars);
                               removeStars(findWindow(blue_id), true, true, RGB_stars);
@@ -8664,7 +8719,7 @@ function AutoIntegrateEngine(auto_continue)
                    * L image.
                    */
                   if (par.remove_stars_channel.val) {
-                        addProcessingStep("Remove stars from linear L channel image");
+                        addProcessingStep1("Remove stars from linear L channel image");
                         removeStars(findWindow(luminance_id), true, true, L_stars);
                   }
                   LRGBEnsureMask(null);
@@ -8836,7 +8891,7 @@ function AutoIntegrateEngine(auto_continue)
 
       /* All done, do cleanup on windows on screen 
        */
-      addProcessingStep("Processing completed");
+      addProcessingStep1("Processing completed");
 
       closeTempWindows();
       if (!par.calibrate_only.val) {
@@ -8936,7 +8991,7 @@ function AutoIntegrateEngine(auto_continue)
             }
       }
       var end_time = Date.now();
-      addProcessingStep("Script completed, time "+(end_time-start_time)/1000+" sec");
+      addProcessingStep1("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
       if (preprocessed_images != start_images.FINAL || get_process_defaults) {
@@ -10446,6 +10501,14 @@ function updateInfoLabel(parent)
       console.writeln(txt);
 
       infoLabel.text = txt;
+}
+
+function updateStatusInfoLabel(txt)
+{
+      if (txt.length > 50) {
+            txt = txt.substring(0, 100);
+      }
+      statusInfoLabel.text = txt;
 }
 
 function updateImageInfoLabel(txt)
@@ -12660,20 +12723,37 @@ function AutoIntegrateDialog()
    
       this.infoLabel = new Label( this );
       this.infoLabel.text = "";
-
       infoLabel = this.infoLabel;
 
       this.imageInfoLabel = new Label( this );
       this.imageInfoLabel.text = "";
-
       imageInfoLabel = this.imageInfoLabel;
+
+      this.statusInfoLabel = new Label( this );
+      this.statusInfoLabel.text = "";
+      statusInfoLabel = this.statusInfoLabel;
+
+      this.info1_Sizer = new HorizontalSizer;
+      this.info1_Sizer.spacing = 6;
+      this.info1_Sizer.add( this.infoLabel );
+      this.info1_Sizer.addSpacing( 6 );
+      this.info1_Sizer.add( this.imageInfoLabel );
+      this.info1_Sizer.addStretch();
+
+      this.info2_Sizer = new HorizontalSizer;
+      this.info2_Sizer.spacing = 6;
+      this.info2_Sizer.add( this.statusInfoLabel );
+      this.info2_Sizer.addStretch();
+
+      this.info_Sizer = new VerticalSizer;
+      this.info_Sizer.add( this.info1_Sizer );
+      this.info_Sizer.add( this.info2_Sizer );
+      this.info_Sizer.addStretch();
 
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
       this.buttons_Sizer.add( this.newInstance_Button );
-      this.buttons_Sizer.add( this.infoLabel );
-      this.buttons_Sizer.addSpacing( 6 );
-      this.buttons_Sizer.add( this.imageInfoLabel );
+      this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
