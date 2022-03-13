@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45 test5";
+var autointegrate_version = "AutoIntegrate v1.45";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -5366,6 +5366,9 @@ function runLocalNormalization(imagetable, refImage)
       }
       var P = new LocalNormalization;
       P.referencePathOrViewId = refImage;
+      if (pixinsight_version_num >= 1080900) {
+            P.referenceIsView = false;
+      }
       P.targetItems = targets;            // [ enabled, image ]
       if (par.start_from_imageintegration.val) {
             // We assume we are processing *_r.xisf files from
