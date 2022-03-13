@@ -31,11 +31,11 @@ if there are manually created images:
   LRGB image with HistogramTransformation already done, the script starts after step <lHT> and <rgbHT>.
 - RGB_HT
   Color (RGB) image with HistogramTransformation already done, the script starts after step <colorHT>.
-- Integration_L_BE + Integration_RGB_BE
+- Integration_L_DBE + Integration_RGB_DBE
   LRGB image background extracted, the script starts after step <lABE> and <rgbABE>.
-- Integration_RGB_BE
+- Integration_RGB_DBE
   Color (RGB) image background extracted, the script starts with after step <colorABE>.
-- Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE
+- Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE
   LRGB image background extracted before image integration, the script starts after step <lABE> and 
    <rgbDBE>. Automatic ABE is then skipped.
 - Integration_L + Integration_R + Integration_G + Integration_B + + Integration_H + Integration_S + Integration_O
@@ -5330,7 +5330,7 @@ function runLocalNormalization(imagetable, refImage)
             var add_file = true;
             if (imagetable.length <= 4) {
                   // we may have duplicates, filter them out
-                  for (j = 0; j < targets.length; j++) {
+                  for (var j = 0; j < targets.length; j++) {
                         if (targets[j][1] == imagetable[i][1]) {
                               console.writeln("runLocalNormalization, remove duplicate " +imagetable[i][1]);
                               add_file = false;
@@ -5339,7 +5339,7 @@ function runLocalNormalization(imagetable, refImage)
                   }
             }
             // we may have duplicates, filter them out
-            for (j = 0; j < targets.length; j++) {
+            for (var j = 0; j < targets.length; j++) {
                   if (targets[j][1] == imagetable[i][1]) {
                         console.writeln("runLocalNormalization, remove duplicate " + imagetable[i][1]);
                         add_file = false;
@@ -12370,10 +12370,10 @@ function AutoIntegrateDialog()
             "Image check order is:<br>" +
             "1. L_HT + RGB_HT<br>" +
             "2. RGB_HT<br>" +
-            "3. Integration_L_BE + Integration_RGB_BE<br>" +
-            "4. Integration_RGB_BE<br>" +
-            "5. Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE<br>" +
-            "6. Integration_H_BE + Integration_S_BE + Integration_O_BE<br>" +
+            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
+            "4. Integration_RGB_DBE<br>" +
+            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
             "7. Integration_L + Integration_R + Integration_G + Integration_B<br>" +
             "8. Integration_H + Integration_S + Integration_O<br>" +
             "9. Final image (for extra processing)" +
