@@ -90,29 +90,31 @@ Steps with LRGB files
    based on the number of image files, or specified by the user. <lII>
    After this step there are Integration_L, Integration_R, Integration_G and Integration_B images,
    or with narrowband Integration_H, Integration_S and Integration_O.
-2. Optionally ABE in run on L image. <lABE>
-3. HistogramTransform is run on L image. <lHT>
-4. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
-5. Noise reduction is run on L image using a mask.
-6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
+2. Optionally the Integration images and corresponding support images are cropped to the area
+   contributed to by all images.
+3. Optionally ABE in run on L image. <lABE>
+4. HistogramTransform is run on L image. <lHT>
+5. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
+6. Noise reduction is run on L image using a mask.
+7. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
-7. By default LinearFit is run on RGB channels using L, R, G or B as a reference
-8. If Channel noise reduction is non-zero then noise reduction is done separately 
+8. By default LinearFit is run on RGB channels using L, R, G or B as a reference
+9. If Channel noise reduction is non-zero then noise reduction is done separately 
    for each R,G and B images using a mask.
-9. ChannelCombination is run on Red, Green and Blue integrated images to
+10. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
-10. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+11. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
     If use_background_neutralization is selected then BackgroundNeutralization is run before
     color calibration.
-11. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
-12. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+12. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
+13. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
-13. HistogramTransform is run on RGB image. <rgbHT>
-14. Optionally TGVDenoise is run to reduce color noise.
-15. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+14. HistogramTransform is run on RGB image. <rgbHT>
+15. Optionally TGVDenoise is run to reduce color noise.
+16. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
     By default saturation is increased also when the image is still in a linear
     format.
-16. LRGBCombination is run to generate final LRGB image.
+17. LRGBCombination is run to generate final LRGB image.
 
 Steps with color files
 ----------------------
@@ -312,6 +314,7 @@ var par = {
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
+      crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
@@ -5623,6 +5626,58 @@ function runImageIntegration(channel_images, name)
       }
 }
 
+function runImageIntegrationForCrop(images, name)
+{
+      console.noteln("ImageIntegration to find area common to all images");
+
+      var P = new ImageIntegration;
+
+      P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
+      P.combination = ImageIntegration.prototype.Minimum;
+      
+      //addProcessingStep("Using NoNormalization for ImageIntegration normalization");
+      P.normalization = ImageIntegration.prototype.NoNormalization;
+      P.rejection = ImageIntegration.prototype.NoRejection;
+      //P.rejectionNormalization = ImageIntegration.prototype.NoRejectionNormalization;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+
+      P.noGUIMessages = true;
+      P.showImages = true;
+
+      P.clipLow = true;
+      P.clipHigh = true;
+      P.rangeClipLow = true;
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+
+      P.executeGlobal();
+
+      //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
+
+      //   console.writeln("highRejectionMapImageId ", P.highRejectionMapImageId)
+      //   console.writeln("slopeMapImageId ", P.slopeMapImageId) 
+      //   console.writeln("integrationImageId ", P.integrationImageId)
+      //   console.writeln("lowRejectionMapImageId ", P.lowRejectionMapImageId)
+
+      // Keep only lowRejectionMapImageId
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.slopeMapImageId);
+      windowCloseif(P.integrationImageId);
+
+      //console.writeln("Rename '",P.lowRejectionMapImageId,"' to ",ppar.win_prefix + "LowRejectionMap_" + name)
+      var new_name = windowRename(P.lowRejectionMapImageId, ppar.win_prefix + "LowRejectionMap_" + name);
+      return new_name
+      
+}
 
 /* Do run ABE so just make copy of the source window as
  * is done by AutomaticBackgroundExtractor.
@@ -8594,6 +8649,253 @@ function mapBEchannels()
       }
 }
 
+// Support functions of automatic crop
+function make_full_image_list()
+{
+      All_images = init_images();
+      if (L_images.images.length > 0) {
+            All_images.images = All_images.images.concat(L_images.images)
+      }
+      if (R_images.images.length > 0) {
+            All_images.images = All_images.images.concat(R_images.images);
+      }
+      if (G_images.images.length > 0) {
+            All_images.images = All_images.images.concat(G_images.images);
+      }
+      if (B_images.images.length > 0) {
+            All_images.images = All_images.images.concat(B_images.images);
+      }
+      if (H_images.images.length > 0) {
+            All_images.images = All_images.images.concat(H_images.images);
+      }
+      if (S_images.images.length > 0) {
+            All_images.images = All_images.images.concat(S_images.images);
+      }
+      if (O_images.images.length > 0) {
+            All_images.images = All_images.images.concat(O_images.images);
+      }
+      if (C_images.images.length > 0) {
+            All_images.images = All_images.images.concat(C_images.images);
+      }
+      return All_images;
+}
+
+// Find borders starting from a mid point and going up/down
+function find_up_down(image,col)
+{
+      let row_mid = image.height / 2;
+      let row_up = 0;
+      for (let row=row_mid; row>=0; row--) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            row_up = row+1;
+            break;
+            }
+      }
+      let row_down = image.height-1;
+      for (let row=row_mid; row<image.height; row++) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            row_down = row-1;
+            break;
+            }
+      }
+      if (debug) console.writeln("find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      return [row_up, row_down];
+}
+
+// Find borders starting from a mid point and going left/right
+function find_left_right(image,row)
+{
+      let col_mid = image.width / 2;
+      let col_left = 0;
+      for (let col=col_mid; col>=0; col--) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            col_left = col+1;
+            break;
+            }
+      }
+      let col_right = image.width-1;
+      for (let col=col_mid; col<image.width; col++) {
+            let p= image.sample(col, row);
+            if (p>0) {
+            col_right = col-1;
+            break;
+            }
+      }
+      if (debug) console.writeln("find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      return [col_left, col_right];
+}
+
+// Find the bounding box of the area without rejected image, starting from the
+// middle point
+function findBounding_box(lowClipImageWindow)
+{
+      let image = lowClipImageWindow.mainView.image;
+
+      console.noteln("Finding valid bounding box for image ", lowClipImageWindow.mainView.id, 
+            " (", image.width, "x" , image.height + ")");
+
+      let col_mid = image.width / 2;
+      let row_mid = image.height / 2;
+      let p = image.sample(col_mid, row_mid);
+      if (p != 0.0) {
+            // TODO - should return an error message and use the uncropped image
+            // Could also accept a % of rjetection
+            throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+      }
+      
+      // Find extent of black area at mid points (the black points nearest to the border)
+      let [top,bottom] = find_up_down(image,col_mid);
+      let [left,right] = find_left_right(image,row_mid);
+
+      // Find extent of black area along the lines along the borders passing by the 
+      // black points nearest to the border
+
+      let [top_left_y, bottom_left_y] = find_up_down(image,left);
+      let [top_right_y, bottom_right_y] = find_up_down(image,right);
+      let [top_left_x, top_right_x] = find_left_right(image,top);
+      let [bottom_left_x, bottom_right_x] = find_left_right(image,bottom);
+
+      if (debug)
+      {
+            console.writeln("top_left     ", top_left_x, " x ", top_left_y);
+            console.writeln("top_right    ", top_right_x, " x ", top_right_y);
+            console.writeln("bottom_left  ", bottom_left_x, " x ", bottom_left_y);
+            console.writeln("bottom_right ", bottom_right_x, " x ", bottom_right_y);
+      }
+
+      let left_col = Math.min(top_left_x, bottom_left_x);
+      let right_col = Math.max(top_right_x, bottom_right_x);
+      let top_row = Math.min(top_left_y, top_right_y);
+      let bottom_row = Math.max(bottom_left_y, bottom_right_y);
+
+      let nmb_cols = right_col-left_col;
+      let nmb_rows = bottom_row - top_row;
+
+      console.noteln("Bounding box for crop: rows ", top_row ," to ", bottom_row, ", columns ", 
+            left_col, " to  ",right_col, ",  area=", nmb_cols,"x",nmb_rows)
+      return [left_col, right_col, top_row, bottom_row]
+}
+
+// We negate the crop amount here to match the requirement of the process Crop
+function CreateCrop(left,top,right,bottom)
+{
+      var P = new Crop;
+      P.leftMargin = -left;
+      P.topMargin = -top;
+      P.rightMargin = -right;
+      P.bottomMargin = -bottom;
+      P.mode = Crop.prototype.AbsolutePixels;
+      // Irrelevant
+      P.xResolution = 72.000;
+      P.yResolution = 72.000;
+      P.metric = false;
+      P.forceResolution = false;
+      // Irrelevant
+      P.red = 0.000000;
+      P.green = 0.000000;
+      P.blue = 0.000000;
+      P.alpha = 1.000000;
+      P.noGUIMessages = true;
+      return P
+}
+
+
+
+
+// Crop an image if it exists
+function CropImageIf(window, truncate_amount)
+{
+      if (window == null) return
+
+      let [left_truncate,top_truncate,right_truncate,bottom_truncate] = truncate_amount;
+      // console.noteln("Truncate image ", window.mainView.id, " by: top ", top_truncate, ", bottom, ", 
+      //       bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
+      
+      let crop = CreateCrop(left_truncate,top_truncate,right_truncate,bottom_truncate);
+
+      window.mainView.beginProcess(UndoFlag_NoSwapFile);  
+      crop.executeOn(window.mainView, false);  
+      window.mainView.endProcess();
+}
+
+// Crop bot hthe channel and its support image(s), currently _map
+function CropChannelAndMapImageIf(id, truncate_amount)
+{
+      if (id == null) {
+            return;
+      }
+
+      var channelWindow = findWindow(id);
+      var copyname = ensure_win_prefix(id + "_map");
+      var mapWindow = findWindow(copyname);
+
+      CropImageIf(channelWindow, truncate_amount);
+      CropImageIf(mapWindow, truncate_amount);
+}
+
+// Find the crop area and cop all channel images
+function cropChannelImages()
+{
+      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
+
+      let all_images = make_full_image_list();
+      console.noteln("Finding common area for ",all_images.images.length, " images (all channels) ")
+      let images = all_images.images;
+      if (images == null || images.length == 0) {
+            return;
+      }
+      //console.writeln("all: " + JSON.stringify(images, null, 2));
+
+      let lowClipImage = runImageIntegrationForCrop(images, "ALL");
+      let lowClipImageWindow = findWindow(lowClipImage);
+
+      let bounding_box = findBounding_box(lowClipImageWindow);
+      let [left_col, right_col, top_row, bottom_row] = bounding_box;
+
+      // Preview for information to the user only
+      let createdPreview = lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+
+      // Calculate how much to truncate as used for the Crop process (except Crop want it negative)
+      let full_image = lowClipImageWindow.mainView.image
+      let top_truncate = top_row;
+      let bottom_truncate = full_image.height - bottom_row;
+      let left_truncate = left_col;
+      let right_truncate = full_image.width - right_col;
+      let truncate_amount = [left_truncate,top_truncate,right_truncate,bottom_truncate];
+      console.noteln("Will truncate images by: top ", top_truncate, ", bottom, ", 
+            bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
+
+
+      // Calculate a percentage of truncation along axis and area for information purpose
+      let x_truncate = left_truncate+right_truncate;
+      let y_truncate = top_truncate+bottom_truncate;
+      let x_truncate_percent = 100*(x_truncate/full_image.width);
+      let y_truncate_percent = 100*(y_truncate/full_image.height);
+      let new_area = (right_col-left_col+1) * (bottom_row-top_row+1);
+      let full_area = full_image.width*full_image.height;
+      let area_truncate_percent = 100*((full_area-new_area) / full_area);
+      console.noteln("Truncate percentages: width by ",x_truncate_percent.toFixed(1),"%, height by ", y_truncate_percent.toFixed(1), 
+            "%, area by ",area_truncate_percent.toFixed(1), "%");
+
+
+      // Original integrated images
+      // TODO this should come from some logic that knows which images are present
+      CropChannelAndMapImageIf(L_id, truncate_amount);                
+      CropChannelAndMapImageIf(R_id, truncate_amount);
+      CropChannelAndMapImageIf(G_id, truncate_amount);
+      CropChannelAndMapImageIf(B_id, truncate_amount);
+      CropChannelAndMapImageIf(H_id, truncate_amount);
+      CropChannelAndMapImageIf(S_id, truncate_amount);
+      CropChannelAndMapImageIf(O_id, truncate_amount);
+      
+      CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
+
+      console.noteln("Generated images cropped");
+}
+
 function AutoIntegrateEngine(auto_continue)
 {
       if (extra_target_image != "Auto") {
@@ -8667,6 +8969,18 @@ function AutoIntegrateEngine(auto_continue)
             console.criticalln("Failed!");
             console.endLog();
             return false;
+      }
+
+      /*
+       * If requested, we crop all channel images and channel support images (the xxx_map images)
+       * to an area covered by all source images.
+       */ 
+      if (par.crop_to_common_area.val)
+      {
+            cropChannelImages();
+      } else
+      {
+            console.warningln("Images are not cropped to common area, borders may be of lower quality")
       }
       
       /* Now we have L (Gray) and R, G and B images, or just RGB image
@@ -11068,9 +11382,11 @@ function AutoIntegrateDialog()
             "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
             "Quite a few processing steps are skipped with this option.</p>" );
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
-            "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
+            "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );   
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
             "<p>Do not use clipping in ImageIntegration</p>" );
+      this.crop_to_common_area_CheckBox = newCheckBox(this, "Crop to common area", par.crop_to_common_area, 
+            "<p>Crop all channels to area covered by all images</p>" );
       this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", par.RRGB_image, 
             "<p>RRGB image using R as Luminance.</p>" );
       this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image, 
@@ -11139,6 +11455,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
+      this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
