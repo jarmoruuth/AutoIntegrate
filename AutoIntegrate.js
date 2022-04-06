@@ -270,7 +270,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -1268,10 +1268,12 @@ function windowShowif(id)
       }
 }
 
-function windowIconizeAndKeywordif(id)
+// Iconify the window, the return value is the window,
+// only as a convenience to windowIconizeAndKeywordif()
+function windowIconizeif(id)
 {
       if (id == null) {
-            return;
+            return null;
       }
       var w = findWindow(id);
 
@@ -1298,11 +1300,21 @@ function windowIconizeAndKeywordif(id)
             w.iconize();
             w.position = oldpos;                // restore window position
 
+            haveIconized++;
+      }
+      return w;
+}
+
+function windowIconizeAndKeywordif(id)
+{
+      var w = windowIconizeif(id);
+
+      if (w != null) {
+ 
             // Set processed image keyword. It will not overwrite old
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             setProcessedImageKeyword(w);
-            haveIconized++;
       }
 }
 
@@ -8894,9 +8906,8 @@ function cropChannelImages()
       
       CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
 
-      // Iconify the map windows
-      // TODO: The keywords may not be adequate for that image
-      windowIconizeAndKeywordif(lowClipImage);
+      // Iconify the map windows (no keyword)
+      windowIconizeif(lowClipImage);
 
       console.noteln("Generated images cropped");
 }
@@ -11387,7 +11398,7 @@ function AutoIntegrateDialog()
             "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
             "Quite a few processing steps are skipped with this option.</p>" );
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
-            "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );   
+            "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
             "<p>Do not use clipping in ImageIntegration</p>" );
       this.crop_to_common_area_CheckBox = newCheckBox(this, "Crop to common area", par.crop_to_common_area, 
