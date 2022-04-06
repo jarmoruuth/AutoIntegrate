@@ -729,7 +729,8 @@ var fixed_windows = [
       "Integration_L_map_pm_ABE",
       "Integration_L_map_pm_noABE",
       "Integration_L_map_pm_ABE_HT",
-      "Integration_L_map_pm_noABE_HT"
+      "Integration_L_map_pm_noABE_HT",
+      "LowRejectionMap_ALL"
 ];
 
 var calibrate_windows = [
@@ -8892,6 +8893,10 @@ function cropChannelImages()
       CropChannelAndMapImageIf(O_id, truncate_amount);
       
       CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
+
+      // Iconify the map windows
+      // TODO: The keywords may not be adequate for that image
+      windowIconizeAndKeywordif(lowClipImage);
 
       console.noteln("Generated images cropped");
 }
