@@ -268,7 +268,7 @@ Linear Defect Detection:
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 
-var autointegrate_version = "AutoIntegrate v1.45";
+var autointegrate_version = "AutoIntegrate v1.46 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -11483,15 +11483,15 @@ function AutoIntegrateDialog()
             "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
             "Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.\n" +
             "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.\n" +
-            "Hyperbolic - Experimental, , Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
+            "Hyperbolic - Experimental, Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
-      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if start are extracted from image.");
+      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if star are extracted from image.");
       this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
-      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:\n" +
-                                             "Add - Use stars+starless formula in Pixelmath\n" +
-                                             "Screen - Similar to screen in Photoshop\n" +
-                                             "Lighten - Similar to lighten in Photoshop\n" +
-                                             "InvMult - Use formula ~(~starless*~stars) in Pixelmath<p>";
+      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:<br>" +
+                                             "Add - Use stars+starless formula in Pixelmath<br>" +
+                                             "Screen - Similar to screen in Photoshop<br>" +
+                                             "Lighten - Similar to lighten in Photoshop<br>" +
+                                             "InvMult - Use formula ~(~starless*~stars) in Pixelmath</p>";
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
