@@ -8652,7 +8652,7 @@ function mapBEchannels()
 // Support functions of automatic crop
 function make_full_image_list()
 {
-      All_images = init_images();
+      let All_images = init_images();
       if (L_images.images.length > 0) {
             All_images.images = All_images.images.concat(L_images.images)
       }
