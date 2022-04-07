@@ -267,8 +267,14 @@ Linear Defect Detection:
 #include <pjsr/DataType.jsh>
 
 // temporary debugging
+#ifndef TEST_AUTO_INTEGRATE
+// The variables defined here should have a default of 'false' and must be defined
+// by the testing scripts including this script. This allow changing the debug
+// in the test scripts without modifying the main script
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
+#endif
+
 
 var autointegrate_version = "AutoIntegrate v1.46 autocrop";
 
@@ -8713,7 +8719,7 @@ function find_up_down(image,col)
             break;
             }
       }
-      if (debug) console.writeln("find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      if (debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
       return [row_up, row_down];
 }
 
@@ -8737,12 +8743,74 @@ function find_left_right(image,row)
             break;
             }
       }
-      if (debug) console.writeln("find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      if (debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
       return [col_left, col_right];
 }
 
+function findMaximalBoundingBox(lowClipImage)
+{
+      let col_mid = lowClipImage.width / 2;
+      let row_mid = lowClipImage.height / 2;
+      let p = lowClipImage.sample(col_mid, row_mid);
+      if (p != 0.0) {
+            // TODO - should return an error message and use the uncropped lowClipImage
+            // Could also accept a % of rjetection
+            throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+      }
+
+      // Find extent of black area at mid points (the black points nearest to the border)
+      let [top,bottom] = find_up_down(lowClipImage,col_mid);
+      let [left,right] = find_left_right(lowClipImage,row_mid);
+
+      if (debug)
+      {
+            console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
+      }
+
+      return [top,bottom,left,right];
+     
+
+}
+
 // Find the bounding box of the area without rejected image, starting from the
-// middle point
+// middle point.
+
+/* 
+ * Assumptions:
+ * It is assumed that the valid area obeys the following assumptions:
+ * - The valid area is the area where all images are contributing (rejection = 0)
+ *   (if needed remove badly aligned images before processing using Blink)
+ * - The point at the center of the image is always valid (otherwise the process fails).
+ * - The valid area is contiguous and no line from the center of the image to any valid point
+ *   crosses an invalid area (a pretty reasonable assumption for any usable image).
+ * - The valid area will be rectangular and parallel to the borders of the image.
+ * With these assumptions there is genrally not a single possible rectangular area
+ * (think of an image is a circle), the algorithm assumes that the valid area is 
+ * "reasonable", that is a few percent smaller than the full image. In extreme cases
+ * the selected area will work but may not be optimal. This should not be the case
+ * for any common image.
+ * 
+ * Algorithm: 
+ * Because the center point must be included, the maximum border are at the last
+ * valid point going up/down and left/right from the center point. This defines
+ * the initial top,bottom,left and right.
+ * These top,bottom,left and right lines will be moved inwards as needed to ensure that
+ * the four corners are valid point.
+ * There is a loop that:
+ * - Find the points at the intersection of top,bottom,left and right.
+ * - Check if the points are valid
+ * - Move the two adjacent lines of top,bottom,left or right inwards if the point is
+ *   invalid and redo a test.
+ * Each point is tested and moved in turn while they are invalid. When the four points 
+ * are valid, then the smallest top,bottom,left and right are considered valid.
+ * Because we are limited by both the intersection of the center lines and the valid 
+ * corners, the algorithm works for border that are oblique lines, concave lines or convex
+ * lines.
+ * A final pass is done on each side to handle possible wiggles (pretty irregular borders
+ * with some invalid points inside the bounding box). Each border is reduced until
+ * the full border is valid.  This handles small irregularities (up to 100 pixels)
+ * that are contiguous to a border.
+*/
 function findBounding_box(lowClipImageWindow)
 {
       let image = lowClipImageWindow.mainView.image;
@@ -8750,40 +8818,201 @@ function findBounding_box(lowClipImageWindow)
       console.noteln("Finding valid bounding box for image ", lowClipImageWindow.mainView.id, 
             " (", image.width, "x" , image.height + ")");
 
-      let col_mid = image.width / 2;
-      let row_mid = image.height / 2;
-      let p = image.sample(col_mid, row_mid);
-      if (p != 0.0) {
-            // TODO - should return an error message and use the uncropped image
-            // Could also accept a % of rjetection
-            throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+      let [top_row,bottom_row,left_col,right_col] = findMaximalBoundingBox(image);
+
+      // Initialize the points at the maximum possible extend of the image,
+      // typically some or all will be invalid (not black).
+           
+      // Find the first valid point moving inwards
+     
+      let left_top_valid = false;
+      let right_top_valid = false;
+      let left_bottom_valid = false;
+      let right_bottom_valid = false;
+
+      let left_top = new Point(left_col,top_row);
+      let right_top = new Point(right_col,top_row);
+      let left_bottom = new Point(left_col, bottom_row);
+      let right_bottom = new Point(right_col,bottom_row);
+
+      left_top_valid = image.sample(left_top)==0;
+      right_top_valid =  image.sample(right_top)==0;
+      left_bottom_valid =  image.sample(left_bottom)==0;
+      right_bottom_valid =  image.sample(right_bottom)==0;
+
+      let corner = 0;
+      let all_valid = true;
+      for (;;)
+      {  
+            switch (corner) {
+
+                  case (0):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              if (!left_top_valid) {
+                                    left_top = new Point(left_col,top_row);
+                                    left_top_valid = image.sample(left_top)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!left_top_valid)
+                                    {
+                                          all_valid= false;
+                                          left_col = left_col+1;
+                                          top_row = top_row+1;
+                                    }
+                              }
+                        }
+
+                  case (1):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              if (!right_bottom_valid) {
+                                    right_bottom = new Point(right_col,bottom_row);
+                                    right_bottom_valid = image.sample(right_bottom)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!right_bottom_valid)
+                                    {
+                                          all_valid= false;
+                                          right_col = right_col-1;
+                                          bottom_row = bottom_row-1;
+                                    }
+                              }
+                        }
+
+                  case (2):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              //
+                              if (!left_bottom_valid) {
+                                    left_bottom = new Point(left_col,bottom_row);
+                                    left_bottom_valid = image.sample(left_bottom)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!left_bottom_valid)
+                                    {
+                                          all_valid= false;
+                                          left_col = left_col+1;
+                                          bottom_row = bottom_row-1;
+                                    }
+                              }
+                        }
+
+                  case (3):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              //
+                              if (!right_top_valid) {
+                                    right_top = new Point(right_col,top_row);
+                                    right_top_valid = image.sample(right_top)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!right_top_valid)
+                                    {
+                                          all_valid= false;
+                                          right_col = right_col-1;
+                                          top_row = top_row+1;
+                                    }
+                              }
+                        }
+             } // switch
+
+            corner ++;
+            // Check end of cycle
+            if (corner>3) {
+                  if (all_valid) break;
+                  corner = 0;
+                  all_valid = true;
+            }
+
+      } // for
+
+      // Show the valid points for debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
+      // recalculated.
+      if (debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
+
+      // Check that the whiole line at the border is valid, in case the border is wiggly
+      let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];
+
+      let number_cycle = 0;
+      let any_border_inwards = false;
+      for (;;) {
+            // Ensure that we terminate in case of unreasonable borders
+            number_cycle += 1;
+            if (number_cycle>100) 
+            {
+                  throwFatalError("Borders too wiggly for crop after ", number_cycle, " cycles"); 
+            }
+
+            let all_valid = true;
+
+            // Check if left most column is entirely valid
+            let left_col_valid = true;
+            for (let i=top_row; i<=bottom_row; i++)
+            {
+                  left_col_valid = left_col_valid && image.sample(left_col,i)==0;
+                  if (!left_col_valid) break;
+            }
+            if (! left_col_valid) 
+            {
+                  left_col = left_col + 1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+
+            // Check if right most column is entirely valid
+            let right_col_valid = true;
+            for (let i=top_row; i<=bottom_row; i++)
+            {
+                  right_col_valid = right_col_valid && image.sample(right_col,i)==0;
+                  if (!right_col_valid) break;
+            }
+            if (! right_col_valid) 
+            {
+                  right_col = right_col -1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+
+            // Check if top most column is entirely valid
+            let top_row_valid = true;
+            for (let i=left_col; i<=right_col; i++)
+            {
+                  top_row_valid = top_row_valid && image.sample(i,top_row)==0;
+                  if (!top_row_valid) break;
+            }
+            if (! top_row_valid) 
+            {
+                  top_row = top_row + 1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+            
+            // Check if bottom most column is entirely valid
+            let bottom_row_valid = true;
+            for (let i=left_col; i<=right_col; i++)
+            {
+                  bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)==0;
+                  if (!bottom_row_valid) break;
+            }
+            if (! bottom_row_valid) 
+            {
+                  bottom_row = bottom_row -1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+            
+            if (all_valid) break;
       }
       
-      // Find extent of black area at mid points (the black points nearest to the border)
-      let [top,bottom] = find_up_down(image,col_mid);
-      let [left,right] = find_left_right(image,row_mid);
-
-      // Find extent of black area along the lines along the borders passing by the 
-      // black points nearest to the border
-
-      let [top_left_y, bottom_left_y] = find_up_down(image,left);
-      let [top_right_y, bottom_right_y] = find_up_down(image,right);
-      let [top_left_x, top_right_x] = find_left_right(image,top);
-      let [bottom_left_x, bottom_right_x] = find_left_right(image,bottom);
-
-      if (debug)
+      if (any_border_inwards)
       {
-            console.writeln("top_left     ", top_left_x, " x ", top_left_y);
-            console.writeln("top_right    ", top_right_x, " x ", top_right_y);
-            console.writeln("bottom_left  ", bottom_left_x, " x ", bottom_left_y);
-            console.writeln("bottom_right ", bottom_right_x, " x ", bottom_right_y);
+            console.noteln("Borders reduced due to wiggles, ", number_cycle, " cycles of border reduction.");
+            if (original_left_col != left_col) console.noteln("Left column moved from ", original_left_col, " to ", left_col);
+            if (original_right_col != right_col) console.noteln("Right column moved from ", original_right_col, " to ", right_col);
+            if (original_top_row != top_row) console.noteln("Top row moved from ", original_top_row, " to ", top_row);
+            if (original_bottom_row != bottom_row) console.noteln("Bottom row moved from ", original_bottom_row, " to ", bottom_row);
+      } else {
+            console.noteln("Borders validated, no wiggle found");
       }
-
-      let left_col = Math.min(top_left_x, bottom_left_x);
-      let right_col = Math.max(top_right_x, bottom_right_x);
-      let top_row = Math.min(top_left_y, top_right_y);
-      let bottom_row = Math.max(bottom_left_y, bottom_right_y);
-
+ 
+      // Log the area of interest
       let nmb_cols = right_col-left_col;
       let nmb_rows = bottom_row - top_row;
 
@@ -8814,8 +9043,6 @@ function CreateCrop(left,top,right,bottom)
       P.noGUIMessages = true;
       return P
 }
-
-
 
 
 // Crop an image if it exists
@@ -8849,28 +9076,16 @@ function CropChannelAndMapImageIf(id, truncate_amount)
       CropImageIf(mapWindow, truncate_amount);
 }
 
-// Find the crop area and cop all channel images
-function cropChannelImages()
+function calculate_crop_amount(window_id)
 {
-      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
-
-      let all_images = make_full_image_list();
-      console.noteln("Finding common area for ",all_images.images.length, " images (all channels) ")
-      let images = all_images.images;
-      if (images == null || images.length == 0) {
-            return;
-      }
-      //console.writeln("all: " + JSON.stringify(images, null, 2));
-
-      let lowClipImage = runImageIntegrationForCrop(images, "ALL");
-      let lowClipImageWindow = findWindow(lowClipImage);
+      let lowClipImageWindow = findWindow(window_id);
 
       let bounding_box = findBounding_box(lowClipImageWindow);
       let [left_col, right_col, top_row, bottom_row] = bounding_box;
-
+      
       // Preview for information to the user only
-      let createdPreview = lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
-
+      let cropPreview = lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+      
       // Calculate how much to truncate as used for the Crop process (except Crop want it negative)
       let full_image = lowClipImageWindow.mainView.image
       let top_truncate = top_row;
@@ -8880,8 +9095,8 @@ function cropChannelImages()
       let truncate_amount = [left_truncate,top_truncate,right_truncate,bottom_truncate];
       console.noteln("Will truncate images by: top ", top_truncate, ", bottom, ", 
             bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
-
-
+      
+      
       // Calculate a percentage of truncation along axis and area for information purpose
       let x_truncate = left_truncate+right_truncate;
       let y_truncate = top_truncate+bottom_truncate;
@@ -8893,6 +9108,26 @@ function cropChannelImages()
       console.noteln("Truncate percentages: width by ",x_truncate_percent.toFixed(1),"%, height by ", y_truncate_percent.toFixed(1), 
             "%, area by ",area_truncate_percent.toFixed(1), "%");
 
+      return truncate_amount;
+}
+
+// Find the crop area and cop all channel images
+function cropChannelImages()
+{
+      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
+
+      // Make intergration low
+      let all_images = make_full_image_list();
+      console.noteln("Finding common area for ",all_images.images.length, " images (all channels) ")
+      let images = all_images.images;
+      if (images == null || images.length == 0) {
+            return;
+      }
+      //console.writeln("all: " + JSON.stringify(images, null, 2));
+
+      let lowClipImage = runImageIntegrationForCrop(images, "ALL");
+
+      let truncate_amount = calculate_crop_amount("LowRejectionMap_ALL");
 
       // Original integrated images
       // TODO this should come from some logic that knows which images are present
@@ -13310,4 +13545,7 @@ function main()
       dialog.execute();
 }
 
+// Disable execution of main if the script is included as part of a test
+#ifndef TEST_AUTO_INTEGRATE
 main();
+#endif
