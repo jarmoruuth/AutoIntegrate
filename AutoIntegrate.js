@@ -9125,9 +9125,9 @@ function cropChannelImages()
       }
       //console.writeln("all: " + JSON.stringify(images, null, 2));
 
-      let lowClipImage = runImageIntegrationForCrop(images, "ALL");
+      let lowClipImageName = runImageIntegrationForCrop(images, "ALL");
 
-      let truncate_amount = calculate_crop_amount("LowRejectionMap_ALL");
+      let truncate_amount = calculate_crop_amount(lowClipImageName);
 
       // Original integrated images
       // TODO this should come from some logic that knows which images are present
@@ -9142,7 +9142,7 @@ function cropChannelImages()
       CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
 
       // Iconify the map windows (no keyword)
-      windowIconizeif(lowClipImage);
+      windowIconizeif(lowClipImageName);
 
       console.noteln("Generated images cropped");
 }
