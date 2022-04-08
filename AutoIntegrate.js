@@ -9226,12 +9226,18 @@ function AutoIntegrateEngine(auto_continue)
        * If requested, we crop all channel images and channel support images (the xxx_map images)
        * to an area covered by all source images.
        */ 
-      if (par.crop_to_common_area.val)
+      if (! auto_continue)
       {
-            cropChannelImages();
-      } else
+            if (par.crop_to_common_area.val)
+            {
+                  cropChannelImages();
+            } else
+            {
+                  console.warningln("Images are not cropped to common area, borders may be of lower quality");
+            }
+      } else 
       {
-            console.warningln("Images are not cropped to common area, borders may be of lower quality")
+           console.writeln("Crop ignored in auto continue, use images as is (possibly already cropped)") ;
       }
       
       /* Now we have L (Gray) and R, G and B images, or just RGB image
