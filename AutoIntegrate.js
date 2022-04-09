@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -12942,6 +12942,7 @@ function AutoIntegrateDialog()
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
+      this.autoContinueButton.icon = this.scaledResource( ":/icons/goto-next.png" );
       this.autoContinueButton.toolTip = 
             "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
             "<p>" +
@@ -13025,12 +13026,13 @@ function AutoIntegrateDialog()
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
       this.closeAllButton.text = "Close all";
+      this.closeAllButton.icon = this.scaledResource( ":/icons/window-close.png" );
       this.closeAllButton.toolTip = "<p>Close all image windows created by this script</p>" +
                                     "<p>If Window Prefix is used then all windows with that prefix are closed. " +
                                     "To close all windows with all prefixes use button Close all prefixes</p>";
       this.closeAllButton.onClick = function()
       {
-            console.writeln("Close all");
+            console.writeln("Close current");
             updateWindowPrefix();
             // Close all using the current ppar.win_prefix
             closeAllWindows(par.keep_integrated_images.val, false);
@@ -13054,6 +13056,7 @@ function AutoIntegrateDialog()
 
       closeAllPrefixButton = new PushButton( this );
       closeAllPrefixButton.text = "Close all prefixes";
+      closeAllPrefixButton.icon = this.scaledResource( ":/icons/window-close-all.png" );
       closeAllPrefixButton.toolTip = "Updated in function setWindowPrefixHelpTip";
       closeAllPrefixButton.onClick = function()
       {
@@ -13145,15 +13148,14 @@ function AutoIntegrateDialog()
 
       // Group box for AutoContinue and CloseAll
       this.autoButtonSizer = new HorizontalSizer;
-      this.autoButtonSizer.add( this.autoContinueButton );
-      this.autoButtonSizer.addSpacing( 4 );
       this.autoButtonSizer.add( this.closeAllButton );
+      this.autoButtonSizer.addSpacing( 4 );
+      this.autoButtonSizer.add( closeAllPrefixButton );
       if (par.use_manual_icon_column.val) {
             this.autoButtonSizer.addSpacing ( 150 );
       } else {
             this.autoButtonSizer.addSpacing ( 250 );
       }
-      this.autoButtonSizer.add( closeAllPrefixButton );
       if (par.use_manual_icon_column.val) {
             this.autoButtonSizer.addSpacing ( 4 );
             this.autoButtonSizer.add( this.columnCountControlLabel );
@@ -13342,6 +13344,8 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.newInstance_Button );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( this.autoContinueButton );
+      this.buttons_Sizer.addSpacing( 20 );
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
