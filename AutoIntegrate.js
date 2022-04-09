@@ -192,6 +192,10 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 Copyright (c) 2018-2022 Jarmo Ruuth. All Rights Reserved.
 
+Crop to common area code
+
+      Copyright (c) 2022 Jean-Marc Lugrin. All Rights Reserved.
+
 Window name prefix and icon location code
 
       Copyright (c) 2021 rob pfile. All Rights Reserved.
@@ -11508,6 +11512,7 @@ function AutoIntegrateDialog()
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p><p>" +
       "Copyright (c) 2018-2022 Jarmo Ruuth<br>" +
+      "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
