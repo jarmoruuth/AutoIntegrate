@@ -90,29 +90,31 @@ Steps with LRGB files
    based on the number of image files, or specified by the user. <lII>
    After this step there are Integration_L, Integration_R, Integration_G and Integration_B images,
    or with narrowband Integration_H, Integration_S and Integration_O.
-2. Optionally ABE in run on L image. <lABE>
-3. HistogramTransform is run on L image. <lHT>
-4. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
-5. Noise reduction is run on L image using a mask.
-6. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
+2. Optionally the Integration images and corresponding support images are cropped to the area
+   contributed to by all images.
+3. Optionally ABE in run on L image. <lABE>
+4. HistogramTransform is run on L image. <lHT>
+5. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
+6. Noise reduction is run on L image using a mask.
+7. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
    <rgbDBE>
-7. By default LinearFit is run on RGB channels using L, R, G or B as a reference
-8. If Channel noise reduction is non-zero then noise reduction is done separately 
+8. By default LinearFit is run on RGB channels using L, R, G or B as a reference
+9. If Channel noise reduction is non-zero then noise reduction is done separately 
    for each R,G and B images using a mask.
-9. ChannelCombination is run on Red, Green and Blue integrated images to
+10. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
-10. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+11. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
     If use_background_neutralization is selected then BackgroundNeutralization is run before
     color calibration.
-11. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
-12. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+12. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
+13. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
-13. HistogramTransform is run on RGB image. <rgbHT>
-14. Optionally TGVDenoise is run to reduce color noise.
-15. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
+14. HistogramTransform is run on RGB image. <rgbHT>
+15. Optionally TGVDenoise is run to reduce color noise.
+16. Optionally a slight CurvesTransformation is run on RGB image to increase saturation.
     By default saturation is increased also when the image is still in a linear
     format.
-16. LRGBCombination is run to generate final LRGB image.
+17. LRGBCombination is run to generate final LRGB image.
 
 Steps with color files
 ----------------------
@@ -265,10 +267,15 @@ Linear Defect Detection:
 #include <pjsr/DataType.jsh>
 
 // temporary debugging
+#ifndef TEST_AUTO_INTEGRATE
+// The variables defined here should have a default of 'false' and must be defined
+// by the testing scripts including this script. This allow changing the debug
+// in the test scripts without modifying the main script
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
+#endif
 
-var autointegrate_version = "AutoIntegrate v1.46 test1";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -312,6 +319,7 @@ var par = {
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
+      crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
@@ -726,7 +734,8 @@ var fixed_windows = [
       "Integration_L_map_pm_ABE",
       "Integration_L_map_pm_noABE",
       "Integration_L_map_pm_ABE_HT",
-      "Integration_L_map_pm_noABE_HT"
+      "Integration_L_map_pm_noABE_HT",
+      "LowRejectionMap_ALL"
 ];
 
 var calibrate_windows = [
@@ -1264,10 +1273,12 @@ function windowShowif(id)
       }
 }
 
-function windowIconizeAndKeywordif(id)
+// Iconify the window, the return value is the window,
+// only as a convenience to windowIconizeAndKeywordif()
+function windowIconizeif(id)
 {
       if (id == null) {
-            return;
+            return null;
       }
       var w = findWindow(id);
 
@@ -1294,11 +1305,21 @@ function windowIconizeAndKeywordif(id)
             w.iconize();
             w.position = oldpos;                // restore window position
 
+            haveIconized++;
+      }
+      return w;
+}
+
+function windowIconizeAndKeywordif(id)
+{
+      var w = windowIconizeif(id);
+
+      if (w != null) {
+ 
             // Set processed image keyword. It will not overwrite old
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             setProcessedImageKeyword(w);
-            haveIconized++;
       }
 }
 
@@ -5623,6 +5644,58 @@ function runImageIntegration(channel_images, name)
       }
 }
 
+function runImageIntegrationForCrop(images, name)
+{
+      console.noteln("ImageIntegration to find area common to all images");
+
+      var P = new ImageIntegration;
+
+      P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
+      P.combination = ImageIntegration.prototype.Minimum;
+      
+      //addProcessingStep("Using NoNormalization for ImageIntegration normalization");
+      P.normalization = ImageIntegration.prototype.NoNormalization;
+      P.rejection = ImageIntegration.prototype.NoRejection;
+      //P.rejectionNormalization = ImageIntegration.prototype.NoRejectionNormalization;
+      P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      P.mapRangeRejection = true;
+      P.reportRangeRejection = false;
+
+      P.generateRejectionMaps = true;
+      P.generateIntegratedImage = true;
+
+      P.generateDrizzleData = false;
+      P.closePreviousImages = false;
+
+      P.noGUIMessages = true;
+      P.showImages = true;
+
+      P.clipLow = true;
+      P.clipHigh = true;
+      P.rangeClipLow = true;
+      P.rangeLow = 0.000000;
+      P.rangeClipHigh = false;
+      P.rangeHigh = 0.980000;
+
+      P.executeGlobal();
+
+      //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
+
+      //   console.writeln("highRejectionMapImageId ", P.highRejectionMapImageId)
+      //   console.writeln("slopeMapImageId ", P.slopeMapImageId) 
+      //   console.writeln("integrationImageId ", P.integrationImageId)
+      //   console.writeln("lowRejectionMapImageId ", P.lowRejectionMapImageId)
+
+      // Keep only lowRejectionMapImageId
+      windowCloseif(P.highRejectionMapImageId);
+      windowCloseif(P.slopeMapImageId);
+      windowCloseif(P.integrationImageId);
+
+      //console.writeln("Rename '",P.lowRejectionMapImageId,"' to ",ppar.win_prefix + "LowRejectionMap_" + name)
+      var new_name = windowRename(P.lowRejectionMapImageId, ppar.win_prefix + "LowRejectionMap_" + name);
+      return new_name
+      
+}
 
 /* Do run ABE so just make copy of the source window as
  * is done by AutomaticBackgroundExtractor.
@@ -8594,6 +8667,485 @@ function mapBEchannels()
       }
 }
 
+// Support functions of automatic crop
+function make_full_image_list()
+{
+      let All_images = init_images();
+      if (L_images.images.length > 0) {
+            All_images.images = All_images.images.concat(L_images.images)
+      }
+      if (R_images.images.length > 0) {
+            All_images.images = All_images.images.concat(R_images.images);
+      }
+      if (G_images.images.length > 0) {
+            All_images.images = All_images.images.concat(G_images.images);
+      }
+      if (B_images.images.length > 0) {
+            All_images.images = All_images.images.concat(B_images.images);
+      }
+      if (H_images.images.length > 0) {
+            All_images.images = All_images.images.concat(H_images.images);
+      }
+      if (S_images.images.length > 0) {
+            All_images.images = All_images.images.concat(S_images.images);
+      }
+      if (O_images.images.length > 0) {
+            All_images.images = All_images.images.concat(O_images.images);
+      }
+      if (C_images.images.length > 0) {
+            All_images.images = All_images.images.concat(C_images.images);
+      }
+      return All_images;
+}
+
+// Find borders starting from a mid point and going up/down
+function find_up_down(image,col)
+{
+      let row_mid = image.height / 2;
+      let row_up = 0;
+      for (let row=row_mid; row>=0; row--) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            row_up = row+1;
+            break;
+            }
+      }
+      let row_down = image.height-1;
+      for (let row=row_mid; row<image.height; row++) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            row_down = row-1;
+            break;
+            }
+      }
+      if (debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      return [row_up, row_down];
+}
+
+// Find borders starting from a mid point and going left/right
+function find_left_right(image,row)
+{
+      let col_mid = image.width / 2;
+      let col_left = 0;
+      for (let col=col_mid; col>=0; col--) {
+            let p = image.sample(col, row);
+            if (p>0) {
+            col_left = col+1;
+            break;
+            }
+      }
+      let col_right = image.width-1;
+      for (let col=col_mid; col<image.width; col++) {
+            let p= image.sample(col, row);
+            if (p>0) {
+            col_right = col-1;
+            break;
+            }
+      }
+      if (debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      return [col_left, col_right];
+}
+
+function findMaximalBoundingBox(lowClipImage)
+{
+      let col_mid = lowClipImage.width / 2;
+      let row_mid = lowClipImage.height / 2;
+      let p = lowClipImage.sample(col_mid, row_mid);
+      if (p != 0.0) {
+            // TODO - should return an error message and use the uncropped lowClipImage
+            // Could also accept a % of rjetection
+            throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+      }
+
+      // Find extent of black area at mid points (the black points nearest to the border)
+      let [top,bottom] = find_up_down(lowClipImage,col_mid);
+      let [left,right] = find_left_right(lowClipImage,row_mid);
+
+      if (debug)
+      {
+            console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
+      }
+
+      return [top,bottom,left,right];
+     
+
+}
+
+// Find the bounding box of the area without rejected image, starting from the
+// middle point.
+
+/* 
+ * Assumptions:
+ * It is assumed that the valid area obeys the following assumptions:
+ * - The valid area is the area where all images are contributing (rejection = 0)
+ *   (if needed remove badly aligned images before processing using Blink)
+ * - The point at the center of the image is always valid (otherwise the process fails).
+ * - The valid area is contiguous and no line from the center of the image to any valid point
+ *   crosses an invalid area (a pretty reasonable assumption for any usable image).
+ * - The valid area will be rectangular and parallel to the borders of the image.
+ * With these assumptions there is genrally not a single possible rectangular area
+ * (think of an image is a circle), the algorithm assumes that the valid area is 
+ * "reasonable", that is a few percent smaller than the full image. In extreme cases
+ * the selected area will work but may not be optimal. This should not be the case
+ * for any common image.
+ * 
+ * Algorithm: 
+ * Because the center point must be included, the maximum border are at the last
+ * valid point going up/down and left/right from the center point. This defines
+ * the initial top,bottom,left and right.
+ * These top,bottom,left and right lines will be moved inwards as needed to ensure that
+ * the four corners are valid point.
+ * There is a loop that:
+ * - Find the points at the intersection of top,bottom,left and right.
+ * - Check if the points are valid
+ * - Move the two adjacent lines of top,bottom,left or right inwards if the point is
+ *   invalid and redo a test.
+ * Each point is tested and moved in turn while they are invalid. When the four points 
+ * are valid, then the smallest top,bottom,left and right are considered valid.
+ * Because we are limited by both the intersection of the center lines and the valid 
+ * corners, the algorithm works for border that are oblique lines, concave lines or convex
+ * lines.
+ * A final pass is done on each side to handle possible wiggles (pretty irregular borders
+ * with some invalid points inside the bounding box). Each border is reduced until
+ * the full border is valid.  This handles small irregularities (up to 100 pixels)
+ * that are contiguous to a border.
+*/
+function findBounding_box(lowClipImageWindow)
+{
+      let image = lowClipImageWindow.mainView.image;
+
+      console.noteln("Finding valid bounding box for image ", lowClipImageWindow.mainView.id, 
+            " (", image.width, "x" , image.height + ")");
+
+      let [top_row,bottom_row,left_col,right_col] = findMaximalBoundingBox(image);
+
+      // Initialize the points at the maximum possible extend of the image,
+      // typically some or all will be invalid (not black).
+           
+      // Find the first valid point moving inwards
+     
+      let left_top_valid = false;
+      let right_top_valid = false;
+      let left_bottom_valid = false;
+      let right_bottom_valid = false;
+
+      let left_top = new Point(left_col,top_row);
+      let right_top = new Point(right_col,top_row);
+      let left_bottom = new Point(left_col, bottom_row);
+      let right_bottom = new Point(right_col,bottom_row);
+
+      left_top_valid = image.sample(left_top)==0;
+      right_top_valid =  image.sample(right_top)==0;
+      left_bottom_valid =  image.sample(left_bottom)==0;
+      right_bottom_valid =  image.sample(right_bottom)==0;
+
+      let corner = 0;
+      let all_valid = true;
+      for (;;)
+      {  
+            switch (corner) {
+
+                  case (0):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              if (!left_top_valid) {
+                                    left_top = new Point(left_col,top_row);
+                                    left_top_valid = image.sample(left_top)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!left_top_valid)
+                                    {
+                                          all_valid= false;
+                                          left_col = left_col+1;
+                                          top_row = top_row+1;
+                                    }
+                              }
+                        }
+
+                  case (1):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              if (!right_bottom_valid) {
+                                    right_bottom = new Point(right_col,bottom_row);
+                                    right_bottom_valid = image.sample(right_bottom)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!right_bottom_valid)
+                                    {
+                                          all_valid= false;
+                                          right_col = right_col-1;
+                                          bottom_row = bottom_row-1;
+                                    }
+                              }
+                        }
+
+                  case (2):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              //
+                              if (!left_bottom_valid) {
+                                    left_bottom = new Point(left_col,bottom_row);
+                                    left_bottom_valid = image.sample(left_bottom)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!left_bottom_valid)
+                                    {
+                                          all_valid= false;
+                                          left_col = left_col+1;
+                                          bottom_row = bottom_row-1;
+                                    }
+                              }
+                        }
+
+                  case (3):
+                        {
+                              // If not yet valid, check if the current point is valid
+                              //
+                              if (!right_top_valid) {
+                                    right_top = new Point(right_col,top_row);
+                                    right_top_valid = image.sample(right_top)==0; 
+                                    // if invalid move the corner inwards
+                                    if (!right_top_valid)
+                                    {
+                                          all_valid= false;
+                                          right_col = right_col-1;
+                                          top_row = top_row+1;
+                                    }
+                              }
+                        }
+             } // switch
+
+            corner ++;
+            // Check end of cycle
+            if (corner>3) {
+                  if (all_valid) break;
+                  corner = 0;
+                  all_valid = true;
+            }
+
+      } // for
+
+      // Show the valid points for debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
+      // recalculated.
+      if (debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
+
+      // Check that the whiole line at the border is valid, in case the border is wiggly
+      let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];
+
+      let number_cycle = 0;
+      let any_border_inwards = false;
+      for (;;) {
+            // Ensure that we terminate in case of unreasonable borders
+            number_cycle += 1;
+            if (number_cycle>100) 
+            {
+                  throwFatalError("Borders too wiggly for crop after ", number_cycle, " cycles"); 
+            }
+
+            let all_valid = true;
+
+            // Check if left most column is entirely valid
+            let left_col_valid = true;
+            for (let i=top_row; i<=bottom_row; i++)
+            {
+                  left_col_valid = left_col_valid && image.sample(left_col,i)==0;
+                  if (!left_col_valid) break;
+            }
+            if (! left_col_valid) 
+            {
+                  left_col = left_col + 1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+
+            // Check if right most column is entirely valid
+            let right_col_valid = true;
+            for (let i=top_row; i<=bottom_row; i++)
+            {
+                  right_col_valid = right_col_valid && image.sample(right_col,i)==0;
+                  if (!right_col_valid) break;
+            }
+            if (! right_col_valid) 
+            {
+                  right_col = right_col -1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+
+            // Check if top most column is entirely valid
+            let top_row_valid = true;
+            for (let i=left_col; i<=right_col; i++)
+            {
+                  top_row_valid = top_row_valid && image.sample(i,top_row)==0;
+                  if (!top_row_valid) break;
+            }
+            if (! top_row_valid) 
+            {
+                  top_row = top_row + 1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+            
+            // Check if bottom most column is entirely valid
+            let bottom_row_valid = true;
+            for (let i=left_col; i<=right_col; i++)
+            {
+                  bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)==0;
+                  if (!bottom_row_valid) break;
+            }
+            if (! bottom_row_valid) 
+            {
+                  bottom_row = bottom_row -1;
+                  any_border_inwards = true;
+                  all_valid = false;
+            }
+            
+            if (all_valid) break;
+      }
+      
+      if (any_border_inwards)
+      {
+            console.noteln("Borders reduced due to wiggles, ", number_cycle, " cycles of border reduction.");
+            if (original_left_col != left_col) console.noteln("Left column moved from ", original_left_col, " to ", left_col);
+            if (original_right_col != right_col) console.noteln("Right column moved from ", original_right_col, " to ", right_col);
+            if (original_top_row != top_row) console.noteln("Top row moved from ", original_top_row, " to ", top_row);
+            if (original_bottom_row != bottom_row) console.noteln("Bottom row moved from ", original_bottom_row, " to ", bottom_row);
+      } else {
+            console.noteln("Borders validated, no wiggle found");
+      }
+ 
+      // Log the area of interest
+      let nmb_cols = right_col-left_col;
+      let nmb_rows = bottom_row - top_row;
+
+      console.noteln("Bounding box for crop: rows ", top_row ," to ", bottom_row, ", columns ", 
+            left_col, " to  ",right_col, ",  area=", nmb_cols,"x",nmb_rows)
+      return [left_col, right_col, top_row, bottom_row]
+}
+
+// We negate the crop amount here to match the requirement of the process Crop
+function CreateCrop(left,top,right,bottom)
+{
+      var P = new Crop;
+      P.leftMargin = -left;
+      P.topMargin = -top;
+      P.rightMargin = -right;
+      P.bottomMargin = -bottom;
+      P.mode = Crop.prototype.AbsolutePixels;
+      // Irrelevant
+      P.xResolution = 72.000;
+      P.yResolution = 72.000;
+      P.metric = false;
+      P.forceResolution = false;
+      // Irrelevant
+      P.red = 0.000000;
+      P.green = 0.000000;
+      P.blue = 0.000000;
+      P.alpha = 1.000000;
+      P.noGUIMessages = true;
+      return P
+}
+
+
+// Crop an image if it exists
+function CropImageIf(window, truncate_amount)
+{
+      if (window == null) return
+
+      let [left_truncate,top_truncate,right_truncate,bottom_truncate] = truncate_amount;
+      // console.noteln("Truncate image ", window.mainView.id, " by: top ", top_truncate, ", bottom, ", 
+      //       bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
+      
+      let crop = CreateCrop(left_truncate,top_truncate,right_truncate,bottom_truncate);
+
+      window.mainView.beginProcess(UndoFlag_NoSwapFile);  
+      crop.executeOn(window.mainView, false);  
+      window.mainView.endProcess();
+}
+
+// Crop bot hthe channel and its support image(s), currently _map
+function CropChannelAndMapImageIf(id, truncate_amount)
+{
+      if (id == null) {
+            return;
+      }
+
+      var channelWindow = findWindow(id);
+      var copyname = ensure_win_prefix(id + "_map");
+      var mapWindow = findWindow(copyname);
+
+      CropImageIf(channelWindow, truncate_amount);
+      CropImageIf(mapWindow, truncate_amount);
+}
+
+function calculate_crop_amount(window_id)
+{
+      let lowClipImageWindow = findWindow(window_id);
+
+      let bounding_box = findBounding_box(lowClipImageWindow);
+      let [left_col, right_col, top_row, bottom_row] = bounding_box;
+      
+      // Preview for information to the user only
+      let cropPreview = lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+      
+      // Calculate how much to truncate as used for the Crop process (except Crop want it negative)
+      let full_image = lowClipImageWindow.mainView.image
+      let top_truncate = top_row;
+      let bottom_truncate = full_image.height - bottom_row;
+      let left_truncate = left_col;
+      let right_truncate = full_image.width - right_col;
+      let truncate_amount = [left_truncate,top_truncate,right_truncate,bottom_truncate];
+      console.noteln("Will truncate images by: top ", top_truncate, ", bottom, ", 
+            bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
+      
+      
+      // Calculate a percentage of truncation along axis and area for information purpose
+      let x_truncate = left_truncate+right_truncate;
+      let y_truncate = top_truncate+bottom_truncate;
+      let x_truncate_percent = 100*(x_truncate/full_image.width);
+      let y_truncate_percent = 100*(y_truncate/full_image.height);
+      let new_area = (right_col-left_col+1) * (bottom_row-top_row+1);
+      let full_area = full_image.width*full_image.height;
+      let area_truncate_percent = 100*((full_area-new_area) / full_area);
+      console.noteln("Truncate percentages: width by ",x_truncate_percent.toFixed(1),"%, height by ", y_truncate_percent.toFixed(1), 
+            "%, area by ",area_truncate_percent.toFixed(1), "%");
+
+      return truncate_amount;
+}
+
+// Find the crop area and cop all channel images
+function cropChannelImages()
+{
+      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
+
+      // Make intergration low
+      let all_images = make_full_image_list();
+      console.noteln("Finding common area for ",all_images.images.length, " images (all channels) ")
+      let images = all_images.images;
+      if (images == null || images.length == 0) {
+            return;
+      }
+      //console.writeln("all: " + JSON.stringify(images, null, 2));
+
+      let lowClipImageName = runImageIntegrationForCrop(images, "ALL");
+
+      let truncate_amount = calculate_crop_amount(lowClipImageName);
+
+      // Original integrated images
+      // TODO this should come from some logic that knows which images are present
+      CropChannelAndMapImageIf(L_id, truncate_amount);                
+      CropChannelAndMapImageIf(R_id, truncate_amount);
+      CropChannelAndMapImageIf(G_id, truncate_amount);
+      CropChannelAndMapImageIf(B_id, truncate_amount);
+      CropChannelAndMapImageIf(H_id, truncate_amount);
+      CropChannelAndMapImageIf(S_id, truncate_amount);
+      CropChannelAndMapImageIf(O_id, truncate_amount);
+      
+      CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
+
+      // Iconify the map windows (no keyword)
+      windowIconizeif(lowClipImageName);
+
+      console.noteln("Generated images cropped");
+}
+
 function AutoIntegrateEngine(auto_continue)
 {
       if (extra_target_image != "Auto") {
@@ -8667,6 +9219,24 @@ function AutoIntegrateEngine(auto_continue)
             console.criticalln("Failed!");
             console.endLog();
             return false;
+      }
+
+      /*
+       * If requested, we crop all channel images and channel support images (the xxx_map images)
+       * to an area covered by all source images.
+       */ 
+      if (! auto_continue)
+      {
+            if (par.crop_to_common_area.val)
+            {
+                  cropChannelImages();
+            } else
+            {
+                  console.warningln("Images are not cropped to common area, borders may be of lower quality");
+            }
+      } else 
+      {
+           console.writeln("Crop ignored in auto continue, use images as is (possibly already cropped)") ;
       }
       
       /* Now we have L (Gray) and R, G and B images, or just RGB image
@@ -11071,6 +11641,8 @@ function AutoIntegrateDialog()
             "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
             "<p>Do not use clipping in ImageIntegration</p>" );
+      this.crop_to_common_area_CheckBox = newCheckBox(this, "Crop to common area", par.crop_to_common_area, 
+            "<p>Crop all channels to area covered by all images</p>" );
       this.RRGB_image_CheckBox = newCheckBox(this, "RRGB image", par.RRGB_image, 
             "<p>RRGB image using R as Luminance.</p>" );
       this.synthetic_l_image_CheckBox = newCheckBox(this, "Synthetic L image", par.synthetic_l_image, 
@@ -11139,6 +11711,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
+      this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
@@ -12977,4 +13550,7 @@ function main()
       dialog.execute();
 }
 
+// Disable execution of main if the script is included as part of a test
+#ifndef TEST_AUTO_INTEGRATE
 main();
+#endif
