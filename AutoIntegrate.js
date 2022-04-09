@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop2";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop3";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -10222,6 +10222,9 @@ function parseJsonFile(fname, lights_only)
             getSettingsFromJson(saveInfo.settings);
       }
 
+      let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
+      saveInfoMakeFullPaths(saveInfo, saveDir);
+
       var pagearray = [];
       for (var i = 0; i < pages.END; i++) {
             pagearray[i] = null;
@@ -10338,6 +10341,46 @@ function initJsonSaveInfo(fileInfoList, save_settings)
       }
 }
 
+/* Fix paths so that they are relative to saveDir if they have a common prefix.
+ *
+ * Relative paths make it easier to move files and corresponding Json file
+ * around or even share it with someone else.
+ *
+ * For example if saveDir is /Telescopes/TelescopeLive/NGC104 and 
+ * file name is /Telescopes/TelescopeLive/NGC104/Lights/Red/NGC104_R.fits
+ * we save the file name as Lights/Red/NGC104_R.fits. If saveDir is a prefix
+ * of file name we save the full path.
+ */
+function saveInfoMakeRelativePaths(saveInfo, saveDir)
+{
+      console.writeln("saveInfoMakeRelativePaths");
+      var fileInfoList = saveInfo.fileinfo;
+      for (var i = 0; i < fileInfoList.length; i++) {
+            for (var j = 0; j < fileInfoList[i].files.length; j++) {
+                  var fname = fileInfoList[i].files[j][0];
+                  if (fname.startsWith(saveDir)) {
+                        fileInfoList[i].files[j][0] = fname.substring(saveDir.length + 1);
+                  }
+            }
+      }
+      return saveInfo;
+}
+
+function saveInfoMakeFullPaths(saveInfo, saveDir)
+{
+      console.writeln("saveInfoMakeFullPaths");
+      var fileInfoList = saveInfo.fileinfo;
+      for (var i = 0; i < fileInfoList.length; i++) {
+            for (var j = 0; j < fileInfoList[i].files.length; j++) {
+                  var fname = fileInfoList[i].files[j][0];
+                  if (pathIsRelative(fname)) {
+                        fileInfoList[i].files[j][0] = saveDir + '/' + fname;
+                  }
+            }
+      }
+      return saveInfo;
+}
+
 /* Save file info to a file.
  */
 function saveJsonFile(parent, save_settings)
@@ -10402,7 +10445,6 @@ function saveJsonFile(parent, save_settings)
       }
 
       let saveInfo = initJsonSaveInfo(fileInfoList, save_settings);
-      let saveInfoJson = JSON.stringify(saveInfo, null, 2);
 
       let saveFileDialog = new SaveFileDialog();
       saveFileDialog.caption = "Save As";
@@ -10423,9 +10465,12 @@ function saveJsonFile(parent, save_settings)
       if (!saveFileDialog.execute()) {
             return;
       }
-      saveLastDir(File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName));
+      let saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
+      saveLastDir(saveDir);
       try {
             let file = new File();
+            saveInfoMakeRelativePaths(saveInfo, saveDir);
+            let saveInfoJson = JSON.stringify(saveInfo, null, 2);
             file.createForWriting(saveFileDialog.fileName);
             file.outTextLn(saveInfoJson);
             file.close();
