@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop3";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop4";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -1299,11 +1299,15 @@ function windowIconizeif(id)
                   iconPoint = new Point(
                                     -(w.width / 2) + 5 + columnCount*300,
                                     -(w.height / 2) + 5 + iconStartRow * 32);
-                  //addProcessingStep("Icons start from position " + iconPoint);
+                  console.writeln("Icon " + id + " start from position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */
-                  iconPoint.moveBy(0, 32);
+                  // iconPoint.moveBy(0, 32);
+                  iconPoint = new Point(
+                        -(w.width / 2) + 5 + columnCount*300,
+                        -(w.height / 2) + 5 + iconStartRow * 32 + haveIconized * 32);
+                  console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             }
             w.position = new Point(iconPoint);  // set window position to get correct icon position
             w.iconize();
