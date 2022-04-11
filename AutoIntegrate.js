@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop4";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop5";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -470,8 +470,11 @@ var par = {
       debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
       extract_channel_mapping: { val: "", def: "", name : "Extract channel mapping", type : 'S' },
       create_superbias: { val: true, def: true, name : "Superbias", type : 'B' },
+      bias_master_files: { val: false, def: false, name : "Bias master files", type : 'B' },
       pre_calibrate_darks: { val: false, def: false, name : "Pre-calibrate darks", type : 'B' },
       optimize_darks: { val: true, def: true, name : "Optimize darks", type : 'B' },
+      dark_master_files: { val: false, def: false, name : "Dark master files", type : 'B' },
+      flat_dark_master_files: { val: false, def: false, name : "Flat dark master files", type : 'B' },
       stars_in_flats: { val: false, def: false, name : "Stars in flats", type : 'B' },
       no_darks_on_flat_calibrate: { val: false, def: false, name : "Do not use darks on flats", type : 'B' },
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
@@ -1307,7 +1310,7 @@ function windowIconizeif(id)
                   iconPoint = new Point(
                         -(w.width / 2) + 5 + columnCount*300,
                         -(w.height / 2) + 5 + iconStartRow * 32 + haveIconized * 32);
-                  console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
+                  // console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             }
             w.position = new Point(iconPoint);  // set window position to get correct icon position
             w.iconize();
@@ -2262,23 +2265,84 @@ function runSuberBias(biasWin)
       return targetWindow.mainView.id
 }
 
+/* Open a file as image window. */
+function openImageWindowFromFile(fileName)
+{
+      var imageWindows = ImageWindow.open(fileName);
+      if (imageWindows.length != 1) {
+            throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
+      }
+      var imageWindow = imageWindows[0];
+      if (imageWindow == null) {
+            throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
+      }
+      return imageWindow;
+}
+
+/* Match a master file to images. There can be an array of
+ * master files in which case we try find the best match.
+ * Images is a list of [enabled, path]
+ */
+function matchMasterToImages(images, masterPath)
+{
+      if (!Array.isArray(masterPath)) {
+            console.writeln("matchMasterToImages, masterPath " + masterPath);
+            return masterPath;
+      }
+      if (masterPath.length == 1) {
+            console.writeln("matchMasterToImages, masterPath[0] " + masterPath[0]);
+            return masterPath[0];
+      }
+
+      /* Try find best match from masterPath for images.
+       * Pick first image file as a reference.
+       */
+      var imageWin = openImageWindowFromFile(images[0][1]);
+      console.writeln("matchMasterToImages, images[0][1] " + images[0][1] + ", imageWin.width " + imageWin.width + ", imageWin.height "+ imageWin.height);
+
+      /* Loop through master files and pick the matching one.
+       */
+      var matchingMaster = null;
+      for (var i = 0; i < masterPath.length; i++) {
+            var masterWin = openImageWindowFromFile(masterPath[i]);
+            console.writeln("matchMasterToImages, check masterPath[ " + i + "] " + masterPath[i] + ", masterWin.width "+ masterWin.width + ", masterWin.height " + masterWin.height);
+            if (masterWin.width == imageWin.width 
+                && masterWin.height == imageWin.height)
+            {
+                  /* We have a match. */
+                  matchingMaster = masterPath[i];
+            }
+            forceCloseOneWindow(masterWin);
+            if (matchingMaster != null) {
+                  break;
+            }
+      }
+      forceCloseOneWindow(imageWin);
+
+      if (matchingMaster == null) {
+            throwFatalError("*** matchMasterToImages Error: Can't find matching master file");
+      }
+
+      return matchingMaster;
+}
+
 // Run ImageCalibration to darks using master bias image
 // Output will be _c.xisf images
-function runCalibrateDarks(images, masterbiasPath)
+function runCalibrateDarks(fileNames, masterbiasPath)
 {
       if (masterbiasPath == null) {
             console.writeln("runCalibrateDarks, no master bias");
-            return imagesEnabledPathToFileList(images);
+            return fileNames;
       }
 
       console.writeln("runCalibrateDarks, images[0] " + images[0][1] + ", master bias " + masterbiasPath);
 
       var P = new ImageCalibration;
-      P.targetFrames = filesNamesToEnabledPath(images); // [ enabled, path ];
+      P.targetFrames = filesNamesToEnabledPath(fileNames); // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.masterBiasEnabled = true;
-      P.masterBiasPath = masterbiasPath;
+      P.masterBiasPath = matchMasterToImages(P.targetFrames, masterbiasPath);
       P.masterDarkEnabled = false;
       P.masterFlatEnabled = false;
       P.outputDirectory = outputRootDir + AutoOutputDir;
@@ -2307,11 +2371,11 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       if (masterflatdarkPath != null) {
             console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
             P.masterBiasEnabled = true;
-            P.masterBiasPath = masterflatdarkPath;
+            P.masterBiasPath = matchMasterToImages(images, masterflatdarkPath);
       } else if (masterbiasPath != null) {
             console.writeln("runCalibrateFlats, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
-            P.masterBiasPath = masterbiasPath;
+            P.masterBiasPath = matchMasterToImages(images, masterbiasPath);
       } else {
             console.writeln("runCalibrateFlats, no master bias or flat dark");
             P.masterBiasEnabled = false;
@@ -2320,7 +2384,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       if (masterdarkPath != null && !par.no_darks_on_flat_calibrate.val && masterflatdarkPath == null) {
             console.writeln("runCalibrateFlats, master dark " + masterdarkPath);
             P.masterDarkEnabled = true;
-            P.masterDarkPath = masterdarkPath;
+            P.masterDarkPath = matchMasterToImages(images, masterdarkPath);
       } else {
             console.writeln("runCalibrateFlats, no master dark");
             P.masterDarkEnabled = false;
@@ -2395,7 +2459,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
-            P.masterBiasPath = masterbiasPath;
+            P.masterBiasPath = matchMasterToImages(images, masterbiasPath);
       } else {
             console.writeln("runCalibrateLights, no master bias");
             P.masterBiasEnabled = false;
@@ -2404,7 +2468,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       if (masterdarkPath != null) {
             console.writeln("runCalibrateLights, master dark " + masterdarkPath);
             P.masterDarkEnabled = true;
-            P.masterDarkPath = masterdarkPath;
+            P.masterDarkPath = matchMasterToImages(images, masterdarkPath);
       } else {
             console.writeln("runCalibrateLights, no master dark");
             P.masterDarkEnabled = false;
@@ -2534,7 +2598,10 @@ function calibrateEngine(filtered_lights)
             }
       }
 
-      if (biasFileNames.length == 1) {
+      if (par.bias_master_files.val) {
+            addProcessingStep("calibrateEngine use existing master bias files " + biasFileNames);
+            var masterbiasPath = biasFileNames;
+      } else if (biasFileNames.length == 1) {
             addProcessingStep("calibrateEngine use existing master bias " + biasFileNames[0]);
             var masterbiasPath = biasFileNames[0];
       } else if (biasFileNames.length > 0) {
@@ -2559,7 +2626,10 @@ function calibrateEngine(filtered_lights)
             var masterbiasPath = null;
       }
 
-      if (flatdarkFileNames.length == 1) {
+      if (par.flat_dark_master_files.val) {
+            addProcessingStep("calibrateEngine use existing master flat dark files " + flatdarkFileNames);
+            var masterflatdarkPath = darkFileNames;
+      } else if (flatdarkFileNames.length == 1) {
             addProcessingStep("calibrateEngine use existing master flat dark " + flatdarkFileNames[0]);
             var masterflatdarkPath = flatdarkFileNames[0];
       } else if (flatdarkFileNames.length > 0) {
@@ -2574,7 +2644,10 @@ function calibrateEngine(filtered_lights)
             var masterflatdarkPath = null;
       }
 
-      if (darkFileNames.length == 1) {
+      if (par.dark_master_files.val) {
+            addProcessingStep("calibrateEngine use existing master dark files " + darkFileNames);
+            var masterdarkPath = darkFileNames;
+      } else if (darkFileNames.length == 1) {
             addProcessingStep("calibrateEngine use existing master dark " + darkFileNames[0]);
             var masterdarkPath = darkFileNames[0];
       } else if (darkFileNames.length > 0) {
@@ -3443,7 +3516,7 @@ function runBinningOnLights(fileNames, filtered_files)
                         throwFatalError("*** runBinningOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
                   }
                   // Close window
-                  forceCloseOneWindow(imageWindow);
+                  forceCloseOneWindow(imageWindow);   
             } else{
                   // keep the old file name
                   var filePath = fileNames[i];
@@ -9985,8 +10058,11 @@ function biasOptions(parent)
 
       var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" );
+      var checkbox2 = newCheckBox(parent, "Master files", par.bias_master_files, 
+            "<p>Files are master files.</p>" );
 
       sizer.add(checkbox);
+      sizer.add(checkbox2);
       sizer.addStretch();
 
       return sizer;
@@ -10010,9 +10086,12 @@ function darksOptions(parent)
             "When Optimize is not checked bias frames are ignored and dark and flat file optimize " + 
             "and calibrate flags are disabled in light file calibration. " +
             "</p>" );
+      var checkbox3 = newCheckBox(parent, "Master files", par.dark_master_files, 
+            "<p>Files are master files.</p>" );
 
       sizer.add(checkbox);
       sizer.add(checkbox2);
+      sizer.add(checkbox3);
       sizer.addStretch();
 
       return sizer;
@@ -10049,6 +10128,12 @@ function flatdarksOptions(parent)
 {
       var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[4]);
 
+      var checkbox = newCheckBox(parent, "Master files", par.flat_dark_master_files, 
+            "<p>Files are master files.</p>" );
+
+      sizer.add(checkbox);
+      sizer.addStretch();
+      
       return sizer;
 }
 
