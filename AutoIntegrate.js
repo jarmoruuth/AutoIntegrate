@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop5";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop6";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -2298,19 +2298,22 @@ function matchMasterToImages(images, masterPath)
        * Pick first image file as a reference.
        */
       var imageWin = openImageWindowFromFile(images[0][1]);
-      console.writeln("matchMasterToImages, images[0][1] " + images[0][1] + ", imageWin.width " + imageWin.width + ", imageWin.height "+ imageWin.height);
+      console.writeln("matchMasterToImages, images[0][1] " + images[0][1]);
+      console.writeln("matchMasterToImages, imageWin.width " + imageWin.mainView.image.width + ", imageWin.height "+ imageWin.mainView.image.height);
 
       /* Loop through master files and pick the matching one.
        */
       var matchingMaster = null;
       for (var i = 0; i < masterPath.length; i++) {
             var masterWin = openImageWindowFromFile(masterPath[i]);
-            console.writeln("matchMasterToImages, check masterPath[ " + i + "] " + masterPath[i] + ", masterWin.width "+ masterWin.width + ", masterWin.height " + masterWin.height);
-            if (masterWin.width == imageWin.width 
-                && masterWin.height == imageWin.height)
+            console.writeln("matchMasterToImages, check masterPath[ " + i + "] " + masterPath[i]);
+            console.writeln("matchMasterToImages, masterWin.width " + masterWin.mainView.image.width + ", masterWin.height " + masterWin.mainView.image.height);
+            if (masterWin.mainView.image.width == imageWin.mainView.image.width 
+                && masterWin.mainView.image.height == imageWin.mainView.image.height)
             {
                   /* We have a match. */
                   matchingMaster = masterPath[i];
+                  console.writeln("matchMasterToImages, found match " + matchingMaster);
             }
             forceCloseOneWindow(masterWin);
             if (matchingMaster != null) {
@@ -2331,11 +2334,12 @@ function matchMasterToImages(images, masterPath)
 function runCalibrateDarks(fileNames, masterbiasPath)
 {
       if (masterbiasPath == null) {
-            console.writeln("runCalibrateDarks, no master bias");
+            console.noteln("runCalibrateDarks, no master bias");
             return fileNames;
       }
 
-      console.writeln("runCalibrateDarks, images[0] " + images[0][1] + ", master bias " + masterbiasPath);
+      console.noteln("runCalibrateDarks, images[0] " + images[0][1] + ", master bias " + masterbiasPath);
+      console.writeln("runCalibrateDarks, master bias " + masterbiasPath);
 
       var P = new ImageCalibration;
       P.targetFrames = filesNamesToEnabledPath(fileNames); // [ enabled, path ];
@@ -2358,11 +2362,11 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdarkPath)
 {
       if (masterbiasPath == null && masterdarkPath == null && masterflatdarkPath == null) {
-            console.writeln("runCalibrateFlats, no master bias or dark");
+            console.noteln("runCalibrateFlats, no master bias or dark");
             return imagesEnabledPathToFileList(images);
       }
 
-      console.writeln("runCalibrateFlats, images[0] " + images[0][1]);
+      console.noteln("runCalibrateFlats, images[0] " + images[0][1]);
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
@@ -2414,7 +2418,6 @@ function runImageIntegrationFlats(images, name)
 {
       console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
 
-
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       P.weightMode = ImageIntegration.prototype.DontCare;
@@ -2446,11 +2449,11 @@ function runImageIntegrationFlats(images, name)
 function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath)
 {
       if (masterbiasPath == null && masterdarkPath == null && masterflatPath == null) {
-            console.writeln("runCalibrateLights, no master bias, dark or flat");
+            console.noteln("runCalibrateLights, no master bias, dark or flat");
             return imagesEnabledPathToFileList(images);
       }
 
-      console.writeln("runCalibrateLights, images[0] " + images[0][1]);
+      console.noteln("runCalibrateLights, images[0] " + images[0][1]);
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
