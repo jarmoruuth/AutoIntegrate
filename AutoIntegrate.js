@@ -121,7 +121,7 @@ Steps with color files
 
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
-   After this step there is Integration_RGB image.
+   After this step there is Integration_RGBcolor image.
 2. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
    If use_background_neutralization is selected then BackgroundNeutralization is run before
    color calibration.
@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop6";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop7";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -330,6 +330,7 @@ var par = {
       image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
       integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
+      cropinfo_only: { val: false, def: false, name : "Crop info only", type : 'B' },
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
       skip_autodetect_filter: { val: false, def: false, name : "Do not autodetect FILTER keyword", type : 'B' },
@@ -541,6 +542,10 @@ var is_luminance_images = false;    // Do we have luminance files from autoconti
 var run_auto_continue = false;
 var use_force_close = true;
 var write_processing_log_file = true;  // if we fail very early we set this to false
+var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
+
+var crop_truncate_amount = null;       // used when cropping channel images
+var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
 
 var processingDate;
 var outputRootDir = "";
@@ -605,12 +610,13 @@ var green_id = null;
 var blue_id = null;
 
 var L_id;                     // Original integrated images
-var R_id;
+var R_id;                     // We make copies of these images during processing
 var G_id;
 var B_id;
 var H_id;
 var S_id;
 var O_id;
+var RGBcolor_id;              // Integrate RGB from OSC/DSLR data
 
 var RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
 var RGB_stars_HT_id = null;         // stretched RGB_stars_win
@@ -619,7 +625,6 @@ var L_stars_HT_id = null;           // stretched L stars
 var RGB_stars = [];                 // linear RGB channel star image ids
 var L_stars = [];                   // linear L channel star image id
 
-var RGBcolor_id;
 var R_ABE_id = null;
 var G_ABE_id = null;
 var B_ABE_id = null;
@@ -681,11 +686,12 @@ var integration_LRGB_windows = [
       "Integration_B",
       "Integration_H",
       "Integration_S",
-      "Integration_O"
+      "Integration_O",
+      "Integration_RGB"
 ];
 
 var integration_color_windows = [
-      "Integration_RGB"
+      "Integration_RGBcolor"
 ];
 
 var fixed_windows = [
@@ -934,14 +940,17 @@ function fixWindowArray(arr, prev_prefix, cur_prefix)
 
 }
 
+function getWindowPrefix(basename, curname)
+{
+      return curname.substring(0, curname.length - basename.length);
+}
+
 // Fix all fixed window names by having the given prefix
 // We find possible previous prefix from the known fixed
 // window name
 function fixAllWindowArrays(new_prefix)
 {
-      var basename = "Integration_L";
-      var curname = integration_LRGB_windows[0];
-      var old_prefix = curname.substring(0, curname.length - basename.length);
+      var old_prefix = getWindowPrefix("Integration_L", integration_LRGB_windows[0]);
       if (old_prefix == new_prefix) {
             // no change
             // console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
@@ -1545,6 +1554,9 @@ function saveWindowEx(path, id, optional_unique_part)
 
 function saveProcessedWindow(path, id)
 {
+      if (id == null) {
+            return;
+      }
       if (path == "") {
             console.criticalln("No output directory, cannot save image "+ id);
             return;
@@ -4991,6 +5003,8 @@ function copyToMapImages(images)
                   copyWindow(
                         findWindowNoPrefixIf(images[i], run_auto_continue), 
                         copyname);
+                  // XXX crop
+                  CropImageIf(findWindow(copyname), crop_truncate_amount);
             } else {
                   console.writeln("map image " + copyname + " already copied");
             }
@@ -5296,16 +5310,33 @@ function isCustomMapping(narrowband)
       return narrowband && !par.use_RGBNB_Mapping.val;
 }
 
-// copy id to _map name if id not null
+/* Copy id to _map name if id not null. This is done to avoid
+ * modifying the original image.
+ */
 function copyToMapIf(id)
 {
       if (id != null) {
             var new_id = ensure_win_prefix(id + "_map");
             copyWindow(findWindow(id), new_id);
+            // XXX crop
+            CropImageIf(findWindow(new_id), crop_truncate_amount);
             return new_id;
       } else {
             return id;
       }
+}
+
+/* Copy Integration_RGBcolor to Integration_RGB so we do not
+ * modify the original image.
+ */ 
+function mapColorImage()
+{
+      RGB_win_id = ensure_win_prefix("Integration_RGB");
+      copyWindow(findWindow(RGBcolor_id), RGB_win_id);
+      RGB_win = ImageWindow.windowById(RGB_win_id);
+      // XXX crop
+      CropImageIf(RGB_win, crop_truncate_amount);
+      RGB_win.show();
 }
 
 /* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
@@ -5728,7 +5759,7 @@ function runImageIntegration(channel_images, name)
       }
 }
 
-function runImageIntegrationForCrop(images, name)
+function runImageIntegrationForCrop(images)
 {
       console.noteln("ImageIntegration to find area common to all images");
 
@@ -5775,8 +5806,8 @@ function runImageIntegrationForCrop(images, name)
       windowCloseif(P.slopeMapImageId);
       windowCloseif(P.integrationImageId);
 
-      //console.writeln("Rename '",P.lowRejectionMapImageId,"' to ",ppar.win_prefix + "LowRejectionMap_" + name)
-      var new_name = windowRename(P.lowRejectionMapImageId, ppar.win_prefix + "LowRejectionMap_" + name);
+      //console.writeln("Rename '",P.lowRejectionMapImageId,"' to ",ppar.win_prefix + "LowRejectionMap_ALL")
+      var new_name = windowRename(P.lowRejectionMapImageId, ppar.win_prefix + "LowRejectionMap_ALL");
       return new_name
       
 }
@@ -6753,6 +6784,9 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
             // from default run but will have new output
             // file names.
             id = findWindowId(name);
+            autocontinue_prefix = "";
+      } else {
+            autocontinue_prefix = ppar.win_prefix;
       }
       return id;
 }
@@ -6778,7 +6812,7 @@ function findProcessedImages(check_base_name)
       H_id = findWindowIdCheckBaseNameIf("Integration_H", check_base_name);
       S_id = findWindowIdCheckBaseNameIf("Integration_S", check_base_name);
       O_id = findWindowIdCheckBaseNameIf("Integration_O", check_base_name);
-      RGBcolor_id = findWindowIdCheckBaseNameIf("Integration_RGB", check_base_name);
+      RGBcolor_id = findWindowIdCheckBaseNameIf("Integration_RGBcolor", check_base_name);
 }
 
 function fileNamesFromOutputData(outputFileData)
@@ -7054,10 +7088,6 @@ function CreateChannelImages(auto_continue)
                         is_color_files = true;
                   }
             }
-            if (preprocessed_images == start_images.RGB_COLOR) {
-                  RGB_win = ImageWindow.windowById(RGBcolor_id);
-                  RGB_win_id = RGBcolor_id;
-            }
             /* Check if we have manually created mask. */
             mask_win_id = "AutoMask";
             range_mask_win = findWindow(mask_win_id);
@@ -7129,7 +7159,10 @@ function CreateChannelImages(auto_continue)
 
             fileNames = lightFileNames;
 
-            if (par.start_from_imageintegration.val || par.image_weight_testing.val) {
+            if (par.start_from_imageintegration.val 
+                || par.image_weight_testing.val
+                || par.cropinfo_only.val) 
+            {
                   var skip_early_steps = true;
             } else {
                   var skip_early_steps = false;
@@ -7188,7 +7221,10 @@ function CreateChannelImages(auto_continue)
                   console.writeln("Continue with mono processing")
             }
 
-            if (!par.skip_subframeselector.val && !par.start_from_imageintegration.val) {
+            if (!par.skip_subframeselector.val 
+                && !par.start_from_imageintegration.val
+                && !par.cropinfo_only.val) 
+            {
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
                    * Output is *_a.xisf files.
                    */
@@ -7212,7 +7248,9 @@ function CreateChannelImages(auto_continue)
 
             /* StarAlign
             */
-            if (!par.start_from_imageintegration.val) {
+            if (!par.start_from_imageintegration.val
+                && !par.cropinfo_only.val) 
+            {
                   alignedFiles = runStarAlignment(fileNames, best_image);
                   filename_postfix = filename_postfix + '_r';
             } else {
@@ -7223,6 +7261,22 @@ function CreateChannelImages(auto_continue)
              */
             findLRGBchannels(alignedFiles, filename_postfix);
 
+            if (par.start_from_imageintegration.val || par.cropinfo_only.val) {
+                  /* We start from *_r.xisf files that are normally in AutoOutput
+                   * subdirectory. So in the outputRootDir we replace AutoOutput
+                   * with . (dot). In normal setup this will put output files
+                   * to a correct AutoProcessed subdirectory.
+                   */
+                  console.writeln("Option start_from_imageintegration or cropinfo_only selected, fix output directory");
+                  console.writeln("Current outputRootDir " + outputRootDir);
+
+                  outputRootDir = outputRootDir.replace("AutoOutput", ".");
+
+                  console.writeln("Fixes outputRootDir " + outputRootDir);
+            }
+            if (par.cropinfo_only.val) {
+                  return true;
+            }
             /* ImageIntegration
             */
             if (C_images.images.length == 0) {
@@ -7265,11 +7319,7 @@ function CreateChannelImages(auto_continue)
             } else {
                   /* We have color files. */
                   addProcessingStepAndStatusInfo("Processing as color files");
-                  is_color_files = true;
-                  var color_img_id = runImageIntegration(C_images, 'RGB');
-                  RGB_win = ImageWindow.windowById(color_img_id);
-                  RGB_win.show();
-                  RGB_win_id = color_img_id;
+                  RGBcolor_id = runImageIntegration(C_images, 'RGBcolor');
             }
       }
       return true;
@@ -9132,10 +9182,11 @@ function CreateCrop(left,top,right,bottom)
 function CropImageIf(window, truncate_amount)
 {
       if (window == null) return
+      if (truncate_amount == null) return
 
       let [left_truncate,top_truncate,right_truncate,bottom_truncate] = truncate_amount;
-      // console.noteln("Truncate image ", window.mainView.id, " by: top ", top_truncate, ", bottom, ", 
-      //       bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
+      console.writeln("Truncate image ", window.mainView.id, " by: top ", top_truncate, ", bottom, ", 
+            bottom_truncate, ", left ", left_truncate, ", right ",right_truncate);
       
       let crop = CreateCrop(left_truncate,top_truncate,right_truncate,bottom_truncate);
 
@@ -9144,24 +9195,12 @@ function CropImageIf(window, truncate_amount)
       window.mainView.endProcess();
 }
 
-// Crop bot hthe channel and its support image(s), currently _map
-function CropChannelAndMapImageIf(id, truncate_amount)
-{
-      if (id == null) {
-            return;
-      }
-
-      var channelWindow = findWindow(id);
-      var copyname = ensure_win_prefix(id + "_map");
-      var mapWindow = findWindow(copyname);
-
-      CropImageIf(channelWindow, truncate_amount);
-      CropImageIf(mapWindow, truncate_amount);
-}
-
 function calculate_crop_amount(window_id)
 {
       let lowClipImageWindow = findWindow(window_id);
+      if (lowClipImageWindow == null) {
+            return null;
+      }
 
       let bounding_box = findBounding_box(lowClipImageWindow);
       let [left_col, right_col, top_row, bottom_row] = bounding_box;
@@ -9199,7 +9238,7 @@ function cropChannelImages()
 {
       addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
 
-      // Make intergration low
+      // Make integration low
       let all_images = make_full_image_list();
       console.noteln("Finding common area for ",all_images.images.length, " images (all channels) ")
       let images = all_images.images;
@@ -9208,26 +9247,40 @@ function cropChannelImages()
       }
       //console.writeln("all: " + JSON.stringify(images, null, 2));
 
-      let lowClipImageName = runImageIntegrationForCrop(images, "ALL");
+      let lowClipImageName = runImageIntegrationForCrop(images);
 
-      let truncate_amount = calculate_crop_amount(lowClipImageName);
+      crop_truncate_amount = calculate_crop_amount(lowClipImageName);
+      if (crop_truncate_amount == null) {
+            throwFatalError("cropChannelImages failed to find image " + lowClipImageName);
+      }
 
-      // Original integrated images
-      // TODO this should come from some logic that knows which images are present
-      CropChannelAndMapImageIf(L_id, truncate_amount);                
-      CropChannelAndMapImageIf(R_id, truncate_amount);
-      CropChannelAndMapImageIf(G_id, truncate_amount);
-      CropChannelAndMapImageIf(B_id, truncate_amount);
-      CropChannelAndMapImageIf(H_id, truncate_amount);
-      CropChannelAndMapImageIf(S_id, truncate_amount);
-      CropChannelAndMapImageIf(O_id, truncate_amount);
-      
-      CropChannelAndMapImageIf(RGBcolor_id, truncate_amount);
+      crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
+
+      /* Luminance image may have been copied earlier CreateChannelImages()
+       * so we try to crop it here.
+       */
+      CropImageIf(findWindow(luminance_id), crop_truncate_amount);
 
       // Iconify the map windows (no keyword)
       windowIconizeif(lowClipImageName);
 
-      console.noteln("Generated images cropped");
+      console.noteln("Generated data for cropping");
+}
+
+function cropChannelImagesAutoContinue()
+{
+      if (preprocessed_images != start_images.RGB_COLOR
+          && preprocessed_images != start_images.L_R_G_B)
+      {
+            console.writeln("Crop ignored in AutoContinue, only base integrated images can be cropped.") ;
+            return;
+      }
+      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
+      let lowClipImageName = autocontinue_prefix + "LowRejectionMap_ALL";
+      crop_truncate_amount = calculate_crop_amount(lowClipImageName);
+      if (crop_truncate_amount == null) {
+            throwFatalError("cropChannelImagesAutoContinue failed to find image " + lowClipImageName);
+      }
 }
 
 function AutoIntegrateEngine(auto_continue)
@@ -9253,6 +9306,7 @@ function AutoIntegrateEngine(auto_continue)
       H_id = null;
       S_id = null;
       O_id = null;
+      RBGcolor_id = null;
       R_ABE_id = null;
       G_ABE_id = null;
       B_ABE_id = null;
@@ -9262,6 +9316,9 @@ function AutoIntegrateEngine(auto_continue)
       star_mask_win = null;
       star_fix_mask_win = null;
       ssweight_set = false;
+      crop_truncate_amount = null;
+      crop_lowClipImageName = null;
+      autocontinue_prefix = "";
 
       RGB_stars_win = null;
       RGB_stars_HT_id = null;
@@ -9311,7 +9368,7 @@ function AutoIntegrateEngine(auto_continue)
        */ 
       if (! auto_continue)
       {
-            if (par.crop_to_common_area.val)
+            if (par.crop_to_common_area.val || par.cropinfo_only.val)
             {
                   cropChannelImages();
             } else
@@ -9320,7 +9377,12 @@ function AutoIntegrateEngine(auto_continue)
             }
       } else 
       {
-           console.writeln("Crop ignored in auto continue, use images as is (possibly already cropped)") ;
+            if (par.crop_to_common_area.val)
+            {
+                  cropChannelImagesAutoContinue();
+            } else {
+                  console.writeln("Crop ignored in AutoContinue, use images as is (possibly already cropped)") ;
+            }
       }
       
       /* Now we have L (Gray) and R, G and B images, or just RGB image
@@ -9338,6 +9400,7 @@ function AutoIntegrateEngine(auto_continue)
             LRGB_ABE_HT_id = final_win.mainView.id;
       } else if (!par.image_weight_testing.val 
                  && !par.integrate_only.val 
+                 && !par.cropinfo_only.val 
                  && preprocessed_images != start_images.FINAL) 
       {
             var processRGB = !is_color_files && 
@@ -9375,6 +9438,8 @@ function AutoIntegrateEngine(auto_continue)
                               removeStars(findWindow(blue_id), true, true, RGB_stars);
                         }
                   }
+            } else if (is_color_files) {
+                  mapColorImage();
             }
 
             if (!is_color_files && is_luminance_images) {
@@ -9528,6 +9593,9 @@ function AutoIntegrateEngine(auto_continue)
 
       ensureDialogFilePath("processed files");
 
+      if (crop_lowClipImageName != null) {
+            saveProcessedWindow(outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
+      }
       if (preprocessed_images < start_images.L_R_G_B_BE) {
             // We have generated integrated images, save them
             console.writeln("Save processed windows");
@@ -9538,6 +9606,7 @@ function AutoIntegrateEngine(auto_continue)
             saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
             saveProcessedWindow(outputRootDir, S_id);                    /* Integration_S */
             saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
+            saveProcessedWindow(outputRootDir, RGBcolor_id);             /* Integration_RGBcolor */
       }
       if (preprocessed_images >= start_images.L_R_G_B_BE) {
             // We have generated RGB image, save it
@@ -9571,6 +9640,7 @@ function AutoIntegrateEngine(auto_continue)
       if (L_stars.length > 0) {
             windowIconizeAndKeywordif(L_stars[0]);        /* Integration_L_stars (linear) */
       }
+      windowIconizeAndKeywordif(RGBcolor_id);             /* Integration_RGBcolor */
       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
       if (RGB_stars_win != null) {
             windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
@@ -11703,6 +11773,10 @@ function AutoIntegrateDialog()
             "<p>Run only image calibration</p>" );
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
+      this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
+            "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p>" +
+            "<p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file " +
+            "that can be used to crop files to common are during AutoContinue.</p>" );
       this.imageWeightTestingCheckBox = newCheckBox(this, "Image weight testing ", par.image_weight_testing, 
             "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log AutoWeights.json. " +
             "Json file can be loaded as input file list.</p>" +
@@ -12008,6 +12082,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
+      this.otherParamsSet1.add( this.CropInfoOnlyCheckBox );
       this.otherParamsSet1.add( this.imageWeightTestingCheckBox );
       this.otherParamsSet1.add( this.start_from_imageintegration_CheckBox );
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
@@ -13090,7 +13165,7 @@ function AutoIntegrateDialog()
             "4. Integration_RGB_DBE<br>" +
             "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
             "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
-            "7. Integration_L + Integration_R + Integration_G + Integration_B<br>" +
+            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
             "8. Integration_H + Integration_S + Integration_O<br>" +
             "9. Final image (for extra processing)" +
             "</p>" +
@@ -13098,7 +13173,7 @@ function AutoIntegrateDialog()
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
             "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
-            "BE = Background Extracted, for example manual DBE is run on image.<br>" +
+            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
             "</p>";
       this.autoContinueButton.onClick = function()
       {
