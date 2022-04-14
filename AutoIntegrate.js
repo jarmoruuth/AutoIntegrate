@@ -279,7 +279,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop7";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop8";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -1140,6 +1140,9 @@ function parseNewOutputDir(filePath, subdir)
 function pathIsRelative(p)
 {
       var dir = File.extractDirectory(p);
+      if (dir == null || dir == '') {
+            return true;
+      }
       switch (dir[0]) {
             case '/':
             case '\\':
@@ -10383,6 +10386,11 @@ function parseJsonFile(fname, lights_only)
             // read parameter values
             getSettingsFromJson(saveInfo.settings);
       }
+      if (saveInfo.window_prefix != null && saveInfo.window_prefix != undefined) {
+            ppar.win_prefix = saveInfo.window_prefix;
+            updateWindowPrefix();
+            console.writeln("Restored window prefix " + ppar.win_prefix);
+      }
 
       let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
       saveInfoMakeFullPaths(saveInfo, saveDir);
@@ -10497,10 +10505,14 @@ function initJsonSaveInfo(fileInfoList, save_settings)
 {
       if (save_settings) {
             var changed_settings = getChangedSettingsAsJson();
-            return { version: 2, fileinfo: fileInfoList, settings: changed_settings };
+            var saveInfo = { version: 2, fileinfo: fileInfoList, settings: changed_settings };
+            if (ppar.win_prefix != '') {
+                  saveInfo.window_prefix = ppar.win_prefix;
+            }
       } else {
-            return { version: 1, fileinfo: fileInfoList };
+            var saveInfo = { version: 1, fileinfo: fileInfoList };
       }
+      return saveInfo
 }
 
 /* Fix paths so that they are relative to saveDir if they have a common prefix.
