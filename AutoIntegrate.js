@@ -282,7 +282,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop8strict";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop9";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -4524,7 +4524,7 @@ function getFilterFiles(files, pageIndex, filename_postfix)
       if (color_files && (luminance || rgb || narrowband)) {
             error_text = "Error, cannot mix color and monochrome filter files";
       } else if (rgb && (allfiles.R.length == 0 || allfiles.G.length == 0 || allfiles.B.length == 0)) {
-            error_text = "Error, with RBG files for all RGB channels must be given";
+            error_text = "Error, with RGB files for all RGB channels must be given";
       }
 
       return { allfilesarr : allfilesarr,
@@ -5177,7 +5177,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array)
  */
 function customMapping(check_allfilesarr)
 {
-      var RBGmapping = { combined: true, stretched: true};
+      var RGBmapping = { combined: true, stretched: true};
 
       if (check_allfilesarr != null) {
             addProcessingStep("Check custom mapping");
@@ -5255,7 +5255,7 @@ function customMapping(check_allfilesarr)
                   /* We run PixelMath using linear images. 
                    */
                   addProcessingStep("Custom mapping, linear narrowband images");
-                  RBGmapping.stretched = false;
+                  RGBmapping.stretched = false;
             } else {
                   /* Stretch images to non-linear before combining with PixelMath.
                    */
@@ -5263,7 +5263,7 @@ function customMapping(check_allfilesarr)
                   for (var i = 0; i < images.length; i++) {
                         runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
                   }
-                  RBGmapping.stretched = true;
+                  RGBmapping.stretched = true;
             }
             if (narrowband_linear_fit != "None") {
                   /* Do a linear fit of images before PixelMath. We do this on both cases,
@@ -5304,11 +5304,11 @@ function customMapping(check_allfilesarr)
             green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping);
             blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping);
             
-            RBGmapping.combined = false;
-            RBGmapping.stretched = false;
+            RGBmapping.combined = false;
+            RGBmapping.stretched = false;
       }
 
-      return RBGmapping;
+      return RGBmapping;
 }
 
 function isCustomMapping(narrowband)
@@ -5349,7 +5349,7 @@ function mapColorImage()
  */
 function mapLRGBchannels()
 {
-      var RBGmapping = { combined: false, stretched: false};
+      var RGBmapping = { combined: false, stretched: false};
 
       var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null;
@@ -5367,7 +5367,7 @@ function mapLRGBchannels()
 
       if (custom_mapping) {
             addProcessingStep("Narrowband files, use custom mapping");
-            RBGmapping = customMapping(null);
+            RGBmapping = customMapping(null);
       } else {
             addProcessingStep("Normal RGB processing");
             /* Make a copy of original windows. */
@@ -5380,7 +5380,7 @@ function mapLRGBchannels()
             green_id = copyToMapIf(G_id);
             blue_id = copyToMapIf(B_id);
       }
-      return RBGmapping;
+      return RGBmapping;
 }
 
 // add as a first item, first item should be the best image
@@ -7404,7 +7404,7 @@ function LRGBEnsureMask(L_id)
 /* Ensure we have mask for color processing. Mask is needed also in non-linear
  * so we do a separate runHistogramTransform here.
  */
-function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
+function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 {
       addProcessingStepAndStatusInfo("Color ensure mask");
 
@@ -7422,7 +7422,7 @@ function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
             addProcessingStep("Using image " + color_img_id + " for a mask");
             var color_win_copy = copyWindowEx(color_win, "color_win_mask", true);
 
-            if (!RBGstretched) {
+            if (!RGBstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
                   runHistogramTransform(color_win_copy, null, true, 'mask');
             }
@@ -7443,7 +7443,7 @@ function ColorEnsureMask(color_img_id, RBGstretched, force_new_mask)
  * run histogram transformation on L to make in non-linear
  * by default run noise reduction on L image using a mask
  */
-function ProcessLimage(RBGmapping)
+function ProcessLimage(RGBmapping)
 {
       addProcessingStepAndStatusInfo("Process L image");
 
@@ -7463,7 +7463,7 @@ function ProcessLimage(RBGmapping)
                   addProcessingStep("Start from image " + L_ABE_id);
             } else {
                   var L_win = ImageWindow.windowById(luminance_id);
-                  if (!RBGmapping.stretched) {
+                  if (!RGBmapping.stretched) {
                         /* Optionally run ABE on L
                         */
                         if (par.ABE_before_channel_combination.val) {
@@ -7485,7 +7485,7 @@ function ProcessLimage(RBGmapping)
                   }
             }
 
-            if (!RBGmapping.combined) {
+            if (!RGBmapping.combined) {
                   /* Noise reduction for L. */
                   luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
             }
@@ -7493,7 +7493,7 @@ function ProcessLimage(RBGmapping)
             /* On L image run HistogramTransform  to stretch image to non-linear
             */
             L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
-            if (!RBGmapping.stretched) {
+            if (!RGBmapping.stretched) {
                   if (par.remove_stars_early.val) {
                         removeStars(
                               ImageWindow.windowById(L_ABE_id), 
@@ -7826,15 +7826,15 @@ function testRGBNBmapping()
  *
  * optionally run background neutralization on RGB image
  * by default run color calibration on RGB image
- * optionally run ABE on RBG image
+ * optionally run ABE on RGB image
  * by default run noise reduction on RGB image using a mask
  * run histogram transformation on RGB image to make in non-linear
  * optionally increase saturation
  */
-function ProcessRGBimage(RBGstretched)
+function ProcessRGBimage(RGBstretched)
 {
       addStatusInfo("Process RGB image");
-      addProcessingStep("Process RGB image, RBG stretched is " + RBGstretched);
+      addProcessingStep("Process RGB image, RGB stretched is " + RGBstretched);
 
       var RGB_ABE_HT_id;
 
@@ -7894,7 +7894,7 @@ function ProcessRGBimage(RBGstretched)
 
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
-                  ColorEnsureMask(RGB_ABE_id, RBGstretched, false);
+                  ColorEnsureMask(RGB_ABE_id, RGBstretched, false);
             }
             if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
@@ -7902,7 +7902,7 @@ function ProcessRGBimage(RBGstretched)
             } else {
                   var linear_increase_saturation = par.linear_increase_saturation.val;
             }
-            if (linear_increase_saturation > 0 && !RBGstretched) {
+            if (linear_increase_saturation > 0 && !RGBstretched) {
                   /* Add saturation linear RGB
                   */
                   console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
@@ -7918,7 +7918,7 @@ function ProcessRGBimage(RBGstretched)
                         ImageWindow.windowById(RGB_ABE_id),
                         mask_win);
             }
-            if (!RBGstretched) {
+            if (!RGBstretched) {
                   if (par.remove_stars_early.val) {
                         RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null);
                         windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
@@ -9312,7 +9312,7 @@ function AutoIntegrateEngine(auto_continue)
       H_id = null;
       S_id = null;
       O_id = null;
-      RBGcolor_id = null;
+      RGBcolor_id = null;
       R_ABE_id = null;
       G_ABE_id = null;
       B_ABE_id = null;
@@ -9414,7 +9414,7 @@ function AutoIntegrateEngine(auto_continue)
                              (preprocessed_images == start_images.NONE ||
                               preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
-            var RBGmapping = { combined: false, stretched: false};
+            var RGBmapping = { combined: false, stretched: false};
 
             if (preprocessed_images == start_images.L_R_G_B_BE) {
                   mapBEchannels();
@@ -9424,8 +9424,8 @@ function AutoIntegrateEngine(auto_continue)
                    * have red_id, green_id and blue_id.
                    * Or we may have a mapped RGB image.
                    */
-                  RBGmapping = mapLRGBchannels();
-                  if (!RBGmapping.combined) {
+                  RGBmapping = mapLRGBchannels();
+                  if (!RGBmapping.combined) {
                         // We have not yet combined the RGB image
                         if (par.ABE_before_channel_combination.val) {
                               addProcessingStepAndStatusInfo("Run ABE on channel images");
@@ -9457,10 +9457,10 @@ function AutoIntegrateEngine(auto_continue)
                         removeStars(findWindow(luminance_id), true, true, L_stars);
                   }
                   LRGBEnsureMask(null);
-                  ProcessLimage(RBGmapping);
+                  ProcessLimage(RGBmapping);
             }
 
-            if (processRGB && !RBGmapping.combined) {
+            if (processRGB && !RGBmapping.combined) {
                   CombineRGBimage();
             }
 
@@ -9470,7 +9470,7 @@ function AutoIntegrateEngine(auto_continue)
 
             } else if (!par.channelcombination_only.val) {
 
-                  RGB_ABE_HT_id = ProcessRGBimage(RBGmapping.stretched);
+                  RGB_ABE_HT_id = ProcessRGBimage(RGBmapping.stretched);
 
                   if (is_color_files || !is_luminance_images) {
                         /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
@@ -12827,7 +12827,7 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
 
-      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRBG1");
+      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
