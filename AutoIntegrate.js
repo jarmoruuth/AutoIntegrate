@@ -9312,7 +9312,7 @@ function AutoIntegrateEngine(auto_continue)
       H_id = null;
       S_id = null;
       O_id = null;
-      //RBGcolor_id = null;
+      RBGcolor_id = null;
       R_ABE_id = null;
       G_ABE_id = null;
       B_ABE_id = null;
