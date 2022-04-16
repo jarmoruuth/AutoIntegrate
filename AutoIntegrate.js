@@ -1,3 +1,6 @@
+#ifndef TEST_AUTO_INTEGRATE
+"use strict;"
+#endif
 /*
 
 Script to automate initial steps of image processing in PixInsight.
@@ -279,7 +282,7 @@ var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop8";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop8strict";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -2995,12 +2998,12 @@ function IterativeStatistics( image, rectangle, rejectionLimit )
       // These statistics are updated with the new high rejection limit
       // calculated at the end of the iteration.
       let iterativeRectangleStatistics = new ImageStatistics;
-      with ( iterativeRectangleStatistics )
+      let irs =  iterativeRectangleStatistics 
       {
-         medianEnabled = true;
-         lowRejectionEnabled = false;
-         highRejectionEnabled = true;
-         rejectionHigh = currentHighRejectionLimit;
+         irs.medianEnabled = true;
+         irs.lowRejectionEnabled = false;
+         irs.highRejectionEnabled = true;
+         irs.rejectionHigh = currentHighRejectionLimit;
       }
       iterativeRectangleStatistics.generate( image );
       this.median = iterativeRectangleStatistics.median;
@@ -9309,7 +9312,7 @@ function AutoIntegrateEngine(auto_continue)
       H_id = null;
       S_id = null;
       O_id = null;
-      RBGcolor_id = null;
+      //RBGcolor_id = null;
       R_ABE_id = null;
       G_ABE_id = null;
       B_ABE_id = null;
