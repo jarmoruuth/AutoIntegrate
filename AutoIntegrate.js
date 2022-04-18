@@ -280,9 +280,10 @@ Linear Defect Detection:
 // in the test scripts without modifying the main script
 var debug = false;                  // temp setting for debugging
 var get_process_defaults = false;   // temp setting to print process defaults
+var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop9";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop10";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -294,6 +295,7 @@ var statusInfoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox;     // For updating prefix name list
+var outputDirEdit;            // For updating output root directory
 
 /*
       Parameters that can be adjusted in the GUI
@@ -502,6 +504,12 @@ var ppar = {
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: ''             // Last save or load dir, used as a default when dir is unknown
+};
+
+var run_results = {
+      processing_steps_file: '',    // file where processing steps were written
+      final_image_file: '',         // final image file
+      fatal_error: ''               // if non-empty, fatal error during processing
 };
 
 var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
@@ -1093,6 +1101,7 @@ function ensurePathEndSlash(dir)
             switch (dir[dir.length-1]) {
                   case '/':
                   case '\\':
+                  case ':':
                         return dir;
                   default:
                         return dir + '/';
@@ -1158,6 +1167,7 @@ function pathIsRelative(p)
 function throwFatalError(txt)
 {
       addProcessingStepAndStatusInfo(txt);
+      run_results.fatal_error = txt;
       throw new Error(txt);
 }
 
@@ -1532,7 +1542,7 @@ function combinePath(p1, p2)
       if (p1 == "") {
             return "";
       } else {
-            return p1 + p2;
+            return ensurePathEndSlash(p1) + p2;
       }
 }
 
@@ -1561,15 +1571,15 @@ function saveWindowEx(path, id, optional_unique_part)
 function saveProcessedWindow(path, id)
 {
       if (id == null) {
-            return;
+            return null;
       }
       if (path == "") {
             console.criticalln("No output directory, cannot save image "+ id);
-            return;
+            return null;
       }
       var processedPath = combinePath(path, AutoProcessedDir);
       ensureDir(processedPath);
-      saveWindowEx(ensurePathEndSlash(processedPath), id, getOptionalUniqueFilenamePart());
+      return saveWindowEx(ensurePathEndSlash(processedPath), id, getOptionalUniqueFilenamePart());
 }
 
 function saveMasterWindow(path, id)
@@ -6745,10 +6755,13 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
       }
       processedPath = ensurePathEndSlash(processedPath);
 
-      console.writeln("Write processing steps to " + processedPath + logfname);
+      run_results.processing_steps_file = processedPath + logfname;
+
+      console.writeln("Write processing steps to " + run_results.processing_steps_file);
+
 
       var file = new File();
-      file.createForWriting(processedPath + logfname);
+      file.createForWriting(run_results.processing_steps_file);
 
       file.write(console.endLog());
       file.outTextLn("======================================");
@@ -9624,7 +9637,7 @@ function AutoIntegrateEngine(auto_continue)
             // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
             setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
             // We have generated final image, save it
-            saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final image. */
+            run_results.final_image_file = saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);  /* Final image. */
       }
 
       /* All done, do cleanup on windows on screen 
@@ -10216,6 +10229,18 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
+function updateOutputDirEdit(path)
+{
+      outputRootDir = ensurePathEndSlash(path);
+      console.writeln("updateOutputDirEdit, set outputRootDir ", outputRootDir);
+      outputDirEdit.text = outputRootDir;
+}
+
+function getOutputDirEdit()
+{
+      return outputDirEdit.text;
+}
+
 function addOutputDir(parent)
 {
       var lbl = new Label( parent );
@@ -10229,11 +10254,11 @@ function addOutputDir(parent)
                     "<p>If output directory is given with AutoContinue then output " + 
                     "goes to that directory and not into directory subtree.</p>" +
                     "<p>If directory does not exist it is created.</p>";
-      var edt = new Edit( parent );
-      edt.text = outputRootDir;
-      edt.toolTip = lbl.toolTip;
-      edt.onEditCompleted = function() {
-            outputRootDir = ensurePathEndSlash(edt.text.trim());
+      outputDirEdit = new Edit( parent );
+      outputDirEdit.text = outputRootDir;
+      outputDirEdit.toolTip = lbl.toolTip;
+      outputDirEdit.onEditCompleted = function() {
+            outputRootDir = ensurePathEndSlash(outputDirEdit.text.trim());
             console.writeln("addOutputDir, set outputRootDir ", outputRootDir);
       };
 
@@ -10249,16 +10274,14 @@ function addOutputDir(parent)
             }
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
-                  outputRootDir = ensurePathEndSlash(gdd.directory);
-                  console.writeln("addOutputDir, set outputRootDir ", outputRootDir);
-                  edt.text = outputRootDir;
+                  updateOutputDirEdit(gdd.directory);
             }
       };
       
       var outputdir_Sizer = new HorizontalSizer;
       outputdir_Sizer.spacing = 4;
       outputdir_Sizer.add( lbl );
-      outputdir_Sizer.add( edt );
+      outputdir_Sizer.add( outputDirEdit );
       outputdir_Sizer.add( dirbutton );
 
       return outputdir_Sizer;
@@ -10380,12 +10403,18 @@ function parseJsonFile(fname, lights_only)
             console.criticalln("Could not parse Json data in file " + fname);
             return null;
       }
-      if (saveInfo.version != 1 && saveInfo.version != 2) {
-            console.criticalln("Incorrect version " +  saveInfo.version + " in file " + fname);
-            return null;
+      switch (saveInfo.version) {
+            case 1:
+            case 2:
+            case 3:
+                  // ok
+                  break;
+            default:
+                  console.criticalln("Incorrect version " +  saveInfo.version + " in file " + fname);
+                  return null;
       }
       
-      if (saveInfo.version == 2) {
+      if (saveInfo.version >= 2) {
             // read parameter values
             getSettingsFromJson(saveInfo.settings);
       }
@@ -10396,6 +10425,14 @@ function parseJsonFile(fname, lights_only)
       }
 
       let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
+
+      if (saveInfo.output_dir != null && saveInfo.output_dir != undefined) {
+            var outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
+            outputDir = saveInfo.output_dir.replace("$(saveDir)", saveDir);   // for compatibility
+            updateOutputDirEdit(outputDir);
+            console.writeln("Restored output directory " + outputDir);
+      }
+
       saveInfoMakeFullPaths(saveInfo, saveDir);
 
       var pagearray = [];
@@ -10504,13 +10541,30 @@ function getSettingsFromJson(settings)
       }
 }
 
-function initJsonSaveInfo(fileInfoList, save_settings)
+function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
 {
       if (save_settings) {
             var changed_settings = getChangedSettingsAsJson();
-            var saveInfo = { version: 2, fileinfo: fileInfoList, settings: changed_settings };
+            var saveInfo = { version: 3, fileinfo: fileInfoList, settings: changed_settings };
             if (ppar.win_prefix != '') {
                   saveInfo.window_prefix = ppar.win_prefix;
+            }
+            let outputDirEditPath = getOutputDirEdit();
+            if (outputDirEditPath != '') {
+                  /* Output directory box is not empty, save it in the Json file.
+                   * If saveDir is a prefix of outputDirEditPath we save
+                   * relative path and add special marker $(setupDir).
+                   * When reading a Json file $(setupDir) is replaced with
+                   * used saveDir. This makes the Json easier to move or
+                   * share since the path is relative.
+                   */ 
+                  if (outputDirEditPath.startsWith(saveDir)) {
+                        // replace saveDir prefix with $(setupDir)
+                        saveInfo.output_dir = outputDirEditPath.replace(saveDir, "$(setupDir)");
+                  } else {
+                        // save full path
+                        saveInfo.output_dir = outputDirEditPath;
+                  }
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };
@@ -10551,7 +10605,7 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
             for (var j = 0; j < fileInfoList[i].files.length; j++) {
                   var fname = fileInfoList[i].files[j][0];
                   if (pathIsRelative(fname)) {
-                        fileInfoList[i].files[j][0] = saveDir + '/' + fname;
+                        fileInfoList[i].files[j][0] = ensurePathEndSlash(saveDir) + fname;
                   }
             }
       }
@@ -10621,8 +10675,6 @@ function saveJsonFile(parent, save_settings)
             return;
       }
 
-      let saveInfo = initJsonSaveInfo(fileInfoList, save_settings);
-
       let saveFileDialog = new SaveFileDialog();
       saveFileDialog.caption = "Save As";
       saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
@@ -10645,6 +10697,7 @@ function saveJsonFile(parent, save_settings)
       let saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
       saveLastDir(saveDir);
       try {
+            let saveInfo = initJsonSaveInfo(fileInfoList, save_settings, saveDir);
             let file = new File();
             saveInfoMakeRelativePaths(saveInfo, saveDir);
             let saveInfoJson = JSON.stringify(saveInfo, null, 2);
@@ -11427,6 +11480,10 @@ function saveParametersToPersistentModuleSettings()
 // Read default parameters from persistent module settings
 function ReadParametersFromPersistentModuleSettings()
 {
+      if (!use_persistent_module_settings) {
+            console.writeln("skip ReadParametersFromPersistentModuleSettings");
+            return;
+      }
       console.writeln("ReadParametersFromPersistentModuleSettings");
       for (let x in par) {
             var param = par[x];
@@ -13692,57 +13749,56 @@ function main()
                   readParametersFromProcessIcon();
             }
             
-            // 3. Read persistent module settings that are temporary work values
-            // Read prefix info. We use new setting names to avoid conflict with
-            // older columnCount/winPrefix names
-            console.noteln("Read window prefix settings");
-            var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
-                  ppar.win_prefix = tempSetting;
-            }
-            if (par.start_with_empty_window_prefix.val) {
-                  ppar.win_prefix = '';
-            }
-            var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
-                  ppar.prefixArray = JSON.parse(tempSetting);
-                  if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
-                        // We have old format prefix array without column position
-                        // Add column position as the first array element
-                        console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
-                        for (var i = 0; i < ppar.prefixArray.length; i++) {
-                              if (ppar.prefixArray[i] == null) {
-                                    ppar.prefixArray[i] = [0, '-', 0];
-                              } else if (ppar.prefixArray[i][0] == '-') {
-                                    // add zero column position
-                                    ppar.prefixArray[i].unshift(0);
-                              } else {
-                                    // Used slot, add i as column position
-                                    ppar.prefixArray[i].unshift(i);
+            if (use_persistent_module_settings) {
+                  // 3. Read persistent module settings that are temporary work values
+                  // Read prefix info. We use new setting names to avoid conflict with
+                  // older columnCount/winPrefix names
+                  console.noteln("Read window prefix settings");
+                  var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
+                        ppar.win_prefix = tempSetting;
+                  }
+                  if (par.start_with_empty_window_prefix.val) {
+                        ppar.win_prefix = '';
+                  }
+                  var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
+                        ppar.prefixArray = JSON.parse(tempSetting);
+                        if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
+                              // We have old format prefix array without column position
+                              // Add column position as the first array element
+                              console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
+                              for (var i = 0; i < ppar.prefixArray.length; i++) {
+                                    if (ppar.prefixArray[i] == null) {
+                                          ppar.prefixArray[i] = [0, '-', 0];
+                                    } else if (ppar.prefixArray[i][0] == '-') {
+                                          // add zero column position
+                                          ppar.prefixArray[i].unshift(0);
+                                    } else {
+                                          // Used slot, add i as column position
+                                          ppar.prefixArray[i].unshift(i);
+                                    }
                               }
                         }
+                        fix_win_prefix_array();
                   }
-                  fix_win_prefix_array();
-            }
-            var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
-                  ppar.userColumnCount = tempSetting;
-            }
-            if (!par.use_manual_icon_column.val) {
-                  ppar.userColumnCount = -1;
-            }
-            var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
-                  ppar.userColumnCount = tempSetting;
-            }
-            var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-                  ppar.lastDir = tempSetting;
+                  var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
+                        ppar.userColumnCount = tempSetting;
+                  }
+                  if (!par.use_manual_icon_column.val) {
+                        ppar.userColumnCount = -1;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+                        ppar.lastDir = tempSetting;
+                  }
+            } else {
+                  console.noteln("Skip reading persistent settings");
             }
 
             fixAllWindowArrays(ppar.win_prefix);
