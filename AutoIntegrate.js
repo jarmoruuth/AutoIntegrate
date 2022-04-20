@@ -1,6 +1,3 @@
-#ifndef TEST_AUTO_INTEGRATE
-"use strict;"
-#endif
 /*
 
 Script to automate initial steps of image processing in PixInsight.
@@ -253,6 +250,10 @@ Linear Defect Detection:
 
 */
 
+#ifndef TEST_AUTO_INTEGRATE
+"use strict;"
+#endif
+
 #feature-id   Batch Processing > AutoIntegrate
 
 #feature-info A script for running basic image processing workflow
@@ -283,7 +284,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46 autocrop10";
+var autointegrate_version = "AutoIntegrate v1.46 autocrop11";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -11576,13 +11577,13 @@ function newPageButtonsSizer(parent)
 
       // Load and save
       var jsonLabel = new Label( parent );
-      jsonLabel.text = "File list";
-      jsonLabel.toolTip = "File list loading and saving.";
+      jsonLabel.text = "Setup file";
+      jsonLabel.toolTip = "Restoring script setup from a file, saving script setup to a file.";
       jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-
+      
       var jsonLoadButton = new ToolButton( parent );
       jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
-      jsonLoadButton.toolTip = "Load file lists from a Json file.";
+      jsonLoadButton.toolTip = "Restore script setup from a Json file.";
       jsonLoadButton.setScaledFixedSize( 20, 20 );
       jsonLoadButton.onClick = function()
       {
@@ -11590,7 +11591,7 @@ function newPageButtonsSizer(parent)
       };
       var jsonSaveButton = new ToolButton( parent );
       jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
-      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Images from all pages are saved including light and calibration files.</p>";
+      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
       jsonSaveButton.setScaledFixedSize( 20, 20 );
       jsonSaveButton.onClick = function()
       {
@@ -11598,7 +11599,9 @@ function newPageButtonsSizer(parent)
       };
       var jsonSaveWithSewttingsButton = new ToolButton( parent );
       jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
-      jsonSaveWithSewttingsButton.toolTip = "<p>Save file lists and current settings to a Json file including checked status.</p><p>Images from all pages are saved including light and calibration files.</p>";
+      jsonSaveWithSewttingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
+                                            "Current window prefix and output directory is also saved.</p>" + 
+                                            "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
       jsonSaveWithSewttingsButton.setScaledFixedSize( 20, 20 );
       jsonSaveWithSewttingsButton.onClick = function()
       {
