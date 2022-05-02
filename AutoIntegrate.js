@@ -254,7 +254,7 @@ Linear Defect Detection:
 "use strict;"
 #endif
 
-#feature-id   Batch Processing > AutoIntegrate
+#feature-id   AutoIntegrate : Batch Processing > AutoIntegrate
 
 #feature-info A script for running basic image processing workflow
 
@@ -284,7 +284,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.46";
+var autointegrate_version = "AutoIntegrate v1.47 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -366,6 +366,7 @@ var par = {
       custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
+      force_narrowband_mapping: { val: false, def: false, name : "Force narrowband mapping", type : 'B' },
       remove_stars_early: { val: false, def: false, name : "Remove stars early", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
 
@@ -433,9 +434,12 @@ var par = {
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
-      Hyperbolic_D: { val: 10, def: 10, name : "Hyperbolic Stretch D value", type : 'I' },
-      Hyperbolic_b: { val: 2, def: 2, name : "Hyperbolic Stretch b value", type : 'I' }, 
-      Hyperbolic_iterations: { val: 1, def: 1, name : "Hyperbolic Stretch iterations", type : 'I' }, 
+      Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
+      Hyperbolic_b: { val: 8, def: 8, name : "Hyperbolic Stretch b value", type : 'I' }, 
+      Hyperbolic_SP: { val: 0.1, def: 0.1, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
+      Hyperbolic_target: { val: 0.23, def: 0.23, name : "Hyperbolic Stretch target", type : 'I' }, 
+      Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
+      Hyperbolic_mode: { val: 1, def: 1, name : "Hyperbolic Stretch mode", type : 'I' }, 
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -699,7 +703,8 @@ var integration_LRGB_windows = [
       "Integration_H",
       "Integration_S",
       "Integration_O",
-      "Integration_RGB"
+      "Integration_RGBcolor",
+      "LowRejectionMap_ALL"
 ];
 
 var integration_color_windows = [
@@ -711,6 +716,7 @@ var fixed_windows = [
       "Mapping_R",
       "Mapping_G",
       "Mapping_B",
+      "Integration_RGB",
       "Integration_L_ABE",
       "Integration_R_ABE",
       "Integration_G_ABE",
@@ -756,11 +762,12 @@ var fixed_windows = [
       "Measurements",
       "Expressions",
       "L_win_mask",
+      "Integration_L_map_ABE",
+      "Integration_L_map_ABE_HT",
       "Integration_L_map_pm_ABE",
       "Integration_L_map_pm_noABE",
       "Integration_L_map_pm_ABE_HT",
-      "Integration_L_map_pm_noABE_HT",
-      "LowRejectionMap_ALL"
+      "Integration_L_map_pm_noABE_HT"
 ];
 
 var calibrate_windows = [
@@ -1006,6 +1013,17 @@ function findFilterSet(filterSet, filetype)
       return null;
 }
 
+function setMaskChecked(imgWin, maskWin)
+{
+      try {
+            imgWin.setMask(maskWin);
+      } catch(err) {
+            console.criticalln("setMask failed: " + err);
+            console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
+            throwFatalError("Error setting the mask.");
+      }
+}
+
 // Add file base name to the filter set object
 // We use file base name to detect filter files
 function addFilterSetFile(filterSet, filePath, filetype)
@@ -1087,6 +1105,7 @@ function addProcessingStep(txt)
 
 function addStatusInfo(txt)
 {
+      console.noteln("------------------------");
       updateStatusInfoLabel(txt);
 }
 
@@ -1823,27 +1842,46 @@ function addMildBlur(imgWin)
       imgWin.mainView.endProcess();
 }
 
-function findPeak(histogramMatrix, row)
+function histogram_test(win)
 {
-      var peakValue = 0;
-      for (var i = 0; i < histogramMatrix.cols; i++) {
-            if (histogramMatrix.at(row, i) > peakValue) {
-                  peakValue = histogramMatrix.at(row, i);
-            }
-      }
-      console.writeln("Histogram peak for matrix row " + row + " is " + peakValue);
-      return peakValue;
+      var view = win.mainView;
+
+      console.writeln("Maximum " + JSON.stringify(view.computeOrFetchProperty("Maximum")));
+      console.writeln("MaximumPos " + JSON.stringify(view.computeOrFetchProperty("MaximumPos")));
+
+      findHistogramPeak(win);
 }
 
-function findShadowClipPoint(histogramMatrix, row, val)
+function findHistogramPeak(win)
 {
-      for (var i = 0; i < histogramMatrix.cols; i++) {
-            if (histogramMatrix.at(row, i) > val) {
-                  console.writeln("Shadow clip point for matrix row " + row + " is " + i + ", image value is " + histogramMatrix.at(row, i));
-                  break;
+      var view = win.mainView;
+	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
+
+      var peakValue = 0;
+      var peakCol = 0;
+      for (var col = 0; col < histogramMatrix.cols; col++) {
+            for (var row = 0; row < histogramMatrix.rows; row++) {
+                  var colValue = histogramMatrix.at(row, col)
+                  if (colValue > peakValue) {
+                        peakValue = colValue;
+                        peakCol = col;
+                        break;
+                  }
             }
       }
-      return i;
+      var normalizedPeakCol = peakCol / histogramMatrix.cols;
+      console.writeln("Histogram peak is at " + normalizedPeakCol);
+      if (0) {
+            for (var col = peakCol - 100; col < peakCol + 100; col++) {
+                  if (col < 0) {
+                        continue;
+                  }
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        console.writeln("col=" + col + ", row=" + row + ", val=" + histogramMatrix.at(row, col));
+                  }
+            }
+      }
+      return normalizedPeakCol;
 }
 
 function countPixels(histogramMatrix, row)
@@ -1852,7 +1890,7 @@ function countPixels(histogramMatrix, row)
       for (var i = 0; i < histogramMatrix.cols; i++) {
             cnt += histogramMatrix.at(row, i);
       }
-      console.writeln("Pixel count for matrix row " + row + " is " + cnt);
+      // console.writeln("Pixel count for matrix row " + row + " is " + cnt);
       return cnt;
 }
 
@@ -1869,7 +1907,7 @@ function clipShadows(win, perc)
       for (var i = 0; i < histogramMatrix.rows; i++) {
             pixelCount += countPixels(histogramMatrix, i);
       }
-      console.writeln("Total pixel count for matrix is " + pixelCount);
+      // console.writeln("Total pixel count for matrix is " + pixelCount);
 
       var maxClip = (perc / 100) * pixelCount;
       console.writeln("Clip max " + maxClip + " pixels");
@@ -1913,6 +1951,44 @@ function clipShadows(win, perc)
       P.executeOn(view, false);
 
       view.endProcess();
+}
+
+// Find symmetry point as percentage of clipped pixels
+function findSymmetryPoint(win, perc)
+{
+      console.writeln("findSymmetryPoint at " + perc + "% of shadows from image " + win.mainView.id);
+
+      // Get image histogram
+      var view = win.mainView;
+	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
+
+      // Count pixels for each row
+      var pixelCount = 0;
+      for (var i = 0; i < histogramMatrix.rows; i++) {
+            pixelCount += countPixels(histogramMatrix, i);
+      }
+      // console.writeln("Total pixel count for matrix is " + pixelCount);
+
+      var maxClip = (perc / 100) * pixelCount;
+      console.writeln("Clip max " + maxClip + " pixels");
+
+      // Find symmetry point as percentage of pixels on the left side of the histogram
+      var clipCount = 0;
+      for (var col = 0; col < histogramMatrix.cols; col++) {
+            for (var row = 0; row < histogramMatrix.rows; row++) {
+                  clipCount += histogramMatrix.at(row, col)
+            }
+            if (clipCount > maxClip) {
+                  break;
+            }
+      }
+      if (col > 0) {
+            col = col - 1;
+      }
+      var normalizedShadowClipping = col / histogramMatrix.cols;
+      console.writeln("Symmetry point is " + normalizedShadowClipping);
+
+      return normalizedShadowClipping;
 }
 
 function newMaskWindow(sourceWindow, name, allow_duplicate_name)
@@ -3832,14 +3908,19 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             P.outputDirectory = outputRootDir + AutoOutputDir;
             P.overwriteExistingFiles = true;
             /*
+            ** PI 1.8.8-10
             P.measurements = [ 
                   measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                                              0-4
                   measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,                    5-9
                   measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                                   10-14
                   measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev, measurementAzimuth,      15-19
                   measurementAltitude                                                                                                                       20
+                  *** New in PI 1.8.9-1
+                                     measurementPSFFlux, measurementPSFFluxPower, measurementPSFTotalMeanFlux, measurementPSFTotalMeanPowerFlux,            21-24
+                  measurementPSFCount, measurementMStar, measurementNStar, measurementPSFSNR, measurementPSFScale,                                          25-29
+                  measurementPSFScaleSNR                                                                                                                    30
             ];
-            */
+           */
             
             P.executeGlobal();
             saved_measurements = P.measurements;
@@ -4330,6 +4411,10 @@ function getFilterFiles(files, pageIndex, filename_postfix)
 
       if (filterSet != null) {
             clearFilterFileUsedFlags(filterSet);
+      }
+
+      if (par.force_narrowband_mapping.val) {
+            narrowband = true;
       }
 
       /* Collect all different file types and some information about them.
@@ -5363,10 +5448,10 @@ function mapLRGBchannels()
       var RGBmapping = { combined: false, stretched: false};
 
       var rgb = R_id != null || G_id != null || B_id != null;
-      narrowband = H_id != null || S_id != null || O_id != null;
+      narrowband = H_id != null || S_id != null || O_id != null || par.force_narrowband_mapping.val;
       var custom_mapping = isCustomMapping(narrowband);
 
-      if (rgb && narrowband) {
+      if (rgb && narrowband && !par.force_narrowband_mapping.val) {
             addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
             narrowband = false;
       }
@@ -6163,8 +6248,104 @@ function runHistogramTransformArcsinhStretch(ABE_win)
       ABE_win.mainView.endProcess();
 }
 
-function runHistogramTransformHyperbolic(ABE_win)
+function runHistogramTransformHyperbolicIterations(ABE_win)
 {
+      //histogram_test(ABE_win);
+      //return ABE_win;
+
+      addStatusInfo("Run histogram transform using Generalized Hyperbolic Stretching");
+      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+
+      var res = { win: ABE_win, iteration_number: 0, completed: false, skipped: 0 };
+
+      for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
+            res.iteration_number = i + 1;
+            runHistogramTransformHyperbolic(res);
+            if (res.completed) {
+                  break;
+            }
+      }
+      return res.win;
+}
+
+function runHistogramTransformHyperbolic(res)
+{
+      var ABE_win = res.win;
+      var iteration_number = res.iteration_number;
+      var image_id = ABE_win.mainView.id;
+
+      console.writeln("--");
+      console.writeln("Iteration " + iteration_number);
+      console.writeln("Skipped " + res.skipped);
+
+      switch (par.Hyperbolic_mode.val) {
+            case 0:
+                  // Fixed values
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val;
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val;
+                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  break;
+            case 1:
+                  // Decrease every iteration
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val / iteration_number;
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val / iteration_number;
+                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  break;
+            case 2:
+                  // Fixed but change symmetry point to 40%
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val;
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val;
+                  switch (iteration_number) {
+                        case 1:
+                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                              break;
+                        default:
+                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, 40);
+                              break;
+                  }
+                  break;
+            case 3:
+                  // Decrease every iteration and change symmetry point to 40%
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val / iteration_number;
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val / iteration_number;
+                  switch (iteration_number) {
+                        case 1:
+                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                              break;
+                        default:
+                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, 40);
+                              break;
+                  }
+                  break;
+                  break;
+            case 4:
+                  // Decrease only b for every iteration
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val;
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val / iteration_number;
+                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  break;
+            case 5:
+                  // After first iteration cut D to half and set b to one
+                  switch (iteration_number) {
+                        case 1:
+                              var Hyperbolic_D_val = par.Hyperbolic_D.val;
+                              var Hyperbolic_b_val = par.Hyperbolic_b.val;
+                              break;
+                        default:
+                              var Hyperbolic_D_val = par.Hyperbolic_D.val / 2;
+                              var Hyperbolic_b_val = 1;
+                              break;
+                  }
+                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  break;
+            case 6:
+                  // Decrease D and b for every skipped iteration
+                  var Hyperbolic_D_val = par.Hyperbolic_D.val / (res.skipped + 1);
+                  var Hyperbolic_b_val = par.Hyperbolic_b.val / (res.skipped + 1);
+                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  break;
+      }
+
       var P = new PixelMath;
       P.expression = "iif(b==0,EC=1,EC=0);\n" +
       "iif(b>0,Ds=D*b,Ds=D);\n" +
@@ -6177,9 +6358,9 @@ function runHistogramTransformHyperbolic(ABE_win)
       P.expression2 = "";
       P.expression3 = "";
       P.useSingleExpression = true;
-      P.symbols = "D = " + par.Hyperbolic_D.val + ";\n" +
-      "b = " + par.Hyperbolic_b.val + ";\n" +
-      "SP =0.00;\n" +
+      P.symbols = "D = " + Hyperbolic_D_val + ";\n" +
+      "b = " + Hyperbolic_b_val + ";\n" +
+      "SP =" + Hyperbolic_SP_val + ";\n" +
       "HP =1.00;\n" +
       "Rnorm;\n" +
       "q0;\n" +
@@ -6200,17 +6381,15 @@ function runHistogramTransformHyperbolic(ABE_win)
       P.truncate = true;
       P.truncateLower = 0;
       P.truncateUpper = 1;
-      P.createNewImage = false;
+      P.createNewImage = true;
       P.showNewImage = true;
-      P.newImageId = "";
+      P.newImageId = image_id + "_pm";
       P.newImageWidth = 0;
       P.newImageHeight = 0;
       P.newImageAlpha = false;
       P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
-      addStatusInfo("Run histogram transform using Generalized Hyperbolic Stretching");
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
       console.writeln("Symbols " + P.symbols);
 
       ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -6218,13 +6397,44 @@ function runHistogramTransformHyperbolic(ABE_win)
       P.executeOn(ABE_win.mainView);
 
       ABE_win.mainView.endProcess();
+
+      var new_win = findWindow(P.newImageId);
+
+      //var current_val = findSymmetryPoint(new_win, 50);
+      var current_val = findHistogramPeak(new_win);
+
+      if (current_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
+            // We are past the target value, ignore this iteration and keep old image
+            console.writeln("We are past the target, skip this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
+            closeOneWindow(P.newImageId);
+            res.skipped++;
+            if (res.skipped > 2) {
+                  console.writeln("Stretch completed, skipped too many time");
+                  res.completed = true;
+            }
+      } else {
+            if (current_val >= par.Hyperbolic_target.val - 0.1 * par.Hyperbolic_target.val) {
+                  // we are close enough, we are done
+                  console.writeln("Stretch completed, we are close enough, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
+                  res.completed = true;
+            } else {
+                  console.writeln("Use this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
+            }
+            // find new window and copy keywords
+            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(ABE_win));
+            // close old image
+            closeOneWindow(image_id);
+            // rename new as old
+            windowRename(P.newImageId, image_id);
+            res.win = new_win;
+      }
 }
 
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
 {
       if (!run_HT) {
             addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
-            return null;
+            return { win: ABE_win, stf: null };
       }
 
       if (type == 'stars') {
@@ -6243,26 +6453,26 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             } else {
                   targetBackground = par.STF_targetBackground.val;
             }
-            return runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
+            var stf = runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
+            return { win: ABE_win, stf: stf };
 
       } else if (image_stretching == 'Masked Stretch'
                  || (image_stretching == 'Use both' && type == 'RGB'))
       {
             runHistogramTransformMaskedStretch(ABE_win);
-            return null;
+            return { win: ABE_win, stf: null };
+
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(ABE_win);
-            return null;
+            return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Hyperbolic') {
-            for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
-                  runHistogramTransformHyperbolic(ABE_win);
-            }
-            return null;
+            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win);
+            return { win: ABE_win, stf: null };
             
       } else {
             throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
-            return null;
+            return { win: ABE_win, stf: null };
       }
 }
 
@@ -6283,7 +6493,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       if (maskWin != null) {
             /* Remove noise from dark parts of the image. */
-            imgWin.setMask(maskWin);
+            setMaskChecked(imgWin, maskWin);
             imgWin.maskInverted = true;
       }
 
@@ -6398,7 +6608,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 
       if (maskWin != null) {
             /* Remove noise from dark parts of the image. */
-            imgWin.setMask(maskWin);
+            setMaskChecked(imgWin, maskWin);
             imgWin.maskInverted = true;
       }
 
@@ -6540,7 +6750,7 @@ function runColorSaturation(imgWin, maskWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Saturate only light parts of the image. */
-      imgWin.setMask(maskWin);
+      setMaskChecked(imgWin, maskWin);
       imgWin.maskInverted = false;
       
       P.executeOn(imgWin.mainView, false);
@@ -6565,7 +6775,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Saturate only light parts of the image. */
-      imgWin.setMask(maskWin);
+      setMaskChecked(imgWin, maskWin);
       imgWin.maskInverted = false;
       
       P.executeOn(imgWin.mainView, false);
@@ -6675,7 +6885,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       if (maskWin != null) {
             /* Sharpen only light parts of the image. */
-            imgWin.setMask(maskWin);
+            setMaskChecked(imgWin, maskWin);
             imgWin.maskInverted = false;
       }
 
@@ -7355,7 +7565,7 @@ function CreateNewTempMaskFromLInearWin(imgWin, is_color)
       var winCopy = copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
 
       /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
-      runHistogramTransform(winCopy, null, is_color, 'mask');
+      winCopy = runHistogramTransform(winCopy, null, is_color, 'mask').win;
 
       /* Create mask.
        */
@@ -7386,7 +7596,7 @@ function LRGBEnsureMask(L_id)
             var L_win;
             if (L_id != null) {
                   L_win = copyWindowEx(ImageWindow.windowById(L_id), ppar.win_prefix + "L_win_mask", true);
-                  runHistogramTransform(L_win, null, false, 'mask');
+                  L_win = runHistogramTransform(L_win, null, false, 'mask').win;
             } else if (preprocessed_images == start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
@@ -7405,7 +7615,7 @@ function LRGBEnsureMask(L_id)
                   L_win = copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
 
                   /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
-                  runHistogramTransform(L_win, null, false, 'mask');
+                  L_win = runHistogramTransform(L_win, null, false, 'mask').win;
             }
             /* Create mask.
              */
@@ -7438,7 +7648,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 
             if (!RGBstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  runHistogramTransform(color_win_copy, null, true, 'mask');
+                  color_win_copy = runHistogramTransform(color_win_copy, null, true, 'mask').win;
             }
 
             /* Create mask.
@@ -7517,11 +7727,12 @@ function ProcessLimage(RGBmapping)
                         // use starless L image as mask
                         LRGBEnsureMask(L_ABE_id);
                   }
-                  L_stf = runHistogramTransform(
+                  var res = runHistogramTransform(
                               copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
                               false,
                               'L');
+                  L_stf = res.stf;
                   if (L_stars.length > 0) {
                         if (L_stars.length != 1) {
                               throwFatalError("Bad L_stars length " + L_stars.length);
@@ -8059,7 +8270,7 @@ function fixNarrowbandStarColor(targetWin)
       if (use_mask) {
             /* Use mask to change only star colors. */
             addProcessingStep("Using mask " + star_fix_mask_win.mainView.id + " when fixing star colors");
-            targetWin.setMask(star_fix_mask_win);
+            setMaskChecked(targetWin, star_fix_mask_win);
             targetWin.maskInverted = false;
       }      
 
@@ -8150,7 +8361,7 @@ function extraDarkerBackground(imgWin, maskWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Darken only dark parts (background) of the image. */
-      imgWin.setMask(maskWin);
+      setMaskChecked(imgWin, maskWin);
       imgWin.maskInverted = true;
       
       P.executeOn(imgWin.mainView, false);
@@ -8189,7 +8400,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
             /* Transform only light parts of the image. */
-            imgWin.setMask(maskWin);
+            setMaskChecked(imgWin, maskWin);
             imgWin.maskInverted = false;
             
             P.executeOn(imgWin.mainView, false);
@@ -8244,7 +8455,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Transform only light parts of the image. */
-      imgWin.setMask(maskWin);
+      setMaskChecked(imgWin, maskWin);
       imgWin.maskInverted = false;
       
       P.executeOn(imgWin.mainView, false);
@@ -8268,7 +8479,7 @@ function extraExponentialTransformation(imgWin, maskWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       /* Transform only light parts of the image. */
-      imgWin.setMask(maskWin);
+      setMaskChecked(imgWin, maskWin);
       imgWin.maskInverted = false;
       
       P.executeOn(imgWin.mainView, false);
@@ -8374,7 +8585,7 @@ function extraSmallerStars(imgWin)
              * no mask is needed. Otherwise use a star mask
              * to target operation only on stars.
              */
-            targetWin.setMask(star_mask_win);
+            setMaskChecked(targetWin, star_mask_win);
             targetWin.maskInverted = false;
       }
       
@@ -8412,7 +8623,8 @@ function extraStretch(win)
       addStatusInfo("Extra stretch");
       addProcessingStep("Extra stretch on " + win.mainView.id);
 
-      runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB');
+      win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
+      return win;
 }
 
 function extraShadowClipping(win, perc)
@@ -8672,7 +8884,7 @@ function extraProcessing(id, apply_directly)
       }
 
       if (par.extra_stretch.val) {
-            extraStretch(extraWin);
+            extraWin = extraStretch(extraWin);
       }
       if (narrowband) {
             if (par.run_orange_hue_shift.val) {
@@ -9215,7 +9427,7 @@ function CropImageIf(window, truncate_amount)
       window.mainView.endProcess();
 }
 
-function calculate_crop_amount(window_id)
+function calculate_crop_amount(window_id, crop_auto_continue)
 {
       let lowClipImageWindow = findWindow(window_id);
       if (lowClipImageWindow == null) {
@@ -9225,8 +9437,11 @@ function calculate_crop_amount(window_id)
       let bounding_box = findBounding_box(lowClipImageWindow);
       let [left_col, right_col, top_row, bottom_row] = bounding_box;
       
-      // Preview for information to the user only
-      let cropPreview = lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+      if (!crop_auto_continue) {
+            // Preview for information to the user only
+            // with auto continue we assume that the preview is already there
+            lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+      }
       
       // Calculate how much to truncate as used for the Crop process (except Crop want it negative)
       let full_image = lowClipImageWindow.mainView.image
@@ -9269,7 +9484,7 @@ function cropChannelImages()
 
       let lowClipImageName = runImageIntegrationForCrop(images);
 
-      crop_truncate_amount = calculate_crop_amount(lowClipImageName);
+      crop_truncate_amount = calculate_crop_amount(lowClipImageName, false);
       if (crop_truncate_amount == null) {
             throwFatalError("cropChannelImages failed to find image " + lowClipImageName);
       }
@@ -9280,9 +9495,6 @@ function cropChannelImages()
        * so we try to crop it here.
        */
       CropImageIf(findWindow(luminance_id), crop_truncate_amount);
-
-      // Iconify the map windows (no keyword)
-      windowIconizeif(lowClipImageName);
 
       console.noteln("Generated data for cropping");
 }
@@ -9297,7 +9509,8 @@ function cropChannelImagesAutoContinue()
       }
       addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
       let lowClipImageName = autocontinue_prefix + "LowRejectionMap_ALL";
-      crop_truncate_amount = calculate_crop_amount(lowClipImageName);
+      crop_lowClipImageName = lowClipImageName;       // save the name for minimizing
+      crop_truncate_amount = calculate_crop_amount(lowClipImageName, true);
       if (crop_truncate_amount == null) {
             throwFatalError("cropChannelImagesAutoContinue failed to find image " + lowClipImageName);
       }
@@ -9661,6 +9874,9 @@ function AutoIntegrateEngine(auto_continue)
             windowIconizeAndKeywordif(L_stars[0]);        /* Integration_L_stars (linear) */
       }
       windowIconizeAndKeywordif(RGBcolor_id);             /* Integration_RGBcolor */
+      if (crop_lowClipImageName != null) {
+            windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
+      }
       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
       if (RGB_stars_win != null) {
             windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
@@ -12205,10 +12421,10 @@ function AutoIntegrateDialog()
             "Noise - More weight on image noise.<br>" +
             "Stars - More weight on stars.<br>" +
             "PSF Signal - Use PSF Signal value as is." +
-            "PSF Signal scaled - PSF Signal value scaled to 1-100." +
-            "FWHM scaled - FWHM value scaled to 1-100." +
-            "Eccentricity scaled - Eccentricity value scaled to 1-100." +
-            "SNR scaled - SNR value scaled to 1-100." +
+            "PSF Signal scaled - PSF Signal value scaled by AutoIntegrate to 1-100." +
+            "FWHM scaled - FWHM value scaled by AutoIntegrate to 1-100." +
+            "Eccentricity scaled - Eccentricity value scaled by AutoIntegrate to 1-100." +
+            "SNR scaled - SNR value scaled by AutoIntegrate to 1-100." +
             "Star count - Star count value." +
             "</p>" +
             "<p>" +
@@ -12343,14 +12559,25 @@ function AutoIntegrateDialog()
       // Stretching
       //
 
+      var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
+                            "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
+                            "the implementation in AutoIntegrate does not work that well.</p>" + 
+                            "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
+                            "Consider using ABE on combined images and maybe also BackgroundNeutralization to clean image background. Local Normalization can be useful too.</p>" +
+                            "<p>It is also recommended that Crop to common are option is used. It cleans the image from bad data and makes " + 
+                            "finding the symmetry point more robust.</p>" + 
+                            "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
+
       var stretchingTootip = 
-            "Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.\n" +
-            "Masked Stretch - Use MaskedStretch to stretch image to non-linear.\n" +
-            "Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.\n" +
-            "Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.\n" +
-            "Hyperbolic - Experimental, Generalized Hyperbolic stretching using PixelMath formulas from PixInsight forum member dapayne.";
+            "<ul>" +
+            "<li>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</li>" +
+            "<li>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<p>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
+            "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful for example when stretching stars to keep good star color.</p></li>" +
+            "<li>Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.</li>" +
+            "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching. " + Hyperbolic_tips + "</li>" +
+            "</ul>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
-      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if star are extracted from image.");
+      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");
       this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
       var stars_combine_operations_Tooltip = "<p>Possible combine operations are:<br>" +
                                              "Add - Use stars+starless formula in Pixelmath<br>" +
@@ -12400,25 +12627,58 @@ function AutoIntegrateDialog()
             "<p>Arcsinh Stretch Factor value. Most useful for stretching stars. Smaller values are usually better.</p>" +
             "<p>Depending on the star combine method you may need to use a different values. For less stars you ca use a smaller value.</p>");
 
-      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 20,
-            "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum for most cases.</p>");
-      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 0, 10,
+      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 10,
+            "<p>Experimental, Hyperbolic Stretch D value with 0 meaning no stretch/change at all and 10 being the maximum.</p>" + Hyperbolic_tips);
+      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, -5, 15,
             "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
             "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
             "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
-            "super-hyperbolic stretch. Often it is best to keep b<2.</p>");
+            "super-hyperbolic stretch.</p>" + Hyperbolic_tips);
+      this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 1,
+            "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
+            "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + Hyperbolic_tips);
+      this.Hyperbolic_target_Control = newNumericEdit(this, "Histogram target", par.Hyperbolic_target, 0, 1,
+            "<p>Experimental, Hyperbolic Stretch histogram target value. Stop stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
       this.hyperbolicIterationsLabel = new Label(this);
       this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.hyperbolicIterationsLabel.text = "Iterations";
-      this.hyperbolicIterationsLabel.toolTip = "Experimental, number of iterations for Hyperbolic Stretch.";
-      this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 10, this.hyperbolicIterationsLabel.toolTip);
-      this.hyperbolicSizer = new HorizontalSizer;
+      this.hyperbolicIterationsLabel.toolTip = "<p>Experimental, Hyperbolic Stretch number of iterations.</p>" + Hyperbolic_tips;
+      this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 20, this.hyperbolicIterationsLabel.toolTip);
+      this.hyperbolicModeLabel = new Label(this);
+      this.hyperbolicModeLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.hyperbolicModeLabel.text = "Mode";
+      this.hyperbolicModeLabel.toolTip = "<p>Experimental, Hyperbolic Stretch test mode.</p>" +
+                                         "<ul>" +
+                                         "<li>0 - Fixed D, b</li>" +
+                                         "<li>1 - Decrease D, b for every iteration</li>" +
+                                         "<li>2 - Fixed D, b but change symmetry point to 40% after first iteration</li>" +
+                                         "<li>3 - Decrease D, b for every iteration but change symmetry point to 40% after first iteration</li>" +
+                                         "<li>4 - Decrease only b for every iteration</li>" +
+                                         "<li>5 - After first iteration cut D to half and set b to one</li>" +
+                                         "<li>6 - Decrease D and b for every skipped iteration</li>" +
+                                         "</ul>" + Hyperbolic_tips;
+      this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 0, 6, this.hyperbolicModeLabel.toolTip);
+      this.hyperbolicSizer1 = new HorizontalSizer;
+      this.hyperbolicSizer1.spacing = 4;
+      this.hyperbolicSizer1.margin = 2;
+      this.hyperbolicSizer1.add( this.Hyperbolic_D_Control );
+      this.hyperbolicSizer1.add( this.Hyperbolic_b_Control );
+      this.hyperbolicSizer1.add( this.Hyperbolic_SP_Control );
+      this.hyperbolicSizer1.addStretch();
+      this.hyperbolicSizer2 = new HorizontalSizer;
+      this.hyperbolicSizer2.spacing = 4;
+      this.hyperbolicSizer2.margin = 2;
+      this.hyperbolicSizer2.add( this.Hyperbolic_target_Control );
+      this.hyperbolicSizer2.add( this.hyperbolicIterationsLabel );
+      this.hyperbolicSizer2.add( this.hyperbolicIterationsSpinBox );
+      this.hyperbolicSizer2.add( this.hyperbolicModeLabel );
+      this.hyperbolicSizer2.add( this.hyperbolicModeSpinBox );
+      this.hyperbolicSizer2.addStretch();
+      this.hyperbolicSizer = new VerticalSizer;
       this.hyperbolicSizer.spacing = 4;
       this.hyperbolicSizer.margin = 2;
-      this.hyperbolicSizer.add( this.Hyperbolic_D_Control );
-      this.hyperbolicSizer.add( this.Hyperbolic_b_Control );
-      this.hyperbolicSizer.add( this.hyperbolicIterationsLabel );
-      this.hyperbolicSizer.add( this.hyperbolicIterationsSpinBox );
+      this.hyperbolicSizer.add( this.hyperbolicSizer1 );
+      this.hyperbolicSizer.add( this.hyperbolicSizer2 );
       this.hyperbolicSizer.addStretch();
 
       this.StretchingOptionsSizer = new VerticalSizer;
@@ -12648,6 +12908,10 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
 
+      this.force_narrowband_mapping_CheckBox = newCheckBox(this, "Force narrowband mapping", par.force_narrowband_mapping, 
+            "<p>" +
+            "Force narrowband mapping using formulas given in Color palette section." +
+            "</p>" );
       this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", par.mapping_on_nonlinear_data, 
             "<p>" +
             "Do narrowband mapping using non-linear data. Before running PixelMath images are stretched to non-linear state. " +
@@ -12671,9 +12935,8 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
       this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
+      this.mapping_on_nonlinear_data_Sizer.add( this.force_narrowband_mapping_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
-      this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_Label );
-      this.mapping_on_nonlinear_data_Sizer.add( this.narrowbandLinearFit_ComboBox );
 
       /* Luminance channel mapping.
        */
@@ -12712,6 +12975,8 @@ function AutoIntegrateDialog()
       this.NbLuminanceSizer.add( this.narrowbandLuminancePalette_ComboBox );
       this.NbLuminanceSizer.add( this.narrowbandCustomPalette_L_Label );
       this.NbLuminanceSizer.add( this.narrowbandCustomPalette_L_ComboBox );
+      this.NbLuminanceSizer.add( this.narrowbandLinearFit_Label );
+      this.NbLuminanceSizer.add( this.narrowbandLinearFit_ComboBox );
       this.NbLuminanceSizer.addStretch();
 
       /* RGBNB mapping.
@@ -12871,8 +13136,8 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.spacing = 4;
       this.narrowbandControl.sizer.add( this.narrowbandColorPaletteLabel );
       this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
-      this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
       this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
+      this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
       //this.narrowbandControl.sizer.add( this.narrowbandAutoContinue_sizer );
 
       this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
@@ -13496,48 +13761,16 @@ function AutoIntegrateDialog()
       this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
       this.mosaicSaveGroupBox.sizer.addStretch();
 
-      var paramSaveResetSettingsToolTip = 
-            "<p>Save all current parameter values using the PixInsight persistent module settings mechanism. Saved parameter " + 
-            "values are remembered and automatically restored when the script starts.</p> " +
-            "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>" +
-            "<p>Set default button sets default values for all parameters.</p>";
-      this.paramSaveResetSettingsSaveButton = new PushButton( this );
-      this.paramSaveResetSettingsSaveButton.text = "Save";
-      this.paramSaveResetSettingsSaveButton.toolTip = paramSaveResetSettingsToolTip;
-      this.paramSaveResetSettingsSaveButton.onClick = function()
-      {
-            saveParametersToPersistentModuleSettings();
-      };   
-
-      this.paramSaveResetSettingsClearButton = new PushButton( this );
-      this.paramSaveResetSettingsClearButton.text = "Set defaults";
-      this.paramSaveResetSettingsClearButton.toolTip = "Set default values for all parameters.";
-      this.paramSaveResetSettingsClearButton.onClick = function()
-      {
-            setParameterDefaults();
-      };   
-
-      this.paramSaveResetGroupBox = new newGroupBox( this );
-      this.paramSaveResetGroupBox.title = "Save and reset parameters";
-      this.paramSaveResetGroupBox.toolTip = paramSaveResetSettingsToolTip;
-      this.paramSaveResetGroupBox.sizer = new HorizontalSizer;
-      this.paramSaveResetGroupBox.sizer.toolTip = paramSaveResetSettingsToolTip;
-      this.paramSaveResetGroupBox.sizer.margin = 6;
-      this.paramSaveResetGroupBox.sizer.spacing = 4;
-      this.paramSaveResetGroupBox.sizer.add( this.paramSaveResetSettingsSaveButton );
-      this.paramSaveResetGroupBox.sizer.add( this.paramSaveResetSettingsClearButton );
-      this.paramSaveResetGroupBox.sizer.addStretch();
-
       this.filesaveAndParamSizer = new HorizontalSizer;
       this.filesaveAndParamSizer.margin = 6;
       this.filesaveAndParamSizer.spacing = 4;
       this.filesaveAndParamSizer.add( this.mosaicSaveGroupBox );
-      this.filesaveAndParamSizer.add( this.paramSaveResetGroupBox );
 
       // Run and Exit buttons
       this.run_Button = new PushButton( this );
       this.run_Button.text = "Run";
       this.run_Button.icon = this.scaledResource( ":/icons/power.png" );
+      this.run_Button.toolTip = "Run the script.";
       this.run_Button.onClick = function()
       {
             exitFromDialog();
@@ -13577,6 +13810,7 @@ function AutoIntegrateDialog()
       this.exit_Button = new PushButton( this );
       this.exit_Button.text = "Exit";
       this.exit_Button.icon = this.scaledResource( ":/icons/close.png" );
+      this.exit_Button.toolTip = "Exit the script.";
       this.exit_Button.onClick = function()
       {
          console.noteln("AutoIntegrate exiting");
@@ -13596,6 +13830,31 @@ function AutoIntegrateDialog()
          this.pushed = false;
          this.dialog.newInstance();
       };
+      this.savedefaults_Button = new ToolButton(this);
+      this.savedefaults_Button.icon = new Bitmap( ":/process-interface/edit-preferences.png" );
+      this.savedefaults_Button.toolTip = 
+            "<p>Save all current parameter values using the PixInsight persistent module settings mechanism. Saved parameter " + 
+            "values are remembered and automatically restored when the script starts.</p> " +
+            "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>" +
+            "<p>Set default button sets default values for all parameters.</p>";
+      this.savedefaults_Button.onMousePress = function()
+      {
+            saveParametersToPersistentModuleSettings();
+      };
+      this.reset_Button = new ToolButton(this);
+      this.reset_Button.icon = new Bitmap( ":/images/icons/reset.png" );
+      this.reset_Button.toolTip = "Set default values for all parameters.";
+      this.reset_Button.onMousePress = function()
+      {
+            setParameterDefaults();
+      };
+      this.website_Button = new ToolButton(this);
+      this.website_Button.icon = new Bitmap( ":/icons/internet.png" );
+      this.website_Button.toolTip = "Browse documentation on AutoIntegrate web site.";
+      this.website_Button.onMousePress = function()
+      {
+            Dialog.openBrowser("https://ruuth.xyz/AutoIntegrateInfo.html");
+      };
    
       this.infoLabel = new Label( this );
       this.infoLabel.text = "";
@@ -13603,10 +13862,12 @@ function AutoIntegrateDialog()
 
       this.imageInfoLabel = new Label( this );
       this.imageInfoLabel.text = "";
+      this.imageInfoLabel.textAlignment = TextAlign_VertCenter;
       imageInfoLabel = this.imageInfoLabel;
 
       this.statusInfoLabel = new Label( this );
       this.statusInfoLabel.text = "";
+      this.statusInfoLabel.textAlignment = TextAlign_VertCenter;
       statusInfoLabel = this.statusInfoLabel;
 
       this.info1_Sizer = new HorizontalSizer;
@@ -13629,6 +13890,9 @@ function AutoIntegrateDialog()
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.spacing = 6;
       this.buttons_Sizer.add( this.newInstance_Button );
+      this.buttons_Sizer.add( this.savedefaults_Button );
+      this.buttons_Sizer.add( this.reset_Button );
+      this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.autoContinueButton );
@@ -13727,6 +13991,7 @@ function AutoIntegrateDialog()
       this.windowTitle = autointegrate_version; 
       this.userResizable = true;
       this.adjustToContents();
+      this.setVariableSize();
       //this.files_GroupBox.setFixedHeight();
 
       setWindowPrefixHelpTip(ppar.win_prefix);
