@@ -284,7 +284,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test1";
+var autointegrate_version = "AutoIntegrate v1.47 test2";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -523,12 +523,12 @@ var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG",
 var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
-var extract_channel_mapping_values = [ "", "LRGB", "HSO", "HOS" ];
+var extract_channel_mapping_values = [ "", "LRGB", "HSO", "HOS", "None" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Use both', 'Hyperbolic' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -4505,44 +4505,51 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                   filter = 'Luminance';
             }
             // First check with full filter name
-            switch (filter.trim()) {
-                  case 'Luminance':
-                  case 'Lum':
-                  case 'Clear':
+            switch (filter.trim().toUpperCase()) {
+                  case 'LUMINANCE':
+                  case 'LUM':
+                  case 'CLEAR':
+                  case 'L':
                         filter = 'L';
                         break;
-                  case 'Red':
+                  case 'RED':
+                  case 'R':
                         filter = 'R';
                         break;
-                  case 'Green':
+                  case 'GREEN':
+                  case 'G':
                         filter = 'G';
                         break;
-                  case 'Blue':
+                  case 'BLUE':
+                  case 'B':
                         filter = 'B';
                         break;
-                  case 'Halpha':
-                  case 'Ha':
+                  case 'HALPHA':
+                  case 'HA':
+                  case 'H':
                         filter = 'H';
                         break;
                   case 'SII':
+                  case 'S':
                         filter = 'S';
                         break;
                   case 'OIII':
+                  case 'O':
                         filter = 'O';
                         break;
-                  case 'Color':
-                  case 'No filter':
-                  case 'L_En':
+                  case 'COLOR':
+                  case 'NO FILTER':
+                  case 'L_EN':
+                  case 'C':
                         filter = 'C';
                         break;
                   default:
                         break;
             }
             // Do final resolve based on first letter in the filter'
-            var filter_keyword = filter.trim().substring(0, 1);
+            var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
             switch (filter_keyword) {
                   case 'L':
-                  case 'l':
                         if (allfiles.L.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4550,7 +4557,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         luminance = true;
                         break;
                   case 'R':
-                  case 'r':
                         if (allfiles.R.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4558,7 +4564,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         rgb = true;
                         break;
                   case 'G':
-                  case 'g':
                         if (allfiles.G.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4566,7 +4571,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         rgb = true;
                         break;
                   case 'B':
-                  case 'b':
                         if (allfiles.B.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4574,7 +4578,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         rgb = true;
                         break;
                   case 'H':
-                  case 'h':
                         if (allfiles.H.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4582,7 +4585,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         narrowband = true;
                         break;
                   case 'S':
-                  case 's':
                         if (allfiles.S.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -4590,7 +4592,6 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         narrowband = true;
                         break;
                   case 'O':
-                  case 'o':
                         if (allfiles.O.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
@@ -6273,6 +6274,7 @@ function runHistogramTransformHyperbolic(res)
       var ABE_win = res.win;
       var iteration_number = res.iteration_number;
       var image_id = ABE_win.mainView.id;
+      var allow_skip = true;
 
       console.writeln("--");
       console.writeln("Iteration " + iteration_number);
@@ -6284,6 +6286,7 @@ function runHistogramTransformHyperbolic(res)
                   var Hyperbolic_D_val = par.Hyperbolic_D.val;
                   var Hyperbolic_b_val = par.Hyperbolic_b.val;
                   var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, par.Hyperbolic_SP.val);
+                  allow_skip = false;
                   break;
             case 1:
                   // Decrease every iteration
@@ -6303,6 +6306,7 @@ function runHistogramTransformHyperbolic(res)
                               var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, 40);
                               break;
                   }
+                  allow_skip = false;
                   break;
             case 3:
                   // Decrease every iteration and change symmetry point to 40%
@@ -6405,13 +6409,14 @@ function runHistogramTransformHyperbolic(res)
 
       if (current_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
             // We are past the target value, ignore this iteration and keep old image
-            console.writeln("We are past the target, skip this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
-            closeOneWindow(P.newImageId);
-            res.skipped++;
-            if (res.skipped > 2) {
-                  console.writeln("Stretch completed, skipped too many time");
+            if (allow_skip) {
+                  console.writeln("We are past the target, skip this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
+            } else {
+                  console.writeln("Stretch completed, do not skip stretches");
                   res.completed = true;
             }
+            closeOneWindow(P.newImageId);
+            res.skipped++;
       } else {
             if (current_val >= par.Hyperbolic_target.val - 0.1 * par.Hyperbolic_target.val) {
                   // we are close enough, we are done
@@ -6443,11 +6448,7 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             var image_stretching = par.image_stretching.val;
       }
 
-      if (image_stretching == 'Auto STF' 
-          || type == 'mask'
-          || type == 'extra'
-          || (image_stretching == 'Use both' && type == 'L'))
-      {
+      if (image_stretching == 'Auto STF' || type == 'mask' || type == 'extra') {
             if (type == 'mask') {
                   targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
             } else {
@@ -6456,9 +6457,7 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             var stf = runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
             return { win: ABE_win, stf: stf };
 
-      } else if (image_stretching == 'Masked Stretch'
-                 || (image_stretching == 'Use both' && type == 'RGB'))
-      {
+      } else if (image_stretching == 'Masked Stretch') {
             runHistogramTransformMaskedStretch(ABE_win);
             return { win: ABE_win, stf: null };
 
@@ -7438,7 +7437,10 @@ function CreateChannelImages(auto_continue)
                   filename_postfix = filename_postfix + '_b';
             }
 
-            if (par.extract_channel_mapping.val != '') {
+            if (par.extract_channel_mapping.val != '' 
+                && par.extract_channel_mapping.val != 'None' 
+                && is_color_files) 
+            {
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
@@ -9434,7 +9436,18 @@ function calculate_crop_amount(window_id, crop_auto_continue)
             return null;
       }
 
-      let bounding_box = findBounding_box(lowClipImageWindow);
+      if (crop_auto_continue) {
+            let preview = lowClipImageWindow.previewById("crop");
+            if (preview.isNull) {
+                  throwFatalError("Error: crop preview not found from " + lowClipImageWindow.mainView.id);
+            }
+            var rect = lowClipImageWindow.previewRect(preview);
+            var bounding_box = [ rect.x0, rect.x1, rect.y0, rect.y1 ];
+            console.writeln("Using crop preview bounding box " + JSON.stringify(bounding_box));
+      } else {
+            var bounding_box = findBounding_box(lowClipImageWindow);
+            console.writeln("Calculated crop preview bounding box " + JSON.stringify(bounding_box));
+      }
       let [left_col, right_col, top_row, bottom_row] = bounding_box;
       
       if (!crop_auto_continue) {
@@ -12573,7 +12586,6 @@ function AutoIntegrateDialog()
             "<li>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</li>" +
             "<li>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<p>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
             "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful for example when stretching stars to keep good star color.</p></li>" +
-            "<li>Use both - Use auto Screen Transfer Function for luminance and MaskedStretch for RGB to stretch image to non-linear. This is experimental test.</li>" +
             "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching. " + Hyperbolic_tips + "</li>" +
             "</ul>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
