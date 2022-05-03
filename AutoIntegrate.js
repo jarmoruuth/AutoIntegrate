@@ -479,7 +479,7 @@ var par = {
 
       // Calibration settings
       debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
-      extract_channel_mapping: { val: "", def: "", name : "Extract channel mapping", type : 'S' },
+      extract_channel_mapping: { val: "None", def: "None", name : "Extract channel mapping", type : 'S' },
       create_superbias: { val: true, def: true, name : "Superbias", type : 'B' },
       bias_master_files: { val: false, def: false, name : "Bias master files", type : 'B' },
       pre_calibrate_darks: { val: false, def: false, name : "Pre-calibrate darks", type : 'B' },
@@ -523,7 +523,7 @@ var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG",
 var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
-var extract_channel_mapping_values = [ "", "LRGB", "HSO", "HOS", "None" ];
+var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
@@ -7437,10 +7437,7 @@ function CreateChannelImages(auto_continue)
                   filename_postfix = filename_postfix + '_b';
             }
 
-            if (par.extract_channel_mapping.val != '' 
-                && par.extract_channel_mapping.val != 'None' 
-                && is_color_files) 
-            {
+            if (par.extract_channel_mapping.val != 'None' && is_color_files) {
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
@@ -10256,6 +10253,23 @@ function newComboBox(parent, param, valarray, tooltip)
       return cb;
 }
 
+function newComboBoxIndex(parent, param, valarray, tooltip)
+{
+      var cb = new ComboBox( parent );
+      cb.toolTip = tooltip;
+      addArrayToComboBox(cb, valarray);
+      cb.currentItem = param.val;
+      cb.onItemSelected = function( itemIndex ) {
+            param.val = valarray[itemIndex];
+      };
+
+      param.reset = function() {
+            cb.currentItem = param.val;
+      }
+      
+      return cb;
+}
+
 function newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
@@ -12369,7 +12383,7 @@ function AutoIntegrateDialog()
       this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       // Binning
-      this.binningComboBox = newComboBox(this, par.binning, binning_values, this.binningLabel.toolTip);
+      this.binningComboBox = newComboBoxIndex(this, par.binning, binning_values, this.binningLabel.toolTip);
 
       this.binningGroupBoxLabel = newSectionLabel(this, "Binning");
       this.binningGroupBoxSizer = new HorizontalSizer;
