@@ -284,7 +284,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test3";
+var autointegrate_version = "AutoIntegrate v1.47 testac3";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -1316,6 +1316,15 @@ function windowCloseif(id)
             } else {
                   w.close();
             }
+      }
+}
+
+function windowCloseLogged(id)
+{
+      let w = findWindow(id);
+      if (w != null) {
+            console.writeln("CLosing unneeded window '" + id +"'")
+            w.close();
       }
 }
 
@@ -5870,40 +5879,103 @@ function runImageIntegration(channel_images, name)
       }
 }
 
+
 function runImageIntegrationForCrop(images)
 {
       console.noteln("ImageIntegration to find area common to all images");
 
       var P = new ImageIntegration;
 
+      // The commented properties are normally defaults, not set because the defults could
+      // be changed by the developper of ImageIntegration and should not impact this process
+      // (hopefully).
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
+      // P.inputHints = "fits-keywords normalize raw cfa signed-is-physical"; //Default, maybe shoulsd forcce normalize
       P.combination = ImageIntegration.prototype.Minimum;
-      
-      //addProcessingStep("Using NoNormalization for ImageIntegration normalization");
-      P.normalization = ImageIntegration.prototype.NoNormalization;
-      P.rejection = ImageIntegration.prototype.NoRejection;
-      //P.rejectionNormalization = ImageIntegration.prototype.NoRejectionNormalization;
-      P.rejectionNormalization = ImageIntegration.prototype.Scale;
-      P.mapRangeRejection = true;
-      P.reportRangeRejection = false;
-
-      P.generateRejectionMaps = true;
-      P.generateIntegratedImage = true;
-
-      P.generateDrizzleData = false;
-      P.closePreviousImages = false;
-
-      P.noGUIMessages = true;
-      P.showImages = true;
-
+      // P.weightMode = ImageIntegration.prototype.PSFSignalWeight;
+      // P.weightKeyword = "";
+      // P.weightScale = ImageIntegration.prototype.WeightScale_BWMV;
+      // P.csvWeights = "";
+      // P.adaptiveGridSize = 16;
+      // P.adaptiveNoScale = false;
+      P.ignoreNoiseKeywords = true; // We do not use noise information anyhow
+      P.normalization = ImageIntegration.prototype.NoNormalization; // Gain time, useless for our  need
+      P.rejection = ImageIntegration.prototype.NoRejection; // Default, but essential for our needs
+      // P.rejectionNormalization = ImageIntegration.prototype.Scale;
+      // P.minMaxLow = 1;
+      // P.minMaxHigh = 1;
+      // P.pcClipLow = 0.200;
+      // P.pcClipHigh = 0.100;
+      // P.sigmaLow = 4.000;
+      // P.sigmaHigh = 3.000;
+      // P.winsorizationCutoff = 5.000;
+      // P.linearFitLow = 5.000;
+      // P.linearFitHigh = 4.000;
+      // P.esdOutliersFraction = 0.30;
+      // P.esdAlpha = 0.05;
+      // P.esdLowRelaxation = 1.00;
+      // P.rcrLimit = 0.10;
+      // P.ccdGain = 1.00;
+      // P.ccdReadNoise = 10.00;
+      // P.ccdScaleNoise = 0.00;
       P.clipLow = true;
       P.clipHigh = true;
-      P.rangeClipLow = true;
-      P.rangeLow = 0.000000;
-      P.rangeClipHigh = false;
-      P.rangeHigh = 0.980000;
+      P.rangeClipLow = false;  // Save some time especially on short runs.
+                              // this could be set to true to use the 'negative' map as an alternate source
+                              // for cropping information (currentyl not used)
+      P.rangeLow = 0.000000;   // default but ensure it is 0 for correct results in case rangeClipLow is true
+      P.rangeClipHigh = false; // default, but ensure we do not clip higgh to avoid creating black dots.
+      // P.rangeHigh = 0.980000;
+      // P.mapRangeRejection = true;
+      // P.reportRangeRejection = false;
+      // P.largeScaleClipLow = false;
+      // P.largeScaleClipLowProtectedLayers = 2;
+      // P.largeScaleClipLowGrowth = 2;
+      // P.largeScaleClipHigh = false;
+      // P.largeScaleClipHighProtectedLayers = 2;
+      // P.largeScaleClipHighGrowth = 2;
+      // P.generate64BitResult = false;
+      // P.generateRejectionMaps = false;
+      // P.generateIntegratedImage = true;
+      // P.generateDrizzleData = false;
+      P.closePreviousImages = false; // Could be set to true to automatically supress previosu result, but they are removed by the script
+      // P.bufferSizeMB = 16; // Performance, left defaults, could be a parameter from an icon
+      // P.stackSizeMB = 1024; // Performance, left defaults, could be a parameter from an icon
+      // P.autoMemorySize = true; // Performance, left defaults, could be a parameter from an icon
+      // P.autoMemoryLimit = 0.75; // Performance, left defaults, could be a parameter from an icon
+      // P.useROI = false;
+      // P.roiX0 = 0;
+      // P.roiY0 = 0;
+      // P.roiX1 = 0;
+      // P.roiY1 = 0;
+      P.useCache = true; // Performance, left defaults, could be a parameter from an icon
+                  // Effect of cache seems small (10 %) and may even negatively impact global
+                  // performance as we do not calculate noise and may overwrite good cache data.
+                  // Need further study
+      P.evaluateSNR = false; // We do not use noise for our integration, save time
+      // P.noiseEvaluationAlgorithm = ImageIntegration.prototype.NoiseEvaluation_MRS;
+      // P.mrsMinDataFraction = 0.010;
+      // P.psfStructureLayers = 5;
+      // P.psfType = ImageIntegration.prototype.PSFType_Moffat4;
+      // P.subtractPedestals = false;
+      // P.truncateOnOutOfRange = false;
+      P.noGUIMessages = true; // Default, but want to be sure as we are not interractive
+      P.showImages = true; // To have the image on the workspace
+      // P.useFileThreads = true;
+      // P.fileThreadOverload = 1.00;
+      // P.useBufferThreads = true;
+      // P.maxBufferThreads = 0;
+
 
       P.executeGlobal();
+      console.noteln("Warnings above about 'Inconsistent Instrument:Filter ...' above are normal, as we integrate all filters together");
+
+      // Depending on integration options, some useless maps may be generated, especially low rejection map,
+      // With the current integration parameters, these images are not generated,
+      windowCloseLogged(P.lowRejectionMapImageId);
+      windowCloseLogged(P.highRejectionMapImageId);
+      windowCloseLogged(P.slopeMapImageId);
+      // KEEP (P.integrationImageId);
 
       //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
 
@@ -5912,13 +5984,9 @@ function runImageIntegrationForCrop(images)
       //   console.writeln("integrationImageId ", P.integrationImageId)
       //   console.writeln("lowRejectionMapImageId ", P.lowRejectionMapImageId)
 
-      // Keep only lowRejectionMapImageId
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.slopeMapImageId);
-      windowCloseif(P.integrationImageId);
+      //console.writeln("Rename '",P.integrationImageId,"' to ",ppar.win_prefix + "LowRejectionMap_ALL")
+      var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "LowRejectionMap_ALL");
 
-      //console.writeln("Rename '",P.lowRejectionMapImageId,"' to ",ppar.win_prefix + "LowRejectionMap_ALL")
-      var new_name = windowRename(P.lowRejectionMapImageId, ppar.win_prefix + "LowRejectionMap_ALL");
       return new_name
       
 }
@@ -6456,6 +6524,7 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             var image_stretching = par.image_stretching.val;
       }
 
+      var targetBackground; // to be compatible with 'use strict';
       if (image_stretching == 'Auto STF' || type == 'mask' || type == 'extra') {
             if (type == 'mask') {
                   targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
@@ -9147,17 +9216,17 @@ function find_up_down(image,col)
       let row_up = 0;
       for (let row=row_mid; row>=0; row--) {
             let p = image.sample(col, row);
-            if (p>0) {
-            row_up = row+1;
-            break;
+            if (p==0) {
+                  row_up = row+1;
+                  break;
             }
       }
       let row_down = image.height-1;
       for (let row=row_mid; row<image.height; row++) {
             let p = image.sample(col, row);
-            if (p>0) {
-            row_down = row-1;
-            break;
+            if (p==0) {
+                  row_down = row-1;
+                  break;
             }
       }
       if (debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
@@ -9171,17 +9240,17 @@ function find_left_right(image,row)
       let col_left = 0;
       for (let col=col_mid; col>=0; col--) {
             let p = image.sample(col, row);
-            if (p>0) {
-            col_left = col+1;
-            break;
+            if (p==0) {
+                  col_left = col+1;
+                  break;
             }
       }
       let col_right = image.width-1;
       for (let col=col_mid; col<image.width; col++) {
             let p= image.sample(col, row);
-            if (p>0) {
-            col_right = col-1;
-            break;
+            if (p==0) {
+                  col_right = col-1;
+                  break;
             }
       }
       if (debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
@@ -9193,9 +9262,10 @@ function findMaximalBoundingBox(lowClipImage)
       let col_mid = lowClipImage.width / 2;
       let row_mid = lowClipImage.height / 2;
       let p = lowClipImage.sample(col_mid, row_mid);
-      if (p != 0.0) {
+      if (p == 0.0) {
             // TODO - should return an error message and use the uncropped lowClipImage
-            // Could also accept a % of rjetection
+            // Could look if other points around are ok in case of accidental dark middle point
+            // Could also accept a % of rejection
             throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
       }
 
@@ -9219,14 +9289,15 @@ function findMaximalBoundingBox(lowClipImage)
 /* 
  * Assumptions:
  * It is assumed that the valid area obeys the following assumptions:
- * - The valid area is the area where all images are contributing (rejection = 0)
+ * - The valid area is the area where all images are contributing (integrated value >0)
  *   (if needed remove badly aligned images before processing using Blink)
  * - The point at the center of the image is always valid (otherwise the process fails).
  * - The valid area is contiguous and no line from the center of the image to any valid point
- *   crosses an invalid area (a pretty reasonable assumption for any usable image).
+ *   crosses an invalid area (a pretty reasonable assumption for any usable image),
+ *   but CosmeticCorrection may have to be applied in some case.
  * - The valid area will be rectangular and parallel to the borders of the image.
- * With these assumptions there is genrally not a single possible rectangular area
- * (think of an image is a circle), the algorithm assumes that the valid area is 
+ * With these assumptions there is generally not a single possible rectangular area
+ * (think of an image inside a circle of valie points), the algorithm assumes that the valid area is 
  * "reasonable", that is a few percent smaller than the full image. In extreme cases
  * the selected area will work but may not be optimal. This should not be the case
  * for any common image.
@@ -9251,6 +9322,8 @@ function findMaximalBoundingBox(lowClipImage)
  * with some invalid points inside the bounding box). Each border is reduced until
  * the full border is valid.  This handles small irregularities (up to 100 pixels)
  * that are contiguous to a border.
+ * NOTE: The previous algorithm used the rejection map, this may be more reliable but creates
+ * more intermediate images, is slower in some cases and result in an inconvenient crop reference image.
 */
 function findBounding_box(lowClipImageWindow)
 {
@@ -9276,10 +9349,10 @@ function findBounding_box(lowClipImageWindow)
       let left_bottom = new Point(left_col, bottom_row);
       let right_bottom = new Point(right_col,bottom_row);
 
-      left_top_valid = image.sample(left_top)==0;
-      right_top_valid =  image.sample(right_top)==0;
-      left_bottom_valid =  image.sample(left_bottom)==0;
-      right_bottom_valid =  image.sample(right_bottom)==0;
+      left_top_valid = image.sample(left_top)>0;
+      right_top_valid =  image.sample(right_top)>0;
+      left_bottom_valid =  image.sample(left_bottom)>0;
+      right_bottom_valid =  image.sample(right_bottom)>0;
 
       let corner = 0;
       let all_valid = true;
@@ -9292,7 +9365,7 @@ function findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               if (!left_top_valid) {
                                     left_top = new Point(left_col,top_row);
-                                    left_top_valid = image.sample(left_top)==0; 
+                                    left_top_valid = image.sample(left_top)>0; 
                                     // if invalid move the corner inwards
                                     if (!left_top_valid)
                                     {
@@ -9308,7 +9381,7 @@ function findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               if (!right_bottom_valid) {
                                     right_bottom = new Point(right_col,bottom_row);
-                                    right_bottom_valid = image.sample(right_bottom)==0; 
+                                    right_bottom_valid = image.sample(right_bottom)>0; 
                                     // if invalid move the corner inwards
                                     if (!right_bottom_valid)
                                     {
@@ -9325,7 +9398,7 @@ function findBounding_box(lowClipImageWindow)
                               //
                               if (!left_bottom_valid) {
                                     left_bottom = new Point(left_col,bottom_row);
-                                    left_bottom_valid = image.sample(left_bottom)==0; 
+                                    left_bottom_valid = image.sample(left_bottom)>0; 
                                     // if invalid move the corner inwards
                                     if (!left_bottom_valid)
                                     {
@@ -9342,7 +9415,7 @@ function findBounding_box(lowClipImageWindow)
                               //
                               if (!right_top_valid) {
                                     right_top = new Point(right_col,top_row);
-                                    right_top_valid = image.sample(right_top)==0; 
+                                    right_top_valid = image.sample(right_top)>0; 
                                     // if invalid move the corner inwards
                                     if (!right_top_valid)
                                     {
@@ -9387,7 +9460,7 @@ function findBounding_box(lowClipImageWindow)
             let left_col_valid = true;
             for (let i=top_row; i<=bottom_row; i++)
             {
-                  left_col_valid = left_col_valid && image.sample(left_col,i)==0;
+                  left_col_valid = left_col_valid && image.sample(left_col,i)>0;
                   if (!left_col_valid) break;
             }
             if (! left_col_valid) 
@@ -9401,7 +9474,7 @@ function findBounding_box(lowClipImageWindow)
             let right_col_valid = true;
             for (let i=top_row; i<=bottom_row; i++)
             {
-                  right_col_valid = right_col_valid && image.sample(right_col,i)==0;
+                  right_col_valid = right_col_valid && image.sample(right_col,i)>0;
                   if (!right_col_valid) break;
             }
             if (! right_col_valid) 
@@ -9415,7 +9488,7 @@ function findBounding_box(lowClipImageWindow)
             let top_row_valid = true;
             for (let i=left_col; i<=right_col; i++)
             {
-                  top_row_valid = top_row_valid && image.sample(i,top_row)==0;
+                  top_row_valid = top_row_valid && image.sample(i,top_row)>0;
                   if (!top_row_valid) break;
             }
             if (! top_row_valid) 
@@ -9429,7 +9502,7 @@ function findBounding_box(lowClipImageWindow)
             let bottom_row_valid = true;
             for (let i=left_col; i<=right_col; i++)
             {
-                  bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)==0;
+                  bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)>0;
                   if (!bottom_row_valid) break;
             }
             if (! bottom_row_valid) 
@@ -9570,6 +9643,14 @@ function cropChannelImages()
       //console.writeln("all: " + JSON.stringify(images, null, 2));
 
       let lowClipImageName = runImageIntegrationForCrop(images);
+
+      // Autostretch for the convenience of the user
+      ApplyAutoSTF(findWindow(lowClipImageName).mainView, 
+      DEFAULT_AUTOSTRETCH_SCLIP,
+      DEFAULT_AUTOSTRETCH_TBGND,
+      false,
+      false);
+     
 
       crop_truncate_amount = calculate_crop_amount(lowClipImageName, false);
       if (crop_truncate_amount == null) {
