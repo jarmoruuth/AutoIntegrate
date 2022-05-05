@@ -284,7 +284,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test3";
+var autointegrate_version = "AutoIntegrate v1.47 test4";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -12750,9 +12750,12 @@ function AutoIntegrateDialog()
             "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
             "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
             "super-hyperbolic stretch.</p>" + Hyperbolic_tips);
-      this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 1,
+      this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 99,
             "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
-            "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + Hyperbolic_tips);
+            "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + 
+            "<p>As a general rule for small targets you should use relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
+            "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 10 and 50).</p>" +
+            Hyperbolic_tips);
       this.Hyperbolic_target_Control = newNumericEdit(this, "Histogram target", par.Hyperbolic_target, 0, 1,
             "<p>Experimental, Hyperbolic Stretch histogram target value. Stop stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
       this.hyperbolicIterationsLabel = new Label(this);
