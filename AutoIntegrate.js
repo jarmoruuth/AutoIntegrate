@@ -326,6 +326,7 @@ var par = {
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_star_noise_reduction: { val: false, def: false, name : "No star noise reduction", type : 'B' },
+      non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
@@ -354,6 +355,7 @@ var par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
+      use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
@@ -5148,19 +5150,25 @@ function mapRGBchannel(images, refimage, mapping)
 
 function luminanceNoiseReduction(imgWin, maskWin)
 {
-      if (par.skip_noise_reduction.val || par.luminance_noise_reduction_strength.val == 0) {
+      if (par.skip_noise_reduction.val 
+          || par.luminance_noise_reduction_strength.val == 0
+          || par.non_linear_noise_reduction.val) 
+      {
             return;
       }
 
       addStatusInfo("Reduce noise on luminance image");
       addProcessingStep("Reduce noise on luminance image " + imgWin.mainView.id);
 
-      runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.luminance_noise_reduction_strength.val);
+      runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
 }
 
 function channelNoiseReduction(image_id)
 {
-      if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
+      if (par.skip_noise_reduction.val 
+          || par.noise_reduction_strength.val == 0
+          || par.non_linear_noise_reduction.val) 
+      {
             return;
       }
       addStatusInfo("Reduce noise on channel image");
@@ -5171,7 +5179,7 @@ function channelNoiseReduction(image_id)
       /* Create a temporary mask. */
       var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
 
-      runMultiscaleLinearTransformReduceNoise(image_win, mask_win, par.noise_reduction_strength.val);
+      runNoiseReductionEx(image_win, mask_win, par.noise_reduction_strength.val, true);
 
       closeOneWindow(mask_win.mainView.id);
 }
@@ -6689,17 +6697,80 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       imgWin.mainView.endProcess();
 }
 
-function runNoiseReduction(imgWin, maskWin)
+function runNoiseXTerminator(imgWin, strength, linear)
+{
+      switch (strength) {
+            case 2:
+                  var denoise = 0.60;
+                  break;
+            case 3:
+                  var denoise = 0.75;
+                  break;
+            case 4:
+                  var denoise = 0.80;
+                  break;
+            case 5:
+                  var denoise = 0.90;
+                  break;
+            case 6:
+                  var denoise = 1.00;
+                  break;
+            default:
+                  throwFatalError("Bad noise reduction value " + strength);
+      }
+      var detail = 0.15;
+
+      try {
+            var P = new NoiseXTerminator;
+            P.denoise = denoise;
+            P.detail = detail;
+            P.linear = linear;
+      } catch(err) {
+            console.criticalln("NoiseXTerminator failed");
+            console.criticalln(err);
+            addProcessingStep("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
+            throwFatalError("NoiseXTerminator failed");
+      }
+
+      console.writeln("runNoiseXTerminator on " + imgWin.mainView.id + " using denoise " + denoise + ", detail " + detail, ", linear " + linear);
+
+      /* Execute on image.
+       */
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+      
+      imgWin.mainView.endProcess();
+}
+
+function runNoiseReductionEx(imgWin, maskWin, strength, linear)
+{
+      if (strength == 0) {
+            return;
+      }
+      if (par.use_noisexterminator.val) {
+            runNoiseXTerminator(imgWin, strength, linear);
+      } else {
+            runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength);
+      }
+}
+
+function runNoiseReduction(imgWin, maskWin, linear)
 {
       if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
             return;
       }
 
       addStatusInfo("Noise reduction");
-      addProcessingStep("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
-      runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, par.noise_reduction_strength.val);
+      if (par.use_noisexterminator.val) {
+            addProcessingStep("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
+      } else {
+            addProcessingStep("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      }
+      runNoiseReductionEx(imgWin, maskWin, par.noise_reduction_strength.val, linear);
 }
+
 function runColorReduceNoise(imgWin)
 {
       addStatusInfo("Color noise reduction");
@@ -7822,7 +7893,9 @@ function ProcessLimage(RGBmapping)
             }
 
             L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
-            ImageWindow.windowById(L_ABE_HT_id);      
+      }
+      if (par.non_linear_noise_reduction.val) {
+            runNoiseReduction(L_ABE_HT_win, mask_win, false);
       }
 }
 
@@ -8204,12 +8277,15 @@ function ProcessRGBimage(RGBstretched)
                   }
             }
 
-            if (is_color_files || par.combined_image_noise_reduction.val) {
+            if ((is_color_files || par.combined_image_noise_reduction.val)
+                && !par.non_linear_noise_reduction.val) 
+            {
                   /* Optional noise reduction for RGB
                    */
                   runNoiseReduction(
                         ImageWindow.windowById(RGB_ABE_id),
-                        mask_win);
+                        mask_win,
+                        !RGBstretched);
             }
             if (!RGBstretched) {
                   if (par.remove_stars_early.val) {
@@ -8711,10 +8787,11 @@ function extraNoiseReduction(win, mask_win)
       addStatusInfo("Extra noise reduction");
       addProcessingStep("Extra noise reduction on " + win.mainView.id);
 
-      runMultiscaleLinearTransformReduceNoise(
+      runNoiseReductionEx(
             win, 
             mask_win, 
-            par.extra_noise_reduction_strength.val);
+            par.extra_noise_reduction_strength.val,
+            false);
 }
 
 function extraACDNR(extraWin, mask_win)
@@ -9779,7 +9856,7 @@ function AutoIntegrateEngine(auto_continue)
             }
 
             if (processRGB && !RGBmapping.combined) {
-                  CombineRGBimage();
+                  CombineRGBimage(RGB_ABE_HT_id);
             }
 
             if (par.monochrome_image.val) {
@@ -9790,7 +9867,11 @@ function AutoIntegrateEngine(auto_continue)
 
                   RGB_ABE_HT_id = ProcessRGBimage(RGBmapping.stretched);
 
-                  if (is_color_files || !is_luminance_images) {
+                  if (par.non_linear_noise_reduction.val) {
+                        runNoiseReduction(ImageWindow.windowById(RGB_ABE_HT_id), mask_win, false);
+                  }
+      
+                        if (is_color_files || !is_luminance_images) {
                         /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
                          * will be the final result file.
                          */
@@ -10115,6 +10196,9 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new PixelMath", new PixelMath);
       if (par.use_starxterminator.val) {
             printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      }
+      if (par.use_noisexterminator.val) {
+            printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
       }
       if (par.use_starnet2.val) {
             printProcessDefaultValues("new StarNet2", new StarNet2);
@@ -12272,6 +12356,8 @@ function AutoIntegrateDialog()
             "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
       this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
+      this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear noise reduction", par.non_linear_noise_reduction, 
+            "<p>Do noise reduction in non-linear state after stretching.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
@@ -12284,6 +12370,8 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
+      this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
+            "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
@@ -12339,6 +12427,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.no_sharpening_CheckBox );
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.skip_star_noise_reduction_CheckBox );
+      this.imageParamsSet2.add( this.non_linear_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
@@ -12492,6 +12581,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.save_all_files_CheckBox );
       this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
       this.otherParamsSet1.add( this.use_starnet2_CheckBox );
+      this.otherParamsSet1.add( this.use_noisexterminator_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
@@ -14098,7 +14188,7 @@ function AutoIntegrateDialog()
       this.windowTitle = autointegrate_version; 
       this.userResizable = true;
       this.adjustToContents();
-      this.setVariableSize();
+      //this.setVariableSize();
       //this.files_GroupBox.setFixedHeight();
 
       setWindowPrefixHelpTip(ppar.win_prefix);
