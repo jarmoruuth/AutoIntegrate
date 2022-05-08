@@ -190,15 +190,19 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2022 Jarmo Ruuth. All Rights Reserved.
+Copyright (c) 2018-2022 Jarmo Ruuth.
 
 Crop to common area code
 
-      Copyright (c) 2022 Jean-Marc Lugrin. All Rights Reserved.
+      Copyright (c) 2022 Jean-Marc Lugrin.
 
 Window name prefix and icon location code
 
-      Copyright (c) 2021 rob pfile. All Rights Reserved.
+      Copyright (c) 2021 rob pfile.
+
+PreviewControl module
+
+      Copyright (C) 2013, Andres del Pozo
 
 The following copyright notice is for Linear Defect Detection
 
@@ -273,6 +277,9 @@ Linear Defect Detection:
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
+#include <pjsr/StdButton.jsh>
+#include <pjsr/StdIcon.jsh>
+#include <pjsr/StdCursor.jsh>
 
 // temporary debugging
 #ifndef TEST_AUTO_INTEGRATE
@@ -284,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test5";
+var autointegrate_version = "AutoIntegrate v1.47 test6";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -297,6 +304,13 @@ var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox;     // For updating prefix name list
 var outputDirEdit;            // For updating output root directory
+var previewControl;           // For updating preview window
+var previewInfoLabel;         // For updating preview info text
+
+var dense_dialog = true;      // Less section bars to make interface more dense
+var use_preview = true;
+var is_some_preview = false;
+var is_processing = false;
 
 /*
       Parameters that can be adjusted in the GUI
@@ -510,7 +524,11 @@ var ppar = {
       prefixArray: [],        // Array of prefix names and icon count, 
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
-      lastDir: ''             // Last save or load dir, used as a default when dir is unknown
+      lastDir: '',            // Last save or load dir, used as a default when dir is unknown
+      use_preview: true,      // Show image preview on dialog preview window
+      preview_width: 600,     // Preview width
+      preview_height: 600,    // preview height
+      use_single_column: false // show all options in a single column
 };
 
 var run_results = {
@@ -936,6 +954,10 @@ function savePersistentSettings()
       if (par.use_manual_icon_column.val) {
             Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
       }
+      Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
+      Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
+      Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
+      Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
       setWindowPrefixHelpTip(ppar.win_prefix);
 }
 
@@ -1190,6 +1212,7 @@ function throwFatalError(txt)
 {
       addProcessingStepAndStatusInfo(txt);
       run_results.fatal_error = txt;
+      is_processing = false;
       throw new Error(txt);
 }
 
@@ -2739,6 +2762,9 @@ function calibrateEngine(filtered_lights)
                   var mastersuperbiasid = runSuberBias(masterbiaswin);
                   setImagetypKeyword(findWindow(mastersuperbiasid), "Master bias");
                   var masterbiasPath = saveMasterWindow(outputRootDir, mastersuperbiasid);
+                  updatePreviewId(mastersuperbiasid);
+            } else {
+                  updatePreviewId(masterbiasid);
             }
       } else {
             addProcessingStep("calibrateEngine no master bias");
@@ -2758,6 +2784,7 @@ function calibrateEngine(filtered_lights)
             var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark");
             setImagetypKeyword(findWindow(masterflatdarkid), "Master flat dark");
             var masterflatdarkPath = saveMasterWindow(outputRootDir, masterflatdarkid);
+            updatePreviewId(masterflatdarkid);
       } else {
             addProcessingStep("calibrateEngine no master flat dark");
             var masterflatdarkPath = null;
@@ -2782,6 +2809,7 @@ function calibrateEngine(filtered_lights)
             var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark");
             setImagetypKeyword(findWindow(masterdarkid), "Master dark");
             var masterdarkPath = saveMasterWindow(outputRootDir, masterdarkid);
+            updatePreviewId(masterdarkid);
       } else {
             addProcessingStep("calibrateEngine no master dark");
             var masterdarkPath = null;
@@ -2812,6 +2840,7 @@ function calibrateEngine(filtered_lights)
                   setImagetypKeyword(findWindow(masterflatid), "Master flat");
                   setFilterKeyword(findWindow(masterflatid), filterFiles[0].filter);
                   masterflatPath[i] = saveMasterWindow(outputRootDir, masterflatid);
+                  updatePreviewId(masterflatid);
             } else {
                   masterflatPath[i] = null;
             }
@@ -5161,6 +5190,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
       addProcessingStep("Reduce noise on luminance image " + imgWin.mainView.id);
 
       runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
+      updatePreviewWin(imgWin);
 }
 
 function channelNoiseReduction(image_id)
@@ -5180,6 +5210,7 @@ function channelNoiseReduction(image_id)
       var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
 
       runNoiseReductionEx(image_win, mask_win, par.noise_reduction_strength.val, true);
+      updatePreviewWin(image_win);
 
       closeOneWindow(mask_win.mainView.id);
 }
@@ -5274,6 +5305,8 @@ function removeStars(imgWin, linear_data, save_stars, save_array)
       P.executeOn(imgWin.mainView, false);
       
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 
       if (save_stars) {
             var star_win = getStarMaskWin(imgWin, imgWin.mainView.id + "_stars");
@@ -5392,6 +5425,7 @@ function customMapping(check_allfilesarr)
             RGB_win_id = runPixelMathRGBMapping(ppar.win_prefix + "Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
 
             RGB_win = findWindow(RGB_win_id);
+            updatePreviewWin(RGB_win);
 
             if (par.remove_stars_channel.val) {
                   addProcessingStep("Custom mapping, remove stars");
@@ -5412,6 +5446,7 @@ function customMapping(check_allfilesarr)
                   var L_images = [];
                   var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, null);
                   luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping);
+                  updatePreviewId(luminance_id);
             }
 
             red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping);
@@ -5680,6 +5715,7 @@ function runDrizzleIntegration(images, name, local_normalization)
       windowCloseif(P.weightImageId);
 
       var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+      updatePreviewId(new_name);
       //addScriptWindow(new_name);
       return new_name;
 }
@@ -5814,10 +5850,13 @@ function runImageIntegrationEx(images, name, local_normalization)
       windowCloseif(P.slopeMapImageId);
 
       if (par.use_drizzle.val && name != 'LDD') {
+            updatePreviewId(P.integrationImageId);
             windowCloseif(P.integrationImageId);
             return runDrizzleIntegration(images, name, local_normalization);
       } else {
             var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+            console.writeln("runImageIntegrationEx completed, new name " + new_name);
+            updatePreviewId(new_name);
             return new_name
       }
 }
@@ -6350,6 +6389,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win)
             if (res.completed) {
                   break;
             }
+            updatePreviewWin(res.win);
       }
       return res.win;
 }
@@ -6569,14 +6609,17 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
                   targetBackground = par.STF_targetBackground.val;
             }
             var stf = runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
+            updatePreviewWin(ABE_win);
             return { win: ABE_win, stf: stf };
 
       } else if (image_stretching == 'Masked Stretch') {
             runHistogramTransformMaskedStretch(ABE_win);
+            updatePreviewWin(ABE_win);
             return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(ABE_win);
+            updatePreviewWin(ABE_win);
             return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Hyperbolic') {
@@ -6617,6 +6660,8 @@ function runACDNRReduceNoise(imgWin, maskWin)
       }
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function noiseSuperStrong()
@@ -6765,7 +6810,7 @@ function runNoiseXTerminator(imgWin, strength, linear)
       } catch(err) {
             console.criticalln("NoiseXTerminator failed");
             console.criticalln(err);
-            addProcessingStep("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
+            console.criticalln("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
             throwFatalError("NoiseXTerminator failed");
       }
 
@@ -6825,6 +6870,8 @@ function runColorReduceNoise(imgWin)
       P.executeOn(imgWin.mainView, false);
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function starReduceNoise(imgWin)
@@ -6875,6 +6922,8 @@ function runBackgroundNeutralization(imgView)
       P.executeOn(imgView, false);
 
       imgView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function runColorCalibration(imgView)
@@ -6898,6 +6947,7 @@ function runColorCalibration(imgView)
             P.executeOn(imgView, false);
 
             imgView.endProcess();
+            updatePreviewId(imgView.id);
       } catch(err) {
             console.criticalln("Color calibration failed");
             console.criticalln(err);
@@ -6934,6 +6984,8 @@ function runColorSaturation(imgWin, maskWin)
       imgWin.removeMask();
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
@@ -6959,6 +7011,8 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       imgWin.removeMask();
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function increaseSaturation(imgWin, maskWin)
@@ -6992,6 +7046,8 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
+      updatePreviewId(RGBimgView.id);
+
       return RGBimgView.id;
 }
 
@@ -7014,6 +7070,8 @@ function runSCNR(RGBimgView, fixing_stars)
       P.executeOn(RGBimgView, false);
 
       RGBimgView.endProcess();
+
+      updatePreviewId(RGBimgView.id);
 }
 
 // Run hue shift on narrowband image to enhance orange.
@@ -7035,6 +7093,8 @@ function narrowbandOrangeHueShift(imgView)
       P.executeOn(imgView, false);
 
       imgView.endProcess();
+
+      updatePreviewId(RGBimgView.id);
 }
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
@@ -7072,6 +7132,8 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       }
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function getOptionalUniqueFilenamePart()
@@ -7371,29 +7433,38 @@ function findStartImages(auto_continue, check_base_name)
             is_luminance_images = false;
       }
 
+      var preview_id = null;
+
       if (final_win != null) {
             addProcessingStep("Final image " + final_win.mainView.id);
+            preview_id = final_win.mainView.id;
             preprocessed_images = start_images.FINAL;
       } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {      /* L,RGB HistogramTransformation */
             addProcessingStep("L,RGB HistogramTransformation");
+            preview_id = L_HT_win.mainView.id;
             preprocessed_images = start_images.L_RGB_HT;
       } else if (checkAutoCont(RGB_HT_win)) {                                 /* RGB (color) HistogramTransformation */
             addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
+            preview_id = RGB_HT_win.mainView.id;
             preprocessed_images = start_images.RGB_HT;
       } else if (checkAutoCont(L_BE_win) && checkAutoCont(RGB_BE_win)) {      /* L,RGB background extracted */
             addProcessingStep("L,RGB background extracted");
+            preview_id = L_BE_win.mainView.id;
             preprocessed_images = start_images.L_RGB_BE;
       } else if (checkAutoCont(RGB_BE_win)) {                                 /* RGB (color) background extracted */
             addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
+            preview_id = RGB_BE_win.mainView.id;
             preprocessed_images = start_images.RGB_BE;
       } else if ((checkAutoCont(R_BE_win) && checkAutoCont(G_BE_win) && checkAutoCont(B_BE_win)) ||
                   (checkAutoCont(H_BE_win) && checkAutoCont(O_BE_win))) {     /* L,R,G,B background extracted */
             addProcessingStep("L,R,G,B background extracted");
+            preview_id = checkAutoCont(R_BE_win) ? R_BE_win.mainView.id : H_BE_win.mainView.id;
             preprocessed_images = start_images.L_R_G_B_BE;
             narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
       } else if (RGBcolor_id != null 
                   && H_id == null && O_id == null && L_id == null) {          /* RGB (color) integrated image */
             addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
+            preview_id = RGBcolor_id;
             var check_name = ppar.win_prefix + "Integration_RGB_ABE";
             if (auto_continue && findWindow(check_name)) {
                   throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
@@ -7409,6 +7480,7 @@ function findStartImages(auto_continue, check_base_name)
       } else if ((R_id != null && G_id != null && B_id != null) ||
                   (H_id != null && O_id != null)) {                           /* L,R,G,B integrated images */
             addProcessingStep("L,R,G,B integrated images");
+            preview_id = R_id != null ? R_id : H_id;
             var check_name = ppar.win_prefix + "Integration_RGB";
             if (auto_continue && findWindow(check_name)) {
                   throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
@@ -7420,6 +7492,9 @@ function findStartImages(auto_continue, check_base_name)
             preprocessed_images = start_images.L_R_G_B;
       } else {
             preprocessed_images = start_images.NONE;
+      }
+      if (preview_id != null && auto_continue) {
+            updatePreviewId(preview_id);
       }
       return preprocessed_images;
 }
@@ -7512,6 +7587,8 @@ function CreateChannelImages(auto_continue)
                   return false;
             }
 
+            updatePreviewFilename(lightFileNames[0]);
+
             // We keep track of extensions added to the file names
             // If we need to original file names we can substract
             // added extensions.
@@ -7545,6 +7622,7 @@ function CreateChannelImages(auto_continue)
             var calibrateInfo = calibrateEngine(filtered_lights);
             lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
+            updatePreviewFilename(lightFileNames[0]);
 
             if (par.calibrate_only.val) {
                   return(true);
@@ -7580,11 +7658,13 @@ function CreateChannelImages(auto_continue)
                   } else {
                         fileNames = runBinningOnLights(fileNames, filtered_files);
                         filename_postfix = filename_postfix + '_b2';
+                        updatePreviewFilename(fileNames[0]);
                   }
             }
             if (par.ABE_on_lights.val && !skip_early_steps) {
                   fileNames = runABEOnLights(fileNames);
                   filename_postfix = filename_postfix + '_ABE';
+                  updatePreviewFilename(fileNames[0]);
             }
             if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
@@ -7596,12 +7676,14 @@ function CreateChannelImages(auto_continue)
                               ccFileNames = ccFileNames.concat(cc);
                         }
                         fileNames = ccFileNames;
+                        updatePreviewFilename(fileNames[0]);
                   } else {
                         var defects = [];
                         /* Run CosmeticCorrection for each file.
                         * Output is *_cc.xisf files.
                         */
                         fileNames = runCosmeticCorrection(fileNames, defects, is_color_files);
+                        updatePreviewFilename(fileNames[0]);
                   }
                   filename_postfix = filename_postfix + '_cc';
             }
@@ -7612,12 +7694,14 @@ function CreateChannelImages(auto_continue)
                    */
                   fileNames = debayerImages(fileNames);
                   filename_postfix = filename_postfix + '_b';
+                  updatePreviewFilename(fileNames[0]);
             }
 
             if (par.extract_channel_mapping.val != 'None' && is_color_files) {
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
+                  updatePreviewFilename(fileNames[0]);
 
                   // We extracted channels, filter again with extracted channels
                   console.writeln("Filter again with extracted channels")
@@ -7659,6 +7743,7 @@ function CreateChannelImages(auto_continue)
             {
                   alignedFiles = runStarAlignment(fileNames, best_image);
                   filename_postfix = filename_postfix + '_r';
+                  updatePreviewFilename(alignedFiles[0]);
             } else {
                   alignedFiles = fileNames;
             }
@@ -8045,7 +8130,9 @@ function CombineRGBimageEx(target_name, images)
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(win.mainView);
       win.mainView.endProcess();
-      
+
+      updatePreviewWin(win);
+
       return win;
 }
 
@@ -8462,6 +8549,8 @@ function fixNarrowbandStarColor(targetWin)
       }
 
       invertImage(targetWin.mainView);
+
+      updatePreviewWin(targetWin);
 }
 
 // When start removal is run we do some things differently
@@ -8525,6 +8614,8 @@ function extraRemoveStars(imgWin)
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("Starless image " + copywin.mainView.id);
+
+      updatePreviewWin(copywin);
 }
 
 function extraDarkerBackground(imgWin, maskWin)
@@ -8550,6 +8641,8 @@ function extraDarkerBackground(imgWin, maskWin)
       imgWin.removeMask();
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
@@ -8607,6 +8700,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
             }
+            updatePreviewWin(win);
       } catch (err) {
             failed = true;
             console.criticalln(err);
@@ -8644,6 +8738,8 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
       imgWin.removeMask();
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function extraExponentialTransformation(imgWin, maskWin)
@@ -8668,6 +8764,8 @@ function extraExponentialTransformation(imgWin, maskWin)
       imgWin.removeMask();
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function createNewStarMaskWin(imgWin)
@@ -8777,6 +8875,8 @@ function extraSmallerStars(imgWin)
       }
 
       targetWin.mainView.endProcess();
+
+      updatePreviewWin(targetWin);
 }
 
 function extraContrast(imgWin)
@@ -8797,6 +8897,8 @@ function extraContrast(imgWin)
       P.executeOn(imgWin.mainView, false);
 
       imgWin.mainView.endProcess();
+
+      updatePreviewWin(imgWin);
 }
 
 function extraStretch(win)
@@ -8814,6 +8916,8 @@ function extraShadowClipping(win, perc)
       addProcessingStep("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
 
       clipShadows(win, perc);
+
+      updatePreviewWin(win);
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -8829,6 +8933,8 @@ function extraNoiseReduction(win, mask_win)
             mask_win, 
             par.extra_noise_reduction_strength.val,
             false);
+
+      updatePreviewWin(win);
 }
 
 function extraACDNR(extraWin, mask_win)
@@ -8840,6 +8946,8 @@ function extraACDNR(extraWin, mask_win)
       }
 
       runACDNRReduceNoise(extraWin, mask_win);
+
+      updatePreviewWin(extraWin);
 }
 
 function extraColorNoise(extraWin)
@@ -8855,6 +8963,7 @@ function extraSharpen(extraWin, mask_win)
       for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
             runMultiscaleLinearTransformSharpen(extraWin, mask_win);
       }
+      updatePreviewWin(extraWin);
 }
 
 
@@ -8862,6 +8971,7 @@ function extraABE(extraWin)
 {
       addProcessingStepAndStatusInfo("Extra ABE");
       runABE(extraWin, true);
+      updatePreviewWin(extraWin);
 }
 
 function extraSHOHueShift(imgWin)
@@ -8908,6 +9018,7 @@ function extraSHOHueShift(imgWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
+      updatePreviewWin(imgWin);
 }
 
 function is_non_starless_option()
@@ -9152,15 +9263,20 @@ function extraProcessing(id, apply_directly)
             closeOneWindow(star_mask_win_id);
       }
       if (apply_directly) {
-            setFinalImageKeyword(ImageWindow.windowById(extraWin.mainView.id));
+            var final_win = ImageWindow.windowById(extraWin.mainView.id);
+            updatePreviewWin(final_win);
+            setFinalImageKeyword(final_win);
       } else {
-            setFinalImageKeyword(ImageWindow.windowById(extra_id));
+            var final_win = ImageWindow.windowById(extra_id);
+            updatePreviewWin(final_win);
+            setFinalImageKeyword(final_win);
             saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
       }
 }
 
-function extraProcessingEngine(id)
+function extraProcessingEngine()
 {
+      is_processing = true;
       mask_win = null;
       mask_win_id = null;
       star_mask_win = null;
@@ -9170,6 +9286,7 @@ function extraProcessingEngine(id)
       processing_steps = "";
 
       console.noteln("Start extra processing...");
+      updatePreviewId(extra_target_image);
 
       console.show(true);
       extraProcessing(extra_target_image, true);
@@ -9183,6 +9300,7 @@ function extraProcessingEngine(id)
       console.writeln(processing_steps);
       console.writeln("");
       console.noteln("Extra processing completed.");
+      is_processing = false;
 }
 
 /* Map background extracted channel images to start images.
@@ -9728,6 +9846,10 @@ function AutoIntegrateEngine(auto_continue)
             return false;
       }
 
+      gc(true);
+
+      is_processing = true;
+
       var LRGB_ABE_HT_id = null;
       var RGB_ABE_HT_id = null;
       var LRGB_Combined = null;
@@ -9797,6 +9919,7 @@ function AutoIntegrateEngine(auto_continue)
       if (!CreateChannelImages(auto_continue)) {
             console.criticalln("Failed!");
             console.endLog();
+            is_processing = false;
             return false;
       }
 
@@ -10057,6 +10180,7 @@ function AutoIntegrateEngine(auto_continue)
       }
       if (preprocessed_images < start_images.FINAL && LRGB_ABE_HT_id != null) {
             console.writeln("Save final image");
+            updatePreviewId(LRGB_ABE_HT_id);
             // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
             setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
             // We have generated final image, save it
@@ -10194,6 +10318,7 @@ function AutoIntegrateEngine(auto_continue)
             console.noteln("Console output is written into file " + logfname);
       }
       console.noteln("Processing completed.");
+      is_processing = false;
 
       return true;
 }
@@ -10287,6 +10412,17 @@ function newCheckBox( parent, checkboxText, param, toolTip )
       param.reset = function() {
             widget.checked = param.val;
       };
+
+      return widget;
+}
+
+function newGenericCheckBox( parent, checkboxText, val, toolTip, onClick )
+{
+      var widget = new CheckBox( parent );
+      widget.text = checkboxText;
+      widget.checked = val;
+      widget.onClick = onClick;
+      widget.toolTip = toolTip; 
 
       return widget;
 }
@@ -10427,6 +10563,18 @@ function newSpinBox(parent, param, min, max, tooltip)
       param.reset = function() {
             edt.value = param.val;
       };
+
+      return edt;
+}
+
+function newGenericSpinBox(parent, val, min, max, tooltip, onValueUpdated)
+{
+      var edt = new SpinBox( parent );
+      edt.minValue = min;
+      edt.maxValue = max;
+      edt.value = val;
+      edt.toolTip = tooltip;
+      edt.onValueUpdated = onValueUpdated;
 
       return edt;
 }
@@ -10673,6 +10821,55 @@ function flatdarksOptions(parent)
       sizer.addStretch();
       
       return sizer;
+}
+
+function updatePreviewWinTxt(imgWin, txt)
+{
+      if (use_preview && imgWin != null) {
+            previewControl.setSize(ppar.preview_width, ppar.preview_height);
+            if (is_some_preview && !is_processing) {
+	            previewControl.UpdateImage(getWindowBitmap(imgWin));
+            } else {
+	            previewControl.SetImage(getWindowBitmap(imgWin));
+            }
+            previewInfoLabel.text = "<b>Preview</b> " + txt;
+            is_some_preview = true;
+      }
+}
+
+function updatePreviewWin(imgWin)
+{
+      updatePreviewWinTxt(imgWin, imgWin.mainView.id);
+}
+
+function updatePreviewFilename(filename, stf)
+{
+      if (!use_preview) {
+            return;
+      }
+      var imageWindows = ImageWindow.open(filename);
+      if (imageWindows == null || imageWindows.length != 1) {
+            return;
+      }
+      var imageWindow = imageWindows[0];
+      if (imageWindow == null) {
+            return;
+      }
+
+      if (stf) {
+            runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
+      }
+
+      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
+
+      imageWindow.forceClose();
+}
+
+function updatePreviewId(id)
+{
+      if (use_preview) {
+            updatePreviewWinTxt(ImageWindow.windowById(id), id);
+      }
 }
 
 function updateOutputDirEdit(path)
@@ -11221,7 +11418,7 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
 {
       if (node.numberOfChildren == 0) {
             if (node.checked == checked) {
-                  filenames[filenames.length] = node.text(0);
+                  filenames[filenames.length] = node.filename;
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
@@ -11233,7 +11430,7 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
 function getTreeBoxNodeFiles(node, treeboxfiles)
 {
       if (node.numberOfChildren == 0) {
-            treeboxfiles[treeboxfiles.length] = [ node.text(0), node.checked ];
+            treeboxfiles[treeboxfiles.length] = [ node.filename, node.checked ];
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
                   getTreeBoxNodeFiles(node.child(i), treeboxfiles);
@@ -11245,7 +11442,7 @@ function getTreeBoxNodeCheckedFileNames(node, filenames)
 {
       if (node.numberOfChildren == 0) {
             if (node.checked) {
-                  filenames[filenames.length] = node.text(0);
+                  filenames[filenames.length] = node.filename;
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
@@ -11395,6 +11592,8 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
       console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
 
+      var is_first_file = true;
+
       for (var i = 0; i < filteredFiles.allfilesarr.length; i++) {
 
             var filterFiles = filteredFiles.allfilesarr[i].files;
@@ -11411,13 +11610,20 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
                   for (var j = 0; j < filterFiles.length; j++) {
                         var node = new TreeBoxNode(filternode);
-                        node.setText(0, filterFiles[j].name);
+                        //node.setText(0, filterFiles[j].name);
+                        node.setText(0, File.extractName(filterFiles[j].name) + File.extractExtension(filterFiles[j].name));
+                        node.setToolTip(0, filterFiles[j].name);
+                        node.filename = filterFiles[j].name;
                         node.nodeData_type = "";
                         node.checkable = true;
                         node.checked = filterFiles[j].checked;
                         node.collapsable = false;
                         node.ssweight = filterFiles[j].ssweight;
                         node.exptime = filterFiles[j].exptime;
+                        if (use_preview && (!is_some_preview || (is_first_file && pageIndex == pages.LIGHTS))) {
+                              updatePreviewFilename(node.filename, true);
+                              is_first_file = false;
+                        }
                   }
             }
       }
@@ -11436,7 +11642,9 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < treeboxfiles.length; i++) {
             var node = new TreeBoxNode(files_TreeBox);
-            node.setText(0, treeboxfiles[i][0]);
+            node.setText(0, File.extractName(treeboxfiles[i][0]) + File.extractExtension(treeboxfiles[i][0]));
+            node.setToolTip(0, treeboxfiles[i][0]);
+            node.filename = treeboxfiles[i][0];
             node.nodeData_type = "";
             node.checkable = true;
             node.checked = treeboxfiles[i][1];
@@ -11481,7 +11689,7 @@ function loadJsonFile(parent)
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 {
       var filesAdd_Button = new PushButton( parent );
-      filesAdd_Button.text = "Add " + filetype;
+      filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       filesAdd_Button.toolTip = toolTip;
       filesAdd_Button.onClick = function()
@@ -11702,7 +11910,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       files_TreeBox.multipleSelection = true;
       files_TreeBox.rootDecoration = false;
       files_TreeBox.alternateRowColor = true;
-      files_TreeBox.setScaledMinSize( 300, 150 );
+      // files_TreeBox.setScaledMinSize( 300, 150 );
+      files_TreeBox.setScaledMinSize( 150, 150 );
       files_TreeBox.numberOfColumns = 1;
       files_TreeBox.headerVisible = false;
       files_TreeBox.onCurrentNodeUpdated = () =>
@@ -11712,18 +11921,22 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
             }
             try {
                   if (files_TreeBox.currentNode != null && files_TreeBox.currentNode.nodeData_type == "") {
-                        // Show "blink" window. 
+                        // Show preview or "blink" window. 
                         // Note: Files are added by routine addFilteredFilesToTreeBox
-                        console.hide();
-                        var imageWindows = ImageWindow.open(files_TreeBox.currentNode.text( 0 ));
+                        if (!use_preview) {
+                              console.hide();
+                        }
+                        var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
                         if (imageWindows == null || imageWindows.length != 1) {
                               return;
                         }
                         var imageWindow = imageWindows[0];
-                        if (blink_window != null) {
-                              imageWindow.position = blink_window.position;
-                        } else {
-                              imageWindow.position = new Point(0, 0);
+                        if (!use_preview) {
+                              if (blink_window != null) {
+                                    imageWindow.position = blink_window.position;
+                              } else {
+                                    imageWindow.position = new Point(0, 0);
+                              }
                         }
                         if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
                               if (files_TreeBox.currentNode.ssweight == '0') {
@@ -11741,15 +11954,20 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         updateImageInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt);
-                        runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
-                        if (blink_zoom) {
-                              blinkWindowZoomedUpdate(imageWindow, 0, 0);
+                        runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
+                        if (!use_preview) {
+                              if (blink_zoom) {
+                                    blinkWindowZoomedUpdate(imageWindow, 0, 0);
+                              }
+                              imageWindow.show();
+                              if (blink_window != null) {
+                                    blink_window.forceClose();
+                              }
+                              blink_window = imageWindow;
+                        } else {
+                              updatePreviewWin(imageWindow);
+                              imageWindow.forceClose();
                         }
-                        imageWindow.show();
-                        if (blink_window != null) {
-                              blink_window.forceClose();
-                        }
-                        blink_window = imageWindow;
                   }
             } catch(err) {
                   console.show(true);
@@ -11770,7 +11988,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       var files_GroupBox = new GroupBox( parent );
       //files_GroupBox.title = "Images";
       files_GroupBox.sizer = new HorizontalSizer;
-      files_GroupBox.sizer.margin = 6;
+      if (!dense_dialog) {
+            files_GroupBox.sizer.margin = 6;
+      }
       files_GroupBox.sizer.spacing = 4;
       files_GroupBox.sizer.add( filesControl, parent.textEditWidth );
       files_GroupBox.sizer.add( optionsSizer );
@@ -11979,47 +12199,48 @@ function blinkArrowButton(parent, icon, x, y)
 
 function newPageButtonsSizer(parent)
 {
-      // Blink
-      var blinkLabel = new Label( parent );
-      blinkLabel.text = "Blink";
-      blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
-      blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      if (!use_preview) {
+            // Blink
+            var blinkLabel = new Label( parent );
+            blinkLabel.text = "Blink";
+            blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
+            blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
-      var blinkFitButton = new ToolButton( parent );
-      blinkFitButton.icon = parent.scaledResource(":/toolbar/view-zoom-optimal-fit.png");
-      blinkFitButton.toolTip = "Blink window zoom to optimal fit";
-      blinkFitButton.setScaledFixedSize( 20, 20 );
-      blinkFitButton.onClick = function()
-      {
-            if (par.skip_blink.val) {
-                  return;
-            }
-            if (blink_window != null) {
-                  blink_window.zoomToOptimalFit();
-                  blink_zoom = false;
-            }
-      };
-      var blinkZoomButton = new ToolButton( parent );
-      blinkZoomButton.icon = parent.scaledResource(":/icons/zoom-1-1.png");
-      blinkZoomButton.toolTip = "Blink window zoom to 1:1";
-      blinkZoomButton.setScaledFixedSize( 20, 20 );
-      blinkZoomButton.onClick = function()
-      {
-            if (par.skip_blink.val) {
-                  return;
-            }
-            if (blink_window != null) {
-                  blink_zoom = true;
-                  blink_zoom_x = 0;
-                  blink_zoom_y = 0;
-                  blinkWindowZoomedUpdate(blink_window, 0, 0);
-            }
-      };
-      var blinkLeft = blinkArrowButton(parent, ":/icons/arrow-left.png", -1, 0);
-      var blinkRight = blinkArrowButton(parent, ":/icons/arrow-right.png", 1, 0);
-      var blinkUp = blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
-      var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
-
+            var blinkFitButton = new ToolButton( parent );
+            blinkFitButton.icon = parent.scaledResource(":/toolbar/view-zoom-optimal-fit.png");
+            blinkFitButton.toolTip = "Blink window zoom to optimal fit";
+            blinkFitButton.setScaledFixedSize( 20, 20 );
+            blinkFitButton.onClick = function()
+            {
+                  if (par.skip_blink.val) {
+                        return;
+                  }
+                  if (blink_window != null) {
+                        blink_window.zoomToOptimalFit();
+                        blink_zoom = false;
+                  }
+            };
+            var blinkZoomButton = new ToolButton( parent );
+            blinkZoomButton.icon = parent.scaledResource(":/icons/zoom-1-1.png");
+            blinkZoomButton.toolTip = "Blink window zoom to 1:1";
+            blinkZoomButton.setScaledFixedSize( 20, 20 );
+            blinkZoomButton.onClick = function()
+            {
+                  if (par.skip_blink.val) {
+                        return;
+                  }
+                  if (blink_window != null) {
+                        blink_zoom = true;
+                        blink_zoom_x = 0;
+                        blink_zoom_y = 0;
+                        blinkWindowZoomedUpdate(blink_window, 0, 0);
+                  }
+            };
+            var blinkLeft = blinkArrowButton(parent, ":/icons/arrow-left.png", -1, 0);
+            var blinkRight = blinkArrowButton(parent, ":/icons/arrow-right.png", 1, 0);
+            var blinkUp = blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
+            var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
+      }
       // Load and save
       var jsonLabel = new Label( parent );
       jsonLabel.text = "Setup file";
@@ -12104,19 +12325,22 @@ function newPageButtonsSizer(parent)
       
       var buttonsSizer = new HorizontalSizer;
 
-      buttonsSizer.margin = 4;
+      if (!dense_dialog) {
+            buttonsSizer.margin = 4;
+      }
 
-      buttonsSizer.add( blinkLabel );
-      buttonsSizer.addSpacing( 4 );
-      buttonsSizer.add( blinkFitButton );
-      buttonsSizer.addSpacing( 4 );
-      buttonsSizer.add( blinkZoomButton );
-      buttonsSizer.addSpacing( 4 );
-      buttonsSizer.add( blinkLeft );
-      buttonsSizer.add( blinkRight );
-      buttonsSizer.add( blinkUp );
-      buttonsSizer.add( blinkDown );
-
+      if (!use_preview) {
+            buttonsSizer.add( blinkLabel );
+            buttonsSizer.addSpacing( 4 );
+            buttonsSizer.add( blinkFitButton );
+            buttonsSizer.addSpacing( 4 );
+            buttonsSizer.add( blinkZoomButton );
+            buttonsSizer.addSpacing( 4 );
+            buttonsSizer.add( blinkLeft );
+            buttonsSizer.add( blinkRight );
+            buttonsSizer.add( blinkUp );
+            buttonsSizer.add( blinkDown );
+      }
       buttonsSizer.addSpacing( 20 );
       buttonsSizer.add( jsonLabel );
       buttonsSizer.addSpacing( 4 );
@@ -12165,7 +12389,7 @@ function newSectionBar(parent, control, title, name)
 
       var gb = new newGroupBox( parent );
       gb.sizer = new VerticalSizer;
-      gb.sizer.margin = 6;
+      gb.sizer.margin = 4;
       gb.sizer.spacing = 4;
       gb.sizer.add( sb );
       gb.sizer.add( control );
@@ -12187,6 +12411,310 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       groupbox.sizer.add( sb );
       groupbox.sizer.add( control );
 }
+
+function getWindowBitmap(imgWin)
+{
+      var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
+      bmp.assign(imgWin.mainView.image.render());
+      return bmp;
+}
+
+// ********************************************************************************************
+// Copyright (C) 2013, Andres del Pozo
+//
+// ********************************************************************************************
+function PreviewControl(parent, size_x, size_y)
+{
+	this.__base__ = Frame;
+  	this.__base__(parent);
+
+      this.SetImage = function(image)
+      {
+            this.image = image;
+            this.metadata = image;
+            this.scaledImage = null;
+            this.SetZoomOutLimit();
+            this.UpdateZoom(-100);
+            //this.stf_Button.visible = true;
+      }
+
+      this.UpdateImage = function(image)
+      {
+            this.image = image;
+            this.metadata = image;
+            this.scaledImage = null;
+            this.SetZoomOutLimit();
+            this.UpdateZoom(this.zoom);
+            //this.stf_Button.visible = true;
+      }
+
+      this.UpdateZoom = function (newZoom, refPoint)
+      {
+            newZoom = Math.max(this.zoomOutLimit, Math.min(2, newZoom));
+            if (newZoom == this.zoom && this.scaledImage)
+                  return;
+
+            if(refPoint==null)
+                  refPoint=new Point(this.scrollbox.viewport.width/2, this.scrollbox.viewport.height/2);
+            var imgx=null;
+            if(this.scrollbox.maxHorizontalScrollPosition>0)
+                  imgx=(refPoint.x+this.scrollbox.horizontalScrollPosition)/this.scale;
+            var imgy=null;
+            if(this.scrollbox.maxVerticalScrollPosition>0)
+                  imgy=(refPoint.y+this.scrollbox.verticalScrollPosition)/this.scale;
+
+            this.zoom = newZoom;
+            this.scaledImage = null;
+            //gc(true);
+            if (this.zoom > 0)
+            {
+                  this.scale = this.zoom;
+                  this.zoomVal_Label.text = format("%d:1", this.zoom);
+            }
+            else
+            {
+                  this.scale = 1 / (-this.zoom + 2);
+                  this.zoomVal_Label.text = format("1:%d", -this.zoom + 2);
+            }
+            if (this.image)
+                  this.scaledImage = this.image.scaled(this.scale);
+            else
+                  this.scaledImage = {width:this.metadata.width * this.scale, height:this.metadata.height * this.scale};
+            this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledImage.width - this.scrollbox.viewport.width);
+            this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledImage.height - this.scrollbox.viewport.height);
+
+            if(this.scrollbox.maxHorizontalScrollPosition>0 && imgx!=null)
+                  this.scrollbox.horizontalScrollPosition = (imgx*this.scale)-refPoint.x;
+            if(this.scrollbox.maxVerticalScrollPosition>0 && imgy!=null)
+                  this.scrollbox.verticalScrollPosition = (imgy*this.scale)-refPoint.y;
+
+            this.scrollbox.viewport.update();
+      }
+
+      this.zoomIn_Button = new ToolButton( this );
+      this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
+      this.zoomIn_Button.setScaledFixedSize( 20, 20 );
+      this.zoomIn_Button.toolTip = "Zoom in";
+      this.zoomIn_Button.onMousePress = function()
+      {
+            this.parent.UpdateZoom(this.parent.zoom+1);
+      };
+
+      this.zoomOut_Button = new ToolButton( this );
+      this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
+      this.zoomOut_Button.setScaledFixedSize( 20, 20 );
+      this.zoomOut_Button.toolTip = "Zoom in";
+      this.zoomOut_Button.onMousePress = function()
+      {
+            this.parent.UpdateZoom(this.parent.zoom-1);
+      };
+
+
+      this.zoom11_Button = new ToolButton( this );
+      this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
+      this.zoom11_Button.setScaledFixedSize( 20, 20 );
+      this.zoom11_Button.toolTip = "Zoom 1:1";
+      this.zoom11_Button.onMousePress = function()
+      {
+            this.parent.UpdateZoom(1);
+      };
+
+/*
+      * this.stf_Button =  new ToolButton( this );
+      this.stf_Button.text = "STF";
+      this.stf_Button.visible = false;
+      this.stf_Button.toolTip = "ScreenTransferFunction";
+      this.stf_Button.onMousePress = function()
+      {
+            var preview = this.parent;
+            preview.onCustomSTF.call(this);
+      }
+*/
+
+      this.buttons_Sizer = new HorizontalSizer;
+      this.buttons_Sizer.add( this.zoomIn_Button );
+      this.buttons_Sizer.add( this.zoomOut_Button );
+      this.buttons_Sizer.add( this.zoom11_Button );
+      this.buttons_Sizer.addStretch();
+      //this.buttons_Sizer.add( this.stf_Button );
+
+      this.setScaledMinSize(size_x, size_y);
+      this.zoom = 1;
+      this.scale = 1;
+      this.zoomOutLimit = -5;
+      this.scrollbox = new ScrollBox(this);
+      this.scrollbox.autoScroll = true;
+      this.scrollbox.tracking = true;
+      this.scrollbox.cursor = new Cursor(StdCursor_Arrow);
+
+      this.scroll_Sizer = new HorizontalSizer;
+      this.scroll_Sizer.add( this.scrollbox );
+
+      this.SetZoomOutLimit = function()
+      {
+            var scaleX = Math.ceil(this.metadata.width/this.scrollbox.viewport.width);
+            var scaleY = Math.ceil(this.metadata.height/this.scrollbox.viewport.height);
+            var scale = Math.max(scaleX,scaleY);
+            this.zoomOutLimit = -scale+2;
+      }
+
+      this.scrollbox.onHorizontalScrollPosUpdated = function (newPos)
+      {
+            this.viewport.update();
+      }
+      this.scrollbox.onVerticalScrollPosUpdated = function (newPos)
+      {
+            this.viewport.update();
+      }
+
+      this.forceRedraw = function()
+      {
+            this.scrollbox.viewport.update();
+      };
+
+      this.setSize = function(w, h)
+      {
+            this.setMinSize(w, h);
+      }
+
+      this.scrollbox.viewport.onMouseWheel = function (x, y, delta, buttonState, modifiers)
+      {
+            var preview = this.parent.parent;
+            preview.UpdateZoom(preview.zoom + (delta > 0 ? -1 : 1), new Point(x,y));
+      }
+
+      this.scrollbox.viewport.onMousePress = function ( x, y, button, buttonState, modifiers )
+      {
+            var preview = this.parent.parent;
+            var p =  preview.transform(x, y, preview);
+            if(preview.onCustomMouseDown)
+            {
+                  preview.onCustomMouseDown.call(this, p.x, p.y, button, buttonState, modifiers )
+            }
+      }
+
+      this.scrollbox.viewport.onMouseMove = function ( x, y, buttonState, modifiers )
+      {
+            var preview = this.parent.parent;
+            var p =  preview.transform(x, y, preview);
+            preview.Xval_Label.text = p.x.toString();
+            preview.Yval_Label.text = p.y.toString();
+
+            if(preview.onCustomMouseMove)
+            {
+                  preview.onCustomMouseMove.call(this, p.x, p.y, buttonState, modifiers )
+            }
+      }
+
+      this.scrollbox.viewport.onMouseRelease = function (x, y, button, buttonState, modifiers)
+      {
+            var preview = this.parent.parent;
+
+            var p =  preview.transform(x, y, preview);
+            if(preview.onCustomMouseUp)
+            {
+                  preview.onCustomMouseUp.call(this, p.x, p.y, button, buttonState, modifiers )
+            }
+      }
+
+      this.scrollbox.viewport.onResize = function (wNew, hNew, wOld, hOld)
+      {
+            var preview = this.parent.parent;
+            if(preview.metadata && preview.scaledImage != null)
+            {
+                  this.parent.maxHorizontalScrollPosition = Math.max(0, preview.scaledImage.width - wNew);
+                  this.parent.maxVerticalScrollPosition = Math.max(0, preview.scaledImage.height - hNew);
+                  preview.SetZoomOutLimit();
+                  preview.UpdateZoom(preview.zoom);
+            }
+            this.update();
+      }
+
+      this.scrollbox.viewport.onPaint = function (x0, y0, x1, y1)
+      {
+            var preview = this.parent.parent;
+            var graphics = new VectorGraphics(this);
+
+            graphics.fillRect(x0,y0, x1, y1, new Brush(0xff202020));
+            if (preview.scaledImage != null) {
+                  var offsetX = this.parent.maxHorizontalScrollPosition>0 ? -this.parent.horizontalScrollPosition : (this.width-preview.scaledImage.width)/2;
+                  var offsetY = this.parent.maxVerticalScrollPosition>0 ? -this.parent.verticalScrollPosition: (this.height-preview.scaledImage.height)/2;
+                  graphics.translateTransformation(offsetX, offsetY);
+                  if(preview.image)
+                        graphics.drawBitmap(0, 0, preview.scaledImage);
+                  else
+                        graphics.fillRect(0, 0, preview.scaledImage.width, preview.scaledImage.height, new Brush(0xff000000));
+                  graphics.pen = new Pen(0xffffffff,0);
+                  graphics.drawRect(-1, -1, preview.scaledImage.width + 1, preview.scaledImage.height + 1);
+            }
+
+            if(preview.onCustomPaint)
+            {
+                  graphics.antialiasing = true;
+                  graphics.scaleTransformation(preview.scale,preview.scale);
+                  preview.onCustomPaint.call(this, graphics, x0, y0, x1, y1);
+            }
+            graphics.end();
+      }
+
+      this.transform = function(x, y, preview)
+      {
+            var scrollbox = preview.scrollbox;
+            var ox = 0;
+            var oy = 0;
+            ox = scrollbox.maxHorizontalScrollPosition>0 ? -scrollbox.horizontalScrollPosition : (scrollbox.viewport.width-preview.scaledImage.width)/2;
+            oy = scrollbox.maxVerticalScrollPosition>0 ? -scrollbox.verticalScrollPosition: (scrollbox.viewport.height-preview.scaledImage.height)/2;
+            var coordPx = new Point((x - ox) / preview.scale, (y - oy) / preview.scale);
+            return new Point(coordPx.x, coordPx.y);
+      }
+
+      this.center = function()
+      {
+            var preview = this;
+            var scrollbox = preview.scrollbox;
+            var x = scrollbox.viewport.width / 2;
+            var y = scrollbox.viewport.height / 2;
+            var p =  this.transform(x, y, preview);
+            return p;
+      }
+
+      this.zoomLabel_Label =new Label(this);
+      this.zoomLabel_Label.text = "Zoom:";
+      this.zoomVal_Label =new Label(this);
+      this.zoomVal_Label.text = "1:1";
+
+      this.Xlabel_Label = new Label(this);
+      this.Xlabel_Label .text = "X:";
+      this.Xval_Label = new Label(this);
+      this.Xval_Label.text = "---";
+      this.Ylabel_Label = new Label(this);
+      this.Ylabel_Label.text = "Y:";
+      this.Yval_Label = new Label(this);
+      this.Yval_Label.text = "---";
+
+      this.coords_Frame = new Frame(this);
+      this.coords_Frame.backgroundColor = 0xffffffff;
+      this.coords_Frame.sizer = new HorizontalSizer;
+      this.coords_Frame.sizer.margin = 2;
+      this.coords_Frame.sizer.spacing = 4;
+      this.coords_Frame.sizer.add(this.zoomLabel_Label);
+      this.coords_Frame.sizer.add(this.zoomVal_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.Xlabel_Label);
+      this.coords_Frame.sizer.add(this.Xval_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.Ylabel_Label);
+      this.coords_Frame.sizer.add(this.Yval_Label);
+
+      this.coords_Frame.sizer.addStretch();
+
+      this.sizer = new VerticalSizer;
+      this.sizer.add(this.buttons_Sizer);
+      this.sizer.add(this.scroll_Sizer);
+      this.sizer.add(this.coords_Frame);
+}
+
+PreviewControl.prototype = new Frame;
 
 function exitFromDialog()
 {
@@ -12241,6 +12769,7 @@ function AutoIntegrateDialog()
       "Copyright (c) 2018-2022 Jarmo Ruuth<br>" +
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
+      "Copyright (c) 2013 Andres del Pozo<br>" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
@@ -12481,9 +13010,12 @@ function AutoIntegrateDialog()
       this.imageParamsControl.sizer.spacing = 4;
       this.imageParamsControl.sizer.add( this.imageParamsSet1 );
       this.imageParamsControl.sizer.add( this.imageParamsSet2 );
+      this.imageParamsControl.visible = false;
       //this.imageParamsControl.sizer.addStretch();
 
-      this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
+      if (!dense_dialog) {
+            this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
+      }
 
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
@@ -12645,9 +13177,12 @@ function AutoIntegrateDialog()
       this.otherParamsControl.sizer.spacing = 4;
       this.otherParamsControl.sizer.add( this.otherParamsSet1 );
       this.otherParamsControl.sizer.add( this.otherParamsSet2 );
+      this.imageParamsControl.visible = false;
       //this.otherParamsControl.sizer.addStretch();
       
-      this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters", "Other1");
+      if (!dense_dialog) {
+            this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters", "Other1");
+      }
 
       // Weight calculations
       var weightHelpToolTips =
@@ -13369,7 +13904,6 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer.addStretch();
 
       this.narrowbandControl = new Control( this );
-      // this.narrowbandControl.title = "Narrowband processing";
       this.narrowbandControl.sizer = new VerticalSizer;
       this.narrowbandControl.sizer.margin = 6;
       this.narrowbandControl.sizer.spacing = 4;
@@ -13377,9 +13911,11 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
       this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
       this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
-      //this.narrowbandControl.sizer.add( this.narrowbandAutoContinue_sizer );
+      this.narrowbandControl.visible = false;
 
-      this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      if (!dense_dialog) {
+            this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      }
 
       this.narrowbandRGBmappingControl = new Control( this );
       //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
@@ -13391,7 +13927,9 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
 
-      this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      if (!dense_dialog) {
+            this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      }
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
@@ -13692,6 +14230,7 @@ function AutoIntegrateDialog()
       this.extraControl.sizer.add( this.extraGroupBoxSizer );
       this.extraControl.sizer.add( this.extraImageSizer );
       this.extraControl.sizer.addStretch();
+      this.extraControl.visible = false;
       this.extraControl.toolTip = 
             "<p>" +
             "In case of Run or AutoContinue " + 
@@ -13728,7 +14267,9 @@ function AutoIntegrateDialog()
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
-      this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing", "Extra1");
+      if (!dense_dialog) {
+            this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing", "Extra1");
+      }
 
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
@@ -13937,29 +14478,21 @@ function AutoIntegrateDialog()
             };
       }
 
-      // Group box for AutoContinue and CloseAll
-      this.autoButtonSizer = new HorizontalSizer;
-      this.autoButtonSizer.add( this.closeAllButton );
-      this.autoButtonSizer.addSpacing( 4 );
-      this.autoButtonSizer.add( closeAllPrefixButton );
-      if (par.use_manual_icon_column.val) {
-            this.autoButtonSizer.addSpacing ( 150 );
-      } else {
-            this.autoButtonSizer.addSpacing ( 250 );
+      if (!dense_dialog) {
+            // Group box for AutoContinue and CloseAll
+            this.autoButtonSizer = new HorizontalSizer;
+            this.autoButtonSizer.add( this.closeAllButton );
+            this.autoButtonSizer.addSpacing( 4 );
+            this.autoButtonSizer.add( closeAllPrefixButton );
+            this.autoButtonGroupBox = new newGroupBox( this );
+            this.autoButtonGroupBox.sizer = new HorizontalSizer;
+            this.autoButtonGroupBox.sizer.margin = 6;
+            this.autoButtonGroupBox.sizer.spacing = 4;
+            this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
+            this.autoButtonGroupBox.sizer.addStretch();
+            this.autoButtonGroupBox.sizer.add( this.closeProcessConsoleButton );
+            //this.autoButtonGroupBox.setFixedHeight(60);
       }
-      if (par.use_manual_icon_column.val) {
-            this.autoButtonSizer.addSpacing ( 4 );
-            this.autoButtonSizer.add( this.columnCountControlLabel );
-            this.autoButtonSizer.add( this.columnCountControlComboBox );
-      }
-      this.autoButtonGroupBox = new newGroupBox( this );
-      this.autoButtonGroupBox.sizer = new HorizontalSizer;
-      this.autoButtonGroupBox.sizer.margin = 6;
-      this.autoButtonGroupBox.sizer.spacing = 4;
-      this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
-      this.autoButtonGroupBox.sizer.addStretch();
-      this.autoButtonGroupBox.sizer.add( this.closeProcessConsoleButton );
-      //this.autoButtonGroupBox.setFixedHeight(60);
 
       // Buttons for saving final images in different formats
       this.mosaicSaveXisfButton = new PushButton( this );
@@ -13986,24 +14519,77 @@ function AutoIntegrateDialog()
             console.writeln("Save 8 bit TIFF");
             saveAllFinalImageWindows(8);
       };   
-      this.mosaicSaveSizer = new HorizontalSizer;
-      this.mosaicSaveSizer.add( this.mosaicSaveXisfButton );
-      this.mosaicSaveSizer.addSpacing( 4 );
-      this.mosaicSaveSizer.add( this.mosaicSave16bitButton );
-      this.mosaicSaveSizer.addSpacing( 4 );
-      this.mosaicSaveSizer.add( this.mosaicSave8bitButton );
-      this.mosaicSaveGroupBox = new newGroupBox( this );
-      this.mosaicSaveGroupBox.title = "Save final image files";
-      this.mosaicSaveGroupBox.sizer = new HorizontalSizer;
-      this.mosaicSaveGroupBox.sizer.margin = 6;
-      this.mosaicSaveGroupBox.sizer.spacing = 4;
-      this.mosaicSaveGroupBox.sizer.add( this.mosaicSaveSizer );
-      this.mosaicSaveGroupBox.sizer.addStretch();
 
-      this.filesaveAndParamSizer = new HorizontalSizer;
-      this.filesaveAndParamSizer.margin = 6;
-      this.filesaveAndParamSizer.spacing = 4;
-      this.filesaveAndParamSizer.add( this.mosaicSaveGroupBox );
+      this.mosaicSaveControl = new Control( this );
+      this.mosaicSaveControl.sizer = new HorizontalSizer;
+      this.mosaicSaveControl.sizer.margin = 6;
+      this.mosaicSaveControl.sizer.spacing = 4;
+      this.mosaicSaveControl.sizer.add( this.mosaicSaveXisfButton );
+      this.mosaicSaveControl.sizer.addSpacing( 4 );
+      this.mosaicSaveControl.sizer.add( this.mosaicSave16bitButton );
+      this.mosaicSaveControl.sizer.addSpacing( 4 );
+      this.mosaicSaveControl.sizer.add( this.mosaicSave8bitButton );
+      this.mosaicSaveControl.visible = false;
+
+      if (!dense_dialog) {
+            this.mosaicSaveGroupBox = newSectionBar(this, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+      }
+
+      /* Interface.
+       */
+      this.show_preview_CheckBox = newGenericCheckBox(this, "Show preview", ppar.use_preview, 
+            "Show image preview on script preview window. You need to restarts the script before this setting is effective.",
+            function(checked) { ppar.use_preview = checked; });
+      this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar.use_single_column, 
+            "Show all dialog settings in a single column. You need to restarts the script before this setting is effective.",
+            function(checked) { ppar.use_single_column = checked; });
+      this.preview1Sizer = new HorizontalSizer;
+      this.preview1Sizer.margin = 6;
+      this.preview1Sizer.spacing = 4;
+      this.preview1Sizer.add( this.show_preview_CheckBox );
+      this.preview1Sizer.add( this.use_single_column_CheckBox );
+      this.preview1Sizer.addStretch();
+
+      this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
+      this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
+            "Preview image width.",
+            function(value) { ppar.preview_width = value; });
+      this.preview_height_label = newLabel(this, 'Preview height', "Preview image height.");
+      this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
+            "Preview image height.",
+            function(value) { ppar.preview_height = value; });
+
+      this.preview2Sizer = new HorizontalSizer;
+      this.preview2Sizer.margin = 6;
+      this.preview2Sizer.spacing = 4;
+      this.preview2Sizer.add( this.preview_width_label );
+      this.preview2Sizer.add( this.preview_width_edit );
+      this.preview2Sizer.add( this.preview_height_label );
+      this.preview2Sizer.add( this.preview_height_edit );
+      this.preview2Sizer.addStretch();
+
+      this.interfaceSizer = new HorizontalSizer;
+      this.interfaceSizer.margin = 6;
+      this.interfaceSizer.spacing = 4;
+      if (par.use_manual_icon_column.val) {
+            this.interfaceSizer.add( this.columnCountControlLabel );
+            this.interfaceSizer.add( this.columnCountControlComboBox );
+      }
+      this.interfaceSizer.add( this.closeProcessConsoleButton );
+      this.interfaceSizer.addStretch();
+
+      this.interfaceControl = new Control( this );
+      this.interfaceControl.sizer = new VerticalSizer;
+      this.interfaceControl.sizer.margin = 6;
+      this.interfaceControl.sizer.spacing = 4;
+      this.interfaceControl.sizer.add( this.preview1Sizer );
+      this.interfaceControl.sizer.add( this.preview2Sizer );
+      this.interfaceControl.sizer.add( this.interfaceSizer );
+      this.interfaceControl.sizer.addStretch();
+      this.interfaceControl.visible = false;
+      if (!dense_dialog) {
+            this.interfaceGroupBox = newSectionBar(this, this.interfaceControl, "Interface settings", "interface");
+      }
 
       // Run and Exit buttons
       this.run_Button = new PushButton( this );
@@ -14134,8 +14720,12 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
+      if (dense_dialog) {
+            this.buttons_Sizer.add( this.closeAllButton );
+            this.buttons_Sizer.add( closeAllPrefixButton );
+      }
       this.buttons_Sizer.add( this.autoContinueButton );
-      this.buttons_Sizer.addSpacing( 20 );
+      this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
@@ -14184,45 +14774,152 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl4.visible = false;
 
-      this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
-      newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
+      if (!dense_dialog) {
+            this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
+            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
+            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
+            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
+      } else {
+            this.leftGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
+            newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
+            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
+            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
+            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
+
+            this.rightGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+            newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+            newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
+            newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+            newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
+      }
 
       this.col1 = new VerticalSizer;
-      this.col1.margin = 6;
+      if (!dense_dialog) {
+            this.col1.margin = 6;
+      }
       this.col1.spacing = 4;
-      this.col1.add( this.imageParamsGroupBox );
-      this.col1.add( this.otherParamsGroupBox );
-      this.col1.add( this.ProcessingGroupBox );
+      if (!dense_dialog) {
+            this.col1.add( this.imageParamsGroupBox );
+            this.col1.add( this.otherParamsGroupBox );
+            this.col1.add( this.ProcessingGroupBox );
+            this.col1.add( this.interfaceGroupBox );
+            this.col1.add( this.interfaceGroupBox );
+      } else {
+            this.col1.add( this.leftGroupBox );
+      }
       this.col1.addStretch();
 
       this.col2 = new VerticalSizer;
-      this.col2.margin = 6;
+      if (!dense_dialog) {
+            this.col2.margin = 6;
+      }
       this.col2.spacing = 4;
-      this.col2.add( this.narrowbandGroupBox );
-      this.col2.add( this.narrowbandRGBmappingGroupBox );
-      this.col2.add( this.extraGroupBox );
-      this.col2.add( this.filesaveAndParamSizer );
-      this.col2.add( this.autoButtonGroupBox );
+      if (!dense_dialog) {
+            this.col2.add( this.narrowbandGroupBox );
+            this.col2.add( this.narrowbandRGBmappingGroupBox );
+            this.col2.add( this.extraGroupBox );
+            this.col2.add( this.mosaicSaveGroupBox );
+            this.col2.add( this.autoButtonGroupBox );
+      } else {
+            this.col2.add( this.rightGroupBox );
+      }
       this.col2.addStretch();
 
-      this.cols = new HorizontalSizer;
-      this.cols.margin = 6;
+      if (ppar.use_single_column) {
+            this.cols = new VerticalSizer;
+      } else {
+            this.cols = new HorizontalSizer;
+      }
+      if (!dense_dialog) {
+            this.cols.margin = 6;
+      }
       this.cols.spacing = 4;
       this.cols.add( this.col1 );
       this.cols.add( this.col2 );
-      this.cols.addStretch();
+      if (!dense_dialog) {
+            this.cols.addStretch();
+      }
+
+      if (use_preview) {
+            /* Preview.
+             */
+            previewControl = new PreviewControl(this, ppar.preview_width, ppar.preview_height);
+
+            this.previewImageSizer = new Sizer();
+            this.previewImageSizer.add(previewControl);
+
+            this.previewInfoLabel = new Label( this );
+            this.previewInfoLabel.text = "<b>Preview</b>";
+            this.previewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.previewInfoLabel.useRichText = true;
+            previewInfoLabel = this.previewInfoLabel;
+      
+            this.previewSizer = new VerticalSizer;
+            this.previewSizer.margin = 6;
+            this.previewSizer.spacing = 10;
+            this.previewSizer.add(this.previewInfoLabel);
+            this.previewSizer.add(this.previewImageSizer);
+
+            var bitmap = new Bitmap(ppar.preview_width-20, ppar.preview_height-20);
+            bitmap.fill(0xff808080);
+
+            var graphics = new Graphics(bitmap);
+            graphics.transparentBackground = true;
+
+            graphics.pen = new Pen(0xff000000, 4);
+            graphics.font.bold = true;
+            var txt = autointegrate_version;
+            var txtLen = graphics.font.width(txt);
+            graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
+
+            graphics.end();
+            
+            var startupWindow = new ImageWindow(
+                                    bitmap.width,
+                                    bitmap.height,
+                                    1,
+                                    32,
+                                    true,
+                                    false,
+                                    "AutoIntegrate_startup_preview");
+
+            startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+            startupWindow.mainView.image.blend(bitmap);
+            startupWindow.mainView.endProcess();
+
+            updatePreviewWinTxt(startupWindow, "No preview");
+            startupWindow.forceClose();
+            is_some_preview = false;
+      }
+      /* Main dialog.
+       */
+      this.dialogSizer = new VerticalSizer;
+      //this.dialogSizer.add( this.tabBox, 300 );
+      this.dialogSizer.add( this.tabBox);
+      //this.dialogSizer.add( this.buttonsSizer);
+      this.dialogSizer.add( this.filesButtonsSizer);
+      this.dialogSizer.margin = 6;
+      this.dialogSizer.spacing = 6;
+      this.dialogSizer.add( this.cols );
+      //this.dialogSizer.add( this.buttons_Sizer );
+      this.dialogSizer.addStretch();
 
       /* ------------------------------- */
 
+      this.mainSizer = new HorizontalSizer;
+      this.mainSizer.margin = 6;
+      this.mainSizer.spacing = 4;
+      if (use_preview) {
+            this.mainSizer.add( this.previewSizer );
+      }
+      this.mainSizer.add( this.dialogSizer );
+      this.mainSizer.addStretch();
+
       this.sizer = new VerticalSizer;
-      this.sizer.add( this.tabBox, 300 );
-      //this.sizer.add( this.buttonsSizer);
-      this.sizer.add( this.filesButtonsSizer);
       this.sizer.margin = 6;
-      this.sizer.spacing = 6;
-      this.sizer.add( this.cols );
+      this.sizer.spacing = 4;
+      this.sizer.add( this.mainSizer );
       this.sizer.add( this.buttons_Sizer );
       this.sizer.addStretch();
 
@@ -14303,6 +15000,27 @@ function main()
                   if (Settings.lastReadOK) {
                         console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
                         ppar.lastDir = tempSetting;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
+                        ppar.use_preview = tempSetting;
+                        use_preview = tempSetting;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
+                        ppar.preview_width = tempSetting;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
+                        ppar.preview_height = tempSetting;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
+                        ppar.use_single_column = tempSetting;
                   }
             } else {
                   console.noteln("Skip reading persistent settings");
