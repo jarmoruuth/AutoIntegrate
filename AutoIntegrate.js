@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test6";
+var autointegrate_version = "AutoIntegrate v1.47 test7";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -559,6 +559,8 @@ var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 var binning_values = [ 'None', 'Color', 'L and color'];
 var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten', 'InvMult' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
+
+var monochrome_text = "Monochrome: ";
 
 var blink_window = null;
 var blink_zoom = false;
@@ -7094,7 +7096,7 @@ function narrowbandOrangeHueShift(imgView)
 
       imgView.endProcess();
 
-      updatePreviewId(RGBimgView.id);
+      updatePreviewId(imgView.id);
 }
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
@@ -9288,9 +9290,7 @@ function extraProcessingEngine()
       console.noteln("Start extra processing...");
       updatePreviewId(extra_target_image);
 
-      console.show(true);
       extraProcessing(extra_target_image, true);
-      console.show(false);
 
       windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
@@ -9888,7 +9888,7 @@ function AutoIntegrateEngine(auto_continue)
       L_stars = [];
 
       console.beginLog();
-      console.show(true);
+      console.show();
 
       processingDate = new Date;
       processing_steps = "";
@@ -10397,13 +10397,17 @@ function getProcessDefaultValues()
 
 // Dialog functions are below this point
 
-function newCheckBox( parent, checkboxText, param, toolTip )
+function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick )
 {
       var widget = new CheckBox( parent );
       widget.text = checkboxText;
       widget.checked = param.val;
-      widget.onClick = function(checked) { 
-            param.val = checked; 
+      if (onClick != null) {
+            widget.onClick = onClick;
+      } else {
+            widget.onClick = function(checked) { 
+                  param.val = checked;
+            }
       }
       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
             widget.toolTip = toolTip; 
@@ -10414,6 +10418,11 @@ function newCheckBox( parent, checkboxText, param, toolTip )
       };
 
       return widget;
+}
+
+function newCheckBox( parent, checkboxText, param, toolTip )
+{
+      return newCheckBoxEx(parent, checkboxText, param, toolTip, null);
 }
 
 function newGenericCheckBox( parent, checkboxText, val, toolTip, onClick )
@@ -10728,10 +10737,19 @@ function lightsOptions(parent)
             showOrHideFilterSectionBar(pages.LIGHTS);
       }
 
+      var monochrome_image_CheckBox = newCheckBoxEx(parent, "Force monochrome", par.monochrome_image, 
+            "<p>Force create of a monochrome image. All images are treated as Luminance files and stacked together. " + 
+            "Quite a few processing steps are skipped with this option.</p>",
+            function(checked) { 
+                  par.monochrome_image.val = checked;
+                  updateSectionsInTreeBox(parent.treeBox[pages.LIGHTS]);
+            });
+
       sizer.add(debayerLabel);
       sizer.add(debayerCombobox);
       sizer.add(extractChannelsLabel);
       sizer.add(extractChannelsCombobox);
+      sizer.add(monochrome_image_CheckBox);
       sizer.add(add_manually_checkbox);
       sizer.addStretch();
 
@@ -11373,6 +11391,39 @@ function filenamesToTreeboxfiles(treeboxfiles, filenames, checked)
       }
 }
 
+function updateSectionsInTreeBoxNode(node)
+{
+      if (node.numberOfChildren == 0) {
+            return;
+      } else {
+            if (typeof node.text === "function") {
+                  var txt = node.text(0);
+                  var is_monochrome_txt = txt.search(monochrome_text) != -1;
+                  if (par.monochrome_image.val) {
+                        if (!is_monochrome_txt) {
+                              node.setText(0, monochrome_text + txt);
+                        }
+                  } else {
+                        if (is_monochrome_txt) {
+                              node.setText(0, txt.replace(monochrome_text, ""));
+                        }
+                  }
+            }
+            for (var i = 0; i < node.numberOfChildren; i++) {
+                  updateSectionsInTreeBoxNode(node.child(i));
+            }
+      }
+}
+
+function updateSectionsInTreeBox(node)
+{
+      if (node.numberOfChildren == 0) {
+            return;
+      } else {
+            updateSectionsInTreeBoxNode(node);
+      }
+}
+
 function getTreeBoxNodeFileCount(node)
 {
       if (node.numberOfChildren == 0) {
@@ -11465,7 +11516,7 @@ function setExpandedTreeBoxNode(node, expanded)
 
 function filterTreeBoxFiles(parent, pageIndex)
 {
-      console.show(true);
+      console.show();
       var treebox = parent.treeBox[pageIndex];
       if (treebox.numberOfChildren == 0) {
             console.writeln("filterTreeBoxFiles, no files");
@@ -11610,8 +11661,12 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
                   for (var j = 0; j < filterFiles.length; j++) {
                         var node = new TreeBoxNode(filternode);
-                        //node.setText(0, filterFiles[j].name);
-                        node.setText(0, File.extractName(filterFiles[j].name) + File.extractExtension(filterFiles[j].name));
+                        var txt = File.extractName(filterFiles[j].name) + File.extractExtension(filterFiles[j].name);
+                        if (pageIndex == pages.LIGHTS && par.monochrome_image.val) {
+                              node.setText(0, monochrome_text + txt);
+                        } else {
+                              node.setText(0, txt);
+                        }
                         node.setToolTip(0, filterFiles[j].name);
                         node.filename = filterFiles[j].name;
                         node.nodeData_type = "";
@@ -11970,7 +12025,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                   }
             } catch(err) {
-                  console.show(true);
+                  console.show();
                   console.criticalln(err);
             }
       }
@@ -12503,7 +12558,7 @@ function PreviewControl(parent, size_x, size_y)
       this.zoomOut_Button = new ToolButton( this );
       this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
       this.zoomOut_Button.setScaledFixedSize( 20, 20 );
-      this.zoomOut_Button.toolTip = "Zoom in";
+      this.zoomOut_Button.toolTip = "Zoom out";
       this.zoomOut_Button.onMousePress = function()
       {
             this.parent.UpdateZoom(this.parent.zoom-1);
@@ -12718,7 +12773,7 @@ PreviewControl.prototype = new Frame;
 
 function exitFromDialog()
 {
-      console.show(true);
+      console.show();
       if (blink_window != null) {
             blink_window.forceClose();
             blink_window = null;
@@ -12899,9 +12954,6 @@ function AutoIntegrateDialog()
       }
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle, 
             "<p>Use Drizzle integration</p>" );
-      this.monochrome_image_CheckBox = newCheckBox(this, "Monochrome", par.monochrome_image, 
-            "<p>Create a monochrome image. All images are treated as Luminance files and stacked together. " + 
-            "Quite a few processing steps are skipped with this option.</p>" );
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
             "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
@@ -13158,7 +13210,6 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.spacing = 4;
       this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
       this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
-      this.otherParamsSet2.add( this.monochrome_image_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
       this.otherParamsSet2.add( this.win_prefix_to_log_files_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
@@ -14436,14 +14487,6 @@ function AutoIntegrateDialog()
             console.writeln("Close completed");
       };
 
-      this.closeProcessConsoleButton = new PushButton( this );
-      this.closeProcessConsoleButton.text = "Hide";
-      this.closeProcessConsoleButton.icon = this.scaledResource( ":/auto-hide/hide.png" );
-      this.closeProcessConsoleButton.toolTip = "<p>Hide Process Console.</p>";
-      this.closeProcessConsoleButton.onClick = function() {
-            console.hide();
-      };
-
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -14490,7 +14533,7 @@ function AutoIntegrateDialog()
             this.autoButtonGroupBox.sizer.spacing = 4;
             this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
             this.autoButtonGroupBox.sizer.addStretch();
-            this.autoButtonGroupBox.sizer.add( this.closeProcessConsoleButton );
+            this.autoButtonGroupBox.sizer.add( this.hideProcessConsoleButton );
             //this.autoButtonGroupBox.setFixedHeight(60);
       }
 
@@ -14538,10 +14581,10 @@ function AutoIntegrateDialog()
       /* Interface.
        */
       this.show_preview_CheckBox = newGenericCheckBox(this, "Show preview", ppar.use_preview, 
-            "Show image preview on script preview window. You need to restarts the script before this setting is effective.",
+            "Show image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_preview = checked; });
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar.use_single_column, 
-            "Show all dialog settings in a single column. You need to restarts the script before this setting is effective.",
+            "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_single_column = checked; });
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -14568,6 +14611,24 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.preview_height_edit );
       this.preview2Sizer.addStretch();
 
+      this.processConsole_label = newLabel(this, 'Process console', "Show or hide process console.");
+
+      this.hideProcessConsoleButton = new PushButton( this );
+      this.hideProcessConsoleButton.text = "Hide";
+      this.hideProcessConsoleButton.icon = this.scaledResource( ":/auto-hide/hide.png" );
+      this.hideProcessConsoleButton.toolTip = "<p>Hide Process Console.</p>";
+      this.hideProcessConsoleButton.onClick = function() {
+            console.hide();
+      };
+
+      this.showProcessConsoleButton = new PushButton( this );
+      this.showProcessConsoleButton.text = "Show";
+      this.showProcessConsoleButton.icon = this.scaledResource( ":/toolbar/view-process-console.png" );
+      this.showProcessConsoleButton.toolTip = "<p>Show Process Console.</p>";
+      this.showProcessConsoleButton.onClick = function() {
+            console.show();
+      };
+
       this.interfaceSizer = new HorizontalSizer;
       this.interfaceSizer.margin = 6;
       this.interfaceSizer.spacing = 4;
@@ -14575,8 +14636,19 @@ function AutoIntegrateDialog()
             this.interfaceSizer.add( this.columnCountControlLabel );
             this.interfaceSizer.add( this.columnCountControlComboBox );
       }
-      this.interfaceSizer.add( this.closeProcessConsoleButton );
+      this.interfaceSizer.add( this.processConsole_label );
+      this.interfaceSizer.add( this.showProcessConsoleButton );
+      this.interfaceSizer.add( this.hideProcessConsoleButton );
       this.interfaceSizer.addStretch();
+
+      if (par.use_manual_icon_column.val) {
+            this.interfaceManualColumnSizer = new HorizontalSizer;
+            this.interfaceManualColumnSizer.margin = 6;
+            this.interfaceManualColumnSizer.spacing = 4;
+            this.interfaceManualColumnSizer.add( this.columnCountControlLabel );
+            this.interfaceManualColumnSizer.add( this.columnCountControlComboBox );
+            this.interfaceManualColumnSizer.addStretch();
+      }
 
       this.interfaceControl = new Control( this );
       this.interfaceControl.sizer = new VerticalSizer;
@@ -14585,6 +14657,9 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.add( this.preview1Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
+      if (par.use_manual_icon_column.val) {
+            this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
+      }
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = false;
       if (!dense_dialog) {
@@ -14932,7 +15007,7 @@ function AutoIntegrateDialog()
 
       setWindowPrefixHelpTip(ppar.win_prefix);
 
-      console.show(false);
+      console.show();
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
