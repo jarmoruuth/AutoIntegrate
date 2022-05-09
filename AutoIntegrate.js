@@ -6923,7 +6923,7 @@ function runBackgroundNeutralization(imgView)
 
       imgView.endProcess();
 
-      updatePreviewWin(imgWin);
+      updatePreviewId(imgView.id);
 }
 
 function runColorCalibration(imgView)
