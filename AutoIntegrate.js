@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test7";
+var autointegrate_version = "AutoIntegrate v1.47 test8";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -306,10 +306,12 @@ var windowPrefixComboBox;     // For updating prefix name list
 var outputDirEdit;            // For updating output root directory
 var previewControl;           // For updating preview window
 var previewInfoLabel;         // For updating preview info text
+var mainTabBox;               // For switching to preview tab
 
-var dense_dialog = true;      // Less section bars to make interface more dense
+var preview_as_tab = true;
 var use_preview = true;
 var is_some_preview = false;
+var preview_visible = true;
 var is_processing = false;
 
 /*
@@ -526,6 +528,7 @@ var ppar = {
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
+      preview_as_tab: true,   // Show image preview as a separate tab
       preview_width: 600,     // Preview width
       preview_height: 600,    // preview height
       use_single_column: false // show all options in a single column
@@ -957,6 +960,8 @@ function savePersistentSettings()
             Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
       }
       Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
+      Settings.write (SETTINGSKEY + "/previewTab", DataType_Boolean, ppar.preview_as_tab);
+      Settings.write (SETTINGSKEY + "/previewVisible", DataType_Boolean, preview_visible);
       Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
       Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
       Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
@@ -9288,6 +9293,9 @@ function extraProcessingEngine()
       processing_steps = "";
 
       console.noteln("Start extra processing...");
+      if (preview_as_tab) {
+            mainTabBox.currentPageIndex = 1;
+      }
       updatePreviewId(extra_target_image);
 
       extraProcessing(extra_target_image, true);
@@ -9899,6 +9907,10 @@ function AutoIntegrateEngine(auto_continue)
       narrowband = autocontinue_narrowband;
       is_luminance_images = false;
       var stars_id = null;
+
+      if (preview_as_tab) {
+            mainTabBox.currentPageIndex = 1;
+      }
 
       console.noteln("--------------------------------------");
       addProcessingStep("PixInsight version " + pixinsight_version_str);
@@ -12022,6 +12034,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               updatePreviewWin(imageWindow);
                               imageWindow.forceClose();
+                              if (preview_as_tab) {
+                                    mainTabBox.currentPageIndex = 1;
+                              }
                         }
                   }
             } catch(err) {
@@ -12041,11 +12056,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       }
 
       var files_GroupBox = new GroupBox( parent );
-      //files_GroupBox.title = "Images";
       files_GroupBox.sizer = new HorizontalSizer;
-      if (!dense_dialog) {
-            files_GroupBox.sizer.margin = 6;
-      }
       files_GroupBox.sizer.spacing = 4;
       files_GroupBox.sizer.add( filesControl, parent.textEditWidth );
       files_GroupBox.sizer.add( optionsSizer );
@@ -12380,10 +12391,6 @@ function newPageButtonsSizer(parent)
       
       var buttonsSizer = new HorizontalSizer;
 
-      if (!dense_dialog) {
-            buttonsSizer.margin = 4;
-      }
-
       if (!use_preview) {
             buttonsSizer.add( blinkLabel );
             buttonsSizer.addSpacing( 4 );
@@ -12574,6 +12581,15 @@ function PreviewControl(parent, size_x, size_y)
             this.parent.UpdateZoom(1);
       };
 
+      this.zoomFit_Button = new ToolButton( this );
+      this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
+      this.zoomFit_Button.setScaledFixedSize( 20, 20 );
+      this.zoomFit_Button.toolTip = "Zoom fit";
+      this.zoomFit_Button.onMousePress = function()
+      {
+            this.parent.UpdateZoom(-100);
+      };
+
 /*
       * this.stf_Button =  new ToolButton( this );
       this.stf_Button.text = "STF";
@@ -12590,6 +12606,7 @@ function PreviewControl(parent, size_x, size_y)
       this.buttons_Sizer.add( this.zoomIn_Button );
       this.buttons_Sizer.add( this.zoomOut_Button );
       this.buttons_Sizer.add( this.zoom11_Button );
+      this.buttons_Sizer.add( this.zoomFit_Button );
       this.buttons_Sizer.addStretch();
       //this.buttons_Sizer.add( this.stf_Button );
 
@@ -12771,6 +12788,15 @@ function PreviewControl(parent, size_x, size_y)
 
 PreviewControl.prototype = new Frame;
 
+function mainSizerTab(parent, sizer)
+{
+      var gb = new Control( parent );
+      gb.sizer = new HorizontalSizer;
+      gb.sizer.add( sizer );
+
+      return gb;
+}
+
 function exitFromDialog()
 {
       console.show();
@@ -12779,6 +12805,25 @@ function exitFromDialog()
             blink_window = null;
       }
       updateImageInfoLabel("");
+}
+
+function togglePreview()
+{
+      if (!use_preview) {
+            return;
+      }
+
+      if (preview_visible) {
+            previewInfoLabel.hide();
+            statusInfoLabel.hide();
+            previewControl.hide();
+            preview_visible = false;
+      } else {
+            previewInfoLabel.show();
+            statusInfoLabel.show();
+            previewControl.show();
+            preview_visible = true;
+      }
 }
 
 function AutoIntegrateDialog()
@@ -13065,10 +13110,6 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       //this.imageParamsControl.sizer.addStretch();
 
-      if (!dense_dialog) {
-            this.imageParamsGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
-      }
-
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
             "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>");
@@ -13231,10 +13272,6 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       //this.otherParamsControl.sizer.addStretch();
       
-      if (!dense_dialog) {
-            this.otherParamsGroupBox = newSectionBar(this, this.otherParamsControl, "Other parameters", "Other1");
-      }
-
       // Weight calculations
       var weightHelpToolTips =
             "<p>" +
@@ -13732,6 +13769,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_G_ComboBox );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
+      this.narrowbandCustomPalette_Sizer.addStretch();
 
       this.force_narrowband_mapping_CheckBox = newCheckBox(this, "Force narrowband mapping", par.force_narrowband_mapping, 
             "<p>" +
@@ -13964,10 +14002,6 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
       this.narrowbandControl.visible = false;
 
-      if (!dense_dialog) {
-            this.narrowbandGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
-      }
-
       this.narrowbandRGBmappingControl = new Control( this );
       //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
       this.narrowbandRGBmappingControl.sizer = new VerticalSizer;
@@ -13977,10 +14011,6 @@ function AutoIntegrateDialog()
       //this.narrowbandRGBmappingControl.sizer.add( this.narrowbandAutoContinue_sizer );
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
-
-      if (!dense_dialog) {
-            this.narrowbandRGBmappingGroupBox = newSectionBar(this, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-      }
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
@@ -14318,10 +14348,6 @@ function AutoIntegrateDialog()
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
-      if (!dense_dialog) {
-            this.extraGroupBox = newSectionBar(this, this.extraControl, "Extra processing", "Extra1");
-      }
-
       // Button to continue LRGB from existing files
       this.autoContinueButton = new PushButton( this );
       this.autoContinueButton.text = "AutoContinue";
@@ -14521,22 +14547,6 @@ function AutoIntegrateDialog()
             };
       }
 
-      if (!dense_dialog) {
-            // Group box for AutoContinue and CloseAll
-            this.autoButtonSizer = new HorizontalSizer;
-            this.autoButtonSizer.add( this.closeAllButton );
-            this.autoButtonSizer.addSpacing( 4 );
-            this.autoButtonSizer.add( closeAllPrefixButton );
-            this.autoButtonGroupBox = new newGroupBox( this );
-            this.autoButtonGroupBox.sizer = new HorizontalSizer;
-            this.autoButtonGroupBox.sizer.margin = 6;
-            this.autoButtonGroupBox.sizer.spacing = 4;
-            this.autoButtonGroupBox.sizer.add( this.autoButtonSizer );
-            this.autoButtonGroupBox.sizer.addStretch();
-            this.autoButtonGroupBox.sizer.add( this.hideProcessConsoleButton );
-            //this.autoButtonGroupBox.setFixedHeight(60);
-      }
-
       // Buttons for saving final images in different formats
       this.mosaicSaveXisfButton = new PushButton( this );
       this.mosaicSaveXisfButton.text = "XISF";
@@ -14574,23 +14584,33 @@ function AutoIntegrateDialog()
       this.mosaicSaveControl.sizer.add( this.mosaicSave8bitButton );
       this.mosaicSaveControl.visible = false;
 
-      if (!dense_dialog) {
-            this.mosaicSaveGroupBox = newSectionBar(this, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
-      }
-
       /* Interface.
        */
-      this.show_preview_CheckBox = newGenericCheckBox(this, "Show preview", ppar.use_preview, 
-            "Show image preview on script preview window. You need to restart the script before this setting is effective.",
+      this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar.use_preview, 
+            "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_preview = checked; });
+      this.preview_tab_CheckBox = newGenericCheckBox(this, "Preview tab", ppar.preview_as_tab, 
+            "Show image preview as a separate tab in the dialog. You need to restart the script before this setting is effective.",
+            function(checked) { ppar.preview_as_tab = checked; });
+      this.previewCol1Sizer = new HorizontalSizer;
+      this.previewCol1Sizer.margin = 6;
+      this.previewCol1Sizer.spacing = 4;
+      this.previewCol1Sizer.add( this.show_preview_CheckBox );
+      this.previewCol1Sizer.add( this.preview_tab_CheckBox );
+
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_single_column = checked; });
-      this.preview1Sizer = new HorizontalSizer;
+      this.previewCol2Sizer = new HorizontalSizer;
+      this.previewCol2Sizer.margin = 6;
+      this.previewCol2Sizer.spacing = 4;
+      this.previewCol2Sizer.add( this.use_single_column_CheckBox );
+      
+      this.preview1Sizer = new VerticalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
-      this.preview1Sizer.add( this.show_preview_CheckBox );
-      this.preview1Sizer.add( this.use_single_column_CheckBox );
+      this.preview1Sizer.add( this.previewCol1Sizer );
+      this.preview1Sizer.add( this.previewCol2Sizer );
       this.preview1Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
@@ -14662,9 +14682,6 @@ function AutoIntegrateDialog()
       }
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = false;
-      if (!dense_dialog) {
-            this.interfaceGroupBox = newSectionBar(this, this.interfaceControl, "Interface settings", "interface");
-      }
 
       // Run and Exit buttons
       this.run_Button = new PushButton( this );
@@ -14777,14 +14794,18 @@ function AutoIntegrateDialog()
       this.info1_Sizer.add( this.imageInfoLabel );
       this.info1_Sizer.addStretch();
 
-      this.info2_Sizer = new HorizontalSizer;
-      this.info2_Sizer.spacing = 6;
-      this.info2_Sizer.add( this.statusInfoLabel );
-      this.info2_Sizer.addStretch();
+      if (!use_preview) {
+            this.info2_Sizer = new HorizontalSizer;
+            this.info2_Sizer.spacing = 6;
+            this.info2_Sizer.add( this.statusInfoLabel );
+            this.info2_Sizer.addStretch();
+      }
 
       this.info_Sizer = new VerticalSizer;
       this.info_Sizer.add( this.info1_Sizer );
-      this.info_Sizer.add( this.info2_Sizer );
+      if (!use_preview) {
+            this.info_Sizer.add( this.info2_Sizer );
+      }
       this.info_Sizer.addStretch();
 
       this.buttons_Sizer = new HorizontalSizer;
@@ -14795,10 +14816,8 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
-      if (dense_dialog) {
-            this.buttons_Sizer.add( this.closeAllButton );
-            this.buttons_Sizer.add( closeAllPrefixButton );
-      }
+      this.buttons_Sizer.add( this.closeAllButton );
+      this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.add( this.autoContinueButton );
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );
@@ -14849,70 +14868,46 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.ProcessingControl4.visible = false;
 
-      if (!dense_dialog) {
-            this.ProcessingGroupBox = newSectionBar(this, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
-            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
-            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
-            newSectionBarAdd(this, this.ProcessingGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
-      } else {
-            this.leftGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
-            newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
-            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
-            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
-            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
-            newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
-
-            this.rightGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
-            newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-            newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
-            newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
-            newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
+      this.leftGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
+      newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
+      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
+      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
+      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
+      if (!ppar.use_single_column) {
+            this.leftGroupBox.sizer.addStretch();
       }
 
-      this.col1 = new VerticalSizer;
-      if (!dense_dialog) {
-            this.col1.margin = 6;
+      this.rightGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
+      newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+      newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
+      if (use_preview && !preview_as_tab) {
+            this.previewToggleButton = new PushButton( this );
+            this.previewToggleButton.text = "Toggle preview";
+            this.previewToggleButton.toolTip = "Show/hide image preview window.";
+            this.previewToggleButton.onClick = function() {
+                  togglePreview();
+                  this.adjustToContents();
+            }
       }
-      this.col1.spacing = 4;
-      if (!dense_dialog) {
-            this.col1.add( this.imageParamsGroupBox );
-            this.col1.add( this.otherParamsGroupBox );
-            this.col1.add( this.ProcessingGroupBox );
-            this.col1.add( this.interfaceGroupBox );
-            this.col1.add( this.interfaceGroupBox );
-      } else {
-            this.col1.add( this.leftGroupBox );
-      }
-      this.col1.addStretch();
 
-      this.col2 = new VerticalSizer;
-      if (!dense_dialog) {
-            this.col2.margin = 6;
+      if (!ppar.use_single_column) {
+            this.rightGroupBox.sizer.addStretch();
       }
-      this.col2.spacing = 4;
-      if (!dense_dialog) {
-            this.col2.add( this.narrowbandGroupBox );
-            this.col2.add( this.narrowbandRGBmappingGroupBox );
-            this.col2.add( this.extraGroupBox );
-            this.col2.add( this.mosaicSaveGroupBox );
-            this.col2.add( this.autoButtonGroupBox );
-      } else {
-            this.col2.add( this.rightGroupBox );
+      if (use_preview && !preview_as_tab) {
+            this.rightGroupBox.sizer.add(this.previewToggleButton);
       }
-      this.col2.addStretch();
-
       if (ppar.use_single_column) {
             this.cols = new VerticalSizer;
       } else {
             this.cols = new HorizontalSizer;
       }
-      if (!dense_dialog) {
-            this.cols.margin = 6;
-      }
       this.cols.spacing = 4;
-      this.cols.add( this.col1 );
-      this.cols.add( this.col2 );
-      if (!dense_dialog) {
+      this.cols.add( this.leftGroupBox );
+      this.cols.add( this.rightGroupBox );
+      if (ppar.use_single_column) {
             this.cols.addStretch();
       }
 
@@ -14934,6 +14929,7 @@ function AutoIntegrateDialog()
             this.previewSizer.margin = 6;
             this.previewSizer.spacing = 10;
             this.previewSizer.add(this.previewInfoLabel);
+            this.previewSizer.add(this.statusInfoLabel);
             this.previewSizer.add(this.previewImageSizer);
 
             var bitmap = new Bitmap(ppar.preview_width-20, ppar.preview_height-20);
@@ -14971,9 +14967,11 @@ function AutoIntegrateDialog()
        */
       this.dialogSizer = new VerticalSizer;
       //this.dialogSizer.add( this.tabBox, 300 );
-      this.dialogSizer.add( this.tabBox);
+      if (!preview_as_tab) {
+            this.dialogSizer.add( this.tabBox);
+            this.dialogSizer.add( this.filesButtonsSizer);
+      }
       //this.dialogSizer.add( this.buttonsSizer);
-      this.dialogSizer.add( this.filesButtonsSizer);
       this.dialogSizer.margin = 6;
       this.dialogSizer.spacing = 6;
       this.dialogSizer.add( this.cols );
@@ -14985,18 +14983,33 @@ function AutoIntegrateDialog()
       this.mainSizer = new HorizontalSizer;
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
-      if (use_preview) {
-            this.mainSizer.add( this.previewSizer );
+
+      if (preview_as_tab) {
+            this.mainTabBox = new TabBox( this );
+            mainTabBox = this.mainTabBox;
+
+            this.mainTabBox.addPage( new mainSizerTab(this, this.dialogSizer), "Settings", this.scaledResource(":/icons/settings.png") );
+            this.mainTabBox.addPage( new mainSizerTab(this, this.previewSizer), "Preview", this.scaledResource(":/toolbar/preview-show.png") );
+
+            this.mainSizer.add( this.mainTabBox );
+      } else {
+            if (use_preview) {
+                  this.mainSizer.add( this.previewSizer );
+            }
+            this.mainSizer.add( this.dialogSizer );
       }
-      this.mainSizer.add( this.dialogSizer );
-      this.mainSizer.addStretch();
+      //this.mainSizer.addStretch();
 
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
+      if (preview_as_tab) {
+            this.sizer.add( this.tabBox);
+            this.sizer.add( this.filesButtonsSizer);
+      }
       this.sizer.add( this.mainSizer );
       this.sizer.add( this.buttons_Sizer );
-      this.sizer.addStretch();
+      //this.sizer.addStretch();
 
       // Version number
       this.windowTitle = autointegrate_version; 
@@ -15081,6 +15094,20 @@ function main()
                         console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
                         ppar.use_preview = tempSetting;
                         use_preview = tempSetting;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/previewTab", DataType_Boolean);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored previewTab '" + tempSetting + "' from settings.");
+                        ppar.preview_as_tab = tempSetting;
+                        preview_as_tab = tempSetting;
+                  }
+                  if (!use_preview) {
+                        preview_as_tab = false;
+                  }
+                  var tempSetting = Settings.read(SETTINGSKEY + "/previewVisible", DataType_Boolean);
+                  if (Settings.lastReadOK) {
+                        console.writeln("AutoIntegrate: Restored previewVisible '" + tempSetting + "' from settings.");
+                        preview_visible = tempSetting;
                   }
                   var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
                   if (Settings.lastReadOK) {
