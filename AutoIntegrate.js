@@ -14988,8 +14988,8 @@ function AutoIntegrateDialog()
             this.mainTabBox = new TabBox( this );
             mainTabBox = this.mainTabBox;
 
-            this.mainTabBox.addPage( new mainSizerTab(this, this.dialogSizer), "Settings", this.scaledResource(":/icons/settings.png") );
-            this.mainTabBox.addPage( new mainSizerTab(this, this.previewSizer), "Preview", this.scaledResource(":/toolbar/preview-show.png") );
+            this.mainTabBox.addPage( new mainSizerTab(this, this.dialogSizer), "Settings" );
+            this.mainTabBox.addPage( new mainSizerTab(this, this.previewSizer), "Preview" );
 
             this.mainSizer.add( this.mainTabBox );
       } else {
