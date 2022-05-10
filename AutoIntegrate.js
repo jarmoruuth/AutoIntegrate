@@ -14891,13 +14891,18 @@ function AutoIntegrateDialog()
                   togglePreview();
                   this.adjustToContents();
             }
+            this.previewToggleButtonSizer = new HorizontalSizer;
+            this.previewToggleButtonSizer.margin = 6;
+            this.previewToggleButtonSizer.spacing = 4;
+            this.previewToggleButtonSizer.add( this.previewToggleButton );
+            this.previewToggleButtonSizer.addStretch();
       }
 
       if (!ppar.use_single_column) {
             this.rightGroupBox.sizer.addStretch();
       }
       if (use_preview && !preview_as_tab) {
-            this.rightGroupBox.sizer.add(this.previewToggleButton);
+            this.rightGroupBox.sizer.add(this.previewToggleButtonSizer);
       }
       if (ppar.use_single_column) {
             this.cols = new VerticalSizer;
