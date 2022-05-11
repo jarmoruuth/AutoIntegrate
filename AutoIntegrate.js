@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test8";
+var autointegrate_version = "AutoIntegrate v1.47 test9";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -855,7 +855,7 @@ function setWindowPrefixHelpTip(default_prefix)
       }
       prefix_list = prefix_list + "</table>";
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p><p> " + prefix_list + "</p>";
-      closeAllPrefixButton.toolTip = "<p>Use all known window prefixes to close all image windows that are created by this script.</p>" +
+      closeAllPrefixButton.toolTip = "<p>Close all windows that are created by this script using <b>all known prefixes</b> (which can be empty prefix).</p>" +
                                      "<p>Prefixes used to close windows are default empty prefix, prefix in the Window Prefix box and all saved window prefixes. " +
                                      "All saved prefix information is cleared after this operation.</p>" +
                                      "<p>To close windows with current prefix use Close all button.</p>" +
@@ -9971,6 +9971,7 @@ function AutoIntegrateEngine(auto_continue)
       } else if (preprocessed_images == start_images.FINAL) {
             // We have a final image, just run run possible extra processing steps
             LRGB_ABE_HT_id = final_win.mainView.id;
+            updatePreviewId(LRGB_ABE_HT_id);
       } else if (!par.image_weight_testing.val 
                  && !par.integrate_only.val 
                  && !par.cropinfo_only.val 
@@ -10034,6 +10035,7 @@ function AutoIntegrateEngine(auto_continue)
             if (par.monochrome_image.val) {
                   console.writeln("monochrome image, rename windows")
                   LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
+                  updatePreviewId(LRGB_ABE_HT_id);
 
             } else if (!par.channelcombination_only.val) {
 
@@ -10135,6 +10137,7 @@ function AutoIntegrateEngine(auto_continue)
                         /* Color or narrowband or RGB files */
                         LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
                   }
+                  updatePreviewId(LRGB_ABE_HT_id);
             }
             if (stars_id != null) {
                   console.writeln("Stars image is " + stars_id);
@@ -10192,7 +10195,6 @@ function AutoIntegrateEngine(auto_continue)
       }
       if (preprocessed_images < start_images.FINAL && LRGB_ABE_HT_id != null) {
             console.writeln("Save final image");
-            updatePreviewId(LRGB_ABE_HT_id);
             // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
             setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
             // We have generated final image, save it
@@ -14434,9 +14436,9 @@ function AutoIntegrateDialog()
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
-      this.closeAllButton.text = "Close all";
+      this.closeAllButton.text = "Close prefix";
       this.closeAllButton.icon = this.scaledResource( ":/icons/window-close.png" );
-      this.closeAllButton.toolTip = "<p>Close all image windows created by this script</p>" +
+      this.closeAllButton.toolTip = "<p>Close all windows that are created by this script using the <b>current prefix</b> (including empty prefix).</p>" +
                                     "<p>If Window Prefix is used then all windows with that prefix are closed. " +
                                     "To close all windows with all prefixes use button Close all prefixes</p>";
       this.closeAllButton.onClick = function()
@@ -14466,7 +14468,7 @@ function AutoIntegrateDialog()
       closeAllPrefixButton = new PushButton( this );
       closeAllPrefixButton.text = "Close all prefixes";
       closeAllPrefixButton.icon = this.scaledResource( ":/icons/window-close-all.png" );
-      closeAllPrefixButton.toolTip = "Updated in function setWindowPrefixHelpTip";
+      closeAllPrefixButton.toolTip = "!!! See setWindowPrefixHelpTip !!!";
       closeAllPrefixButton.onClick = function()
       {
             console.writeln("Close all prefixes");
