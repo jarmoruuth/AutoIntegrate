@@ -299,20 +299,22 @@ var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
 // GUI variables
 var infoLabel;
 var imageInfoLabel;
-var statusInfoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox;     // For updating prefix name list
 var outputDirEdit;            // For updating output root directory
 var previewControl;           // For updating preview window
 var previewInfoLabel;         // For updating preview info text
+var statusInfoLabel;          // For update processing status
+var previewControl2;          // For updating preview window
+var previewInfoLabel2;        // For updating preview info text
+var statusInfoLabel2;         // For update processing status
 var mainTabBox;               // For switching to preview tab
 
-var preview_as_tab = true;
 var use_preview = true;
 var is_some_preview = false;
-var preview_visible = true;
 var is_processing = false;
+var preview_size_changed = false;
 
 /*
       Parameters that can be adjusted in the GUI
@@ -528,9 +530,9 @@ var ppar = {
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
-      preview_as_tab: true,   // Show image preview as a separate tab
-      preview_width: 600,     // Preview width
-      preview_height: 600,    // preview height
+      side_preview_visible: false,   // Show image preview on the side of the dialog too
+      preview_width: 512,     // Preview width
+      preview_height: 512,    // preview height
       use_single_column: false // show all options in a single column
 };
 
@@ -960,8 +962,7 @@ function savePersistentSettings()
             Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
       }
       Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
-      Settings.write (SETTINGSKEY + "/previewTab", DataType_Boolean, ppar.preview_as_tab);
-      Settings.write (SETTINGSKEY + "/previewVisible", DataType_Boolean, preview_visible);
+      Settings.write (SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean, ppar.side_preview_visible);
       Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
       Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
       Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
@@ -9293,7 +9294,7 @@ function extraProcessingEngine()
       processing_steps = "";
 
       console.noteln("Start extra processing...");
-      if (preview_as_tab) {
+      if (use_preview && !ppar.side_preview_visible) {
             mainTabBox.currentPageIndex = 1;
       }
       updatePreviewId(extra_target_image);
@@ -9908,7 +9909,7 @@ function AutoIntegrateEngine(auto_continue)
       is_luminance_images = false;
       var stars_id = null;
 
-      if (preview_as_tab) {
+      if (use_preview && !ppar.side_preview_visible) {
             mainTabBox.currentPageIndex = 1;
       }
 
@@ -10855,16 +10856,33 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
+function updatePreviewImageBmp(previewControl, bmp)
+{
+      if (is_some_preview && !is_processing) {
+            previewControl.UpdateImage(bmp);
+      } else {
+            previewControl.SetImage(bmp);
+      }
+}
+
+function updatePreviewTxt(txt)
+{
+      previewInfoLabel.text = "<b>Preview</b> " + txt;
+      previewInfoLabel2.text = previewInfoLabel.text;
+}
+
 function updatePreviewWinTxt(imgWin, txt)
 {
       if (use_preview && imgWin != null) {
-            previewControl.setSize(ppar.preview_width, ppar.preview_height);
-            if (is_some_preview && !is_processing) {
-	            previewControl.UpdateImage(getWindowBitmap(imgWin));
-            } else {
-	            previewControl.SetImage(getWindowBitmap(imgWin));
+            if (preview_size_changed) {
+                  previewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  previewControl2.setSize(ppar.preview_width, ppar.preview_height);
+                  preview_size_changed = false;
             }
-            previewInfoLabel.text = "<b>Preview</b> " + txt;
+            var bmp = getWindowBitmap(imgWin);
+            updatePreviewImageBmp(previewControl, bmp);
+            updatePreviewImageBmp(previewControl2, bmp);
+            updatePreviewTxt(txt);
             is_some_preview = true;
       }
 }
@@ -11691,6 +11709,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.exptime = filterFiles[j].exptime;
                         if (use_preview && (!is_some_preview || (is_first_file && pageIndex == pages.LIGHTS))) {
                               updatePreviewFilename(node.filename, true);
+                              updateStatusInfoLabel("");
                               is_first_file = false;
                         }
                   }
@@ -11994,6 +12013,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         // Note: Files are added by routine addFilteredFilesToTreeBox
                         if (!use_preview) {
                               console.hide();
+                        } else {
+                              updatePreviewTxt("Processing...");
                         }
                         var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
                         if (imageWindows == null || imageWindows.length != 1) {
@@ -12021,10 +12042,11 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               var exptimetxt = "";
                         }
-                        updateImageInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
-                                             ssweighttxt + exptimetxt);
+                        var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
+                                             ssweighttxt + exptimetxt;
                         runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
                         if (!use_preview) {
+                              updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
                                     blinkWindowZoomedUpdate(imageWindow, 0, 0);
                               }
@@ -12035,8 +12057,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               blink_window = imageWindow;
                         } else {
                               updatePreviewWin(imageWindow);
+                              updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
-                              if (preview_as_tab) {
+                              if (use_preview && !ppar.side_preview_visible) {
                                     mainTabBox.currentPageIndex = 1;
                               }
                         }
@@ -12097,10 +12120,13 @@ function updateInfoLabel(parent)
 
 function updateStatusInfoLabel(txt)
 {
-      if (txt.length > 50) {
+      if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
       statusInfoLabel.text = txt;
+      if (use_preview) {
+            statusInfoLabel2.text = txt;
+      }
 }
 
 function updateImageInfoLabel(txt)
@@ -12494,27 +12520,37 @@ function PreviewControl(parent, size_x, size_y)
 
       this.SetImage = function(image)
       {
+            //console.writeln("SetImage");
             this.image = image;
             this.metadata = image;
             this.scaledImage = null;
             this.SetZoomOutLimit();
             this.UpdateZoom(-100);
-            //this.stf_Button.visible = true;
       }
 
       this.UpdateImage = function(image)
       {
-            this.image = image;
-            this.metadata = image;
-            this.scaledImage = null;
-            this.SetZoomOutLimit();
-            this.UpdateZoom(this.zoom);
-            //this.stf_Button.visible = true;
+            //console.writeln("UpdateImage");
+            if (this.zoom == this.zoomOutLimit) {
+                  this.SetImage(image);
+            } else {
+                  this.image = image;
+                  this.metadata = image;
+                  this.scaledImage = null;
+                  this.SetZoomOutLimit();
+                  this.UpdateZoom(this.zoom);
+            }
       }
 
       this.UpdateZoom = function (newZoom, refPoint)
       {
-            newZoom = Math.max(this.zoomOutLimit, Math.min(2, newZoom));
+            //console.writeln("UpdateZoom newZoom ", newZoom);
+            if (newZoom < this.zoomOutLimit) {
+                  newZoom = this.zoomOutLimit;
+            } else if (newZoom >= 1) {
+                  newZoom = 1;
+            }
+            //console.writeln("UpdateZoom new newZoom ", newZoom);
             if (newZoom == this.zoom && this.scaledImage)
                   return;
 
@@ -12528,22 +12564,22 @@ function PreviewControl(parent, size_x, size_y)
                   imgy=(refPoint.y+this.scrollbox.verticalScrollPosition)/this.scale;
 
             this.zoom = newZoom;
+            this.scale = this.zoom;
             this.scaledImage = null;
-            //gc(true);
-            if (this.zoom > 0)
-            {
-                  this.scale = this.zoom;
-                  this.zoomVal_Label.text = format("%d:1", this.zoom);
+            if (this.zoom >= 1) {
+                  this.zoomVal_Label.text = "1:1";
+            } else {
+                  this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
             }
-            else
-            {
-                  this.scale = 1 / (-this.zoom + 2);
-                  this.zoomVal_Label.text = format("1:%d", -this.zoom + 2);
-            }
-            if (this.image)
-                  this.scaledImage = this.image.scaled(this.scale);
-            else
+            if (this.image) {
+                  if (this.zoom > this.zoomOutLimit) {
+                        this.scaledImage = this.image.scaled(this.scale);
+                  } else {
+                        this.scaledImage = this.image.scaled(0.98 * this.scale);
+                  }
+            } else {
                   this.scaledImage = {width:this.metadata.width * this.scale, height:this.metadata.height * this.scale};
+            }
             this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledImage.width - this.scrollbox.viewport.width);
             this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledImage.height - this.scrollbox.viewport.height);
 
@@ -12561,7 +12597,7 @@ function PreviewControl(parent, size_x, size_y)
       this.zoomIn_Button.toolTip = "Zoom in";
       this.zoomIn_Button.onMousePress = function()
       {
-            this.parent.UpdateZoom(this.parent.zoom+1);
+            this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
       };
 
       this.zoomOut_Button = new ToolButton( this );
@@ -12570,7 +12606,7 @@ function PreviewControl(parent, size_x, size_y)
       this.zoomOut_Button.toolTip = "Zoom out";
       this.zoomOut_Button.onMousePress = function()
       {
-            this.parent.UpdateZoom(this.parent.zoom-1);
+            this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
       };
 
 
@@ -12592,30 +12628,16 @@ function PreviewControl(parent, size_x, size_y)
             this.parent.UpdateZoom(-100);
       };
 
-/*
-      * this.stf_Button =  new ToolButton( this );
-      this.stf_Button.text = "STF";
-      this.stf_Button.visible = false;
-      this.stf_Button.toolTip = "ScreenTransferFunction";
-      this.stf_Button.onMousePress = function()
-      {
-            var preview = this.parent;
-            preview.onCustomSTF.call(this);
-      }
-*/
-
       this.buttons_Sizer = new HorizontalSizer;
       this.buttons_Sizer.add( this.zoomIn_Button );
       this.buttons_Sizer.add( this.zoomOut_Button );
       this.buttons_Sizer.add( this.zoom11_Button );
       this.buttons_Sizer.add( this.zoomFit_Button );
       this.buttons_Sizer.addStretch();
-      //this.buttons_Sizer.add( this.stf_Button );
 
-      this.setScaledMinSize(size_x, size_y);
       this.zoom = 1;
       this.scale = 1;
-      this.zoomOutLimit = -5;
+      this.zoomOutLimit = -100;
       this.scrollbox = new ScrollBox(this);
       this.scrollbox.autoScroll = true;
       this.scrollbox.tracking = true;
@@ -12626,10 +12648,11 @@ function PreviewControl(parent, size_x, size_y)
 
       this.SetZoomOutLimit = function()
       {
-            var scaleX = Math.ceil(this.metadata.width/this.scrollbox.viewport.width);
-            var scaleY = Math.ceil(this.metadata.height/this.scrollbox.viewport.height);
-            var scale = Math.max(scaleX,scaleY);
-            this.zoomOutLimit = -scale+2;
+            var scaleX = this.scrollbox.viewport.width/this.metadata.width;
+            var scaleY = this.scrollbox.viewport.height/this.metadata.height;
+            var scale = Math.min(scaleX,scaleY);
+            this.zoomOutLimit = scale;
+            //console.writeln("scale ", scale, ", this.zoomOutLimit ", this.zoomOutLimit);
       }
 
       this.scrollbox.onHorizontalScrollPosUpdated = function (newPos)
@@ -12648,13 +12671,15 @@ function PreviewControl(parent, size_x, size_y)
 
       this.setSize = function(w, h)
       {
-            this.setMinSize(w, h);
+            this.setScaledMinSize(w, h);
+            this.width = w;
+            this.heigth = h;
       }
 
       this.scrollbox.viewport.onMouseWheel = function (x, y, delta, buttonState, modifiers)
       {
             var preview = this.parent.parent;
-            preview.UpdateZoom(preview.zoom + (delta > 0 ? -1 : 1), new Point(x,y));
+            preview.UpdateZoom(preview.zoom + (delta > 0 ? preview.zoomOutLimit : -preview.zoomOutLimit), new Point(x,y));
       }
 
       this.scrollbox.viewport.onMousePress = function ( x, y, button, buttonState, modifiers )
@@ -12671,8 +12696,8 @@ function PreviewControl(parent, size_x, size_y)
       {
             var preview = this.parent.parent;
             var p =  preview.transform(x, y, preview);
-            preview.Xval_Label.text = p.x.toString();
-            preview.Yval_Label.text = p.y.toString();
+            preview.Xval_Label.text = Math.floor(p.x).toString();
+            preview.Yval_Label.text = Math.floor(p.y).toString();
 
             if(preview.onCustomMouseMove)
             {
@@ -12786,9 +12811,74 @@ function PreviewControl(parent, size_x, size_y)
       this.sizer.add(this.buttons_Sizer);
       this.sizer.add(this.scroll_Sizer);
       this.sizer.add(this.coords_Frame);
+
+      this.setScaledMinSize(6, 6);
+
+      var width_overhead = this.scrollbox.viewport.width;
+      var heigth_overhead = this.scrollbox.viewport.height;
+
+      this.setScaledMinSize(size_x + width_overhead + 6, size_y + heigth_overhead + 6);
 }
 
 PreviewControl.prototype = new Frame;
+
+function newPreviewObj(parent)
+{
+      var previewControl = new PreviewControl(parent, ppar.preview_width, ppar.preview_height);
+
+      var previewImageSizer = new Sizer();
+      previewImageSizer.add(previewControl);
+
+      var previewInfoLabel = new Label( parent );
+      previewInfoLabel.text = "<b>Preview</b> No preview";
+      previewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      previewInfoLabel.useRichText = true;
+
+      var statusInfoLabel = new Label( parent );
+      statusInfoLabel.text = "";
+      statusInfoLabel.textAlignment = TextAlign_VertCenter;
+
+      var previewSizer = new VerticalSizer;
+      previewSizer.margin = 6;
+      previewSizer.spacing = 10;
+      previewSizer.add(previewInfoLabel);
+      previewSizer.add(statusInfoLabel);
+      previewSizer.add(previewImageSizer);
+
+      var bitmap = new Bitmap(ppar.preview_width - ppar.preview_width/10, ppar.preview_height - ppar.preview_height/10);
+      bitmap.fill(0xff808080);
+
+      var graphics = new Graphics(bitmap);
+      graphics.transparentBackground = true;
+
+      graphics.pen = new Pen(0xff000000, 4);
+      graphics.font.bold = true;
+      var txt = autointegrate_version;
+      var txtLen = graphics.font.width(txt);
+      graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
+
+      graphics.end();
+      
+      var startupWindow = new ImageWindow(
+                              bitmap.width,
+                              bitmap.height,
+                              1,
+                              32,
+                              true,
+                              false,
+                              "AutoIntegrate_startup_preview");
+
+      startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      startupWindow.mainView.image.blend(bitmap);
+      startupWindow.mainView.endProcess();
+
+      previewControl.UpdateImage(getWindowBitmap(startupWindow));
+
+      startupWindow.forceClose();
+
+      return { control: previewControl, infolabel: previewInfoLabel, 
+               statuslabel: statusInfoLabel, sizer: previewSizer };
+}
 
 function mainSizerTab(parent, sizer)
 {
@@ -12809,23 +12899,32 @@ function exitFromDialog()
       updateImageInfoLabel("");
 }
 
-function togglePreview()
+function updateSidePreviewState()
+{
+      if (!use_preview) {
+            return;
+      }
+      if (ppar.side_preview_visible) {
+            previewInfoLabel2.show();
+            statusInfoLabel2.show();
+            previewControl2.show();
+            ppar.side_preview_visible = true;
+      } else {      
+            previewInfoLabel2.hide();
+            statusInfoLabel2.hide();
+            previewControl2.hide();
+            ppar.side_preview_visible = false;
+      }
+}
+
+function toggleSidePreview()
 {
       if (!use_preview) {
             return;
       }
 
-      if (preview_visible) {
-            previewInfoLabel.hide();
-            statusInfoLabel.hide();
-            previewControl.hide();
-            preview_visible = false;
-      } else {
-            previewInfoLabel.show();
-            statusInfoLabel.show();
-            previewControl.show();
-            preview_visible = true;
-      }
+      ppar.side_preview_visible = !ppar.side_preview_visible;
+      updateSidePreviewState();
 }
 
 function AutoIntegrateDialog()
@@ -13066,6 +13165,7 @@ function AutoIntegrateDialog()
             "<p>Start the script with empty window prefix</p>" );
       this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column, 
             "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
+            "<p>When this option is enabled the control for icon column is in the Interface settings section.</p>" +
             "<p>This setting is effective only after restart of the script.</p>" );
 
       // Image parameters set 1.
@@ -14591,38 +14691,25 @@ function AutoIntegrateDialog()
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_preview = checked; });
-      this.preview_tab_CheckBox = newGenericCheckBox(this, "Preview tab", ppar.preview_as_tab, 
-            "Show image preview as a separate tab in the dialog. You need to restart the script before this setting is effective.",
-            function(checked) { ppar.preview_as_tab = checked; });
-      this.previewCol1Sizer = new HorizontalSizer;
-      this.previewCol1Sizer.margin = 6;
-      this.previewCol1Sizer.spacing = 4;
-      this.previewCol1Sizer.add( this.show_preview_CheckBox );
-      this.previewCol1Sizer.add( this.preview_tab_CheckBox );
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_single_column = checked; });
-      this.previewCol2Sizer = new HorizontalSizer;
-      this.previewCol2Sizer.margin = 6;
-      this.previewCol2Sizer.spacing = 4;
-      this.previewCol2Sizer.add( this.use_single_column_CheckBox );
-      
-      this.preview1Sizer = new VerticalSizer;
+
+      this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
-      this.preview1Sizer.add( this.previewCol1Sizer );
-      this.preview1Sizer.add( this.previewCol2Sizer );
-      this.preview1Sizer.addStretch();
+      this.preview1Sizer.add( this.show_preview_CheckBox );
+      this.preview1Sizer.add( this.use_single_column_CheckBox );
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
       this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
             "Preview image width.",
-            function(value) { ppar.preview_width = value; });
+            function(value) { ppar.preview_width = value; preview_size_changed = true; });
       this.preview_height_label = newLabel(this, 'Preview height', "Preview image height.");
       this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
             "Preview image height.",
-            function(value) { ppar.preview_height = value; });
+            function(value) { ppar.preview_height = value; preview_size_changed = true; });
 
       this.preview2Sizer = new HorizontalSizer;
       this.preview2Sizer.margin = 6;
@@ -14654,10 +14741,6 @@ function AutoIntegrateDialog()
       this.interfaceSizer = new HorizontalSizer;
       this.interfaceSizer.margin = 6;
       this.interfaceSizer.spacing = 4;
-      if (par.use_manual_icon_column.val) {
-            this.interfaceSizer.add( this.columnCountControlLabel );
-            this.interfaceSizer.add( this.columnCountControlComboBox );
-      }
       this.interfaceSizer.add( this.processConsole_label );
       this.interfaceSizer.add( this.showProcessConsoleButton );
       this.interfaceSizer.add( this.hideProcessConsoleButton );
@@ -14784,11 +14867,6 @@ function AutoIntegrateDialog()
       this.imageInfoLabel.textAlignment = TextAlign_VertCenter;
       imageInfoLabel = this.imageInfoLabel;
 
-      this.statusInfoLabel = new Label( this );
-      this.statusInfoLabel.text = "";
-      this.statusInfoLabel.textAlignment = TextAlign_VertCenter;
-      statusInfoLabel = this.statusInfoLabel;
-
       this.info1_Sizer = new HorizontalSizer;
       this.info1_Sizer.spacing = 6;
       this.info1_Sizer.add( this.infoLabel );
@@ -14797,6 +14875,11 @@ function AutoIntegrateDialog()
       this.info1_Sizer.addStretch();
 
       if (!use_preview) {
+            this.statusInfoLabel = new Label( this );
+            this.statusInfoLabel.text = "";
+            this.statusInfoLabel.textAlignment = TextAlign_VertCenter;
+            statusInfoLabel = this.statusInfoLabel;
+
             this.info2_Sizer = new HorizontalSizer;
             this.info2_Sizer.spacing = 6;
             this.info2_Sizer.add( this.statusInfoLabel );
@@ -14885,13 +14968,13 @@ function AutoIntegrateDialog()
       newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
-      if (use_preview && !preview_as_tab) {
+      if (use_preview) {
             this.previewToggleButton = new PushButton( this );
             this.previewToggleButton.text = "Toggle preview";
-            this.previewToggleButton.toolTip = "Show/hide image preview window.";
+            this.previewToggleButton.toolTip = "Show/hide image preview on the side of the dialog.";
             this.previewToggleButton.onClick = function() {
-                  togglePreview();
-                  this.adjustToContents();
+                  toggleSidePreview();
+                  //this.adjustToContents();
             }
             this.previewToggleButtonSizer = new HorizontalSizer;
             this.previewToggleButtonSizer.margin = 6;
@@ -14903,7 +14986,7 @@ function AutoIntegrateDialog()
       if (!ppar.use_single_column) {
             this.rightGroupBox.sizer.addStretch();
       }
-      if (use_preview && !preview_as_tab) {
+      if (use_preview) {
             this.rightGroupBox.sizer.add(this.previewToggleButtonSizer);
       }
       if (ppar.use_single_column) {
@@ -14921,60 +15004,25 @@ function AutoIntegrateDialog()
       if (use_preview) {
             /* Preview.
              */
-            previewControl = new PreviewControl(this, ppar.preview_width, ppar.preview_height);
+            this.preview_obj = newPreviewObj(this);
 
-            this.previewImageSizer = new Sizer();
-            this.previewImageSizer.add(previewControl);
+            previewControl = this.preview_obj.control;
+            previewInfoLabel = this.preview_obj.infolabel;
+            statusInfoLabel = this.preview_obj.statuslabel;
 
-            this.previewInfoLabel = new Label( this );
-            this.previewInfoLabel.text = "<b>Preview</b>";
-            this.previewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.previewInfoLabel.useRichText = true;
-            previewInfoLabel = this.previewInfoLabel;
-      
-            this.previewSizer = new VerticalSizer;
-            this.previewSizer.margin = 6;
-            this.previewSizer.spacing = 10;
-            this.previewSizer.add(this.previewInfoLabel);
-            this.previewSizer.add(this.statusInfoLabel);
-            this.previewSizer.add(this.previewImageSizer);
+            this.preview2_obj = newPreviewObj(this);
 
-            var bitmap = new Bitmap(ppar.preview_width-20, ppar.preview_height-20);
-            bitmap.fill(0xff808080);
+            previewControl2 = this.preview2_obj.control;
+            previewInfoLabel2 = this.preview2_obj.infolabel;
+            statusInfoLabel2 = this.preview2_obj.statuslabel;
 
-            var graphics = new Graphics(bitmap);
-            graphics.transparentBackground = true;
-
-            graphics.pen = new Pen(0xff000000, 4);
-            graphics.font.bold = true;
-            var txt = autointegrate_version;
-            var txtLen = graphics.font.width(txt);
-            graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
-
-            graphics.end();
-            
-            var startupWindow = new ImageWindow(
-                                    bitmap.width,
-                                    bitmap.height,
-                                    1,
-                                    32,
-                                    true,
-                                    false,
-                                    "AutoIntegrate_startup_preview");
-
-            startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-            startupWindow.mainView.image.blend(bitmap);
-            startupWindow.mainView.endProcess();
-
-            updatePreviewWinTxt(startupWindow, "No preview");
-            startupWindow.forceClose();
-            is_some_preview = false;
+            updateSidePreviewState();
       }
       /* Main dialog.
        */
       this.dialogSizer = new VerticalSizer;
       //this.dialogSizer.add( this.tabBox, 300 );
-      if (!preview_as_tab) {
+      if (!use_preview) {
             this.dialogSizer.add( this.tabBox);
             this.dialogSizer.add( this.filesButtonsSizer);
       }
@@ -14991,18 +15039,16 @@ function AutoIntegrateDialog()
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
 
-      if (preview_as_tab) {
+      if (use_preview) {
             this.mainTabBox = new TabBox( this );
             mainTabBox = this.mainTabBox;
 
             this.mainTabBox.addPage( new mainSizerTab(this, this.dialogSizer), "Settings" );
-            this.mainTabBox.addPage( new mainSizerTab(this, this.previewSizer), "Preview" );
+            this.mainTabBox.addPage( new mainSizerTab(this, this.preview_obj.sizer), "Preview" );
 
+            this.mainSizer.add( this.preview2_obj.sizer);
             this.mainSizer.add( this.mainTabBox );
       } else {
-            if (use_preview) {
-                  this.mainSizer.add( this.previewSizer );
-            }
             this.mainSizer.add( this.dialogSizer );
       }
       //this.mainSizer.addStretch();
@@ -15010,7 +15056,7 @@ function AutoIntegrateDialog()
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
-      if (preview_as_tab) {
+      if (use_preview) {
             this.sizer.add( this.tabBox);
             this.sizer.add( this.filesButtonsSizer);
       }
@@ -15102,19 +15148,10 @@ function main()
                         ppar.use_preview = tempSetting;
                         use_preview = tempSetting;
                   }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/previewTab", DataType_Boolean);
+                  var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
                   if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored previewTab '" + tempSetting + "' from settings.");
-                        ppar.preview_as_tab = tempSetting;
-                        preview_as_tab = tempSetting;
-                  }
-                  if (!use_preview) {
-                        preview_as_tab = false;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/previewVisible", DataType_Boolean);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored previewVisible '" + tempSetting + "' from settings.");
-                        preview_visible = tempSetting;
+                        console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
+                        ppar.side_preview_visible = tempSetting;
                   }
                   var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
                   if (Settings.lastReadOK) {
