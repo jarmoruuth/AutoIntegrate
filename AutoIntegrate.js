@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test9";
+var autointegrate_version = "AutoIntegrate v1.47 test10";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -531,8 +531,8 @@ var ppar = {
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
       side_preview_visible: false,   // Show image preview on the side of the dialog too
-      preview_width: 512,     // Preview width
-      preview_height: 512,    // preview height
+      preview_width: 400,     // Preview width
+      preview_height: 400,    // preview height
       use_single_column: false // show all options in a single column
 };
 
