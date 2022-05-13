@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test10";
+var autointegrate_version = "AutoIntegrate v1.47 test11";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -967,6 +967,83 @@ function savePersistentSettings()
       Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
       Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
       setWindowPrefixHelpTip(ppar.win_prefix);
+      console.noteln("Saved persistent settings");
+}
+
+function readPersistentSettings()
+{
+      // Read prefix info. We use new setting names to avoid conflict with
+      // older columnCount/winPrefix names
+      console.noteln("Read window prefix settings");
+      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
+            ppar.win_prefix = tempSetting;
+      }
+      if (par.start_with_empty_window_prefix.val) {
+            ppar.win_prefix = '';
+      }
+      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
+            ppar.prefixArray = JSON.parse(tempSetting);
+            if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
+                  // We have old format prefix array without column position
+                  // Add column position as the first array element
+                  console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
+                  for (var i = 0; i < ppar.prefixArray.length; i++) {
+                        if (ppar.prefixArray[i] == null) {
+                              ppar.prefixArray[i] = [0, '-', 0];
+                        } else if (ppar.prefixArray[i][0] == '-') {
+                              // add zero column position
+                              ppar.prefixArray[i].unshift(0);
+                        } else {
+                              // Used slot, add i as column position
+                              ppar.prefixArray[i].unshift(i);
+                        }
+                  }
+            }
+            fix_win_prefix_array();
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
+            ppar.userColumnCount = tempSetting;
+      }
+      if (!par.use_manual_icon_column.val) {
+            ppar.userColumnCount = -1;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            ppar.lastDir = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
+            ppar.use_preview = tempSetting;
+            use_preview = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
+            ppar.side_preview_visible = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
+            ppar.preview_width = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
+            ppar.preview_height = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
+            ppar.use_single_column = tempSetting;
+      }
 }
 
 function fixWindowArray(arr, prev_prefix, cur_prefix)
@@ -14688,6 +14765,17 @@ function AutoIntegrateDialog()
 
       /* Interface.
        */
+
+      this.saveInterfaceButton = new PushButton( this );
+      this.saveInterfaceButton.text = "Save";
+      this.saveInterfaceButton.toolTip = 
+            "<p>Save current interface settings.</p>" +
+            "<p>Settings are saved by default when exiting the script. This button can be used " +
+            "to save settings without exiting. It can be useful if the Exit button is not visible.</p>";
+      this.saveInterfaceButton.onClick = function() {
+            savePersistentSettings();
+      };
+
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { ppar.use_preview = checked; });
@@ -14706,7 +14794,7 @@ function AutoIntegrateDialog()
       this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { ppar.preview_width = value; preview_size_changed = true; });
-      this.preview_height_label = newLabel(this, 'Preview height', "Preview image height.");
+      this.preview_height_label = newLabel(this, 'height', "Preview image height.");
       this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { ppar.preview_height = value; preview_size_changed = true; });
@@ -14719,6 +14807,7 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.preview_height_label );
       this.preview2Sizer.add( this.preview_height_edit );
       this.preview2Sizer.addStretch();
+      this.preview2Sizer.add( this.saveInterfaceButton );
 
       this.processConsole_label = newLabel(this, 'Process console', "Show or hide process console.");
 
@@ -14812,7 +14901,8 @@ function AutoIntegrateDialog()
       this.exit_Button = new PushButton( this );
       this.exit_Button.text = "Exit";
       this.exit_Button.icon = this.scaledResource( ":/icons/close.png" );
-      this.exit_Button.toolTip = "Exit the script.";
+      this.exit_Button.toolTip = "<p>Exit the script and save interface settings.</p>" + 
+                                 "<p>Note that closing the script from top right corner close icon does not save interface settings.</p>";
       this.exit_Button.onClick = function()
       {
          console.noteln("AutoIntegrate exiting");
@@ -15096,78 +15186,7 @@ function main()
             
             if (use_persistent_module_settings) {
                   // 3. Read persistent module settings that are temporary work values
-                  // Read prefix info. We use new setting names to avoid conflict with
-                  // older columnCount/winPrefix names
-                  console.noteln("Read window prefix settings");
-                  var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
-                        ppar.win_prefix = tempSetting;
-                  }
-                  if (par.start_with_empty_window_prefix.val) {
-                        ppar.win_prefix = '';
-                  }
-                  var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
-                        ppar.prefixArray = JSON.parse(tempSetting);
-                        if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
-                              // We have old format prefix array without column position
-                              // Add column position as the first array element
-                              console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
-                              for (var i = 0; i < ppar.prefixArray.length; i++) {
-                                    if (ppar.prefixArray[i] == null) {
-                                          ppar.prefixArray[i] = [0, '-', 0];
-                                    } else if (ppar.prefixArray[i][0] == '-') {
-                                          // add zero column position
-                                          ppar.prefixArray[i].unshift(0);
-                                    } else {
-                                          // Used slot, add i as column position
-                                          ppar.prefixArray[i].unshift(i);
-                                    }
-                              }
-                        }
-                        fix_win_prefix_array();
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
-                        ppar.userColumnCount = tempSetting;
-                  }
-                  if (!par.use_manual_icon_column.val) {
-                        ppar.userColumnCount = -1;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-                        ppar.lastDir = tempSetting;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
-                        ppar.use_preview = tempSetting;
-                        use_preview = tempSetting;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
-                        ppar.side_preview_visible = tempSetting;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
-                        ppar.preview_width = tempSetting;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
-                        ppar.preview_height = tempSetting;
-                  }
-                  var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
-                  if (Settings.lastReadOK) {
-                        console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
-                        ppar.use_single_column = tempSetting;
-                  }
+                  readPersistentSettings();
             } else {
                   console.noteln("Skip reading persistent settings");
             }
