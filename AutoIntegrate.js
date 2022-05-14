@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test11";
+var autointegrate_version = "AutoIntegrate v1.47 test12";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -311,6 +311,7 @@ var previewInfoLabel2;        // For updating preview info text
 var statusInfoLabel2;         // For update processing status
 var mainTabBox;               // For switching to preview tab
 
+var run_exit_autocontinue_at_top = false;
 var use_preview = true;
 var is_some_preview = false;
 var is_processing = false;
@@ -471,6 +472,7 @@ var par = {
 
       // Generic Extra processing
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
+      extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
       extra_remove_stars_combine: { val: 'Add', def: 'Add', name : "Extra remove stars combine", type : 'S' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
@@ -8643,8 +8645,8 @@ function fixNarrowbandStarColor(targetWin)
 // - We make a copy of the stars image
 // - Operations like HDMT and LHE are run on the starless image
 // - Star reduction is done on the stars image
-// - In the end starless and stars images are combined together
-function extraRemoveStars(imgWin)
+// - OPtionally in the end starless and stars images are combined together
+function extraRemoveStars(imgWin, apply_directly)
 {
       addProcessingStepAndStatusInfo("Extra remove stars");
 
@@ -8692,15 +8694,26 @@ function extraRemoveStars(imgWin)
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("Stars image " + copywin.mainView.id);
 
-      /* Make a copy of the starless image.
-       */
-      console.writeln("extraRemoveStars copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
-      var copywin = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_starless"));
+      if (par.extra_combine_stars.val || apply_directly) {
+            /* Make a copy of the starless image.
+            */
+            console.writeln("extraRemoveStars copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
+            var copywin = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_starless"));
+      } else {
+            /* We do not combine images so just rename old image.
+             */
+            var copywin = imgWin;
+            copywin.mainView.id = copywin.mainView.id + "_starless";
+
+      }
       setFinalImageKeyword(copywin);
       saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("Starless image " + copywin.mainView.id);
 
       updatePreviewWin(copywin);
+
+      // return possibly new starless image for further processing
+      return copywin;
 }
 
 function extraDarkerBackground(imgWin, maskWin)
@@ -9126,6 +9139,7 @@ function is_non_starless_option()
 function is_extra_option()
 {
       return par.extra_remove_stars.val || 
+             par.extra_combine_stars ||
              is_non_starless_option();
 }
 
@@ -9200,10 +9214,35 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
       addProcessingStep("Narrowband palette batch completed");
 }
 
+function findStarImageId(starless_id)
+{
+      var stars_id = starless_id.replace("starless", "stars");
+      if (stars_id != starless_id) {
+            console.writeln("findStarImageId try " + stars_id)
+            var w = findWindow(stars_id);
+            if (w != null) {
+                  return stars_id;
+            }
+      }
+      var stars_id = starless_id + "_stars";
+      console.writeln("findStarImageId try " + stars_id)
+      w = findWindow(stars_id);
+      if (w != null) {
+            return stars_id;
+      }
+      return null;
+}
+
 function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNewImage)
 {
       /* Restore stars by combining starless image and stars. */
       addStatusInfo("Combining starless and star images using " + stars_combine);
+      if (stars_id == null) {
+            stars_id = findStarImageId(starless_id);
+      }
+      if (stars_id == null) {
+            throwFatalError("Could not find starless image for start image " + stars_id);
+      }
       addProcessingStep("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
             case 'Screen':
@@ -9279,14 +9318,14 @@ function extraProcessing(id, apply_directly)
             }
       }
       if (par.extra_remove_stars.val) {
-            extraRemoveStars(extraWin);
+            extraWin = extraRemoveStars(extraWin, apply_directly);
       }
       if (par.extra_ABE.val) {
             extraABE(extraWin);
       }
       if (need_L_mask) {
             // Try find mask window
-            // If we need to create a mask di it after we
+            // If we need to create a mask do it after we
             // have removed the stars
             mask_win = maskIsCompatible(extraWin, mask_win);
             if (mask_win == null) {
@@ -9338,15 +9377,34 @@ function extraProcessing(id, apply_directly)
             if (par.extra_star_noise_reduction.val) {
                   starReduceNoise(ImageWindow.windowById(star_mask_win_id));
             }
-            /* Restore stars by combining starless image and stars. */
-            combineStarsAndStarless(
-                  par.extra_remove_stars_combine.val,
-                  extraWin.mainView.id, 
-                  star_mask_win_id, 
-                  false);
-            // star_mask_win_id was a temp window with maybe smaller stars
-            closeOneWindow(star_mask_win_id);
       }
+      if (par.extra_combine_stars.val) {
+            /* Restore stars by combining starless image and stars. */
+            if (!apply_directly) {
+                  // Close _extra window that was created before stars were removed
+                  closeOneWindow(extra_id);
+                  var new_image_id = combineStarsAndStarless(
+                                          par.extra_remove_stars_combine.val,
+                                          extraWin.mainView.id, 
+                                          star_mask_win_id, 
+                                          true);
+                  // restore original final image name
+                  var new_name = id + "_extra"
+                  console.writeln("Rename " + new_image_id + " as " + new_name);
+                  windowRename(new_image_id, new_name);
+                  extraWin = ImageWindow.windowById(new_name);
+                  extraWin.show();
+            } else {
+                  combineStarsAndStarless(
+                        par.extra_remove_stars_combine.val,
+                        extraWin.mainView.id, 
+                        star_mask_win_id, 
+                        false);
+            }
+      }
+      extra_id = extraWin.mainView.id;
+      // star_mask_win_id was a temp window with maybe smaller stars
+      closeOneWindow(star_mask_win_id);
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
             updatePreviewWin(final_win);
@@ -11911,6 +11969,13 @@ function addFilesButtons(parent)
       filesButtons_Sizer.addStretch();
       filesButtons_Sizer.add( winprefix_sizer );
       filesButtons_Sizer.add( outputdir_sizer );
+      if (run_exit_autocontinue_at_top) {
+            filesButtons_Sizer.addSpacing( 12 );
+            filesButtons_Sizer.add( parent.autoContinueButton );
+            filesButtons_Sizer.addSpacing( 12 );
+            filesButtons_Sizer.add( parent.run_Button );
+            filesButtons_Sizer.add( parent.exit_Button );
+      }
       return filesButtons_Sizer;
 }
 
@@ -13057,6 +13122,146 @@ function AutoIntegrateDialog()
       this.helpTips.setScaledFixedSize( 20, 20 );
       this.helpTips.toolTip = mainHelpTips;
 
+      // Run, Exit and AutoContinue buttons
+      this.run_Button = new PushButton( this );
+      this.run_Button.text = "Run";
+      this.run_Button.icon = this.scaledResource( ":/icons/power.png" );
+      this.run_Button.toolTip = "Run the script.";
+      this.run_Button.onClick = function()
+      {
+            exitFromDialog();
+            if (get_process_defaults) {
+                  getProcessDefaultValues();
+                  return;
+            }     
+            updateWindowPrefix();
+            getFilesFromTreebox(this.dialog);
+            haveIconized = 0;
+            var index = findPrefixIndex(ppar.win_prefix);
+            if (index == -1) {
+                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
+            }
+            if (ppar.userColumnCount == -1) {
+                  columnCount = ppar.prefixArray[index][0];
+                  console.writeln('Using auto icon column ' + columnCount);
+            } else {
+                  columnCount = ppar.userColumnCount;
+                  console.writeln('Using user icon column ' + columnCount);
+            }
+            iconStartRow = 0;
+            write_processing_log_file = true;
+            Autorun(this);
+            if (haveIconized) {
+                  // We have iconized something so update prefix array
+                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
+                  fix_win_prefix_array();
+                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
+                        ppar.userColumnCount = columnCount + 1;
+                        this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
+                  }
+                  savePersistentSettings();
+            }
+      };
+      
+      this.exit_Button = new PushButton( this );
+      this.exit_Button.text = "Exit";
+      this.exit_Button.icon = this.scaledResource( ":/icons/close.png" );
+      this.exit_Button.toolTip = "<p>Exit the script and save interface settings.</p>" + 
+                                    "<p>Note that closing the script from top right corner close icon does not save interface settings.</p>";
+      this.exit_Button.onClick = function()
+      {
+            console.noteln("AutoIntegrate exiting");
+            exitFromDialog();
+            // save prefix setting at the end
+            savePersistentSettings();
+            this.dialog.cancel();
+      };
+
+      // Button to continue LRGB from existing files
+      this.autoContinueButton = new PushButton( this );
+      this.autoContinueButton.text = "AutoContinue";
+      this.autoContinueButton.icon = this.scaledResource( ":/icons/goto-next.png" );
+      this.autoContinueButton.toolTip = 
+            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
+            "<p>" +
+            "Image check order is:<br>" +
+            "1. L_HT + RGB_HT<br>" +
+            "2. RGB_HT<br>" +
+            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
+            "4. Integration_RGB_DBE<br>" +
+            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
+            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
+            "8. Integration_H + Integration_S + Integration_O<br>" +
+            "9. Final image (for extra processing)" +
+            "</p>" +
+            "<p>" +
+            "Not all images must be present, for example L image can be missing.<br>" +
+            "RGB = Combined image, can be RGB or HSO.<br>" +
+            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
+            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
+            "</p>";
+      this.autoContinueButton.onClick = function()
+      {
+            exitFromDialog();
+            console.writeln("autoContinue");
+
+            // Do not create subdirectory structure with AutoContinue
+
+            clearDefaultDirs();
+            getFilesFromTreebox(this.dialog);
+            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+            haveIconized = 0;
+            write_processing_log_file = true;
+            try {
+                  updateWindowPrefix();
+                  autocontinue_narrowband = is_narrowband_option();
+                  run_auto_continue = true;
+                  if (batch_narrowband_palette_mode) {
+                        AutoIntegrateNarrowbandPaletteBatch(true);
+                  } else {
+                        var index = findPrefixIndex(ppar.win_prefix);
+                        if (index == -1) {
+                              iconStartRow = 0;
+                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
+                        } else {
+                              // With AutoContinue start icons below current
+                              // icons.
+                              iconStartRow = ppar.prefixArray[index][2];
+                        }
+                        if (ppar.userColumnCount == -1) {
+                              columnCount = ppar.prefixArray[index][0];
+                              console.writeln('Using auto icon column ' + columnCount);
+                        } else {
+                              columnCount = ppar.userColumnCount;
+                              iconStartRow = 11;
+                              console.writeln('Using user icon column ' + columnCount);
+                        }
+                        AutoIntegrateEngine(true);
+                  }
+                  autocontinue_narrowband = false;
+                  run_auto_continue = false;
+                  setDefaultDirs();
+                  if (haveIconized && !batch_narrowband_palette_mode) {
+                        // We have iconized something so update prefix array
+                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
+                        fix_win_prefix_array();
+                        //this.columnCountControlComboBox.currentItem = columnCount + 1;
+                        savePersistentSettings();
+                  }
+            }
+            catch(err) {
+                  console.criticalln(err);
+                  console.criticalln("Processing stopped!");
+                  writeProcessingSteps(null, true, null);
+                  autocontinue_narrowband = false;
+                  run_auto_continue = false;
+                  setDefaultDirs();
+                  fix_win_prefix_array();
+            }
+      };   
+
+      
       this.filesToolTip = [];
       this.filesToolTip[pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
                              "they are assumed to be already calibrated.</p>" +
@@ -14243,18 +14448,29 @@ function AutoIntegrateDialog()
       var extraRemoveStars_Tooltip = 
             "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
             "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
-            "<p>At the end of the processing a combined image is created from starless and star images. Combine operation can be " + 
+            "<p>At the end of the processing a combined image can be created from starless and star images. Combine operation can be " + 
             "selected from the combo box.</p>" +
             stars_combine_operations_Tooltip;
-      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars, combine with", par.extra_remove_stars, extraRemoveStars_Tooltip);
-      this.extraRemoveStarsCombine_ComboBox = newComboBox(this, par.extra_remove_stars_combine, starless_and_stars_combine_values, extraRemoveStars_Tooltip);
+      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars, extraRemoveStars_Tooltip);
       this.extraRemoveStars_Sizer = new HorizontalSizer;
       this.extraRemoveStars_Sizer.spacing = 4;
       this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
-      this.extraRemoveStars_Sizer.add( this.extraRemoveStarsCombine_ComboBox );
       this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
       this.extraRemoveStars_Sizer.addStretch();
-      
+
+      var extraCombineStars_Tooltip = 
+            "<p>Create a combined image from starless and star images. Combine operation can be " + 
+            "selected from the combo box.</p>" +
+            stars_combine_operations_Tooltip;
+      this.extraCombineStars_CheckBox = newCheckBox(this, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
+      this.extraCombineStars_ComboBox = newComboBox(this, par.extra_remove_stars_combine, starless_and_stars_combine_values, extraCombineStars_Tooltip);
+      this.extraCombioneStars_Sizer = new HorizontalSizer;
+      this.extraCombioneStars_Sizer.spacing = 4;
+      this.extraCombioneStars_Sizer.add( this.extraCombineStars_CheckBox);
+      this.extraCombioneStars_Sizer.add( this.extraCombineStars_ComboBox);
+      this.extraCombioneStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombioneStars_Sizer.addStretch();
+
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker.</p>" );
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
@@ -14469,6 +14685,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extra_star_noise_reduction_CheckBox );
       this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
+      this.extra2.add( this.extraCombioneStars_Sizer );
 
       this.extraLabel = newSectionLabel(this, "Generic extra processing");
 
@@ -14526,90 +14743,6 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
-
-      // Button to continue LRGB from existing files
-      this.autoContinueButton = new PushButton( this );
-      this.autoContinueButton.text = "AutoContinue";
-      this.autoContinueButton.icon = this.scaledResource( ":/icons/goto-next.png" );
-      this.autoContinueButton.toolTip = 
-            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
-            "<p>" +
-            "Image check order is:<br>" +
-            "1. L_HT + RGB_HT<br>" +
-            "2. RGB_HT<br>" +
-            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
-            "4. Integration_RGB_DBE<br>" +
-            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
-            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
-            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
-            "8. Integration_H + Integration_S + Integration_O<br>" +
-            "9. Final image (for extra processing)" +
-            "</p>" +
-            "<p>" +
-            "Not all images must be present, for example L image can be missing.<br>" +
-            "RGB = Combined image, can be RGB or HSO.<br>" +
-            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
-            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
-            "</p>";
-      this.autoContinueButton.onClick = function()
-      {
-            exitFromDialog();
-            console.writeln("autoContinue");
-
-            // Do not create subdirectory structure with AutoContinue
-
-            clearDefaultDirs();
-            getFilesFromTreebox(this.dialog);
-            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
-            haveIconized = 0;
-            write_processing_log_file = true;
-            try {
-                  updateWindowPrefix();
-                  autocontinue_narrowband = is_narrowband_option();
-                  run_auto_continue = true;
-                  if (batch_narrowband_palette_mode) {
-                        AutoIntegrateNarrowbandPaletteBatch(true);
-                  } else {
-                        var index = findPrefixIndex(ppar.win_prefix);
-                        if (index == -1) {
-                              iconStartRow = 0;
-                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
-                        } else {
-                              // With AutoContinue start icons below current
-                              // icons.
-                              iconStartRow = ppar.prefixArray[index][2];
-                        }
-                        if (ppar.userColumnCount == -1) {
-                              columnCount = ppar.prefixArray[index][0];
-                              console.writeln('Using auto icon column ' + columnCount);
-                        } else {
-                              columnCount = ppar.userColumnCount;
-                              iconStartRow = 11;
-                              console.writeln('Using user icon column ' + columnCount);
-                        }
-                        AutoIntegrateEngine(true);
-                  }
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
-                  if (haveIconized && !batch_narrowband_palette_mode) {
-                        // We have iconized something so update prefix array
-                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
-                        fix_win_prefix_array();
-                        //this.columnCountControlComboBox.currentItem = columnCount + 1;
-                        savePersistentSettings();
-                  }
-            }
-            catch(err) {
-                  console.criticalln(err);
-                  console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true, null);
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
-                  fix_win_prefix_array();
-            }
-      };   
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
@@ -14857,61 +14990,6 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = false;
 
-      // Run and Exit buttons
-      this.run_Button = new PushButton( this );
-      this.run_Button.text = "Run";
-      this.run_Button.icon = this.scaledResource( ":/icons/power.png" );
-      this.run_Button.toolTip = "Run the script.";
-      this.run_Button.onClick = function()
-      {
-            exitFromDialog();
-            if (get_process_defaults) {
-                  getProcessDefaultValues();
-                  return;
-            }     
-            updateWindowPrefix();
-            getFilesFromTreebox(this.dialog);
-            haveIconized = 0;
-            var index = findPrefixIndex(ppar.win_prefix);
-            if (index == -1) {
-                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
-            }
-            if (ppar.userColumnCount == -1) {
-                  columnCount = ppar.prefixArray[index][0];
-                  console.writeln('Using auto icon column ' + columnCount);
-            } else {
-                  columnCount = ppar.userColumnCount;
-                  console.writeln('Using user icon column ' + columnCount);
-            }
-            iconStartRow = 0;
-            write_processing_log_file = true;
-            Autorun(this);
-            if (haveIconized) {
-                  // We have iconized something so update prefix array
-                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
-                  fix_win_prefix_array();
-                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
-                        ppar.userColumnCount = columnCount + 1;
-                        this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
-                  }
-                  savePersistentSettings();
-            }
-      };
-   
-      this.exit_Button = new PushButton( this );
-      this.exit_Button.text = "Exit";
-      this.exit_Button.icon = this.scaledResource( ":/icons/close.png" );
-      this.exit_Button.toolTip = "<p>Exit the script and save interface settings.</p>" + 
-                                 "<p>Note that closing the script from top right corner close icon does not save interface settings.</p>";
-      this.exit_Button.onClick = function()
-      {
-         console.noteln("AutoIntegrate exiting");
-         exitFromDialog();
-         // save prefix setting at the end
-         savePersistentSettings();
-         this.dialog.cancel();
-      };
-   
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
       this.newInstance_Button.toolTip = "New Instance";
@@ -14993,10 +15071,12 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( closeAllPrefixButton );
-      this.buttons_Sizer.add( this.autoContinueButton );
-      this.buttons_Sizer.addSpacing( 12 );
-      this.buttons_Sizer.add( this.run_Button );
-      this.buttons_Sizer.add( this.exit_Button );
+      if (!run_exit_autocontinue_at_top) {
+            this.buttons_Sizer.add( this.autoContinueButton );
+            this.buttons_Sizer.addSpacing( 12 );
+            this.buttons_Sizer.add( this.run_Button );
+            this.buttons_Sizer.add( this.exit_Button );
+      }
       this.buttons_Sizer.add( this.helpTips );
 
       this.ProcessingControl1 = new Control( this );
