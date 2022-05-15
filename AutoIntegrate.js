@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test12";
+var autointegrate_version = "AutoIntegrate v1.47 test13";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -316,6 +316,10 @@ var use_preview = true;
 var is_some_preview = false;
 var is_processing = false;
 var preview_size_changed = false;
+
+var undo_images = [];
+var undo_images_pos = -1;
+var undo_images_saved_pos = -1;
 
 /*
       Parameters that can be adjusted in the GUI
@@ -498,6 +502,7 @@ var par = {
       extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
+      extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
 
       // Calibration settings
       debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
@@ -612,6 +617,7 @@ var O_images;
 var C_images;
 
 var extra_target_image = null;
+var extra_target_image_window_list = null;
 
 var processing_steps = "";
 var all_windows = [];
@@ -9179,7 +9185,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 }
 
 // Run through all narrowband palette options
-function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
+function AutoIntegrateNarrowbandPaletteBatch(parent, auto_continue)
 {
       console.writeln("AutoIntegrateNarrowbandPaletteBatch");
       for (var i = 0; i < narrowBandPalettes.length; i++) {
@@ -9194,7 +9200,7 @@ function AutoIntegrateNarrowbandPaletteBatch(auto_continue)
                   addStatusInfo("Narrowband palette " + narrowBandPalettes[i].name + " batch");
                   addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
-                  var succ = AutoIntegrateEngine(auto_continue);
+                  var succ = AutoIntegrateEngine(parent, auto_continue);
                   if (!succ) {
                         addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
@@ -9415,6 +9421,180 @@ function extraProcessing(id, apply_directly)
             setFinalImageKeyword(final_win);
             saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
       }
+}
+
+function update_undo_buttons(parent)
+{
+      parent.extraUndoButton.enabled = undo_images.length > 0 && undo_images_pos > 0;
+      parent.extraRedoButton.enabled = undo_images.length > 0 && undo_images_pos < undo_images.length - 1;
+      parent.extraSaveButton.enabled = undo_images.length > 0;
+}
+
+function copy_undo_edit_image(id)
+{
+      var copy_id = id + "_edit";
+      var copy_win = copyWindowEx(ImageWindow.windowById(id), copy_id, true);
+      console.writeln("Copy image " + copy_win.mainView.id);
+      return copy_win.mainView.id;
+}
+
+function create_undo_image(id)
+{
+      var undo_id = id + "_undo_tmp";
+      var undo_win = copyWindowEx(ImageWindow.windowById(id), undo_id, true);
+      console.writeln("Create undo image " + undo_win.mainView.id);
+      return undo_win.mainView.id;
+}
+
+function remove_undo_image(id)
+{
+      console.writeln("Remove undo image " + id);
+      closeOneWindow(id);
+}
+
+function add_undo_image(parent, original_id, undo_id)
+{
+      console.writeln("add_undo_image");
+      while (undo_images.length > undo_images_pos + 1) {
+            var removed = undo_images.pop();
+            console.writeln("Remove undo image " + removed);
+            closeOneWindow(removed);
+      }
+      undo_images_pos++;
+      undo_images_saved_pos = undo_images_pos;
+      console.writeln("undo_images_pos " + undo_images_pos);
+      var new_undo_id = original_id + "_undo" + undo_images_pos;
+      windowRenameKeepifEx(undo_id, new_undo_id, false, true);
+      console.writeln("Add undo image " + new_undo_id);
+      undo_images[undo_images_pos] = new_undo_id;
+      update_undo_buttons(parent);
+}
+
+function apply_undo(parent)
+{
+      console.writeln("apply_undo");
+      if (extra_target_image == null || extra_target_image == "Auto") {
+            console.criticalln("No target image!");
+            return;
+      }
+      if (undo_images_pos <= 0) {
+            console.noteln("Nothing to undo");
+            return;
+      }
+      console.noteln("Apply undo on image " + extra_target_image);
+      var target_win = ImageWindow.windowById(extra_target_image);
+      if (target_win == null) {
+            console.criticalln("Failed to find target image " + extra_target_image);
+            return;
+      }
+      var source_win = ImageWindow.windowById(undo_images[undo_images_pos - 1]);
+      if (source_win == null) {
+            console.criticalln("Failed to find undo image " + undo_images[undo_images_pos - 1]);
+            return;
+      }
+      target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      target_win.mainView.image.assign( source_win.mainView.image );
+      target_win.mainView.endProcess();
+      updatePreviewIdReset(extra_target_image);
+      undo_images_pos--;
+      console.writeln("undo_images_pos " + undo_images_pos);
+      update_undo_buttons(parent);
+}
+
+function apply_redo(parent)
+{
+      console.writeln("apply_redo");
+      if (extra_target_image == null || extra_target_image == "Auto") {
+            console.criticalln("No target image!");
+            return;
+      }
+      if (undo_images_pos >= undo_images.length - 1) {
+            console.noteln("Nothing to redo");
+            return;
+      }
+      console.noteln("Apply redo on image " + extra_target_image);
+      var target_win = ImageWindow.windowById(extra_target_image);
+      if (target_win == null) {
+            console.criticalln("Failed to find target image " + extra_target_image);
+            return;
+      }
+      var source_win = ImageWindow.windowById(undo_images[undo_images_pos + 1]);
+      if (source_win == null) {
+            console.criticalln("Failed to find redo image " + undo_images[undo_images_pos + 1]);
+            return;
+      }
+      target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      target_win.mainView.image.assign( source_win.mainView.image );
+      target_win.mainView.endProcess();
+      updatePreviewIdReset(extra_target_image);
+      undo_images_pos++;
+      console.writeln("undo_images_pos " + undo_images_pos);
+      update_undo_buttons(parent);
+}
+
+function save_as_undo(parent)
+{
+      console.writeln("save_as_undo");
+      if (extra_target_image == null || extra_target_image == "Auto" || undo_images.length == 0) {
+            console.criticalln("No target image!");
+            return;
+      }
+
+      let saveFileDialog = new SaveFileDialog();
+      saveFileDialog.caption = "Save As";
+      if (outputRootDir == "") {
+            var path = ppar.lastDir;
+      } else {
+            var path = outputRootDir;
+      }
+      if (path != "") {
+            path = ensurePathEndSlash(path);
+      }
+
+      saveFileDialog.initialPath = path + extra_target_image + ".xisf";
+      if (!saveFileDialog.execute()) {
+            console.noteln("Image " + extra_target_image + " not saved");
+            return;
+      }
+      var copy_id = File.extractName(saveFileDialog.fileName);
+      var save_win = ImageWindow.windowById(extra_target_image);
+      // Save image. No format options, no warning messages, 
+      // no strict mode, no overwrite checks.
+      var filename = saveFileDialog.fileName;
+      if (File.extractExtension(filename) == "") {
+            filename = filename + ".xisf";
+      }
+      console.noteln("Save " + extra_target_image + " as " + filename);
+      if (!save_win.saveAs(filename, false, false, false, false)) {
+            throwFatalError("Failed to save image: " + filename);
+      }
+      undo_images_saved_pos = undo_images_pos;
+      update_undo_buttons(parent);
+      if (copy_id != extra_target_image) {
+            // Saved with a different name
+            let idx = extra_target_image_window_list.indexOf(extra_target_image);
+            // replace new window to the window list
+            extra_target_image_window_list[idx] = copy_id;
+            // Update dialog
+            parent.dialog.extraImageComboBox.setItemText(idx, copy_id);
+            parent.dialog.extraImageComboBox.currentItem = idx;
+            // Rename old image
+            save_win.mainView.id = copy_id;
+            // Update preview name
+            updatePreviewTxt(copy_id);
+      }
+}
+
+function close_undo_images(parent)
+{
+      console.writeln("Close undo images");
+      for (var i = 0; i < undo_images.length; i++) {
+            closeOneWindow(undo_images[i]);
+      }
+      undo_images = [];
+      undo_images_pos = -1;
+      undo_images_saved_pos = -1;
+      update_undo_buttons(parent);
 }
 
 function extraProcessingEngine()
@@ -9983,7 +10163,7 @@ function cropChannelImagesAutoContinue()
       }
 }
 
-function AutoIntegrateEngine(auto_continue)
+function AutoIntegrateEngine(parent, auto_continue)
 {
       if (extra_target_image != "Auto") {
             console.criticalln("Extra processing target image can be used only with Apply button!");
@@ -10062,6 +10242,8 @@ function AutoIntegrateEngine(auto_continue)
       }
       console.noteln("--------------------------------------");
       addProcessingStepAndStatusInfo("Start processing...");
+
+      close_undo_images(parent);
 
       /* Create images for each L, R, G and B channels, or Color image. */
       if (!CreateChannelImages(auto_continue)) {
@@ -10624,9 +10806,9 @@ function Autorun(parent)
             if (lightFileNames != null) {
                   try {
                         if (batch_narrowband_palette_mode) {
-                              AutoIntegrateNarrowbandPaletteBatch(false);
+                              AutoIntegrateNarrowbandPaletteBatch(parent.dialog, false);
                         } else {
-                              AutoIntegrateEngine(false);
+                              AutoIntegrateEngine(parent.dialog, false);
                         }
                   } 
                   catch(err) {
@@ -11054,6 +11236,58 @@ function updatePreviewId(id)
 {
       if (use_preview) {
             updatePreviewWinTxt(ImageWindow.windowById(id), id);
+      }
+}
+
+function updatePreviewIdReset(id)
+{
+      if (use_preview) {
+            is_some_preview = false;
+            updatePreviewWinTxt(ImageWindow.windowById(id), id);
+            is_some_preview = false;
+      }
+}
+
+function updatePreviewNoImageInControl(control)
+{
+      var bitmap = new Bitmap(ppar.preview_width - ppar.preview_width/10, ppar.preview_height - ppar.preview_height/10);
+      bitmap.fill(0xff808080);
+
+      var graphics = new Graphics(bitmap);
+      graphics.transparentBackground = true;
+
+      graphics.pen = new Pen(0xff000000, 4);
+      graphics.font.bold = true;
+      var txt = autointegrate_version;
+      var txtLen = graphics.font.width(txt);
+      graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
+
+      graphics.end();
+      
+      var startupWindow = new ImageWindow(
+                                    bitmap.width,
+                                    bitmap.height,
+                                    1,
+                                    32,
+                                    true,
+                                    false,
+                                    "AutoIntegrate_startup_preview");
+
+      startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      startupWindow.mainView.image.blend(bitmap);
+      startupWindow.mainView.endProcess();
+
+      control.UpdateImage(getWindowBitmap(startupWindow));
+
+      startupWindow.forceClose();
+}
+
+function updatePreviewNoImage()
+{
+      if (use_preview) {
+            updatePreviewNoImageInControl(previewControl);
+            updatePreviewNoImageInControl(previewControl2);
+            updatePreviewTxt("No preview");
       }
 }
 
@@ -12987,36 +13221,7 @@ function newPreviewObj(parent)
       previewSizer.add(statusInfoLabel);
       previewSizer.add(previewImageSizer);
 
-      var bitmap = new Bitmap(ppar.preview_width - ppar.preview_width/10, ppar.preview_height - ppar.preview_height/10);
-      bitmap.fill(0xff808080);
-
-      var graphics = new Graphics(bitmap);
-      graphics.transparentBackground = true;
-
-      graphics.pen = new Pen(0xff000000, 4);
-      graphics.font.bold = true;
-      var txt = autointegrate_version;
-      var txtLen = graphics.font.width(txt);
-      graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
-
-      graphics.end();
-      
-      var startupWindow = new ImageWindow(
-                              bitmap.width,
-                              bitmap.height,
-                              1,
-                              32,
-                              true,
-                              false,
-                              "AutoIntegrate_startup_preview");
-
-      startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-      startupWindow.mainView.image.blend(bitmap);
-      startupWindow.mainView.endProcess();
-
-      previewControl.UpdateImage(getWindowBitmap(startupWindow));
-
-      startupWindow.forceClose();
+      updatePreviewNoImageInControl(previewControl);
 
       return { control: previewControl, infolabel: previewInfoLabel, 
                statuslabel: statusInfoLabel, sizer: previewSizer };
@@ -13172,6 +13377,7 @@ function AutoIntegrateDialog()
       {
             console.noteln("AutoIntegrate exiting");
             exitFromDialog();
+            close_undo_images(this.dialog);
             // save prefix setting at the end
             savePersistentSettings();
             this.dialog.cancel();
@@ -13218,7 +13424,7 @@ function AutoIntegrateDialog()
                   autocontinue_narrowband = is_narrowband_option();
                   run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
-                        AutoIntegrateNarrowbandPaletteBatch(true);
+                        AutoIntegrateNarrowbandPaletteBatch(this.dialog, true);
                   } else {
                         var index = findPrefixIndex(ppar.win_prefix);
                         if (index == -1) {
@@ -13237,7 +13443,7 @@ function AutoIntegrateDialog()
                               iconStartRow = 11;
                               console.writeln('Using user icon column ' + columnCount);
                         }
-                        AutoIntegrateEngine(true);
+                        AutoIntegrateEngine(this.dialog, true);
                   }
                   autocontinue_narrowband = false;
                   run_auto_continue = false;
@@ -14616,25 +14822,43 @@ function AutoIntegrateDialog()
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
       this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraImageLabel.toolTip = "<p>Target image for extra processing. Target image is replaced with processed image. This can be useful " + 
-      "if extra processing is not done with Run or AutoContinue option.</p>";
+      this.extraImageLabel.toolTip = "<p>Target image for editing. By default edits are applied on a copy of target image. Copied " + 
+            "is named as <target image>_edit.</p>" +
+            "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
       this.extraImageComboBox = new ComboBox( this );
-      var windowList = getWindowListReverse();
-      windowList.unshift("Auto");
-      for (var i = 0; i < windowList.length; i++) {
-            this.extraImageComboBox.addItem( windowList[i] );
+      extra_target_image_window_list = getWindowListReverse();
+      extra_target_image_window_list.unshift("Auto");
+      for (var i = 0; i < extra_target_image_window_list.length; i++) {
+            this.extraImageComboBox.addItem( extra_target_image_window_list[i] );
       }
-      extra_target_image = windowList[0];
+      this.extraImageComboBox.setMinItemCharWidth = 20;
+      extra_target_image = extra_target_image_window_list[0];
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
-            extra_target_image = windowList[itemIndex];
+            if (extra_target_image == extra_target_image_window_list[itemIndex]) {
+                  return;
+            }
+            close_undo_images(this.dialog);
+            extra_target_image = extra_target_image_window_list[itemIndex];
+            console.writeln("extra_target_image " + extra_target_image);
+            if (extra_target_image == "Auto") {
+                  updatePreviewNoImage();
+            } else {
+                  updatePreviewIdReset(extra_target_image);
+            }
       };
+      var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
       this.extraApplyButton = new PushButton( this );
       this.extraApplyButton.text = "Apply";
       this.extraApplyButton.toolTip = 
-            "Apply extra processing on the selected image. Auto option is used when extra processing is done with Run or AutoContinue option.";
+            "<p>Apply extra processing edits on the copy of the selected image. Auto option is used when extra processing is done with Run or AutoContinue option.</p>" +
+            notetsaved_note;
       this.extraApplyButton.onClick = function()
       {
+            console.writeln("extraApplyButton.onClick");
+            console.writeln("extra_target_image " + extra_target_image);
+            console.writeln("extra_target_image_window_list[0] " + extra_target_image_window_list[0]);
+            console.writeln("extra_target_image_window_list[1] " + extra_target_image_window_list[1]);
             if (!is_extra_option() && !is_narrowband_option()) {
                   console.criticalln("No extra processing option selected!");
             } else if (extra_target_image == null) {
@@ -14642,27 +14866,97 @@ function AutoIntegrateDialog()
             } else if (extra_target_image == "Auto") {
                   console.criticalln("Auto target image cannot be used with Apply button!");
             } else {
-                  console.writeln("Apply extra processing directly on " + extra_target_image);
+                  if (undo_images.length == 0) {
+                        var saved_extra_target_image = extra_target_image;
+                        if (!par.extra_apply_no_copy_image.val) {
+                              // make copy of the original image
+                              extra_target_image = copy_undo_edit_image(extra_target_image);
+                        }
+                        var first_undo_image_id = create_undo_image(extra_target_image);
+                  } else {
+                        var first_undo_image_id = null;
+                  }
+                  console.writeln("Apply extra processing edits on " + extra_target_image);
                   try {
                         narrowband = is_narrowband_option();
                         extraProcessingEngine(extra_target_image);
                         narrowband = false;
+                        if (undo_images.length == 0) {
+                              // add first/original undo image
+                              add_undo_image(this.dialog, extra_target_image, first_undo_image_id);
+                              // save copy of original image to the window list and make is current
+                              if (extra_target_image_window_list.indexOf(extra_target_image) == -1) {
+                                    let len = extra_target_image_window_list.push(extra_target_image);
+                                    this.dialog.extraImageComboBox.addItem( extra_target_image );
+                                    this.dialog.extraImageComboBox.currentItem = len - 1;
+                              }
+                        }
+                        let undo_image_id = create_undo_image(extra_target_image);
+                        add_undo_image(this.dialog, extra_target_image, undo_image_id);
+                        console.noteln("Apply completed");
                   } 
                   catch(err) {
+                        if (first_undo_image_id != null) {
+                              remove_undo_image(first_undo_image_id);
+                              extra_target_image = saved_extra_target_image;
+                        }
                         console.criticalln(err);
-                        console.criticalln("Processing stopped!");
+                        console.criticalln("Operation failed!");
                         narrowband = false;
                   }
             }
       };   
 
+      this.extraUndoButton = new ToolButton( this );
+      this.extraUndoButton.icon = new Bitmap( ":/icons/undo.png" );
+      this.extraUndoButton.toolTip = 
+            "<p>Undo last extra edit operation.</p>" + notetsaved_note;
+      this.extraUndoButton.enabled = false;
+      this.extraUndoButton.onMousePress = function()
+      {
+            apply_undo(this.dialog);
+      };
+
+      this.extraRedoButton = new ToolButton( this );
+      this.extraRedoButton.icon = new Bitmap( ":/icons/redo.png" );
+      this.extraRedoButton.toolTip = 
+            "<p>Redo last extra edit operation.</p>" + notetsaved_note;
+      this.extraRedoButton.enabled = false;
+      this.extraRedoButton.onMousePress = function()
+      {
+            apply_redo(this.dialog);
+      };
+
+      this.extraSaveButton = new ToolButton( this );
+      this.extraSaveButton.icon = new Bitmap( ":/icons/save-as.png" );
+      this.extraSaveButton.toolTip = 
+            "<p>Save current edited image to disk.</p>" + notetsaved_note;
+      this.extraSaveButton.enabled = false;
+      this.extraSaveButton.onMousePress = function()
+      {
+            save_as_undo(this.dialog);
+      };
+
       this.extraImageSizer = new HorizontalSizer;
+      this.extraImageSizer.margin = 6;
       this.extraImageSizer.spacing = 4;
       this.extraImageSizer.add( this.extraImageLabel );
       this.extraImageSizer.add( this.extraImageComboBox );
       this.extraImageSizer.add( this.extraApplyButton );
+      this.extraImageSizer.add( this.extraUndoButton );
+      this.extraImageSizer.add( this.extraRedoButton );
+      this.extraImageSizer.add( this.extraSaveButton );
       this.extraImageSizer.addStretch();
-      this.extraImageSizer.add( this.extra_stretch_CheckBox );
+
+      this.extra_image_no_copy_CheckBox = newCheckBox(this, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
+            "<p>Do not make a copy of the image for Apply.</p>" );
+
+      this.extraOptionsSizer = new HorizontalSizer;
+      this.extraOptionsSizer.margin = 6;
+      this.extraOptionsSizer.spacing = 4;
+      this.extraOptionsSizer.add( this.extra_image_no_copy_CheckBox );
+      this.extraOptionsSizer.add( this.extra_stretch_CheckBox );
+      this.extraOptionsSizer.addStretch();
 
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
@@ -14706,6 +15000,7 @@ function AutoIntegrateDialog()
       this.extraControl.sizer.add( this.extraLabel );
       this.extraControl.sizer.add( this.extraGroupBoxSizer );
       this.extraControl.sizer.add( this.extraImageSizer );
+      this.extraControl.sizer.add( this.extraOptionsSizer );
       this.extraControl.sizer.addStretch();
       this.extraControl.visible = false;
       this.extraControl.toolTip = 
@@ -14737,9 +15032,8 @@ function AutoIntegrateDialog()
             "12. ACDNR noise reduction<br>" +
             "13. Color noise reduction<br>" +
             "14. Sharpening<br>" +
-            "15. Smaller stars" +
-            "</p><p>" +
-            "With Smaller stars the number of iterations can be given. More iterations will generate smaller stars." +
+            "15. Smaller stars<br>" +
+            "16. Combine starless and stars images" +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
@@ -14862,7 +15156,7 @@ function AutoIntegrateDialog()
       // Buttons for saving final images in different formats
       this.mosaicSaveXisfButton = new PushButton( this );
       this.mosaicSaveXisfButton.text = "XISF";
-      // this.mosaicSaveXisfButton.icon = this.scaledResource( ":/file-format/xisf-format-icon.png" );
+      this.mosaicSaveXisfButton.icon = this.scaledResource( ":/icons/save.png" );
       this.mosaicSaveXisfButton.onClick = function()
       {
             console.writeln("Save XISF");
@@ -14870,7 +15164,7 @@ function AutoIntegrateDialog()
       };   
       this.mosaicSave16bitButton = new PushButton( this );
       this.mosaicSave16bitButton.text = "16 bit TIFF";
-      // this.mosaicSave16bitButton.icon = this.scaledResource( ":/file-format/tiff-format-icon.png" );
+      this.mosaicSave16bitButton.icon = this.scaledResource( ":/icons/save.png" );
       this.mosaicSave16bitButton.onClick = function()
       {
             console.writeln("Save 16 bit TIFF");
@@ -14878,7 +15172,7 @@ function AutoIntegrateDialog()
       };   
       this.mosaicSave8bitButton = new PushButton( this );
       this.mosaicSave8bitButton.text = "8 bit TIFF";
-      // this.mosaicSave8bitButton.icon = this.scaledResource( ":/file-format/tiff-format-icon.png" );
+      this.mosaicSave8bitButton.icon = this.scaledResource( ":/icons/save.png" );
       this.mosaicSave8bitButton.onClick = function()
       {
             console.writeln("Save 8 bit TIFF");
