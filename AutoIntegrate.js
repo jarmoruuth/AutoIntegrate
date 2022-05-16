@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test14";
+var autointegrate_version = "AutoIntegrate v1.47 test15";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -9608,10 +9608,10 @@ function extraProcessingEngine()
       processing_steps = "";
 
       console.noteln("Start extra processing...");
+      updatePreviewId(extra_target_image);
       if (use_preview && !ppar.side_preview_visible) {
             mainTabBox.currentPageIndex = 1;
       }
-      updatePreviewId(extra_target_image);
 
       extraProcessing(extra_target_image, true);
 
@@ -10505,7 +10505,7 @@ function AutoIntegrateEngine(parent, auto_continue)
             saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
             saveProcessedWindow(outputRootDir, RGBcolor_id);             /* Integration_RGBcolor */
       }
-      if (preprocessed_images >= start_images.L_R_G_B_BE) {
+      if (preprocessed_images <= start_images.L_R_G_B_BE) {
             // We have generated RGB image, save it
             console.writeln("Save generated RGB image");
             saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
