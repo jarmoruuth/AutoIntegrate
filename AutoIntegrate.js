@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test15";
+var autointegrate_version = "AutoIntegrate v1.47 test16";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -315,6 +315,7 @@ var use_preview = true;
 var is_some_preview = false;
 var is_processing = false;
 var preview_size_changed = false;
+var preview_keep_zoom = false;
 
 var undo_images = [];
 var undo_images_pos = -1;
@@ -499,6 +500,8 @@ var par = {
       extra_star_noise_reduction: { val: false, def: false, name : "Extra star noise reduction", type : 'B' },
       extra_sharpen: { val: false, def: false, name : "Extra sharpen", type : 'B' },
       extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
+      extra_unsharpmask: { val: false, def: false, name : "Extra unsharpmask", type : 'B' },
+      extra_unsharpmask_stddev: { val: 4, def: 4, name : "Extra unsharpmask stddev", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
@@ -1802,7 +1805,11 @@ function saveAllFinalImageWindows(bits)
                         }
                         if (savefile) {
                               // we need to save this image window 
-                              if (imageWindow.mainView != null && imageWindow.mainView != undefined) {
+                              if (imageWindow.mainView != null 
+                                  && imageWindow.mainView != undefined
+                                  && imageWindow.mainView.id
+                                  && imageWindow.mainView.id.match(/undo[1-9]*/g) == null)
+                              {
                                     finalimages[finalimages.length] = imageWindow;
                               }
                               break;
@@ -8696,8 +8703,9 @@ function extraRemoveStars(imgWin, apply_directly)
       console.writeln("extraRemoveStars copy " + star_mask_win_id + " to " + copywin_id);
       var copywin = copyWindow(star_mask_win, ensure_win_prefix(copywin_id));
       setFinalImageKeyword(copywin);
-      saveProcessedWindow(outputRootDir, copywin.mainView.id);
-      addProcessingStep("Stars image " + copywin.mainView.id);
+      //saveProcessedWindow(outputRootDir, copywin.mainView.id);
+      var extra_stars_id = copywin.mainView.id;
+      addProcessingStep("Stars image " + extra_stars_id);
 
       if (par.extra_combine_stars.val || apply_directly) {
             /* Make a copy of the starless image.
@@ -8712,13 +8720,13 @@ function extraRemoveStars(imgWin, apply_directly)
 
       }
       setFinalImageKeyword(copywin);
-      saveProcessedWindow(outputRootDir, copywin.mainView.id);
+      //saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("Starless image " + copywin.mainView.id);
 
       updatePreviewWin(copywin);
 
       // return possibly new starless image for further processing
-      return copywin;
+      return { starless_win: copywin, stars_id: extra_stars_id };
 }
 
 function extraDarkerBackground(imgWin, maskWin)
@@ -8803,7 +8811,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
             }
-            updatePreviewWin(win);
+            updatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
             console.criticalln(err);
@@ -8911,17 +8919,18 @@ function createStarMaskIf(imgWin)
       star_mask_win_id = star_mask_win.mainView.id;
 }
 
-function extraSmallerStars(imgWin)
+function extraSmallerStars(imgWin, is_star_image)
 {
       var targetWin = imgWin;
 
-      createStarMaskIf(imgWin);
+      if (!is_star_image) {
+            createStarMaskIf(imgWin);
+      }
 
       addStatusInfo("Extra smaller stars");
-      if (par.extra_remove_stars.val) {
-            addProcessingStep("Smaller stars on " + star_mask_win_id + 
+      if (is_star_image) {
+            addProcessingStep("Smaller stars on stars image " + imgWin.mainView.id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
-            targetWin = star_mask_win;    
       } else {
             addProcessingStep("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
                         " and " + par.extra_smaller_stars_iterations.val + " iterations");
@@ -8962,7 +8971,7 @@ function extraSmallerStars(imgWin)
       
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (!par.extra_remove_stars.val) {
+      if (!is_star_image) {
             /* If we have removed stars we have only stars left and
              * no mask is needed. Otherwise use a star mask
              * to target operation only on stars.
@@ -8973,7 +8982,7 @@ function extraSmallerStars(imgWin)
       
       P.executeOn(targetWin.mainView, false);
 
-      if (!par.extra_remove_stars.val) {
+      if (!is_star_image) {
             targetWin.removeMask();
       }
 
@@ -9058,6 +9067,22 @@ function extraColorNoise(extraWin)
       runColorReduceNoise(extraWin);
 }
 
+function extraUnsharpMask(extraWin)
+{
+      addStatusInfo("Extra UnsharpMask");
+      addProcessingStep("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
+
+      var P = new UnsharpMask;
+      P.sigma = par.extra_unsharpmask_stddev.val;
+      P.amount = 0.80;
+      P.useLuminance = true;
+
+      extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(extraWin.mainView, false);
+      extraWin.mainView.endProcess();
+      updatePreviewWin(extraWin);
+}
+
 function extraSharpen(extraWin, mask_win)
 {
       addStatusInfo("Extra sharpening");
@@ -9068,7 +9093,6 @@ function extraSharpen(extraWin, mask_win)
       }
       updatePreviewWin(extraWin);
 }
-
 
 function extraABE(extraWin)
 {
@@ -9138,13 +9162,14 @@ function is_non_starless_option()
              par.extra_ACDNR.val ||
              par.extra_color_noise.val ||
              par.extra_sharpen.val ||
+             par.extra_unsharpmask.val ||
              par.extra_smaller_stars.val;
 }
 
 function is_extra_option()
 {
       return par.extra_remove_stars.val || 
-             par.extra_combine_stars ||
+             par.extra_combine_stars.val ||
              is_non_starless_option();
 }
 
@@ -9219,9 +9244,8 @@ function AutoIntegrateNarrowbandPaletteBatch(parent, auto_continue)
       addProcessingStep("Narrowband palette batch completed");
 }
 
-function findStarImageId(starless_id)
+function findStarImageIdEx(starless_id, stars_id)
 {
-      var stars_id = starless_id.replace("starless", "stars");
       if (stars_id != starless_id) {
             console.writeln("findStarImageId try " + stars_id)
             var w = findWindow(stars_id);
@@ -9229,10 +9253,22 @@ function findStarImageId(starless_id)
                   return stars_id;
             }
       }
-      var stars_id = starless_id + "_stars";
-      console.writeln("findStarImageId try " + stars_id)
-      w = findWindow(stars_id);
-      if (w != null) {
+      return null;
+}
+
+function findStarImageId(starless_id, original_id)
+{
+      console.noteln("Try to find stars image for starless image " + stars_id)
+      var stars_id = findStarImageIdEx(starless_id, starless_id.replace("starless", "stars"));
+      if (stars_id != null) {
+            return stars_id;
+      }
+      stars_id = findStarImageIdEx(starless_id, starless_id + "_stars");
+      if (stars_id != null) {
+            return stars_id;
+      }
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless_edit[1-9]*/g, "stars"));
+      if (stars_id != null) {
             return stars_id;
       }
       return null;
@@ -9246,7 +9282,7 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
             stars_id = findStarImageId(starless_id);
       }
       if (stars_id == null) {
-            throwFatalError("Could not find starless image for start image " + stars_id);
+            throwFatalError("Could not find starless image for start image " + starless_id);
       }
       addProcessingStep("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
@@ -9284,7 +9320,11 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
 
 function extraProcessing(id, apply_directly)
 {
+      console.noteln("Extra processing");
+
       var extra_id = id;
+      var extra_stars_id = null;
+      var extra_starless_id = null;
       var need_L_mask = par.extra_darker_background.val || 
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
@@ -9294,6 +9334,8 @@ function extraProcessing(id, apply_directly)
                         par.extra_sharpen.val;
 
       var extraWin = ImageWindow.windowById(id);
+
+      extra_stars_id = null;
 
       checkWinFilePath(extraWin);
       ensureDir(outputRootDir);
@@ -9323,7 +9365,11 @@ function extraProcessing(id, apply_directly)
             }
       }
       if (par.extra_remove_stars.val) {
-            extraWin = extraRemoveStars(extraWin, apply_directly);
+            let res = extraRemoveStars(extraWin, apply_directly);
+            extraWin = res.starless_win;
+            extra_starless_id = extraWin.mainView.id;
+            extra_stars_id = res.stars_id;
+            console.writeln("extra_starless_id " + extra_starless_id + ", extra_stars_id " + extra_stars_id);
       }
       if (par.extra_ABE.val) {
             extraABE(extraWin);
@@ -9369,47 +9415,46 @@ function extraProcessing(id, apply_directly)
       if (par.extra_color_noise.val) {
             extraColorNoise(extraWin);
       }
+      if (par.extra_unsharpmask.val) {
+            extraUnsharpMask(extraWin);
+      }
       if (par.extra_sharpen.val) {
             extraSharpen(extraWin, mask_win);
       }
       if (par.extra_smaller_stars.val) {
-            extraSmallerStars(extraWin);
+            if (par.extra_remove_stars.val) {
+                  extraSmallerStars(ImageWindow.windowById(extra_stars_id), true);
+            } else {
+                  extraSmallerStars(extraWin, false);
+            }
       }
       if (par.extra_shadowclipping.val) {
             extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
       }
-      if (par.extra_remove_stars.val) {
-            if (par.extra_star_noise_reduction.val) {
-                  starReduceNoise(ImageWindow.windowById(star_mask_win_id));
+      if (par.extra_star_noise_reduction.val) {
+            if (par.extra_remove_stars.val) {
+                  starReduceNoise(ImageWindow.windowById(extra_stars_id));
+            } else {
+                  starReduceNoise(extraWin);
             }
       }
       if (par.extra_combine_stars.val) {
             /* Restore stars by combining starless image and stars. */
-            if (!apply_directly) {
-                  // Close _extra window that was created before stars were removed
-                  closeOneWindow(extra_id);
-                  var new_image_id = combineStarsAndStarless(
-                                          par.extra_remove_stars_combine.val,
-                                          extraWin.mainView.id, 
-                                          star_mask_win_id, 
-                                          true);
-                  // restore original final image name
-                  var new_name = id + "_extra"
-                  console.writeln("Rename " + new_image_id + " as " + new_name);
-                  windowRename(new_image_id, new_name);
-                  extraWin = ImageWindow.windowById(new_name);
-                  extraWin.show();
-            } else {
-                  combineStarsAndStarless(
-                        par.extra_remove_stars_combine.val,
-                        extraWin.mainView.id, 
-                        star_mask_win_id, 
-                        false);
-            }
+            var new_image_id = combineStarsAndStarless(
+                                    par.extra_remove_stars_combine.val,
+                                    extraWin.mainView.id, // starless
+                                    extra_stars_id, 
+                                    true);
+            // Close original window that was created before stars were removed
+            closeOneWindow(extra_id);
+            // restore original final image name
+            var new_name = extra_id;
+            console.writeln("Rename " + new_image_id + " as " + new_name);
+            windowRename(new_image_id, new_name);
+            extraWin = ImageWindow.windowById(new_name);
+            extraWin.show();
       }
       extra_id = extraWin.mainView.id;
-      // star_mask_win_id was a temp window with maybe smaller stars
-      closeOneWindow(star_mask_win_id);
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
             updatePreviewWin(final_win);
@@ -9419,6 +9464,23 @@ function extraProcessing(id, apply_directly)
             updatePreviewWin(final_win);
             setFinalImageKeyword(final_win);
             saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
+            if (par.extra_remove_stars.val) {
+                  saveProcessedWindow(outputRootDir, extra_starless_id);      /* Extra starless window */
+                  saveProcessedWindow(outputRootDir, extra_stars_id);         /* Extra stars window */
+            }
+      }
+      // star_mask_win_id was a temp window with maybe smaller stars
+      closeOneWindow(star_mask_win_id);
+}
+
+function update_extra_target_image_window_list(parent)
+{
+      extra_target_image_window_list = getWindowListReverse();
+      extra_target_image_window_list.unshift("Auto");
+
+      parent.extraImageComboBox.clear();
+      for (var i = 0; i < extra_target_image_window_list.length; i++) {
+            parent.extraImageComboBox.addItem( extra_target_image_window_list[i] );
       }
 }
 
@@ -9426,7 +9488,6 @@ function update_undo_buttons(parent)
 {
       parent.extraUndoButton.enabled = undo_images.length > 0 && undo_images_pos > 0;
       parent.extraRedoButton.enabled = undo_images.length > 0 && undo_images_pos < undo_images.length - 1;
-      parent.extraSaveButton.enabled = undo_images.length > 0;
 }
 
 function copy_undo_edit_image(id)
@@ -9494,7 +9555,7 @@ function apply_undo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
-      updatePreviewIdReset(extra_target_image);
+      updatePreviewIdReset(extra_target_image, true);
       undo_images_pos--;
       console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
@@ -9525,7 +9586,7 @@ function apply_redo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
-      updatePreviewIdReset(extra_target_image);
+      updatePreviewIdReset(extra_target_image, true);
       undo_images_pos++;
       console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
@@ -10362,7 +10423,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                         runNoiseReduction(ImageWindow.windowById(RGB_ABE_HT_id), mask_win, false);
                   }
       
-                        if (is_color_files || !is_luminance_images) {
+                  if (is_color_files || !is_luminance_images) {
                         /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
                          * will be the final result file.
                          */
@@ -10468,6 +10529,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                                     par.stars_combine.val,
                                     starless_id, 
                                     stars_id, 
+                                    null,
                                     true);
                   // restore original final image name
                   console.writeln("Rename " + new_image + " as " + LRGB_ABE_HT_id);
@@ -10809,6 +10871,7 @@ function Autorun(parent)
                         } else {
                               AutoIntegrateEngine(parent.dialog, false);
                         }
+                        update_extra_target_image_window_list(parent.dialog);
                   } 
                   catch(err) {
                         console.criticalln(err);
@@ -11174,7 +11237,7 @@ function flatdarksOptions(parent)
 
 function updatePreviewImageBmp(previewControl, bmp)
 {
-      if (is_some_preview && !is_processing) {
+      if ((is_some_preview && !is_processing) || preview_keep_zoom) {
             previewControl.UpdateImage(bmp);
       } else {
             previewControl.SetImage(bmp);
@@ -11238,12 +11301,13 @@ function updatePreviewId(id)
       }
 }
 
-function updatePreviewIdReset(id)
+function updatePreviewIdReset(id, keep_zoom)
 {
       if (use_preview) {
-            is_some_preview = false;
+            preview_keep_zoom = keep_zoom;
             updatePreviewWinTxt(ImageWindow.windowById(id), id);
             is_some_preview = false;
+            is_processing = false;
       }
 }
 
@@ -11959,7 +12023,6 @@ function filterTreeBoxFiles(parent, pageIndex)
 function getFilesFromTreebox(parent)
 {
       for (var pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
-            console.writeln("getFilesFromTreebox " + pageIndex);
             var treeBox = parent.treeBox[pageIndex];
             if (treeBox.numberOfChildren == 0) {
                   var filenames = null;
@@ -12768,6 +12831,7 @@ function newAutoContinueButton(parent, toolbutton)
                   autocontinue_narrowband = false;
                   run_auto_continue = false;
                   setDefaultDirs();
+                  update_extra_target_image_window_list(parent.dialog);
                   if (haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
                         ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
@@ -14847,6 +14911,15 @@ function AutoIntegrateDialog()
       this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsLabel );
       this.extraSharpenIterationsSizer.toolTip = extra_sharpen_tooltip;
       this.extraSharpenIterationsSizer.addStretch();
+
+      var unsharpmask_tooltip = "Sharpen image using Unsharp Mask";
+      this.extra_unsharpmask_CheckBox = newCheckBox(this, "UnsharpMask", par.extra_unsharpmask, unsharpmask_tooltip);
+      this.extraUnsharpMaskStdDevEdit = newNumericEdit(this, "StdDev", par.extra_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
+      this.extraUnsharpMaskSizer = new HorizontalSizer;
+      this.extraUnsharpMaskSizer.spacing = 4;
+      this.extraUnsharpMaskSizer.add( this.extra_unsharpmask_CheckBox );
+      this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskStdDevEdit );
+      this.extraUnsharpMaskSizer.addStretch();
       
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
@@ -14855,11 +14928,7 @@ function AutoIntegrateDialog()
             "is named as <target image>_edit.</p>" +
             "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
       this.extraImageComboBox = new ComboBox( this );
-      extra_target_image_window_list = getWindowListReverse();
-      extra_target_image_window_list.unshift("Auto");
-      for (var i = 0; i < extra_target_image_window_list.length; i++) {
-            this.extraImageComboBox.addItem( extra_target_image_window_list[i] );
-      }
+      update_extra_target_image_window_list(this);
       this.extraImageComboBox.setMinItemCharWidth = 20;
       extra_target_image = extra_target_image_window_list[0];
       this.extraImageComboBox.onItemSelected = function( itemIndex )
@@ -14872,8 +14941,10 @@ function AutoIntegrateDialog()
             console.writeln("extra_target_image " + extra_target_image);
             if (extra_target_image == "Auto") {
                   updatePreviewNoImage();
+                  this.dialog.extraSaveButton.enabled = false;
             } else {
-                  updatePreviewIdReset(extra_target_image);
+                  updatePreviewIdReset(extra_target_image, true);
+                  this.dialog.extraSaveButton.enabled = true;
             }
       };
       var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
@@ -14997,42 +15068,22 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
       this.extra1.add( this.extra_LHE_sizer );
+      this.extra1.add( this.extraContrastSizer );
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
-      this.extra2.add( this.extraContrastSizer );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extra_ACDNR_CheckBox );
       this.extra2.add( this.extra_color_noise_CheckBox );
       this.extra2.add( this.extra_star_noise_reduction_CheckBox );
+      this.extra2.add( this.extraUnsharpMaskSizer );
       this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombioneStars_Sizer );
 
       this.extraLabel = newSectionLabel(this, "Generic extra processing");
-
-      this.extraGroupBoxSizer = new HorizontalSizer;
-      //this.extraGroupBoxSizer.margin = 6;
-      //this.extraGroupBoxSizer.spacing = 4;
-      this.extraGroupBoxSizer.add( this.extra1 );
-      this.extraGroupBoxSizer.add( this.extra2 );
-      this.extraGroupBoxSizer.addStretch();
-
-      this.extraControl = new Control( this );
-      // this.extraControl.title = "Extra processing";
-      this.extraControl.sizer = new VerticalSizer;
-      this.extraControl.sizer.margin = 6;
-      this.extraControl.sizer.spacing = 4;
-      this.extraControl.sizer.add( this.narrowbandExtraLabel );
-      this.extraControl.sizer.add( this.narrowbandExtraOptionsSizer );
-      this.extraControl.sizer.add( this.extraLabel );
-      this.extraControl.sizer.add( this.extraGroupBoxSizer );
-      this.extraControl.sizer.add( this.extraImageSizer );
-      this.extraControl.sizer.add( this.extraOptionsSizer );
-      this.extraControl.sizer.addStretch();
-      this.extraControl.visible = false;
-      this.extraControl.toolTip = 
+      this.extraLabel.toolTip = 
             "<p>" +
             "In case of Run or AutoContinue " + 
             "extra processing options are always applied to a copy of the final image. " + 
@@ -15060,12 +15111,34 @@ function AutoIntegrateDialog()
             "11. Noise reduction<br>" +
             "12. ACDNR noise reduction<br>" +
             "13. Color noise reduction<br>" +
-            "14. Sharpening<br>" +
-            "15. Smaller stars<br>" +
-            "16. Combine starless and stars images" +
+            "14. Sharpen using Unsharp Mask<br>" +
+            "15. Sharpening<br>" +
+            "16. Smaller stars<br>" +
+            "17. Combine starless and stars images" +
             "</p><p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
+
+      this.extraGroupBoxSizer = new HorizontalSizer;
+      //this.extraGroupBoxSizer.margin = 6;
+      //this.extraGroupBoxSizer.spacing = 4;
+      this.extraGroupBoxSizer.add( this.extra1 );
+      this.extraGroupBoxSizer.add( this.extra2 );
+      this.extraGroupBoxSizer.addStretch();
+
+      this.extraControl = new Control( this );
+      // this.extraControl.title = "Extra processing";
+      this.extraControl.sizer = new VerticalSizer;
+      this.extraControl.sizer.margin = 6;
+      this.extraControl.sizer.spacing = 4;
+      this.extraControl.sizer.add( this.narrowbandExtraLabel );
+      this.extraControl.sizer.add( this.narrowbandExtraOptionsSizer );
+      this.extraControl.sizer.add( this.extraLabel );
+      this.extraControl.sizer.add( this.extraGroupBoxSizer );
+      this.extraControl.sizer.add( this.extraImageSizer );
+      this.extraControl.sizer.add( this.extraOptionsSizer );
+      this.extraControl.sizer.addStretch();
+      this.extraControl.visible = false;
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
