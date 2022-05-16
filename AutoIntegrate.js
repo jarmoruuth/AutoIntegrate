@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test13";
+var autointegrate_version = "AutoIntegrate v1.47 test14";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -311,7 +311,6 @@ var previewInfoLabel2;        // For updating preview info text
 var statusInfoLabel2;         // For update processing status
 var mainTabBox;               // For switching to preview tab
 
-var run_exit_autocontinue_at_top = false;
 var use_preview = true;
 var is_some_preview = false;
 var is_processing = false;
@@ -12203,13 +12202,6 @@ function addFilesButtons(parent)
       filesButtons_Sizer.addStretch();
       filesButtons_Sizer.add( winprefix_sizer );
       filesButtons_Sizer.add( outputdir_sizer );
-      if (run_exit_autocontinue_at_top) {
-            filesButtons_Sizer.addSpacing( 12 );
-            filesButtons_Sizer.add( parent.autoContinueButton );
-            filesButtons_Sizer.addSpacing( 12 );
-            filesButtons_Sizer.add( parent.run_Button );
-            filesButtons_Sizer.add( parent.exit_Button );
-      }
       return filesButtons_Sizer;
 }
 
@@ -12648,6 +12640,181 @@ function ReadParametersFromPersistentModuleSettings()
       }
 }
 
+function newPushorToolButton(parent, icon, txt, tooltip, action, toolbutton)
+{
+      if (toolbutton) {
+            var button = new ToolButton( parent );
+      } else {
+            var button = new PushButton( parent );
+            button.text = txt;
+      }
+      button.onClick = action;
+      button.icon = parent.scaledResource( icon );
+      button.toolTip = tooltip;
+
+      return button;
+}
+
+function newRunButton(parent, toolbutton)
+{
+      var run_action = function()
+      {
+            exitFromDialog();
+            if (get_process_defaults) {
+                  getProcessDefaultValues();
+                  return;
+            }     
+            updateWindowPrefix();
+            getFilesFromTreebox(parent.dialog);
+            haveIconized = 0;
+            var index = findPrefixIndex(ppar.win_prefix);
+            if (index == -1) {
+                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
+            }
+            if (ppar.userColumnCount == -1) {
+                  columnCount = ppar.prefixArray[index][0];
+                  console.writeln('Using auto icon column ' + columnCount);
+            } else {
+                  columnCount = ppar.userColumnCount;
+                  console.writeln('Using user icon column ' + columnCount);
+            }
+            iconStartRow = 0;
+            write_processing_log_file = true;
+            Autorun(parent);
+            if (haveIconized) {
+                  // We have iconized something so update prefix array
+                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
+                  fix_win_prefix_array();
+                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
+                        ppar.userColumnCount = columnCount + 1;
+                        parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
+                  }
+                  savePersistentSettings();
+            }
+      };
+      return newPushorToolButton(
+                  parent,
+                  ":/icons/power.png",
+                  "Run",
+                  "Run the script.",
+                  run_action,
+                  toolbutton
+      );
+}
+
+function newExitButton(parent, toolbutton)
+{
+      var exit_action = function()
+      {
+            console.noteln("AutoIntegrate exiting");
+            exitFromDialog();
+            close_undo_images(parent.dialog);
+            // save prefix setting at the end
+            savePersistentSettings();
+            parent.dialog.cancel();
+      };
+
+      return newPushorToolButton(
+                  parent,
+                  ":/icons/close.png",
+                  "Exit",
+                  "<p>Exit the script and save interface settings.</p>" + 
+                  "<p>Note that closing the script from top right corner close icon does not save interface settings.</p>",
+                  exit_action,
+                  toolbutton
+      );
+}
+
+function newAutoContinueButton(parent, toolbutton)
+{
+      var autocontinue_action = function()
+      {
+            exitFromDialog();
+            console.writeln("autoContinue");
+
+            // Do not create subdirectory structure with AutoContinue
+
+            clearDefaultDirs();
+            getFilesFromTreebox(parent.dialog);
+            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+            haveIconized = 0;
+            write_processing_log_file = true;
+            try {
+                  updateWindowPrefix();
+                  autocontinue_narrowband = is_narrowband_option();
+                  run_auto_continue = true;
+                  if (batch_narrowband_palette_mode) {
+                        AutoIntegrateNarrowbandPaletteBatch(parent.dialog, true);
+                  } else {
+                        var index = findPrefixIndex(ppar.win_prefix);
+                        if (index == -1) {
+                              iconStartRow = 0;
+                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
+                        } else {
+                              // With AutoContinue start icons below current
+                              // icons.
+                              iconStartRow = ppar.prefixArray[index][2];
+                        }
+                        if (ppar.userColumnCount == -1) {
+                              columnCount = ppar.prefixArray[index][0];
+                              console.writeln('Using auto icon column ' + columnCount);
+                        } else {
+                              columnCount = ppar.userColumnCount;
+                              iconStartRow = 11;
+                              console.writeln('Using user icon column ' + columnCount);
+                        }
+                        AutoIntegrateEngine(parent.dialog, true);
+                  }
+                  autocontinue_narrowband = false;
+                  run_auto_continue = false;
+                  setDefaultDirs();
+                  if (haveIconized && !batch_narrowband_palette_mode) {
+                        // We have iconized something so update prefix array
+                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
+                        fix_win_prefix_array();
+                        //parent.columnCountControlComboBox.currentItem = columnCount + 1;
+                        savePersistentSettings();
+                  }
+            }
+            catch(err) {
+                  console.criticalln(err);
+                  console.criticalln("Processing stopped!");
+                  writeProcessingSteps(null, true, null);
+                  autocontinue_narrowband = false;
+                  run_auto_continue = false;
+                  setDefaultDirs();
+                  fix_win_prefix_array();
+            }
+      };
+
+      return newPushorToolButton(
+            parent,
+            ":/icons/goto-next.png",
+            "AutoContinue",
+            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
+            "<p>" +
+            "Image check order is:<br>" +
+            "1. L_HT + RGB_HT<br>" +
+            "2. RGB_HT<br>" +
+            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
+            "4. Integration_RGB_DBE<br>" +
+            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
+            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
+            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
+            "8. Integration_H + Integration_S + Integration_O<br>" +
+            "9. Final image (for extra processing)" +
+            "</p>" +
+            "<p>" +
+            "Not all images must be present, for example L image can be missing.<br>" +
+            "RGB = Combined image, can be RGB or HSO.<br>" +
+            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
+            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
+            "</p>",
+            autocontinue_action,
+            toolbutton
+      );
+}
+
 function blinkArrowButton(parent, icon, x, y)
 {
       var blinkArrowButton = new ToolButton( parent );
@@ -12794,14 +12961,12 @@ function newPageButtonsSizer(parent)
       };
       
       var buttonsSizer = new HorizontalSizer;
+      buttonsSizer.spacing = 4;
 
       if (!use_preview) {
             buttonsSizer.add( blinkLabel );
-            buttonsSizer.addSpacing( 4 );
             buttonsSizer.add( blinkFitButton );
-            buttonsSizer.addSpacing( 4 );
             buttonsSizer.add( blinkZoomButton );
-            buttonsSizer.addSpacing( 4 );
             buttonsSizer.add( blinkLeft );
             buttonsSizer.add( blinkRight );
             buttonsSizer.add( blinkUp );
@@ -12809,26 +12974,26 @@ function newPageButtonsSizer(parent)
       }
       buttonsSizer.addSpacing( 20 );
       buttonsSizer.add( jsonLabel );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( jsonLoadButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( jsonSaveButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( jsonSaveWithSewttingsButton );
 
       buttonsSizer.addSpacing( 20 );
       buttonsSizer.add( currentPageLabel );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( currentPageCheckButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( currentPageClearButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( currentPageCollapseButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( currentPageExpandButton );
-      buttonsSizer.addSpacing( 4 );
       buttonsSizer.add( currentPageFilterButton );
+
       buttonsSizer.addStretch();
+      buttonsSizer.add( newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.") );
+      buttonsSizer.addSpacing( 6 );
+      buttonsSizer.add( newAutoContinueButton(parent, true) );
+      buttonsSizer.addSpacing( 6 );
+      buttonsSizer.add( newRunButton(parent, true) );
+      buttonsSizer.add( newExitButton(parent, true) );
+
 
       return buttonsSizer;
 }
@@ -13328,145 +13493,9 @@ function AutoIntegrateDialog()
       this.helpTips.toolTip = mainHelpTips;
 
       // Run, Exit and AutoContinue buttons
-      this.run_Button = new PushButton( this );
-      this.run_Button.text = "Run";
-      this.run_Button.icon = this.scaledResource( ":/icons/power.png" );
-      this.run_Button.toolTip = "Run the script.";
-      this.run_Button.onClick = function()
-      {
-            exitFromDialog();
-            if (get_process_defaults) {
-                  getProcessDefaultValues();
-                  return;
-            }     
-            updateWindowPrefix();
-            getFilesFromTreebox(this.dialog);
-            haveIconized = 0;
-            var index = findPrefixIndex(ppar.win_prefix);
-            if (index == -1) {
-                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
-            }
-            if (ppar.userColumnCount == -1) {
-                  columnCount = ppar.prefixArray[index][0];
-                  console.writeln('Using auto icon column ' + columnCount);
-            } else {
-                  columnCount = ppar.userColumnCount;
-                  console.writeln('Using user icon column ' + columnCount);
-            }
-            iconStartRow = 0;
-            write_processing_log_file = true;
-            Autorun(this);
-            if (haveIconized) {
-                  // We have iconized something so update prefix array
-                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
-                  fix_win_prefix_array();
-                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
-                        ppar.userColumnCount = columnCount + 1;
-                        this.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
-                  }
-                  savePersistentSettings();
-            }
-      };
-      
-      this.exit_Button = new PushButton( this );
-      this.exit_Button.text = "Exit";
-      this.exit_Button.icon = this.scaledResource( ":/icons/close.png" );
-      this.exit_Button.toolTip = "<p>Exit the script and save interface settings.</p>" + 
-                                    "<p>Note that closing the script from top right corner close icon does not save interface settings.</p>";
-      this.exit_Button.onClick = function()
-      {
-            console.noteln("AutoIntegrate exiting");
-            exitFromDialog();
-            close_undo_images(this.dialog);
-            // save prefix setting at the end
-            savePersistentSettings();
-            this.dialog.cancel();
-      };
-
-      // Button to continue LRGB from existing files
-      this.autoContinueButton = new PushButton( this );
-      this.autoContinueButton.text = "AutoContinue";
-      this.autoContinueButton.icon = this.scaledResource( ":/icons/goto-next.png" );
-      this.autoContinueButton.toolTip = 
-            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
-            "<p>" +
-            "Image check order is:<br>" +
-            "1. L_HT + RGB_HT<br>" +
-            "2. RGB_HT<br>" +
-            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
-            "4. Integration_RGB_DBE<br>" +
-            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
-            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
-            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
-            "8. Integration_H + Integration_S + Integration_O<br>" +
-            "9. Final image (for extra processing)" +
-            "</p>" +
-            "<p>" +
-            "Not all images must be present, for example L image can be missing.<br>" +
-            "RGB = Combined image, can be RGB or HSO.<br>" +
-            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
-            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
-            "</p>";
-      this.autoContinueButton.onClick = function()
-      {
-            exitFromDialog();
-            console.writeln("autoContinue");
-
-            // Do not create subdirectory structure with AutoContinue
-
-            clearDefaultDirs();
-            getFilesFromTreebox(this.dialog);
-            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
-            haveIconized = 0;
-            write_processing_log_file = true;
-            try {
-                  updateWindowPrefix();
-                  autocontinue_narrowband = is_narrowband_option();
-                  run_auto_continue = true;
-                  if (batch_narrowband_palette_mode) {
-                        AutoIntegrateNarrowbandPaletteBatch(this.dialog, true);
-                  } else {
-                        var index = findPrefixIndex(ppar.win_prefix);
-                        if (index == -1) {
-                              iconStartRow = 0;
-                              index = findNewPrefixIndex(ppar.userColumnCount == -1);
-                        } else {
-                              // With AutoContinue start icons below current
-                              // icons.
-                              iconStartRow = ppar.prefixArray[index][2];
-                        }
-                        if (ppar.userColumnCount == -1) {
-                              columnCount = ppar.prefixArray[index][0];
-                              console.writeln('Using auto icon column ' + columnCount);
-                        } else {
-                              columnCount = ppar.userColumnCount;
-                              iconStartRow = 11;
-                              console.writeln('Using user icon column ' + columnCount);
-                        }
-                        AutoIntegrateEngine(this.dialog, true);
-                  }
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
-                  if (haveIconized && !batch_narrowband_palette_mode) {
-                        // We have iconized something so update prefix array
-                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
-                        fix_win_prefix_array();
-                        //this.columnCountControlComboBox.currentItem = columnCount + 1;
-                        savePersistentSettings();
-                  }
-            }
-            catch(err) {
-                  console.criticalln(err);
-                  console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true, null);
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
-                  fix_win_prefix_array();
-            }
-      };   
-
+      this.run_Button = newRunButton(this, false);
+      this.exit_Button = newExitButton(this, false);
+      this.autoContinueButton = newAutoContinueButton(this, false);
       
       this.filesToolTip = [];
       this.filesToolTip[pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
@@ -15365,12 +15394,10 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( closeAllPrefixButton );
-      if (!run_exit_autocontinue_at_top) {
-            this.buttons_Sizer.add( this.autoContinueButton );
-            this.buttons_Sizer.addSpacing( 12 );
-            this.buttons_Sizer.add( this.run_Button );
-            this.buttons_Sizer.add( this.exit_Button );
-      }
+      this.buttons_Sizer.add( this.autoContinueButton );
+      this.buttons_Sizer.addSpacing( 12 );
+      this.buttons_Sizer.add( this.run_Button );
+      this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
 
       this.ProcessingControl1 = new Control( this );
