@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test16";
+var autointegrate_version = "AutoIntegrate v1.47 test17";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -454,7 +454,9 @@ var par = {
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
       STF_targetBackground: { val: 0.25, def: 0.25, name : "STF targetBackground", type : 'R' },    
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
-      ArcsinhStretchFactor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
+      Arcsinh_stretch_factor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
+      Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'I' }, 
+      Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
@@ -2132,16 +2134,14 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
             /* If we have color files we extract lightness component and
                use it as a mask.
             */
-            addStatusInfo("Create mask by extracting lightness component from color image");
-            addProcessingStep("Create mask by extracting lightness component from color image " + sourceWindow.mainView.id);
+            addProcessingStepAndStatusInfo("Create mask by extracting lightness component from color image " + sourceWindow.mainView.id);
 
             targetWindow = extractLchannel(sourceWindow);
             
             windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
       } else {
             /* Default mask is the same as stretched image. */
-            addStatusInfo("Create mask");
-            addProcessingStep("Create mask from image " + sourceWindow.mainView.id);
+            addProcessingStepAndStatusInfo("Create mask from image " + sourceWindow.mainView.id);
             targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
 
@@ -5092,8 +5092,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 /* Run single expression PixelMath and optionally create new image. */
 function runPixelMathSingleMappingEx(id, mapping, createNewImage)
 {
-      addStatusInfo("Run PixelMath single mapping");
-      addProcessingStep("Run PixelMath single mapping " + mapping + " using image " + id);
+      addProcessingStepAndStatusInfo("Run PixelMath single mapping");
 
       var idWin = findWindow(id);
       if (idWin == null) {
@@ -5133,8 +5132,7 @@ function runPixelMathSingleMapping(id, mapping)
 */
 function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
 {
-      addStatusInfo("Run PixelMath RGB mapping");
-      addProcessingStep("Run PixelMath mapping R " + mapping_R + ", G " + mapping_G + ", B " + mapping_B);
+      addProcessingStepAndStatusInfo("Run PixelMath RGB mapping");
 
       if (idWin == null) {
             idWin = findWindowCheckBaseNameIf("Integration_H", run_auto_continue);
@@ -5285,8 +5283,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
             return;
       }
 
-      addStatusInfo("Reduce noise on luminance image");
-      addProcessingStep("Reduce noise on luminance image " + imgWin.mainView.id);
+      addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
       runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
       updatePreviewWin(imgWin);
@@ -5300,18 +5297,22 @@ function channelNoiseReduction(image_id)
       {
             return;
       }
-      addStatusInfo("Reduce noise on channel image");
-      addProcessingStep("Reduce noise on channel image " + image_id);
+      addProcessingStepAndStatusInfo("Reduce noise on channel image " + image_id);
 
       var image_win = findWindow(image_id);
 
-      /* Create a temporary mask. */
-      var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
+      if (!par.use_noisexterminator.val) {
+            /* Create a temporary mask. */
+            var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
+      }
 
       runNoiseReductionEx(image_win, mask_win, par.noise_reduction_strength.val, true);
+
       updatePreviewWin(image_win);
 
-      closeOneWindow(mask_win.mainView.id);
+      if (!par.use_noisexterminator.val) {
+            closeOneWindow(mask_win.mainView.id);
+      }
 }
 
 function createNewStarXTerminator(star_mask, linear_data)
@@ -5656,8 +5657,7 @@ function runStarAlignment(imagetable, refImage)
 {
       var alignedFiles;
 
-      addStatusInfo("Star alignment on " + imagetable.length + " files");
-      addProcessingStep("Star alignment reference image " + refImage);
+      addProcessingStepAndStatusInfo("Star alignment reference image " + refImage);
       console.writeln("runStarAlignment input[0] " + imagetable[0]);
 
       var targets = [];
@@ -5704,8 +5704,7 @@ function runStarAlignment(imagetable, refImage)
 
 function runLocalNormalization(imagetable, refImage)
 {
-      addStatusInfo("Run local normalization");
-      addProcessingStep("Local normalization reference image " + refImage);
+      addProcessingStepAndStatusInfo("Local normalization reference image " + refImage);
 
       if (imagetable.length == 0) {
             // No new files are needed
@@ -6433,8 +6432,7 @@ function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground
 
 function runHistogramTransformMaskedStretch(ABE_win)
 {
-      addStatusInfo("Run histogram transform using MaskedStretch");
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
+      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
 
       var P = new MaskedStretch;
       P.targetBackground = par.MaskedStretch_targetBackground.val;
@@ -6449,18 +6447,28 @@ function runHistogramTransformMaskedStretch(ABE_win)
 
 function runHistogramTransformArcsinhStretch(ABE_win)
 {
-      addStatusInfo("Run histogram transform using ArcsinhStretch");
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
+      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
 
-      var P = new ArcsinhStretch;
-      P.stretch = par.ArcsinhStretchFactor.val;
-
-      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      var stretch = Math.pow(par.Arcsinh_stretch_factor.val, 1/par.Arcsinh_iterations.val);
 
       console.writeln("Execute ArcsinhStretch on " + ABE_win.mainView.id);
-      P.executeOn(ABE_win.mainView);
 
-      ABE_win.mainView.endProcess();
+      for (var i = 0; i < par.Arcsinh_iterations.val; i++) {
+
+            var P = new ArcsinhStretch;
+            P.stretch = stretch;
+            P.blackPoint = findSymmetryPoint(ABE_win, par.Arcsinh_black_point.val);
+            P.protectHighlights = false;  // setting to true does not work well
+
+            ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+            P.executeOn(ABE_win.mainView);
+
+            ABE_win.mainView.endProcess();
+
+            var current_val = findHistogramPeak(ABE_win);
+            console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + current_val);
+      }
 }
 
 function runHistogramTransformHyperbolicIterations(ABE_win)
@@ -6468,8 +6476,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win)
       //histogram_test(ABE_win);
       //return ABE_win;
 
-      addStatusInfo("Run histogram transform using Generalized Hyperbolic Stretching");
-      addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
       console.writeln("Start values D = " + par.Hyperbolic_D.val + ", b = " + par.Hyperbolic_b.val + ", SP = " + par.Hyperbolic_SP.val);
 
       var res = { 
@@ -6736,8 +6743,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
       if (par.ACDNR_noise_reduction.val == 0.0) {
             return;
       }
-      addStatusInfo("ACDNR noise reduction");
-      addProcessingStep("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ACDNR;
       P.applyToChrominance = false;
@@ -6942,20 +6948,17 @@ function runNoiseReduction(imgWin, maskWin, linear)
             return;
       }
 
-      addStatusInfo("Noise reduction");
-
       if (par.use_noisexterminator.val) {
-            addProcessingStep("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
+            addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
       } else {
-            addProcessingStep("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            addProcessingStepAndStatusInfo("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       }
       runNoiseReductionEx(imgWin, maskWin, par.noise_reduction_strength.val, linear);
 }
 
 function runColorReduceNoise(imgWin)
 {
-      addStatusInfo("Color noise reduction");
-      addProcessingStep("Color noise reduction on " + imgWin.mainView.id);
+      addProcessingStepAndStatusInfo("Color noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
       P.rgbkMode = false;
@@ -6975,8 +6978,7 @@ function runColorReduceNoise(imgWin)
 
 function starReduceNoise(imgWin)
 {
-      addStatusInfo("Star noise reduction");
-      addProcessingStep("Star noise reduction on " + imgWin.mainView.id);
+      addProcessingStepAndStatusInfo("Star noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
       P.rgbkMode = false;
@@ -7011,8 +7013,7 @@ function starReduceNoise(imgWin)
 
 function runBackgroundNeutralization(imgView)
 {
-      addStatusInfo("Background neutralization");
-      addProcessingStep("Background neutralization on " + imgView.id);
+      addProcessingStepAndStatusInfo("Background neutralization on " + imgView.id);
 
       var P = new BackgroundNeutralization;
 
@@ -7036,8 +7037,7 @@ function runColorCalibration(imgView)
             return;
       }
       try {
-            addStatusInfo("Color calibration");
-            addProcessingStep("Color calibration on " + imgView.id);
+            addProcessingStepAndStatusInfo("Color calibration on " + imgView.id);
 
             var P = new ColorCalibration;
 
@@ -7057,8 +7057,7 @@ function runColorCalibration(imgView)
 
 function runColorSaturation(imgWin, maskWin)
 {
-      addStatusInfo("Color saturation");
-      addProcessingStep("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       var P = new ColorSaturation;
       P.HS = [ // x, y
             [0.00000, 0.43636],
@@ -7089,8 +7088,7 @@ function runColorSaturation(imgWin, maskWin)
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
 {
-      addStatusInfo("Curves transformation for saturation");
-      addProcessingStep("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.S = [ // x, y
@@ -7126,8 +7124,7 @@ function runLRGBCombination(RGB_id, L_id)
                         ImageWindow.windowById(RGB_id), 
                         ensure_win_prefix(RGB_id.replace("RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
-      addStatusInfo("LRGB combination");
-      addProcessingStep("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
+      addProcessingStepAndStatusInfo("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
             [false, "", 1.00000],
@@ -7153,8 +7150,7 @@ function runLRGBCombination(RGB_id, L_id)
 function runSCNR(RGBimgView, fixing_stars)
 {
       if (!fixing_stars) {
-            addStatusInfo("Run SCNR");
-            addProcessingStep("SCNR on " + RGBimgView.id);
+            addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
       }
       var P = new SCNR;
       if (narrowband && par.leave_some_green.val && !fixing_stars) {
@@ -7176,8 +7172,7 @@ function runSCNR(RGBimgView, fixing_stars)
 // Run hue shift on narrowband image to enhance orange.
 function narrowbandOrangeHueShift(imgView)
 {
-      addStatusInfo("Run hue shift");
-      addProcessingStep("Hue shift on " + imgView.id);
+      addProcessingStepAndStatusInfo("Hue shift on " + imgView.id);
       
       var P = new CurvesTransformation;
       P.H = [ // x, y
@@ -7198,11 +7193,10 @@ function narrowbandOrangeHueShift(imgView)
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
-      addStatusInfo("Run sharpening");
       if (maskWin != null) {
-            addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       } else {
-            addProcessingStep("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       }
 
       var P = new MultiscaleLinearTransform;
@@ -8253,8 +8247,7 @@ function CombineRGBimage()
 
 function extractRGBchannel(RGB_id, channel)
 {
-      addStatusInfo("Extract " + channel);
-      addProcessingStep("Extract " + channel + " from " + RGB_id);
+      addProcessingStepAndStatusInfo("Extract " + channel + " from " + RGB_id);
       var sourceWindow = findWindow(RGB_id);
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.RGB;
@@ -8422,8 +8415,7 @@ function testRGBNBmapping()
  */
 function ProcessRGBimage(RGBstretched)
 {
-      addStatusInfo("Process RGB image");
-      addProcessingStep("Process RGB image, RGB stretched is " + RGBstretched);
+      addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBstretched);
 
       var RGB_ABE_HT_id;
 
@@ -8731,8 +8723,7 @@ function extraRemoveStars(imgWin, apply_directly)
 
 function extraDarkerBackground(imgWin, maskWin)
 {
-      addStatusInfo("Extra darker background");
-      addProcessingStep("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -8758,8 +8749,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
-      addStatusInfo("Run HDRMultiscaleTransform");
-      addProcessingStep("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var failed = false;
       var hsChannels = null;
@@ -8830,8 +8820,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
 function extraLocalHistogramEqualization(imgWin, maskWin)
 {
-      addStatusInfo("Run LocalHistogramEqualization");
-      addProcessingStep("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new LocalHistogramEqualization;
       P.radius = par.extra_LHE_kernelradius.val;
@@ -8855,8 +8844,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
 function extraExponentialTransformation(imgWin, maskWin)
 {
-      addStatusInfo("Run ExponentialTransformation");
-      addProcessingStep("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addProcessingStepAndStatusInfo("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ExponentialTransformation;
       P.functionType = ExponentialTransformation.prototype.PIP;
@@ -8927,12 +8915,11 @@ function extraSmallerStars(imgWin, is_star_image)
             createStarMaskIf(imgWin);
       }
 
-      addStatusInfo("Extra smaller stars");
       if (is_star_image) {
-            addProcessingStep("Smaller stars on stars image " + imgWin.mainView.id + 
+            addProcessingStepAndStatusInfo("Smaller stars on stars image " + imgWin.mainView.id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
       } else {
-            addProcessingStep("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
+            addProcessingStepAndStatusInfo("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
                         " and " + par.extra_smaller_stars_iterations.val + " iterations");
       }
 
@@ -8993,8 +8980,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
 function extraContrast(imgWin)
 {
-      addStatusInfo("Increase contrast");
-      addProcessingStep("Increase contrast on " + imgWin.mainView.id);
+      addProcessingStepAndStatusInfo("Increase contrast on " + imgWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -9015,8 +9001,7 @@ function extraContrast(imgWin)
 
 function extraStretch(win)
 {
-      addStatusInfo("Extra stretch");
-      addProcessingStep("Extra stretch on " + win.mainView.id);
+      addProcessingStepAndStatusInfo("Extra stretch on " + win.mainView.id);
 
       win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
       return win;
@@ -9024,8 +9009,7 @@ function extraStretch(win)
 
 function extraShadowClipping(win, perc)
 {
-      addStatusInfo("Extra shadow clipping");
-      addProcessingStep("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
+      addProcessingStepAndStatusInfo("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
 
       clipShadows(win, perc);
 
@@ -9037,8 +9021,7 @@ function extraNoiseReduction(win, mask_win)
       if (par.extra_noise_reduction_strength.val == 0) {
             return;
       }
-      addStatusInfo("Extra noise reduction");
-      addProcessingStep("Extra noise reduction on " + win.mainView.id);
+      addProcessingStepAndStatusInfo("Extra noise reduction on " + win.mainView.id);
 
       runNoiseReductionEx(
             win, 
@@ -9069,8 +9052,7 @@ function extraColorNoise(extraWin)
 
 function extraUnsharpMask(extraWin)
 {
-      addStatusInfo("Extra UnsharpMask");
-      addProcessingStep("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
+      addProcessingStepAndStatusInfo("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
 
       var P = new UnsharpMask;
       P.sigma = par.extra_unsharpmask_stddev.val;
@@ -9085,8 +9067,7 @@ function extraUnsharpMask(extraWin)
 
 function extraSharpen(extraWin, mask_win)
 {
-      addStatusInfo("Extra sharpening");
-      addProcessingStep("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
+      addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
 
       for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
             runMultiscaleLinearTransformSharpen(extraWin, mask_win);
@@ -9221,8 +9202,7 @@ function AutoIntegrateNarrowbandPaletteBatch(parent, auto_continue)
                   par.custom_R_mapping.val = narrowBandPalettes[i].R;
                   par.custom_G_mapping.val = narrowBandPalettes[i].G;
                   par.custom_B_mapping.val = narrowBandPalettes[i].B;
-                  addStatusInfo("Narrowband palette " + narrowBandPalettes[i].name + " batch");
-                  addProcessingStep("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
+                  addProcessingStepAndStatusInfo("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
                   var succ = AutoIntegrateEngine(parent, auto_continue);
                   if (!succ) {
@@ -9277,14 +9257,14 @@ function findStarImageId(starless_id, original_id)
 function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNewImage)
 {
       /* Restore stars by combining starless image and stars. */
-      addStatusInfo("Combining starless and star images using " + stars_combine);
+      addProcessingStepAndStatusInfo("Combining starless and star images using " + stars_combine);
       if (stars_id == null) {
             stars_id = findStarImageId(starless_id);
       }
       if (stars_id == null) {
             throwFatalError("Could not find starless image for start image " + starless_id);
       }
-      addProcessingStep("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
+      addProcessingStepAndStatusInfo("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
             case 'Screen':
                   var new_id = runPixelMathSingleMappingEx(
@@ -14113,7 +14093,7 @@ function AutoIntegrateDialog()
             "<ul>" +
             "<li>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</li>" +
             "<li>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<p>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
-            "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful for example when stretching stars to keep good star color.</p></li>" +
+            "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful also when stretching stars to keep good star color.</p></li>" +
             "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching. " + Hyperbolic_tips + "</li>" +
             "</ul>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
@@ -14160,13 +14140,36 @@ function AutoIntegrateDialog()
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>");
       this.STFTargetBackgroundControl.setPrecision(3);
 
+      /* Masked.
+       */
       this.MaskedStretchTargetBackgroundControl = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
       this.MaskedStretchTargetBackgroundControl.setPrecision(3);
-      this.ArcsinhStretchFactorControl = newNumericControl(this, "Arcsinh Stretch Factor", par.ArcsinhStretchFactor, 1, 1000,
-            "<p>Arcsinh Stretch Factor value. Most useful for stretching stars. Smaller values are usually better.</p>" +
-            "<p>Depending on the star combine method you may need to use a different values. For less stars you ca use a smaller value.</p>");
 
+      /* Arcsinh.
+       */
+      this.Arcsinh_stretch_factor_Edit = newNumericEdit(this, "Arcsinh Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
+            "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
+            "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
+            "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use a different values. For less stars you can use a smaller value.</p>");
+      this.Arcsinh_black_point_Control = newNumericEdit(this, "Black point value %", par.Arcsinh_black_point, 0, 99,
+            "<p>Arcsinh Stretch black point value.</p>" + 
+            "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>");
+      var Arcsinh_iterations_tooltip = "Number of iterations used to get the requested stretch factor."
+      this.Arcsinh_iterations_Label = newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
+      this.Arcsinh_iterations_SpinBox = newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
+
+      this.ArcsinhSizer = new HorizontalSizer;
+      this.ArcsinhSizer.spacing = 4;
+      this.ArcsinhSizer.margin = 2;
+      this.ArcsinhSizer.add( this.Arcsinh_stretch_factor_Edit );
+      this.ArcsinhSizer.add( this.Arcsinh_black_point_Control );
+      this.ArcsinhSizer.add( this.Arcsinh_iterations_Label );
+      this.ArcsinhSizer.add( this.Arcsinh_iterations_SpinBox );
+      this.ArcsinhSizer.addStretch();
+
+      /* Hyperbolic.
+       */
       this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 1000,
             "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + Hyperbolic_tips);
       this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, -5, 15,
@@ -14226,13 +14229,15 @@ function AutoIntegrateDialog()
       this.hyperbolicSizer.add( this.hyperbolicSizer2 );
       this.hyperbolicSizer.addStretch();
 
+      /* Options.
+       */
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
       this.StretchingOptionsSizer.add( this.STFTargetBackgroundControl );
       this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
-      this.StretchingOptionsSizer.add( this.ArcsinhStretchFactorControl );
+      this.StretchingOptionsSizer.add( this.ArcsinhSizer );
       //this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
