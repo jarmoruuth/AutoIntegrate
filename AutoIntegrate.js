@@ -291,7 +291,7 @@ var get_process_defaults = false;   // temp setting to print process defaults
 var use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test17";
+var autointegrate_version = "AutoIntegrate v1.47 test18";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -311,6 +311,8 @@ var previewInfoLabel2;        // For updating preview info text
 var statusInfoLabel2;         // For update processing status
 var mainTabBox;               // For switching to preview tab
 
+var do_not_read_settings = false;   // do not read Settings from persistent module settings
+var do_not_write_settings = false;  // do not write Settings to persistent module settings
 var use_preview = true;
 var is_some_preview = false;
 var is_processing = false;
@@ -544,6 +546,7 @@ var ppar = {
       side_preview_visible: false,   // Show image preview on the side of the dialog too
       preview_width: 400,     // Preview width
       preview_height: 400,    // preview height
+      default_preview_size: true, // do we have default preview size
       use_single_column: false // show all options in a single column
 };
 
@@ -966,24 +969,35 @@ function findNewPrefixIndex(find_free_column)
 }
 
 // Save persistent settings
-function savePersistentSettings()
+function savePersistentSettings(from_exit)
 {
-      Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
-      Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
-      if (par.use_manual_icon_column.val) {
-            Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
+      if (do_not_write_settings) {
+            console.noteln("Do not save interface settings to persistent module settings.");
+      } else {
+            console.noteln("Save persistent settings");
+            Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
+            Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
+            if (par.use_manual_icon_column.val) {
+                  Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
+            }
+            Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
+            Settings.write (SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean, ppar.side_preview_visible);
+            Settings.write (SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean, ppar.default_preview_size);
+            Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
+            Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
+            Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
       }
-      Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
-      Settings.write (SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean, ppar.side_preview_visible);
-      Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
-      Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
-      Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
-      setWindowPrefixHelpTip(ppar.win_prefix);
-      console.noteln("Saved persistent settings");
+      if (!from_exit) {
+            setWindowPrefixHelpTip(ppar.win_prefix);
+      }
 }
 
 function readPersistentSettings()
 {
+      if (do_not_read_settings) {
+            console.writeln("Use default settings, do not read session settings from persistent module settings");
+            return;
+      }
       // Read prefix info. We use new setting names to avoid conflict with
       // older columnCount/winPrefix names
       console.noteln("Read window prefix settings");
@@ -1040,6 +1054,11 @@ function readPersistentSettings()
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
             ppar.side_preview_visible = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored defaultPreviewSize '" + tempSetting + "' from settings.");
+            ppar.default_preview_size = tempSetting;
       }
       var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
       if (Settings.lastReadOK) {
@@ -1684,8 +1703,10 @@ function ensureDir(dir)
 function saveLastDir(dirname)
 {
       ppar.lastDir = removePathEndSlash(dirname);
-      Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
-      console.writeln("Save lastDir '" + ppar.lastDir + "'");
+      if (!do_not_write_settings) {
+            Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
+            console.writeln("Save lastDir '" + ppar.lastDir + "'");
+      }
 }
 
 function combinePath(p1, p2)
@@ -4046,6 +4067,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             P.noiseLayers = 2;
             P.outputDirectory = outputRootDir + AutoOutputDir;
             P.overwriteExistingFiles = true;
+            P.maxPSFFits = 8000;
             /*
             ** PI 1.8.8-10
             P.measurements = [ 
@@ -9627,14 +9649,16 @@ function save_as_undo(parent)
 
 function close_undo_images(parent)
 {
-      console.writeln("Close undo images");
-      for (var i = 0; i < undo_images.length; i++) {
-            closeOneWindow(undo_images[i]);
+      if (undo_images.length > 0) {
+            console.writeln("Close undo images");
+            for (var i = 0; i < undo_images.length; i++) {
+                  closeOneWindow(undo_images[i]);
+            }
+            undo_images = [];
+            undo_images_pos = -1;
+            undo_images_saved_pos = -1;
+            update_undo_buttons(parent);
       }
-      undo_images = [];
-      undo_images_pos = -1;
-      undo_images_saved_pos = -1;
-      update_undo_buttons(parent);
 }
 
 function extraProcessingEngine()
@@ -10919,7 +10943,7 @@ function newNumericControl(parent, txt, param, min, max, tooltip)
       var edt = new NumericControl( parent );
       edt.label.text = txt;
       edt.setRange(min, max);
-      edt.setPrecision(1);
+      edt.setPrecision(3);
       edt.setValue(param.val);
       edt.onValueUpdated = function(value) { 
             param.val = value; 
@@ -12572,6 +12596,10 @@ function saveParametersToProcessIcon()
 // Read default parameters from process icon
 function readParametersFromProcessIcon() 
 {
+      if (do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from process icon");
+            return;
+      }
       console.writeln("readParametersFromProcessIcon");
       for (let x in par) {
             var param = par[x];
@@ -12617,6 +12645,10 @@ function setParameterDefaults()
 // Save default parameters to persistent module settings
 function saveParametersToPersistentModuleSettings()
 {
+      if (do_not_write_settings) {
+            console.writeln("Do not save parameter values persistent module settings");
+            return;
+      }
       console.writeln("saveParametersToPersistentModuleSettings");
       for (let x in par) {
             var param = par[x];
@@ -12651,6 +12683,10 @@ function saveParametersToPersistentModuleSettings()
 // Read default parameters from persistent module settings
 function ReadParametersFromPersistentModuleSettings()
 {
+      if (do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from persistent module settings");
+            return;
+      }
       if (!use_persistent_module_settings) {
             console.writeln("skip ReadParametersFromPersistentModuleSettings");
             return;
@@ -12732,7 +12768,7 @@ function newRunButton(parent, toolbutton)
                         ppar.userColumnCount = columnCount + 1;
                         parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
                   }
-                  savePersistentSettings();
+                  savePersistentSettings(false);
             }
       };
       return newPushorToolButton(
@@ -12750,10 +12786,11 @@ function newExitButton(parent, toolbutton)
       var exit_action = function()
       {
             console.noteln("AutoIntegrate exiting");
+            // save settings at the end
+            savePersistentSettings(true);
             exitFromDialog();
             close_undo_images(parent.dialog);
-            // save prefix setting at the end
-            savePersistentSettings();
+            console.noteln("Close dialog");
             parent.dialog.cancel();
       };
 
@@ -12817,7 +12854,7 @@ function newAutoContinueButton(parent, toolbutton)
                         ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
                         fix_win_prefix_array();
                         //parent.columnCountControlComboBox.currentItem = columnCount + 1;
-                        savePersistentSettings();
+                        savePersistentSettings(false);
                   }
             }
             catch(err) {
@@ -13044,6 +13081,9 @@ function newPageButtonsSizer(parent)
 
 function getSectionVisible(name, control)
 {
+      if (do_not_read_settings) {
+            return;
+      }
       var tempSetting = Settings.read(name, DataType_Boolean);
       if (Settings.lastReadOK) {
             // console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
@@ -13056,7 +13096,9 @@ function newSectionBar(parent, control, title, name)
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
-            Settings.write(name, DataType_Boolean, control.visible);
+            if (!do_not_write_settings) {
+                  Settings.write(name, DataType_Boolean, control.visible);
+            }
             parent.dialog.adjustToContents();
       };
 
@@ -13077,7 +13119,9 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
-            Settings.write(name, DataType_Boolean, control.visible);
+            if (!do_not_write_settings) {
+                  Settings.write(name, DataType_Boolean, control.visible);
+            }
             parent.dialog.adjustToContents();
       };
 
@@ -13488,7 +13532,13 @@ function AutoIntegrateDialog()
       this.__base__ = Dialog;
       this.__base__();
 
-      var labelWidth1 = this.font.width( "Output format hints:" + 'T' );
+      if (ppar.default_preview_size && this.availableScreenRect != undefined) {
+            let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.4, this.availableScreenRect.height * 0.4));
+            ppar.preview_width = preview_size;
+            ppar.preview_height = preview_size;
+            console.writeln("Screen size " + this.availableScreenRect.width + "x" + this.availableScreenRect.height, ", using preview size " + ppar.preview_width + "x" + ppar.preview_height);
+      }
+
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
 
@@ -13932,7 +13982,7 @@ function AutoIntegrateDialog()
       this.otherParamsControl.sizer.spacing = 4;
       this.otherParamsControl.sizer.add( this.otherParamsSet1 );
       this.otherParamsControl.sizer.add( this.otherParamsSet2 );
-      this.imageParamsControl.visible = false;
+      this.otherParamsControl.visible = false;
       //this.otherParamsControl.sizer.addStretch();
       
       // Weight calculations
@@ -14138,13 +14188,11 @@ function AutoIntegrateDialog()
 
       this.STFTargetBackgroundControl = newNumericControl(this, "STF targetBackground", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>");
-      this.STFTargetBackgroundControl.setPrecision(3);
 
       /* Masked.
        */
       this.MaskedStretchTargetBackgroundControl = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
-      this.MaskedStretchTargetBackgroundControl.setPrecision(3);
 
       /* Arcsinh.
        */
@@ -15170,7 +15218,7 @@ function AutoIntegrateDialog()
                         ppar.prefixArray[index] = [ 0, '-', 0 ];
                         fix_win_prefix_array();
                   }
-                  savePersistentSettings();
+                  savePersistentSettings(false);
                   //this.columnCountControlComboBox.currentItem = columnCount + 1;
             }
             console.writeln("Close completed");
@@ -15220,7 +15268,7 @@ function AutoIntegrateDialog()
                   console.writeln( x );
             }
             fix_win_prefix_array();
-            savePersistentSettings();
+            savePersistentSettings(false);
             // restore original prefix
             fixAllWindowArrays(ppar.win_prefix);
             console.writeln("Close completed");
@@ -15307,7 +15355,7 @@ function AutoIntegrateDialog()
             "<p>Settings are saved by default when exiting the script. This button can be used " +
             "to save settings without exiting. It can be useful if the Exit button is not visible.</p>";
       this.saveInterfaceButton.onClick = function() {
-            savePersistentSettings();
+            savePersistentSettings(false);
       };
 
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar.use_preview, 
@@ -15327,11 +15375,19 @@ function AutoIntegrateDialog()
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
       this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
             "Preview image width.",
-            function(value) { ppar.preview_width = value; preview_size_changed = true; });
+            function(value) { 
+                  ppar.preview_width = value; 
+                  preview_size_changed = true; 
+                  ppar.default_preview_size = false;
+      });
       this.preview_height_label = newLabel(this, 'height', "Preview image height.");
       this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
             "Preview image height.",
-            function(value) { ppar.preview_height = value; preview_size_changed = true; });
+            function(value) { 
+                  ppar.preview_height = value; 
+                  preview_size_changed = true; 
+                  ppar.default_preview_size = false;
+      });
 
       this.preview2Sizer = new HorizontalSizer;
       this.preview2Sizer.margin = 6;
@@ -15540,10 +15596,11 @@ function AutoIntegrateDialog()
       if (use_preview) {
             this.previewToggleButton = new PushButton( this );
             this.previewToggleButton.text = "Toggle preview";
-            this.previewToggleButton.toolTip = "Show/hide image preview on the side of the dialog.";
+            this.previewToggleButton.toolTip = "<p>Show/hide image preview on the side of the dialog.</p>" +
+                                               "<p>Note that sometimes you need to adjust the screen manually or restart the script.</p>";
             this.previewToggleButton.onClick = function() {
                   toggleSidePreview();
-                  //this.adjustToContents();
+                  this.adjustToContents();
             }
             this.previewToggleButtonSizer = new HorizontalSizer;
             this.previewToggleButtonSizer.margin = 6;
@@ -15650,6 +15707,25 @@ AutoIntegrateDialog.prototype = new Dialog;
 function main()
 {
       try {
+            /* Check command line arguments. Arguments can be given by starting the script from
+             * the command line in the Process Console window. Arguments are given using syntax:
+             *    -a="value"
+             * For example:
+             *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/Users/jarmo_000/GitHub/AutoIntegrate/AutoIntegrate.js"
+             * You can find the start command line by checking the Process Console window after starting
+             * the scrip.
+             */
+            for (let i = 0; i < jsArguments.length; i++) {
+                  if (jsArguments[i] == "do_not_read_settings") {
+                        console.writeln("Found do_not_read_settings argument, no parameters are read from persistent module settings or from icon.");
+                        do_not_read_settings = true;
+                  } 
+                  if (jsArguments[i] == "do_not_write_settings") {
+                        console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
+                        do_not_read_settings = true;
+                  } 
+            }
+
             setDefaultDirs();
 
             // 1. Read saved parameters from persistent module settings
