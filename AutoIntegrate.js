@@ -284,14 +284,19 @@ Linear Defect Detection:
 // temporary debugging
 #ifndef TEST_AUTO_INTEGRATE
 // The variables defined here should have a default of 'false' and must be defined
-// by the testing scripts including this script. This allow changing the debug
+// by the testing scripts including this script. This allow changing the ai_debug
 // in the test scripts without modifying the main script
-var debug = false;                  // temp setting for debugging
-var get_process_defaults = false;   // temp setting to print process defaults
-var use_persistent_module_settings = true;  // read some defaults from persistent module settings
+var ai_debug = false;                  // temp setting for debugging
+var ai_get_process_defaults = false;   // temp setting to print process defaults
+var ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 #endif
 
-var autointegrate_version = "AutoIntegrate v1.47 test18";
+/*
+ * Wrapper function to hide global variables and function to avoid name collisions.
+ */
+function AutoIntegrate() {
+
+let autointegrate_version = "AutoIntegrate v1.47 test19";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -301,14 +306,14 @@ var infoLabel;
 var imageInfoLabel;
 var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
-var windowPrefixComboBox;     // For updating prefix name list
+var windowPrefixComboBox = null; // For updating prefix name list
 var outputDirEdit;            // For updating output root directory
-var previewControl;           // For updating preview window
-var previewInfoLabel;         // For updating preview info text
-var statusInfoLabel;          // For update processing status
-var previewControl2;          // For updating preview window
-var previewInfoLabel2;        // For updating preview info text
-var statusInfoLabel2;         // For update processing status
+var tabPreviewControl;        // For updating preview window
+var tabPreviewInfoLabel;      // For updating preview info text
+var tabStatusInfoLabel;       // For update processing status
+var sidePreviewControl;       // For updating preview window
+var sidePreviewInfoLabel;     // For updating preview info text
+var sideStatusInfoLabel;      // For update processing status
 var mainTabBox;               // For switching to preview tab
 
 var do_not_read_settings = false;   // do not read Settings from persistent module settings
@@ -321,7 +326,6 @@ var preview_keep_zoom = false;
 
 var undo_images = [];
 var undo_images_pos = -1;
-var undo_images_saved_pos = -1;
 
 /*
       Parameters that can be adjusted in the GUI
@@ -587,7 +591,6 @@ var blink_zoom_x = 0;
 var blink_zoom_y = 0;
 var saved_measurements = null;
 
-var close_windows = false;
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
 var ssweight_set = false;
 var run_HT = true;
@@ -1428,7 +1431,9 @@ function getWindowListReverse()
       var windowListReverse = [];
       var windowList = getWindowList();
       for (var i = windowList.length-1; i >= 0; i--) {
-            windowListReverse[windowListReverse.length] = windowList[i];
+            if (windowList[i].match(/undo[1-9]*/g) == null) {
+                  windowListReverse[windowListReverse.length] = windowList[i];
+            }
       }
       return windowListReverse;
 }
@@ -1684,6 +1689,7 @@ function closeAllWindows(keep_integrated_imgs, force_close)
 
       use_force_close = true;
 
+      gc(false);
 }
 
 function ensureDir(dir)
@@ -2809,8 +2815,13 @@ function imagesEnabledPathToFileList(images)
 }
 
 
-// Calibration engine to run image calibration 
-// if bias, dark and/or flat files are selected.
+/***************************************************************************
+ * 
+ *    calibrateEngine
+ * 
+ * Calibration engine to run image calibration 
+ * if bias, dark and/or flat files are selected.
+ */
 function calibrateEngine(filtered_lights)
 {
       if (biasFileNames == null) {
@@ -2955,7 +2966,7 @@ function calibrateEngine(filtered_lights)
                   // integrate flats to generate master flat for each filter
                   var flatimages = filesForImageIntegration(flatcalFileNames);
                   console.writeln("flatimages[0] " + flatimages[0][1]);
-                  masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName);
+                  let masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName);
                   console.writeln("masterflatid " + masterflatid);
                   setImagetypKeyword(findWindow(masterflatid), "Master flat");
                   setFilterKeyword(findWindow(masterflatid), filterFiles[0].filter);
@@ -2986,6 +2997,8 @@ function calibrateEngine(filtered_lights)
       // after that debayering in case of OSC/RAW files
 
       console.writeln("calibrateEngine, return calibrated images, calibratedLightFileNames[0] " + calibratedLightFileNames[0]);
+
+      gc(false);
 
       return [ calibratedLightFileNames, '_c' ];
 }
@@ -6183,7 +6196,7 @@ function runABEex(win, replaceTarget, postfix)
       P.discardModel = true;
       P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
 
-      if (debug) {
+      if (ai_debug) {
             console.writeln(P.toSource());
       }
 
@@ -8672,7 +8685,7 @@ function fixNarrowbandStarColor(targetWin)
 // - Operations like HDMT and LHE are run on the starless image
 // - Star reduction is done on the stars image
 // - OPtionally in the end starless and stars images are combined together
-function extraRemoveStars(imgWin, apply_directly)
+function extraRemoveStars(parent, imgWin, apply_directly)
 {
       addProcessingStepAndStatusInfo("Extra remove stars");
 
@@ -8738,6 +8751,8 @@ function extraRemoveStars(imgWin, apply_directly)
       addProcessingStep("Starless image " + copywin.mainView.id);
 
       updatePreviewWin(copywin);
+
+      update_extra_target_image_window_list(parent, null);
 
       // return possibly new starless image for further processing
       return { starless_win: copywin, stars_id: extra_stars_id };
@@ -9320,7 +9335,7 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
       return new_id;
 }
 
-function extraProcessing(id, apply_directly)
+function extraProcessing(parent, id, apply_directly)
 {
       console.noteln("Extra processing");
 
@@ -9367,7 +9382,7 @@ function extraProcessing(id, apply_directly)
             }
       }
       if (par.extra_remove_stars.val) {
-            let res = extraRemoveStars(extraWin, apply_directly);
+            let res = extraRemoveStars(parent, extraWin, apply_directly);
             extraWin = res.starless_win;
             extra_starless_id = extraWin.mainView.id;
             extra_stars_id = res.stars_id;
@@ -9475,8 +9490,13 @@ function extraProcessing(id, apply_directly)
       closeOneWindow(star_mask_win_id);
 }
 
-function update_extra_target_image_window_list(parent)
+function update_extra_target_image_window_list(parent, current_item)
 {
+      if (current_item == null) {
+            // use item from dialog
+            current_item = extra_target_image_window_list[parent.extraImageComboBox.currentItem];
+      }
+
       extra_target_image_window_list = getWindowListReverse();
       extra_target_image_window_list.unshift("Auto");
 
@@ -9484,6 +9504,10 @@ function update_extra_target_image_window_list(parent)
       for (var i = 0; i < extra_target_image_window_list.length; i++) {
             parent.extraImageComboBox.addItem( extra_target_image_window_list[i] );
       }
+
+      // update dialog
+      parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
+      parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
 }
 
 function update_undo_buttons(parent)
@@ -9633,13 +9657,7 @@ function save_as_undo(parent)
       undo_images_saved_pos = undo_images_pos;
       update_undo_buttons(parent);
       if (copy_id != extra_target_image) {
-            // Saved with a different name
-            let idx = extra_target_image_window_list.indexOf(extra_target_image);
-            // replace new window to the window list
-            extra_target_image_window_list[idx] = copy_id;
-            // Update dialog
-            parent.dialog.extraImageComboBox.setItemText(idx, copy_id);
-            parent.dialog.extraImageComboBox.currentItem = idx;
+            update_extra_target_image_window_list(parent, copy_id);
             // Rename old image
             save_win.mainView.id = copy_id;
             // Update preview name
@@ -9661,7 +9679,12 @@ function close_undo_images(parent)
       }
 }
 
-function extraProcessingEngine()
+/***************************************************************************
+ * 
+ *    extraProcessingEngine
+ * 
+ */
+function extraProcessingEngine(parent)
 {
       is_processing = true;
       mask_win = null;
@@ -9678,7 +9701,7 @@ function extraProcessingEngine()
             mainTabBox.currentPageIndex = 1;
       }
 
-      extraProcessing(extra_target_image, true);
+      extraProcessing(parent, extra_target_image, true);
 
       windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
@@ -9689,6 +9712,8 @@ function extraProcessingEngine()
       console.writeln("");
       console.noteln("Extra processing completed.");
       is_processing = false;
+
+      gc(false);
 }
 
 /* Map background extracted channel images to start images.
@@ -9772,7 +9797,7 @@ function find_up_down(image,col)
                   break;
             }
       }
-      if (debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      if (ai_debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
       return [row_up, row_down];
 }
 
@@ -9796,7 +9821,7 @@ function find_left_right(image,row)
                   break;
             }
       }
-      if (debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      if (ai_debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
       return [col_left, col_right];
 }
 
@@ -9816,7 +9841,7 @@ function findMaximalBoundingBox(lowClipImage)
       let [top,bottom] = find_up_down(lowClipImage,col_mid);
       let [left,right] = find_left_right(lowClipImage,row_mid);
 
-      if (debug)
+      if (ai_debug)
       {
             console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
       }
@@ -9980,9 +10005,9 @@ function findBounding_box(lowClipImageWindow)
 
       } // for
 
-      // Show the valid points for debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
+      // Show the valid points for ai_debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
       // recalculated.
-      if (debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
+      if (ai_debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
 
       // Check that the whiole line at the border is valid, in case the border is wiggly
       let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];
@@ -10227,6 +10252,11 @@ function cropChannelImagesAutoContinue()
       }
 }
 
+/***************************************************************************
+ * 
+ *    AutoIntegrateEngine
+ * 
+ */
 function AutoIntegrateEngine(parent, auto_continue)
 {
       if (extra_target_image != "Auto") {
@@ -10365,6 +10395,8 @@ function AutoIntegrateEngine(parent, auto_continue)
                               preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
             var RGBmapping = { combined: false, stretched: false};
+
+            gc(false);
 
             if (preprocessed_images == start_images.L_R_G_B_BE) {
                   mapBEchannels();
@@ -10551,7 +10583,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       console.writeln("Basic processing completed");
 
       if (is_extra_option() || is_narrowband_option()) {
-            extraProcessing(LRGB_ABE_HT_id, false);
+            extraProcessing(parent, LRGB_ABE_HT_id, false);
       }
 
       ensureDialogFilePath("processed files");
@@ -10693,7 +10725,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
-      if (preprocessed_images != start_images.FINAL || get_process_defaults) {
+      if (preprocessed_images != start_images.FINAL || ai_get_process_defaults) {
             writeProcessingSteps(alignedFiles, auto_continue, null);
       }
 
@@ -10716,6 +10748,8 @@ function AutoIntegrateEngine(parent, auto_continue)
       }
       console.noteln("Processing completed.");
       is_processing = false;
+
+      gc(false);
 
       return true;
 }
@@ -10792,8 +10826,11 @@ function getProcessDefaultValues()
       writeProcessingSteps(null, false, "AutoProcessDefaults_" + pixinsight_version_str);
 }
 
-// Dialog functions are below this point
-
+/***************************************************************************
+ * 
+ *    Dialog functions are below this point
+ * 
+ */
 function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick )
 {
       var widget = new CheckBox( parent );
@@ -10875,7 +10912,7 @@ function Autorun(parent)
                         } else {
                               AutoIntegrateEngine(parent.dialog, false);
                         }
-                        update_extra_target_image_window_list(parent.dialog);
+                        update_extra_target_image_window_list(parent.dialog, null);
                   } 
                   catch(err) {
                         console.criticalln(err);
@@ -11239,32 +11276,32 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImageBmp(previewControl, bmp)
+function updatePreviewImageBmp(updPreviewControl, bmp)
 {
       if ((is_some_preview && !is_processing) || preview_keep_zoom) {
-            previewControl.UpdateImage(bmp);
+            updPreviewControl.UpdateImage(bmp);
       } else {
-            previewControl.SetImage(bmp);
+            updPreviewControl.SetImage(bmp);
       }
 }
 
 function updatePreviewTxt(txt)
 {
-      previewInfoLabel.text = "<b>Preview</b> " + txt;
-      previewInfoLabel2.text = previewInfoLabel.text;
+      tabPreviewInfoLabel.text = "<b>Preview</b> " + txt;
+      sidePreviewInfoLabel.text = tabPreviewInfoLabel.text;
 }
 
 function updatePreviewWinTxt(imgWin, txt)
 {
       if (use_preview && imgWin != null) {
             if (preview_size_changed) {
-                  previewControl.setSize(ppar.preview_width, ppar.preview_height);
-                  previewControl2.setSize(ppar.preview_width, ppar.preview_height);
+                  tabPreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
                   preview_size_changed = false;
             }
             var bmp = getWindowBitmap(imgWin);
-            updatePreviewImageBmp(previewControl, bmp);
-            updatePreviewImageBmp(previewControl2, bmp);
+            updatePreviewImageBmp(tabPreviewControl, bmp);
+            updatePreviewImageBmp(sidePreviewControl, bmp);
             updatePreviewTxt(txt);
             is_some_preview = true;
       }
@@ -11352,8 +11389,8 @@ function updatePreviewNoImageInControl(control)
 function updatePreviewNoImage()
 {
       if (use_preview) {
-            updatePreviewNoImageInControl(previewControl);
-            updatePreviewNoImageInControl(previewControl2);
+            updatePreviewNoImageInControl(tabPreviewControl);
+            updatePreviewNoImageInControl(sidePreviewControl);
             updatePreviewTxt("No preview");
       }
 }
@@ -11433,7 +11470,9 @@ function validateWindowPrefix(p)
 function updateWindowPrefix()
 {
       ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
-      windowPrefixComboBox.editText = ppar.win_prefix;
+      if (windowPrefixComboBox != null) {
+            windowPrefixComboBox.editText = ppar.win_prefix;
+      }
       if (ppar.win_prefix != "") {
             ppar.win_prefix = ppar.win_prefix + "_";
       }
@@ -11664,7 +11703,7 @@ function getSettingsFromJson(settings)
                         if (param.reset != undefined) {
                               param.reset();
                         }
-                        console.writeln("getSettingsFromJson, save " + param.name + "=" + param.val);
+                        console.writeln("getSettingsFromJson, set " + param.name + "=" + param.val);
                   }
             }
       }
@@ -12558,9 +12597,9 @@ function updateStatusInfoLabel(txt)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      statusInfoLabel.text = txt;
+      tabStatusInfoLabel.text = txt;
       if (use_preview) {
-            statusInfoLabel2.text = txt;
+            sideStatusInfoLabel.text = txt;
       }
 }
 
@@ -12687,7 +12726,7 @@ function ReadParametersFromPersistentModuleSettings()
             console.writeln("Use default settings, do not read parameter values from persistent module settings");
             return;
       }
-      if (!use_persistent_module_settings) {
+      if (!ai_use_persistent_module_settings) {
             console.writeln("skip ReadParametersFromPersistentModuleSettings");
             return;
       }
@@ -12739,7 +12778,7 @@ function newRunButton(parent, toolbutton)
       var run_action = function()
       {
             exitFromDialog();
-            if (get_process_defaults) {
+            if (ai_get_process_defaults) {
                   getProcessDefaultValues();
                   return;
             }     
@@ -12848,7 +12887,7 @@ function newAutoContinueButton(parent, toolbutton)
                   autocontinue_narrowband = false;
                   run_auto_continue = false;
                   setDefaultDirs();
-                  update_extra_target_image_window_list(parent.dialog);
+                  update_extra_target_image_window_list(parent.dialog, null);
                   if (haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
                         ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
@@ -13138,10 +13177,12 @@ function getWindowBitmap(imgWin)
       return bmp;
 }
 
-// ********************************************************************************************
-// Copyright (C) 2013, Andres del Pozo
-//
-// ********************************************************************************************
+/***************************************************************************
+ * 
+ *    PreviewControl
+ * 
+ * Copyright (C) 2013, Andres del Pozo
+ */
 function PreviewControl(parent, size_x, size_y)
 {
 	this.__base__ = Frame;
@@ -13173,24 +13214,27 @@ function PreviewControl(parent, size_x, size_y)
 
       this.UpdateZoom = function (newZoom, refPoint)
       {
-            //console.writeln("UpdateZoom newZoom ", newZoom);
             if (newZoom < this.zoomOutLimit) {
                   newZoom = this.zoomOutLimit;
             } else if (newZoom >= 1) {
                   newZoom = 1;
             }
-            //console.writeln("UpdateZoom new newZoom ", newZoom);
-            if (newZoom == this.zoom && this.scaledImage)
+            if (newZoom == this.zoom && this.scaledImage) {
                   return;
+            }
 
-            if(refPoint==null)
+            if(refPoint==null) {
                   refPoint=new Point(this.scrollbox.viewport.width/2, this.scrollbox.viewport.height/2);
+            }
             var imgx=null;
-            if(this.scrollbox.maxHorizontalScrollPosition>0)
+            if(this.scrollbox.maxHorizontalScrollPosition>0 || this.zoom == this.zoomOutLimit) {
                   imgx=(refPoint.x+this.scrollbox.horizontalScrollPosition)/this.scale;
+            }
+            // imgx and imgy are in this.image coordinates (i.e. 1:1 scale)
             var imgy=null;
-            if(this.scrollbox.maxVerticalScrollPosition>0)
+            if(this.scrollbox.maxVerticalScrollPosition>0 || this.zoom == this.zoomOutLimit) {
                   imgy=(refPoint.y+this.scrollbox.verticalScrollPosition)/this.scale;
+            }
 
             this.zoom = newZoom;
             this.scale = this.zoom;
@@ -13212,10 +13256,12 @@ function PreviewControl(parent, size_x, size_y)
             this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledImage.width - this.scrollbox.viewport.width);
             this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledImage.height - this.scrollbox.viewport.height);
 
-            if(this.scrollbox.maxHorizontalScrollPosition>0 && imgx!=null)
+            if(this.scrollbox.maxHorizontalScrollPosition>0 && imgx!=null) {
                   this.scrollbox.horizontalScrollPosition = (imgx*this.scale)-refPoint.x;
-            if(this.scrollbox.maxVerticalScrollPosition>0 && imgy!=null)
+            }
+            if(this.scrollbox.maxVerticalScrollPosition>0 && imgy!=null) {
                   this.scrollbox.verticalScrollPosition = (imgy*this.scale)-refPoint.y;
+            }
 
             this.scrollbox.viewport.update();
       }
@@ -13449,35 +13495,33 @@ function PreviewControl(parent, size_x, size_y)
       this.setScaledMinSize(size_x + width_overhead + 6, size_y + heigth_overhead + 6);
 }
 
-PreviewControl.prototype = new Frame;
-
 function newPreviewObj(parent)
 {
-      var previewControl = new PreviewControl(parent, ppar.preview_width, ppar.preview_height);
+      var newPreviewControl = new PreviewControl(parent, ppar.preview_width, ppar.preview_height);
 
       var previewImageSizer = new Sizer();
-      previewImageSizer.add(previewControl);
+      previewImageSizer.add(newPreviewControl);
 
-      var previewInfoLabel = new Label( parent );
-      previewInfoLabel.text = "<b>Preview</b> No preview";
-      previewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      previewInfoLabel.useRichText = true;
+      var newPreviewInfoLabel = new Label( parent );
+      newPreviewInfoLabel.text = "<b>Preview</b> No preview";
+      newPreviewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      newPreviewInfoLabel.useRichText = true;
 
-      var statusInfoLabel = new Label( parent );
-      statusInfoLabel.text = "";
-      statusInfoLabel.textAlignment = TextAlign_VertCenter;
+      var newStatusInfoLabel = new Label( parent );
+      newStatusInfoLabel.text = "";
+      newStatusInfoLabel.textAlignment = TextAlign_VertCenter;
 
       var previewSizer = new VerticalSizer;
       previewSizer.margin = 6;
       previewSizer.spacing = 10;
-      previewSizer.add(previewInfoLabel);
-      previewSizer.add(statusInfoLabel);
+      previewSizer.add(newPreviewInfoLabel);
+      previewSizer.add(newStatusInfoLabel);
       previewSizer.add(previewImageSizer);
 
-      updatePreviewNoImageInControl(previewControl);
+      updatePreviewNoImageInControl(newPreviewControl);
 
-      return { control: previewControl, infolabel: previewInfoLabel, 
-               statuslabel: statusInfoLabel, sizer: previewSizer };
+      return { control: newPreviewControl, infolabel: newPreviewInfoLabel, 
+               statuslabel: newStatusInfoLabel, sizer: previewSizer };
 }
 
 function mainSizerTab(parent, sizer)
@@ -13505,14 +13549,14 @@ function updateSidePreviewState()
             return;
       }
       if (ppar.side_preview_visible) {
-            previewInfoLabel2.show();
-            statusInfoLabel2.show();
-            previewControl2.show();
+            sidePreviewInfoLabel.show();
+            sideStatusInfoLabel.show();
+            sidePreviewControl.show();
             ppar.side_preview_visible = true;
       } else {      
-            previewInfoLabel2.hide();
-            statusInfoLabel2.hide();
-            previewControl2.hide();
+            sidePreviewInfoLabel.hide();
+            sideStatusInfoLabel.hide();
+            sidePreviewControl.hide();
             ppar.side_preview_visible = false;
       }
 }
@@ -13527,7 +13571,12 @@ function toggleSidePreview()
       updateSidePreviewState();
 }
 
-function AutoIntegrateDialog()
+/***************************************************************************
+ * 
+ *    AutoIntegrateDialog
+ * 
+ */
+this.AutoIntegrateDialog = function ()
 {
       this.__base__ = Dialog;
       this.__base__();
@@ -14981,9 +15030,7 @@ function AutoIntegrateDialog()
             "is named as <target image>_edit.</p>" +
             "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
       this.extraImageComboBox = new ComboBox( this );
-      update_extra_target_image_window_list(this);
       this.extraImageComboBox.setMinItemCharWidth = 20;
-      extra_target_image = extra_target_image_window_list[0];
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
             if (extra_target_image == extra_target_image_window_list[itemIndex]) {
@@ -15000,6 +15047,9 @@ function AutoIntegrateDialog()
                   this.dialog.extraSaveButton.enabled = true;
             }
       };
+      update_extra_target_image_window_list(this, "Auto");
+      extra_target_image = extra_target_image_window_list[0];
+
       var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
       this.extraApplyButton = new PushButton( this );
       this.extraApplyButton.text = "Apply";
@@ -15008,10 +15058,6 @@ function AutoIntegrateDialog()
             notetsaved_note;
       this.extraApplyButton.onClick = function()
       {
-            console.writeln("extraApplyButton.onClick");
-            console.writeln("extra_target_image " + extra_target_image);
-            console.writeln("extra_target_image_window_list[0] " + extra_target_image_window_list[0]);
-            console.writeln("extra_target_image_window_list[1] " + extra_target_image_window_list[1]);
             if (!is_extra_option() && !is_narrowband_option()) {
                   console.criticalln("No extra processing option selected!");
             } else if (extra_target_image == null) {
@@ -15032,16 +15078,14 @@ function AutoIntegrateDialog()
                   console.writeln("Apply extra processing edits on " + extra_target_image);
                   try {
                         narrowband = is_narrowband_option();
-                        extraProcessingEngine(extra_target_image);
+                        extraProcessingEngine(this.dialog, extra_target_image);
                         narrowband = false;
                         if (undo_images.length == 0) {
                               // add first/original undo image
                               add_undo_image(this.dialog, extra_target_image, first_undo_image_id);
                               // save copy of original image to the window list and make is current
                               if (extra_target_image_window_list.indexOf(extra_target_image) == -1) {
-                                    let len = extra_target_image_window_list.push(extra_target_image);
-                                    this.dialog.extraImageComboBox.addItem( extra_target_image );
-                                    this.dialog.extraImageComboBox.currentItem = len - 1;
+                                    update_extra_target_image_window_list(this.dialog, extra_target_image);
                               }
                         }
                         let undo_image_id = create_undo_image(extra_target_image);
@@ -15500,14 +15544,14 @@ function AutoIntegrateDialog()
       this.info1_Sizer.addStretch();
 
       if (!use_preview) {
-            this.statusInfoLabel = new Label( this );
-            this.statusInfoLabel.text = "";
-            this.statusInfoLabel.textAlignment = TextAlign_VertCenter;
-            statusInfoLabel = this.statusInfoLabel;
+            this.tabStatusInfoLabel = new Label( this );
+            this.tabStatusInfoLabel.text = "";
+            this.tabStatusInfoLabel.textAlignment = TextAlign_VertCenter;
+            tabStatusInfoLabel = this.tabStatusInfoLabel;
 
             this.info2_Sizer = new HorizontalSizer;
             this.info2_Sizer.spacing = 6;
-            this.info2_Sizer.add( this.statusInfoLabel );
+            this.info2_Sizer.add( this.tabStatusInfoLabel );
             this.info2_Sizer.addStretch();
       }
 
@@ -15632,15 +15676,15 @@ function AutoIntegrateDialog()
              */
             this.preview_obj = newPreviewObj(this);
 
-            previewControl = this.preview_obj.control;
-            previewInfoLabel = this.preview_obj.infolabel;
-            statusInfoLabel = this.preview_obj.statuslabel;
+            tabPreviewControl = this.preview_obj.control;
+            tabPreviewInfoLabel = this.preview_obj.infolabel;
+            tabStatusInfoLabel = this.preview_obj.statuslabel;
 
             this.preview2_obj = newPreviewObj(this);
 
-            previewControl2 = this.preview2_obj.control;
-            previewInfoLabel2 = this.preview2_obj.infolabel;
-            statusInfoLabel2 = this.preview2_obj.statuslabel;
+            sidePreviewControl = this.preview2_obj.control;
+            sidePreviewInfoLabel = this.preview2_obj.infolabel;
+            sideStatusInfoLabel = this.preview2_obj.statuslabel;
 
             updateSidePreviewState();
       }
@@ -15702,10 +15746,100 @@ function AutoIntegrateDialog()
       console.show();
 }
 
-AutoIntegrateDialog.prototype = new Dialog;
-
-function main()
+function init_pixinsight_version()
 {
+      pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
+                               CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
+      pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
+                               CoreApplication.versionMinor * 1e4 + 
+                               CoreApplication.versionRelease * 1e2 + 
+                               CoreApplication.versionRevision;
+}
+
+this.test_initialize = function()
+{
+      console.writeln("test_initialize");
+
+      init_pixinsight_version();
+
+      do_not_write_settings = true;
+
+      setDefaultDirs();
+
+      // Initialize ppar to the default values they have when the script is started
+      ppar.win_prefix = '';
+      ppar.prefixArray = [];
+      ppar.userColumnCount = -1;    
+      ppar.lastDir = '';  
+
+      // Hopefully remove the prefixes of a previous run
+      fixAllWindowArrays(ppar.win_prefix);
+
+      // Reset the parameters to the default they would have when the program is loaded
+      setParameterDefaults();
+
+      console.writeln("test_initialize done");
+}
+
+this.test_autosetup = function(autosetup_path)
+{
+      console.writeln("test_autosetup");
+
+      var pagearray = parseJsonFile(autosetup_path, false);
+
+      for (var i = 0; i < pagearray.length; i++) {
+            if (pagearray[i] != null) {
+                  addFilesToTreeBox(this.AutoIntegrateDialog, i, pagearray[i]);
+            }
+      }
+      updateInfoLabel(this.AutoIntegrateDialog);
+
+      console.writeln("test_autosetup done");
+}
+
+this.test_getpar = function()
+{
+      return par;
+}
+
+this.test_getppar = function()
+{
+      return ppar;
+}
+
+this.get_run_results = function()
+{
+      return run_results;
+}
+
+this.get_autointegrate_version = function()
+{
+      return autointegrate_version;
+}
+
+this.set_outputRootDir = function(dir)
+{
+      outputRootDir = dir;
+}
+
+this.set_dialog = function(dialog)
+{
+      this.AutoIntegrateDialog = dialog;
+}
+
+this.openImageWindowFromFile = function(name)
+{
+      return openImageWindowFromFile(name);
+}
+
+/***************************************************************************
+ * 
+ *    autointerate_main
+ * 
+ */
+ this.autointerate_main = function ()
+{
+      console.writeln("autointerate_main");
       try {
             /* Check command line arguments. Arguments can be given by starting the script from
              * the command line in the Process Console window. Arguments are given using syntax:
@@ -15722,7 +15856,7 @@ function main()
                   } 
                   if (jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
-                        do_not_read_settings = true;
+                        do_not_write_settings = true;
                   } 
             }
 
@@ -15739,7 +15873,7 @@ function main()
                   readParametersFromProcessIcon();
             }
             
-            if (use_persistent_module_settings) {
+            if (ai_use_persistent_module_settings) {
                   // 3. Read persistent module settings that are temporary work values
                   readPersistentSettings();
             } else {
@@ -15748,12 +15882,7 @@ function main()
 
             fixAllWindowArrays(ppar.win_prefix);
 
-            pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                                     CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
-            pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
-                                     CoreApplication.versionMinor * 1e4 + 
-                                     CoreApplication.versionRelease * 1e2 + 
-                                     CoreApplication.versionRevision;
+            init_pixinsight_version();
             console.noteln("======================================================");
             console.noteln("To enable automatic updates add the following link to ");
             console.noteln("the PixInsight update repository: ");
@@ -15782,9 +15911,25 @@ function main()
       }
 
 
-      var dialog = new AutoIntegrateDialog();
+      var dialog = new this.AutoIntegrateDialog();
 
       dialog.execute();
+}
+
+this.AutoIntegrateDialog.prototype = new Dialog;
+PreviewControl.prototype = new Frame;
+
+} // AutoIntegrate wrapper end
+
+function main()
+{
+      var autointegrate = new AutoIntegrate();
+
+      autointegrate.autointerate_main();
+
+      autointegrate = null;
+
+      gc(false);
 }
 
 // Disable execution of main if the script is included as part of a test
