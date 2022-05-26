@@ -296,7 +296,7 @@ var ai_use_persistent_module_settings = true;  // read some defaults from persis
  */
 function AutoIntegrate() {
 
-let autointegrate_version = "AutoIntegrate v1.47 test19";
+let autointegrate_version = "AutoIntegrate v1.47";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -15929,7 +15929,7 @@ function main()
 
       autointegrate = null;
 
-      gc(false);
+      gc();
 }
 
 // Disable execution of main if the script is included as part of a test
