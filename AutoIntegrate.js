@@ -296,7 +296,10 @@ var ai_use_persistent_module_settings = true;  // read some defaults from persis
  */
 function AutoIntegrate() {
 
-let autointegrate_version = "AutoIntegrate v1.47";
+this.__base__ = Object;
+this.__base__();
+   
+let autointegrate_version = "AutoIntegrate v1.48 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -308,17 +311,20 @@ var windowPrefixHelpTips;     // For updating tooTip
 var closeAllPrefixButton;     // For updating toolTip
 var windowPrefixComboBox = null; // For updating prefix name list
 var outputDirEdit;            // For updating output root directory
-var tabPreviewControl;        // For updating preview window
-var tabPreviewInfoLabel;      // For updating preview info text
-var tabStatusInfoLabel;       // For update processing status
-var sidePreviewControl;       // For updating preview window
-var sidePreviewInfoLabel;     // For updating preview info text
-var sideStatusInfoLabel;      // For update processing status
-var mainTabBox;               // For switching to preview tab
+var tabPreviewControl = null;        // For updating preview window
+var tabPreviewInfoLabel = null;      // For updating preview info text
+var tabStatusInfoLabel = null;       // For update processing status
+var sidePreviewControl = null;       // For updating preview window
+var sidePreviewInfoLabel = null;     // For updating preview info text
+var sideStatusInfoLabel = null;      // For update processing status
+var mainTabBox = null                // For switching to preview tab
 
 var do_not_read_settings = false;   // do not read Settings from persistent module settings
 var do_not_write_settings = false;  // do not write Settings to persistent module settings
 var use_preview = true;
+var use_tab_preview = true;
+var use_side_preview = true;
+var def_side_preview_visible = false;
 var is_some_preview = false;
 var is_processing = false;
 var preview_size_changed = false;
@@ -337,7 +343,7 @@ var undo_images_pos = -1;
       these values are used. Fields where values are stored
       are: .currentItem, .checked, .editText, .setValue, .value
 */
-var par = {
+this.par = {
       // Image processing parameters
       local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
@@ -534,25 +540,29 @@ var par = {
       use_manual_icon_column: { val: false, def: false, name: "manualIconColumn", type: 'B' }                  // Allow manual control of icon column
 };
 
+var par = this.par;
+
 /*
       Parameters that are persistent and are saved to only Settings and
       restored only from Settings at the start.
       Note that there is another parameter set par which are saved to 
       process icon.
 */
-var ppar = {
+this.ppar = {
       win_prefix: '',         // Current active window name prefix
       prefixArray: [],        // Array of prefix names and icon count, 
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
-      side_preview_visible: false,   // Show image preview on the side of the dialog too
+      side_preview_visible: def_side_preview_visible,   // Show image preview on the side of the dialog too
       preview_width: 400,     // Preview width
       preview_height: 400,    // preview height
       default_preview_size: true, // do we have default preview size
       use_single_column: false // show all options in a single column
 };
+
+var ppar = this.ppar;
 
 var run_results = {
       processing_steps_file: '',    // file where processing steps were written
@@ -862,6 +872,57 @@ var narrowBandPalettes = [
       { name: "User defined", R: "", G: "", B: "", all: false },
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
+
+function runGC()
+{
+      gc(false);        // run soft gc
+}
+
+function checkEvents()
+{
+      processEvents();  // process events to keep GUI responsible
+      runGC();
+}
+
+function previewControlCleanup(control)
+{
+      control.zoomIn_Button.onMousePress = null;
+      control.zoomOut_Button.onMousePress = null;
+      control.zoom11_Button.onMousePress = null;
+      control.zoomFit_Button.onMousePress = null;
+      control.scrollbox.onHorizontalScrollPosUpdated = null;
+      control.scrollbox.onVerticalScrollPosUpdated = null;
+      control.forceRedraw = null;
+      control.scrollbox.viewport.onMouseWheel = null;
+      control.scrollbox.viewport.onMousePress = null;
+      control.scrollbox.viewport.onMouseMove = null;
+      control.scrollbox.viewport.onMouseRelease = null;
+      control.scrollbox.viewport.onResize = null;
+      control.scrollbox.viewport.onPaint = null;
+}
+
+function previewCleanup(previewObj)
+{
+      previewControlCleanup(previewObj.control);
+      previewObj.control = null;
+      previewObj.infolabel = null;
+      previewObj.statuslabel = null;
+}
+
+function exitCleanup(dialog)
+{
+      console.writeln("exitCleanup");
+      if (use_tab_preview) {
+            previewCleanup(dialog.tabPreviewObj);
+            dialog.tabPreviewObj = null;
+      }
+      if (use_side_preview) {
+            previewCleanup(dialog.sidePreviewObj);
+            dialog.sidePreviewObj = null;
+      }
+      processEvents(false, 10 );
+      gc();
+}
 
 // Create a table of known prefix names for toolTip
 // Also update window prefix combo box list
@@ -1250,6 +1311,7 @@ function addStatusInfo(txt)
 {
       console.noteln("------------------------");
       updateStatusInfoLabel(txt);
+      checkEvents();
 }
 
 function addProcessingStepAndStatusInfo(txt)
@@ -1689,7 +1751,7 @@ function closeAllWindows(keep_integrated_imgs, force_close)
 
       use_force_close = true;
 
-      gc(false);
+      runGC();
 }
 
 function ensureDir(dir)
@@ -2998,7 +3060,7 @@ function calibrateEngine(filtered_lights)
 
       console.writeln("calibrateEngine, return calibrated images, calibratedLightFileNames[0] " + calibratedLightFileNames[0]);
 
-      gc(false);
+      runGC();
 
       return [ calibratedLightFileNames, '_c' ];
 }
@@ -9547,7 +9609,6 @@ function add_undo_image(parent, original_id, undo_id)
             closeOneWindow(removed);
       }
       undo_images_pos++;
-      undo_images_saved_pos = undo_images_pos;
       console.writeln("undo_images_pos " + undo_images_pos);
       var new_undo_id = original_id + "_undo" + undo_images_pos;
       windowRenameKeepifEx(undo_id, new_undo_id, false, true);
@@ -9654,7 +9715,6 @@ function save_as_undo(parent)
       if (!save_win.saveAs(filename, false, false, false, false)) {
             throwFatalError("Failed to save image: " + filename);
       }
-      undo_images_saved_pos = undo_images_pos;
       update_undo_buttons(parent);
       if (copy_id != extra_target_image) {
             update_extra_target_image_window_list(parent, copy_id);
@@ -9674,7 +9734,6 @@ function close_undo_images(parent)
             }
             undo_images = [];
             undo_images_pos = -1;
-            undo_images_saved_pos = -1;
             update_undo_buttons(parent);
       }
 }
@@ -9697,7 +9756,7 @@ function extraProcessingEngine(parent)
 
       console.noteln("Start extra processing...");
       updatePreviewId(extra_target_image);
-      if (use_preview && !ppar.side_preview_visible) {
+      if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
             mainTabBox.currentPageIndex = 1;
       }
 
@@ -9713,7 +9772,7 @@ function extraProcessingEngine(parent)
       console.noteln("Extra processing completed.");
       is_processing = false;
 
-      gc(false);
+      runGC();
 }
 
 /* Map background extracted channel images to start images.
@@ -10264,7 +10323,7 @@ function AutoIntegrateEngine(parent, auto_continue)
             return false;
       }
 
-      gc(true);
+      runGC();
 
       is_processing = true;
 
@@ -10318,7 +10377,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       is_luminance_images = false;
       var stars_id = null;
 
-      if (use_preview && !ppar.side_preview_visible) {
+      if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
             mainTabBox.currentPageIndex = 1;
       }
 
@@ -10396,7 +10455,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                               preprocessed_images == start_images.L_R_G_B);
             var RGBmapping = { combined: false, stretched: false};
 
-            gc(false);
+            runGC();
 
             if (preprocessed_images == start_images.L_R_G_B_BE) {
                   mapBEchannels();
@@ -10749,7 +10808,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       console.noteln("Processing completed.");
       is_processing = false;
 
-      gc(false);
+      runGC();
 
       return true;
 }
@@ -10831,56 +10890,57 @@ function getProcessDefaultValues()
  *    Dialog functions are below this point
  * 
  */
-function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick )
-{
-      var widget = new CheckBox( parent );
-      widget.text = checkboxText;
-      widget.checked = param.val;
-      if (onClick != null) {
-            widget.onClick = onClick;
-      } else {
-            widget.onClick = function(checked) { 
-                  param.val = checked;
-            }
-      }
-      if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
-            widget.toolTip = toolTip; 
-      }
-
-      param.reset = function() {
-            widget.checked = param.val;
-      };
-
-      return widget;
-}
-
-function newCheckBox( parent, checkboxText, param, toolTip )
-{
-      return newCheckBoxEx(parent, checkboxText, param, toolTip, null);
-}
-
-function newGenericCheckBox( parent, checkboxText, val, toolTip, onClick )
-{
-      var widget = new CheckBox( parent );
-      widget.text = checkboxText;
-      widget.checked = val;
-      widget.onClick = onClick;
-      widget.toolTip = toolTip; 
-
-      return widget;
-}
-
+ function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick )
+ {
+       var cb = new CheckBox( parent );
+       cb.text = checkboxText;
+       cb.aiParam = param;
+       cb.checked = cb.aiParam.val;
+       if (onClick != null) {
+             cb.onClick = onClick;
+       } else {
+             cb.onClick = function(checked) { 
+                  cb.aiParam.val = checked;
+             }
+       }
+       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
+             cb.toolTip = toolTip; 
+       }
+ 
+       cb.aiParam.reset = function() {
+             cb.checked = cb.aiParam.val;
+       };
+ 
+       return cb;
+ }
+ 
+ function newCheckBox( parent, checkboxText, param, toolTip )
+ {
+       return newCheckBoxEx(parent, checkboxText, param, toolTip, null);
+ }
+ function newGenericCheckBox( parent, checkboxText, param, val, toolTip, onClick )
+ {
+       var cb = new CheckBox( parent );
+       cb.aiParam = param;
+       cb.text = checkboxText;
+       cb.checked = val;
+       cb.onClick = onClick;
+       cb.toolTip = toolTip; 
+ 
+       return cb;
+ }
+ 
 function newGroupBox( parent, title, toolTip )
 {
-      var widget = new GroupBox( parent );
+      var gb = new GroupBox( parent );
       if ( typeof title !== 'undefined' && title != null ) { 
-            widget.title = title; 
+            gb.title = title; 
       }
       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
-            widget.toolTip = toolTip; 
+            gb.toolTip = toolTip; 
       }
 
-      return widget;
+      return gb;
 }
 
 function Autorun(parent)
@@ -10957,15 +11017,16 @@ function newNumericEdit(parent, txt, param, min, max, tooltip)
       edt.label.text = txt;
       edt.real = true;
       edt.edit.setFixedWidth( 6 * parent.font.width( "0" ) );
+      edt.aiParam = param;
       edt.onValueUpdated = function(value) { 
-            param.val = value; 
+            edt.aiParam.val = value; 
       };
       edt.setPrecision( 2 );
       edt.setRange(min, max);
-      edt.setValue(param.val);
+      edt.setValue(edt.aiParam.val);
       edt.toolTip = tooltip;
-      param.reset = function() {
-            edt.setValue(param.val);
+      edt.aiParam.reset = function() {
+            edt.setValue(edt.aiParam.val);
       };
       return edt;
 }
@@ -10981,13 +11042,14 @@ function newNumericControl(parent, txt, param, min, max, tooltip)
       edt.label.text = txt;
       edt.setRange(min, max);
       edt.setPrecision(3);
-      edt.setValue(param.val);
+      edt.aiParam = param;
+      edt.setValue(edt.aiParam.val);
       edt.onValueUpdated = function(value) { 
-            param.val = value; 
+            edt.aiParam.val = value; 
       };
       edt.toolTip = tooltip;
-      param.reset = function() {
-            edt.setValue(param.val);
+      edt.aiParam.reset = function() {
+            edt.setValue(edt.aiParam.val);
       };
       return edt;
 }
@@ -10997,15 +11059,16 @@ function newSpinBox(parent, param, min, max, tooltip)
       var edt = new SpinBox( parent );
       edt.minValue = min;
       edt.maxValue = max;
-      edt.value = param.val;
+      edt.aiParam = param;
+      edt.value = edt.aiParam.val;
       edt.toolTip = tooltip;
       edt.onValueUpdated = function( value )
       {
-            param.val = value;
+            edt.aiParam.val = value;
       };
 
-      param.reset = function() {
-            edt.value = param.val;
+      edt.aiParam.reset = function() {
+            edt.value = edt.aiParam.val;
       };
 
       return edt;
@@ -11035,13 +11098,15 @@ function newComboBox(parent, param, valarray, tooltip)
       var cb = new ComboBox( parent );
       cb.toolTip = tooltip;
       addArrayToComboBox(cb, valarray);
-      cb.currentItem = valarray.indexOf(param.val);
+      cb.aiParam = param;
+      cb.aiValarray = valarray;
+      cb.currentItem = valarray.indexOf(cb.aiParam.val);
       cb.onItemSelected = function( itemIndex ) {
-            param.val = valarray[itemIndex];
+            cb.aiParam.val = cb.aiValarray[itemIndex];
       };
 
-      param.reset = function() {
-            cb.currentItem = valarray.indexOf(param.val);
+      cb.aiParam.reset = function() {
+            cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val);
       }
       
       return cb;
@@ -11051,14 +11116,16 @@ function newComboBoxIndex(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
       cb.toolTip = tooltip;
-      addArrayToComboBox(cb, valarray);
-      cb.currentItem = param.val;
+      cb.aiParam = param;
+      cb.aiValarray = valarray;
+      addArrayToComboBox(cb, cb.aiValarray);
+      cb.currentItem = cb.aiParam.val;
       cb.onItemSelected = function( itemIndex ) {
-            param.val = valarray[itemIndex];
+            cb.aiParam.val = cb.aiValarray[itemIndex];
       };
 
-      param.reset = function() {
-            cb.currentItem = param.val;
+      cb.aiParam.reset = function() {
+            cb.currentItem = cb.aiParam.val;
       }
       
       return cb;
@@ -11068,14 +11135,16 @@ function newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
       cb.toolTip = tooltip;
-      addArrayToComboBox(cb, valarray);
-      cb.currentItem = valarray.indexOf(param.val.toString());
+      cb.aiParam = param;
+      cb.aiValarray = valarray;
+      addArrayToComboBox(cb, cb.aiValarray);
+      cb.currentItem = valarray.indexOf(cb.aiParam.val.toString());
       cb.onItemSelected = function( itemIndex ) {
-            param.val = parseInt(valarray[itemIndex]);
+            cb.aiParam.val = parseInt(cb.aiValarray[itemIndex]);
       };
 
-      param.reset = function() {
-            cb.currentItem = valarray.indexOf(param.val.toString());
+      cb.aiParam.reset = function() {
+            cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val.toString());
       }
       
       return cb;
@@ -11086,13 +11155,15 @@ function newComboBoxpalette(parent, param, valarray, tooltip)
       var cb = new ComboBox( parent );
       cb.enabled = true;
       cb.editEnabled = true;
-      addArrayToComboBox(cb, valarray);
+      cb.aiParam = param;
+      cb.aiValarray = valarray;
+      addArrayToComboBox(cb, cb.aiValarray);
       cb.toolTip = tooltip;
       cb.onEditTextUpdated = function() { 
-            param.val = cb.editText.trim(); 
+            cb.aiParam.val = cb.editText.trim(); 
       };
-      param.reset = function() {
-            cb.editText = param.val;
+      cb.aiParam.reset = function() {
+            cb.editText = cb.aiParam.val;
       }
       return cb;
 }
@@ -11100,9 +11171,11 @@ function newComboBoxpalette(parent, param, valarray, tooltip)
 function filesOptionsSizer(parent, name, toolTip)
 {
       var label = newSectionLabel(parent, name);
+      parent.rootingArr.push(label);
       label.toolTip = toolTip;
       var labelempty = new Label( parent );
       labelempty.text = " ";
+      parent.rootingArr.push(labelempty);
 
       var sizer = new VerticalSizer;
       sizer.margin = 6;
@@ -11140,6 +11213,7 @@ function lightsOptions(parent)
       var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[0]);
 
       var debayerLabel = new Label( parent );
+      parent.rootingArr.push(debayerLabel);
       debayerLabel.text = "Debayer";
       debayerLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       debayerLabel.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
@@ -11147,8 +11221,10 @@ function lightsOptions(parent)
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
       var debayerCombobox = newComboBox(parent, par.debayerPattern, debayerPattern_values, debayerLabel.toolTip);
+      parent.rootingArr.push(debayerCombobox);
 
       var extractChannelsLabel = new Label( parent );
+      parent.rootingArr.push(extractChannelsLabel);
       extractChannelsLabel.text = "Extract channels";
       extractChannelsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       extractChannelsLabel.toolTip = 
@@ -11164,11 +11240,13 @@ function lightsOptions(parent)
             ;
 
       var extractChannelsCombobox = newComboBox(parent, par.extract_channel_mapping, extract_channel_mapping_values, extractChannelsLabel.toolTip);
+      parent.rootingArr.push(extractChannelsCombobox);
 
       var add_manually_checkbox = newCheckBox(parent, "Add manually", par.lights_add_manually, 
             "<p>Add light files manually by selecting files for each filter.</p>" );
+      parent.rootingArr.push(add_manually_checkbox);
       add_manually_checkbox.onClick = function(checked) { 
-            par.lights_add_manually.val = checked; 
+            add_manually_checkbox.aiParam.val = checked; 
             showOrHideFilterSectionBar(pages.LIGHTS);
       }
 
@@ -11176,9 +11254,10 @@ function lightsOptions(parent)
             "<p>Force create of a monochrome image. All images are treated as Luminance files and stacked together. " + 
             "Quite a few processing steps are skipped with this option.</p>",
             function(checked) { 
-                  par.monochrome_image.val = checked;
+                  monochrome_image_CheckBox.aiParam.val = checked;
                   updateSectionsInTreeBox(parent.treeBox[pages.LIGHTS]);
-            });
+      });
+      parent.rootingArr.push(monochrome_image_CheckBox);
 
       sizer.add(debayerLabel);
       sizer.add(debayerCombobox);
@@ -11243,15 +11322,18 @@ function flatsOptions(parent)
       var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
+      parent.rootingArr.push(checkboxStars);
       var checkboxDarks = newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate, 
             "<p>For some sensors darks should not be used to calibrate flats.  " + 
             "An example of such sensor is most CMOS sensors.</p>"  +
             "<p>If flat darks are selected then darks are not used " + 
             "to calibrate flats.</p>");
+      parent.rootingArr.push(checkboxDarks);
       var checkboxManual = newCheckBox(parent, "Add manually", par.flats_add_manually, 
             "<p>Add flat files manually by selecting files for each filter.</p>" );
+      parent.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
-            par.flats_add_manually.val = checked;
+            checkboxManual.aiParam.val = checked;
             showOrHideFilterSectionBar(pages.FLATS);
       }
 
@@ -11269,6 +11351,7 @@ function flatdarksOptions(parent)
 
       var checkbox = newCheckBox(parent, "Master files", par.flat_dark_master_files, 
             "<p>Files are master files.</p>" );
+      parent.rootingArr.push(checkbox);
 
       sizer.add(checkbox);
       sizer.addStretch();
@@ -11278,6 +11361,9 @@ function flatdarksOptions(parent)
 
 function updatePreviewImageBmp(updPreviewControl, bmp)
 {
+      if (updPreviewControl == null) {
+            return;
+      }
       if ((is_some_preview && !is_processing) || preview_keep_zoom) {
             updPreviewControl.UpdateImage(bmp);
       } else {
@@ -11287,16 +11373,25 @@ function updatePreviewImageBmp(updPreviewControl, bmp)
 
 function updatePreviewTxt(txt)
 {
-      tabPreviewInfoLabel.text = "<b>Preview</b> " + txt;
-      sidePreviewInfoLabel.text = tabPreviewInfoLabel.text;
+      txt = "<b>Preview</b> " + txt;
+      if (tabPreviewInfoLabel != null) {
+            tabPreviewInfoLabel.text = txt;
+      }
+      if (sidePreviewInfoLabel != null) {
+            sidePreviewInfoLabel.text = txt;
+      }
 }
 
 function updatePreviewWinTxt(imgWin, txt)
 {
       if (use_preview && imgWin != null) {
             if (preview_size_changed) {
-                  tabPreviewControl.setSize(ppar.preview_width, ppar.preview_height);
-                  sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  if (tabPreviewControl != null) {
+                        tabPreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  }
+                  if (sidePreviewControl != null) {
+                        sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  }
                   preview_size_changed = false;
             }
             var bmp = getWindowBitmap(imgWin);
@@ -11410,6 +11505,7 @@ function getOutputDirEdit()
 function addOutputDir(parent)
 {
       var lbl = new Label( parent );
+      parent.rootingArr.push(lbl);
       lbl.text = "Output directory";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give output root directory.</p>" +
@@ -11483,6 +11579,7 @@ function updateWindowPrefix()
 function addWinPrefix(parent)
 {
       var lbl = new Label( parent );
+      parent.rootingArr.push(lbl);
       lbl.text = "Window Prefix";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give window prefix identifier.</p>" +
@@ -12251,6 +12348,7 @@ function loadJsonFile(parent)
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 {
       var filesAdd_Button = new PushButton( parent );
+      parent.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       filesAdd_Button.toolTip = toolTip;
@@ -12299,6 +12397,7 @@ function addFilesButtons(parent)
       var outputdir_sizer = addOutputDir(parent);
 
       var filesButtons_Sizer = new HorizontalSizer;
+      parent.rootingArr.push(filesButtons_Sizer);
       filesButtons_Sizer.spacing = 4;
       filesButtons_Sizer.add( addLightsButton );
       filesButtons_Sizer.add( addBiasButton );
@@ -12314,6 +12413,7 @@ function addFilesButtons(parent)
 function addOneFileManualFilterButton(parent, filetype, pageIndex)
 {
       var filesAdd_Button = new PushButton( parent );
+      parent.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       if (filetype == 'C') {
@@ -12373,6 +12473,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       var control = addFileFilterButtons(parent, pageIndex);
 
       var sb = new SectionBar(parent, "Add filter files manually");
+      parent.rootingArr.push(sb);
       sb.setSection(control);
       sb.hide();
       sb.toolTip = "Select manually files for each filter. Useful if filters are not recognized automatically.";
@@ -12384,6 +12485,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       filterSectionbarcontrols[pageIndex] = control;
 
       var gb = new Control( parent );
+      parent.rootingArr.push(gb);
       gb.sizer = new VerticalSizer;
       gb.sizer.add( sb );
       gb.sizer.add( control );
@@ -12467,8 +12569,11 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
 
 function filesTreeBox(parent, optionsSizer, pageIndex)
 {
+      parent.treeBoxRootingArr[pageIndex] = [];
+
       /* Tree box to show files. */
       var files_TreeBox = new TreeBox( parent );
+      parent.rootingArr.push(files_TreeBox);
       files_TreeBox.multipleSelection = true;
       files_TreeBox.rootDecoration = false;
       files_TreeBox.alternateRowColor = true;
@@ -12533,7 +12638,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               updatePreviewWin(imageWindow);
                               updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
-                              if (use_preview && !ppar.side_preview_visible) {
+                              if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
                                     mainTabBox.currentPageIndex = 1;
                               }
                         }
@@ -12546,12 +12651,17 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       parent.treeBox[pageIndex] = files_TreeBox;
 
       var filesControl = new Control(parent);
+      parent.rootingArr.push(filesControl);
       filesControl.sizer = new VerticalSizer;
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
-      filesControl.sizer.add(newPageButtonsSizer(parent));
+      let obj = newPageButtonsSizer(parent);
+      parent.rootingArr.push(obj);
+      filesControl.sizer.add(obj);
       if (pageIndex == pages.LIGHTS || pageIndex == pages.FLATS) {
-            filesControl.sizer.add(addFileFilterButtonSectionBar(parent, pageIndex));
+            let obj = addFileFilterButtonSectionBar(parent, pageIndex);
+            parent.rootingArr.push(obj);
+            filesControl.sizer.add(obj);
       }
 
       var files_GroupBox = new GroupBox( parent );
@@ -12597,8 +12707,10 @@ function updateStatusInfoLabel(txt)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      tabStatusInfoLabel.text = txt;
-      if (use_preview) {
+      if (tabStatusInfoLabel != null) {
+            tabStatusInfoLabel.text = txt;
+      }
+      if (use_preview && sideStatusInfoLabel != null) {
             sideStatusInfoLabel.text = txt;
       }
 }
@@ -12829,6 +12941,7 @@ function newExitButton(parent, toolbutton)
             savePersistentSettings(true);
             exitFromDialog();
             close_undo_images(parent.dialog);
+            exitCleanup(parent.dialog);
             console.noteln("Close dialog");
             parent.dialog.cancel();
       };
@@ -12938,6 +13051,7 @@ function newAutoContinueButton(parent, toolbutton)
 function blinkArrowButton(parent, icon, x, y)
 {
       var blinkArrowButton = new ToolButton( parent );
+      parent.rootingArr.push(blinkArrowButton);
       blinkArrowButton.icon = parent.scaledResource(icon);
       blinkArrowButton.toolTip = "Blink window move zoomed area";
       blinkArrowButton.setScaledFixedSize( 20, 20 );
@@ -12959,11 +13073,13 @@ function newPageButtonsSizer(parent)
       if (!use_preview) {
             // Blink
             var blinkLabel = new Label( parent );
+            parent.rootingArr.push(blinkLabel);
             blinkLabel.text = "Blink";
             blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
             blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
             var blinkFitButton = new ToolButton( parent );
+            parent.rootingArr.push(blinkFitButton);
             blinkFitButton.icon = parent.scaledResource(":/toolbar/view-zoom-optimal-fit.png");
             blinkFitButton.toolTip = "Blink window zoom to optimal fit";
             blinkFitButton.setScaledFixedSize( 20, 20 );
@@ -12978,6 +13094,7 @@ function newPageButtonsSizer(parent)
                   }
             };
             var blinkZoomButton = new ToolButton( parent );
+            parent.rootingArr.push(blinkZoomButton);
             blinkZoomButton.icon = parent.scaledResource(":/icons/zoom-1-1.png");
             blinkZoomButton.toolTip = "Blink window zoom to 1:1";
             blinkZoomButton.setScaledFixedSize( 20, 20 );
@@ -13000,11 +13117,13 @@ function newPageButtonsSizer(parent)
       }
       // Load and save
       var jsonLabel = new Label( parent );
+      parent.rootingArr.push(jsonLabel);
       jsonLabel.text = "Setup file";
       jsonLabel.toolTip = "Restoring script setup from a file, saving script setup to a file.";
       jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       
       var jsonLoadButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonLoadButton);
       jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
       jsonLoadButton.toolTip = "Restore script setup from a Json file.";
       jsonLoadButton.setScaledFixedSize( 20, 20 );
@@ -13013,6 +13132,7 @@ function newPageButtonsSizer(parent)
             loadJsonFile(parent.dialog);
       };
       var jsonSaveButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonSaveButton);
       jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
       jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
       jsonSaveButton.setScaledFixedSize( 20, 20 );
@@ -13021,6 +13141,7 @@ function newPageButtonsSizer(parent)
             saveJsonFile(parent.dialog, false);
       };
       var jsonSaveWithSewttingsButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonSaveWithSewttingsButton);
       jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
       jsonSaveWithSewttingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
                                             "Current window prefix and output directory is also saved.</p>" + 
@@ -13032,11 +13153,13 @@ function newPageButtonsSizer(parent)
       };
       
       var currentPageLabel = new Label( parent );
+      parent.rootingArr.push(currentPageLabel);
       currentPageLabel.text = "Current page";
       currentPageLabel.toolTip = "Operations on the current page.";
       currentPageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
       var currentPageCheckButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageCheckButton);
       currentPageCheckButton.icon = parent.scaledResource(":/icons/check.png");
       currentPageCheckButton.toolTip = "Mark all files in the current page as checked.";
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
@@ -13045,6 +13168,7 @@ function newPageButtonsSizer(parent)
             checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex]);
       };
       var currentPageClearButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageClearButton);
       currentPageClearButton.icon = parent.scaledResource(":/icons/clear.png");
       currentPageClearButton.toolTip = "Clear the list of input images in the current page.";
       currentPageClearButton.setScaledFixedSize( 20, 20 );
@@ -13055,6 +13179,7 @@ function newPageButtonsSizer(parent)
             updateInfoLabel(parent);
       };
       var currentPageCollapseButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageCollapseButton);
       currentPageCollapseButton.icon = parent.scaledResource(":/browser/collapse.png");
       currentPageCollapseButton.toolTip = "Collapse all sections in the current page.";
       currentPageCollapseButton.setScaledFixedSize( 20, 20 );
@@ -13063,6 +13188,7 @@ function newPageButtonsSizer(parent)
             setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageExpandButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageExpandButton);
       currentPageExpandButton.icon = parent.scaledResource(":/browser/expand.png");
       currentPageExpandButton.toolTip = "Expand all sections in the current page.";
       currentPageExpandButton.setScaledFixedSize( 20, 20 );
@@ -13071,6 +13197,7 @@ function newPageButtonsSizer(parent)
             setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
       var currentPageFilterButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageFilterButton);
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
       currentPageFilterButton.toolTip = "Filter and sort files based on current weighting and filtering settings. Only checked files are used. " +
                                         "Without any filtering rules files are just sorted by weighting setting.";
@@ -13081,6 +13208,7 @@ function newPageButtonsSizer(parent)
       };
       
       var buttonsSizer = new HorizontalSizer;
+      parent.rootingArr.push(buttonsSizer);
       buttonsSizer.spacing = 4;
 
       if (!use_preview) {
@@ -13107,13 +13235,20 @@ function newPageButtonsSizer(parent)
       buttonsSizer.add( currentPageFilterButton );
 
       buttonsSizer.addStretch();
-      buttonsSizer.add( newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.") );
+      let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
       buttonsSizer.addSpacing( 6 );
-      buttonsSizer.add( newAutoContinueButton(parent, true) );
+      obj = newAutoContinueButton(parent, true);
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
       buttonsSizer.addSpacing( 6 );
-      buttonsSizer.add( newRunButton(parent, true) );
-      buttonsSizer.add( newExitButton(parent, true) );
-
+      obj = newRunButton(parent, true);
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
+      obj = newExitButton(parent, true);
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
 
       return buttonsSizer;
 }
@@ -13140,6 +13275,7 @@ function newSectionBar(parent, control, title, name)
             }
             parent.dialog.adjustToContents();
       };
+      parent.rootingArr.push(sb);
 
       getSectionVisible(name, control);
 
@@ -13163,6 +13299,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
             }
             parent.dialog.adjustToContents();
       };
+      parent.rootingArr.push(sb);
 
       getSectionVisible(name, control);
 
@@ -13530,6 +13667,8 @@ function mainSizerTab(parent, sizer)
       gb.sizer = new HorizontalSizer;
       gb.sizer.add( sizer );
 
+      parent.rootingArr.push(gb);
+
       return gb;
 }
 
@@ -13545,7 +13684,7 @@ function exitFromDialog()
 
 function updateSidePreviewState()
 {
-      if (!use_preview) {
+      if (!use_preview || sidePreviewControl == null) {
             return;
       }
       if (ppar.side_preview_visible) {
@@ -13576,11 +13715,11 @@ function toggleSidePreview()
  *    AutoIntegrateDialog
  * 
  */
-this.AutoIntegrateDialog = function ()
-{
-      this.__base__ = Dialog;
-      this.__base__();
-
+ this.AutoIntegrateDialog = function()
+ {
+       this.__base__ = Dialog;
+       this.__base__();
+ 
       if (ppar.default_preview_size && this.availableScreenRect != undefined) {
             let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.4, this.availableScreenRect.height * 0.4));
             ppar.preview_width = preview_size;
@@ -13590,6 +13729,8 @@ this.AutoIntegrateDialog = function ()
 
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
+
+      this.rootingArr = [];    // for rooting objects
 
       var mainHelpTips = 
       "<p>" +
@@ -13657,14 +13798,30 @@ this.AutoIntegrateDialog = function ()
                              "is not used to calibrate flats.</p>";
 
       this.treeBox = [];
+      this.treeBoxRootingArr = [];
       this.filesButtonsSizer = addFilesButtons(this);
 
       this.tabBox = new TabBox( this );
-      this.tabBox.addPage( new filesTreeBox( this, lightsOptions(this), pages.LIGHTS ), "Lights" );
-      this.tabBox.addPage( new filesTreeBox( this, biasOptions(this), pages.BIAS ), "Bias" );
-      this.tabBox.addPage( new filesTreeBox( this, darksOptions(this), pages.DARKS ), "Darks" );
-      this.tabBox.addPage( new filesTreeBox( this, flatsOptions(this), pages.FLATS ), "Flats" );
-      this.tabBox.addPage( new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS ), "Flat Darks" );
+
+      let newFilesTreeBox = new filesTreeBox( this, lightsOptions(this), pages.LIGHTS );
+      this.rootingArr.push(newFilesTreeBox);
+      this.tabBox.addPage( newFilesTreeBox, "Lights" );
+
+      newFilesTreeBox = new filesTreeBox( this, biasOptions(this), pages.BIAS );
+      this.rootingArr.push(newFilesTreeBox);
+      this.tabBox.addPage( newFilesTreeBox, "Bias" );
+
+      newFilesTreeBox = new filesTreeBox( this, darksOptions(this), pages.DARKS );
+      this.rootingArr.push(newFilesTreeBox);
+      this.tabBox.addPage( newFilesTreeBox, "Darks" );
+
+      newFilesTreeBox = new filesTreeBox( this, flatsOptions(this), pages.FLATS );
+      this.rootingArr.push(newFilesTreeBox);
+      this.tabBox.addPage( newFilesTreeBox, "Flats" );
+
+      newFilesTreeBox = new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS );
+      this.rootingArr.push(newFilesTreeBox);
+      this.tabBox.addPage( newFilesTreeBox, "Flat Darks" );
 
       /* Parameters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization, 
@@ -13736,28 +13893,29 @@ this.AutoIntegrateDialog = function ()
             "recommended that each part of the batch is stored in a separate directory. </p>");
       this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", par.skip_autodetect_imagetyp, 
             "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
-      this.autodetect_filter_CheckBox = newCheckBox(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
+      this.aiPages = pages;
+      this.autodetect_filter_CheckBox = newCheckBoxEx(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
             "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
-            "<p>Selecting this enables manual adding of filter files for lights and flats.</p>" );
-      this.autodetect_filter_CheckBox.onClick = function(checked) { 
-            par.skip_autodetect_filter.val = checked; 
-            showOrHideFilterSectionBar(pages.LIGHTS);
-            showOrHideFilterSectionBar(pages.FLATS);
-      }
+            "<p>Selecting this enables manual adding of filter files for lights and flats.</p>",
+            function(checked) { 
+                  this.dialog.autodetect_filter_CheckBox.aiParam.val = checked; 
+                  showOrHideFilterSectionBar(this.dialog.aiPages.LIGHTS);
+                  showOrHideFilterSectionBar(this.dialog.aiPages.FLATS);
+            });
       this.select_all_files_CheckBox = newCheckBox(this, "Select all files", par.select_all_files, 
             "<p>If selected default file select pattern is all files (*.*) and not image files.</p>" );
       this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files, 
             "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
-      this.no_subdirs_CheckBox = newCheckBox(this, "No subdirectories", par.no_subdirs, 
-            "<p>If selected output files are not written into subdirectories</p>" );
-      this.no_subdirs_CheckBox.onClick = function(checked) { 
-            par.no_subdirs.val = checked;
-            if (par.no_subdirs.val) {
-                  clearDefaultDirs();
-            } else {
-                  setDefaultDirs();
-            }
-      }
+      this.no_subdirs_CheckBox = newCheckBoxEx(this, "No subdirectories", par.no_subdirs, 
+            "<p>If selected output files are not written into subdirectories</p>",
+            function(checked) { 
+                  this.dialog.no_subdirs_CheckBox.aiParam.val = checked;
+                  if (this.dialog.no_subdirs_CheckBox.aiParam.val) {
+                        clearDefaultDirs();
+                  } else {
+                        setDefaultDirs();
+                  }
+            });
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle, 
             "<p>Use Drizzle integration</p>" );
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
@@ -13810,17 +13968,17 @@ this.AutoIntegrateDialog = function ()
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
-      this.blink_checkbox = newCheckBox(this, "No blink", par.skip_blink, 
-            "<p>Disable blinking of files.</p>" );
-      this.blink_checkbox.onClick = function(checked) { 
-            par.skip_blink.val = checked;
-            if (par.skip_blink.val) {
-                  if (blink_window != null) {
-                        blink_window.forceClose();
-                        blink_window = null;
+      this.blink_checkbox = newCheckBoxEx(this, "No blink", par.skip_blink, 
+            "<p>Disable blinking of files.</p>",
+            function(checked) { 
+                  this.dialog.blink_checkbox.aiParam.val = checked;
+                  if (this.dialog.blink_checkbox.aiParam.val) {
+                        if (blink_window != null) {
+                              blink_window.forceClose();
+                              blink_window = null;
+                        }
                   }
-            }
-      }
+            });
       this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", par.start_with_empty_window_prefix, 
             "<p>Start the script with empty window prefix</p>" );
       this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column, 
@@ -15402,13 +15560,13 @@ this.AutoIntegrateDialog = function ()
             savePersistentSettings(false);
       };
 
-      this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar.use_preview, 
+      this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { ppar.use_preview = checked; });
+            function(checked) { this.show_preview_CheckBox.aiParam.val = checked; });
 
-      this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar.use_single_column, 
+      this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
-            function(checked) { ppar.use_single_column = checked; });
+            function(checked) { this.use_single_column_CheckBox.aiParam.use_single_column = checked; });
 
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -15420,17 +15578,17 @@ this.AutoIntegrateDialog = function ()
       this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
-                  ppar.preview_width = value; 
+                  this.preview_width_edit.aiParam.preview_width = value; 
                   preview_size_changed = true; 
-                  ppar.default_preview_size = false;
+                  this.preview_width_edit.aiParam.default_preview_size = false;
       });
       this.preview_height_label = newLabel(this, 'height', "Preview image height.");
       this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
-                  ppar.preview_height = value; 
+                  this.preview_height_label.aiParam.preview_height = value; 
                   preview_size_changed = true; 
-                  ppar.default_preview_size = false;
+                  this.preview_height_label.aiParam.default_preview_size = false;
       });
 
       this.preview2Sizer = new HorizontalSizer;
@@ -15672,21 +15830,26 @@ this.AutoIntegrateDialog = function ()
       }
 
       if (use_preview) {
-            /* Preview.
+            /* Tab preview.
              */
-            this.preview_obj = newPreviewObj(this);
+            if (use_tab_preview) {
+                  this.tabPreviewObj = newPreviewObj(this);
 
-            tabPreviewControl = this.preview_obj.control;
-            tabPreviewInfoLabel = this.preview_obj.infolabel;
-            tabStatusInfoLabel = this.preview_obj.statuslabel;
+                  tabPreviewControl = this.tabPreviewObj.control;
+                  tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
+                  tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
+            }
+            /* Side preview.
+             */
+            if (use_side_preview) {
+                  this.sidePreviewObj = newPreviewObj(this);
 
-            this.preview2_obj = newPreviewObj(this);
+                  sidePreviewControl = this.sidePreviewObj.control;
+                  sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
+                  sideStatusInfoLabel = this.sidePreviewObj.statuslabel;
 
-            sidePreviewControl = this.preview2_obj.control;
-            sidePreviewInfoLabel = this.preview2_obj.infolabel;
-            sideStatusInfoLabel = this.preview2_obj.statuslabel;
-
-            updateSidePreviewState();
+                  updateSidePreviewState();
+            }
       }
       /* Main dialog.
        */
@@ -15709,15 +15872,27 @@ this.AutoIntegrateDialog = function ()
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
 
-      if (use_preview) {
+      if (use_preview && use_tab_preview) {
             this.mainTabBox = new TabBox( this );
             mainTabBox = this.mainTabBox;
 
-            this.mainTabBox.addPage( new mainSizerTab(this, this.dialogSizer), "Settings" );
-            this.mainTabBox.addPage( new mainSizerTab(this, this.preview_obj.sizer), "Preview" );
+            let tabSizer = new mainSizerTab(this, this.dialogSizer);
+            this.rootingArr.push(tabSizer);
+            this.mainTabBox.addPage( tabSizer, "Settings" );
 
-            this.mainSizer.add( this.preview2_obj.sizer);
+            tabSizer = new mainSizerTab(this, this.tabPreviewObj.sizer);
+            this.rootingArr.push(tabSizer);
+            this.mainTabBox.addPage( tabSizer, "Preview" );
+
+            if (use_side_preview) {
+                  this.mainSizer.add( this.sidePreviewObj.sizer);
+            }
             this.mainSizer.add( this.mainTabBox );
+
+      } else if (use_preview && use_side_preview) {
+            this.mainSizer.add( this.sidePreviewObj.sizer);
+            this.mainSizer.add( this.dialogSizer );
+
       } else {
             this.mainSizer.add( this.dialogSizer );
       }
@@ -15744,8 +15919,14 @@ this.AutoIntegrateDialog = function ()
       setWindowPrefixHelpTip(ppar.win_prefix);
 
       console.show();
-}
 
+} // End of AutoIntegrateDialog code
+
+/***************************************************************************
+ * 
+ *    test utility functions
+ * 
+ */
 function init_pixinsight_version()
 {
       pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
@@ -15921,6 +16102,8 @@ PreviewControl.prototype = new Frame;
 
 } // AutoIntegrate wrapper end
 
+AutoIntegrate.prototype = new Object;
+
 function main()
 {
       var autointegrate = new AutoIntegrate();
@@ -15928,8 +16111,6 @@ function main()
       autointegrate.autointerate_main();
 
       autointegrate = null;
-
-      gc();
 }
 
 // Disable execution of main if the script is included as part of a test
