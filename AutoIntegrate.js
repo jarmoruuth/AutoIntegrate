@@ -299,7 +299,7 @@ function AutoIntegrate() {
 this.__base__ = Object;
 this.__base__();
    
-let autointegrate_version = "AutoIntegrate v1.48 test1";
+let autointegrate_version = "AutoIntegrate v1.48";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -460,7 +460,7 @@ this.par = {
       linearfit_high: { val: 4.0, def: 4.0, name : "Linear fit high", type : 'R' },
       ESD_outliers: { val: 0.3, def: 0.3, name : "ESD outliers", type : 'R' },
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
-      ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' },
+      // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
@@ -6036,7 +6036,7 @@ function runImageIntegrationEx(images, name, local_normalization)
       P.linearFitHigh = par.linearfit_high.val;
       P.esdOutliersFraction = par.ESD_outliers.val;
       P.esdAlpha = par.ESD_significance.val;
-      P.esdLowRelaxation = par.ESD_lowrelaxation.val;
+      // P.esdLowRelaxation = par.ESD_lowrelaxation.val; deprecated, use default for old version
 
       P.executeGlobal();
 
@@ -11074,11 +11074,12 @@ function newSpinBox(parent, param, min, max, tooltip)
       return edt;
 }
 
-function newGenericSpinBox(parent, val, min, max, tooltip, onValueUpdated)
+function newGenericSpinBox(parent, param, val, min, max, tooltip, onValueUpdated)
 {
       var edt = new SpinBox( parent );
       edt.minValue = min;
       edt.maxValue = max;
+      edt.aiParam = param;
       edt.value = val;
       edt.toolTip = tooltip;
       edt.onValueUpdated = onValueUpdated;
@@ -14574,7 +14575,6 @@ function toggleSidePreview()
       this.ImageIntegrationLinearFitHigh = newNumericEdit(this, 'High', par.linearfit_high, 0, 10, "<p>Tolerance of high values for linear fit low clipping.</p>");
       this.ImageIntegrationESDOutliers = newNumericEdit(this, 'ESD Outliers', par.ESD_outliers, 0, 1, "<p>ESD outliers.</p>");
       this.ImageIntegrationESDSignificance = newNumericEdit(this, 'Significance', par.ESD_significance, 0, 1, "<p>ESD significance.</p><p>" + ESD_tips + "</p>");
-      this.ImageIntegrationESDLowrelaxation = newNumericEdit(this, 'Low relaxation', par.ESD_lowrelaxation, 1, 5, "<p>ESD low relaxation.</p><p>" + ESD_tips + "</p>");
 
       this.ImageIntegrationRejectionSettingsSizer1 = new HorizontalSizer;
       this.ImageIntegrationRejectionSettingsSizer1.spacing = 4;
@@ -14598,7 +14598,6 @@ function toggleSidePreview()
       this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationLinearFitHigh );
       this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDOutliers );
       this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDSignificance );
-      this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDLowrelaxation );
       this.ImageIntegrationRejectionSettingsSizer3.addStretch();
 
       this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration pixel rejection');
@@ -15222,6 +15221,8 @@ function toggleSidePreview()
                   console.criticalln("No image!");
             } else if (extra_target_image == "Auto") {
                   console.criticalln("Auto target image cannot be used with Apply button!");
+            } else if (findWindow(extra_target_image) == null) {
+                  console.criticalln("Could not find target image " + extra_target_image);
             } else {
                   if (undo_images.length == 0) {
                         var saved_extra_target_image = extra_target_image;
@@ -15404,7 +15405,7 @@ function toggleSidePreview()
                                     "To close all windows with all prefixes use button Close all prefixes</p>";
       this.closeAllButton.onClick = function()
       {
-            console.writeln("Close current");
+            console.noteln("Close prefix");
             updateWindowPrefix();
             // Close all using the current ppar.win_prefix
             closeAllWindows(par.keep_integrated_images.val, false);
@@ -15423,7 +15424,8 @@ function toggleSidePreview()
                   savePersistentSettings(false);
                   //this.columnCountControlComboBox.currentItem = columnCount + 1;
             }
-            console.writeln("Close completed");
+            update_extra_target_image_window_list(this.dialog, null);
+            console.writeln("Close prefix completed");
       };
 
       closeAllPrefixButton = new PushButton( this );
@@ -15432,7 +15434,7 @@ function toggleSidePreview()
       closeAllPrefixButton.toolTip = "!!! See setWindowPrefixHelpTip !!!";
       closeAllPrefixButton.onClick = function()
       {
-            console.writeln("Close all prefixes");
+            console.noteln("Close all prefixes");
             try {
                   updateWindowPrefix();
                   // Always close default/empty prefix
@@ -15473,7 +15475,8 @@ function toggleSidePreview()
             savePersistentSettings(false);
             // restore original prefix
             fixAllWindowArrays(ppar.win_prefix);
-            console.writeln("Close completed");
+            update_extra_target_image_window_list(this.dialog, null);
+            console.writeln("Close all prefixes completed");
       };
 
       if (par.use_manual_icon_column.val) {
@@ -15562,11 +15565,11 @@ function toggleSidePreview()
 
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { this.show_preview_CheckBox.aiParam.val = checked; });
+            function(checked) { this.dialog.show_preview_CheckBox.aiParam.val = checked; });
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
-            function(checked) { this.use_single_column_CheckBox.aiParam.use_single_column = checked; });
+            function(checked) { this.dialog.use_single_column_CheckBox.aiParam.use_single_column = checked; });
 
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -15575,20 +15578,20 @@ function toggleSidePreview()
       this.preview1Sizer.add( this.use_single_column_CheckBox );
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
-      this.preview_width_edit = newGenericSpinBox(this, ppar.preview_width, 100, 4000, 
+      this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
-                  this.preview_width_edit.aiParam.preview_width = value; 
+                  this.dialog.preview_width_edit.aiParam.preview_width = value; 
                   preview_size_changed = true; 
-                  this.preview_width_edit.aiParam.default_preview_size = false;
+                  this.dialog.preview_width_edit.aiParam.default_preview_size = false;
       });
       this.preview_height_label = newLabel(this, 'height', "Preview image height.");
-      this.preview_height_edit = newGenericSpinBox(this, ppar.preview_height, 100, 4000, 
+      this.preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
-                  this.preview_height_label.aiParam.preview_height = value; 
+                  this.dialog.preview_height_edit.aiParam.preview_height = value; 
                   preview_size_changed = true; 
-                  this.preview_height_label.aiParam.default_preview_size = false;
+                  this.dialog.preview_height_edit.aiParam.default_preview_size = false;
       });
 
       this.preview2Sizer = new HorizontalSizer;
