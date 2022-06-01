@@ -299,7 +299,7 @@ function AutoIntegrate() {
 this.__base__ = Object;
 this.__base__();
    
-let autointegrate_version = "AutoIntegrate v1.48";
+let autointegrate_version = "AutoIntegrate v1.48 test1";
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -586,7 +586,7 @@ var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged s
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
-var noise_reduction_strength_values = [ '0', '2', '3', '4', '5', '6'];
+var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
@@ -4661,12 +4661,18 @@ function getFilterFiles(files, pageIndex, filename_postfix)
             var ssweight = '0';
             var exptime = 0;
             var obj = files[i];
+            var use_treebox_ssweight = false;
             if (Array.isArray(obj)) {
                   // we have treeboxfiles array
                   var filePath = obj[0];
                   var checked = obj[1];
                   if (obj.length > 2) {
-                        ssweight = obj[2].toFixed(0);
+                        if (Number.isInteger(obj[2])) {
+                              ssweight = obj[2].toFixed(0);
+                        } else {
+                              ssweight = obj[2].toFixed(3);
+                        }
+                        use_treebox_ssweight = true;
                   }
             } else {
                   // we have just a file name list
@@ -4697,9 +4703,11 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               }
                               break;
                         case "SSWEIGHT":
-                              ssweight = value;
-                              console.writeln("SWEIGHT=" +  ssweight);
-                              ssweight_set = true;
+                              if (!use_treebox_ssweight) {
+                                    ssweight = value;
+                                    console.writeln("SSWEIGHT=" +  ssweight);
+                                    ssweight_set = true;
+                              }
                               break;
                         case "TELESCOP":
                               console.writeln("TELESCOP=" +  value);
@@ -5856,14 +5864,7 @@ function runLocalNormalization(imagetable, refImage)
             P.referenceIsView = false;
       }
       P.targetItems = targets;            // [ enabled, image ]
-      if (par.start_from_imageintegration.val) {
-            // We assume we are processing *_r.xisf files from
-            // outputRootDir + AutoOutputDir directory so we write
-            // output to the same directory.
-            P.outputDirectory = outputRootDir;
-      } else {
-            P.outputDirectory = outputRootDir + AutoOutputDir;
-      }
+      P.outputDirectory = outputRootDir + AutoOutputDir;
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -6555,6 +6556,9 @@ function runHistogramTransformArcsinhStretch(ABE_win)
             var P = new ArcsinhStretch;
             P.stretch = stretch;
             P.blackPoint = findSymmetryPoint(ABE_win, par.Arcsinh_black_point.val);
+            if (P.blackPoint > 0.20) {
+                  P.blackPoint = 0.20;
+            }
             P.protectHighlights = false;  // setting to true does not work well
 
             ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -6936,6 +6940,19 @@ function noiseVeryMild()
       return P;
 }
 
+function noiseSuperMild()
+{
+      var P = new MultiscaleLinearTransform;
+      P.layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, true, 1.000, 0.50, 1],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, true, 0.500, 0.50, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+      ];
+
+      return P;
+}
+
 function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 {
       if (strength == 0) {
@@ -6945,6 +6962,9 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
 
       switch (strength) {
+            case 1:
+                  var P = noiseSuperMild();
+                  break;
             case 2:
                   var P = noiseVeryMild();
                   break;
@@ -6984,25 +7004,35 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 function runNoiseXTerminator(imgWin, strength, linear)
 {
       switch (strength) {
-            case 2:
+            case 1:
                   var denoise = 0.60;
+                  var detail = 0.10;
+                  break;
+            case 2:
+                  var denoise = 0.70;
+                  var detail = 0.15;
                   break;
             case 3:
-                  var denoise = 0.75;
+                  var denoise = 0.80;
+                  var detail = 0.15;
                   break;
             case 4:
-                  var denoise = 0.80;
+                  var denoise = 0.90;
+                  var detail = 0.15;
                   break;
             case 5:
                   var denoise = 0.90;
+                  var detail = 0.20;
                   break;
             case 6:
-                  var denoise = 1.00;
+                  var denoise = 0.95;
+                  var detail = 0.20;
                   break;
             default:
                   throwFatalError("Bad noise reduction value " + strength);
       }
-      var detail = 0.15;
+
+      console.writeln("Run NoiseXTerminator using denoise " + denoise + " and detail " + detail);
 
       try {
             var P = new NoiseXTerminator;
@@ -9642,7 +9672,17 @@ function apply_undo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
+
+      try {
+            if (!target_win.mainView.deleteProperty("Histogram16")) {
+                  console.writeln("Failed to delete property Histogram16");
+            }
+      } catch(err) {
+            console.writeln("Failed to delete property Histogram16 : " + err);
+      }
+      
       updatePreviewIdReset(extra_target_image, true);
+      
       undo_images_pos--;
       console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
@@ -12128,6 +12168,8 @@ function filterTreeBoxFiles(parent, pageIndex)
             return;
       }
 
+      addStatusInfo("Filtering...")
+
       console.writeln("filterTreeBoxFiles " + pageIndex);
 
       var checked_files = [];
@@ -12136,6 +12178,8 @@ function filterTreeBoxFiles(parent, pageIndex)
       getTreeBoxNodeFileNamesCheckedIf(treebox, checked_files, true);
       getTreeBoxNodeFileNamesCheckedIf(treebox, unchecked_files, false);
 
+      // get treeboxfiles which is array of [ filename, checked, weight ]
+      // sorted by weight
       var treeboxfiles = SubframeSelectorMeasure(checked_files, true, true);
 
       // add old unchecked files
@@ -12159,6 +12203,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       }
 
       console.noteln("AutoIntegrate filtering completed, " + checked_count + " checked, " + (treeboxfiles.length - checked_count) + " unchecked");
+      updateStatusInfoLabel("Filtering completed")
 }
 
 function getFilesFromTreebox(parent)
@@ -12218,10 +12263,13 @@ function getNewTreeBoxFiles(parent, pageIndex, imageFileNames)
       return treeboxfiles;
 }
 
+// in newImageFileNames we have file name list or
+// treeboxfiles which is array of [ filename, checked, weight ]
 function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 {
       console.writeln("addFilteredFilesToTreeBox " + pageIndex);
 
+      // ensure we have treeboxfiles which is array of [ filename, checked, weight ]
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames);
 
       var filteredFiles = getFilterFiles(treeboxfiles, pageIndex, '');
@@ -12247,7 +12295,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
       console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
 
-      var is_first_file = true;
+      var preview_file_name = null;
 
       for (var i = 0; i < filteredFiles.allfilesarr.length; i++) {
 
@@ -12279,15 +12327,20 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.collapsable = false;
                         node.ssweight = filterFiles[j].ssweight;
                         node.exptime = filterFiles[j].exptime;
-                        if (use_preview && (!is_some_preview || (is_first_file && pageIndex == pages.LIGHTS))) {
-                              updatePreviewFilename(node.filename, true);
-                              updateStatusInfoLabel("");
-                              is_first_file = false;
+                        if (use_preview && preview_file_name == null) {
+                              if (!is_some_preview || pageIndex == pages.LIGHTS) {
+                                    preview_file_name = node.filename;
+                              }
                         }
                   }
             }
       }
       files_TreeBox.canUpdate = true;
+
+      if (preview_file_name != null) {
+            updatePreviewFilename(preview_file_name, true);
+            updateStatusInfoLabel("");
+      }
 }
 
 function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
@@ -14074,9 +14127,11 @@ function toggleSidePreview()
 
       // Noise reduction
       var noiseReductionToolTipCommon = "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
-                                        "Bigger strength value means stronger noise reduction.</p>" + 
-                                        "<p>Noise reduction uses MultiscaleLinerTransform. Strength between 3 and 5 is the number of layers used to reduce noise. " + 
-                                        "Strength 2 is very mild three layer noise reduction and strength 6 is very aggressive five layer noise reduction</p>";
+                                        "Bigger strength value means stronger noise reduction. Noise reduction uses MultiscaleLinerTransform or NoiseXTerminator.</p>" + 
+                                        "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
+                                        "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
+                                        "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
+                                        "and detail: 1=0.60 0.10, 2=0.70 0.15 3=0.80 0.15 4=0.90 0.15, 5=0.90 0.20 and 6=0.95 0.20.t</p>";
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
@@ -14199,12 +14254,12 @@ function toggleSidePreview()
             "Generic - Use both noise and stars for the weight calculation.<br>" +
             "Noise - More weight on image noise.<br>" +
             "Stars - More weight on stars.<br>" +
-            "PSF Signal - Use PSF Signal value as is." +
-            "PSF Signal scaled - PSF Signal value scaled by AutoIntegrate to 1-100." +
-            "FWHM scaled - FWHM value scaled by AutoIntegrate to 1-100." +
-            "Eccentricity scaled - Eccentricity value scaled by AutoIntegrate to 1-100." +
-            "SNR scaled - SNR value scaled by AutoIntegrate to 1-100." +
-            "Star count - Star count value." +
+            "PSF Signal - Use PSF Signal value as is.<br>" +
+            "PSF Signal scaled - PSF Signal value scaled by AutoIntegrate to 1-100.<br>" +
+            "FWHM scaled - FWHM value scaled by AutoIntegrate to 1-100.<br>" +
+            "Eccentricity scaled - Eccentricity value scaled by AutoIntegrate to 1-100.<br>" +
+            "SNR scaled - SNR value scaled by AutoIntegrate to 1-100.<br>" +
+            "Star count - Star count value.<br>" +
             "</p>" +
             "<p>" +
             "All values are scaled so that bigger value is better." +
@@ -14411,6 +14466,7 @@ function toggleSidePreview()
       this.Arcsinh_black_point_Control = newNumericEdit(this, "Black point value %", par.Arcsinh_black_point, 0, 99,
             "<p>Arcsinh Stretch black point value.</p>" + 
             "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>");
+      this.Arcsinh_black_point_Control.setPrecision( 4 );
       var Arcsinh_iterations_tooltip = "Number of iterations used to get the requested stretch factor."
       this.Arcsinh_iterations_Label = newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
       this.Arcsinh_iterations_SpinBox = newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
