@@ -298,8 +298,11 @@ function AutoIntegrate() {
 
 this.__base__ = Object;
 this.__base__();
-   
-let autointegrate_version = "AutoIntegrate v1.48 test1";
+
+/* Following variables are AUTOMATICALLY PROCESSED so do not change format.
+ */
+var autointegrate_version = "AutoIntegrate v1.49 test2";    // Version, also updated into updates.xri
+var autointegrate_info = "Unscreen, bug fixes";             // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -406,6 +409,7 @@ this.par = {
       force_narrowband_mapping: { val: false, def: false, name : "Force narrowband mapping", type : 'B' },
       remove_stars_early: { val: false, def: false, name : "Remove stars early", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
+      unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
 
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -446,7 +450,7 @@ this.par = {
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
-      stars_combine: { val: 'InvMult', def: 'InvMult', name : "Stars combine", type : 'S' },
+      stars_combine: { val: 'Add', def: 'Add', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
@@ -490,6 +494,7 @@ this.par = {
 
       // Generic Extra processing
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
+      extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
       extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
       extra_remove_stars_combine: { val: 'Add', def: 'Add', name : "Extra remove stars combine", type : 'S' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
@@ -590,7 +595,7 @@ var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
-var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten', 'InvMult' ];
+var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 
 var monochrome_text = "Monochrome: ";
@@ -1756,7 +1761,7 @@ function closeAllWindows(keep_integrated_imgs, force_close)
 
 function ensureDir(dir)
 {
-      console.writeln("ensureDir " + dir)
+      // console.writeln("ensureDir " + dir)
       if (dir == "") {
             return;
       }
@@ -5487,20 +5492,27 @@ function getStarMaskWin(imgWin, name)
 
 // Remove stars from an image. We save star mask for later processing and combining
 // for star image.
-function removeStars(imgWin, linear_data, save_stars, save_array)
+function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_unscreen)
 {
       addProcessingStepAndStatusInfo("Remove stars");
+
+      var create_star_mask = save_stars;
+      if (save_stars && use_unscreen) {
+            var originalwin_copy = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
+            create_star_mask = false;
+      }
+
       if (par.use_starxterminator.val) {
             addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(save_stars, linear_data);
+            var P = createNewStarXTerminator(create_star_mask, linear_data);
       } else if (linear_data) {
             throwFatalError("StarNet/StarNet2 cannot be used to remove stars while image is still in linear stage.");
       } else if (par.use_starnet2.val) {
             addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
-            var P = createNewStarNet2(save_stars);
+            var P = createNewStarNet2(create_star_mask);
       } else {
             addProcessingStep("Run StarNet on " + imgWin.mainView.id);
-            var P = createNewStarNet(save_stars);
+            var P = createNewStarNet(create_star_mask);
       }
 
       /* Execute on image.
@@ -5514,7 +5526,22 @@ function removeStars(imgWin, linear_data, save_stars, save_array)
       updatePreviewWin(imgWin);
 
       if (save_stars) {
-            var star_win = getStarMaskWin(imgWin, imgWin.mainView.id + "_stars");
+            if (stars_image_name == null) {
+                  stars_image_name = imgWin.mainView.id + "_stars";
+            }
+            if (use_unscreen) {
+                  // Use unscreen method to get stars image as described by Russell Croman
+                  console.writeln("removeStars use unscreen to get star image");
+                  var id = runPixelMathSingleMappingEx(
+                              imgWin.mainView.id,
+                              "~((~" + originalwin_copy.mainView.id + ")/(~" + imgWin.mainView.id + "))",
+                              true);
+                  var star_win = findWindow(id);
+                  windowRename(id, stars_image_name);
+                  forceCloseOneWindow(originalwin_copy);
+            } else {
+                  var star_win = getStarMaskWin(imgWin, stars_image_name);
+            }
             if (save_array != null) {
                   save_array[save_array.length] = star_win.mainView.id;
             }
@@ -5634,7 +5661,7 @@ function customMapping(check_allfilesarr)
 
             if (par.remove_stars_channel.val) {
                   addProcessingStep("Custom mapping, remove stars");
-                  RGB_stars_win = removeStars(RGB_win, !mapping_on_nonlinear_data, true, null);
+                  RGB_stars_win = removeStars(RGB_win, !mapping_on_nonlinear_data, true, null, null, par.unscreen_stars.val);
             }
 
             RGB_win.show();
@@ -7323,7 +7350,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       if (maskWin != null) {
             addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       } else {
-            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id);
       }
 
       var P = new MultiscaleLinearTransform;
@@ -8204,7 +8231,9 @@ function ProcessLimage(RGBmapping)
                               ImageWindow.windowById(L_ABE_id), 
                               true,
                               true,
-                              L_stars);
+                              L_stars,
+                              null,
+                              par.unscreen_stars.val);
                         // use starless L image as mask
                         LRGBEnsureMask(L_ABE_id);
                   }
@@ -8591,7 +8620,7 @@ function ProcessRGBimage(RGBstretched)
 
             if (is_color_files && par.remove_stars_channel.val) {
                   addProcessingStep("Remove stars from linear RGB color image");
-                  RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null);
+                  RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
                   windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
             }
 
@@ -8631,7 +8660,7 @@ function ProcessRGBimage(RGBstretched)
             }
             if (!RGBstretched) {
                   if (par.remove_stars_early.val) {
-                        RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null);
+                        RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
                         windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
@@ -8776,39 +8805,17 @@ function fixNarrowbandStarColor(targetWin)
 // - We make a copy of the stars image
 // - Operations like HDMT and LHE are run on the starless image
 // - Star reduction is done on the stars image
-// - OPtionally in the end starless and stars images are combined together
+// - Optionally in the end starless and stars images are combined together
 function extraRemoveStars(parent, imgWin, apply_directly)
 {
-      addProcessingStepAndStatusInfo("Extra remove stars");
-
-      if (par.use_starxterminator.val) {
-            addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(true, false);
-      } else if (par.use_starnet2.val) {
-            addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
-            var P = createNewStarNet2(true);
-      } else {
-            addProcessingStep("Run StarNet on " + imgWin.mainView.id);
-            var P = createNewStarNet(true);
-      }
-
-      /* Remove stars from image.
-       */
-      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-      P.executeOn(imgWin.mainView, false);
-
-      imgWin.mainView.endProcess();
-
       /* Close old star mask. StarNet will create an image called
        * star_mask and with StarXTerminator we rename _stars image
        * as star_mask 
        */
       closeOneWindow("AutoStarMask");
 
-      /* Get star mask.
-       */
-      star_mask_win = getStarMaskWin(imgWin, "star_mask");
+      star_mask_win = removeStars(imgWin, false, true, null, "star_mask", par.extra_unscreen_stars.val);
+
       star_mask_win_id = star_mask_win.mainView.id;
 
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
@@ -9179,7 +9186,7 @@ function extraColorNoise(extraWin)
       runColorReduceNoise(extraWin);
 }
 
-function extraUnsharpMask(extraWin)
+function extraUnsharpMask(extraWin, mask_win)
 {
       addProcessingStepAndStatusInfo("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
 
@@ -9188,9 +9195,20 @@ function extraUnsharpMask(extraWin)
       P.amount = 0.80;
       P.useLuminance = true;
 
+      if (maskWin != null) {
+            /* Sharpen only light parts of the image. */
+            setMaskChecked(extraWin, maskWin);
+            extraWin.maskInverted = false;
+      }
+
       extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
+
+      if (maskWin != null) {
+            extraWin.removeMask();
+      }
+
       updatePreviewWin(extraWin);
 }
 
@@ -9367,7 +9385,7 @@ function findStarImageIdEx(starless_id, stars_id)
 
 function findStarImageId(starless_id, original_id)
 {
-      console.noteln("Try to find stars image for starless image " + stars_id)
+      console.noteln("Try to find stars image for starless image " + starless_id)
       var stars_id = findStarImageIdEx(starless_id, starless_id.replace("starless", "stars"));
       if (stars_id != null) {
             return stars_id;
@@ -9391,7 +9409,7 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
             stars_id = findStarImageId(starless_id);
       }
       if (stars_id == null) {
-            throwFatalError("Could not find starless image for start image " + starless_id);
+            throwFatalError("Could not find starless image for star image " + starless_id);
       }
       addProcessingStepAndStatusInfo("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
@@ -9405,12 +9423,6 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
                   var new_id = runPixelMathSingleMappingEx(
                                     starless_id, 
                                     "max(" + starless_id + ", " + stars_id + ")",
-                                    createNewImage);
-                  break;
-            case 'InvMult':
-                  var new_id = runPixelMathSingleMappingEx(
-                                    starless_id, 
-                                    "~(~"+ starless_id + "*~" + stars_id + ")",
                                     createNewImage);
                   break;
             case 'Add':
@@ -9440,7 +9452,8 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_LHE.val ||
                         par.extra_noise_reduction.val ||
                         par.extra_ACDNR.val ||
-                        par.extra_sharpen.val;
+                        par.extra_sharpen.val ||
+                        par.extra_unsharpmask.val;
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -9525,7 +9538,7 @@ function extraProcessing(parent, id, apply_directly)
             extraColorNoise(extraWin);
       }
       if (par.extra_unsharpmask.val) {
-            extraUnsharpMask(extraWin);
+            extraUnsharpMask(extraWin, mask_win);
       }
       if (par.extra_sharpen.val) {
             extraSharpen(extraWin, mask_win);
@@ -10520,9 +10533,9 @@ function AutoIntegrateEngine(parent, auto_continue)
                         LinearFitLRGBchannels();
                         if (par.remove_stars_channel.val) {
                               addProcessingStepAndStatusInfo("Remove stars from linear RGB channel images");
-                              removeStars(findWindow(red_id), true, true, RGB_stars);
-                              removeStars(findWindow(green_id), true, true, RGB_stars);
-                              removeStars(findWindow(blue_id), true, true, RGB_stars);
+                              removeStars(findWindow(red_id), true, true, RGB_stars, null, par.unscreen_stars.val);
+                              removeStars(findWindow(green_id), true, true, RGB_stars, null, par.unscreen_stars.val);
+                              removeStars(findWindow(blue_id), true, true, RGB_stars, null, par.unscreen_stars.val);
                         }
                   }
             } else if (is_color_files) {
@@ -10535,7 +10548,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                    */
                   if (par.remove_stars_channel.val) {
                         addProcessingStepAndStatusInfo("Remove stars from linear L channel image");
-                        removeStars(findWindow(luminance_id), true, true, L_stars);
+                        removeStars(findWindow(luminance_id), true, true, L_stars, null, par.unscreen_stars.val);
                   }
                   LRGBEnsureMask(null);
                   ProcessLimage(RGBmapping);
@@ -10664,7 +10677,6 @@ function AutoIntegrateEngine(parent, auto_continue)
                                     par.stars_combine.val,
                                     starless_id, 
                                     stars_id, 
-                                    null,
                                     true);
                   // restore original final image name
                   console.writeln("Rename " + new_image + " as " + LRGB_ABE_HT_id);
@@ -13934,6 +13946,10 @@ function toggleSidePreview()
             "<p>With narrowband images remove stars after narrowband mapping while image is still in linear stage. " + 
             "This needs StarXTerminator.<p>" + 
             remove_stars_Tooltip);
+      var unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
+                             "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
+                             "recommended to use Screen method when combining star and starless images back together.<p>";
+      this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
@@ -14055,6 +14071,7 @@ function toggleSidePreview()
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
+      this.imageParamsSet1.add( this.unscreen_stars_CheckBox );
       this.imageParamsSet1.add( this.no_SCNR_CheckBox );
       
       // Image parameters set 2.
@@ -14415,8 +14432,7 @@ function toggleSidePreview()
       var stars_combine_operations_Tooltip = "<p>Possible combine operations are:<br>" +
                                              "Add - Use stars+starless formula in Pixelmath<br>" +
                                              "Screen - Similar to screen in Photoshop<br>" +
-                                             "Lighten - Similar to lighten in Photoshop<br>" +
-                                             "InvMult - Use formula ~(~starless*~stars) in Pixelmath</p>";
+                                             "Lighten - Similar to lighten in Photoshop</p>";
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
@@ -15066,9 +15082,11 @@ function toggleSidePreview()
             "selected from the combo box.</p>" +
             stars_combine_operations_Tooltip;
       this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars, extraRemoveStars_Tooltip);
+      this.extraUnscreenStars_CheckBox = newCheckBox(this, "Unscreen", par.extra_unscreen_stars, unscreen_tooltip);
       this.extraRemoveStars_Sizer = new HorizontalSizer;
       this.extraRemoveStars_Sizer.spacing = 4;
       this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
+      this.extraRemoveStars_Sizer.add( this.extraUnscreenStars_CheckBox);
       this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
       this.extraRemoveStars_Sizer.addStretch();
 
@@ -15227,7 +15245,7 @@ function toggleSidePreview()
       this.extraSharpenIterationsSizer.toolTip = extra_sharpen_tooltip;
       this.extraSharpenIterationsSizer.addStretch();
 
-      var unsharpmask_tooltip = "Sharpen image using Unsharp Mask";
+      var unsharpmask_tooltip = "Sharpen image using UnsharpMask and a luminance mask.";
       this.extra_unsharpmask_CheckBox = newCheckBox(this, "UnsharpMask", par.extra_unsharpmask, unsharpmask_tooltip);
       this.extraUnsharpMaskStdDevEdit = newNumericEdit(this, "StdDev", par.extra_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
       this.extraUnsharpMaskSizer = new HorizontalSizer;
@@ -15299,9 +15317,7 @@ function toggleSidePreview()
                               // add first/original undo image
                               add_undo_image(this.dialog, extra_target_image, first_undo_image_id);
                               // save copy of original image to the window list and make is current
-                              if (extra_target_image_window_list.indexOf(extra_target_image) == -1) {
-                                    update_extra_target_image_window_list(this.dialog, extra_target_image);
-                              }
+                              update_extra_target_image_window_list(this.dialog, extra_target_image);
                         }
                         let undo_image_id = create_undo_image(extra_target_image);
                         add_undo_image(this.dialog, extra_target_image, undo_image_id);
