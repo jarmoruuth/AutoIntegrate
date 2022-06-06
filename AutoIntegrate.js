@@ -9195,9 +9195,9 @@ function extraUnsharpMask(extraWin, mask_win)
       P.amount = 0.80;
       P.useLuminance = true;
 
-      if (maskWin != null) {
+      if (mask_win != null) {
             /* Sharpen only light parts of the image. */
-            setMaskChecked(extraWin, maskWin);
+            setMaskChecked(extraWin, mask_win);
             extraWin.maskInverted = false;
       }
 
@@ -9205,7 +9205,7 @@ function extraUnsharpMask(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
-      if (maskWin != null) {
+      if (mask_win != null) {
             extraWin.removeMask();
       }
 
