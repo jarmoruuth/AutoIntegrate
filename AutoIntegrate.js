@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.49";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.49.2";        // Version, also updated into updates.xri
 var autointegrate_info = "Unscreen stars, bug fixes";       // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -9770,11 +9770,12 @@ function save_as_undo(parent)
       }
       update_undo_buttons(parent);
       if (copy_id != extra_target_image) {
-            update_extra_target_image_window_list(parent, copy_id);
             // Rename old image
             save_win.mainView.id = copy_id;
             // Update preview name
             updatePreviewTxt(copy_id);
+            // Update target list
+            update_extra_target_image_window_list(parent, copy_id);
       }
 }
 
@@ -11605,7 +11606,7 @@ function addOutputDir(parent)
 function validateWindowPrefix(p)
 {
       p = p.replace(/[^A-Za-z0-9]/gi,'_');
-      p = p.replace(/_+$/,'');
+      //p = p.replace(/_+$/,'');
       if (p.match(/^\d/)) {
             // if user tries to start prefix with a digit, prepend an underscore
             p = "_" + p;
@@ -11622,7 +11623,7 @@ function updateWindowPrefix()
       if (windowPrefixComboBox != null) {
             windowPrefixComboBox.editText = ppar.win_prefix;
       }
-      if (ppar.win_prefix != "") {
+      if (ppar.win_prefix != "" && !ppar.win_prefix.endsWith("_")) {
             ppar.win_prefix = ppar.win_prefix + "_";
       }
       console.writeln("updateWindowPrefix, set winPrefix '" + ppar.win_prefix + "'");
@@ -15261,7 +15262,7 @@ function toggleSidePreview()
             "is named as <target image>_edit.</p>" +
             "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
       this.extraImageComboBox = new ComboBox( this );
-      this.extraImageComboBox.setMinItemCharWidth = 20;
+      this.extraImageComboBox.minItemCharWidth = 20;
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
             if (extra_target_image == extra_target_image_window_list[itemIndex]) {
