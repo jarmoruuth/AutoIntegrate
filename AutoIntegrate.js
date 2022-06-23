@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.49.2";        // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.49.3";        // Version, also updated into updates.xri
 var autointegrate_info = "Bug fixes";                       // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -917,11 +917,11 @@ function previewCleanup(previewObj)
 function exitCleanup(dialog)
 {
       console.writeln("exitCleanup");
-      if (use_tab_preview) {
+      if (use_preview && use_tab_preview) {
             previewCleanup(dialog.tabPreviewObj);
             dialog.tabPreviewObj = null;
       }
-      if (use_side_preview) {
+      if (use_preview && use_side_preview) {
             previewCleanup(dialog.sidePreviewObj);
             dialog.sidePreviewObj = null;
       }
@@ -15638,7 +15638,7 @@ function toggleSidePreview()
 
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { this.dialog.show_preview_CheckBox.aiParam.val = checked; });
+            function(checked) { this.dialog.show_preview_CheckBox.aiParam.use_preview = checked; });
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
