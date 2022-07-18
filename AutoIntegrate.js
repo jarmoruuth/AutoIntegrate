@@ -373,6 +373,7 @@ this.par = {
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
       image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
+      debayer_only: { val: false, def: false, name : "Debayer only", type : 'B' },
       integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
       cropinfo_only: { val: false, def: false, name : "Crop info only", type : 'B' },
@@ -729,6 +730,12 @@ var start_images = {
       L_R_G_B : 7,
       FINAL : 8,
       CALIBRATE_ONLY : 9
+};
+
+var retval = {
+      error : 0,
+      success : 1,
+      incomplete: 2
 };
 
 var channels = {
@@ -7758,6 +7765,11 @@ function findStartImages(auto_continue, check_base_name)
  * optionally run local normalization 
  * find files for each L, R, G and B channels
  * run image integration to create L, R, G and B images, or color image
+ * 
+ * Return values:
+ *    retval.error      - error
+ *    retval.success    - success
+ *    retval.incomplete - stopped because of an option
  */
 function CreateChannelImages(auto_continue)
 {
@@ -7781,13 +7793,13 @@ function CreateChannelImages(auto_continue)
       if (auto_continue) {
           if (preprocessed_images == start_images.NONE) {
             addProcessingStep("No preprocessed images found, processing not started!");
-            return false;
+            return retval.error;
           }
       } else {
             if (preprocessed_images != start_images.NONE) {
                   addProcessingStep("There are already preprocessed images, processing not started!");
                   addProcessingStep("Close or rename old images before continuing.");
-                  return false;
+                  return retval.error;
             }  
       }
 
@@ -7831,7 +7843,7 @@ function CreateChannelImages(auto_continue)
             if (lightFileNames == null) {
                   write_processing_log_file = false;
                   console.writeln("No files to process");
-                  return false;
+                  return retval.error;
             }
 
             updatePreviewFilename(lightFileNames[0]);
@@ -7854,6 +7866,7 @@ function CreateChannelImages(auto_continue)
             var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
             if (isCustomMapping(filtered_lights.narrowband)
                 && !par.image_weight_testing.val
+                && !par.debayer_only.val
                 && !par.integrate_only.val
                 && !par.calibrate_only.val)
             {
@@ -7872,7 +7885,7 @@ function CreateChannelImages(auto_continue)
             updatePreviewFilename(lightFileNames[0]);
 
             if (par.calibrate_only.val) {
-                  return(true);
+                  return(retval.incomplete);
             }
 
             if (filename_postfix != '') {
@@ -7939,7 +7952,11 @@ function CreateChannelImages(auto_continue)
                   updatePreviewFilename(fileNames[0]);
             }
 
-            if (par.extract_channel_mapping.val != 'None' && is_color_files) {
+            if (is_color_files && par.debayer_only.val) {
+                  return retval.incomplete;
+            }
+
+            if (par.extract_channel_mapping.val != 'None' && is_color_files && !skip_early_steps) {
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
@@ -7980,7 +7997,7 @@ function CreateChannelImages(auto_continue)
             fileNames = retarr[1];
 
             if (par.image_weight_testing.val) {
-                  return true;
+                  return retval.incomplete;
             }
 
             /* StarAlign
@@ -8013,7 +8030,7 @@ function CreateChannelImages(auto_continue)
                   console.writeln("Fixes outputRootDir " + outputRootDir);
             }
             if (par.cropinfo_only.val) {
-                  return true;
+                  return retval.incomplete;
             }
             /* ImageIntegration
             */
@@ -8060,7 +8077,7 @@ function CreateChannelImages(auto_continue)
                   RGBcolor_id = runImageIntegration(C_images, 'RGBcolor');
             }
       }
-      return true;
+      return retval.success;
 }
 
 /* Create  a mask from linear image. This function
@@ -10453,36 +10470,39 @@ function AutoIntegrateEngine(parent, auto_continue)
       close_undo_images(parent);
 
       /* Create images for each L, R, G and B channels, or Color image. */
-      if (!CreateChannelImages(auto_continue)) {
+      let ret = CreateChannelImages(auto_continue);
+      if (ret == retval.error) {
             console.criticalln("Failed!");
             console.endLog();
             is_processing = false;
             return false;
       }
 
-      /*
-       * If requested, we crop all channel images and channel support images (the xxx_map images)
-       * to an area covered by all source images.
-       */ 
-      if (! auto_continue)
-      {
-            if (par.crop_to_common_area.val || par.cropinfo_only.val)
+      if (ret == retval.success || (par.cropinfo_only.val && ret == retval.incomplete)) {
+            /*
+            * If requested, we crop all channel images and channel support images (the xxx_map images)
+            * to an area covered by all source images.
+            */ 
+            if (! auto_continue)
             {
-                  cropChannelImages();
-            } else
+                  if (par.crop_to_common_area.val || par.cropinfo_only.val)
+                  {
+                        cropChannelImages();
+                  } else
+                  {
+                        console.warningln("Images are not cropped to common area, borders may be of lower quality");
+                  }
+            } else 
             {
-                  console.warningln("Images are not cropped to common area, borders may be of lower quality");
-            }
-      } else 
-      {
-            if (par.crop_to_common_area.val)
-            {
-                  cropChannelImagesAutoContinue();
-            } else {
-                  console.writeln("Crop ignored in AutoContinue, use images as is (possibly already cropped)") ;
+                  if (par.crop_to_common_area.val)
+                  {
+                        cropChannelImagesAutoContinue();
+                  } else {
+                        console.writeln("Crop ignored in AutoContinue, use images as is (possibly already cropped)") ;
+                  }
             }
       }
-      
+
       /* Now we have L (Gray) and R, G and B images, or just RGB image
        * in case of color files.
        *
@@ -10500,6 +10520,7 @@ function AutoIntegrateEngine(parent, auto_continue)
             LRGB_ABE_HT_id = final_win.mainView.id;
             updatePreviewId(LRGB_ABE_HT_id);
       } else if (!par.image_weight_testing.val 
+                 && !par.debayer_only.val 
                  && !par.integrate_only.val 
                  && !par.cropinfo_only.val 
                  && preprocessed_images != start_images.FINAL) 
@@ -10804,7 +10825,11 @@ function AutoIntegrateEngine(parent, auto_continue)
             saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
       }
 
-      if (preprocessed_images == start_images.NONE && !par.image_weight_testing.val) {
+      if (preprocessed_images == start_images.NONE 
+          && !par.image_weight_testing.val
+          && !par.calibrate_only.val
+          && !par.debayer_only.val) 
+      {
             /* Output some info of files.
             */
             addProcessingStep("* All data files *");
@@ -13909,6 +13934,9 @@ function toggleSidePreview()
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Run only image calibration</p>" );
+      this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
+            "<p>Run only Debayering and stop. Later it is possible to continue by selecting Debayered files " + 
+            "and choosing None for Debayer.</p>" );
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
@@ -14228,6 +14256,7 @@ function toggleSidePreview()
       this.otherParamsSet1.margin = 6;
       this.otherParamsSet1.spacing = 4;
       this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
+      this.otherParamsSet1.add( this.DebayerOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.otherParamsSet1.add( this.CropInfoOnlyCheckBox );
@@ -14237,8 +14266,6 @@ function toggleSidePreview()
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
       this.otherParamsSet1.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet1.add( this.select_all_files_CheckBox );
-      this.otherParamsSet1.add( this.save_all_files_CheckBox );
       this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
       this.otherParamsSet1.add( this.use_starnet2_CheckBox );
       this.otherParamsSet1.add( this.use_noisexterminator_CheckBox );
@@ -14249,6 +14276,8 @@ function toggleSidePreview()
       this.otherParamsSet2.spacing = 4;
       this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
       this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
+      this.otherParamsSet2.add( this.select_all_files_CheckBox );
+      this.otherParamsSet2.add( this.save_all_files_CheckBox );
       this.otherParamsSet2.add( this.unique_file_names_CheckBox );
       this.otherParamsSet2.add( this.win_prefix_to_log_files_CheckBox );
       this.otherParamsSet2.add( this.batch_mode_CheckBox );
