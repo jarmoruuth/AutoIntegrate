@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.49.2";        // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.49.3";        // Version, also updated into updates.xri
 var autointegrate_info = "Bug fixes";                       // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -7908,11 +7908,6 @@ function CreateChannelImages(auto_continue)
                         updatePreviewFilename(fileNames[0]);
                   }
             }
-            if (par.ABE_on_lights.val && !skip_early_steps) {
-                  fileNames = runABEOnLights(fileNames);
-                  filename_postfix = filename_postfix + '_ABE';
-                  updatePreviewFilename(fileNames[0]);
-            }
             if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
@@ -7956,6 +7951,11 @@ function CreateChannelImages(auto_continue)
                   is_color_files = false;
                   filtered_files = getFilterFiles(fileNames, pages.LIGHTS, filename_postfix);
                   console.writeln("Continue with mono processing")
+            }
+            if (par.ABE_on_lights.val && !skip_early_steps) {
+                  fileNames = runABEOnLights(fileNames);
+                  filename_postfix = filename_postfix + '_ABE';
+                  updatePreviewFilename(fileNames[0]);
             }
 
             if (!par.skip_subframeselector.val 
@@ -10491,10 +10491,12 @@ function AutoIntegrateEngine(parent, auto_continue)
        * processing is not good enough.
        */
 
+      var do_extra_processing = false;
       if (par.calibrate_only.val) {
             preprocessed_images = start_images.CALIBRATE_ONLY;
       } else if (preprocessed_images == start_images.FINAL) {
             // We have a final image, just run run possible extra processing steps
+            do_extra_processing = true;
             LRGB_ABE_HT_id = final_win.mainView.id;
             updatePreviewId(LRGB_ABE_HT_id);
       } else if (!par.image_weight_testing.val 
@@ -10502,6 +10504,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                  && !par.cropinfo_only.val 
                  && preprocessed_images != start_images.FINAL) 
       {
+            do_extra_processing = true;
             var processRGB = !is_color_files && 
                              !par.monochrome_image.val &&
                              (preprocessed_images == start_images.NONE ||
@@ -10694,7 +10697,7 @@ function AutoIntegrateEngine(parent, auto_continue)
 
       console.writeln("Basic processing completed");
 
-      if (is_extra_option() || is_narrowband_option()) {
+      if (do_extra_processing && (is_extra_option() || is_narrowband_option())) {
             extraProcessing(parent, LRGB_ABE_HT_id, false);
       }
 
@@ -11452,6 +11455,7 @@ function updatePreviewWinTxt(imgWin, txt)
             updatePreviewImageBmp(tabPreviewControl, bmp);
             updatePreviewImageBmp(sidePreviewControl, bmp);
             updatePreviewTxt(txt);
+            console.noteln("Preview updated");
             is_some_preview = true;
       }
 }
