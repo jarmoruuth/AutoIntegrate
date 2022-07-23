@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.50 test2";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.50 test3";          // Version, also updated into updates.xri
 var autointegrate_info = "Manually select reference images.";     // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -377,6 +377,7 @@ this.par = {
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
       image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
       debayer_only: { val: false, def: false, name : "Debayer only", type : 'B' },
+      extract_channels_only: { val: false, def: false, name : "Extract channels only", type : 'B' },
       integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
       cropinfo_only: { val: false, def: false, name : "Crop info only", type : 'B' },
@@ -7933,6 +7934,7 @@ function CreateChannelImages(parent, auto_continue)
             if (isCustomMapping(filtered_lights.narrowband)
                 && !par.image_weight_testing.val
                 && !par.debayer_only.val
+                && !par.extract_channels_only.val
                 && !par.integrate_only.val
                 && !par.calibrate_only.val)
             {
@@ -7942,6 +7944,10 @@ function CreateChannelImages(parent, auto_continue)
                   write_processing_log_file = false;
                   customMapping(filtered_lights.allfilesarr);
                   write_processing_log_file = true;
+            }
+
+            if (par.extract_channels_only.val && par.extract_channel_mapping.val == 'None') {
+                  throwFatalError("Extract channels only is selected but Extract channels option is " + par.extract_channel_mapping.val);
             }
 
             // Run image calibration if we have calibration frames
@@ -8034,6 +8040,12 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = false;
                   filtered_files = getFilterFiles(fileNames, pages.LIGHTS, filename_postfix);
                   console.writeln("Continue with mono processing")
+            }
+            if (par.extract_channels_only.val) {
+                  if (par.extract_channel_mapping.val == 'None') {
+
+                  }
+                  return retval.incomplete;
             }
             if (par.ABE_on_lights.val && !skip_early_steps) {
                   fileNames = runABEOnLights(fileNames);
@@ -10596,6 +10608,7 @@ function AutoIntegrateEngine(parent, auto_continue)
             updatePreviewId(LRGB_ABE_HT_id);
       } else if (!par.image_weight_testing.val 
                  && !par.debayer_only.val 
+                 && !par.extract_channels_only.val
                  && !par.integrate_only.val 
                  && !par.cropinfo_only.val 
                  && preprocessed_images != start_images.FINAL) 
@@ -10903,7 +10916,8 @@ function AutoIntegrateEngine(parent, auto_continue)
       if (preprocessed_images == start_images.NONE 
           && !par.image_weight_testing.val
           && !par.calibrate_only.val
-          && !par.debayer_only.val) 
+          && !par.debayer_only.val
+          && !par.extract_channels_only.val)
       {
             /* Output some info of files.
             */
@@ -12242,6 +12256,10 @@ function updateTreeBoxNodeFromFlags(parent, node)
             //console.writeln("updateTreeBoxNodeFromFlags, reference image");
             node.setIcon(0, parent.scaledResource(":/icons/item.png"));
             node.checked = true;
+            updateTreeBoxNodeToolTip(node);
+      } else {
+            //console.writeln("updateTreeBoxNodeFromFlags, normal image");
+            node.setIcon(0, parent.scaledResource(""));
             updateTreeBoxNodeToolTip(node);
       }
 }
@@ -14384,10 +14402,13 @@ function toggleSidePreview()
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
-            "<p>Run only image calibration</p>" );
+            "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
-            "<p>Run only Debayering and stop. Later it is possible to continue by selecting Debayered files " + 
+            "<p>Stop after Debayering step. Later it is possible to continue by selecting Debayered files " + 
             "and choosing None for Debayer.</p>" );
+      this.ExtractChannelsOnlyCheckBox = newCheckBox(this, "Extract channels only", par.extract_channels_only, 
+            "<p>Stop after Extract channels step. Later it is possible to continue by selecting extracted files " + 
+            "and run a normal mono camera (LRGB/HSO) workflow.</p>" );
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
@@ -14708,6 +14729,7 @@ function toggleSidePreview()
       this.otherParamsSet1.spacing = 4;
       this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet1.add( this.DebayerOnlyCheckBox );
+      this.otherParamsSet1.add( this.ExtractChannelsOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.otherParamsSet1.add( this.CropInfoOnlyCheckBox );
