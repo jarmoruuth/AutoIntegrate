@@ -301,8 +301,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.50 test1";    // Version, also updated into updates.xri
-var autointegrate_info = "Manually select reference images.";      // For updates.xri
+var autointegrate_version = "AutoIntegrate v1.50 test2";          // Version, also updated into updates.xri
+var autointegrate_info = "Manually select reference images.";     // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -4424,7 +4424,7 @@ function runSubframeSelector(fileNames)
       return names_and_weights;
 }
 
-function findBestSSWEIGHT(names_and_weights)
+function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
 {
       var ssweight;
       var fileNames = names_and_weights.filenames;
@@ -4448,7 +4448,9 @@ function findBestSSWEIGHT(names_and_weights)
       var first_image = true;
       var best_ssweight_naxis = 0;
       var file_name_text_best_image = null;
-      var found_user_selected_best_image = false;
+      var file_name_text_best_image_ssweight = 0;
+      var found_user_selected_best_image = null;
+      var found_user_selected_best_image_ssweight = 0;
       for (var i = 0; i < fileNames.length; i++) {
             var filePath = fileNames[i];
             var ext = '.' + filePath.split('.').pop();
@@ -4481,15 +4483,7 @@ function findBestSSWEIGHT(names_and_weights)
             }
             var accept_file = true;
             var ssweight_found = false;
-            if (user_selected_best_image != null && filePath == user_selected_best_image) {
-                  found_user_selected_best_image = true;
-                  console.writeln("found user selected best image " + user_selected_best_image);
-            }
-            if (fileNames[i].indexOf("best_image") != -1) {
-                  // User has marked this image as the best
-                  file_name_text_best_image = filePath;
-                  console.writeln("found text 'best_image' from file name " + filePath);
-            }
+            ssweight = 0;
             if (names_and_weights.ssweights.length > i) {
                   // take SSWEIGHT from the calculated array
                   ssweight_found = true;
@@ -4510,7 +4504,21 @@ function findBestSSWEIGHT(names_and_weights)
                         }
                   }
             }
-            if (ssweight_found) {
+            if (user_selected_best_image != null 
+                && found_user_selected_best_image == null
+                && compareReferenceFileNames(user_selected_best_image, filePath, filename_postfix))
+              {
+                    found_user_selected_best_image = filePath;
+                    found_user_selected_best_image_ssweight = ssweight;
+                    console.writeln("found user selected best image " + user_selected_best_image + " as " + filePath);
+              }
+              if (fileNames[i].indexOf("best_image") != -1) {
+                    // User has marked this image as the best
+                    file_name_text_best_image = filePath;
+                    file_name_text_best_image_ssweight = ssweight;
+                    console.writeln("found text 'best_image' from file name " + filePath);
+              }
+              if (ssweight_found) {
                   ssweight_set = true;
                   if (ssweight < par.ssweight_limit.val) {
                         console.writeln("below ssweight limit " + par.ssweight_limit.val + ", skip image");
@@ -4536,6 +4544,7 @@ function findBestSSWEIGHT(names_and_weights)
                               first_image = false;
                         }
                   }
+                  setTreeBoxNodeSsweight(parent.treeBox[pages.LIGHTS], filePath, ssweight, filename_postfix);
             }
             if (accept_file) {
                   newFileNames[newFileNames.length] = fileNames[i];
@@ -4544,22 +4553,20 @@ function findBestSSWEIGHT(names_and_weights)
       if (newFileNames.length == 0) {
             throwFatalError("No files found for processing.");
       }
-      if (found_user_selected_best_image || file_name_text_best_image != null) {
-            if (found_user_selected_best_image) {
-                  console.writeln("Using user selected best image " + user_selected_best_image);
-                  best_image = user_selected_best_image;
+      if (found_user_selected_best_image != null || file_name_text_best_image != null) {
+            if (found_user_selected_best_image != null) {
+                  console.writeln("Using user selected best image " + found_user_selected_best_image + ", ssweight " + found_user_selected_best_image_ssweight);
+                  best_image = found_user_selected_best_image;
+                  best_ssweight = found_user_selected_best_image_ssweight;
             } else {
-                  console.writeln("Using best image as a file with text best_image " + file_name_text_best_image);
+                  console.writeln("Using best image as a file with text best_image " + file_name_text_best_image + ", ssweight " + file_name_text_best_image_ssweight);
                   best_image = file_name_text_best_image;
+                  best_ssweight = file_name_text_best_image_ssweight;
             }
-            if (best_ssweight < 100.0) {
-                  best_ssweight = 100.0;
-            } else {
-                  // maybe user given SSWEIGHT 
-                  best_ssweight = best_ssweight + 1.0;
-            }
-      } else if (best_image == null) {
-            console.writeln("Unable to find image with best SSWEIGHT, using first image");
+      } else if (best_image != null) {
+            console.writeln("Using best image " + best_image);
+      } else {
+            console.writeln("Unable to find image with best SSWEIGHT, using first image " + newFileNames[0]);
             best_image = newFileNames[0];
             best_ssweight = 1.0;
       }
@@ -4618,25 +4625,19 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             // have a postfix like _cc already added to file name. So we try match
             // the base file names. We ignore directory as output files are placed
             // info a different directory.
-            let refImageName = File.extractName(refImage);
             for (var i = 0; i < filearr.length; i++) {
-                  let fileName = File.extractName(filearr[i].name);
-                  if (filename_postfix.length > 0) {
-                        // strip filename_postfix from the end
-                        fileName = fileName.slice(0, fileName.length - filename_postfix.length);
-                  }
-                  if (fileName == refImageName) {
+                  if (compareReferenceFileNames(refImage, filearr[i].name, filename_postfix)) {
                         refImage = filearr[i].name;
                         break;
                   }
             }
             if (i == filearr.length) {
-                  throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list");
+                  throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list, filename_postfix " + filename_postfix);
             }
       }
 
       // Update files object.
-      var automatic_best_image = null;
+      var automatic_reference_image = null;
       for (var i = 0; i < filearr.length; i++) {
             var found_best_image = false;
             if (refImage != null && filearr[i].name == refImage) {
@@ -4644,7 +4645,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
                   console.writeln(filter + " user selected best image, ssweight=" + filearr[i].ssweight);
             } else if (refImage == null && (files.best_image == null || filearr[i].ssweight > files.best_ssweight)) {
                   found_best_image = true;
-                  automatic_best_image = filearr[i].name;
+                  automatic_reference_image = filearr[i].name;
                   console.writeln(filter + " new best_ssweight=" + filearr[i].ssweight);
             }
             if (found_best_image) {
@@ -4659,13 +4660,8 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             }
             files.exptime += filearr[i].exptime;
       }
-      if (automatic_best_image != null) {
-            let basename = File.extractName(automatic_best_image);
-            if (filename_postfix.length > 0) {
-                  // strip filename_postfix from the end
-                  basename = basename.slice(0, basename.length - filename_postfix.length);
-            }
-            setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], basename, filter);
+      if (automatic_reference_image != null) {
+            setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
       }
 }
 
@@ -8018,7 +8014,7 @@ function CreateChannelImages(parent, auto_continue)
                    * OSC/RAW images
                    */
                   fileNames = debayerImages(fileNames);
-                  filename_postfix = filename_postfix + '_b';
+                  filename_postfix = filename_postfix + '_d';
                   updatePreviewFilename(fileNames[0]);
             }
 
@@ -8062,16 +8058,11 @@ function CreateChannelImages(parent, auto_continue)
              * as a reference image in StarAlign.
              * Also possible file list filtering is done.
              */
-            var retarr = findBestSSWEIGHT(names_and_weights);
+            var retarr = findBestSSWEIGHT(parent, names_and_weights, filename_postfix);
             best_image = retarr[0];
             fileNames = retarr[1];
 
-            let basename = File.extractName(best_image);
-            if (filename_postfix.length > 0) {
-                  // strip filename_postfix from the end
-                  basename = basename.slice(0, basename.length - filename_postfix.length);
-            }
-            setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], basename);
+            setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], best_image, filename_postfix);
 
             if (par.image_weight_testing.val) {
                   return retval.incomplete;
@@ -10541,6 +10532,13 @@ function AutoIntegrateEngine(parent, auto_continue)
       } else {
             addProcessingStep("Using default processing options");
       }
+      if (user_selected_best_image != null) {
+            addProcessingStep("User selected best image: " + user_selected_best_image);
+      }
+      for (var i = 0; i < user_selected_reference_image.length; i++) {
+            addProcessingStep("User selected reference image for filter " + user_selected_reference_image[i][1] + 
+            " : " + user_selected_reference_image[i][0]);
+      }
       console.noteln("--------------------------------------");
       addProcessingStepAndStatusInfo("Start processing...");
 
@@ -12193,34 +12191,68 @@ function filenamesToTreeboxfiles(treeboxfiles, filenames, checked)
       }
 }
 
+function getReferenceBasename(processed_name, filename_postfix)
+{
+      let processed_basename = File.extractName(processed_name);
+      if (filename_postfix.length > 0 && processed_basename.endsWith(filename_postfix)) {
+            // strip filename_postfix from the end
+            processed_basename = processed_basename.slice(0, processed_basename.length - filename_postfix.length);
+      }
+      //console.writeln("getReferenceBasename ", processed_name, " ", filename_postfix, " ", processed_basename);
+      return processed_basename;
+}
+
+function compareReferenceFileNames(reference_name, processed_name, filename_postfix)
+{
+      let reference_basename = getReferenceBasename(reference_name, filename_postfix);
+      let processed_basename = getReferenceBasename(processed_name, filename_postfix);
+      return reference_basename == processed_basename;
+}
+
+function updateTreeBoxNodeToolTip(node)
+{
+      var toolTip = "<p>" + node.filename + "</p><p>exptime: " + node.exptime;
+      if (node.ssweight > 0) {
+            toolTip = toolTip + "<br>ssweight: " + node.ssweight;
+      }
+      if (node.best_image) {
+            toolTip = toolTip + "<br>Reference image for star align";
+      }
+      if (node.reference_image) {
+            toolTip = toolTip + "<br>Reference image for image integration and local normalization";
+      }
+      var toolTip = toolTip + "</p>";
+
+      node.setToolTip(0, toolTip);
+}
+
 function updateTreeBoxNodeFromFlags(parent, node)
 {
       if (node.best_image && node.reference_image) {
-            console.writeln("updateTreeBoxNodeFromFlags, both best image and reference image");
+            //console.writeln("updateTreeBoxNodeFromFlags, both best image and reference image");
             node.setIcon(0, parent.scaledResource(":/icons/item-ok.png"));
             node.checked = true;
+            updateTreeBoxNodeToolTip(node);
       } else if (node.best_image) {
-            console.writeln("updateTreeBoxNodeFromFlags, best image");
+            //console.writeln("updateTreeBoxNodeFromFlags, best image");
             node.setIcon(0, parent.scaledResource(":/icons/ok-button.png"));
             node.checked = true;
+            updateTreeBoxNodeToolTip(node);
       } else if (node.reference_image) {
-            console.writeln("updateTreeBoxNodeFromFlags, reference image");
+            //console.writeln("updateTreeBoxNodeFromFlags, reference image");
             node.setIcon(0, parent.scaledResource(":/icons/item.png"));
             node.checked = true;
-      } else {
-            console.writeln("updateTreeBoxNodeFromFlags, normal image");
-            node.setIcon(0, parent.scaledResource(""));
-            node.setTextColor(0, 0xff000000);
+            updateTreeBoxNodeToolTip(node);
       }
 }
 
-function setBestImageInTreeBoxNode(parent, node, best_image)
+function setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
 {
       if (node.numberOfChildren == 0) {
             // We compare only file name as path and extension can be different when we
             // set values at run time.
-            if (best_image != null && File.extractName(node.filename) == best_image) {
-                  console.writeln("setBestImageInTreeBoxNode found best image");
+            if (best_image != null && compareReferenceFileNames(best_image, node.filename, filename_postfix)) {
+                  //console.writeln("setBestImageInTreeBoxNode found best image");
                   node.best_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
                   user_selected_best_image = node.filename;
@@ -12231,18 +12263,18 @@ function setBestImageInTreeBoxNode(parent, node, best_image)
             return;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  setBestImageInTreeBoxNode(parent, node.child(i), best_image);
+                  setBestImageInTreeBoxNode(parent, node.child(i), best_image, filename_postfix);
             }
       }
 }
 
-function setBestImageInTreeBox(parent, node, best_image)
+function setBestImageInTreeBox(parent, node, best_image, filename_postfix)
 {
-      console.writeln("setBestImageInTreeBox " + best_image);
+      //console.writeln("setBestImageInTreeBox " + best_image);
       if (node.numberOfChildren == 0) {
             return;
       } else {
-            setBestImageInTreeBoxNode(parent, node, File.extractName(best_image));
+            setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix);
       }
 }
 
@@ -12252,48 +12284,48 @@ function set_user_selected_reference_image(reference_image, filter)
 {
       for (var i = 0; i < user_selected_reference_image.length; i++) {
             if (user_selected_reference_image[i][1] == filter) {
-                  console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
+                  //console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
                   user_selected_reference_image[i][0] = reference_image;
                   break;
             }
       }
       if (i == user_selected_reference_image.length) {
             // not found, add new
-            console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
+            //console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
             user_selected_reference_image[user_selected_reference_image.length] = [ reference_image, filter ];
       }
 }
 
-function setReferenceImageInTreeBoxNode(parent, node, reference_image, filter)
+function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, filter)
 {
       if (node.numberOfChildren == 0 && (filter == null || node.filter == filter)) {
             // We compare only file name as path and extension can be different when we
             // set values at run time.
-            if (reference_image != null && File.extractName(node.filename) == reference_image) {
-                  console.writeln("setReferenceImageInTreeBoxNode found reference image");
+            if (reference_image != null && compareReferenceFileNames(reference_image, node.filename, filename_postfix)) {
+                  //console.writeln("setReferenceImageInTreeBoxNode found reference image");
                   node.reference_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
                   set_user_selected_reference_image(node.filename, filter);
             } else if (node.reference_image) {
-                  console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
+                  //console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
                   node.reference_image = false;
                   updateTreeBoxNodeFromFlags(parent, node);
             }
             return;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  setReferenceImageInTreeBoxNode(parent, node.child(i), reference_image, filter);
+                  setReferenceImageInTreeBoxNode(parent, node.child(i), reference_image, filename_postfix, filter);
             }
       }
 }
 
-function setReferenceImageInTreeBox(parent, node, reference_image, filter)
+function setReferenceImageInTreeBox(parent, node, reference_image, filename_postfix, filter)
 {
-      console.writeln("setReferenceImageInTreeBox " + reference_image + " for filter " + filter);
+      //console.writeln("setReferenceImageInTreeBox " + reference_image + " for filter " + filter);
       if (node.numberOfChildren == 0) {
             return;
       } else {
-            setReferenceImageInTreeBoxNode(parent, node, File.extractName(reference_image), filter);
+            setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, filter);
       }
 }
 
@@ -12345,7 +12377,7 @@ function findBestImageFromTreeBoxFiles(treebox)
                   } else {
                         console.writeln("Filter " + filter + ", " + filePath + ", SSWEIGHT=" + SSWEIGHT);
                   }
-                  setTreeBoxNodeSsweight(treebox, filePath, SSWEIGHT);
+                  setTreeBoxNodeSsweight(treebox, filePath, SSWEIGHT, "");
             }
             if (bestSSWEIGHTindex == -1) {
                   console.noteln("findBestImageFromTreeBoxFiles, no SSWEIGHT for filter " + filter);
@@ -12441,16 +12473,17 @@ function checkAllTreeBoxFiles(node)
       }
 }
 
-function setTreeBoxNodeSsweight(node, filename, ssweight)
+function setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
 {
       if (node.numberOfChildren == 0) {
-            if (node.filename == filename) {
+            if (compareReferenceFileNames(filename, node.filename, filename_postfix)) {
                   node.ssweight = ssweight;
+                  updateTreeBoxNodeToolTip(node);
                   return true;
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  if (setTreeBoxNodeSsweight(node.child(i), filename, ssweight)) {
+                  if (setTreeBoxNodeSsweight(node.child(i), filename, ssweight, filename_postfix)) {
                         return true;
                   }
             }
@@ -12696,15 +12729,16 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
       if (pageIndex == pages.LIGHTS) {
             if (user_selected_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], user_selected_best_image);
+                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], user_selected_best_image, "");
             } else if (filename_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], filename_best_image);
+                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], filename_best_image, "");
             }
             for (var i = 0; i < user_selected_reference_image.length; i++)  {
                   setReferenceImageInTreeBox(
                         parent, 
                         parent.treeBox[pages.LIGHTS], 
                         user_selected_reference_image[i][0],
+                        "",
                         user_selected_reference_image[i][1]);
             }
       }
@@ -13654,7 +13688,7 @@ function newPageButtonsSizer(parent)
       setBestImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == pages.LIGHTS && current_selected_file_name != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name);
+                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name, "");
             }
       };
 
@@ -13666,7 +13700,7 @@ function newPageButtonsSizer(parent)
       setReferenceImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == pages.LIGHTS && current_selected_file_name != null) {
-                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name, current_selected_file_filter);
+                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name, "", current_selected_file_filter);
             }
       };
 
@@ -13678,8 +13712,8 @@ function newPageButtonsSizer(parent)
       clearBestImageButton.onClick = function()
       {
             if (parent.tabBox.currentPageIndex == pages.LIGHTS) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null);
-                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, null);
+                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, "");
+                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, "", null);
                   user_selected_best_image = null;
                   user_selected_reference_image = [];
             }
@@ -13699,12 +13733,14 @@ function newPageButtonsSizer(parent)
                         setBestImageInTreeBox(
                               parent, 
                               parent.treeBox[pages.LIGHTS], 
-                              user_selected_best_image);
+                              user_selected_best_image,
+                              "");
                         for (var i = 0; i < user_selected_reference_image.length; i++)  {
                               setReferenceImageInTreeBox(
                                     parent, 
                                     parent.treeBox[pages.LIGHTS], 
                                     user_selected_reference_image[i][0],
+                                    "",
                                     user_selected_reference_image[i][1]);
                         }
                   }
