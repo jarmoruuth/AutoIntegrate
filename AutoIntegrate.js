@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.50 test3";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.50 test4";          // Version, also updated into updates.xri
 var autointegrate_info = "Manually select reference images.";     // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -403,7 +403,8 @@ this.par = {
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
-            
+      autosave_setup: { val: false, def: false, name: "Autosave setup", type: 'B' },
+
       // Narrowband processing
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
       custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
@@ -739,9 +740,9 @@ var start_images = {
 };
 
 var retval = {
-      error : 0,
-      success : 1,
-      incomplete: 2
+      ERROR : 0,
+      SUCCESS : 1,
+      INCOMPLETE: 2
 };
 
 var channels = {
@@ -2335,7 +2336,7 @@ function openImageFiles(filetype, lights_only, json_only)
              * If lights_only, return a simple file array of light files
              * If not lights_only, return treebox files for each page
              */
-            var pagearray = parseJsonFile(ofd.fileNames[0], lights_only);
+            var pagearray = readJsonFile(ofd.fileNames[0], lights_only);
             if (lights_only) {
                   if (pagearray[pages.LIGHTS] == null) {
                         return null;
@@ -4741,6 +4742,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
             var exptime = 0;
             var obj = files[i];
             var use_treebox_ssweight = false;
+            var treebox_best_image = false;
+            var treebox_reference_image = false;
             if (Array.isArray(obj)) {
                   // we have treeboxfiles array
                   var filePath = obj[0];
@@ -4748,6 +4751,12 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                   if (obj.length > 2) {
                         ssweight = obj[2];
                         use_treebox_ssweight = true;
+                  }
+                  if (obj.length > 3) {
+                        treebox_best_image = obj[3];
+                  }
+                  if (obj.length > 4) {
+                        treebox_reference_image = obj[4];
                   }
             } else {
                   // we have just a file name list
@@ -4872,49 +4881,56 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         if (allfiles.L.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         luminance = true;
                         break;
                   case 'R':
                         if (allfiles.R.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         rgb = true;
                         break;
                   case 'G':
                         if (allfiles.G.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         rgb = true;
                         break;
                   case 'B':
                         if (allfiles.B.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         rgb = true;
                         break;
                   case 'H':
                         if (allfiles.H.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         narrowband = true;
                         break;
                   case 'S':
                         if (allfiles.S.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         narrowband = true;
                         break;
                   case 'O':
                         if (allfiles.O.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         narrowband = true;
                         break;
                   case 'C':
@@ -4922,7 +4938,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                         if (allfiles.C.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked };
+                        allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
                         color_files = true;
                         break;
             }
@@ -7834,9 +7851,9 @@ function findStartImages(auto_continue, check_base_name)
  * run image integration to create L, R, G and B images, or color image
  * 
  * Return values:
- *    retval.error      - error
- *    retval.success    - success
- *    retval.incomplete - stopped because of an option
+ *    retval.ERROR      - error
+ *    retval.SUCCESS    - success
+ *    retval.INCOMPLETE - stopped because of an option
  */
 function CreateChannelImages(parent, auto_continue)
 {
@@ -7860,13 +7877,13 @@ function CreateChannelImages(parent, auto_continue)
       if (auto_continue) {
           if (preprocessed_images == start_images.NONE) {
             addProcessingStep("No preprocessed images found, processing not started!");
-            return retval.error;
+            return retval.ERROR;
           }
       } else {
             if (preprocessed_images != start_images.NONE) {
                   addProcessingStep("There are already preprocessed images, processing not started!");
                   addProcessingStep("Close or rename old images before continuing.");
-                  return retval.error;
+                  return retval.ERROR;
             }  
       }
 
@@ -7910,7 +7927,7 @@ function CreateChannelImages(parent, auto_continue)
             if (lightFileNames == null) {
                   write_processing_log_file = false;
                   console.writeln("No files to process");
-                  return retval.error;
+                  return retval.ERROR;
             }
 
             updatePreviewFilename(lightFileNames[0]);
@@ -7957,7 +7974,7 @@ function CreateChannelImages(parent, auto_continue)
             updatePreviewFilename(lightFileNames[0]);
 
             if (par.calibrate_only.val) {
-                  return(retval.incomplete);
+                  return(retval.INCOMPLETE);
             }
 
             if (filename_postfix != '') {
@@ -8025,7 +8042,7 @@ function CreateChannelImages(parent, auto_continue)
             }
 
             if (is_color_files && par.debayer_only.val) {
-                  return retval.incomplete;
+                  return retval.INCOMPLETE;
             }
 
             if (par.extract_channel_mapping.val != 'None' && is_color_files && !skip_early_steps) {
@@ -8045,7 +8062,7 @@ function CreateChannelImages(parent, auto_continue)
                   if (par.extract_channel_mapping.val == 'None') {
 
                   }
-                  return retval.incomplete;
+                  return retval.INCOMPLETE;
             }
             if (par.ABE_on_lights.val && !skip_early_steps) {
                   fileNames = runABEOnLights(fileNames);
@@ -8077,7 +8094,7 @@ function CreateChannelImages(parent, auto_continue)
             setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], best_image, filename_postfix);
 
             if (par.image_weight_testing.val) {
-                  return retval.incomplete;
+                  return retval.INCOMPLETE;
             }
 
             /* StarAlign
@@ -8110,7 +8127,7 @@ function CreateChannelImages(parent, auto_continue)
                   console.writeln("Fixes outputRootDir " + outputRootDir);
             }
             if (par.cropinfo_only.val) {
-                  return retval.incomplete;
+                  return retval.INCOMPLETE;
             }
             /* ImageIntegration
             */
@@ -8157,7 +8174,7 @@ function CreateChannelImages(parent, auto_continue)
                   RGBcolor_id = runImageIntegration(C_images, 'RGBcolor');
             }
       }
-      return retval.success;
+      return retval.SUCCESS;
 }
 
 /* Create  a mask from linear image. This function
@@ -10557,15 +10574,17 @@ function AutoIntegrateEngine(parent, auto_continue)
       close_undo_images(parent);
 
       /* Create images for each L, R, G and B channels, or Color image. */
-      let ret = CreateChannelImages(parent, auto_continue);
-      if (ret == retval.error) {
+      let create_channel_images_ret = CreateChannelImages(parent, auto_continue);
+      if (create_channel_images_ret == retval.ERROR) {
             console.criticalln("Failed!");
             console.endLog();
             is_processing = false;
             return false;
       }
 
-      if (ret == retval.success || (par.cropinfo_only.val && ret == retval.incomplete)) {
+      if (create_channel_images_ret == retval.SUCCESS || 
+          (par.cropinfo_only.val && create_channel_images_ret == retval.INCOMPLETE)) 
+      {
             /*
             * If requested, we crop all channel images and channel support images (the xxx_map images)
             * to an area covered by all source images.
@@ -10884,7 +10903,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
       windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
 
-      if (par.batch_mode.val > 0) {
+      if (par.batch_mode.val) {
             /* Rename image based on first file directory name. 
              * First check possible device in Windows (like c:)
              */
@@ -10949,11 +10968,27 @@ function AutoIntegrateEngine(parent, auto_continue)
                   /* Color files */
                   printImageInfo(C_images, "Color");
             }
+            var full_run = true;
+      } else {
+            var full_run = false;
       }
       var end_time = Date.now();
       addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
       console.noteln("======================================");
 
+      if (preprocessed_images != start_images.FINAL
+          && par.autosave_setup.val 
+          && !auto_continue 
+          && !ai_get_process_defaults
+          && full_run
+          && create_channel_images_ret == retval.SUCCESS)
+      {
+            let json_file = "AutoIntegrateSetup.json";
+            if (par.win_prefix_to_log_files.val) {
+                  json_file = ppar.win_prefix + json_file;
+            }
+            saveJsonFileEx(parent, true, json_file);
+      }
       if (preprocessed_images != start_images.FINAL || ai_get_process_defaults) {
             writeProcessingSteps(alignedFiles, auto_continue, null);
       }
@@ -11824,9 +11859,9 @@ function addWinPrefix(parent)
 
 /* Read saved Json file info.
  */ 
-function parseJsonFile(fname, lights_only)
+function readJsonFile(fname, lights_only)
 {
-      console.writeln("parseJsonFile " + fname + " lights_only " + lights_only);
+      console.writeln("readJsonFile " + fname + " lights_only " + lights_only);
 
       var jsonFile = File.openFileForReading(fname);
       if (!jsonFile.isOpen) {
@@ -11890,13 +11925,13 @@ function parseJsonFile(fname, lights_only)
       var found_files = false;
       for (var i = 0; i < fileInfoList.length; i++) {
             var saveInfo = fileInfoList[i];
-            console.writeln("parseJsonFile " + saveInfo.pagename);
+            console.writeln("readJsonFile " + saveInfo.pagename);
             if (lights_only && saveInfo.pageindex != pages.LIGHTS) {
-                  console.writeln("parseJsonFile, lights_only, skip");
+                  console.writeln("readJsonFile, lights_only, skip");
                   continue;
             }
             if (saveInfo.files.length == 0) {
-                  console.writeln("parseJsonFile, no files, skip");
+                  console.writeln("readJsonFile, no files, skip");
                   continue;
             }
             found_files = true;
@@ -11905,11 +11940,11 @@ function parseJsonFile(fname, lights_only)
             if (filterSet != null) {
                   switch (saveInfo.pageindex) {
                         case pages.LIGHTS:
-                              console.writeln("parseJsonFile, set manual filters for lights");
+                              console.writeln("readJsonFile, set manual filters for lights");
                               lightFilterSet = filterSet;
                               break;
                         case pages.FLATS:
-                              console.writeln("parseJsonFile, set manual filters for flats");
+                              console.writeln("readJsonFile, set manual filters for flats");
                               flatFilterSet = filterSet;
                               break;
                         default:
@@ -11919,10 +11954,10 @@ function parseJsonFile(fname, lights_only)
             }
       }
       if (!found_files) {
-            console.writeln("parseJsonFile, no files found");
+            console.writeln("readJsonFile, no files found");
             return null;
       }
-      console.writeln("parseJsonFile, return files for pages");
+      console.writeln("readJsonFile, return files for pages");
       return pagearray;
 }
 
@@ -12089,7 +12124,7 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
 
 /* Save file info to a file.
  */
-function saveJsonFile(parent, save_settings)
+function saveJsonFileEx(parent, save_settings, json_filename)
 {
       console.writeln("saveJsonFile");
 
@@ -12150,40 +12185,69 @@ function saveJsonFile(parent, save_settings)
             return;
       }
 
-      let saveFileDialog = new SaveFileDialog();
-      saveFileDialog.caption = "Save As";
-      saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
-      if (fileInfoList.length > 0) {
-            var outputDir = ensurePathEndSlash(getOutputDir(fileInfoList[0].files[0][0]));
-      } else {
-            var outputDir = ensurePathEndSlash(getOutputDir(""));
-            if (outputDir == "") {
-                  outputDir = ensurePathEndSlash(ppar.lastDir);
+      if (json_filename == null) {
+            let saveFileDialog = new SaveFileDialog();
+            saveFileDialog.caption = "Save As";
+            saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
+            if (fileInfoList.length > 0) {
+                  var outputDir = ensurePathEndSlash(getOutputDir(fileInfoList[0].files[0][0]));
+            } else {
+                  var outputDir = ensurePathEndSlash(getOutputDir(""));
+                  if (outputDir == "") {
+                        outputDir = ensurePathEndSlash(ppar.lastDir);
+                  }
             }
-      }
-      if (save_settings) {
-            saveFileDialog.initialPath = outputDir + "AutoSetup.json";
+            if (save_settings) {
+                  saveFileDialog.initialPath = outputDir + "AutoSetup.json";
+            } else {
+                  saveFileDialog.initialPath = outputDir + "AutoFiles.json";
+            }
+            if (!saveFileDialog.execute()) {
+                  return;
+            }
+            var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
+            var json_path_and_filename = saveFileDialog.fileName;
       } else {
-            saveFileDialog.initialPath = outputDir + "AutoFiles.json";
+            let dialogRet = ensureDialogFilePath(json_filename);
+            if (dialogRet == 0) {
+                  // Canceled, do not save
+                  return;
+            }
+            let json_path;
+            if (dialogRet == 1) {
+                  // User gave explicit directory
+                  json_path = outputRootDir;
+            } else {
+                  // Not saving to AutoProcessed directory
+                  //json_path = combinePath(outputRootDir, AutoProcessedDir); 
+                  
+                  // Saving to lights directory, or user given output directory
+                  // This way we get relative paths to file so it is easy to move around
+                  // or even share with lights files.
+                  json_path = outputRootDir;
+            }
+            var saveDir = ensurePathEndSlash(json_path);
+            var json_path_and_filename = saveDir + json_filename;
       }
-      if (!saveFileDialog.execute()) {
-            return;
-      }
-      let saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
       saveLastDir(saveDir);
       try {
             let saveInfo = initJsonSaveInfo(fileInfoList, save_settings, saveDir);
             let file = new File();
             saveInfoMakeRelativePaths(saveInfo, saveDir);
             let saveInfoJson = JSON.stringify(saveInfo, null, 2);
-            file.createForWriting(saveFileDialog.fileName);
+            file.createForWriting(json_path_and_filename);
             file.outTextLn(saveInfoJson);
             file.close();
-            console.noteln("Saved to a file "+ saveFileDialog.fileName);
+            console.noteln("Saved to a file "+ json_path_and_filename);
       } catch (error) {
-            console.criticalln("Error: failed to write file "+ saveFileDialog.fileName);
+            console.criticalln("Error: failed to write file "+ json_path_and_filename);
             console.criticalln(error);
       }
+}
+
+function saveJsonFile(parent, save_settings)
+{
+      saveJsonFileEx(parent, save_settings, null);
 }
 
 function treeboxfilesToFilenames(treeboxfiles)
@@ -12414,6 +12478,7 @@ function findBestImageFromTreeBoxFiles(treebox)
             console.noteln("All files, " + globalBestSSWEIGHTfile + ", best SSWEIGHT=" + globalBestSSWEIGHTvalue);
             user_selected_best_image = globalBestSSWEIGHTfile;
       }
+      addStatusInfo("Done.");
       return true;
 }
 
@@ -12525,7 +12590,11 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
 function getTreeBoxNodeFiles(node, treeboxfiles)
 {
       if (node.numberOfChildren == 0) {
-            treeboxfiles[treeboxfiles.length] = [ node.filename, node.checked ];
+            if (node.lightsnode) {
+                  treeboxfiles[treeboxfiles.length] = [ node.filename, node.checked, node.ssweight, node.best_image, node.reference_image ];
+            } else {
+                  treeboxfiles[treeboxfiles.length] = [ node.filename, node.checked ];
+            }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
                   getTreeBoxNodeFiles(node.child(i), treeboxfiles);
@@ -12668,7 +12737,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 {
       console.writeln("addFilteredFilesToTreeBox " + pageIndex);
 
-      // ensure we have treeboxfiles which is array of [ filename, checked, weight ]
+      // ensure we have treeboxfiles which is array of [ filename, checked, weight, best_image, reference_image ]
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames);
 
       var filteredFiles = getFilterFiles(treeboxfiles, pageIndex, '');
@@ -12720,7 +12789,6 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         } else {
                               node.setText(0, txt);
                         }
-                        node.setToolTip(0, filterFiles[j].name);
                         node.filename = filterFiles[j].name;
                         node.nodeData_type = "";
                         node.checkable = true;
@@ -12729,8 +12797,14 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.ssweight = filterFiles[j].ssweight;
                         node.exptime = filterFiles[j].exptime;
                         node.filter = filterFiles[j].filter;
-                        node.best_image = false;
-                        node.reference_image = false;
+                        node.best_image = filterFiles[j].best_image;
+                        node.reference_image = filterFiles[j].reference_image;
+                        if (pageIndex == pages.LIGHTS) {
+                              node.lightsnode = true;
+                        } else {
+                              node.lightsnode = false;
+                        }
+                        updateTreeBoxNodeToolTip(node);
                         if (pageIndex == pages.LIGHTS && filterFiles[j].name.indexOf("best_image") != -1) {
                               filename_best_image = filterFiles[j].name;
                         }
@@ -14560,6 +14634,11 @@ function toggleSidePreview()
             "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
             "<p>When this option is enabled the control for icon column is in the Interface settings section.</p>" +
             "<p>This setting is effective only after restart of the script.</p>" );
+      this.AutoSaveSetupBox = newCheckBox(this, "Autosave setup", par.autosave_setup, 
+            "<p>Save setup after successful processing into AutoIntegrateSetup.json file. Autosave is done only after the Run command, " + 
+            "it is not done after the Autocontinue command.</p>" +
+            "<p>File is saved to the lights file directory, or to the user given output directory.</p>" +
+            "<p>Setup can be later loaded into AutoIntegrate to see the settings or run the setup again possibly with different options.</p>");
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -14761,6 +14840,7 @@ function toggleSidePreview()
       this.otherParamsSet2.add( this.blink_checkbox );
       this.otherParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
       this.otherParamsSet2.add( this.ManualIconColumnBox );
+      this.otherParamsSet2.add( this.AutoSaveSetupBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -16548,7 +16628,7 @@ this.test_autosetup = function(autosetup_path)
 {
       console.writeln("test_autosetup");
 
-      var pagearray = parseJsonFile(autosetup_path, false);
+      var pagearray = readJsonFile(autosetup_path, false);
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {
