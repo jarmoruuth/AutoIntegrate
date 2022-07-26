@@ -301,8 +301,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.50";                // Version, also updated into updates.xri
-var autointegrate_info = "Manually select reference images.";     // For updates.xri
+var autointegrate_version = "AutoIntegrate v1.51 test1";          // Version, also updated into updates.xri
+var autointegrate_info = "Star alignment settings.";              // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -357,6 +357,10 @@ this.par = {
       skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
       skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
+      staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
+      staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
+      staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
+      staralignment_noisereductionfilterradius: { val: 0, def: 0, name : "StarAlignment noise reduction", type : 'I' },
       binning: { val: 0, def: 0, name : "Binning", type : 'I' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
       ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
@@ -5890,25 +5894,15 @@ function runStarAlignment(imagetable, refImage)
       }
 
       var P = new StarAlignment;
-      if (par.strict_StarAlign.val) {
-            P.structureLayers = 5;
-            P.noiseReductionFilterRadius = 0;
-            P.sensitivity = 0.100;
-            P.ransacTolerance = 2.00;
-            P.ransacMaxIterations = 2000;
-      } else {
-            P.structureLayers = 6;
-            P.noiseReductionFilterRadius = 5;
-            P.sensitivity = 0.010;
-            P.ransacTolerance = 6.00;
-            P.ransacMaxIterations = 3000;
-      }
+      P.sensitivity = par.staralignment_sensitivity.val;                                  // default 0.50
+      P.maxStarDistortion = par.staralignment_maxstarsdistortion.val;                     // default 0.6
+      P.structureLayers = par.staralignment_structurelayers.val;                          // default 5
+      P.noiseReductionFilterRadius = par.staralignment_noisereductionfilterradius.val;    // default 0
       if (par.use_drizzle.val) {
             P.generateDrizzleData = true; /* Generate .xdrz files. */
       } else {
             P.generateDrizzleData = false;
       }
-      P.splineSmoothness = 0.25;    // default 0.050
       P.outputDirectory = outputRootDir + AutoOutputDir;
       P.referenceImage = refImage;
       P.referenceIsFile = true;
@@ -12052,7 +12046,8 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
                   saveInfo.best_image = user_selected_best_image;
             }
             if (user_selected_reference_image.length > 0) {
-                  saveInfo.reference_image = user_selected_reference_image;
+                  // Need to make a copy so we do not update the original array
+                  saveInfo.reference_image = copy_user_selected_reference_image_array();
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };
@@ -12065,32 +12060,37 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
  * Relative paths make it easier to move files and corresponding Json file
  * around or even share it with someone else.
  *
- * For example if saveDir is /Telescopes/TelescopeLive/NGC104 and 
+ * For example if saveDir is /Telescopes/TelescopeLive/NGC104/ and 
  * file name is /Telescopes/TelescopeLive/NGC104/Lights/Red/NGC104_R.fits
- * we save the file name as Lights/Red/NGC104_R.fits. If saveDir is a prefix
+ * we save the file name as Lights/Red/NGC104_R.fits. If saveDir is not a prefix
  * of file name we save the full path.
  */
 function saveInfoMakeRelativePaths(saveInfo, saveDir)
 {
-      console.writeln("saveInfoMakeRelativePaths");
+      if (saveDir == null || saveDir == "") {
+            console.writeln("saveInfoMakeRelativePaths, empty saveDir");
+            return;
+      }
+      saveDir = ensurePathEndSlash(saveDir);
+      console.writeln("saveInfoMakeRelativePaths, saveDir "+ saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
             for (var j = 0; j < fileInfoList[i].files.length; j++) {
                   var fname = fileInfoList[i].files[j][0];
                   if (fname.startsWith(saveDir)) {
-                        fileInfoList[i].files[j][0] = fname.substring(saveDir.length + 1);
+                        fileInfoList[i].files[j][0] = fname.substring(saveDir.length);
                   }
             }
       }
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
             if (saveInfo.best_image.startsWith(saveDir)) {
-                  saveInfo.best_image = saveInfo.best_image.substring(saveDir.length + 1);
+                  saveInfo.best_image = saveInfo.best_image.substring(saveDir.length);
             }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
             for (var i = 0; i < saveInfo.reference_image.length; i++) {
                   if (saveInfo.reference_image[i][0].startsWith(saveDir)) {
-                        saveInfo.reference_image[i][0] = saveInfo.reference_image[i][0].substring(saveDir.length + 1);
+                        saveInfo.reference_image[i][0] = saveInfo.reference_image[i][0].substring(saveDir.length);
                   }
             }
       }
@@ -12099,24 +12099,31 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
 
 function saveInfoMakeFullPaths(saveInfo, saveDir)
 {
-      console.writeln("saveInfoMakeFullPaths");
+      if (saveDir == null || saveDir == "") {
+            console.writeln("saveInfoMakeFullPaths, empty saveDir");
+            return;
+      }
+      saveDir = ensurePathEndSlash(saveDir);
+      console.writeln("saveInfoMakeFullPaths, saveDir " + saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
             for (var j = 0; j < fileInfoList[i].files.length; j++) {
                   var fname = fileInfoList[i].files[j][0];
                   if (pathIsRelative(fname)) {
-                        fileInfoList[i].files[j][0] = ensurePathEndSlash(saveDir) + fname;
+                        fileInfoList[i].files[j][0] = saveDir + fname;
                   }
             }
       }
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
             if (pathIsRelative(saveInfo.best_image)) {
-                  saveInfo.best_image = ensurePathEndSlash(saveDir) + saveInfo.best_image;
+                  saveInfo.best_image = saveDir + saveInfo.best_image;
             }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
             for (var i = 0; i < saveInfo.reference_image.length; i++) {
-                  saveInfo.reference_image[i][0] = ensurePathEndSlash(saveDir) + saveInfo.reference_image[i][0];
+                  if (pathIsRelative(saveInfo.reference_image[i][0])) {
+                        saveInfo.reference_image[i][0] = saveDir + saveInfo.reference_image[i][0];
+                  }
             }
       }
       return saveInfo;
@@ -12366,16 +12373,30 @@ function set_user_selected_reference_image(reference_image, filter)
 {
       for (var i = 0; i < user_selected_reference_image.length; i++) {
             if (user_selected_reference_image[i][1] == filter) {
-                  //console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
+                  console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
                   user_selected_reference_image[i][0] = reference_image;
                   break;
             }
       }
       if (i == user_selected_reference_image.length) {
             // not found, add new
-            //console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
+            console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
             user_selected_reference_image[user_selected_reference_image.length] = [ reference_image, filter ];
       }
+}
+
+function copy_user_selected_reference_image_array()
+{
+      var copyarr = [];
+
+      for (var i = 0; i < user_selected_reference_image.length; i++) {
+            var elem = [];
+            for (var j = 0; j < user_selected_reference_image[i].length; j++) {
+                  elem[elem.length] = user_selected_reference_image[i][j];
+            }
+            copyarr[copyarr.length] = elem;
+      }
+      return copyarr;
 }
 
 function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_postfix, filter)
@@ -13946,6 +13967,23 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       groupbox.sizer.add( control );
 }
 
+function newSectionBarAddArray(parent, groupbox, title, name, objarray)
+{
+      var ProcessingControl = new Control( parent );
+      ProcessingControl.sizer = new VerticalSizer;
+      ProcessingControl.sizer.margin = 6;
+      ProcessingControl.sizer.spacing = 4;
+      for (var i = 0; i < objarray.length; i++) {
+            ProcessingControl.sizer.add( objarray[i] );
+      }
+      // hide this section by default
+      ProcessingControl.visible = false;
+
+      parent.rootingArr.push(ProcessingControl);
+
+      newSectionBarAdd(parent, groupbox, ProcessingControl, title, name);
+}
+
 function getWindowBitmap(imgWin)
 {
       var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
@@ -14495,8 +14533,8 @@ function toggleSidePreview()
             "<p>With this option no output image files are written.</p>" );
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
-      this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
-            "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" );
+      /* this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
+            "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" ); */
       this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
@@ -14648,7 +14686,7 @@ function toggleSidePreview()
       this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
-      this.imageParamsSet1.add( this.relaxedStartAlignCheckBox);
+      /* this.imageParamsSet1.add( this.relaxedStartAlignCheckBox); */
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
@@ -14702,6 +14740,30 @@ function toggleSidePreview()
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
       this.LRGBCombinationGroupBoxSizer.addStretch();
+
+      // StarAlignment selection
+      this.sensitivityStarAlignmentControl = newNumericEdit(this, "Sensitivity", par.staralignment_sensitivity, 0, 1, 
+            "<p>Sensitivity setting. Bigger value will detect fainter stars.</p>");
+      this.maxStarDistortionStarAlignmentControl = newNumericEdit(this, "Maximum distortion", par.staralignment_maxstarsdistortion, 0, 1, 
+            "<p>Maximum star distortion setting. Bigger value will detect more irregular stars.</p>");
+      this.structureLayersStarAlignmentLabel = newLabel(this, "Structure layers", "<p>Structure layers setting. Bigger value will detect more stars.</p>");
+      this.structureLayersStarAlignmentControl = newSpinBox(this, par.staralignment_structurelayers, 1, 8, this.structureLayersStarAlignmentLabel.toolTip);
+      this.noiseReductionFilterRadiusStarAlignmentLabel = newLabel(this, "Noise reduction", "<p>Noise reduction filter radius layers setting. Bigger value can help with very noisy images.</p>");
+      this.noiseReductionFilterRadiusStarAlignmentControl = newSpinBox(this, par.staralignment_noisereductionfilterradius, 0, 50, this.noiseReductionFilterRadiusStarAlignmentLabel.toolTip);
+
+      this.StarAlignmentGroupBoxLabel = newSectionLabel(this, "StarAlignment settings");
+      this.StarAlignmentGroupBoxLabel.toolTip = 
+            "StarAlignment settings can be used to fine tune star alignment to detect more stars if default values do not work.";
+      this.StarAlignmentGroupBoxSizer = new HorizontalSizer;
+      this.StarAlignmentGroupBoxSizer.margin = 6;
+      this.StarAlignmentGroupBoxSizer.spacing = 4;
+      this.StarAlignmentGroupBoxSizer.add( this.sensitivityStarAlignmentControl );
+      this.StarAlignmentGroupBoxSizer.add( this.maxStarDistortionStarAlignmentControl );
+      this.StarAlignmentGroupBoxSizer.add( this.structureLayersStarAlignmentLabel );
+      this.StarAlignmentGroupBoxSizer.add( this.structureLayersStarAlignmentControl );
+      this.StarAlignmentGroupBoxSizer.add( this.noiseReductionFilterRadiusStarAlignmentLabel );
+      this.StarAlignmentGroupBoxSizer.add( this.noiseReductionFilterRadiusStarAlignmentControl );
+      this.StarAlignmentGroupBoxSizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -16398,59 +16460,42 @@ function toggleSidePreview()
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      this.ProcessingControl1 = new Control( this );
-      this.ProcessingControl1.sizer = new VerticalSizer;
-      this.ProcessingControl1.sizer.margin = 6;
-      this.ProcessingControl1.sizer.spacing = 4;
-      this.ProcessingControl1.sizer.add( this.saturationGroupBoxLabel );
-      this.ProcessingControl1.sizer.add( this.saturationGroupBoxSizer );
-      this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxLabel );
-      this.ProcessingControl1.sizer.add( this.noiseReductionGroupBoxSizer );
-      this.ProcessingControl1.sizer.add( this.binningGroupBoxLabel );
-      this.ProcessingControl1.sizer.add( this.binningGroupBoxSizer );
-      // hide this section by default
-      this.ProcessingControl1.visible = false;
-
-      this.ProcessingControl2 = new Control( this );
-      this.ProcessingControl2.sizer = new VerticalSizer;
-      this.ProcessingControl2.sizer.margin = 6;
-      this.ProcessingControl2.sizer.spacing = 4;
-      this.ProcessingControl2.sizer.add( this.linearFitGroupBoxLabel );
-      this.ProcessingControl2.sizer.add( this.linearFitGroupBoxSizer );
-      this.ProcessingControl2.sizer.add( this.StretchingGroupBoxLabel );
-      this.ProcessingControl2.sizer.add( this.StretchingGroupBoxSizer );
-      // hide this section by default
-      this.ProcessingControl2.visible = false;
-
-      this.ProcessingControl3 = new Control( this );
-      this.ProcessingControl3.sizer = new VerticalSizer;
-      this.ProcessingControl3.sizer.margin = 6;
-      this.ProcessingControl3.sizer.spacing = 4;
-      this.ProcessingControl3.sizer.add( this.weightSizer );
-      // hide this section by default
-      this.ProcessingControl3.visible = false;
-
-      this.ProcessingControl4 = new Control( this );
-      this.ProcessingControl4.sizer = new VerticalSizer;
-      this.ProcessingControl4.sizer.margin = 6;
-      this.ProcessingControl4.sizer.spacing = 4;
-      this.ProcessingControl4.sizer.add( this.cosmeticCorrectionGroupBoxSizer );
-      this.ProcessingControl4.sizer.add( this.clippingGroupBoxLabel );
-      this.ProcessingControl4.sizer.add( this.clippingGroupBoxSizer );
-      this.ProcessingControl4.sizer.add( this.LRGBCombinationGroupBoxLabel );
-      this.ProcessingControl4.sizer.add( this.LRGBCombinationGroupBoxSizer );
-      // hide this section by default
-      this.ProcessingControl4.visible = false;
-
       this.leftGroupBox = newSectionBar(this, this.imageParamsControl, "Image processing parameters", "Image1");
+
       newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
-      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl1, "Processing settings, saturation, binning and noise", "Process1");
-      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl2, "Processing settings, linear fit and stretching", "Process2");
-      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl3, "Processing settings, weighting and filtering", "Process3");
-      newSectionBarAdd(this, this.leftGroupBox, this.ProcessingControl4, "Processing settings, correction, integration and combination", "Process4");
+
+      // Add Processiong settings sections
+      newSectionBarAddArray(this, this.leftGroupBox, "Stretching settings", "ps_stretching",
+            [ this.StretchingGroupBoxLabel,
+              this.StretchingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Linear fit and LRGB combination settings", "ps_linearfit_combination",
+            [ this.linearFitGroupBoxLabel,
+              this.linearFitGroupBoxSizer,
+              this.LRGBCombinationGroupBoxLabel,
+              this.LRGBCombinationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Saturation and noise reduction settings", "ps_saturation_noise",
+            [ this.saturationGroupBoxLabel,
+              this.saturationGroupBoxSizer,
+              this.noiseReductionGroupBoxLabel,
+              this.noiseReductionGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Image integration settings", "ps_integration",
+            [ this.clippingGroupBoxLabel,
+              this.clippingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Star alignment settings", "ps_alignment",
+            [ this.StarAlignmentGroupBoxLabel,
+              this.StarAlignmentGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Weighting and filtering settings", "ps_weighting",
+            [ this.weightSizer ]);
+      newSectionBarAddArray(this, this.leftGroupBox, "Binning and cosmetic correction settings", "ps_binning_CC",
+            [ this.binningGroupBoxLabel,
+              this.binningGroupBoxSizer,
+              this.cosmeticCorrectionGroupBoxSizer ]);
+      
       if (!ppar.use_single_column) {
             this.leftGroupBox.sizer.addStretch();
       }
+
+
 
       this.rightGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
