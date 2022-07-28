@@ -301,8 +301,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.51";                // Version, also updated into updates.xri
-var autointegrate_info = "Star alignment settings.";              // For updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test1";                // Version, also updated into updates.xri
+var autointegrate_info = "Adjust to content button.";                   // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -13056,7 +13056,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       sb.hide();
       sb.toolTip = "Select manually files for each filter. Useful if filters are not recognized automatically.";
       sb.onToggleSection = function(bar, beginToggle){
-            parent.dialog.adjustToContents();
+            parent.adjustToContents();
       };
 
       filterSectionbars[pageIndex] = sb;
@@ -13628,6 +13628,18 @@ function newAutoContinueButton(parent, toolbutton)
       );
 }
 
+function newAdjustToContentButton(parent)
+{
+      var button = new ToolButton(parent);
+      button.icon = new Bitmap( ":/toolbar/preview-reset.png" );
+      button.toolTip = "Adjust script window to content.";
+      button.onMousePress = function()
+      {
+            parent.adjustToContents();
+      };
+      return button;
+}
+
 function blinkArrowButton(parent, icon, x, y)
 {
       var blinkArrowButton = new ToolButton( parent );
@@ -13910,6 +13922,11 @@ function newPageButtonsSizer(parent)
       parent.rootingArr.push(obj);
       buttonsSizer.add( obj );
 
+      buttonsSizer.addSpacing( 6 );
+      obj = newAdjustToContentButton(parent);
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
+
       return buttonsSizer;
 }
 
@@ -13933,7 +13950,7 @@ function newSectionBar(parent, control, title, name)
             if (!do_not_write_settings) {
                   Settings.write(name, DataType_Boolean, control.visible);
             }
-            parent.dialog.adjustToContents();
+            parent.adjustToContents();
       };
       parent.rootingArr.push(sb);
 
@@ -13957,7 +13974,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
             if (!do_not_write_settings) {
                   Settings.write(name, DataType_Boolean, control.visible);
             }
-            parent.dialog.adjustToContents();
+            parent.adjustToContents();
       };
       parent.rootingArr.push(sb);
 
@@ -16408,6 +16425,8 @@ function toggleSidePreview()
       {
             Dialog.openBrowser("https://ruuth.xyz/AutoIntegrateInfo.html");
       };
+
+      this.adjusttocontent_Button = newAdjustToContentButton(this);
    
       this.infoLabel = new Label( this );
       this.infoLabel.text = "";
@@ -16450,6 +16469,9 @@ function toggleSidePreview()
       this.buttons_Sizer.add( this.savedefaults_Button );
       this.buttons_Sizer.add( this.reset_Button );
       this.buttons_Sizer.add( this.website_Button );
+      this.buttons_Sizer.addSpacing( 6 );
+      this.buttons_Sizer.add( this.adjusttocontent_Button );
+      this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( this.closeAllButton );
