@@ -13604,24 +13604,26 @@ function newAutoContinueButton(parent, toolbutton)
             parent,
             ":/icons/goto-next.png",
             "AutoContinue",
-            "AutoContinue - Run automatic processing from previously created LRGB, HSO or Color images." +
+            "AutoContinue - Run automatic processing from previously created LRGB, narrowband or Color images." +
             "<p>" +
             "Image check order is:<br>" +
-            "1. L_HT + RGB_HT<br>" +
-            "2. RGB_HT<br>" +
-            "3. Integration_L_DBE + Integration_RGB_DBE<br>" +
-            "4. Integration_RGB_DBE<br>" +
-            "5. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE<br>" +
-            "6. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE<br>" +
-            "7. Integration_L + Integration_R + Integration_G + Integration_B, or Integration_RGBcolor<br>" +
-            "8. Integration_H + Integration_S + Integration_O<br>" +
-            "9. Final image (for extra processing)" +
+            "1. AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing" +
+            "2. L_HT + RGB_HT - Manually stretched L and RGB images<br>" +
+            "3. RGB_HT - Manually stretched RGB image<br>" +
+            "4. Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images<br>" +
+            "5. Integration_RGB_DBE - Background extracted RGB image<br>" +
+            "6. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images<br>" +
+            "7. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images<br>" +
+            "8. Integration_RGBcolor - Integrated Color image<br>" +
+            "9. Integration_H + Integration_S + Integration_O - Integrated channel images<br>" +
+            "10. Integration_L + Integration_R + Integration_G + Integration_B - Integrated channel images<br>" +
             "</p>" +
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
             "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
             "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
+            "Integration = Individual light images are integrated into one image.<br>" +
             "</p>",
             autocontinue_action,
             toolbutton
@@ -14759,18 +14761,22 @@ function toggleSidePreview()
       this.LRGBCombinationGroupBoxSizer.addStretch();
 
       // StarAlignment selection
+      var starAlignmentValuesToolTip = "<p>If star aligment fails you can try change values. Here is one suggestion of values that might help:<br>" +
+                                       "- Sensitivity: 0.70<br>" + 
+                                       "- Noise reduction<br>" + 
+                                       "If you have very bad distortion then also increasing maximum distortion can help.</p>";
       this.sensitivityStarAlignmentControl = newNumericEdit(this, "Sensitivity", par.staralignment_sensitivity, 0, 1, 
-            "<p>Sensitivity setting. Bigger value will detect fainter stars.</p>");
+            "<p>Sensitivity setting. Bigger value will detect fainter stars.</p>" + starAlignmentValuesToolTip);
       this.maxStarDistortionStarAlignmentControl = newNumericEdit(this, "Maximum distortion", par.staralignment_maxstarsdistortion, 0, 1, 
-            "<p>Maximum star distortion setting. Bigger value will detect more irregular stars.</p>");
-      this.structureLayersStarAlignmentLabel = newLabel(this, "Structure layers", "<p>Structure layers setting. Bigger value will detect more stars.</p>");
+            "<p>Maximum star distortion setting. Bigger value will detect more irregular stars.</p>" + starAlignmentValuesToolTip);
+      this.structureLayersStarAlignmentLabel = newLabel(this, "Structure layers", "<p>Structure layers setting. Bigger value will detect more stars.</p>" + starAlignmentValuesToolTip);
       this.structureLayersStarAlignmentControl = newSpinBox(this, par.staralignment_structurelayers, 1, 8, this.structureLayersStarAlignmentLabel.toolTip);
-      this.noiseReductionFilterRadiusStarAlignmentLabel = newLabel(this, "Noise reduction", "<p>Noise reduction filter radius layers setting. Bigger value can help with very noisy images.</p>");
+      this.noiseReductionFilterRadiusStarAlignmentLabel = newLabel(this, "Noise reduction", "<p>Noise reduction filter radius layers setting. Bigger value can help with very noisy images.</p>" + starAlignmentValuesToolTip);
       this.noiseReductionFilterRadiusStarAlignmentControl = newSpinBox(this, par.staralignment_noisereductionfilterradius, 0, 50, this.noiseReductionFilterRadiusStarAlignmentLabel.toolTip);
 
       this.StarAlignmentGroupBoxLabel = newSectionLabel(this, "StarAlignment settings");
       this.StarAlignmentGroupBoxLabel.toolTip = 
-            "StarAlignment settings can be used to fine tune star alignment to detect more stars if default values do not work.";
+            "<p>StarAlignment settings can be used to fine tune star alignment to detect more stars if default values do not work.</p>" + starAlignmentValuesToolTip;
       this.StarAlignmentGroupBoxSizer = new HorizontalSizer;
       this.StarAlignmentGroupBoxSizer.margin = 6;
       this.StarAlignmentGroupBoxSizer.spacing = 4;
@@ -15063,7 +15069,11 @@ function toggleSidePreview()
 
       // Linear Fit selection
 
-      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, "Choose how to do linear fit of images.");
+      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, 
+            "<p>Choose how to do linear fit of images.</p>" +
+            "<p>Default for linear fit is to use the luminance channel. If the luminance channel is not present then RGB images use a red channel and narrowband images do not do linear fit.</p>" +
+            "<p>In case of narrowband images, note that if luminance image is generated and luminance is used for linear fit then in auto mode the channels will be linked by default.</p>"
+      );
 
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit setting");
       this.linearFitGroupBoxSizer = new HorizontalSizer;
