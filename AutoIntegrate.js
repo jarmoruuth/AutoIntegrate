@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test1";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test2";                // Version, also updated into updates.xri
 var autointegrate_info = "Adjust to content button.";                   // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -5071,7 +5071,7 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
       // Check for synthetic images
       if (allfilesarr[channels.C].files.length == 0) {
             if (par.synthetic_l_image.val ||
-                  (par.synthetic_missing_images.val && allfiles.L.length == 0))
+                  (par.synthetic_missing_images.val && allfilesarr[channels.L].files.length == 0))
             {
                   if (allfilesarr[channels.L].files.length == 0) {
                         addProcessingStep("No luminance images, synthetic luminance image from all other images");
