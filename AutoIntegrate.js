@@ -301,8 +301,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test2";                // Version, also updated into updates.xri
-var autointegrate_info = "Adjust to content button.";                   // For updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test3";                // Version, also updated into updates.xri
+var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -338,6 +338,8 @@ var current_selected_file_filter = null;
 
 var undo_images = [];
 var undo_images_pos = -1;
+
+var LDDDefectInfo = [];             // { groupname: name,  defects: defects }
 
 /*
       Parameters that can be adjusted in the GUI
@@ -408,6 +410,7 @@ this.par = {
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
       autosave_setup: { val: false, def: false, name: "Autosave setup", type: 'B' },
+      use_processed_files: { val: false, def: false, name: "Use processed files", type: 'B' },
 
       // Narrowband processing
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
@@ -643,6 +646,7 @@ var best_ssweight = 0;
 var best_image = null;
 var user_selected_best_image = null;
 var user_selected_reference_image = [];
+var star_alignment_image = null;
 
 var L_images;
 var R_images;
@@ -2692,7 +2696,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
       console.writeln("runCalibrateDarks, master bias " + masterbiasPath);
 
       var P = new ImageCalibration;
-      P.targetFrames = filesNamesToEnabledPath(fileNames); // [ enabled, path ];
+      P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.masterBiasEnabled = true;
@@ -2872,7 +2876,7 @@ function filesForImageIntegration(fileNames)
       return images;
 }
 
-function filesNamesToEnabledPath(fileNames)
+function fileNamesToEnabledPath(fileNames)
 {
       var images = [];
       for (var i = 0; i < fileNames.length; i++) {
@@ -2881,13 +2885,22 @@ function filesNamesToEnabledPath(fileNames)
       return images;
 }
 
-function filesNamesToEnabledPathFromFilearr(filearr)
+function fileNamesToEnabledPathFromFilearr(filearr)
 {
       var images = [];
       for (var i = 0; i < filearr.length; i++) {
             images[images.length] = [ true, filearr[i].name ]; // [ enabled, path ];
       }
       return images;
+}
+
+function fileNamesFromFilearr(filearr)
+{
+      var fileNames = [];
+      for (var i = 0; i < filearr.length; i++) {
+            fileNames[fileNames.length] = filearr[i].name;
+      }
+      return fileNames;
 }
 
 function imagesEnabledPathToFileList(images)
@@ -3043,7 +3056,7 @@ function calibrateEngine(filtered_lights)
             } else if (filterFiles.length > 0) {
                   // calibrate flats for each filter with master bias and master dark
                   addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
-                  var flatcalimages = filesNamesToEnabledPathFromFilearr(filterFiles);
+                  var flatcalimages = fileNamesToEnabledPathFromFilearr(filterFiles);
                   console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath);
                   console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
@@ -3070,10 +3083,17 @@ function calibrateEngine(filtered_lights)
             if (filterFiles.length > 0) {
                   // calibrate light frames with master bias, master dark and master flat
                   // optionally master dark can be left out
-                  addProcessingStep("calibrateEngine calibrate " + filterName + " lights using " + filterFiles.length + " files, " + filterFiles[0].name);
-                  var lightcalimages = filesNamesToEnabledPathFromFilearr(filterFiles);
-                  var lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i]);
-                  calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames);
+                  let fileProcessedStatus = getFileProcessedStatusCalibrated(fileNamesFromFilearr(filterFiles), '_c');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
+                  } else {
+                        addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
+                        let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
+
+                        let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i]);
+
+                        calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
+                  }
             }
       }
 
@@ -3796,7 +3816,23 @@ function runLinearDefectDetection(fileNames)
       // For each group, generate own defect information
       for (var i = 0; i < LDD_groups.length; i++) {
             console.writeln("runLinearDefectDetection, group " + i);
-            var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles);
+            if (par.use_processed_files.val) {
+                  for (var j = 0; j < LDDDefectInfo.length; j++) {
+                        if (LDDDefectInfo[j].groupname == LDD_groups[i].groupname) {
+                              // found existing defect info
+                              console.writeln("Use existing defect info " + LDDDefectInfo[j].groupname);
+                              break;
+                        }
+                  }
+            }
+            if (!par.use_processed_files.val || j == LDDDefectInfo.length) {
+                  // generate new defect info
+                  var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles);
+                  LDDDefectInfo[LDDDefectInfo.length] = { groupname: LDD_groups[i].groupname, defects: ccGroupInfo.ccDefects }
+            } else {
+                  // use existing defect info
+                  var ccGroupInfo = { ccFileNames: LDD_groups[i].groupfiles, ccDefects: LDDDefectInfo[j].defects };
+            }
             ccInfo[ccInfo.length] = ccGroupInfo;
       }
 
@@ -3957,7 +3993,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       console.writeln("fileNames[0] " + fileNames[0]);
 
       var P = new CosmeticCorrection;
-      P.targetFrames = filesNamesToEnabledPath(fileNames);
+      P.targetFrames = fileNamesToEnabledPath(fileNames);
       P.overwrite = true;
       if (color_images && par.debayerPattern.val != 'None') {
             P.cfa = true;
@@ -4161,7 +4197,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             console.writeln("SubframeSelectorMeasure, collect measurements");
             var P = new SubframeSelector;
             P.nonInteractive = true;
-            P.subframes = filesNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
+            P.subframes = fileNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
             P.noiseLayers = 2;
             P.outputDirectory = outputRootDir + AutoOutputDir;
             P.overwriteExistingFiles = true;
@@ -4344,7 +4380,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                         // create Json output string
                         let fileInfoList = [];
                         addJsonFileInfo(fileInfoList, pages.LIGHTS, treeboxfiles, null);
-                        let saveInfo = initJsonSaveInfo(fileInfoList, false);
+                        let saveInfo = initJsonSaveInfo(fileInfoList, false, "");
                         console.writeln("saveInfo " + saveInfo);
                         let saveInfoJson = JSON.stringify(saveInfo, null, 2);
                         console.writeln("saveInfoJson " + saveInfoJson);
@@ -4436,9 +4472,7 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       var fileNames = names_and_weights.filenames;
       var newFileNames = [];
 
-      if (names_and_weights.ssweights.length > 0
-          && names_and_weights.filenames.length != names_and_weights.ssweights.length) 
-      {
+      if (names_and_weights.filenames.length < names_and_weights.ssweights.length) {
             // we have inconsistent lengths
             throwFatalError("Inconsistent lengths, filenames.length=" + names_and_weights.filenames.length + ", ssweights.length=" + names_and_weights.ssweights.length);
       }
@@ -5915,6 +5949,8 @@ function runStarAlignment(imagetable, refImage)
 
       addProcessingStep("runStarAlignment, " + alignedFiles.length + " files");
       console.writeln("output[0] " + alignedFiles[0]);
+
+      star_alignment_image = refImage;
 
       return alignedFiles;
 }
@@ -7636,7 +7672,7 @@ function debayerImages(fileNames)
 
       var P = new Debayer;
       P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
-      P.targetItems = filesNamesToEnabledPath(fileNames);
+      P.targetItems = fileNamesToEnabledPath(fileNames);
       P.outputDirectory = outputRootDir + AutoOutputDir;
       P.overwriteExistingFiles = true;
 
@@ -7831,6 +7867,38 @@ function findStartImages(auto_continue, check_base_name)
       return preprocessed_images;
 }
 
+function getFileProcessedStatusEx(fileNames, postfix, outputDir)
+{
+      if (!par.use_processed_files.val) {
+            return { processed: [], unprocessed: fileNames };
+      }
+      var processed = [];
+      var unprocessed = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            var outputExtension = ".xisf";
+            var processedName = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+            if (File.exists(processedName)) {
+                  console.writeln("getFileProcessedStatus, found processed file " + processedName);
+                  processed.push(processedName);
+            } else {
+                  console.writeln("getFileProcessedStatus, could not find processed file " + processedName);
+                  unprocessed.push(fileNames[i]);
+            }
+      }
+      console.writeln("Found " + processed.length + "/" + fileNames.length + " files already processed.");
+      return { processed: processed, unprocessed: unprocessed };
+}
+
+function getFileProcessedStatus(fileNames, postfix)
+{
+      return getFileProcessedStatusEx(fileNames, postfix, outputRootDir + AutoOutputDir);
+}
+
+function getFileProcessedStatusCalibrated(fileNames, postfix)
+{
+      return getFileProcessedStatusEx(fileNames, postfix, outputRootDir + AutoCalibratedDir);
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -7999,7 +8067,13 @@ function CreateChannelImages(parent, auto_continue)
                   if (is_color_files) {
                         addProcessingStep("No binning for color files");
                   } else {
-                        fileNames = runBinningOnLights(fileNames, filtered_files);
+                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_b2');
+                        if (fileProcessedStatus.unprocessed.length == 0) {
+                              fileNames = fileProcessedStatus.processed;
+                        } else {
+                              let processedFileNames = runBinningOnLights(fileProcessedStatus.unprocessed, filtered_files);
+                              fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                        }
                         filename_postfix = filename_postfix + '_b2';
                         updatePreviewFilename(fileNames[0]);
                   }
@@ -8009,9 +8083,14 @@ function CreateChannelImages(parent, auto_continue)
                         var ccFileNames = [];
                         var ccInfo = runLinearDefectDetection(fileNames);
                         for (var i = 0; i < ccInfo.length; i++) {
-                              addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + ccInfo[i].ccFileNames.length + " files");
-                              var cc = runCosmeticCorrection(ccInfo[i].ccFileNames, ccInfo[i].ccDefects, is_color_files);
-                              ccFileNames = ccFileNames.concat(cc);
+                              var fileProcessedStatus = getFileProcessedStatus(ccInfo[i].ccFileNames, '_cc');
+                              if (fileProcessedStatus.unprocessed.length == 0) {
+                                    ccFileNames = ccFileNames.concat(fileProcessedStatus.processed);
+                              } else {
+                                    addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + fileProcessedStatus.unprocessed.length + " files");
+                                    let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, ccInfo[i].ccDefects, is_color_files);
+                                    ccFileNames = ccFileNames.concat(processedFileNames, fileProcessedStatus.processed);
+                              }
                         }
                         fileNames = ccFileNames;
                         updatePreviewFilename(fileNames[0]);
@@ -8020,7 +8099,13 @@ function CreateChannelImages(parent, auto_continue)
                         /* Run CosmeticCorrection for each file.
                         * Output is *_cc.xisf files.
                         */
-                        fileNames = runCosmeticCorrection(fileNames, defects, is_color_files);
+                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_cc');
+                        if (fileProcessedStatus.unprocessed.length == 0) {
+                              fileNames = fileProcessedStatus.processed;
+                        } else {
+                              let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, defects, is_color_files);
+                              fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                        }
                         updatePreviewFilename(fileNames[0]);
                   }
                   filename_postfix = filename_postfix + '_cc';
@@ -8030,7 +8115,13 @@ function CreateChannelImages(parent, auto_continue)
                   /* After cosmetic correction we need to debayer
                    * OSC/RAW images
                    */
-                  fileNames = debayerImages(fileNames);
+                  var fileProcessedStatus = getFileProcessedStatus(fileNames, '_d');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        fileNames = fileProcessedStatus.processed;
+                  } else {
+                        let processedFileNames = debayerImages(fileProcessedStatus.unprocessed);
+                        fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                  }
                   filename_postfix = filename_postfix + '_d';
                   updatePreviewFilename(fileNames[0]);
             }
@@ -8059,7 +8150,13 @@ function CreateChannelImages(parent, auto_continue)
                   return retval.INCOMPLETE;
             }
             if (par.ABE_on_lights.val && !skip_early_steps) {
-                  fileNames = runABEOnLights(fileNames);
+                  var fileProcessedStatus = getFileProcessedStatus(fileNames, '_ABE');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        fileNames = fileProcessedStatus.processed;
+                  } else {
+                        let processedFileNames = runABEOnLights(fileProcessedStatus.unprocessed);
+                        fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                  }
                   filename_postfix = filename_postfix + '_ABE';
                   updatePreviewFilename(fileNames[0]);
             }
@@ -8071,7 +8168,20 @@ function CreateChannelImages(parent, auto_continue)
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
                    * Output is *_a.xisf files.
                    */
-                  var names_and_weights = runSubframeSelector(fileNames);
+                  if (par.image_weight_testing.val) {
+                        var names_and_weights = runSubframeSelector(fileNames);
+                  } else {
+                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_a');
+                        if (fileProcessedStatus.unprocessed.length == 0) {
+                              var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '_a' };
+                        } else {
+                              var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
+                              if (names_and_weights.postfix != '_a') {
+                                    throwFatalError("Incorrect postfix " + names_and_weights.postfix + " returned from runSubframeSelector");
+                              }
+                              names_and_weights.filenames = names_and_weights.filenames.concat(fileProcessedStatus.processed);
+                        }
+                  }
                   filename_postfix = filename_postfix + names_and_weights.postfix;
             } else {
                   var names_and_weights = { filenames: fileNames, ssweights: [], postfix: '' };
@@ -8082,7 +8192,12 @@ function CreateChannelImages(parent, auto_continue)
              * Also possible file list filtering is done.
              */
             var retarr = findBestSSWEIGHT(parent, names_and_weights, filename_postfix);
-            best_image = retarr[0];
+            if (par.use_processed_files.val && star_alignment_image != null) {
+                  console.writeln("Switching best image to already used star alignment image " + star_alignment_image);
+                  best_image = star_alignment_image;
+            } else {
+                  best_image = retarr[0];
+            }
             fileNames = retarr[1];
 
             setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], best_image, filename_postfix);
@@ -8096,7 +8211,13 @@ function CreateChannelImages(parent, auto_continue)
             if (!par.start_from_imageintegration.val
                 && !par.cropinfo_only.val) 
             {
-                  alignedFiles = runStarAlignment(fileNames, best_image);
+                  var fileProcessedStatus = getFileProcessedStatus(fileNames, '_r');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        alignedFiles = fileProcessedStatus.processed;
+                  } else {
+                        let processedFileNames = runStarAlignment(fileProcessedStatus.unprocessed, best_image);
+                        alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
+                  }
                   filename_postfix = filename_postfix + '_r';
                   updatePreviewFilename(alignedFiles[0]);
             } else {
@@ -9719,8 +9840,10 @@ function update_extra_target_image_window_list(parent, current_item)
       }
 
       // update dialog
-      parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
-      parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
+      if (current_item)  {
+            parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
+            parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
+      }
 }
 
 function update_undo_buttons(parent)
@@ -10977,7 +11100,7 @@ function AutoIntegrateEngine(parent, auto_continue)
           && full_run
           && create_channel_images_ret == retval.SUCCESS)
       {
-            let json_file = "AutoIntegrateSetup.json";
+            let json_file = "AutosaveSetup.json";
             if (par.win_prefix_to_log_files.val) {
                   json_file = ppar.win_prefix + json_file;
             }
@@ -11410,7 +11533,7 @@ function showOrHideFilterSectionBar(pageIndex)
 
 function lightsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[0]);
+      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[pages.LIGHTS]);
 
       var debayerLabel = new Label( parent );
       parent.rootingArr.push(debayerLabel);
@@ -11472,7 +11595,7 @@ function lightsOptions(parent)
 
 function biasOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[1]);
+      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[pages.BIAS]);
 
       var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" );
@@ -11488,7 +11611,7 @@ function biasOptions(parent)
 
 function darksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[2]);
+      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[pages.DARKS]);
 
       var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
@@ -11517,7 +11640,7 @@ function darksOptions(parent)
 
 function flatsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[3]);
+      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[pages.FLATS]);
 
       var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
@@ -11547,7 +11670,7 @@ function flatsOptions(parent)
 
 function flatdarksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[4]);
+      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[pages.FLAT_DARKS]);
 
       var checkbox = newCheckBox(parent, "Master files", par.flat_dark_master_files, 
             "<p>Files are master files.</p>" );
@@ -11910,6 +12033,14 @@ function readJsonFile(fname, lights_only)
             console.writeln("Restored reference images " + saveInfo.reference_image);
             user_selected_reference_image = saveInfo.reference_image;
       }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
+            star_alignment_image = saveInfo.star_alignment_image;
+      }
+      if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
+            console.writeln("Restored defect info");
+            LDDDefectInfo = saveInfo.defectInfo;
+      }
 
       var pagearray = [];
       for (var i = 0; i < pages.END; i++) {
@@ -12049,6 +12180,12 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
                   // Need to make a copy so we do not update the original array
                   saveInfo.reference_image = copy_user_selected_reference_image_array();
             }
+            if (star_alignment_image != null) {
+                  saveInfo.star_alignment_image = star_alignment_image;
+            }
+            if (LDDDefectInfo.length > 0) {
+                  saveInfo.defectInfo = LDDDefectInfo;
+            }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };
       }
@@ -12068,8 +12205,7 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
 function saveInfoMakeRelativePaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            console.writeln("saveInfoMakeRelativePaths, empty saveDir");
-            return;
+            throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
       }
       saveDir = ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeRelativePaths, saveDir "+ saveDir);
@@ -12094,14 +12230,18 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
                   }
             }
       }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (saveInfo.star_alignment_image.startsWith(saveDir)) {
+                  saveInfo.star_alignment_image = saveInfo.star_alignment_image.substring(saveDir.length);
+            }
+      }
       return saveInfo;
 }
 
 function saveInfoMakeFullPaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            console.writeln("saveInfoMakeFullPaths, empty saveDir");
-            return;
+            throwFatalError("saveInfoMakeFullPaths, empty saveDir");
       }
       saveDir = ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeFullPaths, saveDir " + saveDir);
@@ -12126,12 +12266,17 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
                   }
             }
       }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (pathIsRelative(saveInfo.star_alignment_image)) {
+                  saveInfo.star_alignment_image = saveDir + saveInfo.star_alignment_image;
+            }
+      }
       return saveInfo;
 }
 
 /* Save file info to a file.
  */
-function saveJsonFileEx(parent, save_settings, json_filename)
+function saveJsonFileEx(parent, save_settings, autosave_json_filename)
 {
       console.writeln("saveJsonFile");
 
@@ -12192,7 +12337,7 @@ function saveJsonFileEx(parent, save_settings, json_filename)
             return;
       }
 
-      if (json_filename == null) {
+      if (autosave_json_filename == null) {
             let saveFileDialog = new SaveFileDialog();
             saveFileDialog.caption = "Save As";
             saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
@@ -12215,7 +12360,7 @@ function saveJsonFileEx(parent, save_settings, json_filename)
             var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
             var json_path_and_filename = saveFileDialog.fileName;
       } else {
-            let dialogRet = ensureDialogFilePath(json_filename);
+            let dialogRet = ensureDialogFilePath(autosave_json_filename);
             if (dialogRet == 0) {
                   // Canceled, do not save
                   return;
@@ -12234,7 +12379,7 @@ function saveJsonFileEx(parent, save_settings, json_filename)
                   json_path = outputRootDir;
             }
             var saveDir = ensurePathEndSlash(json_path);
-            var json_path_and_filename = saveDir + json_filename;
+            var json_path_and_filename = saveDir + autosave_json_filename;
       }
       saveLastDir(saveDir);
       try {
@@ -12636,6 +12781,22 @@ function getTreeBoxNodeCheckedFileNames(node, filenames)
       }
 }
 
+function findFileFromTreeBox(node, filename)
+{
+      if (node.numberOfChildren == 0) {
+            if (node.filename == filename) {
+                  return true;
+            }
+      } else {
+            for (var i = 0; i < node.numberOfChildren; i++) {
+                  if (findFileFromTreeBox(node.child(i), filename)) {
+                        return true;
+                  }
+            }
+      }
+      return false;
+}
+
 function setExpandedTreeBoxNode(node, expanded)
 {
       if (node.numberOfChildren > 0) {
@@ -12803,6 +12964,10 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                   filternode.collapsable = true;
 
                   for (var j = 0; j < filterFiles.length; j++) {
+                        if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
+                              console.writeln("Skipping duplicate file " + filterFiles[j].name);
+                              continue;
+                        }
                         var node = new TreeBoxNode(filternode);
                         var txt = File.extractName(filterFiles[j].name) + File.extractExtension(filterFiles[j].name);
                         if (pageIndex == pages.LIGHTS && par.monochrome_image.val) {
@@ -12875,6 +13040,10 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < treeboxfiles.length; i++) {
+            if (findFileFromTreeBox(files_TreeBox, treeboxfiles[i][0])) {
+                  console.writeln("Skipping duplicate file " + treeboxfiles[i][0]);
+                  continue;
+            }
             var node = new TreeBoxNode(files_TreeBox);
             node.setText(0, File.extractName(treeboxfiles[i][0]) + File.extractExtension(treeboxfiles[i][0]));
             node.setToolTip(0, treeboxfiles[i][0]);
@@ -13774,6 +13943,7 @@ function newPageButtonsSizer(parent)
             if (parent.tabBox.currentPageIndex == pages.LIGHTS) {
                   user_selected_best_image = null;
                   user_selected_reference_image = [];
+                  star_alignment_image = null;
             }
       };
       var currentPageCollapseButton = new ToolButton( parent );
@@ -13843,6 +14013,7 @@ function newPageButtonsSizer(parent)
                   setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, "", null);
                   user_selected_best_image = null;
                   user_selected_reference_image = [];
+                  star_alignment_image = null;
             }
       };
 
@@ -14692,10 +14863,16 @@ function toggleSidePreview()
             "<p>When this option is enabled the control for icon column is in the Interface settings section.</p>" +
             "<p>This setting is effective only after restart of the script.</p>" );
       this.AutoSaveSetupBox = newCheckBox(this, "Autosave setup", par.autosave_setup, 
-            "<p>Save setup after successful processing into AutoIntegrateSetup.json file. Autosave is done only after the Run command, " + 
+            "<p>Save setup after successful processing into AutosaveSetup.json file. Autosave is done only after the Run command, " + 
             "it is not done after the Autocontinue command.</p>" +
             "<p>File is saved to the lights file directory, or to the user given output directory.</p>" +
             "<p>Setup can be later loaded into AutoIntegrate to see the settings or run the setup again possibly with different options.</p>");
+      this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
+            "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files.</p>" +
+            "<p>Option works best with setup file that is saved after processing or with Autosave setup generated AutosaveSetup.json file because " + 
+            "then star aligment reference image and possible defect info is saved.</p>" +
+            "<p>With image calibration it is possible to use previously generated master files by loading already processed master files " +
+            "info calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -14926,6 +15103,7 @@ function toggleSidePreview()
       this.otherParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
       this.otherParamsSet2.add( this.ManualIconColumnBox );
       this.otherParamsSet2.add( this.AutoSaveSetupBox );
+      this.otherParamsSet2.add( this.UseProcessedFilesBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
