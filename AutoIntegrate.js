@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test3";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test4";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -364,6 +364,7 @@ this.par = {
       staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
       staralignment_noisereductionfilterradius: { val: 0, def: 0, name : "StarAlignment noise reduction", type : 'I' },
       binning: { val: 0, def: 0, name : "Binning", type : 'I' },
+      binning_resample: { val: 2, def: 2, name : "Binning resample factor", type : 'I' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
       ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
@@ -383,6 +384,7 @@ this.par = {
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
       image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
       debayer_only: { val: false, def: false, name : "Debayer only", type : 'B' },
+      binning_only: { val: false, def: false, name : "Binning only", type : 'B' },
       extract_channels_only: { val: false, def: false, name : "Extract channels only", type : 'B' },
       integrate_only: { val: false, def: false, name : "Integrate only", type : 'B' },
       channelcombination_only: { val: false, def: false, name : "ChannelCombination only", type : 'B' },
@@ -416,12 +418,13 @@ this.par = {
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
       custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
       custom_B_mapping: { val: 'O', def: 'O', name : "Narrowband B mapping", type : 'S' },
-      custom_L_mapping: { val: 'L', def: 'L', name : "Narrowband L mapping", type : 'S' },
+      custom_L_mapping: { val: '', def: '', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
       force_narrowband_mapping: { val: false, def: false, name : "Force narrowband mapping", type : 'B' },
-      remove_stars_early: { val: false, def: false, name : "Remove stars early", type : 'B' },
+      remove_stars_before_stretch: { val: false, def: false, name : "Remove stars early", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
+      remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
       unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
 
       // Narrowband to RGB mapping
@@ -463,7 +466,7 @@ this.par = {
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
-      stars_combine: { val: 'Add', def: 'Add', name : "Stars combine", type : 'S' },
+      stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
@@ -509,7 +512,7 @@ this.par = {
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
       extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
-      extra_remove_stars_combine: { val: 'Add', def: 'Add', name : "Extra remove stars combine", type : 'S' },
+      extra_remove_stars_combine: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
@@ -524,7 +527,8 @@ this.par = {
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
       extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
-      
+      extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
+            
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
       extra_ACDNR: { val: false, def: false, name : "Extra ACDNR noise reduction", type : 'B' },
@@ -634,6 +638,7 @@ var autocontinue_prefix = "";          // prefix used to find base files for aut
 
 var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
+var crop_lowClipImage_changed = false; // changed flag for saving to disk
 
 var processingDate;
 var outputRootDir = "";
@@ -710,12 +715,9 @@ var S_id;
 var O_id;
 var RGBcolor_id;              // Integrate RGB from OSC/DSLR data
 
-var RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
-var RGB_stars_HT_id = null;         // stretched RGB_stars_win
-var LRGB_stars_HT_id = null;        // stretched combined L_stars_HT_id and RGB_stars_HT_id
-var L_stars_HT_id = null;           // stretched L stars
-var RGB_stars = [];                 // linear RGB channel star image ids
-var L_stars = [];                   // linear L channel star image id
+var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
+var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
+var RGB_stars = [];           // linear RGB channel star image ids
 
 var R_ABE_id = null;
 var G_ABE_id = null;
@@ -3869,15 +3871,20 @@ function isLuminanceFile(filtered_files, filePath)
       return false;
 }
 
+function getBinningPostfix()
+{
+      return '_b' + par.binning_resample.val;
+}
+
 function runBinningOnLights(fileNames, filtered_files)
 {
       var newFileNames = [];
       var outputDir = outputRootDir + AutoOutputDir;
-      var postfix = "_b2";
+      var postfix = getBinningPostfix();
       var outputExtension = ".xisf";
  
-      addStatusInfo("Do 2x2 binning using IntegerResample on light files");
-      addProcessingStep("Do 2x2 binning using IntegerResample on light files, output *" + postfix + ".xisf");
+      addStatusInfo("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files");
+      addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + postfix + ".xisf");
       console.writeln("runBinningOnLights input[0] " + fileNames[0]);
 
       for (var i = 0; i < fileNames.length; i++) {
@@ -3900,7 +3907,7 @@ function runBinningOnLights(fileNames, filtered_files)
                   }
 
                   var P = new IntegerResample;
-                  P.zoomFactor = -2;
+                  P.zoomFactor = -par.binning_resample.val;
                   P.noGUIMessages = true;
 
                   imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -3909,7 +3916,7 @@ function runBinningOnLights(fileNames, filtered_files)
                   
                   imageWindow.mainView.endProcess();
 
-                  updateBinningKeywords(imageWindow, 2);
+                  updateBinningKeywords(imageWindow, par.binning_resample.val);
             
                   var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
 
@@ -5468,6 +5475,41 @@ function findLinearFitHSOMapRefimage(images, suggestion)
       return(images[0]);
 }
 
+/* Process channel image for channel specific steps.
+ * This is called from:
+ *    mapLRGBchannels for normal LRGB images
+ *    mapRGBchannel when mixing LRGB and narrowband
+ *    customMapping for narrowband images
+ */
+function processChannelImage(image_id, is_luminance)
+{
+      console.writeln("processChannelImage " + image_id);
+      if (image_id == null) {
+            // could be true for luminance
+            return;
+      }
+      if (par.ABE_before_channel_combination.val) {
+            // Optionally do ABE on channel images
+            run_ABE_before_channel_combination(image_id);
+      }
+
+      if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
+            // Optionally do noise reduction on color channels in linear state
+            if (is_luminance) {
+                  luminanceNoiseReduction(findWindow(image_id), null);
+            } else {
+                  channelNoiseReduction(image_id);
+            }
+      }
+      if (par.remove_stars_channel.val) {
+            if (is_luminance) {
+                  removeStars(findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
+            } else {
+                  removeStars(findWindow(image_id), true, true, RGB_stars, null, par.unscreen_stars.val);
+            }
+      }
+}
+
 /* Copy images with _map name so we do not change the original
  * images (Integration_H -> Integration_H_map).
  */
@@ -5481,7 +5523,7 @@ function copyToMapImages(images)
                   copyWindow(
                         findWindowNoPrefixIf(images[i], run_auto_continue), 
                         copyname);
-                  // XXX crop
+                  // crop
                   CropImageIf(findWindow(copyname), crop_truncate_amount);
             } else {
                   console.writeln("map image " + copyname + " already copied");
@@ -5490,11 +5532,17 @@ function copyToMapImages(images)
       }
 }
 
-function mapRGBchannel(images, refimage, mapping)
+function mapRGBchannel(images, refimage, mapping, is_luminance)
 {
       console.writeln("mapRGBchannel, refimage " + refimage + ", mapping " + mapping);
-      // copy files to _map names to avoid changing original files
+      // Copy files to _map names to avoid changing original files.
+      // We close these images at the end as next call may want to use the
+      // same image names.
       copyToMapImages(images);
+
+      for (var i = 0; i < images.length; i++) {
+            processChannelImage(images[i], is_luminance);
+      }
       refimage = refimage + "_map";
       console.writeln("mapRGBchannel, new refimage " + refimage);
       if (findWindow(refimage) == null) {
@@ -5516,15 +5564,28 @@ function luminanceNoiseReduction(imgWin, maskWin)
 {
       if (par.skip_noise_reduction.val 
           || par.luminance_noise_reduction_strength.val == 0
-          || par.non_linear_noise_reduction.val) 
+          || par.non_linear_noise_reduction.val
+          || imgWin == null) 
       {
             return;
       }
 
       addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
+      if (maskWin == null && !par.use_noisexterminator.val) {
+            /* Create a temporary mask. */
+            var temp_mask_win = CreateNewTempMaskFromLinearWin(imgWin, false);
+            maskWin = temp_mask_win;
+      } else {
+            var temp_mask_win = null;
+      }
+
       runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
       updatePreviewWin(imgWin);
+
+      if (temp_mask_win != null) {
+            closeOneWindow(temp_mask_win.mainView.id);
+      }
 }
 
 function channelNoiseReduction(image_id)
@@ -5541,15 +5602,17 @@ function channelNoiseReduction(image_id)
 
       if (!par.use_noisexterminator.val) {
             /* Create a temporary mask. */
-            var mask_win = CreateNewTempMaskFromLInearWin(image_win, false);
+            var temp_mask_win = CreateNewTempMaskFromLinearWin(image_win, false);
+      } else {
+            var temp_mask_win = null;
       }
 
-      runNoiseReductionEx(image_win, mask_win, par.noise_reduction_strength.val, true);
+      runNoiseReductionEx(image_win, temp_mask_win, par.noise_reduction_strength.val, true);
 
       updatePreviewWin(image_win);
 
-      if (!par.use_noisexterminator.val) {
-            closeOneWindow(mask_win.mainView.id);
+      if (temp_mask_win != null) {
+            closeOneWindow(temp_mask_win.mainView.id);
       }
 }
 
@@ -5665,6 +5728,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
                               "~((~" + originalwin_copy.mainView.id + ")/(~" + imgWin.mainView.id + "))",
                               true);
                   var star_win = findWindow(id);
+                  console.writeln("removeStars, rename " + id + " to " + stars_image_name);
                   windowRename(id, stars_image_name);
                   forceCloseOneWindow(originalwin_copy);
             } else {
@@ -5673,6 +5737,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             if (save_array != null) {
                   save_array[save_array.length] = star_win.mainView.id;
             }
+            console.writeln("Removed stars from " + imgWin.mainView.id + " and created stars image " + star_win.mainView.id);
             return star_win;
       } else {
             return null;
@@ -5682,10 +5747,8 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 /* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
  */
-function customMapping(check_allfilesarr)
+function customMapping(RGBmapping, check_allfilesarr)
 {
-      var RGBmapping = { combined: true, stretched: true};
-
       if (check_allfilesarr != null) {
             addProcessingStep("Check custom mapping");
       } else {
@@ -5695,12 +5758,16 @@ function customMapping(check_allfilesarr)
       /* Get updated mapping strings and collect images
        * used in mapping.
        */
+      var L_images = [];
       var R_images = [];
       var G_images = [];
       var B_images = [];
 
       /* Get a modified mapping with tags replaced with real image names.
        */
+      if (!narrowband) {
+            var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, check_allfilesarr);
+      }
       var red_mapping = mapCustomAndReplaceImageNames('R', R_images, check_allfilesarr);
       var green_mapping = mapCustomAndReplaceImageNames('G', G_images, check_allfilesarr);
       var blue_mapping = mapCustomAndReplaceImageNames('B', B_images, check_allfilesarr);
@@ -5732,19 +5799,11 @@ function customMapping(check_allfilesarr)
              */
             copyToMapImages(images);
 
-            if (par.ABE_before_channel_combination.val) {
-                  // Optionally do ABE on channel images
-                  for (var i = 0; i < images.length; i++) {
-                        run_ABE_before_channel_combination(images[i], false);
-                  }
+            for (var i = 0; i < images.length; i++) {
+                  processChannelImage(images[i], false);
             }
+            RGBmapping.channels_processed = true;
 
-            if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
-                  // Optionally do noise reduction on color channels in linear state
-                  for (var i = 0; i < images.length; i++) {
-                        channelNoiseReduction(images[i]);
-                  }
-            }
             var narrowband_linear_fit = par.narrowband_linear_fit.val;
             if (narrowband_linear_fit == "Auto"
                 && par.image_stretching.val == 'Auto STF') 
@@ -5762,11 +5821,13 @@ function customMapping(check_allfilesarr)
                   /* We run PixelMath using linear images. 
                    */
                   addProcessingStep("Custom mapping, linear narrowband images");
-                  RGBmapping.stretched = false;
             } else {
                   /* Stretch images to non-linear before combining with PixelMath.
                    */
                   addProcessingStep("Custom mapping, stretched narrowband images");
+                  if (par.remove_stars_before_stretch.val) {
+                        throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
+                  }
                   for (var i = 0; i < images.length; i++) {
                         runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
                   }
@@ -5784,12 +5845,17 @@ function customMapping(check_allfilesarr)
              */
             RGB_win_id = runPixelMathRGBMapping(ppar.win_prefix + "Integration_RGB", null, red_mapping, green_mapping, blue_mapping);
 
+            RGBmapping.combined = true;
+
             RGB_win = findWindow(RGB_win_id);
             updatePreviewWin(RGB_win);
 
-            if (par.remove_stars_channel.val) {
-                  addProcessingStep("Custom mapping, remove stars");
-                  RGB_stars_win = removeStars(RGB_win, !mapping_on_nonlinear_data, true, null, null, par.unscreen_stars.val);
+            if (par.remove_stars_stretched.val && RGBmapping.stretched) {
+                  RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
+                  if (!is_luminance_images) {
+                        // use starless RGB image as mask
+                        ColorEnsureMask(RGB_win_id, true, true);
+                  }
             }
 
             RGB_win.show();
@@ -5802,19 +5868,15 @@ function customMapping(check_allfilesarr)
             // If we have multiple images in mapping we use linear fit to match
             // them before PixelMath.
             addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
-            if (is_luminance_images) {
-                  var L_images = [];
-                  var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, null);
-                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping);
+            if (par.custom_L_mapping.val != '') {
+                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping, true);
                   updatePreviewId(luminance_id);
+                  is_luminance_images = true;
             }
 
-            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping);
-            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping);
-            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping);
-            
-            RGBmapping.combined = false;
-            RGBmapping.stretched = false;
+            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping, false);
+            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping, false);
+            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping, false);
       }
 
       return RGBmapping;
@@ -5833,7 +5895,7 @@ function copyToMapIf(id)
       if (id != null) {
             var new_id = ensure_win_prefix(id + "_map");
             copyWindow(findWindow(id), new_id);
-            // XXX crop
+            // crop
             CropImageIf(findWindow(new_id), crop_truncate_amount);
             return new_id;
       } else {
@@ -5849,17 +5911,15 @@ function mapColorImage()
       RGB_win_id = ensure_win_prefix("Integration_RGB");
       copyWindow(findWindow(RGBcolor_id), RGB_win_id);
       RGB_win = ImageWindow.windowById(RGB_win_id);
-      // XXX crop
+      // crop
       CropImageIf(RGB_win, crop_truncate_amount);
       RGB_win.show();
 }
 
 /* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
  */
-function mapLRGBchannels()
+function mapLRGBchannels(RGBmapping)
 {
-      var RGBmapping = { combined: false, stretched: false};
-
       var rgb = R_id != null || G_id != null || B_id != null;
       narrowband = H_id != null || S_id != null || O_id != null || par.force_narrowband_mapping.val;
       var custom_mapping = isCustomMapping(narrowband);
@@ -5876,9 +5936,11 @@ function mapLRGBchannels()
 
       if (custom_mapping) {
             addProcessingStep("Narrowband files, use custom mapping");
-            RGBmapping = customMapping(null);
+            RGBmapping = customMapping(RGBmapping, null);
+
       } else {
             addProcessingStep("Normal RGB processing");
+
             /* Make a copy of original windows. */
             if (luminance_id == null) {
                   // We may already have copied L_id so we do it
@@ -5888,6 +5950,13 @@ function mapLRGBchannels()
             red_id = copyToMapIf(R_id);
             green_id = copyToMapIf(G_id);
             blue_id = copyToMapIf(B_id);
+
+            processChannelImage(luminance_id, true);
+            processChannelImage(red_id, false);
+            processChannelImage(green_id, false);
+            processChannelImage(blue_id, false);
+
+            RGBmapping.channels_processed = true;
       }
       return RGBmapping;
 }
@@ -6255,11 +6324,12 @@ function runImageIntegration(channel_images, name)
                   var integration_images = images;
             }
 
-            return runImageIntegrationEx(integration_images, name, false);
+            var image_id = runImageIntegrationEx(integration_images, name, false);
 
       } else {
-            return runImageIntegrationNormalized(images, channel_images.best_image, name);
+            var image_id = runImageIntegrationNormalized(images, channel_images.best_image, name);
       }
+      return image_id;
 }
 
 
@@ -8013,6 +8083,7 @@ function CreateChannelImages(parent, auto_continue)
             if (isCustomMapping(filtered_lights.narrowband)
                 && !par.image_weight_testing.val
                 && !par.debayer_only.val
+                && !par.binning_only.val
                 && !par.extract_channels_only.val
                 && !par.integrate_only.val
                 && !par.calibrate_only.val)
@@ -8021,7 +8092,7 @@ function CreateChannelImages(parent, auto_continue)
                   // channels have files.
                   // We exit with fatal error if some files are missing
                   write_processing_log_file = false;
-                  customMapping(filtered_lights.allfilesarr);
+                  customMapping(null, filtered_lights.allfilesarr);
                   write_processing_log_file = true;
             }
 
@@ -8067,16 +8138,22 @@ function CreateChannelImages(parent, auto_continue)
                   if (is_color_files) {
                         addProcessingStep("No binning for color files");
                   } else {
-                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_b2');
+                        var fileProcessedStatus = getFileProcessedStatus(fileNames, getBinningPostfix());
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               fileNames = fileProcessedStatus.processed;
                         } else {
                               let processedFileNames = runBinningOnLights(fileProcessedStatus.unprocessed, filtered_files);
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                         }
-                        filename_postfix = filename_postfix + '_b2';
+                        filename_postfix = filename_postfix + getBinningPostfix();
                         updatePreviewFilename(fileNames[0]);
                   }
+            } else if (par.binning_only.val) {
+                  throwFatalError("Binning only set but no binning done, binning " + par.binning.val + " binning resample factor " + par.binning_resample.val);
+            }
+            if (par.binning_only.val) {
+                  console.writeln("Binning only, stop");
+                  return retval.INCOMPLETE;
             }
             if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
@@ -8295,9 +8372,9 @@ function CreateChannelImages(parent, auto_continue)
 /* Create  a mask from linear image. This function
  * used to create temporary masks.
  */
-function CreateNewTempMaskFromLInearWin(imgWin, is_color)
+function CreateNewTempMaskFromLinearWin(imgWin, is_color)
 {
-      console.writeln("CreateNewTempMaskFromLInearWin from " + imgWin.mainView.id);
+      console.writeln("CreateNewTempMaskFromLinearWin from " + imgWin.mainView.id);
 
       var winCopy = copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
 
@@ -8317,11 +8394,14 @@ function CreateNewTempMaskFromLInearWin(imgWin, is_color)
  * for noise reduction and sharpening. We use luminance image as
  * mask.
  */
-function LRGBEnsureMask(L_id)
+function LRGBEnsureMaskEx(L_id, stretched)
 {
       addProcessingStepAndStatusInfo("LRGB ensure mask");
 
       if (L_id != null) {
+            if (range_mask_win != null) {
+                  console.writeln("Close old mask " + mask_win_id);
+            }
             range_mask_win = null;
             closeOneWindow(mask_win_id);
       }
@@ -8332,8 +8412,11 @@ function LRGBEnsureMask(L_id)
       } else {
             var L_win;
             if (L_id != null) {
+                  addProcessingStep("Using image " + L_id + " for a mask");
                   L_win = copyWindowEx(ImageWindow.windowById(L_id), ppar.win_prefix + "L_win_mask", true);
-                  L_win = runHistogramTransform(L_win, null, false, 'mask').win;
+                  if (!stretched) {
+                        L_win = runHistogramTransform(L_win, null, false, 'mask').win;
+                  }
             } else if (preprocessed_images == start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
                   addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
@@ -8360,6 +8443,11 @@ function LRGBEnsureMask(L_id)
             mask_win = newMaskWindow(L_win, mask_win_id, false);
             windowCloseif(L_win.mainView.id);
       }
+}
+
+function LRGBEnsureMask(L_id)
+{
+      LRGBEnsureMaskEx(L_id, false);
 }
 
 /* Ensure we have mask for color processing. Mask is needed also in non-linear
@@ -8446,7 +8534,7 @@ function ProcessLimage(RGBmapping)
                   }
             }
 
-            if (!RGBmapping.combined) {
+            if (!RGBmapping.combined && !RGBmapping.channels_processed) {
                   /* Noise reduction for L. */
                   luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
             }
@@ -8455,12 +8543,12 @@ function ProcessLimage(RGBmapping)
             */
             L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
             if (!RGBmapping.stretched) {
-                  if (par.remove_stars_early.val) {
+                  if (par.remove_stars_before_stretch.val) {
                         removeStars(
                               ImageWindow.windowById(L_ABE_id), 
                               true,
-                              true,
-                              L_stars,
+                              false,
+                              null,
                               null,
                               par.unscreen_stars.val);
                         // use starless L image as mask
@@ -8472,16 +8560,16 @@ function ProcessLimage(RGBmapping)
                               false,
                               'L');
                   L_stf = res.stf;
-                  if (L_stars.length > 0) {
-                        if (L_stars.length != 1) {
-                              throwFatalError("Bad L_stars length " + L_stars.length);
-                        }
-                        L_stars_HT_id = L_ABE_HT_id + "_stars";
-                        runHistogramTransform(
-                              copyWindow(ImageWindow.windowById(L_stars[0]), L_stars_HT_id), 
-                              L_stf,
+                  if (par.remove_stars_stretched.val) {
+                        removeStars(
+                              ImageWindow.windowById(L_ABE_HT_id), 
                               false,
-                              'stars');
+                              false,
+                              null,
+                              null,
+                              par.unscreen_stars.val);
+                        // use starless L image as mask
+                        LRGBEnsureMaskEx(L_ABE_HT_id, true);
                   }
                   if (!same_stf_for_all_images) {
                         L_stf = null;
@@ -8568,13 +8656,6 @@ function CombineRGBimageEx(target_name, images)
 {
       addProcessingStepAndStatusInfo("Combine RGB image");
 
-      if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
-            addProcessingStep("Noise reduction on channel images");
-            channelNoiseReduction(images[0]);
-            channelNoiseReduction(images[1]);
-            channelNoiseReduction(images[1]);
-      }
-
       /* ChannelCombination
        */
       addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
@@ -8614,6 +8695,21 @@ function CombineRGBimageEx(target_name, images)
       return win;
 }
 
+/* Combine stars from channel images stored into RGB_stars.
+ * we use three first images in the array. In case of less than
+ * three images the last image is copied to make three images.
+ */
+function combineRGBStars(RGB_stars)
+{
+      while (RGB_stars.length < 3) {
+            RGB_stars[RGB_stars.length] = RGB_stars[RGB_stars.length-1];
+      }
+      return CombineRGBimageEx("Integration_RGB_stars", RGB_stars);
+}
+
+/* Combine RGB image from global red_id, green_id and blue_id images
+ * Image is set into global variables RGB_win and RGB_win_id.
+ */
 function CombineRGBimage()
 {
       RGB_win = CombineRGBimageEx("Integration_RGB", [red_id, green_id, blue_id]);
@@ -8622,12 +8718,7 @@ function CombineRGBimage()
       addScriptWindow(RGB_win_id);
       RGB_win.show();
 
-      if (RGB_stars.length > 0) {
-            if (RGB_stars.length != 3) {
-                  throwFatalError("Bad RGB_stars length " + RGB_stars.length);
-            }
-            RGB_stars_win = CombineRGBimageEx("Integration_RGB_stars", RGB_stars);
-      }
+      return RGB_win;
 }
 
 function extractRGBchannel(RGB_id, channel)
@@ -8798,9 +8889,9 @@ function testRGBNBmapping()
  * run histogram transformation on RGB image to make in non-linear
  * optionally increase saturation
  */
-function ProcessRGBimage(RGBstretched)
+function ProcessRGBimage(RGBmapping)
 {
-      addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBstretched);
+      addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBmapping.stretched);
 
       var RGB_ABE_HT_id;
 
@@ -8813,6 +8904,7 @@ function ProcessRGBimage(RGBstretched)
             if (preprocessed_images == start_images.RGB_HT) {
                   ColorEnsureMask(RGB_ABE_HT_id, true, false);
             }
+            RGBmapping.stretched = true;
       } else {
             if (preprocessed_images == start_images.L_RGB_BE ||
                 preprocessed_images == start_images.RGB_BE) 
@@ -8847,12 +8939,6 @@ function ProcessRGBimage(RGBstretched)
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id).mainView);
             }
 
-            if (is_color_files && par.remove_stars_channel.val) {
-                  addProcessingStep("Remove stars from linear RGB color image");
-                  RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
-                  windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
-            }
-
             if (par.use_RGBNB_Mapping.val) {
                   /* Do RGBNB mapping on combined and color calibrated RGB image. */
                   RGB_ABE_id = doRGBNBmapping(RGB_ABE_id);
@@ -8860,7 +8946,7 @@ function ProcessRGBimage(RGBstretched)
 
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
-                  ColorEnsureMask(RGB_ABE_id, RGBstretched, false);
+                  ColorEnsureMask(RGB_ABE_id, RGBmapping.stretched, false);
             }
             if (narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
@@ -8868,7 +8954,7 @@ function ProcessRGBimage(RGBstretched)
             } else {
                   var linear_increase_saturation = par.linear_increase_saturation.val;
             }
-            if (linear_increase_saturation > 0 && !RGBstretched) {
+            if (linear_increase_saturation > 0 && !RGBmapping.stretched) {
                   /* Add saturation linear RGB
                   */
                   console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
@@ -8885,10 +8971,10 @@ function ProcessRGBimage(RGBstretched)
                   runNoiseReduction(
                         ImageWindow.windowById(RGB_ABE_id),
                         mask_win,
-                        !RGBstretched);
+                        !RGBmapping.stretched);
             }
-            if (!RGBstretched) {
-                  if (par.remove_stars_early.val) {
+            if (!RGBmapping.stretched) {
+                  if (par.remove_stars_before_stretch.val) {
                         RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
                         windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         if (!is_luminance_images) {
@@ -8906,22 +8992,31 @@ function ProcessRGBimage(RGBstretched)
                               L_stf,
                               true,
                               'RGB');
-                  /* If we have stars image stretch it too.
-                   */
-                  if (RGB_stars_win != null)  {
-                        RGB_stars_HT_id = RGB_ABE_HT_id + "_stars";
-                        runHistogramTransform(
-                              copyWindow(
-                                    RGB_stars_win, 
-                                    RGB_stars_HT_id), 
-                              L_stf == null ? stf : L_stf,
-                              true,
-                              'stars');
-     
+                  RGBmapping.stretched = true;
+
+                  if (par.remove_stars_stretched.val) {
+                        RGB_stars_HT_win = removeStars(findWindow(RGB_ABE_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        if (!is_luminance_images) {
+                              // use starless RGB image as mask
+                              ColorEnsureMask(RGB_ABE_HT_id, true, true);
+                        }
                   }
             } else {
                   RGB_ABE_HT_id = RGB_ABE_id;
             }
+      }
+      /* If we have non-stretched stars image stretch it.
+       */
+      if (RGB_stars_win != null)  {
+            let stars_id = RGB_ABE_HT_id + "_stars";
+            runHistogramTransform(
+                  copyWindow(RGB_stars_win, stars_id), 
+                  L_stf == null ? stf : L_stf,
+                  true,
+                  'stars');
+            RGB_stars_HT_win = findWindow(stars_id);
+      } else if (RGB_stars_HT_win != null)  {
+            RGB_stars_HT_win.mainView.id =  RGB_ABE_HT_id + "_stars";
       }
 
       if (narrowband && par.non_linear_increase_saturation.val > 0) {
@@ -9037,30 +9132,26 @@ function fixNarrowbandStarColor(targetWin)
 // - Optionally in the end starless and stars images are combined together
 function extraRemoveStars(parent, imgWin, apply_directly)
 {
-      /* Close old star mask. StarNet will create an image called
-       * star_mask and with StarXTerminator we rename _stars image
-       * as star_mask 
+      /* Close old star mask. If needed we create a new one from
+       * the stars image.
        */
-      closeOneWindow("AutoStarMask");
+      closeOneWindow(ensure_win_prefix("AutoStarMask"));
 
-      star_mask_win = removeStars(imgWin, false, true, null, "star_mask", par.extra_unscreen_stars.val);
-
-      star_mask_win_id = star_mask_win.mainView.id;
+      let stars_win = removeStars(imgWin, false, true, null, ensure_win_prefix(imgWin.mainView.id + "_stars_tmp"), par.extra_unscreen_stars.val);
+      let stars_win_id = ensure_win_prefix(imgWin.mainView.id + "_stars");
+      if (stars_win.mainView.id != stars_win_id) {
+            console.writeln("extraRemoveStars, rename " + stars_win.mainView.id + " to " + stars_win_id);
+            stars_win.mainView.id = stars_win_id;
+      }
+      stars_win.show();
 
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
-      setTargetFITSKeywordsForPixelmath(star_mask_win, FITSkeywords);
+      setTargetFITSKeywordsForPixelmath(stars_win, FITSkeywords);
 
       ensureDir(outputRootDir);
 
-      /* Make a copy of the stars image.
-       */
-      var copywin_id = imgWin.mainView.id + "_stars";
-      console.writeln("extraRemoveStars copy " + star_mask_win_id + " to " + copywin_id);
-      var copywin = copyWindow(star_mask_win, ensure_win_prefix(copywin_id));
-      setFinalImageKeyword(copywin);
-      //saveProcessedWindow(outputRootDir, copywin.mainView.id);
-      var extra_stars_id = copywin.mainView.id;
-      addProcessingStep("Stars image " + extra_stars_id);
+      setFinalImageKeyword(stars_win);
+      addProcessingStep("Stars image " + stars_win_id);
 
       if (par.extra_combine_stars.val || apply_directly) {
             /* Make a copy of the starless image.
@@ -9071,19 +9162,19 @@ function extraRemoveStars(parent, imgWin, apply_directly)
             /* We do not combine images so just rename old image.
              */
             var copywin = imgWin;
-            copywin.mainView.id = copywin.mainView.id + "_starless";
+            copywin.mainView.id = ensure_win_prefix(copywin.mainView.id + "_starless");
 
       }
       setFinalImageKeyword(copywin);
-      //saveProcessedWindow(outputRootDir, copywin.mainView.id);
       addProcessingStep("Starless image " + copywin.mainView.id);
+      copywin.show();
 
       updatePreviewWin(copywin);
 
       update_extra_target_image_window_list(parent, null);
 
       // return possibly new starless image for further processing
-      return { starless_win: copywin, stars_id: extra_stars_id };
+      return { starless_win: copywin, stars_id: stars_win_id };
 }
 
 function extraDarkerBackground(imgWin, maskWin)
@@ -9236,7 +9327,7 @@ function createNewStarMaskWin(imgWin)
 {
       var P = new StarMask;
       P.midtonesBalance = 0.80000;        // old value -> 1.24: 0.50000
-      P.waveletLayers = 6;
+      P.waveletLayers = 4;
       P.smoothness = 8;    
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -9248,20 +9339,21 @@ function createNewStarMaskWin(imgWin)
 
 function createStarMaskIf(imgWin)
 {
-      star_mask_win = maskIsCompatible(imgWin, star_mask_win);
-      if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
+      if (!par.extra_force_new_mask.val) {
+            star_mask_win = maskIsCompatible(imgWin, star_mask_win);
+            if (star_mask_win == null) {
+                  star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
+            }
+            if (star_mask_win == null) {
+                  star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
+            }
+            if (star_mask_win != null) {
+                  // Use already created start mask
+                  console.writeln("Use existing star mask " + star_mask_win.mainView.id);
+                  star_mask_win_id = star_mask_win.mainView.id;
+                  return;
+            }
       }
-      if (star_mask_win == null) {
-            star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
-      }
-      if (star_mask_win != null) {
-            // Use already created start mask
-            console.writeln("Use existing star mask " + star_mask_win.mainView.id);
-            star_mask_win_id = star_mask_win.mainView.id;
-            return;
-      }
-
       closeOneWindow("AutoStarMask");
 
       star_mask_win = createNewStarMaskWin(imgWin);
@@ -9274,9 +9366,10 @@ function createStarMaskIf(imgWin)
 
 function extraSmallerStars(imgWin, is_star_image)
 {
+      var use_mask = true;
       var targetWin = imgWin;
 
-      if (!is_star_image) {
+      if (use_mask) {
             createStarMaskIf(imgWin);
       }
 
@@ -9323,10 +9416,9 @@ function extraSmallerStars(imgWin, is_star_image)
       
       targetWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      if (!is_star_image) {
-            /* If we have removed stars we have only stars left and
-             * no mask is needed. Otherwise use a star mask
-             * to target operation only on stars.
+      if (use_mask) {
+            /* Use a star mask to target operation only on 
+             * selected stars. Star mask leaves out biggest stars.
              */
             setMaskChecked(targetWin, star_mask_win);
             targetWin.maskInverted = false;
@@ -9334,7 +9426,7 @@ function extraSmallerStars(imgWin, is_star_image)
       
       P.executeOn(targetWin.mainView, false);
 
-      if (!is_star_image) {
+      if (use_mask) {
             targetWin.removeMask();
       }
 
@@ -9662,8 +9754,6 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
                                     createNewImage);
                   break;
       }
-      // star_mask_win_id was a temp window with maybe smaller stars
-      closeOneWindow(star_mask_win_id);
 
       return new_id;
 }
@@ -9679,7 +9769,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
-                        par.extra_noise_reduction.val ||
+                        (par.extra_noise_reduction.val && !par.use_noisexterminator.val) ||
                         par.extra_ACDNR.val ||
                         par.extra_sharpen.val ||
                         par.extra_unsharpmask.val;
@@ -9729,9 +9819,13 @@ function extraProcessing(parent, id, apply_directly)
             // Try find mask window
             // If we need to create a mask do it after we
             // have removed the stars
-            mask_win = maskIsCompatible(extraWin, mask_win);
-            if (mask_win == null) {
-                  mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix +"AutoMask"));
+            if (par.extra_force_new_mask.val) {
+                  mask_win = null;
+            } else {
+                  mask_win = maskIsCompatible(extraWin, mask_win);
+                  if (mask_win == null) {
+                        mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix +"AutoMask"));
+                  }
             }
             if (mask_win == null) {
                   mask_win_id = ppar.win_prefix + "AutoMask";
@@ -9820,8 +9914,6 @@ function extraProcessing(parent, id, apply_directly)
                   saveProcessedWindow(outputRootDir, extra_stars_id);         /* Extra stars window */
             }
       }
-      // star_mask_win_id was a temp window with maybe smaller stars
-      closeOneWindow(star_mask_win_id);
 }
 
 function update_extra_target_image_window_list(parent, current_item)
@@ -10342,7 +10434,9 @@ function findBounding_box(lowClipImageWindow)
             corner ++;
             // Check end of cycle
             if (corner>3) {
-                  if (all_valid) break;
+                  if (all_valid) {
+                        break;
+                  }
                   corner = 0;
                   all_valid = true;
             }
@@ -10373,7 +10467,9 @@ function findBounding_box(lowClipImageWindow)
             for (let i=top_row; i<=bottom_row; i++)
             {
                   left_col_valid = left_col_valid && image.sample(left_col,i)>0;
-                  if (!left_col_valid) break;
+                  if (!left_col_valid) {
+                        break;
+                  }
             }
             if (! left_col_valid) 
             {
@@ -10387,7 +10483,9 @@ function findBounding_box(lowClipImageWindow)
             for (let i=top_row; i<=bottom_row; i++)
             {
                   right_col_valid = right_col_valid && image.sample(right_col,i)>0;
-                  if (!right_col_valid) break;
+                  if (!right_col_valid) {
+                        break;
+                  }
             }
             if (! right_col_valid) 
             {
@@ -10401,7 +10499,9 @@ function findBounding_box(lowClipImageWindow)
             for (let i=left_col; i<=right_col; i++)
             {
                   top_row_valid = top_row_valid && image.sample(i,top_row)>0;
-                  if (!top_row_valid) break;
+                  if (!top_row_valid) {
+                        break;
+                  }
             }
             if (! top_row_valid) 
             {
@@ -10415,7 +10515,9 @@ function findBounding_box(lowClipImageWindow)
             for (let i=left_col; i<=right_col; i++)
             {
                   bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)>0;
-                  if (!bottom_row_valid) break;
+                  if (!bottom_row_valid) {
+                        break;
+                  }
             }
             if (! bottom_row_valid) 
             {
@@ -10424,16 +10526,26 @@ function findBounding_box(lowClipImageWindow)
                   all_valid = false;
             }
             
-            if (all_valid) break;
+            if (all_valid) {
+                  break;
+            }
       }
       
       if (any_border_inwards)
       {
             console.noteln("Borders reduced due to wiggles, ", number_cycle, " cycles of border reduction.");
-            if (original_left_col != left_col) console.noteln("Left column moved from ", original_left_col, " to ", left_col);
-            if (original_right_col != right_col) console.noteln("Right column moved from ", original_right_col, " to ", right_col);
-            if (original_top_row != top_row) console.noteln("Top row moved from ", original_top_row, " to ", top_row);
-            if (original_bottom_row != bottom_row) console.noteln("Bottom row moved from ", original_bottom_row, " to ", bottom_row);
+            if (original_left_col != left_col) {
+                  console.noteln("Left column moved from ", original_left_col, " to ", left_col);
+            }
+            if (original_right_col != right_col) {
+                  console.noteln("Right column moved from ", original_right_col, " to ", right_col);
+            }
+            if (original_top_row != top_row) {
+                  console.noteln("Top row moved from ", original_top_row, " to ", top_row);
+            }
+            if (original_bottom_row != bottom_row) {
+                  console.noteln("Bottom row moved from ", original_bottom_row, " to ", bottom_row);
+            }
       } else {
             console.noteln("Borders validated, no wiggle found");
       }
@@ -10443,8 +10555,8 @@ function findBounding_box(lowClipImageWindow)
       let nmb_rows = bottom_row - top_row;
 
       console.noteln("Bounding box for crop: rows ", top_row ," to ", bottom_row, ", columns ", 
-            left_col, " to  ",right_col, ",  area=", nmb_cols,"x",nmb_rows)
-      return [left_col, right_col, top_row, bottom_row]
+            left_col, " to  ",right_col, ",  area=", nmb_cols,"x",nmb_rows);
+      return [left_col, right_col, top_row, bottom_row];
 }
 
 // We negate the crop amount here to match the requirement of the process Crop
@@ -10467,15 +10579,19 @@ function CreateCrop(left,top,right,bottom)
       P.blue = 0.000000;
       P.alpha = 1.000000;
       P.noGUIMessages = true;
-      return P
+      return P;
 }
 
 
 // Crop an image if it exists
 function CropImageIf(window, truncate_amount)
 {
-      if (window == null) return
-      if (truncate_amount == null) return
+      if (window == null) { 
+            return;
+      }
+      if (truncate_amount == null) {
+            return;
+      }
 
       let [left_truncate,top_truncate,right_truncate,bottom_truncate] = truncate_amount;
       console.writeln("Truncate image ", window.mainView.id, " by: top ", top_truncate, ", bottom, ", 
@@ -10557,12 +10673,12 @@ function cropChannelImages()
       let lowClipImageName = runImageIntegrationForCrop(images);
 
       // Autostretch for the convenience of the user
-      ApplyAutoSTF(findWindow(lowClipImageName).mainView, 
-      DEFAULT_AUTOSTRETCH_SCLIP,
-      DEFAULT_AUTOSTRETCH_TBGND,
-      false,
-      false);
-     
+      ApplyAutoSTF(
+            findWindow(lowClipImageName).mainView, 
+            DEFAULT_AUTOSTRETCH_SCLIP,
+            DEFAULT_AUTOSTRETCH_TBGND,
+            false,
+            false);
 
       crop_truncate_amount = calculate_crop_amount(lowClipImageName, false);
       if (crop_truncate_amount == null) {
@@ -10570,8 +10686,9 @@ function cropChannelImages()
       }
 
       crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
+      crop_lowClipImage_changed = true;
 
-      /* Luminance image may have been copied earlier CreateChannelImages()
+      /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
        */
       CropImageIf(findWindow(luminance_id), crop_truncate_amount);
@@ -10584,7 +10701,7 @@ function cropChannelImagesAutoContinue()
       if (preprocessed_images != start_images.RGB_COLOR
           && preprocessed_images != start_images.L_R_G_B)
       {
-            console.writeln("Crop ignored in AutoContinue, only base integrated images can be cropped.") ;
+            console.writeln("Crop ignored in AutoContinue, only integrated channel images can be cropped.") ;
             return;
       }
       addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
@@ -10640,14 +10757,12 @@ function AutoIntegrateEngine(parent, auto_continue)
       ssweight_set = false;
       crop_truncate_amount = null;
       crop_lowClipImageName = null;
+      crop_lowClipImage_changed = false;
       autocontinue_prefix = "";
 
       RGB_stars_win = null;
-      RGB_stars_HT_id = null;
-      LRGB_stars_HT_id = null;
-      L_stars_HT_id = null;
+      RGB_stars_HT_win = null;
       RGB_stars = [];
-      L_stars = [];
 
       console.beginLog();
       console.show();
@@ -10702,23 +10817,17 @@ function AutoIntegrateEngine(parent, auto_continue)
       if (create_channel_images_ret == retval.SUCCESS || 
           (par.cropinfo_only.val && create_channel_images_ret == retval.INCOMPLETE)) 
       {
-            /*
-            * If requested, we crop all channel images and channel support images (the xxx_map images)
-            * to an area covered by all source images.
-            */ 
-            if (! auto_continue)
-            {
-                  if (par.crop_to_common_area.val || par.cropinfo_only.val)
-                  {
+            /* If requested, we crop all channel images and channel support images (the *_map images)
+             * to an area covered by all source images.
+             */ 
+            if (! auto_continue) {
+                  if (par.crop_to_common_area.val || par.cropinfo_only.val) {
                         cropChannelImages();
-                  } else
-                  {
+                  } else {
                         console.warningln("Images are not cropped to common area, borders may be of lower quality");
                   }
-            } else 
-            {
-                  if (par.crop_to_common_area.val)
-                  {
+            } else  {
+                  if (par.crop_to_common_area.val) {
                         cropChannelImagesAutoContinue();
                   } else {
                         console.writeln("Crop ignored in AutoContinue, use images as is (possibly already cropped)") ;
@@ -10744,18 +10853,20 @@ function AutoIntegrateEngine(parent, auto_continue)
             updatePreviewId(LRGB_ABE_HT_id);
       } else if (!par.image_weight_testing.val 
                  && !par.debayer_only.val 
+                 && !par.binning_only.val
                  && !par.extract_channels_only.val
                  && !par.integrate_only.val 
                  && !par.cropinfo_only.val 
                  && preprocessed_images != start_images.FINAL) 
       {
             do_extra_processing = true;
+            /* processRGB flag means we have channel images from LRGBHSO */
             var processRGB = !is_color_files && 
                              !par.monochrome_image.val &&
                              (preprocessed_images == start_images.NONE ||
                               preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
-            var RGBmapping = { combined: false, stretched: false};
+            var RGBmapping = { combined: false, stretched: false, channels_processed: false };
 
             runGC();
 
@@ -10765,27 +10876,15 @@ function AutoIntegrateEngine(parent, auto_continue)
             if (processRGB) {
                   /* Do possible channel mapping. After that we 
                    * have red_id, green_id and blue_id.
-                   * Or we may have a mapped RGB image.
+                   * We may also have luminance_id.
+                   * We may have a mapped RGB image in case or
+                   * narrowband/custom mapping where RGB is created in
+                   * mapLRGBchannels -> customMapping.
                    */
-                  RGBmapping = mapLRGBchannels();
+                  mapLRGBchannels(RGBmapping);
                   if (!RGBmapping.combined) {
                         // We have not yet combined the RGB image
-                        if (par.ABE_before_channel_combination.val) {
-                              addProcessingStepAndStatusInfo("Run ABE on channel images");
-                              if (luminance_id != null) {
-                                    run_ABE_before_channel_combination(luminance_id);
-                              }
-                              run_ABE_before_channel_combination(red_id);
-                              run_ABE_before_channel_combination(green_id);
-                              run_ABE_before_channel_combination(blue_id);
-                        }
                         LinearFitLRGBchannels();
-                        if (par.remove_stars_channel.val) {
-                              addProcessingStepAndStatusInfo("Remove stars from linear RGB channel images");
-                              removeStars(findWindow(red_id), true, true, RGB_stars, null, par.unscreen_stars.val);
-                              removeStars(findWindow(green_id), true, true, RGB_stars, null, par.unscreen_stars.val);
-                              removeStars(findWindow(blue_id), true, true, RGB_stars, null, par.unscreen_stars.val);
-                        }
                   }
             } else if (is_color_files) {
                   mapColorImage();
@@ -10795,16 +10894,16 @@ function AutoIntegrateEngine(parent, auto_continue)
                   /* This need to be run early as we create a mask from
                    * L image.
                    */
-                  if (par.remove_stars_channel.val) {
-                        addProcessingStepAndStatusInfo("Remove stars from linear L channel image");
-                        removeStars(findWindow(luminance_id), true, true, L_stars, null, par.unscreen_stars.val);
-                  }
                   LRGBEnsureMask(null);
                   ProcessLimage(RGBmapping);
             }
 
             if (processRGB && !RGBmapping.combined) {
                   CombineRGBimage(RGB_ABE_HT_id);
+                  RGBmapping.combined = true;
+            }
+            if (RGB_stars.length > 0) {
+                  RGB_stars_win = combineRGBStars(RGB_stars);
             }
 
             if (par.monochrome_image.val) {
@@ -10814,7 +10913,7 @@ function AutoIntegrateEngine(parent, auto_continue)
 
             } else if (!par.channelcombination_only.val) {
 
-                  RGB_ABE_HT_id = ProcessRGBimage(RGBmapping.stretched);
+                  RGB_ABE_HT_id = ProcessRGBimage(RGBmapping);
 
                   if (par.non_linear_noise_reduction.val) {
                         runNoiseReduction(ImageWindow.windowById(RGB_ABE_HT_id), mask_win, false);
@@ -10839,18 +10938,9 @@ function AutoIntegrateEngine(parent, auto_continue)
                               ImageWindow.windowById(LRGB_ABE_HT_id), 
                               "copy_" + LRGB_ABE_HT_id);
                         LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
-                        if (0 && RGB_stars_HT_id != null && L_stars_HT_id != null) {
-                              // combine L and RGB stars
-                              LRGB_stars_HT_id = runLRGBCombination(
-                                                      RGB_stars_HT_id,
-                                                      L_stars_HT_id);
-                        }
                   }
-                  if (LRGB_stars_HT_id != null) {
-                        stars_id = LRGB_stars_HT_id;
-                        closeOneWindow(RGB_stars_HT_id);
-                  } else if (RGB_stars_HT_id != null) {
-                        stars_id = RGB_stars_HT_id;
+                  if (RGB_stars_HT_win != null) {
+                        stars_id = RGB_stars_HT_win.mainView.id;
                   }
             
                   /* Optional ACDNR noise reduction for RGB. Used mostly to reduce black
@@ -10948,7 +11038,7 @@ function AutoIntegrateEngine(parent, auto_continue)
 
       ensureDialogFilePath("processed files");
 
-      if (crop_lowClipImageName != null) {
+      if (crop_lowClipImage_changed) {
             saveProcessedWindow(outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
       }
       if (preprocessed_images < start_images.L_R_G_B_BE) {
@@ -10992,9 +11082,6 @@ function AutoIntegrateEngine(parent, auto_continue)
       windowIconizeAndKeywordif(H_id);                    /* Integration_H */
       windowIconizeAndKeywordif(S_id);                    /* Integration_S */
       windowIconizeAndKeywordif(O_id);                    /* Integration_O */
-      if (L_stars.length > 0) {
-            windowIconizeAndKeywordif(L_stars[0]);        /* Integration_L_stars (linear) */
-      }
       windowIconizeAndKeywordif(RGBcolor_id);             /* Integration_RGBcolor */
       if (crop_lowClipImageName != null) {
             windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
@@ -11003,6 +11090,9 @@ function AutoIntegrateEngine(parent, auto_continue)
       if (RGB_stars_win != null) {
             windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
       }
+      if (RGB_stars_HT_win != null) {
+            setFinalImageKeyword(ImageWindow.windowById(RGB_stars_HT_win.mainView.id));   /* Integration_RGB_stars (non-linear) */
+      }
 
       windowIconizeAndKeywordif(L_ABE_id);
       windowIconizeAndKeywordif(R_ABE_id);
@@ -11010,7 +11100,6 @@ function AutoIntegrateEngine(parent, auto_continue)
       windowIconizeAndKeywordif(B_ABE_id);
       windowIconizeAndKeywordif(RGB_ABE_id);
 
-      closeOneWindow(L_stars_HT_id);
       closeAllWindowsFromArray(RGB_stars);
 
       windowIconizeAndKeywordif(RGB_ABE_HT_id);
@@ -11052,6 +11141,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       if (preprocessed_images == start_images.NONE 
           && !par.image_weight_testing.val
           && !par.calibrate_only.val
+          && !par.binning_only.val
           && !par.debayer_only.val
           && !par.extract_channels_only.val)
       {
@@ -11444,7 +11534,7 @@ function newComboBoxIndex(parent, param, valarray, tooltip)
       addArrayToComboBox(cb, cb.aiValarray);
       cb.currentItem = cb.aiParam.val;
       cb.onItemSelected = function( itemIndex ) {
-            cb.aiParam.val = cb.aiValarray[itemIndex];
+            cb.aiParam.val = itemIndex;
       };
 
       cb.aiParam.reset = function() {
@@ -14711,6 +14801,8 @@ function toggleSidePreview()
       this.ExtractChannelsOnlyCheckBox = newCheckBox(this, "Extract channels only", par.extract_channels_only, 
             "<p>Stop after Extract channels step. Later it is possible to continue by selecting extracted files " + 
             "and run a normal mono camera (LRGB/HSO) workflow.</p>" );
+      this.BinningOnlyCheckBox = newCheckBox(this, "Binning only", par.binning_only, 
+            "<p>Run only binning to create smaller files.</p>" );
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
             "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
       this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
@@ -14735,8 +14827,8 @@ function toggleSidePreview()
             "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB, 
             "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
-      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Image stretching settings section.</p>"
-      this.remove_stars_early_CheckBox = newCheckBox(this, "Remove stars early", par.remove_stars_early, 
+      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
+      this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
             "This needs StarXTerminator.</p>" + 
@@ -14745,13 +14837,15 @@ function toggleSidePreview()
             "<p>For OSC data this may not work well. Separating channels might help.</p>" +
             remove_stars_Tooltip);
       this.remove_stars_channel_CheckBox = newCheckBox(this, "Remove stars from channels", par.remove_stars_channel, 
-            "<p>With LRGB images remove stars from L, R, G and B channel images separately before channels are " + 
-            "combined and after linear fit, and while images are still in linear stage. Star images are then combined " +
+            "<p>With LRGB or narrowband images remove stars from L, R, G, B, H, S and O channel images separately after image integration. " + 
+            "while images are still in linear stage. Star images are then combined " +
             "to create a RGB star image. This needs StarXTerminator.</p>" +
-            "<p>With color images (DSLR/OSC) remove stars after color calibration while image is still in linear stage. " + 
+            "<p>With color images (DSLR/OSC) remove stars after image integration while image is still in linear stage. " + 
             "This needs StarXTerminator.</p>" +
-            "<p>With narrowband images remove stars after narrowband mapping while image is still in linear stage. " + 
-            "This needs StarXTerminator.<p>" + 
+            remove_stars_Tooltip);
+      this.remove_stars_stretched_CheckBox = newCheckBox(this, "Remove_stars after stretch", par.remove_stars_stretched, 
+            "<p>Remove stars after image has been stretched to non-linear state. Start from RGB image are saved and they " + 
+            "can be later added back to the image. This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
       var unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
                              "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
@@ -14870,7 +14964,7 @@ function toggleSidePreview()
       this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
             "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files.</p>" +
             "<p>Option works best with setup file that is saved after processing or with Autosave setup generated AutosaveSetup.json file because " + 
-            "then star aligment reference image and possible defect info is saved.</p>" +
+            "then star alignment reference image and possible defect info is saved.</p>" +
             "<p>With image calibration it is possible to use previously generated master files by loading already processed master files " +
             "info calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
 
@@ -14888,7 +14982,8 @@ function toggleSidePreview()
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
-      this.imageParamsSet1.add( this.remove_stars_early_CheckBox );
+      this.imageParamsSet1.add( this.remove_stars_before_stretch_CheckBox );
+      this.imageParamsSet1.add( this.remove_stars_stretched_CheckBox );
       this.imageParamsSet1.add( this.unscreen_stars_CheckBox );
       this.imageParamsSet1.add( this.no_SCNR_CheckBox );
       
@@ -15045,16 +15140,20 @@ function toggleSidePreview()
       //this.noiseReductionGroupBoxSizer.addStretch();
 
       this.binningLabel = new Label( this );
-      this.binningLabel.text = "Binning 2x2";
+      this.binningLabel.text = "Binning";
       this.binningLabel.toolTip = 
-            "<p>Do 2x2 binning for each light file. Binning is done first on calibrated files before any other operations.<p>" +
+            "<p>Do binning for each light file. Binning is done first on calibrated light files before any other operations.<p>" +
             "<p>With Color option binning is done only for color channel files.<p>" +
-            "<p>With L and Color option binning is done for both luminance color channel files.<p>" +
+            "<p>With L and Color option binning is done for both luminance and color channel files.<p>" +
             "<p>Binning uses IntegerResample process and should help to reduce noise at the cost of decreased resolution.<p>";
       this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       // Binning
       this.binningComboBox = newComboBoxIndex(this, par.binning, binning_values, this.binningLabel.toolTip);
+      this.binningSpinBoxLabel = newLabel(this, "Resample factor", 
+                                          "<p>Resample factor for binning.</p>" +
+                                          this.binningLabel.toolTip);
+      this.binningSpinBox = newSpinBox(this, par.binning_resample, 2, 4, this.binningSpinBoxLabel.toolTip);
 
       this.binningGroupBoxLabel = newSectionLabel(this, "Binning");
       this.binningGroupBoxSizer = new HorizontalSizer;
@@ -15062,6 +15161,8 @@ function toggleSidePreview()
       this.binningGroupBoxSizer.spacing = 4;
       this.binningGroupBoxSizer.add( this.binningLabel );
       this.binningGroupBoxSizer.add( this.binningComboBox );
+      this.binningGroupBoxSizer.add( this.binningSpinBoxLabel );
+      this.binningGroupBoxSizer.add( this.binningSpinBox );
       this.binningGroupBoxSizer.addStretch();
 
       // Other parameters set 1.
@@ -15070,6 +15171,7 @@ function toggleSidePreview()
       this.otherParamsSet1.spacing = 4;
       this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet1.add( this.DebayerOnlyCheckBox );
+      this.otherParamsSet1.add( this.BinningOnlyCheckBox );
       this.otherParamsSet1.add( this.ExtractChannelsOnlyCheckBox );
       this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
@@ -15672,16 +15774,21 @@ function toggleSidePreview()
       /* Luminance channel mapping.
        */
       this.narrowbandLuminancePalette_ComboBox = new ComboBox( this );
+      this.narrowbandLuminancePalette_ComboBox.addItem( "" );
       this.narrowbandLuminancePalette_ComboBox.addItem( "L" );
       this.narrowbandLuminancePalette_ComboBox.addItem( "max(L, H)" );
-      this.narrowbandLuminancePalette_ComboBox.toolTip = "Mapping of Luminance channel with narrowband data, if both are available.";
+      this.narrowbandLuminancePalette_ComboBox.toolTip = "<p>Mapping of Luminance channel with narrowband data if both RGB and narrowband data are available.</p>" +
+                                                         "<p>With empty text no mapping is done.</p>";
       this.narrowbandLuminancePalette_ComboBox.onItemSelected = function( itemIndex )
       {
             switch (itemIndex) {
                   case 0:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "L";
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "";
                         break;
                   case 1:
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "L";
+                        break;
+                  case 2:
                         this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "max(L, H)";
                         break;
             }
@@ -16031,6 +16138,8 @@ function toggleSidePreview()
 
       this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
             "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
+      this.extra_force_new_mask_CheckBox = newCheckBox(this, "New mask", par.extra_force_new_mask, 
+            "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
 
       var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
       this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
@@ -16238,6 +16347,7 @@ function toggleSidePreview()
       this.extraOptionsSizer.spacing = 4;
       this.extraOptionsSizer.add( this.extra_image_no_copy_CheckBox );
       this.extraOptionsSizer.add( this.extra_stretch_CheckBox );
+      this.extraOptionsSizer.add( this.extra_force_new_mask_CheckBox );
       this.extraOptionsSizer.addStretch();
 
       this.extra1 = new VerticalSizer;
@@ -16564,6 +16674,21 @@ function toggleSidePreview()
             this.interfaceManualColumnSizer.add( this.columnCountControlComboBox );
             this.interfaceManualColumnSizer.addStretch();
       }
+      if (use_preview) {
+            this.previewToggleButton = new PushButton( this );
+            this.previewToggleButton.text = "Toggle preview";
+            this.previewToggleButton.toolTip = "<p>Show/hide image preview on the side of the dialog.</p>" +
+                                               "<p>Note that sometimes you need to adjust the screen manually or restart the script.</p>";
+            this.previewToggleButton.onClick = function() {
+                  toggleSidePreview();
+                  this.adjustToContents();
+            }
+            this.previewToggleButtonSizer = new HorizontalSizer;
+            this.previewToggleButtonSizer.margin = 6;
+            this.previewToggleButtonSizer.spacing = 4;
+            this.previewToggleButtonSizer.add( this.previewToggleButton );
+            this.previewToggleButtonSizer.addStretch();
+      }
 
       this.interfaceControl = new Control( this );
       this.interfaceControl.sizer = new VerticalSizer;
@@ -16574,6 +16699,9 @@ function toggleSidePreview()
       this.interfaceControl.sizer.add( this.interfaceSizer );
       if (par.use_manual_icon_column.val) {
             this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
+      }
+      if (use_preview) {
+            this.interfaceControl.sizer.add( this.previewToggleButtonSizer );
       }
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = false;
@@ -16712,27 +16840,9 @@ function toggleSidePreview()
       newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
-      if (use_preview) {
-            this.previewToggleButton = new PushButton( this );
-            this.previewToggleButton.text = "Toggle preview";
-            this.previewToggleButton.toolTip = "<p>Show/hide image preview on the side of the dialog.</p>" +
-                                               "<p>Note that sometimes you need to adjust the screen manually or restart the script.</p>";
-            this.previewToggleButton.onClick = function() {
-                  toggleSidePreview();
-                  this.adjustToContents();
-            }
-            this.previewToggleButtonSizer = new HorizontalSizer;
-            this.previewToggleButtonSizer.margin = 6;
-            this.previewToggleButtonSizer.spacing = 4;
-            this.previewToggleButtonSizer.add( this.previewToggleButton );
-            this.previewToggleButtonSizer.addStretch();
-      }
 
       if (!ppar.use_single_column) {
             this.rightGroupBox.sizer.addStretch();
-      }
-      if (use_preview) {
-            this.rightGroupBox.sizer.add(this.previewToggleButtonSizer);
       }
       if (ppar.use_single_column) {
             this.cols = new VerticalSizer;
