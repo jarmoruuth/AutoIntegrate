@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test4";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test5";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -883,6 +883,7 @@ var narrowBandPalettes = [
       { name: "SHO", R: "S", G: "H", B: "O", all: true }, 
       { name: "HOS", R: "H", G: "O", B: "S", all: true }, 
       { name: "HSO", R: "H", G: "S", B: "O", all: true }, 
+      { name: "OHS", R: "O", G: "H", B: "S", all: true }, 
       { name: "HOO", R: "H", G: "O", B: "O", all: true }, 
       { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true }, 
       { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true }, 
@@ -4756,6 +4757,10 @@ function getFilterFiles(files, pageIndex, filename_postfix)
       var error_text = "";
       var color_files = false;
       var filterSet = null;
+      var imgwidth = 0;
+      var imgheigth = 0;
+      var minwidth = 0;
+      var minheigth = 0;
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
@@ -4851,6 +4856,17 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               break;
                         case "NAXIS1":
                               console.writeln("NAXIS1=" + value);
+                              var imgwidth = parseFloat(value);
+                              if (minwidth == 0 || imgwidth < minwidth) {
+                                    minwidth = imgwidth;
+                              }
+                              break;
+                        case "NAXIS2":
+                              console.writeln("NAXIS2=" + value);
+                              var imgheigth = parseFloat(value);
+                              if (minheigth == 0 || imgheigth < minheigth) {
+                                    minheigth = imgheigth;
+                              }
                               break;
                         case "EXPTIME":
                         case "EXPOSURE":
@@ -4927,7 +4943,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         luminance = true;
                         break;
                   case 'R':
@@ -4935,7 +4952,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         rgb = true;
                         break;
                   case 'G':
@@ -4943,7 +4961,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         rgb = true;
                         break;
                   case 'B':
@@ -4951,7 +4970,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         rgb = true;
                         break;
                   case 'H':
@@ -4959,7 +4979,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         narrowband = true;
                         break;
                   case 'S':
@@ -4967,7 +4988,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         narrowband = true;
                         break;
                   case 'O':
@@ -4975,7 +4997,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         narrowband = true;
                         break;
                   case 'C':
@@ -4984,7 +5007,8 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
                         allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image };
+                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
+                                                          width: imgwidth, heigth: imgheigth };
                         color_files = true;
                         break;
             }
@@ -6024,6 +6048,41 @@ function runStarAlignment(imagetable, refImage)
       return alignedFiles;
 }
 
+function getWindowSizeFromFilename(filename)
+{
+      var imageWindows = ImageWindow.open(filename);
+      if (imageWindows == null || imageWindows.length != 1) {
+            return [0, 0];
+      }
+      var imageWindow = imageWindows[0];
+      if (imageWindow == null) {
+            return [0, 0];
+      }
+      
+      var ret = [ imageWindow.mainView.image.width, imageWindow.mainView.image.height ];
+
+      imageWindow.forceClose();
+
+      return ret;
+}
+
+function getLocalNormalizationScale(filename, defscale)
+{
+      var wh = getWindowSizeFromFilename(filename);
+      var mindim = Math.min(wh[0], wh[1]);
+      if (mindim >= 4 * defscale) {
+            // keep default
+            return 0;
+      }
+      // decrease scale
+      var scale = defscale;
+      while (mindim < 4 * scale) {
+            scale = scale / 2;
+      }
+      console.writeln("getLocalNormalizationScale:filename " + filename + ", scale " + scale + ", defscale " + defscale + ", mindim " + mindim);
+      return scale;
+}
+
 function runLocalNormalization(imagetable, refImage, filter)
 {
       if (imagetable.length == 0) {
@@ -6075,7 +6134,13 @@ function runLocalNormalization(imagetable, refImage, filter)
             addProcessingStep("Using existing local normalization files");
             return;
       }
+
+
       var P = new LocalNormalization;
+      var scale = getLocalNormalizationScale(refImage, P.scale);
+      if (scale != 0) {
+            P.scale = scale;
+      }
       P.referencePathOrViewId = refImage;
       if (pixinsight_version_num >= 1080900) {
             P.referenceIsView = false;
@@ -9326,9 +9391,10 @@ function extraExponentialTransformation(imgWin, maskWin)
 function createNewStarMaskWin(imgWin)
 {
       var P = new StarMask;
-      P.midtonesBalance = 0.80000;        // old value -> 1.24: 0.50000
-      P.waveletLayers = 4;
-      P.smoothness = 8;    
+      P.midtonesBalance = 0.80000;        // default: 0.50000
+      P.waveletLayers = 5;                // default: 5
+      P.largeScaleGrowth = 1;             //  default: 2
+      P.smoothness = 8;                   // default: 16
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
@@ -14962,7 +15028,8 @@ function toggleSidePreview()
             "<p>File is saved to the lights file directory, or to the user given output directory.</p>" +
             "<p>Setup can be later loaded into AutoIntegrate to see the settings or run the setup again possibly with different options.</p>");
       this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
-            "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files.</p>" +
+            "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files. " +
+            "Only files generated before image integration are reused.</p>" +
             "<p>Option works best with setup file that is saved after processing or with Autosave setup generated AutosaveSetup.json file because " + 
             "then star alignment reference image and possible defect info is saved.</p>" +
             "<p>With image calibration it is possible to use previously generated master files by loading already processed master files " +
