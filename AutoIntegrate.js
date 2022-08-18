@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test6";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test7";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -706,6 +706,8 @@ var red_id = null;            // original integrated images
 var green_id = null;
 var blue_id = null;
 
+var luminance_id_cropped = false;
+
 var L_id;                     // Original integrated images
 var R_id;                     // We make copies of these images during processing
 var G_id;
@@ -801,6 +803,7 @@ var fixed_windows = [
       "Mapping_G",
       "Mapping_B",
       "Integration_RGB",
+      "Integration_L_crop",
       "Integration_L_ABE",
       "Integration_R_ABE",
       "Integration_G_ABE",
@@ -10591,10 +10594,10 @@ function CreateCrop(left,top,right,bottom)
 function CropImageIf(window, truncate_amount)
 {
       if (window == null) { 
-            return;
+            return false;
       }
       if (truncate_amount == null) {
-            return;
+            return false;
       }
 
       let [left_truncate,top_truncate,right_truncate,bottom_truncate] = truncate_amount;
@@ -10606,6 +10609,8 @@ function CropImageIf(window, truncate_amount)
       window.mainView.beginProcess(UndoFlag_NoSwapFile);  
       crop.executeOn(window.mainView, false);  
       window.mainView.endProcess();
+
+      return true;
 }
 
 function calculate_crop_amount(window_id, crop_auto_continue)
@@ -10695,7 +10700,9 @@ function cropChannelImages()
       /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
        */
-      CropImageIf(findWindow(luminance_id), crop_truncate_amount);
+      if (CropImageIf(findWindow(luminance_id), crop_truncate_amount)) {
+            luminance_id_cropped = true;
+      }
 
       console.noteln("Generated data for cropping");
 }
@@ -10767,6 +10774,9 @@ function AutoIntegrateEngine(parent, auto_continue)
       RGB_stars_win = null;
       RGB_stars_HT_win = null;
       RGB_stars = [];
+
+      luminance_id_cropped = false;
+      var luminance_crop_id = null;
 
       console.beginLog();
       console.show();
@@ -11031,7 +11041,6 @@ function AutoIntegrateEngine(parent, auto_continue)
                   saveProcessedWindow(outputRootDir, stars_id);
                   saveProcessedWindow(outputRootDir, starless_id);
             }
-      
       }
 
       console.writeln("Basic processing completed");
@@ -11056,6 +11065,12 @@ function AutoIntegrateEngine(parent, auto_continue)
             saveProcessedWindow(outputRootDir, S_id);                    /* Integration_S */
             saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
             saveProcessedWindow(outputRootDir, RGBcolor_id);             /* Integration_RGBcolor */
+            if (luminance_id_cropped) {
+                  console.writeln("luminance_id="+ luminance_id );
+                  let L_win_crop = copyWindow(findWindow(luminance_id), ensure_win_prefix("Integration_L_crop"));
+                  luminance_crop_id = L_win_crop.mainView.id;
+                  saveProcessedWindow(outputRootDir, luminance_crop_id); /* Integration_L_crop */
+            }
       }
       if (preprocessed_images <= start_images.L_R_G_B_BE) {
             // We have generated RGB image, save it
@@ -11091,6 +11106,8 @@ function AutoIntegrateEngine(parent, auto_continue)
             windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
       }
       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
+      windowIconizeAndKeywordif(luminance_crop_id);       /* Integration_L_crop */
+
       if (RGB_stars_win != null) {
             windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
       }
