@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test5";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test6";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -495,8 +495,8 @@ this.par = {
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
       Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
       Hyperbolic_b: { val: 8, def: 8, name : "Hyperbolic Stretch b value", type : 'I' }, 
-      Hyperbolic_SP: { val: 0.1, def: 0.1, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
-      Hyperbolic_target: { val: 0.23, def: 0.23, name : "Hyperbolic Stretch target", type : 'I' }, 
+      Hyperbolic_SP: { val: 50, def: 50, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
+      Hyperbolic_target: { val: 0.25, def: 0.25, name : "Hyperbolic Stretch target", type : 'I' }, 
       Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
       Hyperbolic_mode: { val: 1, def: 1, name : "Hyperbolic Stretch mode", type : 'I' }, 
 
@@ -6850,12 +6850,12 @@ function runHistogramTransformArcsinhStretch(ABE_win)
 
             ABE_win.mainView.endProcess();
 
-            var current_val = findHistogramPeak(ABE_win);
-            console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + current_val);
+            var peak_val = findHistogramPeak(ABE_win);
+            console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + peak_val);
       }
 }
 
-function runHistogramTransformHyperbolicIterations(ABE_win)
+function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
 {
       //histogram_test(ABE_win);
       //return ABE_win;
@@ -6875,7 +6875,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win)
 
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
-            runHistogramTransformHyperbolic(res);
+            runHistogramTransformHyperbolic(res, iscolor);
             if (res.completed) {
                   break;
             }
@@ -6884,138 +6884,79 @@ function runHistogramTransformHyperbolicIterations(ABE_win)
       return res.win;
 }
 
-function runHistogramTransformHyperbolic(res)
+function runHistogramTransformHyperbolic(res, iscolor)
 {
       var ABE_win = res.win;
       var iteration_number = res.iteration_number;
       var image_id = ABE_win.mainView.id;
-      var allow_skip = true;
 
       console.writeln("--");
       console.writeln("Iteration " + iteration_number);
       console.writeln("Skipped " + res.skipped);
 
+      var iteration_Hyperbolic_D_val = res.Hyperbolic_D_val - (iteration_number - 1) / 2;
+      var Hyperbolic_b_val = res.Hyperbolic_b_val;
+
+      /* expect D to be ln(D+1) as in GeneralizedHyperbolicStretch script. */
+      var Hyperbolic_D_val = Math.exp(iteration_Hyperbolic_D_val) - 1.0;
+
+      console.writeln("D " + res.Hyperbolic_D_val + 
+                      " b " + res.Hyperbolic_b_val +
+                      " iter " + iteration_number +
+                      " iter D " + iteration_Hyperbolic_D_val +
+                      " iter ln(D+1) " + Hyperbolic_D_val +
+                      " skipped " + res.skipped);
+
       switch (par.Hyperbolic_mode.val) {
-            case 0:
-                  // Fixed values
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val;
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                  allow_skip = false;
-                  break;
             case 1:
-            case 8:
-                  // Decrease every iteration
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val / iteration_number;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val / iteration_number;
+                  // User given symmetry point
                   var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
                   break;
             case 2:
-                  // Fixed but change symmetry point to 40%
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val;
-                  switch (iteration_number) {
-                        case 1:
-                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                              break;
-                        default:
-                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, 40);
-                              break;
-                  }
-                  allow_skip = false;
-                  break;
-            case 3:
-                  // Decrease every iteration and change symmetry point to 40%
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val / iteration_number;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val / iteration_number;
-                  switch (iteration_number) {
-                        case 1:
-                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                              break;
-                        default:
-                              var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, 40);
-                              break;
-                  }
-                  break;
-                  break;
-            case 4:
-                  // Decrease only b for every iteration
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val / iteration_number;
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                  break;
-            case 5:
-                  // After first iteration cut D to half and set b to one
-                  switch (iteration_number) {
-                        case 1:
-                              var Hyperbolic_D_val = res.Hyperbolic_D_val;
-                              var Hyperbolic_b_val = res.Hyperbolic_b_val;
-                              break;
-                        default:
-                              var Hyperbolic_D_val = res.Hyperbolic_D_val / 2;
-                              var Hyperbolic_b_val = 1;
-                              break;
-                  }
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                  break;
-            case 6:
-                  // Decrease D and b for every skipped iteration
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val / (res.skipped + 1);
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val / (res.skipped + 1);
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
-                  break;
-            case 7:
-                  // Decrease D, b and also SP for every iteration
-                  var Hyperbolic_D_val = res.Hyperbolic_D_val / iteration_number;
-                  var Hyperbolic_b_val = res.Hyperbolic_b_val / iteration_number;
-                  if (iteration_number > 1 && res.Hyperbolic_SP_val > 1) {
-                        res.Hyperbolic_SP_val = res.Hyperbolic_SP_val / 10;
-                  }
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
+                  // Use histogram peak as symmetry point
+                  var Hyperbolic_SP_val = findHistogramPeak(ABE_win);
                   break;
       }
 
       console.writeln("Adjusted values D = " + Hyperbolic_D_val + ", b = " + Hyperbolic_b_val + ", SP = " + Hyperbolic_SP_val);
-
-      if (par.Hyperbolic_mode.val == 8) {
-            /* expect D to be ln(D+1) as in GeneralizedHyberbolicStterch script. */
-            Hyperbolic_D_val = Math.exp(Hyperbolic_D_val) - 1.0;
-      }
 
       if (Hyperbolic_D_val <= 1) {
             console.writeln("We are done, too low D " + Hyperbolic_D_val);
             res.completed = true;
             return;
       }
-      if (Hyperbolic_b_val <= 1) {
+      if (Hyperbolic_b_val < 1) {
             console.writeln("We are done, too low b " + Hyperbolic_b_val);
             res.completed = true;
             return;
       }
 
       var P = new PixelMath;
-      P.expression = "iif(b==0,EC=1,EC=0);\n" +
-      "iif(b>0,Ds=D*b,Ds=D);\n" +
-      "iif(b>0,bs=b,bs=1);\n" +
-      "iif(EC==1,q0=exp(-Ds*SP),q0=(1+Ds*SP)^(-1/bs));\n" +
-      "iif(EC==1,qWP=2-exp(-Ds*(HP-SP)),qWP=2-(1+Ds*(HP-SP))^(-1/bs));\n" +
-      "iif(EC==1,q1=2-2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-SP-1)),q1=2-2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-SP-1))^(-1/bs));\n" +
-      "iif($T<SP,EC*exp(-Ds*(SP-$T))+(1-EC)*(1+Ds*(SP-$T))^(-1/bs)-q0,iif($T>HP,2-EC*(2*exp(-Ds*(HP-SP))+exp(-Ds*(2*HP-$T-SP)))+(1-EC)*(2*(1+Ds*(HP-SP))^(-1/bs)+(1+Ds*(2*HP-$T-SP))^(-1/bs))-q0,2-EC*exp(-Ds*($T-SP))-(1-EC)*(1+Ds*($T-SP))^(-1/bs)-q0))/(q1-q0);";
+
+      var expression = 
+            "Ds=D*b;\n"+
+            "q0=(1+Ds*SP)^(-1/b);\n"+
+            "q1=2-2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-SP-1))^(-1/b);\n"+
+            "iif($T<SP,"+
+                  "(1+Ds*(SP-$T))^(-1/b)-q0, "+
+                  "iif($T>1.0, "+
+                        "2-(2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-$T-SP))^(-1/b))-q0, "+
+                        "2-(1+Ds*($T-SP))^(-1/b)-q0)) / (q1-q0);\n";
+      var symbols = 
+            "D = " + Hyperbolic_D_val + ";\n" +
+            "b = " + Hyperbolic_b_val + ";\n" +
+            "SP = " + Hyperbolic_SP_val + ";\n" +
+            "q0;\n" +
+            "q1;\n" +
+            "Ds;\n";
+
+      P.expression = expression;
       P.expression1 = "";
       P.expression2 = "";
       P.expression3 = "";
+      P.symbols = symbols;
       P.useSingleExpression = true;
-      P.symbols = "D = " + Hyperbolic_D_val + ";\n" +
-      "b = " + Hyperbolic_b_val + ";\n" +
-      "SP =" + Hyperbolic_SP_val + ";\n" +
-      "HP =1.00;\n" +
-      "Rnorm;\n" +
-      "q0;\n" +
-      "qWP;\n" +
-      "q1;\n" +
-      "Ds;\n" +
-      "bs;\n" +
-      "EC;";
+
       P.clearImageCacheAndExit = false;
       P.cacheGeneratedImages = false;
       P.generateOutput = true;
@@ -7047,27 +6988,24 @@ function runHistogramTransformHyperbolic(res)
 
       var new_win = findWindow(P.newImageId);
 
-      //var current_val = findSymmetryPoint(new_win, 50);
-      var current_val = findHistogramPeak(new_win);
+      var median = findSymmetryPoint(new_win, 50);
+      var peak_val = findHistogramPeak(new_win);
+      console.writeln("peak_val " + peak_val + ", median "+ median);
 
-      if (current_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
+      if (median >= 0.5) {
             // We are past the target value, ignore this iteration and keep old image
-            if (allow_skip) {
-                  console.writeln("We are past the target, skip this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
-            } else {
-                  console.writeln("Stretch completed, do not skip stretches");
-                  res.completed = true;
-            }
+            console.writeln("We are past the target, skip this iteration, median=" + median);
+            closeOneWindow(P.newImageId);
+            res.skipped++;
+      } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
+            // We are past the target value, ignore this iteration and keep old image
+            console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
             closeOneWindow(P.newImageId);
             res.skipped++;
       } else {
-            if (current_val >= par.Hyperbolic_target.val - 0.1 * par.Hyperbolic_target.val) {
-                  // we are close enough, we are done
-                  console.writeln("Stretch completed, we are close enough, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
-                  res.completed = true;
-            } else {
-                  console.writeln("Use this iteration, current=" + current_val + ", target=" + par.Hyperbolic_target.val);
-            }
+            // we are close enough, we are done
+            console.writeln("Stretch completed, we are close enough, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
+            res.completed = true;
             // find new window and copy keywords
             setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(ABE_win));
             // close old image
@@ -7113,7 +7051,7 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Hyperbolic') {
-            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win);
+            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor);
             return { win: ABE_win, stf: null };
             
       } else {
@@ -15521,21 +15459,21 @@ function toggleSidePreview()
 
       /* Hyperbolic.
        */
-      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 0, 1000,
-            "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + Hyperbolic_tips);
-      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, -5, 15,
+      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 1, 15,
+            "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + 
+            "<p>This value is a starting value that we use for iteration. The value is decreased until histogram " +
+            "target is below the given limit.</p>" + Hyperbolic_tips);
+      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 1, 15,
             "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
-            "focused around a single intensity, while a lower b will spread the stretch around. Mathematically, a b=0 represents a pure " +
-            "exponential stretch, while 0<b<1 represents a hyperbolic stretch, b=1 is a harmonic stretch, and b>1 is a highly intense, " + 
-            "super-hyperbolic stretch.</p>" + Hyperbolic_tips);
+            "focused around a single intensity, while a lower b will spread the stretch around.</p>" + Hyperbolic_tips);
       this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 99,
             "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
             "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + 
             "<p>As a general rule for small targets you should use relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
-            "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 10 and 50).</p>" +
+            "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 40 and 50).</p>" +
             Hyperbolic_tips);
       this.Hyperbolic_target_Control = newNumericEdit(this, "Histogram target", par.Hyperbolic_target, 0, 1,
-            "<p>Experimental, Hyperbolic Stretch histogram target value. Stop stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
+            "<p>Experimental, Hyperbolic Stretch histogram target value. Stops stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
       this.hyperbolicIterationsLabel = new Label(this);
       this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.hyperbolicIterationsLabel.text = "Iterations";
@@ -15546,17 +15484,10 @@ function toggleSidePreview()
       this.hyperbolicModeLabel.text = "Mode";
       this.hyperbolicModeLabel.toolTip = "<p>Experimental, Hyperbolic Stretch test mode.</p>" +
                                          "<ul>" +
-                                         "<li>0 - Fixed D, b</li>" +
-                                         "<li>1 - Decrease D, b for every iteration</li>" +
-                                         "<li>2 - Fixed D, b but change symmetry point to 40% after first iteration</li>" +
-                                         "<li>3 - Decrease D, b for every iteration but change symmetry point to 40% after first iteration</li>" +
-                                         "<li>4 - Decrease only b for every iteration</li>" +
-                                         "<li>5 - After first iteration cut D to half and set b to one</li>" +
-                                         "<li>6 - Decrease D and b for every skipped iteration</li>" +
-                                         "<li>7 - Decrease D, b and SP for every iteration</li>" +
-                                         "<li>8 - Same as 1 but use D as ln(D+1)</li>" +
+                                         "<li>1 - Decrease D for every iteration</li>" +
+                                         "<li>2 - Decrease D for every iteration, use histogram peak as symmetry point (ignore SP value %)</li>" +
                                          "</ul>" + Hyperbolic_tips;
-      this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 0, 8, this.hyperbolicModeLabel.toolTip);
+      this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 1, 2, this.hyperbolicModeLabel.toolTip);
       this.hyperbolicSizer1 = new HorizontalSizer;
       this.hyperbolicSizer1.spacing = 4;
       this.hyperbolicSizer1.margin = 2;
