@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test7";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test8";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -378,6 +378,8 @@ this.par = {
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
+      shadow_clip: { val: false, def: false, name : "Shadow clip", type : 'B' },
+      force_new_mask: { val: false, def: false, name : "Force new mask", type : 'B' },
       crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
 
       // Other parameters
@@ -471,6 +473,9 @@ this.par = {
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
 
+      target_type_galaxy: { val: false, def: false, name : "Target type galaxy", type : 'B' },
+      target_type_nebula: { val: false, def: false, name : "Target type nebula", type : 'B' },
+
       percentile_low: { val: 0.2, def: 0.2, name : "Percentile low", type : 'R' },
       percentile_high: { val: 0.1, def: 0.1, name : "Percentile high", type : 'R' },
       sigma_low: { val: 4.0, def: 4.0, name : "Sigma low", type : 'R' },
@@ -495,10 +500,14 @@ this.par = {
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
       Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
       Hyperbolic_b: { val: 8, def: 8, name : "Hyperbolic Stretch b value", type : 'I' }, 
-      Hyperbolic_SP: { val: 50, def: 50, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
+      Hyperbolic_SP: { val: 10, def: 10, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
       Hyperbolic_target: { val: 0.25, def: 0.25, name : "Hyperbolic Stretch target", type : 'I' }, 
       Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
       Hyperbolic_mode: { val: 1, def: 1, name : "Hyperbolic Stretch mode", type : 'I' }, 
+      histogram_shadow_clip: { val: 0.01, def: 0.01, name : "Histogram shadow clip", type : 'I' }, 
+      histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
+      histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
+      histogram_skip_adaptive_shadows: { val: true, def: true, name : "Histogram stretch no adaptive shadows", type : 'B' }, 
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -603,7 +612,7 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic', 'Histogram stretch' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -614,6 +623,7 @@ var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 var binning_values = [ 'None', 'Color', 'L and color'];
 var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
+var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 
 var monochrome_text = "Monochrome: ";
 
@@ -635,6 +645,7 @@ var run_auto_continue = false;
 var use_force_close = true;
 var write_processing_log_file = true;  // if we fail very early we set this to false
 var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
+var shadow_clip_value = 0.01;
 
 var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
@@ -1544,29 +1555,6 @@ function findWindowId(id)
       return w.mainView.id;
 }
 
-function windowCloseif(id)
-{
-      var w = findWindow(id);
-      if (w != null) {
-            if (par.keep_temporary_images.val) {
-                  w.mainView.id = "tmp_" + w.mainView.id;
-                  w.show();
-                  console.writeln("Rename window to " + w.mainView.id);
-            } else {
-                  w.close();
-            }
-      }
-}
-
-function windowCloseLogged(id)
-{
-      let w = findWindow(id);
-      if (w != null) {
-            console.writeln("CLosing unneeded window '" + id +"'")
-            w.close();
-      }
-}
-
 function windowShowif(id)
 {
       var w = findWindow(id);
@@ -2099,46 +2087,121 @@ function addMildBlur(imgWin)
       imgWin.mainView.endProcess();
 }
 
-function histogram_test(win)
-{
-      var view = win.mainView;
-
-      console.writeln("Maximum " + JSON.stringify(view.computeOrFetchProperty("Maximum")));
-      console.writeln("MaximumPos " + JSON.stringify(view.computeOrFetchProperty("MaximumPos")));
-
-      findHistogramPeak(win);
-}
-
-function findHistogramPeak(win)
+function findHistogramAdaptiveMinimum(win, start, end, channel)
 {
       var view = win.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
 
-      var peakValue = 0;
-      var peakCol = 0;
-      for (var col = 0; col < histogramMatrix.cols; col++) {
-            for (var row = 0; row < histogramMatrix.rows; row++) {
-                  var colValue = histogramMatrix.at(row, col)
-                  if (colValue > peakValue) {
-                        peakValue = colValue;
-                        peakCol = col;
+      //var maxcnt = histogramMatrix.cols / 1024;
+      var maxcnt = 4;
+
+      console.writeln(channelText(channel) + " histogram using grouping of " + maxcnt + " column");
+
+      start = maxcnt * parseInt(start / maxcnt);
+      end = maxcnt * parseInt(end / maxcnt) + maxcnt;
+
+      var minValue = 0;
+      var minCol = start;
+      var cnt = 0;
+      var colValue = 0;
+      var first_check = true;
+      // Find absolute minimum
+      for (var col = start; col < end; col++) {
+            if (channel >= 0) {
+                  // get min for a single channel/row
+                  colValue = colValue + histogramMatrix.at(channel, col);
+            } else {
+                  // combine all channels
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        colValue = colValue + histogramMatrix.at(row, col);
+                  }
+            }
+            if (cnt < maxcnt) {
+                  cnt++;
+            } else {
+                  if (colValue < minValue || first_check) {
+                        minValue = colValue;
+                        minCol = col;
+                  }
+                  cnt = 0;
+                  colValue = 0;
+            }
+      }
+      console.writeln(channelText(channel) + " histogram min between " + start + " and " + end + " is at " + minCol + ", value " + minValue);
+
+      // Starting from minCol move to left as long as we are close to minVal
+      if (minValue == 0) {
+            minValue = 1;
+      }
+      var adaptiveMinValue = minValue;
+      var cnt = 0;
+      var colValue = 0;
+      for (var col = minCol - 1; col >= start; col--) {
+            if (channel >= 0) {
+                  // get min for a single channel/row
+                  colValue = colValue + histogramMatrix.at(channel, col);
+            } else {
+                  // combine all channels
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        colValue = colValue + histogramMatrix.at(row, col);
+                  }
+            }
+            if (cnt < maxcnt) {
+                  cnt++;
+            } else {
+                  if (colValue <= 2 * minValue) {
+                        adaptiveMinValue = colValue;
+                        minCol = col;
+                  } else {
                         break;
                   }
+                  cnt = 0;
+                  colValue = 0;
+            }
+      }
+      minValue = parseInt(adaptiveMinValue / maxcnt);   // Use average to return something
+
+      console.writeln(channelText(channel) + " adjusted histogram min between " + start + " and " + end + " is at " + minCol + ", value " + adaptiveMinValue);
+
+      var normalizedMinCol = parseInt(minCol / histogramMatrix.cols);
+      console.writeln(channelText(channel) + " histogram min between " + start + " and " + end + " is at " + normalizedMinCol + " (value " + minValue + ", col "+ minCol + ", maxcol " + histogramMatrix.cols + ")");
+      return { minValue : minValue, minCol : minCol, maxCol : histogramMatrix.cols, normalizedMinCol :  normalizedMinCol, maxRows : histogramMatrix.rows };
+}
+
+function findHistogramPeak(win, channel)
+{
+      var view = win.mainView;
+	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
+      var maxcnt = parseInt(histogramMatrix.cols / 255);
+
+      var peakValue = 0;
+      var peakCol = 0;
+      var cnt = 0;
+      var colValue = 0;
+      for (var col = 0; col < histogramMatrix.cols; col++) {
+            if (channel >= 0) {
+                  // get peak for a single channel/row
+                  colValue = colValue + histogramMatrix.at(channel, col);
+            } else {
+                  // combine all channels
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        colValue = colValue + histogramMatrix.at(row, col);
+                  }
+            }
+            if (cnt < maxcnt) {
+                  cnt++;
+            } else {
+                  if (colValue > peakValue) {
+                        peakValue = colValue;
+                        peakCol = parseInt(col - maxcnt / 2);
+                  }
+                  cnt = 0;
+                  colValue = 0;
             }
       }
       var normalizedPeakCol = peakCol / histogramMatrix.cols;
-      console.writeln("Histogram peak is at " + normalizedPeakCol);
-      if (0) {
-            for (var col = peakCol - 100; col < peakCol + 100; col++) {
-                  if (col < 0) {
-                        continue;
-                  }
-                  for (var row = 0; row < histogramMatrix.rows; row++) {
-                        console.writeln("col=" + col + ", row=" + row + ", val=" + histogramMatrix.at(row, col));
-                  }
-            }
-      }
-      return normalizedPeakCol;
+      console.writeln(channelText(channel) + " histogram peak is at " + normalizedPeakCol + " (value " + peakValue + ", col "+ peakCol + ", maxcol " + histogramMatrix.cols + ")");
+      return { peakValue : peakValue, peakCol : peakCol, maxCol : histogramMatrix.cols, normalizedPeakCol :  normalizedPeakCol, maxRows : histogramMatrix.rows };
 }
 
 function countPixels(histogramMatrix, row)
@@ -2151,42 +2214,84 @@ function countPixels(histogramMatrix, row)
       return cnt;
 }
 
-function clipShadows(win, perc)
+function getClipShadowsValue(win, perc, adaptive, channel)
 {
-      console.writeln("Clip " + perc + "% of shadows from image " + win.mainView.id);
-
       // Get image histogram
       var view = win.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
 
-      // Count pixels for each row
       var pixelCount = 0;
-      for (var i = 0; i < histogramMatrix.rows; i++) {
-            pixelCount += countPixels(histogramMatrix, i);
+      if (channel >= 0) {
+            pixelCount += countPixels(histogramMatrix, channel);
+      } else {
+            // Count pixels for each row
+            for (var i = 0; i < histogramMatrix.rows; i++) {
+                  pixelCount += countPixels(histogramMatrix, i);
+            }
       }
       // console.writeln("Total pixel count for matrix is " + pixelCount);
 
+      if (adaptive) {
+            // skip all zero values
+            for (var col = 0; col < histogramMatrix.cols; col++) {
+                  var colClipCount = 0;
+                  if (channel >= 0) {
+                        colClipCount += histogramMatrix.at(channel, col)
+                  } else {
+                        for (var row = 0; row < histogramMatrix.rows; row++) {
+                              colClipCount += histogramMatrix.at(row, col)
+                        }
+                  }
+                  if (colClipCount > 0) {
+                        break;
+                  }
+            }
+            var startCol = col;
+            var peak = findHistogramPeak(win, channel);
+            // Find minimum between zero and peak.
+            var minimum = findHistogramAdaptiveMinimum(win, Math.max(1, startCol), peak.peakCol, channel);
+            var start_col = minimum.minCol;
+      } else {
+            var start_col = 0;
+      }
+
       var maxClip = (perc / 100) * pixelCount;
-      console.writeln("Clip max " + maxClip + " pixels");
+      console.writeln("Clip max " + maxClip + " pixels (" + perc + "%)");
 
       // Clip shadows
       var clipCount = 0;
-      for (var col = 0; col < histogramMatrix.cols; col++) {
-            for (var row = 0; row < histogramMatrix.rows; row++) {
-                  clipCount += histogramMatrix.at(row, col)
+      for (var col = start_col; col < histogramMatrix.cols; col++) {
+            var colClipCount = 0;
+            if (channel >= 0) {
+                  colClipCount += histogramMatrix.at(channel, col)
+            } else {
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        colClipCount += histogramMatrix.at(row, col)
+                  }
             }
-            if (clipCount > maxClip) {
+            clipCount += colClipCount;
+            if (clipCount > maxClip && col != 0 && colClipCount > 0) {
+                  clipCount = clipCount - colClipCount;
                   break;
             }
       }
-      if (col > 0) {
-            col = col - 1;
-      }
       var normalizedShadowClipping = col / histogramMatrix.cols;
-      console.writeln("Normalized shadow clipping value is " + normalizedShadowClipping);
+      console.writeln(channelText(channel) + " normalized shadow clipping value is " + normalizedShadowClipping + ", clip count " + clipCount);
+
+      return { normalizedShadowClipping : normalizedShadowClipping, rows : histogramMatrix.rows, clipCount : clipCount };
+}
+
+function clipShadows(win, perc)
+{
+      console.writeln("Clip " + perc + "% of shadows from image " + win.mainView.id);
+
+      var view = win.mainView;
+
+      var clip = getClipShadowsValue(win, perc);
+      var normalizedShadowClipping = clip.normalizedShadowClipping;
 
       var P = new HistogramTransformation;
-      if (histogramMatrix.rows == 1) {
+      if (clip.rows == 1) {
             P.H = [ // c0, m, c1, r0, r1
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
@@ -2210,30 +2315,50 @@ function clipShadows(win, perc)
       view.endProcess();
 }
 
-// Find symmetry point as percentage of clipped pixels
-function findSymmetryPoint(win, perc)
+function channelText(channel)
 {
-      console.writeln("findSymmetryPoint at " + perc + "% of shadows from image " + win.mainView.id);
+      switch (channel) {
+            case 0:
+                  return 'Red';
+            case 1:
+                  return 'Green';
+            case 2:
+                  return 'Blue';
+            default:
+                  return 'Luminance';
+      }
+}
+
+// Find symmetry point as percentage of clipped pixels
+function findSymmetryPoint(win, perc, channel)
+{
+      console.writeln(channelText(channel) + ", findSymmetryPoint at " + perc + "% of shadows from image " + win.mainView.id);
 
       // Get image histogram
       var view = win.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
 
-      // Count pixels for each row
       var pixelCount = 0;
-      for (var i = 0; i < histogramMatrix.rows; i++) {
-            pixelCount += countPixels(histogramMatrix, i);
+      if (channel >= 0) {
+            pixelCount += countPixels(histogramMatrix, channel);
+      } else {
+            // Count pixels for each row
+            for (var i = 0; i < histogramMatrix.rows; i++) {
+                  pixelCount += countPixels(histogramMatrix, i);
+            }
       }
-      // console.writeln("Total pixel count for matrix is " + pixelCount);
 
       var maxClip = (perc / 100) * pixelCount;
-      console.writeln("Clip max " + maxClip + " pixels");
 
       // Find symmetry point as percentage of pixels on the left side of the histogram
       var clipCount = 0;
       for (var col = 0; col < histogramMatrix.cols; col++) {
-            for (var row = 0; row < histogramMatrix.rows; row++) {
-                  clipCount += histogramMatrix.at(row, col)
+            if (channel >= 0) {
+                  clipCount += histogramMatrix.at(channel, col)
+            } else {
+                  for (var row = 0; row < histogramMatrix.rows; row++) {
+                        clipCount += histogramMatrix.at(row, col);
+                  }
             }
             if (clipCount > maxClip) {
                   break;
@@ -2243,7 +2368,7 @@ function findSymmetryPoint(win, perc)
             col = col - 1;
       }
       var normalizedShadowClipping = col / histogramMatrix.cols;
-      console.writeln("Symmetry point is " + normalizedShadowClipping);
+      console.writeln(channelText(channel) + " symmetry point is " + normalizedShadowClipping);
 
       return normalizedShadowClipping;
 }
@@ -2594,9 +2719,9 @@ function runImageIntegrationBiasDarks(images, name)
 
       P.executeGlobal();
 
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.lowRejectionMapImageId);
-      windowCloseif(P.slopeMapImageId);
+      closeOneWindow(P.highRejectionMapImageId);
+      closeOneWindow(P.lowRejectionMapImageId);
+      closeOneWindow(P.slopeMapImageId);
 
       var new_name = windowRename(P.integrationImageId, name);
 
@@ -2795,9 +2920,9 @@ function runImageIntegrationFlats(images, name)
 
       P.executeGlobal();
 
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.lowRejectionMapImageId);
-      windowCloseif(P.slopeMapImageId);
+      closeOneWindow(P.highRejectionMapImageId);
+      closeOneWindow(P.lowRejectionMapImageId);
+      closeOneWindow(P.slopeMapImageId);
 
       var new_name = windowRename(P.integrationImageId, name);
 
@@ -5611,7 +5736,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
       updatePreviewWin(imgWin);
 
       if (temp_mask_win != null) {
-            closeOneWindow(temp_mask_win.mainView.id);
+            forceCloseOneWindow(temp_mask_win);
       }
 }
 
@@ -5639,7 +5764,7 @@ function channelNoiseReduction(image_id)
       updatePreviewWin(image_win);
 
       if (temp_mask_win != null) {
-            closeOneWindow(temp_mask_win.mainView.id);
+            forceCloseOneWindow(temp_mask_win);
       }
 }
 
@@ -6193,7 +6318,7 @@ function runDrizzleIntegration(images, name, local_normalization)
 
       P.executeGlobal();
 
-      windowCloseif(P.weightImageId);
+      closeOneWindow(P.weightImageId);
 
       var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
       updatePreviewId(new_name);
@@ -6326,13 +6451,13 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       P.executeGlobal();
 
-      windowCloseif(P.highRejectionMapImageId);
-      windowCloseif(P.lowRejectionMapImageId);
-      windowCloseif(P.slopeMapImageId);
+      closeOneWindow(P.highRejectionMapImageId);
+      closeOneWindow(P.lowRejectionMapImageId);
+      closeOneWindow(P.slopeMapImageId);
 
       if (par.use_drizzle.val && name != 'LDD') {
             updatePreviewId(P.integrationImageId);
-            windowCloseif(P.integrationImageId);
+            closeOneWindow(P.integrationImageId);
             return runDrizzleIntegration(images, name, local_normalization);
       } else {
             var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
@@ -6493,9 +6618,9 @@ function runImageIntegrationForCrop(images)
 
       // Depending on integration options, some useless maps may be generated, especially low rejection map,
       // With the current integration parameters, these images are not generated,
-      windowCloseLogged(P.lowRejectionMapImageId);
-      windowCloseLogged(P.highRejectionMapImageId);
-      windowCloseLogged(P.slopeMapImageId);
+      closeOneWindow(P.lowRejectionMapImageId);
+      closeOneWindow(P.highRejectionMapImageId);
+      closeOneWindow(P.slopeMapImageId);
       // KEEP (P.integrationImageId);
 
       //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
@@ -6605,13 +6730,6 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked, silent
    var mad = view.computeOrFetchProperty("MAD");
    mad.mul(1.4826); // coherent with a normal distribution
 
-   if (par.STF_linking.val == 'Linked') {
-      rgbLinked = true;  
-   } else if (par.STF_linking.val == 'Unlinked') {
-      rgbLinked = false;  
-   } else {
-         // auto, use default
-   }
    if (!silent) {
       console.writeln("  RgbLinked " + rgbLinked);
    }
@@ -6755,6 +6873,8 @@ function applySTF(imgView, stf, iscolor)
                   ];
       }
 
+      console.writeln("applySTF, HT.H = " + JSON.stringify(HT.H));
+
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
       HT.executeOn(imgView, false);
@@ -6762,14 +6882,14 @@ function applySTF(imgView, stf, iscolor)
       imgView.endProcess();
 }
 
-function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, silent)
+function getRgbLinked(iscolor)
 {
-      if (!silent) {
-            addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
-      }
-
-      if (stf_to_use == null) {
-            /* Apply autostretch on image */
+      if (par.STF_linking.val == 'Linked') {
+            return true;  
+      } else if (par.STF_linking.val == 'Unlinked') {
+            return false;  
+      } else {
+            // auto, use default
             var rgbLinked = true;
             if (narrowband) {
                   if (linear_fit_done) {
@@ -6780,6 +6900,19 @@ function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackgrou
             } else if (iscolor) {
                   rgbLinked = false;
             }
+            return rgbLinked;
+      }
+}
+
+function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, silent)
+{
+      if (!silent) {
+            addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
+      }
+
+      if (stf_to_use == null) {
+            /* Apply autostretch on image */
+            var rgbLinked = getRgbLinked(iscolor);
             ApplyAutoSTF(ABE_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
                         targetBackground,
@@ -6853,16 +6986,13 @@ function runHistogramTransformArcsinhStretch(ABE_win)
 
             ABE_win.mainView.endProcess();
 
-            var peak_val = findHistogramPeak(ABE_win);
+            var peak_val = findHistogramPeak(ABE_win).normalizedPeakCol;
             console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + peak_val);
       }
 }
 
 function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
 {
-      //histogram_test(ABE_win);
-      //return ABE_win;
-
       addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
       console.writeln("Start values D = " + par.Hyperbolic_D.val + ", b = " + par.Hyperbolic_b.val + ", SP = " + par.Hyperbolic_SP.val);
 
@@ -6873,25 +7003,236 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
                   skipped: 0,
                   Hyperbolic_D_val: par.Hyperbolic_D.val,
                   Hyperbolic_b_val: par.Hyperbolic_b.val,
-                  Hyperbolic_SP_val: par.Hyperbolic_SP.val
+                  Hyperbolic_SP_val: par.Hyperbolic_SP.val,
+                  peak_val: 0
       };
 
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
-            runHistogramTransformHyperbolic(res, iscolor);
+            var window_updated = runHistogramTransformHyperbolic(res, iscolor);
+            if (window_updated) {
+                  updatePreviewWin(res.win);
+            }
             if (res.completed) {
                   break;
             }
-            updatePreviewWin(res.win);
       }
       return res.win;
 }
 
+function stretchHistogramTransformIterationsChannel(ABE_win, channel)
+{
+      var res = { 
+            win: ABE_win, 
+            iteration_number: 0, 
+            completed: false, 
+            skipped: 0,
+            clipCount: 0
+      };
+
+      for (var i = 0; i < 100; i++) {
+            res.iteration_number = i + 1;
+            var window_updated = stretchHistogramTransform(res, channel);
+            if (window_updated) {
+                  updatePreviewWin(res.win);
+            }
+            if (res.completed) {
+                  break;
+            }
+      }
+      return res.win;
+}
+
+function stretchHistogramTransformIterations(ABE_win, iscolor)
+{
+      if (ABE_win.mainView.image.isColor) {
+            var rgbLinked = getRgbLinked(iscolor);
+      } else {
+            var rgbLinked = true;
+      }
+
+      addProcessingStepAndStatusInfo("Run histogram stretch on " + ABE_win.mainView.id + " using HistogramTransform iterations");
+
+      if (rgbLinked) {
+            console.writeln("Channel: " + channelText(3));
+            return stretchHistogramTransformIterationsChannel(ABE_win);
+      } else {
+            for (var i = 0; i < 3; i++) {
+                  console.writeln("Channel: " + channelText(i));
+                  ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, i);
+            }
+            return ABE_win;
+      }
+}
+
+function forceNewHistogram(target_win)
+{
+      try {
+            if (!target_win.mainView.deleteProperty("Histogram16")) {
+                  console.writeln("Failed to delete property Histogram16");
+            }
+      } catch(err) {
+            console.writeln("Failed to delete property Histogram16 : " + err);
+      }
+}
+
+/* Experimenting with stretching, mostly just for fun and to understand
+ * some functions and concepts.
+ */
+function stretchHistogramTransform(res, channel)
+{
+      if (channel >= 0) {
+            var channel_number = channel;
+      } else {
+            var channel_number = 3;
+      }
+      console.writeln("\n****************************************************************");
+      console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
+
+      var target_value = par.histogram_stretch_target.val;
+      var use_median = par.histogram_stretch_type.val == 'Median';
+
+      var new_win = copyWindowEx(res.win, "temp_stretchHistogramTransform", true);
+
+      var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
+
+      if (use_median) {
+            var current_value = findSymmetryPoint(new_win, 50, channel);
+      } else {
+            var current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+      }
+
+      console.writeln("*** current value " + current_value);
+
+      var adjust = target_value - current_value;
+      midtones[channel_number] = 0.50 - adjust;
+
+      console.writeln("*** midtones "+ midtones[channel_number]);
+
+      /* Separate stretch for shadows and midtones.
+       */
+      console.writeln("*** HistogramTransformation for midtones, " + channelText(channel));
+
+      var P = new HistogramTransformation;
+      P.H = [ // c0, c1, m, r0, r1
+            [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
+            [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
+            [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
+            [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
+            [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+      ];
+      new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(new_win.mainView);
+      new_win.mainView.endProcess();
+
+      forceNewHistogram(new_win);
+
+      if (use_median) {
+            current_value = findSymmetryPoint(new_win, 50, channel);
+      } else {
+            current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+      }
+      console.writeln("*** after midtones current value " + current_value);
+
+      if (res.iteration_number == 1) {
+            console.writeln("*** get shadows clip value");
+            var shadows = [ 0.00000000, 0.00000000, 0.00000000, 0.00000000 ];
+
+            var shadows_clip_value = par.histogram_shadow_clip.val;
+            var clip = getClipShadowsValue(new_win, shadows_clip_value, !par.histogram_skip_adaptive_shadows.val, channel);
+            
+            shadows[channel_number] = clip.normalizedShadowClipping;
+            console.writeln("*** shadows " + shadows[channel_number]);
+
+            console.writeln("*** HistogramTransformation for shadows, "+ channelText(channel));
+
+            var P = new HistogramTransformation;
+            P.H = [ // c0, c1, m, r0, r1
+                  [shadows[0], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // R
+                  [shadows[1], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // G
+                  [shadows[2], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // B
+                  [shadows[3], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // L
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+            ];
+            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+            P.executeOn(new_win.mainView);
+            new_win.mainView.endProcess();
+
+            forceNewHistogram(new_win);
+            if (use_median) {
+                  current_value = findSymmetryPoint(new_win, 50, channel);
+            } else {
+                  current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+            }
+            console.writeln("*** after shadows current value " + current_value);
+      
+      } else {
+            var clip = null;
+      }
+
+      // check where histograms are
+      if (new_win.mainView.image.isColor) {
+            for (var i = 0; i < 3; i++) {
+                  if (use_median) {
+                        findSymmetryPoint(new_win, 50, i);
+                  } else {
+                        findHistogramPeak(new_win, i);
+                  }
+            } 
+      } else {
+            if (use_median) {
+                  findSymmetryPoint(new_win, 50);
+            } else {
+                  findHistogramPeak(new_win);
+            }
+      }
+      var window_updated = false;
+
+      if (current_value > target_value + 0.1 * target_value) {
+            // We are past the target value, ignore this iteration
+            res.skipped++;
+            forceCloseOneWindow(new_win);
+            if (res.skipped > 3) {
+                  console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+                  res.completed = true;
+            } else {
+                  console.writeln("*** Skip, we are past the target, skip this iteration, skipped + " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+            }
+      } else {
+            window_updated = true;
+            if (current_value < target_value - 0.1 * target_value) {
+                  console.writeln("*** Continue stretch iteration " + res.iteration_number + ", current value " + current_value + ", target value " + target_value);
+            } else {
+                  // we are close enough, we are done
+                  console.writeln("*** Stop, stretch completed, we are close enough, current value " + current_value + ", target value" + target_value);
+                  res.completed = true;
+            }
+            // find new window and copy keywords
+            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
+            // close old image
+            var image_id = res.win.mainView.id;
+            forceCloseOneWindow(res.win);
+            // rename new as old
+            windowRename(new_win.mainView.id, image_id);
+            res.win = new_win;
+            if (clip) {
+                  res.clipCount += clip.clipCount;
+            }
+            console.writeln("*** Clipped total of " + res.clipCount + " pixels");
+      }
+
+      console.writeln("*** end iteration " + res.iteration_number + ", " + channelText(channel));
+      console.writeln("****************************************************************\n");
+
+      return window_updated;
+}
+
 function runHistogramTransformHyperbolic(res, iscolor)
 {
-      var ABE_win = res.win;
+      forceNewHistogram(res.win);
+            
       var iteration_number = res.iteration_number;
-      var image_id = ABE_win.mainView.id;
+      var image_id = res.win.mainView.id;
 
       console.writeln("--");
       console.writeln("Iteration " + iteration_number);
@@ -6913,11 +7254,11 @@ function runHistogramTransformHyperbolic(res, iscolor)
       switch (par.Hyperbolic_mode.val) {
             case 1:
                   // User given symmetry point
-                  var Hyperbolic_SP_val = findSymmetryPoint(ABE_win, res.Hyperbolic_SP_val);
+                  var Hyperbolic_SP_val = findSymmetryPoint(res.win, res.Hyperbolic_SP_val);
                   break;
             case 2:
                   // Use histogram peak as symmetry point
-                  var Hyperbolic_SP_val = findHistogramPeak(ABE_win);
+                  var Hyperbolic_SP_val = findHistogramPeak(res.win).normalizedPeakCol;
                   break;
       }
 
@@ -6926,12 +7267,12 @@ function runHistogramTransformHyperbolic(res, iscolor)
       if (Hyperbolic_D_val <= 1) {
             console.writeln("We are done, too low D " + Hyperbolic_D_val);
             res.completed = true;
-            return;
+            return false;
       }
       if (Hyperbolic_b_val < 1) {
             console.writeln("We are done, too low b " + Hyperbolic_b_val);
             res.completed = true;
-            return;
+            return false;
       }
 
       var P = new PixelMath;
@@ -6983,21 +7324,25 @@ function runHistogramTransformHyperbolic(res, iscolor)
 
       console.writeln("Symbols " + P.symbols);
 
-      ABE_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      res.win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(ABE_win.mainView);
+      P.executeOn(res.win.mainView);
 
-      ABE_win.mainView.endProcess();
+      res.win.mainView.endProcess();
 
       var new_win = findWindow(P.newImageId);
 
+      // copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
+
       var median = findSymmetryPoint(new_win, 50);
-      var peak_val = findHistogramPeak(new_win);
+      var peak_val = findHistogramPeak(new_win).normalizedPeakCol;
       console.writeln("peak_val " + peak_val + ", median "+ median);
 
+      var window_updated = false;
+
       if (median >= 0.5) {
-            // We are past the target value, ignore this iteration and keep old image
-            console.writeln("We are past the target, skip this iteration, median=" + median);
+            // We are past the median limit value, ignore this iteration and keep old image
+            console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
             closeOneWindow(P.newImageId);
             res.skipped++;
       } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
@@ -7005,18 +7350,25 @@ function runHistogramTransformHyperbolic(res, iscolor)
             console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
             closeOneWindow(P.newImageId);
             res.skipped++;
+      } else if (peak_val < res.peak_val) {
+            console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
+            closeOneWindow(P.newImageId);
+            res.skipped++;
       } else {
             // we are close enough, we are done
             console.writeln("Stretch completed, we are close enough, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
             res.completed = true;
+            window_updated = true;
             // find new window and copy keywords
-            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(ABE_win));
+            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
             // close old image
             closeOneWindow(image_id);
             // rename new as old
             windowRename(P.newImageId, image_id);
             res.win = new_win;
+            res.peak_val = peak_val;
       }
+      return window_updated;
 }
 
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
@@ -7031,36 +7383,38 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       } else {
             var image_stretching = par.image_stretching.val;
       }
-
+      console.writeln("runHistogramTransform using " + image_stretching);
+      var stf = null;
       var targetBackground; // to be compatible with 'use strict';
-      if (image_stretching == 'Auto STF' || type == 'mask' || type == 'extra') {
+      //if (image_stretching == 'Auto STF' || type == 'mask') {
+      if (image_stretching == 'Auto STF') {
             if (type == 'mask') {
                   targetBackground = DEFAULT_AUTOSTRETCH_TBGND;
             } else {
                   targetBackground = par.STF_targetBackground.val;
             }
-            var stf = runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
-            updatePreviewWin(ABE_win);
-            return { win: ABE_win, stf: stf };
+            stf = runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground);
 
       } else if (image_stretching == 'Masked Stretch') {
             runHistogramTransformMaskedStretch(ABE_win);
-            updatePreviewWin(ABE_win);
-            return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(ABE_win);
-            updatePreviewWin(ABE_win);
-            return { win: ABE_win, stf: null };
 
       } else if (image_stretching == 'Hyperbolic') {
             ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor);
-            return { win: ABE_win, stf: null };
+            
+      } else if (image_stretching == 'Histogram stretch') {
+            ABE_win = stretchHistogramTransformIterations(ABE_win, iscolor);
             
       } else {
             throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
-            return { win: ABE_win, stf: null };
       }
+      if (par.shadow_clip.val) {
+            clipShadows(ABE_win, shadow_clip_value);
+      }
+      updatePreviewWin(ABE_win);
+      return { win: ABE_win, stf: stf };
 }
 
 function runACDNRReduceNoise(imgWin, maskWin)
@@ -8050,9 +8404,15 @@ function CreateChannelImages(parent, auto_continue)
                         is_color_files = true;
                   }
             }
-            /* Check if we have manually created mask. */
-            mask_win_id = "AutoMask";
-            range_mask_win = findWindow(mask_win_id);
+            if (par.force_new_mask.val) {
+                  closeOneWindow(ppar.win_prefix + "AutoMask");
+                  mask_win_id = null;
+                  range_mask_win = null;
+            } else {
+                  /* Check if we already have a mask. It can be from previous run or manually created. */
+                  mask_win_id = ppar.win_prefix + "AutoMask";
+                  range_mask_win = findWindow(mask_win_id);
+            }
       } else {
             /* Open dialog files and run SubframeSelector on them
              * to assigns SSWEIGHT.
@@ -8391,7 +8751,7 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
        */
       var maskWin = newMaskWindow(winCopy, imgWin.mainView.id + "_mask", true);
 
-      windowCloseif(winCopy.mainView.id);
+      forceCloseOneWindow(winCopy);
 
       return maskWin;
 }
@@ -8447,7 +8807,7 @@ function LRGBEnsureMaskEx(L_id, stretched)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(L_win, mask_win_id, false);
-            windowCloseif(L_win.mainView.id);
+            closeOneWindow(L_win.mainView.id);
       }
 }
 
@@ -8486,7 +8846,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(color_win_copy, mask_win_id, false);
-            windowCloseif(color_win_copy.mainView.id);
+            closeOneWindow(color_win_copy.mainView.id);
       }
       console.writeln("ColorEnsureMask done");
 }
@@ -10016,13 +10376,7 @@ function apply_undo(parent)
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
 
-      try {
-            if (!target_win.mainView.deleteProperty("Histogram16")) {
-                  console.writeln("Failed to delete property Histogram16");
-            }
-      } catch(err) {
-            console.writeln("Failed to delete property Histogram16 : " + err);
-      }
+      forceNewHistogram(target_win);
       
       updatePreviewIdReset(extra_target_image, true);
       
@@ -10724,6 +11078,35 @@ function cropChannelImagesAutoContinue()
       }
 }
 
+function boolToInteger(b)
+{
+      b == true ? 1 : 0;
+}
+
+function checkOptions()
+{
+      var intval = boolToInteger(par.remove_stars_before_stretch.val) + boolToInteger(par.remove_stars_channel.val) + 
+                   boolToInteger(par.remove_stars_stretched.val);
+      if (intval > 1) {
+            throwFatalError("Only one remove stars option can be selected.")
+      }
+      var intval = boolToInteger(par.target_type_galaxy.val) + boolToInteger(par.target_type_nebula.val);
+      if (intval > 1) {
+            throwFatalError("Only one target type option can be selected.")
+      }
+}
+
+function targetTypeSetup()
+{
+      if (par.target_type_galaxy.val) {
+            par.image_stretching.val = 'Masked Stretch';
+            console.writeln("Galaxy target using " + par.image_stretching.val);
+      } else if (par.target_type_nebula.val) {
+            par.image_stretching.val = 'Auto STF';
+            console.writeln("Nebula target using " + par.image_stretching.val);
+      }
+}
+
 /***************************************************************************
  * 
  *    AutoIntegrateEngine
@@ -10818,6 +11201,9 @@ function AutoIntegrateEngine(parent, auto_continue)
       addProcessingStepAndStatusInfo("Start processing...");
 
       close_undo_images(parent);
+
+      targetTypeSetup();
+      checkOptions();
 
       /* Create images for each L, R, G and B channels, or Color image. */
       let create_channel_images_ret = CreateChannelImages(parent, auto_continue);
@@ -13243,6 +13629,28 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       return filesAdd_Button;
 }
 
+function addTargetType(parent)
+{
+      var lbl = new Label( parent );
+      parent.rootingArr.push(lbl);
+      lbl.text = "Target type";
+      lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      lbl.toolTip = "<p>Give target type.</p>" +
+                    "<p>If target type is given then image stretching settings are selected automatically.</p>" +
+                    "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>";
+      var galaxyCheckBox = newCheckBox(parent, "Galaxy", par.target_type_galaxy, "<p>Target is galaxy. Works well when target is a lot brighter than the background.</p>" );
+      var nebulaCheckBox = newCheckBox(parent, "Nebula", par.target_type_nebula, "<p>Target is nebula. Works well when target fills the whole image or is not much brighter than the background.</p>" );
+      
+      var outputdir_Sizer = new HorizontalSizer;
+      outputdir_Sizer.spacing = 4;
+      outputdir_Sizer.add( lbl );
+      outputdir_Sizer.add( galaxyCheckBox );
+      outputdir_Sizer.add( nebulaCheckBox );
+
+      return outputdir_Sizer;
+}
+
+
 function addFilesButtons(parent)
 {
       var addLightsButton = addOneFilesButton(parent, "Lights", pages.LIGHTS, parent.filesToolTip[pages.LIGHTS]);
@@ -13250,6 +13658,8 @@ function addFilesButtons(parent)
       var addDarksButton = addOneFilesButton(parent, "Darks", pages.DARKS, parent.filesToolTip[pages.DARKS]);
       var addFlatsButton = addOneFilesButton(parent, "Flats", pages.FLATS, parent.filesToolTip[pages.FLATS]);
       var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", pages.FLAT_DARKS, parent.filesToolTip[pages.FLAT_DARKS]);
+
+      var target_type_sizer = addTargetType(parent);
 
       var winprefix_sizer = addWinPrefix(parent);
       var outputdir_sizer = addOutputDir(parent);
@@ -13262,6 +13672,8 @@ function addFilesButtons(parent)
       filesButtons_Sizer.add( addDarksButton );
       filesButtons_Sizer.add( addFlatsButton );
       filesButtons_Sizer.add( addFlatDarksButton );
+      filesButtons_Sizer.addSpacing( 20 );
+      filesButtons_Sizer.add( target_type_sizer );
       filesButtons_Sizer.addStretch();
       filesButtons_Sizer.add( winprefix_sizer );
       filesButtons_Sizer.add( outputdir_sizer );
@@ -14936,6 +15348,12 @@ function toggleSidePreview()
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
             "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
+      this.shadowClip_CheckBox = newCheckBox(this, "Shadow clip", par.shadow_clip, 
+            "<p>Clip shadows.</p>" +
+            "<p>Clipping shadows increases contrast but clips out some data. Shadow clip clips " + shadow_clip_value + "% of shadows " +
+            "after image is stretched.</p>");
+      this.forceNewMask_CheckBox = newCheckBox(this, "New mask", par.force_new_mask, 
+            "<p>Do not use an existing mask but always create a new mask.</p>)");
       this.no_SCNR_CheckBox = newCheckBox(this, "No SCNR", par.skip_SCNR, 
             "<p>Do not use SCNR to remove green cast.</p>"  +
             "<p>SCNR is automatically skipped when processing narrowband images.</p>" +
@@ -15007,12 +15425,14 @@ function toggleSidePreview()
       this.imageParamsSet1.add( this.remove_stars_before_stretch_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_stretched_CheckBox );
       this.imageParamsSet1.add( this.unscreen_stars_CheckBox );
-      this.imageParamsSet1.add( this.no_SCNR_CheckBox );
+      this.imageParamsSet1.add( this.forceNewMask_CheckBox );
+      this.imageParamsSet1.add( this.shadowClip_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
+      this.imageParamsSet2.add( this.no_SCNR_CheckBox );
       this.imageParamsSet2.add( this.no_sharpening_CheckBox );
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.skip_star_noise_reduction_CheckBox );
@@ -15397,12 +15817,15 @@ function toggleSidePreview()
                             "finding the symmetry point more robust.</p>" + 
                             "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
 
+      var histogramStretchToolTip = "Experimental, using simple histogram transformation with some clipping to get histogram median or peak to the target value. " + 
+                                    "Works best with images that are processed with the Crop to common area option.";
       var stretchingTootip = 
             "<ul>" +
             "<li>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</li>" +
             "<li>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<p>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
             "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful also when stretching stars to keep good star color.</p></li>" +
             "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching. " + Hyperbolic_tips + "</li>" +
+            "<li>Histogram stretch - " + histogramStretchToolTip + "</li>" +
             "</ul>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");
@@ -15489,7 +15912,7 @@ function toggleSidePreview()
             "<p>As a general rule for small targets you should use relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
             "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 40 and 50).</p>" +
             Hyperbolic_tips);
-      this.Hyperbolic_target_Control = newNumericEdit(this, "Histogram target", par.Hyperbolic_target, 0, 1,
+      this.Hyperbolic_target_Control = newNumericEdit(this, "Hyperbolic histogram target", par.Hyperbolic_target, 0, 1,
             "<p>Experimental, Hyperbolic Stretch histogram target value. Stops stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
       this.hyperbolicIterationsLabel = new Label(this);
       this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -15528,6 +15951,24 @@ function toggleSidePreview()
       this.hyperbolicSizer.add( this.hyperbolicSizer2 );
       this.hyperbolicSizer.addStretch();
 
+      this.histogramShadowClip_Control = newNumericEdit(this, "Histogram stretch shadow clip", par.histogram_shadow_clip, 0, 99,
+                                          "Percentage of shadows that are clipped with Histogram stretch.");
+      this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
+      this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
+      this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 99, "Target value specifies where we try to get the the value calculated using Target type.");
+
+      // this.histogramNoAdaptiveShadowClip_CheckBox = newCheckBox(this, "No Adaptive shadow clip", par.histogram_skip_adaptive_shadows, "Adaptive shadow clip tries to find histogram shadow minimum and start clipping from there.");
+
+      this.histogramStretchingSizer = new HorizontalSizer;
+      this.histogramStretchingSizer.spacing = 4;
+      this.histogramStretchingSizer.margin = 2;
+      this.histogramStretchingSizer.add( this.histogramShadowClip_Control );
+      this.histogramStretchingSizer.add( this.histogramTypeLabel );
+      this.histogramStretchingSizer.add( this.histogramTypeComboBox );
+      this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
+      //this.histogramStretchingSizer.add( this.histogramNoAdaptiveShadowClip_CheckBox );
+      this.histogramStretchingSizer.addStretch();
+      
       /* Options.
        */
       this.StretchingOptionsSizer = new VerticalSizer;
@@ -15547,6 +15988,7 @@ function toggleSidePreview()
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
       this.StretchingOptionsSizer.add( this.hyperbolicSizer );
+      this.StretchingOptionsSizer.add( this.histogramStretchingSizer );
       this.StretchingGroupBoxSizer.addStretch();
 
       //
