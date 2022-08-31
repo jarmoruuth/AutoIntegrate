@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test8";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test9";                // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -507,7 +507,6 @@ this.par = {
       histogram_shadow_clip: { val: 0.01, def: 0.01, name : "Histogram shadow clip", type : 'I' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
       histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
-      histogram_skip_adaptive_shadows: { val: true, def: true, name : "Histogram stretch no adaptive shadows", type : 'B' }, 
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -2087,87 +2086,6 @@ function addMildBlur(imgWin)
       imgWin.mainView.endProcess();
 }
 
-function findHistogramAdaptiveMinimum(win, start, end, channel)
-{
-      var view = win.mainView;
-	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
-
-      //var maxcnt = histogramMatrix.cols / 1024;
-      var maxcnt = 4;
-
-      console.writeln(channelText(channel) + " histogram using grouping of " + maxcnt + " column");
-
-      start = maxcnt * parseInt(start / maxcnt);
-      end = maxcnt * parseInt(end / maxcnt) + maxcnt;
-
-      var minValue = 0;
-      var minCol = start;
-      var cnt = 0;
-      var colValue = 0;
-      var first_check = true;
-      // Find absolute minimum
-      for (var col = start; col < end; col++) {
-            if (channel >= 0) {
-                  // get min for a single channel/row
-                  colValue = colValue + histogramMatrix.at(channel, col);
-            } else {
-                  // combine all channels
-                  for (var row = 0; row < histogramMatrix.rows; row++) {
-                        colValue = colValue + histogramMatrix.at(row, col);
-                  }
-            }
-            if (cnt < maxcnt) {
-                  cnt++;
-            } else {
-                  if (colValue < minValue || first_check) {
-                        minValue = colValue;
-                        minCol = col;
-                  }
-                  cnt = 0;
-                  colValue = 0;
-            }
-      }
-      console.writeln(channelText(channel) + " histogram min between " + start + " and " + end + " is at " + minCol + ", value " + minValue);
-
-      // Starting from minCol move to left as long as we are close to minVal
-      if (minValue == 0) {
-            minValue = 1;
-      }
-      var adaptiveMinValue = minValue;
-      var cnt = 0;
-      var colValue = 0;
-      for (var col = minCol - 1; col >= start; col--) {
-            if (channel >= 0) {
-                  // get min for a single channel/row
-                  colValue = colValue + histogramMatrix.at(channel, col);
-            } else {
-                  // combine all channels
-                  for (var row = 0; row < histogramMatrix.rows; row++) {
-                        colValue = colValue + histogramMatrix.at(row, col);
-                  }
-            }
-            if (cnt < maxcnt) {
-                  cnt++;
-            } else {
-                  if (colValue <= 2 * minValue) {
-                        adaptiveMinValue = colValue;
-                        minCol = col;
-                  } else {
-                        break;
-                  }
-                  cnt = 0;
-                  colValue = 0;
-            }
-      }
-      minValue = parseInt(adaptiveMinValue / maxcnt);   // Use average to return something
-
-      console.writeln(channelText(channel) + " adjusted histogram min between " + start + " and " + end + " is at " + minCol + ", value " + adaptiveMinValue);
-
-      var normalizedMinCol = parseInt(minCol / histogramMatrix.cols);
-      console.writeln(channelText(channel) + " histogram min between " + start + " and " + end + " is at " + normalizedMinCol + " (value " + minValue + ", col "+ minCol + ", maxcol " + histogramMatrix.cols + ")");
-      return { minValue : minValue, minCol : minCol, maxCol : histogramMatrix.cols, normalizedMinCol :  normalizedMinCol, maxRows : histogramMatrix.rows };
-}
-
 function findHistogramPeak(win, channel)
 {
       var view = win.mainView;
@@ -2214,7 +2132,7 @@ function countPixels(histogramMatrix, row)
       return cnt;
 }
 
-function getClipShadowsValue(win, perc, adaptive, channel)
+function getClipShadowsValue(win, perc, channel)
 {
       // Get image histogram
       var view = win.mainView;
@@ -2231,30 +2149,7 @@ function getClipShadowsValue(win, perc, adaptive, channel)
       }
       // console.writeln("Total pixel count for matrix is " + pixelCount);
 
-      if (adaptive) {
-            // skip all zero values
-            for (var col = 0; col < histogramMatrix.cols; col++) {
-                  var colClipCount = 0;
-                  if (channel >= 0) {
-                        colClipCount += histogramMatrix.at(channel, col)
-                  } else {
-                        for (var row = 0; row < histogramMatrix.rows; row++) {
-                              colClipCount += histogramMatrix.at(row, col)
-                        }
-                  }
-                  if (colClipCount > 0) {
-                        break;
-                  }
-            }
-            var startCol = col;
-            var peak = findHistogramPeak(win, channel);
-            // Find minimum between zero and peak.
-            var minimum = findHistogramAdaptiveMinimum(win, Math.max(1, startCol), peak.peakCol, channel);
-            var start_col = minimum.minCol;
-      } else {
-            var start_col = 0;
-      }
-
+      var start_col = 0;
       var maxClip = (perc / 100) * pixelCount;
       console.writeln("Clip max " + maxClip + " pixels (" + perc + "%)");
 
@@ -5633,7 +5528,7 @@ function findLinearFitHSOMapRefimage(images, suggestion)
  *    mapRGBchannel when mixing LRGB and narrowband
  *    customMapping for narrowband images
  */
-function processChannelImage(image_id, is_luminance)
+function processChannelImage(image_id, is_luminance, noise_reduction)
 {
       console.writeln("processChannelImage " + image_id);
       if (image_id == null) {
@@ -5645,8 +5540,9 @@ function processChannelImage(image_id, is_luminance)
             run_ABE_before_channel_combination(image_id);
       }
 
-      if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
+      if (noise_reduction && par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
             // Optionally do noise reduction on color channels in linear state
+            // Noise reduction is best done after linear fit so we do not really do it here ever.
             if (is_luminance) {
                   luminanceNoiseReduction(findWindow(image_id), null);
             } else {
@@ -5693,7 +5589,7 @@ function mapRGBchannel(images, refimage, mapping, is_luminance)
       copyToMapImages(images);
 
       for (var i = 0; i < images.length; i++) {
-            processChannelImage(images[i], is_luminance);
+            processChannelImage(images[i], is_luminance, false);
       }
       refimage = refimage + "_map";
       console.writeln("mapRGBchannel, new refimage " + refimage);
@@ -5952,9 +5848,8 @@ function customMapping(RGBmapping, check_allfilesarr)
             copyToMapImages(images);
 
             for (var i = 0; i < images.length; i++) {
-                  processChannelImage(images[i], false);
+                  processChannelImage(images[i], false, false);
             }
-            RGBmapping.channels_processed = true;
 
             var narrowband_linear_fit = par.narrowband_linear_fit.val;
             if (narrowband_linear_fit == "Auto"
@@ -5969,6 +5864,20 @@ function customMapping(RGBmapping, check_allfilesarr)
             }
             var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
 
+            if (narrowband_linear_fit != "None") {
+                  /* Do a linear fit of images before PixelMath and before possible
+                   * stretching. We do this on both cases, linear and stretched.
+                   */
+                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
+                  linearFitArray(refimage, images);
+            }
+            if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
+                  // Do noise reduction after linear fit.
+                  for (var i = 0; i < images.length; i++) {
+                        channelNoiseReduction(images[i]);
+                  }
+                  RGBmapping.channel_noise_reduction = true;
+            }
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
                    */
@@ -5984,13 +5893,6 @@ function customMapping(RGBmapping, check_allfilesarr)
                         runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
                   }
                   RGBmapping.stretched = true;
-            }
-            if (narrowband_linear_fit != "None") {
-                  /* Do a linear fit of images before PixelMath. We do this on both cases,
-                  * linear and stretched.
-                  */
-                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
-                  linearFitArray(refimage, images);
             }
 
             /* Run PixelMath to create a combined RGB image.
@@ -6103,12 +6005,10 @@ function mapLRGBchannels(RGBmapping)
             green_id = copyToMapIf(G_id);
             blue_id = copyToMapIf(B_id);
 
-            processChannelImage(luminance_id, true);
-            processChannelImage(red_id, false);
-            processChannelImage(green_id, false);
-            processChannelImage(blue_id, false);
-
-            RGBmapping.channels_processed = true;
+            processChannelImage(luminance_id, true, false);
+            processChannelImage(red_id, false, false);
+            processChannelImage(green_id, false, false);
+            processChannelImage(blue_id, false, false);
       }
       return RGBmapping;
 }
@@ -6873,8 +6773,6 @@ function applySTF(imgView, stf, iscolor)
                   ];
       }
 
-      console.writeln("applySTF, HT.H = " + JSON.stringify(HT.H));
-
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
       HT.executeOn(imgView, false);
@@ -7030,7 +6928,7 @@ function stretchHistogramTransformIterationsChannel(ABE_win, channel)
             clipCount: 0
       };
 
-      for (var i = 0; i < 100; i++) {
+      for (var i = 0; i < 10; i++) {
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, channel);
             if (window_updated) {
@@ -7076,18 +6974,43 @@ function forceNewHistogram(target_win)
       }
 }
 
+function printImageStatistics(win, channel)
+{
+      var view = win.mainView;
+      if (channel >= 0) {
+            var stat_channel = channel;
+      } else {
+            var stat_channel = 0;
+      }
+
+      console.writeln(channelText(channel) + " Median " + view.computeOrFetchProperty("Median").at(stat_channel) + 
+                                             " MAD " + view.computeOrFetchProperty("MAD").at(stat_channel) +
+                                             " Mean " + view.computeOrFetchProperty("Mean").at(stat_channel) +
+                                             " StdDev " + view.computeOrFetchProperty("StdDev").at(stat_channel));
+}
+
+
 /* Experimenting with stretching, mostly just for fun and to understand
  * some functions and concepts.
+ * Works pretty ok on some images with Crop to common area and zero shadow
+ * clipping.
  */
 function stretchHistogramTransform(res, channel)
 {
       if (channel >= 0) {
             var channel_number = channel;
+            var median_channel = channel;
       } else {
             var channel_number = 3;
+            var median_channel = 0;
       }
+
       console.writeln("\n****************************************************************");
       console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
+
+      if (res.iteration_number == 1) {
+            printImageStatistics(res.win, channel);
+      }
 
       var target_value = par.histogram_stretch_target.val;
       var use_median = par.histogram_stretch_type.val == 'Median';
@@ -7097,15 +7020,22 @@ function stretchHistogramTransform(res, channel)
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
       if (use_median) {
-            var current_value = findSymmetryPoint(new_win, 50, channel);
+            // var current_value = findSymmetryPoint(new_win, 50, channel);
+            var current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
+            console.writeln(channelText(channel) + " Median " + current_value);
       } else {
             var current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
       }
 
       console.writeln("*** current value " + current_value);
 
-      var adjust = target_value - current_value;
-      midtones[channel_number] = 0.50 - adjust;
+      // Iterative method gives maybe a bit better shadows
+      if (0 && res.iteration_number == 1) {
+            midtones[channel_number] = Math.mtf(target_value, current_value);
+      } else {
+            var adjust = target_value - current_value;
+            midtones[channel_number] = 0.50 - adjust;
+      }
 
       console.writeln("*** midtones "+ midtones[channel_number]);
 
@@ -7113,22 +7043,70 @@ function stretchHistogramTransform(res, channel)
        */
       console.writeln("*** HistogramTransformation for midtones, " + channelText(channel));
 
-      var P = new HistogramTransformation;
-      P.H = [ // c0, c1, m, r0, r1
-            [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
-            [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
-            [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
-            [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
-            [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
-      ];
-      new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(new_win.mainView);
-      new_win.mainView.endProcess();
+      if (1) {
 
-      forceNewHistogram(new_win);
+            // Using HistogramTransformation
+            var P = new HistogramTransformation;
+            P.H = [ // c0, c1, m, r0, r1
+                  [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
+                  [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
+                  [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
+                  [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
+                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+            ];
+            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+            P.executeOn(new_win.mainView);
+            new_win.mainView.endProcess();
+
+      } else {
+            // Using PixelMath
+            var expression = "(m - 1)*$T/((2*m - 1)*$T - m)";
+
+            var P = new PixelMath;
+            if (channel >= 0) {
+                  switch (channel) {
+                        case 0:
+                              P.expression = expression;
+                              P.expression1 = "$T";
+                              P.expression2 = "$T";
+                              P.symbols = "m=" + midtones[0];
+                              break;
+                        case 1:
+                              P.expression = "$T";
+                              P.expression1 = expression;
+                              P.expression2 = "$T";
+                              P.symbols = "m=" + midtones[1];
+                              break;
+                        case 2:
+                              P.expression = "$T";
+                              P.expression1 = "$T";
+                              P.expression2 = expression;
+                              P.symbols = "m=" + midtones[2];
+                              break;
+                  }
+                  P.useSingleExpression = false;
+            } else {
+                  P.expression = expression;
+                  P.symbols = "m=" + midtones[0];
+                  P.useSingleExpression = true;
+            }
+            P.createNewImage = false;
+            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+      
+            console.writeln("Symbols " + P.symbols);
+      
+            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      
+            P.executeOn(new_win.mainView);
+      
+            new_win.mainView.endProcess();
+      }
 
       if (use_median) {
-            current_value = findSymmetryPoint(new_win, 50, channel);
+            // current_value = findSymmetryPoint(new_win, 50, channel);
+            current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
+            console.writeln(channelText(channel) + " Median " + current_value);
       } else {
             current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
       }
@@ -7139,7 +7117,7 @@ function stretchHistogramTransform(res, channel)
             var shadows = [ 0.00000000, 0.00000000, 0.00000000, 0.00000000 ];
 
             var shadows_clip_value = par.histogram_shadow_clip.val;
-            var clip = getClipShadowsValue(new_win, shadows_clip_value, !par.histogram_skip_adaptive_shadows.val, channel);
+            var clip = getClipShadowsValue(new_win, shadows_clip_value, channel);
             
             shadows[channel_number] = clip.normalizedShadowClipping;
             console.writeln("*** shadows " + shadows[channel_number]);
@@ -7158,9 +7136,10 @@ function stretchHistogramTransform(res, channel)
             P.executeOn(new_win.mainView);
             new_win.mainView.endProcess();
 
-            forceNewHistogram(new_win);
             if (use_median) {
-                  current_value = findSymmetryPoint(new_win, 50, channel);
+                  // current_value = findSymmetryPoint(new_win, 50, channel);
+                  current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
+                  console.writeln(channelText(channel) + " Median " + current_value);
             } else {
                   current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
             }
@@ -7174,14 +7153,16 @@ function stretchHistogramTransform(res, channel)
       if (new_win.mainView.image.isColor) {
             for (var i = 0; i < 3; i++) {
                   if (use_median) {
-                        findSymmetryPoint(new_win, 50, i);
+                        // findSymmetryPoint(new_win, 50, i);
+                        console.writeln(channelText(i) + " Median " + new_win.mainView.computeOrFetchProperty("Median").at(i));
                   } else {
                         findHistogramPeak(new_win, i);
                   }
             } 
       } else {
             if (use_median) {
-                  findSymmetryPoint(new_win, 50);
+                  // findSymmetryPoint(new_win, 50);
+                  console.writeln(channelText(channel) + " Median " + new_win.mainView.computeOrFetchProperty("Median").at(0));
             } else {
                   findHistogramPeak(new_win);
             }
@@ -7206,6 +7187,7 @@ function stretchHistogramTransform(res, channel)
                   // we are close enough, we are done
                   console.writeln("*** Stop, stretch completed, we are close enough, current value " + current_value + ", target value" + target_value);
                   res.completed = true;
+                  printImageStatistics(new_win, channel);
             }
             // find new window and copy keywords
             setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
@@ -7229,8 +7211,6 @@ function stretchHistogramTransform(res, channel)
 
 function runHistogramTransformHyperbolic(res, iscolor)
 {
-      forceNewHistogram(res.win);
-            
       var iteration_number = res.iteration_number;
       var image_id = res.win.mainView.id;
 
@@ -8900,7 +8880,7 @@ function ProcessLimage(RGBmapping)
                   }
             }
 
-            if (!RGBmapping.combined && !RGBmapping.channels_processed) {
+            if (!RGBmapping.combined && !RGBmapping.channel_noise_reduction) {
                   /* Noise reduction for L. */
                   luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
             }
@@ -9021,6 +9001,13 @@ function LinearFitLRGBchannels()
 function CombineRGBimageEx(target_name, images)
 {
       addProcessingStepAndStatusInfo("Combine RGB image");
+
+      if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
+            addProcessingStep("Noise reduction on channel images");
+            for (var i = 0; i < images.length; i++) {
+                  channelNoiseReduction(images[i]);
+            }
+      }
 
       /* ChannelCombination
        */
@@ -11266,7 +11253,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                              (preprocessed_images == start_images.NONE ||
                               preprocessed_images == start_images.L_R_G_B_BE ||
                               preprocessed_images == start_images.L_R_G_B);
-            var RGBmapping = { combined: false, stretched: false, channels_processed: false };
+            var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false };
 
             runGC();
 
@@ -11277,7 +11264,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                   /* Do possible channel mapping. After that we 
                    * have red_id, green_id and blue_id.
                    * We may also have luminance_id.
-                   * We may have a mapped RGB image in case or
+                   * We may have a mapped RGB image in case of
                    * narrowband/custom mapping where RGB is created in
                    * mapLRGBchannels -> customMapping.
                    */
@@ -15957,8 +15944,6 @@ function toggleSidePreview()
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
       this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 99, "Target value specifies where we try to get the the value calculated using Target type.");
 
-      // this.histogramNoAdaptiveShadowClip_CheckBox = newCheckBox(this, "No Adaptive shadow clip", par.histogram_skip_adaptive_shadows, "Adaptive shadow clip tries to find histogram shadow minimum and start clipping from there.");
-
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
       this.histogramStretchingSizer.margin = 2;
@@ -15966,7 +15951,6 @@ function toggleSidePreview()
       this.histogramStretchingSizer.add( this.histogramTypeLabel );
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
-      //this.histogramStretchingSizer.add( this.histogramNoAdaptiveShadowClip_CheckBox );
       this.histogramStretchingSizer.addStretch();
       
       /* Options.
