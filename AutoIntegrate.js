@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test9";                // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test10";               // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files.";                // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -520,7 +520,10 @@ this.par = {
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
       extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
-      extra_remove_stars_combine: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
+      extra_combine_stars_mode: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
+      extra_combine_stars_reduce: { val: 'None', def: 'None', name : "Extra combine stars reduce", type : 'S' },
+      extra_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Extra combine stars reduce S", type : 'R' },
+      extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
@@ -621,6 +624,7 @@ var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
 var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
+var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 
@@ -5382,7 +5386,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 }
 
 /* Run single expression PixelMath and optionally create new image. */
-function runPixelMathSingleMappingEx(id, mapping, createNewImage)
+function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols)
 {
       addProcessingStepAndStatusInfo("Run PixelMath single mapping");
 
@@ -5397,6 +5401,9 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage)
 
       var P = new PixelMath;
       P.expression = mapping;
+      if (symbols) {
+            P.symbols = symbols;
+      }
       P.createNewImage = createNewImage;
       P.showNewImage = false;
       P.newImageId = id + "_pm";
@@ -9718,6 +9725,74 @@ function createStarMaskIf(imgWin)
       star_mask_win_id = star_mask_win.mainView.id;
 }
 
+/* Star Reduction using PixelMath, by Bill Blanshan
+ */
+function smallerStarsBillsPixelmathMethod(combined_id, starless_id)
+{
+      addProcessingStepAndStatusInfo("Reduce stars using " + par.extra_combine_stars_reduce.val + " method");
+
+      switch (par.extra_combine_stars_reduce.val) {
+            case 'Transfer':
+                  /* 1. Transfer Method - V2
+                   */
+                  var expression = 
+                  "S=" + par.extra_combine_stars_reduce_S.val + ";\n" + // To reduce stars size more, lower S value
+                  "Img1=" + starless_id + ";\n" +                       // Starless image name
+                  "\n" +                                                // equations
+                  "f1= ~((~mtf(~S,$T)/~mtf(~S,Img1))*~Img1);\n" +       // Transfer method 
+                  "\n" +
+                  "max(Img1,f1)";
+                  var symbols = "S,Img1,f1";
+                  break;
+
+            case 'Halo':
+                  /* 2. Halo Method - V2
+                   */
+                  var expression = 
+                  "S=" + par.extra_combine_stars_reduce_S.val + ";\n" + // To reduce stars size more, lower S value
+                  "Img1=" + starless_id + ";\n" +                       // Starless image name
+                  "f2= ((~(~$T/~Img1)-~(~mtf(~S,$T)/~mtf(~S,Img1)))*~Img1);\n" +
+                  "f3= (~(~$T/~Img1)-~(~mtf(~S,$T)/~mtf(~S,Img1)));\n" +
+                  "max(Img1,$T-mean(f2,f3))";
+                  var symbols = "S,B,Img1,f2,f3";
+                  break;
+
+            case 'Star':
+                  /* 3. Star Method - V2
+                  */
+                  var expression = 
+                  "Img1=" + starless_id + ";\n" +                       // Starless image name
+                  "I=1;\n" +                                            // number of iterations, between 1-3
+                  "M=" + par.extra_combine_stars_reduce_M.val + ";\n" + // Method mode; 1=Strong; 2=Moderate; 3=Soft reductions
+                  "\n" +                                                // equations:
+                  "E1= $T*~(~(Img1/$T)*~$T);\n" +                       // iteration-1
+                  "E2= max(E1,($T*E1)+(E1*~E1));\n" +
+                  "\n" +
+                  "E3= E1*~(~(Img1/E1)*~E1);\n" +                       // iteration-2
+                  "E4= max(E3,($T*E3)+(E3*~E3));\n" +
+                  "\n" +
+                  "E5= E3*~(~(Img1/E3)*~E3);\n" +                       // iteration-3
+                  "E6= max(E5,($T*E5)+(E5*~E5));\n" +
+                  "\n" +
+                  "E7= iif(I==1,E1,iif(I==2,E3,E5));\n" +               // Strong reduction mode
+                  "E8= iif(I==1,E2,iif(I==2,E4,E6));\n" +               // Moderate reduction mode
+                  "\n" +
+                  "E9= mean(\n" +
+                  "$T-($T-iif(I==1,E2,iif(I==2,E4,E6))),\n" + 
+                  "$T*~($T-iif(I==1,E2,iif(I==2,E4,E6))));\n" +         //soft reduction mode
+                  "\n" +
+                  "max(Img1,iif(M==1,E7,iif(M==2,E8,E9)))";
+                  var symbols = "I,M,Img1,E1,E2,E3,E4,E5,E6,E7,E8,E9,E10";
+                  break;
+
+            default:
+                  throwFatalError("Invalid star reduce mode " + par.extra_combine_stars_reduce.val);
+                  break;
+      }
+
+      runPixelMathSingleMappingEx(combined_id, expression, false, symbols);
+}
+
 function extraSmallerStars(imgWin, is_star_image)
 {
       var use_mask = true;
@@ -10073,11 +10148,21 @@ function findStarImageId(starless_id, original_id)
       if (stars_id != null) {
             return stars_id;
       }
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless$/g, "stars"));
+      if (stars_id != null) {
+            return stars_id;
+      }
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless.*/g, "stars"));
+      if (stars_id != null) {
+            return stars_id;
+      }
       return null;
 }
 
-function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNewImage)
+function combineStarsAndStarless(stars_combine, starless_id, stars_id)
 {
+      var createNewImage = true;
+
       /* Restore stars by combining starless image and stars. */
       addProcessingStepAndStatusInfo("Combining starless and star images using " + stars_combine);
       if (stars_id == null) {
@@ -10107,6 +10192,10 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id, createNew
                                     starless_id + " + " + stars_id,
                                     createNewImage);
                   break;
+      }
+
+      if (par.extra_combine_stars_reduce.val != 'None') {
+            smallerStarsBillsPixelmathMethod(new_id, starless_id);
       }
 
       return new_id;
@@ -10240,10 +10329,9 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_combine_stars.val) {
             /* Restore stars by combining starless image and stars. */
             var new_image_id = combineStarsAndStarless(
-                                    par.extra_remove_stars_combine.val,
+                                    par.extra_combine_stars_mode.val,
                                     extraWin.mainView.id, // starless
-                                    extra_stars_id, 
-                                    true);
+                                    extra_stars_id);
             // Close original window that was created before stars were removed
             closeOneWindow(extra_id);
             // restore original final image name
@@ -11402,8 +11490,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                   var new_image = combineStarsAndStarless(
                                     par.stars_combine.val,
                                     starless_id, 
-                                    stars_id, 
-                                    true);
+                                    stars_id);
                   // restore original final image name
                   console.writeln("Rename " + new_image + " as " + LRGB_ABE_HT_id);
                   windowRename(new_image, LRGB_ABE_HT_id);
@@ -13659,9 +13746,10 @@ function addFilesButtons(parent)
       filesButtons_Sizer.add( addDarksButton );
       filesButtons_Sizer.add( addFlatsButton );
       filesButtons_Sizer.add( addFlatDarksButton );
-      filesButtons_Sizer.addSpacing( 20 );
+      filesButtons_Sizer.addSpacing( 12 );
       filesButtons_Sizer.add( target_type_sizer );
       filesButtons_Sizer.addStretch();
+      filesButtons_Sizer.addSpacing( 12 );
       filesButtons_Sizer.add( winprefix_sizer );
       filesButtons_Sizer.add( outputdir_sizer );
       return filesButtons_Sizer;
@@ -16492,16 +16580,56 @@ function toggleSidePreview()
       this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
       this.extraRemoveStars_Sizer.addStretch();
 
+      var extraCombineStarsReduce_Tooltip =
+            "<p>With reduce selection it is possible to reduce stars while combining. " +
+            "Star reduction uses PixelMath expressions created by Bill Blanshan.</p>" +
+            "<p>Different methods are:</p>" +
+            "<p>" +
+            "None - No reduction<br>" +
+            "Transfer - Method 1, Transfer method<br>" +
+            "Halo - Method 2, Halo method<br>" +
+            "Star - Method 3, Star method" +
+            "</p>";
       var extraCombineStars_Tooltip = 
             "<p>Create a combined image from starless and star images. Combine operation can be " + 
             "selected from the combo box.</p>" +
-            stars_combine_operations_Tooltip;
+            stars_combine_operations_Tooltip + 
+            extraCombineStarsReduce_Tooltip;
       this.extraCombineStars_CheckBox = newCheckBox(this, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
-      this.extraCombineStars_ComboBox = newComboBox(this, par.extra_remove_stars_combine, starless_and_stars_combine_values, extraCombineStars_Tooltip);
-      this.extraCombioneStars_Sizer = new HorizontalSizer;
+      this.extraCombineStars_ComboBox = newComboBox(this, par.extra_combine_stars_mode, starless_and_stars_combine_values, extraCombineStars_Tooltip);
+      
+      this.extraCombioneStars_Sizer1= new HorizontalSizer;
+      this.extraCombioneStars_Sizer1.spacing = 4;
+      this.extraCombioneStars_Sizer1.add( this.extraCombineStars_CheckBox);
+      this.extraCombioneStars_Sizer1.add( this.extraCombineStars_ComboBox);
+      this.extraCombioneStars_Sizer1.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombioneStars_Sizer1.addStretch();
+
+      this.extraCombineStarsReduce_Label = newLabel(this, "Reduce stars", extraCombineStarsReduce_Tooltip);
+      this.extraCombineStarsReduce_ComboBox = newComboBox(this, par.extra_combine_stars_reduce, star_reduce_methods, 
+            extraCombineStarsReduce_Tooltip);
+      this.extraCombineStarsReduce_S_edit = newNumericEdit(this, 'S', par.extra_combine_stars_reduce_S, 0.0, 1.0, 
+            "<p>To reduce stars size more with Transfer and Halo, lower S value.<p>" + extraCombineStarsReduce_Tooltip);
+      var extraCombineStarsReduce_M_toolTip = "<p>Star method mode; 1=Strong; 2=Moderate; 3=Soft reductions.</p>" + extraCombineStarsReduce_Tooltip;
+      this.extraCombineStarsReduce_M_Label = newLabel(this, "I", extraCombineStarsReduce_M_toolTip);
+      this.extraCombineStarsReduce_M_SpinBox = newSpinBox(this, par.extra_combine_stars_reduce_M, 1, 3, 
+            extraCombineStarsReduce_M_toolTip);
+
+      this.extraCombioneStars_Sizer2 = new HorizontalSizer;
+      this.extraCombioneStars_Sizer2.spacing = 4;
+      this.extraCombioneStars_Sizer2.addSpacing(20);
+      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_Label);
+      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_ComboBox);
+      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
+      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
+      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
+      this.extraCombioneStars_Sizer2.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombioneStars_Sizer2.addStretch();
+
+      this.extraCombioneStars_Sizer = new VerticalSizer;
       this.extraCombioneStars_Sizer.spacing = 4;
-      this.extraCombioneStars_Sizer.add( this.extraCombineStars_CheckBox);
-      this.extraCombioneStars_Sizer.add( this.extraCombineStars_ComboBox);
+      this.extraCombioneStars_Sizer.add( this.extraCombioneStars_Sizer1);
+      this.extraCombioneStars_Sizer.add( this.extraCombioneStars_Sizer2);
       this.extraCombioneStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
       this.extraCombioneStars_Sizer.addStretch();
 
