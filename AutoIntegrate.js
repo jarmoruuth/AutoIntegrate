@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test11";                                       // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.52";                                              // Version, also updated into updates.xri
 var autointegrate_info = "Use already processed files, histogram stretch, star reduction.";     // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
