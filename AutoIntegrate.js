@@ -301,8 +301,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.52 test10";               // Version, also updated into updates.xri
-var autointegrate_info = "Use already processed files.";                // For updates.xri
+var autointegrate_version = "AutoIntegrate v1.52 test11";                                       // Version, also updated into updates.xri
+var autointegrate_info = "Use already processed files, histogram stretch, star reduction.";     // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
 var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
@@ -504,7 +504,7 @@ this.par = {
       Hyperbolic_target: { val: 0.25, def: 0.25, name : "Hyperbolic Stretch target", type : 'I' }, 
       Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
       Hyperbolic_mode: { val: 1, def: 1, name : "Hyperbolic Stretch mode", type : 'I' }, 
-      histogram_shadow_clip: { val: 0.01, def: 0.01, name : "Histogram shadow clip", type : 'I' }, 
+      histogram_shadow_clip: { val: 0.00, def: 0.00, name : "Histogram shadow clip", type : 'I' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
       histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
 
@@ -5535,7 +5535,7 @@ function findLinearFitHSOMapRefimage(images, suggestion)
  *    mapRGBchannel when mixing LRGB and narrowband
  *    customMapping for narrowband images
  */
-function processChannelImage(image_id, is_luminance, noise_reduction)
+function processChannelImage(image_id, is_luminance)
 {
       console.writeln("processChannelImage " + image_id);
       if (image_id == null) {
@@ -5547,15 +5547,6 @@ function processChannelImage(image_id, is_luminance, noise_reduction)
             run_ABE_before_channel_combination(image_id);
       }
 
-      if (noise_reduction && par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
-            // Optionally do noise reduction on color channels in linear state
-            // Noise reduction is best done after linear fit so we do not really do it here ever.
-            if (is_luminance) {
-                  luminanceNoiseReduction(findWindow(image_id), null);
-            } else {
-                  channelNoiseReduction(image_id);
-            }
-      }
       if (par.remove_stars_channel.val) {
             if (is_luminance) {
                   removeStars(findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
@@ -11904,7 +11895,7 @@ function newLabel(parent, text, tip)
       return lbl;
 }
 
-function newNumericEdit(parent, txt, param, min, max, tooltip)
+function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision)
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
@@ -11914,7 +11905,7 @@ function newNumericEdit(parent, txt, param, min, max, tooltip)
       edt.onValueUpdated = function(value) { 
             edt.aiParam.val = value; 
       };
-      edt.setPrecision( 2 );
+      edt.setPrecision( precision );
       edt.setRange(min, max);
       edt.setValue(edt.aiParam.val);
       edt.toolTip = tooltip;
@@ -11922,6 +11913,11 @@ function newNumericEdit(parent, txt, param, min, max, tooltip)
             edt.setValue(edt.aiParam.val);
       };
       return edt;
+}
+
+function newNumericEdit(parent, txt, param, min, max, tooltip)
+{
+      return newNumericEditPrecision(parent, txt, param, min, max, tooltip, 2)
 }
 
 function newRGBNBNumericEdit(parent, txt, param, tooltip)
@@ -16026,8 +16022,8 @@ function toggleSidePreview()
       this.hyperbolicSizer.add( this.hyperbolicSizer2 );
       this.hyperbolicSizer.addStretch();
 
-      this.histogramShadowClip_Control = newNumericEdit(this, "Histogram stretch shadow clip", par.histogram_shadow_clip, 0, 99,
-                                          "Percentage of shadows that are clipped with Histogram stretch.");
+      this.histogramShadowClip_Control = newNumericEditPrecision(this, "Histogram stretch shadow clip", par.histogram_shadow_clip, 0, 99,
+                                          "Percentage of shadows that are clipped with Histogram stretch.", 3);
       this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
       this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 99, "Target value specifies where we try to get the the value calculated using Target type.");
@@ -16712,7 +16708,7 @@ function toggleSidePreview()
 
       var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
       this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
-      this.extra_shadowclipperc_edit = newNumericEdit(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip);
+      this.extra_shadowclipperc_edit = newNumericEditPrecision(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 3);
       this.extra_shadowclip_Sizer = new HorizontalSizer;
       this.extra_shadowclip_Sizer.spacing = 4;
       this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
