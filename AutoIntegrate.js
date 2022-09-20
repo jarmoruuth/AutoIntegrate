@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53 Test2";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.53 Test3";          // Version, also updated into updates.xri
 var autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -539,6 +539,8 @@ this.par = {
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
       extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
+      extra_smoothbackground: { val: false, def: false, name : "Extra smooth background", type : 'B' },
+      extra_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Extra smooth background value", type : 'R' },
       extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
@@ -971,6 +973,8 @@ function previewControlCleanup(control)
       control.scrollbox.viewport.onMouseRelease = null;
       control.scrollbox.viewport.onResize = null;
       control.scrollbox.viewport.onPaint = null;
+      control.image = null;
+      control.imgWin = null;
 }
 
 function previewCleanup(previewObj)
@@ -1884,10 +1888,11 @@ function saveProcessedChannelImage(id, save_id)
             return;
       }
 
+      // Replace _map or _map_pm to _processed
       if (save_id) {
-            save_id = save_id.replace("_map", "_processed");
+            save_id = save_id.replace(/_map.*/g, "_processed");
       } else {
-            save_id = id.replace("_map", "_processed");
+            save_id = id.replace(/_map.*/g, "_processed");
       }
       copyWindow(findWindow(id), save_id);
 
@@ -5586,6 +5591,10 @@ function findLinearFitHSOMapRefimage(images, suggestion)
       var refimage;
       console.writeln("findLinearFitHSOMapRefimage");
       if (suggestion == "Auto") {
+            refimage = ppar.win_prefix + "Integration_H_map";
+            if (arrayFindImage(images, refimage)) {
+                  return(refimage);
+            }
             refimage = ppar.win_prefix + "Integration_O_map";
             if (arrayFindImage(images, refimage)) {
                   return(refimage);
@@ -5831,6 +5840,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 {
       addProcessingStepAndStatusInfo("Remove stars");
 
+      if (linear_data && use_unscreen) {
+            console.writeln("Not using unscreen for linear data");
+      }
+
       var create_star_mask = save_stars;
       if (save_stars && use_unscreen) {
             var originalwin_copy = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
@@ -5857,6 +5870,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       P.executeOn(imgWin.mainView, false);
       
       imgWin.mainView.endProcess();
+
+      if (par.use_starxterminator.val) {
+            console.writeln("StarXTerminator completed");
+      }
 
       updatePreviewWin(imgWin);
 
@@ -8153,6 +8170,9 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
       } else {
             autocontinue_prefix = ppar.win_prefix;
       }
+      if (id) {
+            console.writeln("findWindowIdCheckBaseNameIf: found " + id);
+      }
       return id;
 }
 
@@ -8202,7 +8222,7 @@ function findProcessedChannelImages(check_base_name)
       }
 }
 
-function findProcessedImages(check_base_name)
+function findChannelImages(check_base_name)
 {
       findProcessedChannelImages(check_base_name);
 
@@ -8334,23 +8354,31 @@ function extractChannels(fileNames)
       return newFileNames;
 }
 
+function findStartWindowCheckBaseNameIf(id, check_base_name)
+{
+      var win = findWindowCheckBaseNameIf(id, check_base_name);
+      if (win) {
+            console.writeln("findStartWindowCheckBaseNameIf: found " + win.mainView.id);
+      }
+}
+
 function findStartImages(auto_continue, check_base_name)
 {
       /* Check if we have manually done histogram transformation. */
-      L_HT_win = findWindowCheckBaseNameIf("L_HT", check_base_name);
-      RGB_HT_win = findWindowCheckBaseNameIf("RGB_HT", check_base_name);
+      L_HT_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
+      RGB_HT_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
 
       /* Check if we have manual background extracted files. */
-      L_BE_win = findWindowCheckBaseNameIf("Integration_L_DBE", check_base_name);
-      R_BE_win = findWindowCheckBaseNameIf("Integration_R_DBE", check_base_name);
-      G_BE_win = findWindowCheckBaseNameIf("Integration_G_DBE", check_base_name);
-      B_BE_win = findWindowCheckBaseNameIf("Integration_B_DBE", check_base_name);
-      H_BE_win = findWindowCheckBaseNameIf("Integration_H_DBE", check_base_name);
-      S_BE_win = findWindowCheckBaseNameIf("Integration_S_DBE", check_base_name);
-      O_BE_win = findWindowCheckBaseNameIf("Integration_O_DBE", check_base_name);
-      RGB_BE_win = findWindowCheckBaseNameIf("Integration_RGB_DBE", check_base_name);
+      L_BE_win = findStartWindowCheckBaseNameIf("Integration_L_DBE", check_base_name);
+      R_BE_win = findStartWindowCheckBaseNameIf("Integration_R_DBE", check_base_name);
+      G_BE_win = findStartWindowCheckBaseNameIf("Integration_G_DBE", check_base_name);
+      B_BE_win = findStartWindowCheckBaseNameIf("Integration_B_DBE", check_base_name);
+      H_BE_win = findStartWindowCheckBaseNameIf("Integration_H_DBE", check_base_name);
+      S_BE_win = findStartWindowCheckBaseNameIf("Integration_S_DBE", check_base_name);
+      O_BE_win = findStartWindowCheckBaseNameIf("Integration_O_DBE", check_base_name);
+      RGB_BE_win = findStartWindowCheckBaseNameIf("Integration_RGB_DBE", check_base_name);
 
-      findProcessedImages(check_base_name);
+      findChannelImages(check_base_name);
 
       if (is_extra_option() || is_narrowband_option()) {
             for (var i = 0; i < final_windows.length; i++) {
@@ -8421,6 +8449,10 @@ function findStartImages(auto_continue, check_base_name)
             checkAutoCont(findWindow(autocontinue_processed_channel_images.image_ids[0]));
             narrowband = autocontinue_processed_channel_images.narrowband;
             preprocessed_images = start_images.L_R_G_B_PROCESSED;
+            // Clear possible narrowband images because we use already processed and mapped images
+            H_id = null; 
+            S_id = null; 
+            O_id != null;
       } else if ((R_id != null && G_id != null && B_id != null) ||
                   (H_id != null && O_id != null)) {                           /* L,R,G,B integrated images */
             addProcessingStep("L,R,G,B integrated images");
@@ -8473,6 +8505,36 @@ function getFileProcessedStatus(fileNames, postfix)
 function getFileProcessedStatusCalibrated(fileNames, postfix)
 {
       return getFileProcessedStatusEx(fileNames, postfix, outputRootDir + AutoCalibratedDir);
+}
+
+function preprocessedName(pi)
+{
+      switch (pi) {
+            case start_images.NONE:
+                  return "None";
+            case start_images.L_R_G_B_BE:
+                  return "Background extracted channel images";
+            case start_images.L_RGB_BE:
+                  return "Background extracted L and RGB images";
+            case start_images.RGB_BE:
+                  return "Background extracted RGB image";
+            case start_images.L_RGB_HT:
+                  return "Stretched L and RGB images";
+            case start_images.RGB_HT:
+                  return "Stretched RGB image";
+            case start_images.RGB_COLOR:
+                  return "Integrated RGB image";
+            case start_images.L_R_G_B_PROCESSED:
+                  return "Processed channel images";
+            case start_images.L_R_G_B:
+                  return "Integrated channel images";
+            case start_images.FINAL:
+                  return "Final image";
+            case start_images.CALIBRATE_ONLY:
+                  return "Calibrate only";
+            default:
+                  return "Unknown " + pi;
+      }
 }
 
 /* Create master L, R, G and B images, or a Color image
@@ -8533,7 +8595,7 @@ function CreateChannelImages(parent, auto_continue)
       if (preprocessed_images == start_images.FINAL) {
             return true;
       } else if (preprocessed_images != start_images.NONE) {
-            addProcessingStep("Using preprocessed images " + preprocessed_images);
+            addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
             console.writeln("L_BE_win="+L_BE_win);
             console.writeln("RGB_BE_win="+RGB_BE_win);
             console.writeln("L_HT_win="+L_HT_win);
@@ -9400,7 +9462,7 @@ function testRGBNBmapping()
 
       addProcessingStep("Test narrowband mapping to RGB");
 
-      findProcessedImages(false);
+      findChannelImages(false);
 
       if (RGBcolor_id == null) {
             throwFatalError("Could not find RGB image");
@@ -10082,6 +10144,17 @@ function extraShadowClipping(win, perc)
       updatePreviewWin(win);
 }
 
+function extraSmoothBackground(win, val)
+{
+      addProcessingStepAndStatusInfo("Extra background smoothing with value " + val);
+
+      var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)/2,$T)";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+
+      updatePreviewWin(win);
+}
+
 function extraNoiseReduction(win, mask_win)
 {
       if (par.extra_noise_reduction_strength.val == 0) {
@@ -10216,6 +10289,7 @@ function is_non_starless_option()
              par.extra_contrast.val ||
              par.extra_stretch.val ||
              par.extra_shadowclipping.val ||
+             par.extra_smoothbackground.val ||
              par.extra_noise_reduction.val ||
              par.extra_ACDNR.val ||
              par.extra_color_noise.val ||
@@ -10498,6 +10572,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_shadowclipping.val) {
             extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
+      }
+      if (par.extra_smoothbackground.val) {
+            extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val);
       }
       if (par.extra_star_noise_reduction.val) {
             if (par.extra_remove_stars.val) {
@@ -11077,14 +11154,22 @@ function findBounding_box(lowClipImageWindow)
             }
 
             let all_valid = true;
+            let non_valid_count_limit = 1;
 
             // Check if left most column is entirely valid
             let left_col_valid = true;
+            let non_valid_count = 0;
             for (let i=top_row; i<=bottom_row; i++)
             {
                   left_col_valid = left_col_valid && image.sample(left_col,i)>0;
-                  if (!left_col_valid) {
+                  if (left_col_valid) {
+                        non_valid_count = 0;
+                  } else if (non_valid_count > non_valid_count_limit) {
+                        left_col_valid = false;
                         break;
+                  } else {
+                        non_valid_count++;
+                        left_col_valid = true;
                   }
             }
             if (! left_col_valid) 
@@ -11096,11 +11181,18 @@ function findBounding_box(lowClipImageWindow)
 
             // Check if right most column is entirely valid
             let right_col_valid = true;
+            non_valid_count = 0;
             for (let i=top_row; i<=bottom_row; i++)
             {
                   right_col_valid = right_col_valid && image.sample(right_col,i)>0;
-                  if (!right_col_valid) {
+                  if (right_col_valid) {
+                        non_valid_count = 0;
+                  } else if (non_valid_count > non_valid_count_limit) {
+                        right_col_valid = false;
                         break;
+                  } else {
+                        non_valid_count++;
+                        right_col_valid = true;
                   }
             }
             if (! right_col_valid) 
@@ -11112,11 +11204,18 @@ function findBounding_box(lowClipImageWindow)
 
             // Check if top most column is entirely valid
             let top_row_valid = true;
+            non_valid_count = 0;
             for (let i=left_col; i<=right_col; i++)
             {
                   top_row_valid = top_row_valid && image.sample(i,top_row)>0;
-                  if (!top_row_valid) {
+                  if (top_row_valid) {
+                        non_valid_count = 0;
+                  } else if (non_valid_count > non_valid_count_limit) {
+                        top_row_valid = false;
                         break;
+                  } else {
+                        non_valid_count++;
+                        top_row_valid = true;
                   }
             }
             if (! top_row_valid) 
@@ -11128,11 +11227,18 @@ function findBounding_box(lowClipImageWindow)
             
             // Check if bottom most column is entirely valid
             let bottom_row_valid = true;
+            non_valid_count = 0;
             for (let i=left_col; i<=right_col; i++)
             {
                   bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)>0;
-                  if (!bottom_row_valid) {
+                  if (bottom_row_valid) {
+                        non_valid_count = 0;
+                  } else if (non_valid_count > non_valid_count_limit) {
+                        bottom_row_valid = false;
                         break;
+                  } else {
+                        non_valid_count++;
+                        bottom_row_valid = true;
                   }
             }
             if (! bottom_row_valid) 
@@ -11229,7 +11335,7 @@ function calculate_crop_amount(window_id, crop_auto_continue)
             return null;
       }
 
-      if (crop_auto_continue) {
+      if (crop_auto_continue && !par.cropinfo_only.val) {
             let preview = lowClipImageWindow.previewById("crop");
             if (preview.isNull) {
                   throwFatalError("Error: crop preview not found from " + lowClipImageWindow.mainView.id);
@@ -11474,7 +11580,7 @@ function AutoIntegrateEngine(parent, auto_continue)
       if (create_channel_images_ret == retval.SUCCESS || 
           (par.cropinfo_only.val && create_channel_images_ret == retval.INCOMPLETE)) 
       {
-            /* If requested, we crop all channel images and channel support images (the *_map images)
+            /* If requested, we crop all channel support images (the *_map images)
              * to an area covered by all source images.
              */ 
             if (! auto_continue) {
@@ -11484,7 +11590,7 @@ function AutoIntegrateEngine(parent, auto_continue)
                         console.warningln("Images are not cropped to common area, borders may be of lower quality");
                   }
             } else  {
-                  if (par.crop_to_common_area.val) {
+                  if (par.crop_to_common_area.val || par.cropinfo_only.val) {
                         cropChannelImagesAutoContinue();
                   } else {
                         console.writeln("Crop ignored in AutoContinue, use images as is (possibly already cropped)") ;
@@ -12445,15 +12551,15 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImageBmp(updPreviewControl, bmp)
+function updatePreviewImageBmp(updPreviewControl, imgWin, bmp)
 {
       if (updPreviewControl == null) {
             return;
       }
       if ((is_some_preview && !is_processing) || preview_keep_zoom) {
-            updPreviewControl.UpdateImage(bmp);
+            updPreviewControl.UpdateImage(imgWin, bmp);
       } else {
-            updPreviewControl.SetImage(bmp);
+            updPreviewControl.SetImage(imgWin, bmp);
       }
 }
 
@@ -12481,8 +12587,8 @@ function updatePreviewWinTxt(imgWin, txt)
                   preview_size_changed = false;
             }
             var bmp = getWindowBitmap(imgWin);
-            updatePreviewImageBmp(tabPreviewControl, bmp);
-            updatePreviewImageBmp(sidePreviewControl, bmp);
+            updatePreviewImageBmp(tabPreviewControl, imgWin, bmp);
+            updatePreviewImageBmp(sidePreviewControl, imgWin, bmp);
             updatePreviewTxt(txt);
             console.noteln("Preview updated");
             is_some_preview = true;
@@ -12564,7 +12670,7 @@ function updatePreviewNoImageInControl(control)
       startupWindow.mainView.image.blend(bitmap);
       startupWindow.mainView.endProcess();
 
-      control.UpdateImage(getWindowBitmap(startupWindow));
+      control.UpdateImage(startupWindow, getWindowBitmap(startupWindow));
 
       startupWindow.forceClose();
 }
@@ -14501,7 +14607,7 @@ function newAutoContinueButton(parent, toolbutton)
       var autocontinue_action = function()
       {
             exitFromDialog();
-            console.writeln("autoContinue");
+            console.writeln("Start AutoContinue");
 
             // Do not create subdirectory structure with AutoContinue
 
@@ -14564,19 +14670,20 @@ function newAutoContinueButton(parent, toolbutton)
             ":/icons/goto-next.png",
             "AutoContinue",
             "AutoContinue - Run automatic processing from previously created LRGB, narrowband or Color images." +
-            "<p>" +
-            "Image check order is:<br>" +
-            "1. AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing" +
-            "2. L_HT + RGB_HT - Manually stretched L and RGB images<br>" +
-            "3. RGB_HT - Manually stretched RGB image<br>" +
-            "4. Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images<br>" +
-            "5. Integration_RGB_DBE - Background extracted RGB image<br>" +
-            "6. Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images<br>" +
-            "7. Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images<br>" +
-            "8. Integration_RGBcolor - Integrated Color image<br>" +
-            "9. Integration_H + Integration_S + Integration_O - Integrated channel images<br>" +
-            "10. Integration_L + Integration_R + Integration_G + Integration_B - Integrated channel images<br>" +
-            "</p>" +
+            "<p>Image check order is:</p>" +
+            "<ol>" +
+            "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
+            "<li>L_HT + RGB_HT - Manually stretched L and RGB images</li>" +
+            "<li>RGB_HT - Manually stretched RGB image</li>" +
+            "<li>Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images</li>" +
+            "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
+            "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
+            "<li>Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images</li>" +
+            "<li>Integration_RGBcolor - Integrated Color image</li>" +
+            "<li>Integration_<i>channel</i>_processed - <i>channel</i> can be LRGBHSO</li>" +
+            "<li>Integration_H + Integration_S + Integration_O - Integrated channel images</li>" +
+            "<li>Integration_L + Integration_R + Integration_G + Integration_B - Integrated channel images</li>" +
+            "</ol>" +
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
@@ -14982,23 +15089,28 @@ function PreviewControl(parent, size_x, size_y)
 	this.__base__ = Frame;
   	this.__base__(parent);
 
-      this.SetImage = function(image)
+
+      // Set image window and bitmap
+      this.SetImage = function(imgWin, image)
       {
             //console.writeln("SetImage");
             this.image = image;
+            this.imgWin = imgWin;
             this.metadata = image;
             this.scaledImage = null;
             this.SetZoomOutLimit();
             this.UpdateZoom(-100);
       }
 
-      this.UpdateImage = function(image)
+      // Update image window and bitmap
+      this.UpdateImage = function(imgWin, image)
       {
             //console.writeln("UpdateImage");
             if (this.zoom == this.zoomOutLimit) {
-                  this.SetImage(image);
+                  this.SetImage(imgWin, image);
             } else {
                   this.image = image;
+                  this.imgWin = imgWin;
                   this.metadata = image;
                   this.scaledImage = null;
                   this.SetZoomOutLimit();
@@ -15167,6 +15279,11 @@ function PreviewControl(parent, size_x, size_y)
             var p =  preview.transform(x, y, preview);
             preview.Xval_Label.text = Math.floor(p.x).toString();
             preview.Yval_Label.text = Math.floor(p.y).toString();
+            try {
+                  var val = preview.imgWin.mainView.image.sample(Math.floor(p.x), Math.floor(p.y));
+                  preview.SampleVal_Label.text = val.toFixed(5);
+            } catch(err) {
+            }
 
             if(preview.onCustomMouseMove)
             {
@@ -15259,6 +15376,10 @@ function PreviewControl(parent, size_x, size_y)
       this.Ylabel_Label.text = "Y:";
       this.Yval_Label = new Label(this);
       this.Yval_Label.text = "---";
+      this.SampleLabel_Label = new Label(this);
+      this.SampleLabel_Label.text = "Val:";
+      this.SampleVal_Label = new Label(this);
+      this.SampleVal_Label.text = "---";
 
       this.coords_Frame = new Frame(this);
       this.coords_Frame.backgroundColor = 0xffffffff;
@@ -15273,6 +15394,9 @@ function PreviewControl(parent, size_x, size_y)
       this.coords_Frame.sizer.addSpacing(6);
       this.coords_Frame.sizer.add(this.Ylabel_Label);
       this.coords_Frame.sizer.add(this.Yval_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.SampleLabel_Label);
+      this.coords_Frame.sizer.add(this.SampleVal_Label);
 
       this.coords_Frame.sizer.addStretch();
 
@@ -15526,7 +15650,7 @@ function toggleSidePreview()
       this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights, 
             "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB, 
-            "<p>Use AutomaticBackgroundExtractor on L and RGB images. This is the Use ABE option.</p>" );
+            "<p>Use AutomaticBackgroundExtractor on L and RGB images while image is still in linear mode.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
@@ -16917,6 +17041,18 @@ function toggleSidePreview()
       this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
       this.extra_shadowclip_Sizer.addStretch();
 
+      var smoothBackgroundTooltip = "<p>Smoothen background below a given value.</p>" +
+                                    "<p>A limit value can be given below which the smoothing is done. " + 
+                                    "The value should be selected so that no background data is lost.</p>";
+      this.extra_smoothBackground_CheckBox = newCheckBox(this, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
+      this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 5);
+      this.extra_smoothBackground_Sizer = new HorizontalSizer;
+      this.extra_smoothBackground_Sizer.spacing = 4;
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_CheckBox );
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_edit );
+      this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
+      this.extra_smoothBackground_Sizer.addStretch();
+
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
             "<p>Make stars smaller on image.</p>" );
       this.smallerStarsIterationsSpinBox = newSpinBox(this, par.extra_smaller_stars_iterations, 0, 10, 
@@ -17121,6 +17257,7 @@ function toggleSidePreview()
       this.extra1.spacing = 4;
       this.extra1.add( this.extraRemoveStars_Sizer );
       this.extra1.add( this.extra_shadowclip_Sizer );
+      this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extra_ET_Sizer );
@@ -17155,25 +17292,29 @@ function toggleSidePreview()
             "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
             "narrowband options are selected then image is assumed to be narrowband." +
             "</p><p>" +
-            "If multiple extra processing options are selected they are executed in the following order:<br>" +
-            "1. Auto stretch<br>" +
-            "2. Narrowband options<br>" +
-            "3. Remove stars<br>" +
-            "4. Clip shadows<br>" +
-            "5. AutomaticBackgroundExtractor<br>" +
-            "6. Darker background<br>" +
-            "7. ExponentialTransformation<br>" +
-            "8. HDRMultiscaleTransform<br>" +
-            "9. LocalHistogramEqualization<br>" +
-            "10. Add contrast<br>" +
-            "11. Noise reduction<br>" +
-            "12. ACDNR noise reduction<br>" +
-            "13. Color noise reduction<br>" +
-            "14. Sharpen using Unsharp Mask<br>" +
-            "15. Sharpening<br>" +
-            "16. Smaller stars<br>" +
-            "17. Combine starless and stars images" +
-            "</p><p>" +
+            "If multiple extra processing options are selected they are executed in the following order:" + 
+            "</p>" +
+            "<ol>" +
+            "<li>Auto stretch</li>" +
+            "<li>Narrowband options</li>" +
+            "<li>Remove stars</li>" +
+            "<li>Clip shadows</li>" +
+            "<li>Smoothen background</li>" +
+            "<li>AutomaticBackgroundExtractor</li>" +
+            "<li>Darker background</li>" +
+            "<li>ExponentialTransformation</li>" +
+            "<li>HDRMultiscaleTransform</li>" +
+            "<li>LocalHistogramEqualization</li>" +
+            "<li>Add contrast</li>" +
+            "<li>Noise reduction</li>" +
+            "<li>ACDNR noise reduction</li>" +
+            "<li>Color noise reduction</li>" +
+            "<li>Sharpen using Unsharp Mask</li>" +
+            "<li>Sharpening</li>" +
+            "<li>Smaller stars</li>" +
+            "<li>Combine starless and stars images</li>" +
+            "</ol>" +
+            "<p>" +
             "If narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
 
