@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53 Test3";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.53 Test4";          // Version, also updated into updates.xri
 var autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -552,6 +552,8 @@ this.par = {
       extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
       extra_unsharpmask: { val: false, def: false, name : "Extra unsharpmask", type : 'B' },
       extra_unsharpmask_stddev: { val: 4, def: 4, name : "Extra unsharpmask stddev", type : 'I' },
+      extra_saturation: { val: false, def: false, name : "Extra saturation", type : 'B' },
+      extra_saturation_iterations: { val: 1, def: 1, name : "Extra saturation iterations", type : 'I' },
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
@@ -5520,6 +5522,8 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
             var refId = reference_images[i];
             if (preprocessed_images == start_images.L_R_G_B_PROCESSED) {
                   refId = refId + "_processed";
+            } else {
+                  refId = refId + "_map";
             }
             idWin = findWindowCheckBaseNameIf(refId, run_auto_continue);
       }
@@ -6919,20 +6923,28 @@ function applySTF(imgView, stf, iscolor)
 function getRgbLinked(iscolor)
 {
       if (par.STF_linking.val == 'Linked') {
+            console.writeln("RGB channels linked selected by user");
             return true;  
       } else if (par.STF_linking.val == 'Unlinked') {
+            console.writeln("RGB channels unlinked selected by user");
             return false;  
       } else {
             // auto, use default
-            var rgbLinked = true;
+            var rgbLinked;
             if (narrowband) {
                   if (linear_fit_done) {
+                        console.writeln("Narrowband and linear fit done, use RGB channels linked");
                         rgbLinked = true;
                   } else {
+                        console.writeln("Narrowband and no linear fit, use RGB channels unlinked");
                         rgbLinked = false;
                   }
             } else if (iscolor) {
+                  console.writeln("Color file, use RGB channels unlinked");
                   rgbLinked = false;
+            } else {
+                  console.writeln("Use default RGB channels linked");
+                  rgbLinked = true;
             }
             return rgbLinked;
       }
@@ -7909,7 +7921,11 @@ function runColorSaturation(imgWin, maskWin)
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      if (maskWin == null) {
+            addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id);
+      } else {
+            addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      }
 
       var P = new CurvesTransformation;
       P.S = [ // x, y
@@ -7920,13 +7936,17 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      /* Saturate only light parts of the image. */
-      setMaskChecked(imgWin, maskWin);
-      imgWin.maskInverted = false;
+      if (maskWin != null) {
+            /* Saturate only light parts of the image. */
+            setMaskChecked(imgWin, maskWin);
+            imgWin.maskInverted = false;
+      }
       
       P.executeOn(imgWin.mainView, false);
 
-      imgWin.removeMask();
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
 
       imgWin.mainView.endProcess();
 
@@ -8795,9 +8815,6 @@ function CreateChannelImages(parent, auto_continue)
                   console.writeln("Continue with mono processing")
             }
             if (par.extract_channels_only.val) {
-                  if (par.extract_channel_mapping.val == 'None') {
-
-                  }
                   return retval.INCOMPLETE;
             }
             if (par.ABE_on_lights.val && !skip_early_steps) {
@@ -10225,6 +10242,16 @@ function extraSharpen(extraWin, mask_win)
       updatePreviewWin(extraWin);
 }
 
+function extraSaturation(extraWin, mask_win)
+{
+      addProcessingStepAndStatusInfo("Extra saturation on " + extraWin.mainView.id + " using " + par.extra_saturation_iterations.val + " iterations");
+
+      for (var i = 0; i < par.extra_saturation_iterations.val; i++) {
+            increaseSaturation(extraWin, mask_win);
+      }
+      updatePreviewWin(extraWin);
+}
+
 function extraABE(extraWin)
 {
       addProcessingStepAndStatusInfo("Extra ABE");
@@ -10295,6 +10322,7 @@ function is_non_starless_option()
              par.extra_color_noise.val ||
              par.extra_sharpen.val ||
              par.extra_unsharpmask.val ||
+             par.extra_saturation.val ||
              par.extra_smaller_stars.val;
 }
 
@@ -10469,7 +10497,8 @@ function extraProcessing(parent, id, apply_directly)
                         (par.extra_noise_reduction.val && !par.use_noisexterminator.val) ||
                         par.extra_ACDNR.val ||
                         par.extra_sharpen.val ||
-                        par.extra_unsharpmask.val;
+                        par.extra_unsharpmask.val ||
+                        par.extra_saturation.val;
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -10562,6 +10591,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_sharpen.val) {
             extraSharpen(extraWin, mask_win);
+      }
+      if (par.extra_saturation.val) {
+            extraSaturation(extraWin, mask_win);
       }
       if (par.extra_smaller_stars.val) {
             if (par.extra_remove_stars.val) {
@@ -15798,10 +15830,10 @@ function toggleSidePreview()
       this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
             "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files. " +
             "Only files generated before image integration are reused.</p>" +
-            "<p>Option works best with setup file that is saved after processing or with Autosave setup generated AutosaveSetup.json file because " + 
+            "<p>Option works best with a json setup file that is saved after processing or with Autosave generated AutosaveSetup.json file because " + 
             "then star alignment reference image and possible defect info is saved.</p>" +
-            "<p>With image calibration it is possible to use previously generated master files by loading already processed master files " +
-            "info calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
+            "<p>With image calibration it is possible to use previously generated master files by adding already processed master files " +
+            "into calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -15902,13 +15934,13 @@ function toggleSidePreview()
       this.linearSaturationLabel.text = "Linear saturation increase";
       this.linearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.linearSaturationLabel.toolTip = "<p>Saturation increase in linear state using a mask.</p>";
-      this.linearSaturationSpinBox = newSpinBox(this, par.linear_increase_saturation, 0, 5, this.linearSaturationLabel.toolTip);
+      this.linearSaturationSpinBox = newSpinBox(this, par.linear_increase_saturation, 0, 10, this.linearSaturationLabel.toolTip);
 
       this.nonLinearSaturationLabel = new Label( this );
       this.nonLinearSaturationLabel.text = "Non-linear saturation increase";
       this.nonLinearSaturationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.nonLinearSaturationLabel.toolTip = "<p>Saturation increase in non-linear state using a mask.</p>";
-      this.nonLinearSaturationSpinBox = newSpinBox(this, par.non_linear_increase_saturation, 0, 5, this.nonLinearSaturationLabel.toolTip);
+      this.nonLinearSaturationSpinBox = newSpinBox(this, par.non_linear_increase_saturation, 0, 10, this.nonLinearSaturationLabel.toolTip);
 
       this.saturationGroupBoxLabel = newSectionLabel(this, "Saturation setting");
       this.saturationGroupBoxSizer = new HorizontalSizer;
@@ -17043,7 +17075,9 @@ function toggleSidePreview()
 
       var smoothBackgroundTooltip = "<p>Smoothen background below a given value.</p>" +
                                     "<p>A limit value can be given below which the smoothing is done. " + 
-                                    "The value should be selected so that no background data is lost.</p>";
+                                    "The value should be selected so that no background data is lost.</p>" + 
+                                    "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
+                                    "The new pixel values will be slightly higher than the old values.</p>";
       this.extra_smoothBackground_CheckBox = newCheckBox(this, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
       this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 5);
       this.extra_smoothBackground_Sizer = new HorizontalSizer;
@@ -17119,6 +17153,23 @@ function toggleSidePreview()
       this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskStdDevEdit );
       this.extraUnsharpMaskSizer.addStretch();
       
+      var extra_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
+                                     "<p>Number of iterations specifies how many times add saturation is run.</p>";
+      this.extra_saturation_CheckBox = newCheckBox(this, "Saturation", par.extra_saturation, extra_saturation_tooltip);
+
+      this.extraSaturationIterationsSpinBox = newSpinBox(this, par.extra_saturation_iterations, 1, 20, extra_saturation_tooltip);
+      this.extraSaturationIterationsLabel = new Label( this );
+      this.extraSaturationIterationsLabel.text = "iterations";
+      this.extraSaturationIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraSaturationIterationsLabel.toolTip = extra_saturation_tooltip;
+      this.extraSaturationIterationsSizer = new HorizontalSizer;
+      this.extraSaturationIterationsSizer.spacing = 4;
+      this.extraSaturationIterationsSizer.add( this.extra_saturation_CheckBox );
+      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsSpinBox );
+      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsLabel );
+      this.extraSaturationIterationsSizer.toolTip = extra_saturation_tooltip;
+      this.extraSaturationIterationsSizer.addStretch();
+
       this.extraImageLabel = new Label( this );
       this.extraImageLabel.text = "Target image";
       this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -17274,6 +17325,7 @@ function toggleSidePreview()
       this.extra2.add( this.extra_star_noise_reduction_CheckBox );
       this.extra2.add( this.extraUnsharpMaskSizer );
       this.extra2.add( this.extraSharpenIterationsSizer );
+      this.extra2.add( this.extraSaturationIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombioneStars_Sizer );
 
@@ -17298,8 +17350,6 @@ function toggleSidePreview()
             "<li>Auto stretch</li>" +
             "<li>Narrowband options</li>" +
             "<li>Remove stars</li>" +
-            "<li>Clip shadows</li>" +
-            "<li>Smoothen background</li>" +
             "<li>AutomaticBackgroundExtractor</li>" +
             "<li>Darker background</li>" +
             "<li>ExponentialTransformation</li>" +
@@ -17311,7 +17361,10 @@ function toggleSidePreview()
             "<li>Color noise reduction</li>" +
             "<li>Sharpen using Unsharp Mask</li>" +
             "<li>Sharpening</li>" +
+            "<li>Saturation</li>" +
             "<li>Smaller stars</li>" +
+            "<li>Clip shadows</li>" +
+            "<li>Smoothen background</li>" +
             "<li>Combine starless and stars images</li>" +
             "</ol>" +
             "<p>" +
