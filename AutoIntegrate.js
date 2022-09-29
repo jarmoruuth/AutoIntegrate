@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53 Test4";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.53 Test5";          // Version, also updated into updates.xri
 var autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -1824,6 +1824,27 @@ function closeAllWindows(keep_integrated_imgs, force_close)
       runGC();
 }
 
+var directoryInfo = "AutoIntegrate output files go to the following subdirectories:<br>" +
+                    "- AutoOutput contains intermediate files generated during processing<br>" +
+                    "- AutoMaster contains generated master calibration files<br>" +
+                    "- AutoCalibrated contains calibrated light files<br>" +
+                    "- AutoProcessed contains processed final images. Also integrated images and log output is here.";
+
+function testDirectoryIsWriteable(dir)
+{
+      var fname = ensurePathEndSlash(dir) + "info.txt";
+      var info = directoryInfo.replace(/<br>/g, "\n");
+      try {
+            let file = new File();
+            file.createForWriting(fname);
+            file.outTextLn(info);
+            file.close();
+      } catch (error) {
+            console.criticalln(error);
+            throwFatalError("Failed to write to directory " + dir);
+      }
+}
+
 function ensureDir(dir)
 {
       // console.writeln("ensureDir " + dir)
@@ -1835,6 +1856,10 @@ function ensureDir(dir)
       if (!File.directoryExists(noslashdir)) {
             console.writeln("Create directory " + noslashdir);
             File.createDirectory(noslashdir);
+            if (!File.directoryExists(noslashdir)) {
+                  throwFatalError("Failed to create directory " + noslashdir);
+            }
+            testDirectoryIsWriteable(noslashdir);
       }
 }
 
@@ -4124,8 +4149,13 @@ function runCosmeticCorrection(fileNames, defects, color_images)
 
       console.writeln("runCosmeticCorrection:executeGlobal");
 
-      P.executeGlobal();
-      
+      try {
+            P.executeGlobal();
+      } catch(err) {
+            console.criticalln(err);
+            throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
+      }
+
       fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
       console.writeln("runCosmeticCorrection output[0] " + fileNames[0]);
 
@@ -15547,18 +15577,14 @@ function toggleSidePreview()
 
       var mainHelpTips = 
       "<p>" +
-      "<b>AutoIntegrate - Automatic image integration utility</b>" +
+      "<b>AutoIntegrate - Automatic image processing utility</b>" +
       "</p><p>" +
       "Script automates initial steps of image processing in PixInsight. "+ 
       "It can calibrate images or it can be used with already calibrated images. "+ 
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in PixInsight." +
       "</p><p>"+
-      "By default output files goes to the following subdirectories:<br>" +
-      "- AutoOutput contains intermediate files generated during processing<br>" +
-      "- AutoMaster contains generated master calibration files<br>" +
-      "- AutoCalibrated contains calibrated light files<br>" +
-      "- AutoProcessed contains processed final images. Also integrated images and log output is here." +
+      directoryInfo +
       "</p><p>" +
       "User can give output root directory which can be relative or absolute path." +
       "</p><p>"+
@@ -16946,6 +16972,14 @@ function toggleSidePreview()
       var extraCombineStars_Tooltip = 
             "<p>Create a combined image from starless and star images. Combine operation can be " + 
             "selected from the combo box.</p>" +
+            "<p>Star image is searched using the following steps:</p>" +
+            "<ol>" +
+            "<li>All occurances of text starless replaced with text stars</li>"
+            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>"
+            "<li>Text starless at the end replaced with text stars</li>"
+            "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>"
+            "<li></li>"
+            "</ol>" +
             stars_combine_operations_Tooltip + 
             extraCombineStarsReduce_Tooltip;
       this.extraCombineStars_CheckBox = newCheckBox(this, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
