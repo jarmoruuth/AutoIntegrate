@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53 Test5";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.53 Test6";          // Version, also updated into updates.xri
 var autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -8499,6 +8499,9 @@ function findStartImages(auto_continue, check_base_name)
             checkAutoCont(findWindow(autocontinue_processed_channel_images.image_ids[0]));
             narrowband = autocontinue_processed_channel_images.narrowband;
             preprocessed_images = start_images.L_R_G_B_PROCESSED;
+            if (autocontinue_processed_channel_images.luminance_id != null) {
+                  is_luminance_images = true;
+            }
             // Clear possible narrowband images because we use already processed and mapped images
             H_id = null; 
             S_id = null; 
