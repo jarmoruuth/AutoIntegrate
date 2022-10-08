@@ -301,7 +301,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53 Test6";          // Version, also updated into updates.xri
+var autointegrate_version = "AutoIntegrate v1.53";                // Version, also updated into updates.xri
 var autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
@@ -8333,7 +8333,6 @@ function extractChannels(fileNames)
 {
       var newFileNames = [];
       var outputDir = outputRootDir + AutoOutputDir;
-      var postfix;
       var outputExtension = ".xisf";
       if (par.extract_channel_mapping.val == 'LRGB') {
             var channel_map = "RGB";
