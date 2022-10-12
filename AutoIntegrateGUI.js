@@ -1,22 +1,105 @@
-function addProcessingStep(txt)
-{
-      console.noteln("AutoIntegrate: " + txt);
-      processing_steps = processing_steps + "\n" + txt;
-}
+/*
+        AutoIntegrate GUI components.
 
-function addStatusInfo(txt)
-{
-      console.noteln("------------------------");
-      updateStatusInfoLabel(txt);
-      checkEvents();
-}
+Interface functions:
 
-function addProcessingStepAndStatusInfo(txt)
-{
-      addProcessingStep(txt);
-      updateStatusInfoLabel(txt);
-}
+    See end of the file.
 
+Interface objects:
+
+    AutoIntegrateDialog
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+Copyright (c) 2018-2022 Jarmo Ruuth.
+
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile.
+
+Copyright (c) 2018-2022 Jarmo Ruuth.
+
+Crop to common area code
+
+      Copyright (c) 2022 Jean-Marc Lugrin.
+
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile.
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+*/
+
+function AutoIntegrateGUI(global, util, engine)
+{
+
+this.__base__ = Object;
+this.__base__();
+
+var par = global.par;
+var ppar = global.ppar;
+
+var infoLabel;
+var imageInfoLabel;
+var windowPrefixHelpTips;              // For updating tooTip
+var closeAllPrefixButton;              // For updating toolTip
+var windowPrefixComboBox = null;       // For updating prefix name list
+var outputDirEdit;                     // For updating output root directory
+var tabPreviewControl = null;          // For updating preview window
+var tabPreviewInfoLabel = null;      // For updating preview info text
+
+var use_tab_preview = true;
+var use_side_preview = true;
+var is_some_preview = false;
+var preview_size_changed = false;
+var preview_keep_zoom = false;
+
+var current_selected_file_name = null;
+var current_selected_file_filter = null;
+
+var undo_images = [];
+var undo_images_pos = -1;
+
+var monochrome_text = "Monochrome: ";
+
+var blink_window = null;
+var blink_zoom = false;
+var blink_zoom_x = 0;
+var blink_zoom_y = 0;
+
+var batch_narrowband_palette_mode = false;
+
+var extra_target_image_window_list = null;
+
+var filterSectionbars = [];
+var filterSectionbarcontrols = [];
+
+var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
+var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
+var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
+var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
+var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic', 'Histogram stretch' ];
+var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
+var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
+var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
+var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
+var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
+var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+                            '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
+var binning_values = [ 'None', 'Color', 'L and color'];
+var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
+var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
+var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
+var histogram_stretch_type_values = [ 'Median', 'Peak' ];
+
+function isbatchNarrowbandPaletteMode()
+{
+      return par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All";
+}
 
 function previewControlCleanup(control)
 {
@@ -48,16 +131,15 @@ function previewCleanup(previewObj)
 function exitCleanup(dialog)
 {
       console.writeln("exitCleanup");
-      if (use_preview && use_tab_preview) {
+      if (global.use_preview && use_tab_preview) {
             previewCleanup(dialog.tabPreviewObj);
             dialog.tabPreviewObj = null;
       }
-      if (use_preview && use_side_preview) {
+      if (global.use_preview && use_side_preview) {
             previewCleanup(dialog.sidePreviewObj);
             dialog.sidePreviewObj = null;
       }
-      processEvents(false, 10 );
-      gc();
+      util.checkEvents();
 }
 
 // Create a table of known prefix names for toolTip
@@ -118,15 +200,6 @@ function get_win_prefix_combobox_array(default_prefix)
       return name_array;
 }
 
-function ensure_win_prefix(id)
-{
-      if (ppar.win_prefix != "" && !id.startsWith(ppar.win_prefix)) {
-            return ppar.win_prefix + id;
-      } else {
-            return id;
-      }
-}
-
 // Find a prefix from the prefix array. Returns -1 if not
 // found.
 function findPrefixIndex(prefix)
@@ -171,14 +244,14 @@ function findNewPrefixIndex(find_free_column)
 // Save persistent settings
 function savePersistentSettings(from_exit)
 {
-      if (do_not_write_settings) {
+      if (global.do_not_write_settings) {
             console.noteln("Do not save interface settings to persistent module settings.");
       } else {
             console.noteln("Save persistent settings");
             Settings.write (SETTINGSKEY + "/prefixName", DataType_String, ppar.win_prefix);
             Settings.write (SETTINGSKEY + "/prefixArray", DataType_String, JSON.stringify(ppar.prefixArray));
             if (par.use_manual_icon_column.val) {
-                  Settings.write (SETTINGSKEY + "/columnCount", DataType_Int32, ppar.userColumnCount);
+                  Settings.write (SETTINGSKEY + "/global.columnCount", DataType_Int32, ppar.userColumnCount);
             }
             Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
             Settings.write (SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean, ppar.side_preview_visible);
@@ -192,161 +265,6 @@ function savePersistentSettings(from_exit)
       }
 }
 
-function readPersistentSettings()
-{
-      if (do_not_read_settings) {
-            console.writeln("Use default settings, do not read session settings from persistent module settings");
-            return;
-      }
-      // Read prefix info. We use new setting names to avoid conflict with
-      // older columnCount/winPrefix names
-      console.noteln("Read window prefix settings");
-      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
-            ppar.win_prefix = tempSetting;
-      }
-      if (par.start_with_empty_window_prefix.val) {
-            ppar.win_prefix = '';
-      }
-      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
-            ppar.prefixArray = JSON.parse(tempSetting);
-            if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
-                  // We have old format prefix array without column position
-                  // Add column position as the first array element
-                  console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
-                  for (var i = 0; i < ppar.prefixArray.length; i++) {
-                        if (ppar.prefixArray[i] == null) {
-                              ppar.prefixArray[i] = [0, '-', 0];
-                        } else if (ppar.prefixArray[i][0] == '-') {
-                              // add zero column position
-                              ppar.prefixArray[i].unshift(0);
-                        } else {
-                              // Used slot, add i as column position
-                              ppar.prefixArray[i].unshift(i);
-                        }
-                  }
-            }
-            fix_win_prefix_array();
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/columnCount", DataType_Int32);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored columnCount '" + tempSetting + "' from settings.");
-            ppar.userColumnCount = tempSetting;
-      }
-      if (!par.use_manual_icon_column.val) {
-            ppar.userColumnCount = -1;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-            ppar.lastDir = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
-            ppar.use_preview = tempSetting;
-            use_preview = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
-            ppar.side_preview_visible = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored defaultPreviewSize '" + tempSetting + "' from settings.");
-            ppar.default_preview_size = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
-            ppar.preview_width = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
-            ppar.preview_height = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
-            ppar.use_single_column = tempSetting;
-      }
-}
-
-function fixWindowArray(arr, prev_prefix, cur_prefix)
-{
-    if (prev_prefix != "") {
-        // in this situation we've fixed up the array at least once, but the user changed the prefix
-        // in the UI and so the old prefix must be removed from the array before prepending the new one.
-
-        for (var i = 0; i < arr.length; i++) {
-            // console.writeln(" AINew fixWindowArray: removing prefix " + prev_prefix + " from "  + arr[i]);
-            arr[i] = arr[i].substring(arr[i].indexOf(prev_prefix.toString()) + prev_prefix.length);
-            // console.writeln(" AINew remaining is " + arr[i]);
-        }
-    }
-
-    // add the window prefix to the array.
-
-    for (var i = 0; i < arr.length; i++) {
-        // console.writeln(" AINew fixWindowArray: prepending prefix " + cur_prefix + " to " + arr[i]);
-        arr[i] = cur_prefix + arr[i];
-    }
-
-}
-
-function getWindowPrefix(basename, curname)
-{
-      return curname.substring(0, curname.length - basename.length);
-}
-
-// Fix all fixed window names by having the given prefix
-// We find possible previous prefix from the known fixed
-// window name
-function fixAllWindowArrays(new_prefix)
-{
-      var old_prefix = getWindowPrefix("Integration_L", integration_LRGB_windows[0]);
-      if (old_prefix == new_prefix) {
-            // no change
-            // console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
-            return;
-      }
-      // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
-      fixWindowArray(integration_LRGB_windows, old_prefix, new_prefix);
-      fixWindowArray(integration_processed_channel_windows, old_prefix, new_prefix);
-      fixWindowArray(integration_color_windows, old_prefix, new_prefix);
-      fixWindowArray(integration_crop_windows, old_prefix, new_prefix);
-      fixWindowArray(fixed_windows, old_prefix, new_prefix);
-      fixWindowArray(calibrate_windows, old_prefix, new_prefix);
-      fixWindowArray(final_windows, old_prefix, new_prefix);
-}
-
-function targetTypeSetup()
-{
-      if (par.target_type_galaxy.val) {
-            par.image_stretching.val = 'Masked Stretch';
-            console.writeln("Galaxy target using " + par.image_stretching.val);
-      } else if (par.target_type_nebula.val) {
-            par.image_stretching.val = 'Auto STF';
-            console.writeln("Nebula target using " + par.image_stretching.val);
-      }
-}
-
-function printImageInfo(images, name)
-{
-      if (images.images.length == 0) {
-            return;
-      }
-      addProcessingStep("* " + name + " " + images.images.length + " data files *");
-      addProcessingStep(name + " images best ssweight: "+images.best_ssweight);
-      addProcessingStep(name + " images best image: "+images.best_image);
-      addProcessingStep(name + " exptime: "+images.exptime);
-}
-
 function update_extra_target_image_window_list(parent, current_item)
 {
       if (current_item == null) {
@@ -354,7 +272,7 @@ function update_extra_target_image_window_list(parent, current_item)
             current_item = extra_target_image_window_list[parent.extraImageComboBox.currentItem];
       }
 
-      extra_target_image_window_list = getWindowListReverse();
+      extra_target_image_window_list = util.getWindowListReverse();
       extra_target_image_window_list.unshift("Auto");
 
       parent.extraImageComboBox.clear();
@@ -369,6 +287,17 @@ function update_extra_target_image_window_list(parent, current_item)
       }
 }
 
+function forceNewHistogram(target_win)
+{
+      try {
+            if (!target_win.mainView.deleteProperty("Histogram16")) {
+                  console.writeln("Failed to delete property Histogram16");
+            }
+      } catch(err) {
+            console.writeln("Failed to delete property Histogram16 : " + err);
+      }
+}
+
 function update_undo_buttons(parent)
 {
       parent.extraUndoButton.enabled = undo_images.length > 0 && undo_images_pos > 0;
@@ -378,7 +307,7 @@ function update_undo_buttons(parent)
 function copy_undo_edit_image(id)
 {
       var copy_id = id + "_edit";
-      var copy_win = copyWindowEx(ImageWindow.windowById(id), copy_id, true);
+      var copy_win = util.copyWindowEx(ImageWindow.windowById(id), copy_id, true);
       console.writeln("Copy image " + copy_win.mainView.id);
       return copy_win.mainView.id;
 }
@@ -386,7 +315,7 @@ function copy_undo_edit_image(id)
 function create_undo_image(id)
 {
       var undo_id = id + "_undo_tmp";
-      var undo_win = copyWindowEx(ImageWindow.windowById(id), undo_id, true);
+      var undo_win = util.copyWindowEx(ImageWindow.windowById(id), undo_id, true);
       console.writeln("Create undo image " + undo_win.mainView.id);
       return undo_win.mainView.id;
 }
@@ -394,7 +323,7 @@ function create_undo_image(id)
 function remove_undo_image(id)
 {
       console.writeln("Remove undo image " + id);
-      closeOneWindow(id);
+      util.closeOneWindow(id);
 }
 
 function add_undo_image(parent, original_id, undo_id)
@@ -403,12 +332,12 @@ function add_undo_image(parent, original_id, undo_id)
       while (undo_images.length > undo_images_pos + 1) {
             var removed = undo_images.pop();
             console.writeln("Remove undo image " + removed);
-            closeOneWindow(removed);
+            util.closeOneWindow(removed);
       }
       undo_images_pos++;
       console.writeln("undo_images_pos " + undo_images_pos);
       var new_undo_id = original_id + "_undo" + undo_images_pos;
-      windowRenameKeepifEx(undo_id, new_undo_id, false, true);
+      util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
       console.writeln("Add undo image " + new_undo_id);
       undo_images[undo_images_pos] = new_undo_id;
       update_undo_buttons(parent);
@@ -417,7 +346,7 @@ function add_undo_image(parent, original_id, undo_id)
 function apply_undo(parent)
 {
       console.writeln("apply_undo");
-      if (extra_target_image == null || extra_target_image == "Auto") {
+      if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
       }
@@ -425,10 +354,10 @@ function apply_undo(parent)
             console.noteln("Nothing to undo");
             return;
       }
-      console.noteln("Apply undo on image " + extra_target_image);
-      var target_win = ImageWindow.windowById(extra_target_image);
+      console.noteln("Apply undo on image " + global.extra_target_image);
+      var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
-            console.criticalln("Failed to find target image " + extra_target_image);
+            console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
       var source_win = ImageWindow.windowById(undo_images[undo_images_pos - 1]);
@@ -442,7 +371,7 @@ function apply_undo(parent)
 
       forceNewHistogram(target_win);
       
-      updatePreviewIdReset(extra_target_image, true);
+      updatePreviewIdReset(global.extra_target_image, true);
       
       undo_images_pos--;
       console.writeln("undo_images_pos " + undo_images_pos);
@@ -452,7 +381,7 @@ function apply_undo(parent)
 function apply_redo(parent)
 {
       console.writeln("apply_redo");
-      if (extra_target_image == null || extra_target_image == "Auto") {
+      if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
       }
@@ -460,10 +389,10 @@ function apply_redo(parent)
             console.noteln("Nothing to redo");
             return;
       }
-      console.noteln("Apply redo on image " + extra_target_image);
-      var target_win = ImageWindow.windowById(extra_target_image);
+      console.noteln("Apply redo on image " + global.extra_target_image);
+      var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
-            console.criticalln("Failed to find target image " + extra_target_image);
+            console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
       var source_win = ImageWindow.windowById(undo_images[undo_images_pos + 1]);
@@ -474,7 +403,7 @@ function apply_redo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
-      updatePreviewIdReset(extra_target_image, true);
+      updatePreviewIdReset(global.extra_target_image, true);
       undo_images_pos++;
       console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
@@ -483,41 +412,41 @@ function apply_redo(parent)
 function save_as_undo(parent)
 {
       console.writeln("save_as_undo");
-      if (extra_target_image == null || extra_target_image == "Auto" || undo_images.length == 0) {
+      if (global.extra_target_image == null || global.extra_target_image == "Auto" || undo_images.length == 0) {
             console.criticalln("No target image!");
             return;
       }
 
       let saveFileDialog = new SaveFileDialog();
       saveFileDialog.caption = "Save As";
-      if (outputRootDir == "") {
+      if (global.outputRootDir == "") {
             var path = ppar.lastDir;
       } else {
-            var path = outputRootDir;
+            var path = global.outputRootDir;
       }
       if (path != "") {
-            path = ensurePathEndSlash(path);
+            path = util.ensurePathEndSlash(path);
       }
 
-      saveFileDialog.initialPath = path + extra_target_image + ".xisf";
+      saveFileDialog.initialPath = path + global.extra_target_image + ".xisf";
       if (!saveFileDialog.execute()) {
-            console.noteln("Image " + extra_target_image + " not saved");
+            console.noteln("Image " + global.extra_target_image + " not saved");
             return;
       }
       var copy_id = File.extractName(saveFileDialog.fileName);
-      var save_win = ImageWindow.windowById(extra_target_image);
+      var save_win = ImageWindow.windowById(global.extra_target_image);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       var filename = saveFileDialog.fileName;
       if (File.extractExtension(filename) == "") {
             filename = filename + ".xisf";
       }
-      console.noteln("Save " + extra_target_image + " as " + filename);
+      console.noteln("Save " + global.extra_target_image + " as " + filename);
       if (!save_win.saveAs(filename, false, false, false, false)) {
-            throwFatalError("Failed to save image: " + filename);
+            util.throwFatalError("Failed to save image: " + filename);
       }
       update_undo_buttons(parent);
-      if (copy_id != extra_target_image) {
+      if (copy_id != global.extra_target_image) {
             // Rename old image
             save_win.mainView.id = copy_id;
             // Update preview name
@@ -532,7 +461,7 @@ function close_undo_images(parent)
       if (undo_images.length > 0) {
             console.writeln("Close undo images");
             for (var i = 0; i < undo_images.length; i++) {
-                  closeOneWindow(undo_images[i]);
+                  util.closeOneWindow(undo_images[i]);
             }
             undo_images = [];
             undo_images_pos = -1;
@@ -601,7 +530,7 @@ function newGroupBox( parent, title, toolTip )
 function Autorun(parent)
 {
       var stopped = true;
-      var savedOutputRootDir = outputRootDir;
+      var savedOutputRootDir = global.outputRootDir;
       batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (par.batch_mode.val) {
             stopped = false;
@@ -612,39 +541,39 @@ function Autorun(parent)
             console.writeln("AutoRun");
       }
       do {
-            if (lightFileNames == null) {
-                  lightFileNames = openImageFiles("Light", true, false);
-                  if (lightFileNames != null) {
-                        parent.dialog.treeBox[pages.LIGHTS].clear();
-                        addFilesToTreeBox(parent.dialog, pages.LIGHTS, lightFileNames);
+            if (global.lightFileNames == null) {
+                  global.lightFileNames = engine.openImageFiles("Light", true, false);
+                  if (global.lightFileNames != null) {
+                        parent.dialog.treeBox[global.pages.LIGHTS].clear();
+                        addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
                         updateInfoLabel(parent.dialog);
                   }
             }
-            if (lightFileNames != null) {
+            if (global.lightFileNames != null) {
                   try {
                         if (batch_narrowband_palette_mode) {
-                              AutoIntegrateNarrowbandPaletteBatch(parent.dialog, false);
+                            engine.autointegrateNarrowbandPaletteBatch(parent.dialog, false);
                         } else {
-                              AutoIntegrateEngine(parent.dialog, false);
+                            engine.autointegrateProcessingEngine(parent.dialog, false, false);
                         }
                         update_extra_target_image_window_list(parent.dialog, null);
                   } 
                   catch(err) {
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
-                        writeProcessingSteps(null, false, null);
+                        engine.writeProcessingSteps(null, false, null);
                   }
                   if (par.batch_mode.val) {
-                        outputRootDir = savedOutputRootDir;
-                        lightFileNames = null;
+                        global.outputRootDir = savedOutputRootDir;
+                        global.lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
-                        closeAllWindows(par.keep_integrated_images.val, true);
+                        engine.closeAllWindows(par.keep_integrated_images.val, true);
                   }
             } else {
                   stopped = true;
             }
       } while (!stopped);
-      outputRootDir = savedOutputRootDir;
+      global.outputRootDir = savedOutputRootDir;
 }
 
 function newSectionLabel(parent, text)
@@ -851,14 +780,14 @@ function filesOptionsSizer(parent, name, toolTip)
 function showOrHideFilterSectionBar(pageIndex)
 {
       switch (pageIndex) {
-            case pages.LIGHTS:
+            case global.pages.LIGHTS:
                   var show = par.lights_add_manually.val || par.skip_autodetect_filter.val;
                   break;
-            case pages.FLATS:
+            case global.pages.FLATS:
                   var show = par.flats_add_manually.val || par.skip_autodetect_filter.val;
                   break;
             default:
-                  throwFatalError("showOrHideFilterSectionBar bad pageIndex " + pageIndex);
+                  util.throwFatalError("showOrHideFilterSectionBar bad pageIndex " + pageIndex);
       }
       if (show) {
             filterSectionbars[pageIndex].show();
@@ -871,7 +800,7 @@ function showOrHideFilterSectionBar(pageIndex)
 
 function lightsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[pages.LIGHTS]);
+      var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[global.pages.LIGHTS]);
 
       var debayerLabel = new Label( parent );
       parent.rootingArr.push(debayerLabel);
@@ -881,7 +810,7 @@ function lightsOptions(parent)
                       "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
-      var debayerCombobox = newComboBox(parent, par.debayerPattern, debayerPattern_values, debayerLabel.toolTip);
+      var debayerCombobox = newComboBox(parent, par.debayerPattern, global.debayerPattern_values, debayerLabel.toolTip);
       parent.rootingArr.push(debayerCombobox);
 
       var extractChannelsLabel = new Label( parent );
@@ -908,7 +837,7 @@ function lightsOptions(parent)
       parent.rootingArr.push(add_manually_checkbox);
       add_manually_checkbox.onClick = function(checked) { 
             add_manually_checkbox.aiParam.val = checked; 
-            showOrHideFilterSectionBar(pages.LIGHTS);
+            showOrHideFilterSectionBar(global.pages.LIGHTS);
       }
 
       var monochrome_image_CheckBox = newCheckBoxEx(parent, "Force monochrome", par.monochrome_image, 
@@ -916,7 +845,7 @@ function lightsOptions(parent)
             "Quite a few processing steps are skipped with this option.</p>",
             function(checked) { 
                   monochrome_image_CheckBox.aiParam.val = checked;
-                  updateSectionsInTreeBox(parent.treeBox[pages.LIGHTS]);
+                  updateSectionsInTreeBox(parent.treeBox[global.pages.LIGHTS]);
       });
       parent.rootingArr.push(monochrome_image_CheckBox);
 
@@ -933,7 +862,7 @@ function lightsOptions(parent)
 
 function biasOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[pages.BIAS]);
+      var sizer = filesOptionsSizer(parent, "Add bias images", parent.filesToolTip[global.pages.BIAS]);
 
       var checkbox = newCheckBox(parent, "SuperBias", par.create_superbias, 
             "<p>Create SuperBias from bias files.</p>" );
@@ -949,7 +878,7 @@ function biasOptions(parent)
 
 function darksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[pages.DARKS]);
+      var sizer = filesOptionsSizer(parent, "Add dark images", parent.filesToolTip[global.pages.DARKS]);
 
       var checkbox = newCheckBox(parent, "Pre-calibrate", par.pre_calibrate_darks, 
             "<p>If checked darks are pre-calibrated with bias and not during ImageCalibration. " + 
@@ -978,7 +907,7 @@ function darksOptions(parent)
 
 function flatsOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[pages.FLATS]);
+      var sizer = filesOptionsSizer(parent, "Add flat images", parent.filesToolTip[global.pages.FLATS]);
 
       var checkboxStars = newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
@@ -995,7 +924,7 @@ function flatsOptions(parent)
       parent.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
             checkboxManual.aiParam.val = checked;
-            showOrHideFilterSectionBar(pages.FLATS);
+            showOrHideFilterSectionBar(global.pages.FLATS);
       }
 
       sizer.add(checkboxStars);
@@ -1008,7 +937,7 @@ function flatsOptions(parent)
 
 function flatdarksOptions(parent)
 {
-      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[pages.FLAT_DARKS]);
+      var sizer = filesOptionsSizer(parent, "Add flat dark images", parent.filesToolTip[global.pages.FLAT_DARKS]);
 
       var checkbox = newCheckBox(parent, "Master files", par.flat_dark_master_files, 
             "<p>Files are master files.</p>" );
@@ -1025,7 +954,7 @@ function updatePreviewImageBmp(updPreviewControl, imgWin, bmp)
       if (updPreviewControl == null) {
             return;
       }
-      if ((is_some_preview && !is_processing) || preview_keep_zoom) {
+      if ((is_some_preview && !global.is_processing) || preview_keep_zoom) {
             updPreviewControl.UpdateImage(imgWin, bmp);
       } else {
             updPreviewControl.SetImage(imgWin, bmp);
@@ -1038,26 +967,26 @@ function updatePreviewTxt(txt)
       if (tabPreviewInfoLabel != null) {
             tabPreviewInfoLabel.text = txt;
       }
-      if (sidePreviewInfoLabel != null) {
-            sidePreviewInfoLabel.text = txt;
+      if (global.sidePreviewInfoLabel != null) {
+            global.sidePreviewInfoLabel.text = txt;
       }
 }
 
 function updatePreviewWinTxt(imgWin, txt)
 {
-      if (use_preview && imgWin != null) {
+      if (global.use_preview && imgWin != null) {
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview_width, ppar.preview_height);
                   }
-                  if (sidePreviewControl != null) {
-                        sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                  if (global.sidePreviewControl != null) {
+                        global.sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
                   }
                   preview_size_changed = false;
             }
             var bmp = getWindowBitmap(imgWin);
             updatePreviewImageBmp(tabPreviewControl, imgWin, bmp);
-            updatePreviewImageBmp(sidePreviewControl, imgWin, bmp);
+            updatePreviewImageBmp(global.sidePreviewControl, imgWin, bmp);
             updatePreviewTxt(txt);
             console.noteln("Preview updated");
             is_some_preview = true;
@@ -1072,7 +1001,7 @@ function updatePreviewWin(imgWin)
 
 function updatePreviewFilename(filename, stf)
 {
-      if (!use_preview) {
+      if (!global.use_preview) {
             return;
       }
       var imageWindows = ImageWindow.open(filename);
@@ -1085,7 +1014,7 @@ function updatePreviewFilename(filename, stf)
       }
 
       if (stf) {
-            runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
+            engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
       }
 
       updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
@@ -1095,18 +1024,18 @@ function updatePreviewFilename(filename, stf)
 
 function updatePreviewId(id)
 {
-      if (use_preview) {
+      if (global.use_preview) {
             updatePreviewWinTxt(ImageWindow.windowById(id), id);
       }
 }
 
 function updatePreviewIdReset(id, keep_zoom)
 {
-      if (use_preview) {
+      if (global.use_preview) {
             preview_keep_zoom = keep_zoom;
             updatePreviewWinTxt(ImageWindow.windowById(id), id);
             is_some_preview = false;
-            is_processing = false;
+            global.is_processing = false;
       }
 }
 
@@ -1120,7 +1049,7 @@ function updatePreviewNoImageInControl(control)
 
       graphics.pen = new Pen(0xff000000, 4);
       graphics.font.bold = true;
-      var txt = autointegrate_version;
+      var txt = global.autointegrate_version;
       var txtLen = graphics.font.width(txt);
       graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
 
@@ -1146,18 +1075,18 @@ function updatePreviewNoImageInControl(control)
 
 function updatePreviewNoImage()
 {
-      if (use_preview) {
+      if (global.use_preview) {
             updatePreviewNoImageInControl(tabPreviewControl);
-            updatePreviewNoImageInControl(sidePreviewControl);
+            updatePreviewNoImageInControl(global.sidePreviewControl);
             updatePreviewTxt("No preview");
       }
 }
 
 function updateOutputDirEdit(path)
 {
-      outputRootDir = ensurePathEndSlash(path);
-      console.writeln("updateOutputDirEdit, set outputRootDir ", outputRootDir);
-      outputDirEdit.text = outputRootDir;
+      global.outputRootDir = util.ensurePathEndSlash(path);
+      console.writeln("updateOutputDirEdit, set global.outputRootDir ", global.outputRootDir);
+      outputDirEdit.text = global.outputRootDir;
 }
 
 function getOutputDirEdit()
@@ -1180,11 +1109,11 @@ function addOutputDir(parent)
                     "goes to that directory and not into directory subtree.</p>" +
                     "<p>If directory does not exist it is created.</p>";
       outputDirEdit = new Edit( parent );
-      outputDirEdit.text = outputRootDir;
+      outputDirEdit.text = global.outputRootDir;
       outputDirEdit.toolTip = lbl.toolTip;
       outputDirEdit.onEditCompleted = function() {
-            outputRootDir = ensurePathEndSlash(outputDirEdit.text.trim());
-            console.writeln("addOutputDir, set outputRootDir ", outputRootDir);
+            global.outputRootDir = util.ensurePathEndSlash(outputDirEdit.text.trim());
+            console.writeln("addOutputDir, set global.outputRootDir ", global.outputRootDir);
       };
 
       var dirbutton = new ToolButton( parent );
@@ -1192,10 +1121,10 @@ function addOutputDir(parent)
       dirbutton.toolTip = "<p>Select output root directory.</p>";
       dirbutton.onClick = function() {
             var gdd = new GetDirectoryDialog;
-            if (outputRootDir == "") {
+            if (global.outputRootDir == "") {
                   gdd.initialPath = ppar.lastDir;
             } else {
-                  gdd.initialPath = outputRootDir;
+                  gdd.initialPath = global.outputRootDir;
             }
             gdd.caption = "Select Output Directory";
             if (gdd.execute()) {
@@ -1236,7 +1165,7 @@ function updateWindowPrefix()
             ppar.win_prefix = ppar.win_prefix + "_";
       }
       console.writeln("updateWindowPrefix, set winPrefix '" + ppar.win_prefix + "'");
-      fixAllWindowArrays(ppar.win_prefix);
+      util.fixAllWindowArrays(ppar.win_prefix);
 }
 
 function addWinPrefix(parent)
@@ -1286,7 +1215,7 @@ function addWinPrefix(parent)
                   if (ppar.win_prefix != "") {
                         ppar.win_prefix = ppar.win_prefix + "_";
                   }
-                  fixAllWindowArrays(ppar.win_prefix);
+                  util.fixAllWindowArrays(ppar.win_prefix);
                   last_win_prefix = ppar.win_prefix;
                   edt.text = ppar.win_prefix;
 
@@ -1365,23 +1294,23 @@ function readJsonFile(fname, lights_only)
 
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
             console.writeln("Restored best image " + saveInfo.best_image);
-            user_selected_best_image = saveInfo.best_image;
+            global.user_selected_best_image = saveInfo.best_image;
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
             console.writeln("Restored reference images " + saveInfo.reference_image);
-            user_selected_reference_image = saveInfo.reference_image;
+            global.user_selected_reference_image = saveInfo.reference_image;
       }
-      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
-            console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
-            star_alignment_image = saveInfo.star_alignment_image;
+      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
+            console.writeln("Restored star alignment image " + saveInfo.global.star_alignment_image);
+            global.star_alignment_image = saveInfo.global.star_alignment_image;
       }
       if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
             console.writeln("Restored defect info");
-            LDDDefectInfo = saveInfo.defectInfo;
+            global.LDDDefectInfo = saveInfo.defectInfo;
       }
 
       var pagearray = [];
-      for (var i = 0; i < pages.END; i++) {
+      for (var i = 0; i < global.pages.END; i++) {
             pagearray[i] = null;
       }
       var fileInfoList = saveInfo.fileinfo;
@@ -1389,7 +1318,7 @@ function readJsonFile(fname, lights_only)
       for (var i = 0; i < fileInfoList.length; i++) {
             var saveInfo = fileInfoList[i];
             console.writeln("readJsonFile " + saveInfo.pagename);
-            if (lights_only && saveInfo.pageindex != pages.LIGHTS) {
+            if (lights_only && saveInfo.pageindex != global.pages.LIGHTS) {
                   console.writeln("readJsonFile, lights_only, skip");
                   continue;
             }
@@ -1402,13 +1331,13 @@ function readJsonFile(fname, lights_only)
             var filterSet = saveInfo.filterset;
             if (filterSet != null) {
                   switch (saveInfo.pageindex) {
-                        case pages.LIGHTS:
+                        case global.pages.LIGHTS:
                               console.writeln("readJsonFile, set manual filters for lights");
-                              lightFilterSet = filterSet;
+                              global.lightFilterSet = filterSet;
                               break;
-                        case pages.FLATS:
+                        case global.pages.FLATS:
                               console.writeln("readJsonFile, set manual filters for flats");
-                              flatFilterSet = filterSet;
+                              global.flatFilterSet = filterSet;
                               break;
                         default:
                               console.criticalln("Incorrect page index " +  saveInfo.pageindex + " for filter set in file " + fname);
@@ -1428,19 +1357,19 @@ function addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterset)
 {
       var name = "";
       switch (pageIndex) {
-            case pages.LIGHTS:
+            case global.pages.LIGHTS:
                   name = "Lights";
                   break;
-            case pages.BIAS:
+            case global.pages.BIAS:
                   name = "Bias";
                   break;
-            case pages.DARKS:
+            case global.pages.DARKS:
                   name = "Darks";
                   break;
-            case pages.FLATS:
+            case global.pages.FLATS:
                   name = "Flats";
                   break;
-            case pages.FLAT_DARKS:
+            case global.pages.FLAT_DARKS:
                   name = "FlatDarks";
                   break;
       }
@@ -1464,7 +1393,6 @@ function getChangedSettingsAsJson()
 
 function getSettingsFromJson(settings)
 {
-
       if (settings == null || settings == undefined) {
             console.noteln("getSettingsFromJson: empty settings");
             return;
@@ -1511,18 +1439,18 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
                         saveInfo.output_dir = outputDirEditPath;
                   }
             }
-            if (user_selected_best_image != null) {
-                  saveInfo.best_image = user_selected_best_image;
+            if (global.user_selected_best_image != null) {
+                  saveInfo.best_image = global.user_selected_best_image;
             }
-            if (user_selected_reference_image.length > 0) {
+            if (global.user_selected_reference_image.length > 0) {
                   // Need to make a copy so we do not update the original array
                   saveInfo.reference_image = copy_user_selected_reference_image_array();
             }
-            if (star_alignment_image != null) {
-                  saveInfo.star_alignment_image = star_alignment_image;
+            if (global.star_alignment_image != null) {
+                  saveInfo.global.star_alignment_image = global.star_alignment_image;
             }
-            if (LDDDefectInfo.length > 0) {
-                  saveInfo.defectInfo = LDDDefectInfo;
+            if (global.LDDDefectInfo.length > 0) {
+                  saveInfo.defectInfo = global.LDDDefectInfo;
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };
@@ -1543,9 +1471,9 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
 function saveInfoMakeRelativePaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
+            util.throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
       }
-      saveDir = ensurePathEndSlash(saveDir);
+      saveDir = util.ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeRelativePaths, saveDir "+ saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
@@ -1568,9 +1496,9 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
                   }
             }
       }
-      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
-            if (saveInfo.star_alignment_image.startsWith(saveDir)) {
-                  saveInfo.star_alignment_image = saveInfo.star_alignment_image.substring(saveDir.length);
+      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
+            if (saveInfo.global.star_alignment_image.startsWith(saveDir)) {
+                  saveInfo.global.star_alignment_image = saveInfo.global.star_alignment_image.substring(saveDir.length);
             }
       }
       return saveInfo;
@@ -1579,34 +1507,34 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
 function saveInfoMakeFullPaths(saveInfo, saveDir)
 {
       if (saveDir == null || saveDir == "") {
-            throwFatalError("saveInfoMakeFullPaths, empty saveDir");
+            util.throwFatalError("saveInfoMakeFullPaths, empty saveDir");
       }
-      saveDir = ensurePathEndSlash(saveDir);
+      saveDir = util.ensurePathEndSlash(saveDir);
       console.writeln("saveInfoMakeFullPaths, saveDir " + saveDir);
       var fileInfoList = saveInfo.fileinfo;
       for (var i = 0; i < fileInfoList.length; i++) {
             for (var j = 0; j < fileInfoList[i].files.length; j++) {
                   var fname = fileInfoList[i].files[j][0];
-                  if (pathIsRelative(fname)) {
+                  if (util.pathIsRelative(fname)) {
                         fileInfoList[i].files[j][0] = saveDir + fname;
                   }
             }
       }
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
-            if (pathIsRelative(saveInfo.best_image)) {
+            if (util.pathIsRelative(saveInfo.best_image)) {
                   saveInfo.best_image = saveDir + saveInfo.best_image;
             }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
             for (var i = 0; i < saveInfo.reference_image.length; i++) {
-                  if (pathIsRelative(saveInfo.reference_image[i][0])) {
+                  if (util.pathIsRelative(saveInfo.reference_image[i][0])) {
                         saveInfo.reference_image[i][0] = saveDir + saveInfo.reference_image[i][0];
                   }
             }
       }
-      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
-            if (pathIsRelative(saveInfo.star_alignment_image)) {
-                  saveInfo.star_alignment_image = saveDir + saveInfo.star_alignment_image;
+      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
+            if (util.pathIsRelative(saveInfo.global.star_alignment_image)) {
+                  saveInfo.global.star_alignment_image = saveDir + saveInfo.global.star_alignment_image;
             }
       }
       return saveInfo;
@@ -1626,21 +1554,21 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
             let filterSet = null;
             let name = "";
             switch (pageIndex) {
-                  case pages.LIGHTS:
+                  case global.pages.LIGHTS:
                         name = "Lights";
-                        filterSet = lightFilterSet;
+                        filterSet = global.lightFilterSet;
                         break;
-                  case pages.BIAS:
+                  case global.pages.BIAS:
                         name = "Bias";
                         break;
-                  case pages.DARKS:
+                  case global.pages.DARKS:
                         name = "Darks";
                         break;
-                  case pages.FLATS:
+                  case global.pages.FLATS:
                         name = "Flats";
-                        filterSet = flatFilterSet;
+                        filterSet = global.flatFilterSet;
                         break;
-                  case pages.FLAT_DARKS:
+                  case global.pages.FLAT_DARKS:
                         name = "FlatDarks";
                         break;
                   default:
@@ -1664,7 +1592,7 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
             }
 
             if (filterSet != null) {
-                  clearFilterFileUsedFlags(filterSet);
+                  util.clearFilterFileUsedFlags(filterSet);
             }
             addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
       }
@@ -1680,11 +1608,11 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
             saveFileDialog.caption = "Save As";
             saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
             if (fileInfoList.length > 0) {
-                  var outputDir = ensurePathEndSlash(getOutputDir(fileInfoList[0].files[0][0]));
+                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(fileInfoList[0].files[0][0]));
             } else {
-                  var outputDir = ensurePathEndSlash(getOutputDir(""));
+                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(""));
                   if (outputDir == "") {
-                        outputDir = ensurePathEndSlash(ppar.lastDir);
+                        outputDir = util.ensurePathEndSlash(ppar.lastDir);
                   }
             }
             if (save_settings) {
@@ -1698,7 +1626,7 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
             var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
             var json_path_and_filename = saveFileDialog.fileName;
       } else {
-            let dialogRet = ensureDialogFilePath(autosave_json_filename);
+            let dialogRet = engine.ensureDialogFilePath(autosave_json_filename);
             if (dialogRet == 0) {
                   // Canceled, do not save
                   return;
@@ -1706,20 +1634,20 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
             let json_path;
             if (dialogRet == 1) {
                   // User gave explicit directory
-                  json_path = outputRootDir;
+                  json_path = global.outputRootDir;
             } else {
                   // Not saving to AutoProcessed directory
-                  //json_path = combinePath(outputRootDir, AutoProcessedDir); 
+                  //json_path = util.combinePath(global.outputRootDir, global.AutoProcessedDir); 
                   
                   // Saving to lights directory, or user given output directory
                   // This way we get relative paths to file so it is easy to move around
                   // or even share with lights files.
-                  json_path = outputRootDir;
+                  json_path = global.outputRootDir;
             }
-            var saveDir = ensurePathEndSlash(json_path);
+            var saveDir = util.ensurePathEndSlash(json_path);
             var json_path_and_filename = saveDir + autosave_json_filename;
       }
-      saveLastDir(saveDir);
+      util.saveLastDir(saveDir);
       try {
             let saveInfo = initJsonSaveInfo(fileInfoList, save_settings, saveDir);
             let file = new File();
@@ -1738,18 +1666,6 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
 function saveJsonFile(parent, save_settings)
 {
       saveJsonFileEx(parent, save_settings, null);
-}
-
-function treeboxfilesToFilenames(treeboxfiles)
-{
-      var filenames = [];
-      for (var i = 0; i < treeboxfiles.length; i++) {
-            if (treeboxfiles[i][1]) {
-                  // checked
-                  filenames[filenames.length] = treeboxfiles[i][0];
-            }
-      }
-      return filenames;
 }
 
 function filenamesToTreeboxfiles(treeboxfiles, filenames, checked)
@@ -1827,7 +1743,7 @@ function setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
                   //console.writeln("setBestImageInTreeBoxNode found best image");
                   node.best_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
-                  user_selected_best_image = node.filename;
+                  global.user_selected_best_image = node.filename;
             } else if (node.best_image) {
                   node.best_image = false;
                   updateTreeBoxNodeFromFlags(parent, node);
@@ -1854,17 +1770,17 @@ function setBestImageInTreeBox(parent, node, best_image, filename_postfix)
 // If filter already has reference image update the old one.
 function set_user_selected_reference_image(reference_image, filter)
 {
-      for (var i = 0; i < user_selected_reference_image.length; i++) {
-            if (user_selected_reference_image[i][1] == filter) {
+      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+            if (global.user_selected_reference_image[i][1] == filter) {
                   console.writeln("set_user_selected_reference_image, update filter " + filter + " to image " + reference_image);
-                  user_selected_reference_image[i][0] = reference_image;
+                  global.user_selected_reference_image[i][0] = reference_image;
                   break;
             }
       }
-      if (i == user_selected_reference_image.length) {
+      if (i == global.user_selected_reference_image.length) {
             // not found, add new
             console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
-            user_selected_reference_image[user_selected_reference_image.length] = [ reference_image, filter ];
+            global.user_selected_reference_image[global.user_selected_reference_image.length] = [ reference_image, filter ];
       }
 }
 
@@ -1872,10 +1788,10 @@ function copy_user_selected_reference_image_array()
 {
       var copyarr = [];
 
-      for (var i = 0; i < user_selected_reference_image.length; i++) {
+      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
             var elem = [];
-            for (var j = 0; j < user_selected_reference_image[i].length; j++) {
-                  elem[elem.length] = user_selected_reference_image[i][j];
+            for (var j = 0; j < global.user_selected_reference_image[i].length; j++) {
+                  elem[elem.length] = global.user_selected_reference_image[i][j];
             }
             copyarr[copyarr.length] = elem;
       }
@@ -1916,22 +1832,22 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
 }
 
 // 1. Find image with biggest ssweight in treebox and update it in 
-//    user_selected_best_image.
+//    global.user_selected_best_image.
 // 2. For each filter find image with biggest ssweight in treebox and 
-//    update it in user_selected_reference_image.
+//    update it in global.user_selected_reference_image.
 function findBestImageFromTreeBoxFiles(treebox)
 {
       if (treebox.numberOfChildren == 0) {
             console.writeln("findBestImageFromTreeBoxFiles, no files");
             return false;
       }
-      addStatusInfo("Finding...");
+      util.addStatusInfo("Finding...");
 
       var checked_files = [];
       getTreeBoxNodeFileNamesCheckedIf(treebox, checked_files, true);
 
       // get array of [ filename, weight ]
-      var ssWeights = SubframeSelectorMeasure(checked_files, false, false);
+      var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false);
 
       // create treeboxfiles array of [ filename, checked, weight ]
       var treeboxfiles = [];
@@ -1940,7 +1856,7 @@ function findBestImageFromTreeBoxFiles(treebox)
       }
 
       // group files by filter
-      var filteredFiles = getFilterFiles(treeboxfiles, pages.LIGHTS, '');
+      var filteredFiles = engine.getFilterFiles(treeboxfiles, global.pages.LIGHTS, '');
 
       // go through all filters
       var globalBestSSWEIGHTvalue = 0;
@@ -1980,9 +1896,9 @@ function findBestImageFromTreeBoxFiles(treebox)
       }
       if (globalBestSSWEIGHTfile != null) {
             console.noteln("All files, " + globalBestSSWEIGHTfile + ", best SSWEIGHT=" + globalBestSSWEIGHTvalue);
-            user_selected_best_image = globalBestSSWEIGHTfile;
+            global.user_selected_best_image = globalBestSSWEIGHTfile;
       }
-      addStatusInfo("Done.");
+      util.addStatusInfo("Done.");
       return true;
 }
 
@@ -2156,7 +2072,7 @@ function filterTreeBoxFiles(parent, pageIndex)
             return;
       }
 
-      addStatusInfo("Filtering...");
+      util.addStatusInfo("Filtering...");
 
       console.writeln("filterTreeBoxFiles " + pageIndex);
 
@@ -2168,7 +2084,7 @@ function filterTreeBoxFiles(parent, pageIndex)
 
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
-      var treeboxfiles = SubframeSelectorMeasure(checked_files, true, true);
+      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true);
 
       // add old unchecked files
       filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
@@ -2181,7 +2097,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       // add new filtered file list
       addFilesToTreeBox(parent, pageIndex, treeboxfiles);
 
-      console.writeln("filterTreeBoxFiles, addFilesToTreeBox done");
+      console.writeln("filterTreeBoxFiles, this.addFilesToTreeBox done");
 
       var checked_count = 0;
       for (var i = 0; i < treeboxfiles.length; i++) {
@@ -2191,7 +2107,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       }
 
       console.noteln("AutoIntegrate filtering completed, " + checked_count + " checked, " + (treeboxfiles.length - checked_count) + " unchecked");
-      updateStatusInfoLabel("Filtering completed");
+      util.updateStatusInfoLabel("Filtering completed");
 }
 
 function getFilesFromTreebox(parent)
@@ -2206,23 +2122,23 @@ function getFilesFromTreebox(parent)
             }
 
             switch (pageIndex) {
-                  case pages.LIGHTS:
-                        lightFileNames = filenames;
+                  case global.pages.LIGHTS:
+                        global.lightFileNames = filenames;
                         break;
-                  case pages.BIAS:
-                        biasFileNames = filenames;
+                  case global.pages.BIAS:
+                        global.biasFileNames = filenames;
                         break;
-                  case pages.DARKS:
-                        darkFileNames = filenames;
+                  case global.pages.DARKS:
+                        global.darkFileNames = filenames;
                         break;
-                  case pages.FLATS:
-                        flatFileNames = filenames;
+                  case global.pages.FLATS:
+                        global.flatFileNames = filenames;
                         break;
-                  case pages.FLAT_DARKS:
-                        flatdarkFileNames = filenames;
+                  case global.pages.FLAT_DARKS:
+                        global.flatdarkFileNames = filenames;
                         break;
                   default:
-                        throwFatalError("getFilesFromTreebox bad pageIndex " + pageIndex);
+                        util.throwFatalError("getFilesFromTreebox bad pageIndex " + pageIndex);
             }
       }
 }
@@ -2260,7 +2176,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       // ensure we have treeboxfiles which is array of [ filename, checked, weight, best_image, reference_image ]
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames);
 
-      var filteredFiles = getFilterFiles(treeboxfiles, pageIndex, '');
+      var filteredFiles = engine.getFilterFiles(treeboxfiles, pageIndex, '');
       var files_TreeBox = parent.treeBox[pageIndex];
       files_TreeBox.clear();
 
@@ -2308,7 +2224,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         }
                         var node = new TreeBoxNode(filternode);
                         var txt = File.extractName(filterFiles[j].name) + File.extractExtension(filterFiles[j].name);
-                        if (pageIndex == pages.LIGHTS && par.monochrome_image.val) {
+                        if (pageIndex == global.pages.LIGHTS && par.monochrome_image.val) {
                               node.setText(0, monochrome_text + txt);
                         } else {
                               node.setText(0, txt);
@@ -2323,17 +2239,17 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.filter = filterFiles[j].filter;
                         node.best_image = filterFiles[j].best_image;
                         node.reference_image = filterFiles[j].reference_image;
-                        if (pageIndex == pages.LIGHTS) {
+                        if (pageIndex == global.pages.LIGHTS) {
                               node.lightsnode = true;
                         } else {
                               node.lightsnode = false;
                         }
                         updateTreeBoxNodeToolTip(node);
-                        if (pageIndex == pages.LIGHTS && filterFiles[j].name.indexOf("best_image") != -1) {
+                        if (pageIndex == global.pages.LIGHTS && filterFiles[j].name.indexOf("best_image") != -1) {
                               filename_best_image = filterFiles[j].name;
                         }
-                        if (use_preview && preview_file_name == null) {
-                              if (!is_some_preview || pageIndex == pages.LIGHTS) {
+                        if (global.use_preview && preview_file_name == null) {
+                              if (!is_some_preview || pageIndex == global.pages.LIGHTS) {
                                     preview_file_name = node.filename;
                                     preview_file_filter = node.filter;
                               }
@@ -2343,19 +2259,19 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       }
       files_TreeBox.canUpdate = true;
 
-      if (pageIndex == pages.LIGHTS) {
-            if (user_selected_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], user_selected_best_image, "");
+      if (pageIndex == global.pages.LIGHTS) {
+            if (global.user_selected_best_image != null) {
+                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.user_selected_best_image, "");
             } else if (filename_best_image != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], filename_best_image, "");
+                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], filename_best_image, "");
             }
-            for (var i = 0; i < user_selected_reference_image.length; i++)  {
+            for (var i = 0; i < global.user_selected_reference_image.length; i++)  {
                   setReferenceImageInTreeBox(
                         parent, 
-                        parent.treeBox[pages.LIGHTS], 
-                        user_selected_reference_image[i][0],
+                        parent.treeBox[global.pages.LIGHTS], 
+                        global.user_selected_reference_image[i][0],
                         "",
-                        user_selected_reference_image[i][1]);
+                        global.user_selected_reference_image[i][1]);
             }
       }
 
@@ -2363,7 +2279,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
             updatePreviewFilename(preview_file_name, true);
             current_selected_file_name = preview_file_name;
             current_selected_file_filter = preview_file_filter;
-            updateStatusInfoLabel("");
+            util.updateStatusInfoLabel("");
       }
 }
 
@@ -2400,24 +2316,24 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
 function addFilesToTreeBox(parent, pageIndex, imageFileNames)
 {
       switch (pageIndex) {
-            case pages.LIGHTS:
-            case pages.FLATS:
+            case global.pages.LIGHTS:
+            case global.pages.FLATS:
                   addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
                   break;
-            case pages.BIAS:
-            case pages.DARKS:
-            case pages.FLAT_DARKS:
+            case global.pages.BIAS:
+            case global.pages.DARKS:
+            case global.pages.FLAT_DARKS:
                   addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
                   break;
             default:
-                  throwFatalError("addFilesToTreeBox bad pageIndex " + pageIndex);
+                  util.throwFatalError("addFilesToTreeBox bad pageIndex " + pageIndex);
       }
 }
 
 function loadJsonFile(parent)
 {
       console.writeln("loadJsonFile");
-      var pagearray = openImageFiles("Json", false, true);
+      var pagearray = engine.openImageFiles("Json", false, true);
       if (pagearray == null) {
             return;
       }
@@ -2439,16 +2355,16 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       filesAdd_Button.toolTip = toolTip;
       filesAdd_Button.onClick = function()
       {
-            var pagearray = openImageFiles(filetype, false, false);
+            var pagearray = engine.openImageFiles(filetype, false, false);
             if (pagearray == null) {
                   return;
             }
             if (pagearray.length == 1) {
                   // simple list of file names
                   var imageFileNames = pagearray[0];
-                  if (pageIndex == pages.LIGHTS && !par.skip_autodetect_imagetyp.val) {
-                        var imagetypes = getImagetypFiles(imageFileNames);
-                        for (var i = 0; i < pages.END; i++) {
+                  if (pageIndex == global.pages.LIGHTS && !par.skip_autodetect_imagetyp.val) {
+                        var imagetypes = engine.getImagetypFiles(imageFileNames);
+                        for (var i = 0; i < global.pages.END; i++) {
                               if (imagetypes[i].length > 0) {
                                     addFilesToTreeBox(parent, i, imagetypes[i]);
                               }
@@ -2494,11 +2410,11 @@ function addTargetType(parent)
 
 function addFilesButtons(parent)
 {
-      var addLightsButton = addOneFilesButton(parent, "Lights", pages.LIGHTS, parent.filesToolTip[pages.LIGHTS]);
-      var addBiasButton = addOneFilesButton(parent, "Bias", pages.BIAS, parent.filesToolTip[pages.BIAS]);
-      var addDarksButton = addOneFilesButton(parent, "Darks", pages.DARKS, parent.filesToolTip[pages.DARKS]);
-      var addFlatsButton = addOneFilesButton(parent, "Flats", pages.FLATS, parent.filesToolTip[pages.FLATS]);
-      var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", pages.FLAT_DARKS, parent.filesToolTip[pages.FLAT_DARKS]);
+      var addLightsButton = addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]);
+      var addBiasButton = addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]);
+      var addDarksButton = addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]);
+      var addFlatsButton = addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]);
+      var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS]);
 
       var target_type_sizer = addTargetType(parent);
 
@@ -2534,28 +2450,28 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
             filesAdd_Button.toolTip = "Add " + filetype + " files";
       }
       filesAdd_Button.onClick = function() {
-            var imageFileNames = openImageFiles(filetype, true, false);
+            var imageFileNames = engine.openImageFiles(filetype, true, false);
             if (imageFileNames != null) {
                   var filterSet;
                   switch (pageIndex) {
-                        case pages.LIGHTS:
-                              if (lightFilterSet == null) {
-                                    lightFilterSet = initFilterSets();
+                        case global.pages.LIGHTS:
+                              if (global.lightFilterSet == null) {
+                                    global.lightFilterSet = util.initFilterSets();
                               }
-                              filterSet = findFilterSet(lightFilterSet, filetype);
+                              filterSet = util.findFilterSet(global.lightFilterSet, filetype);
                               break;
-                        case pages.FLATS:
-                              if (flatFilterSet == null) {
-                                    flatFilterSet = initFilterSets();
+                        case global.pages.FLATS:
+                              if (global.flatFilterSet == null) {
+                                    global.flatFilterSet = util.initFilterSets();
                               }
-                              filterSet = findFilterSet(flatFilterSet, filetype);
+                              filterSet = util.findFilterSet(global.flatFilterSet, filetype);
                               break;
                         default:
-                              throwFatalError("addOneFileManualFilterButton bad pageIndex " + pageIndex);
+                              util.throwFatalError("addOneFileManualFilterButton bad pageIndex " + pageIndex);
                   }
                   console.writeln("addOneFileManualFilterButton add " + filetype + " files");
                   for (var i = 0; i < imageFileNames.length; i++) {
-                        addFilterSetFile(filterSet, imageFileNames[i], filetype);
+                        util.addFilterSetFile(filterSet, imageFileNames[i], filetype);
                   }
                   addFilesToTreeBox(parent, pageIndex, imageFileNames);
                   updateInfoLabel(parent);
@@ -2702,7 +2618,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                   if (files_TreeBox.currentNode != null && files_TreeBox.currentNode.nodeData_type == "") {
                         // Show preview or "blink" window. 
                         // Note: Files are added by routine addFilteredFilesToTreeBox
-                        if (!use_preview) {
+                        if (!global.use_preview) {
                               console.hide();
                         } else {
                               updatePreviewTxt("Processing...");
@@ -2712,7 +2628,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               return;
                         }
                         var imageWindow = imageWindows[0];
-                        if (!use_preview) {
+                        if (!global.use_preview) {
                               if (blink_window != null) {
                                     imageWindow.position = blink_window.position;
                               } else {
@@ -2735,8 +2651,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
-                        runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
-                        if (!use_preview) {
+                        engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
+                        if (!global.use_preview) {
                               updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
                                     blinkWindowZoomedUpdate(imageWindow, 0, 0);
@@ -2748,10 +2664,10 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               blink_window = imageWindow;
                         } else {
                               updatePreviewWin(imageWindow);
-                              updateStatusInfoLabel(imageInfoTxt);
+                              util.updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
-                              if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
-                                    mainTabBox.currentPageIndex = 1;
+                              if (global.use_preview && !ppar.side_preview_visible && global.mainTabBox != null) {
+                                    global.mainTabBox.currentPageIndex = 1;
                               }
                         }
                         current_selected_file_name = files_TreeBox.currentNode.filename;
@@ -2772,7 +2688,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       let obj = newPageButtonsSizer(parent);
       parent.rootingArr.push(obj);
       filesControl.sizer.add(obj);
-      if (pageIndex == pages.LIGHTS || pageIndex == pages.FLATS) {
+      if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS) {
             let obj = addFileFilterButtonSectionBar(parent, pageIndex);
             parent.rootingArr.push(obj);
             filesControl.sizer.add(obj);
@@ -2802,31 +2718,18 @@ function appendInfoTxt(txt, cnt, type)
 
 function updateInfoLabel(parent)
 {
-      saved_measurements = null;    // files changed, we need to make new measurements
+      global.saved_measurements = null;    // files changed, we need to make new measurements
 
       var txt = "";
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[pages.LIGHTS]), "light");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[pages.BIAS]), "bias");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[pages.DARKS]), "dark");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[pages.FLATS]), "flat");
-      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[pages.FLAT_DARKS]), "flat dark");
+      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.LIGHTS]), "light");
+      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.BIAS]), "bias");
+      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.DARKS]), "dark");
+      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.FLATS]), "flat");
+      txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.FLAT_DARKS]), "flat dark");
 
       console.writeln(txt);
 
       infoLabel.text = txt;
-}
-
-function updateStatusInfoLabel(txt)
-{
-      if (txt.length > 100) {
-            txt = txt.substring(0, 100);
-      }
-      if (tabStatusInfoLabel != null) {
-            tabStatusInfoLabel.text = txt;
-      }
-      if (use_preview && sideStatusInfoLabel != null) {
-            sideStatusInfoLabel.text = txt;
-      }
 }
 
 function updateImageInfoLabel(txt)
@@ -2836,14 +2739,6 @@ function updateImageInfoLabel(txt)
       imageInfoLabel.text = txt;
 }
 
-function mapBadChars(str)
-{
-      str = str.replace(/ /g,"_");
-      str = str.replace(/-/g,"_");
-      str = str.replace(/,/g,"_");
-      return str;
-}
-
 // Write default parameters to process icon
 function saveParametersToProcessIcon()
 {
@@ -2851,46 +2746,9 @@ function saveParametersToProcessIcon()
       for (let x in par) {
             var param = par[x];
             if (param.val != param.def) {
-                  var name = mapBadChars(param.name);
+                  var name = util.mapBadChars(param.name);
                   console.writeln(name + "=" + param.val);
                   Parameters.set(name, param.val);
-            }
-      }
-}
-
-// Read default parameters from process icon
-function readParametersFromProcessIcon() 
-{
-      if (do_not_read_settings) {
-            console.writeln("Use default settings, do not read parameter values from process icon");
-            return;
-      }
-      console.writeln("readParametersFromProcessIcon");
-      for (let x in par) {
-            var param = par[x];
-            var name = mapBadChars(param.name);
-            if (Parameters.has(name)) {
-                  switch (param.type) {
-                        case 'S':
-                              param.val = Parameters.getString(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'B':
-                              param.val = Parameters.getBoolean(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'I':
-                              param.val = Parameters.getInteger(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'R':
-                              param.val = Parameters.getReal(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        default:
-                              throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
-                              break;
-                  }
             }
       }
 }
@@ -2910,14 +2768,14 @@ function setParameterDefaults()
 // Save default parameters to persistent module settings
 function saveParametersToPersistentModuleSettings()
 {
-      if (do_not_write_settings) {
+      if (global.do_not_write_settings) {
             console.writeln("Do not save parameter values persistent module settings");
             return;
       }
       console.writeln("saveParametersToPersistentModuleSettings");
       for (let x in par) {
             var param = par[x];
-            var name = SETTINGSKEY + '/' + mapBadChars(param.name);
+            var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
             if (param.val != param.def) {
                   // not a default value, save setting
                   console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
@@ -2935,51 +2793,12 @@ function saveParametersToPersistentModuleSettings()
                               Settings.write(name, DataType_Real32, param.val);
                               break;
                         default:
-                              throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                              util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
                               break;
                   }
             } else {
                   // default value, remove possible setting
                   Settings.remove(name);
-            }
-      }
-}
-
-// Read default parameters from persistent module settings
-function ReadParametersFromPersistentModuleSettings()
-{
-      if (do_not_read_settings) {
-            console.writeln("Use default settings, do not read parameter values from persistent module settings");
-            return;
-      }
-      if (!ai_use_persistent_module_settings) {
-            console.writeln("skip ReadParametersFromPersistentModuleSettings");
-            return;
-      }
-      console.writeln("ReadParametersFromPersistentModuleSettings");
-      for (let x in par) {
-            var param = par[x];
-            var name = SETTINGSKEY + '/' + mapBadChars(param.name);
-            switch (param.type) {
-                  case 'S':
-                        var tempSetting = Settings.read(name, DataType_String);
-                        break;
-                  case 'B':
-                        var tempSetting = Settings.read(name, DataType_Boolean);
-                        break;
-                  case 'I':
-                        var tempSetting = Settings.read(name, DataType_Int32);
-                        break;
-                  case 'R':
-                        var tempSetting = Settings.read(name, DataType_Real32);
-                        break;
-                  default:
-                        throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
-                        break;
-            }
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
-                  param.val = tempSetting;
             }
       }
 }
@@ -3004,33 +2823,33 @@ function newRunButton(parent, toolbutton)
       var run_action = function()
       {
             exitFromDialog();
-            if (ai_get_process_defaults) {
-                  getProcessDefaultValues();
+            if (global.ai_get_process_defaults) {
+                  engine.getProcessDefaultValues();
                   return;
             }     
             updateWindowPrefix();
             getFilesFromTreebox(parent.dialog);
-            haveIconized = 0;
+            global.haveIconized = 0;
             var index = findPrefixIndex(ppar.win_prefix);
             if (index == -1) {
                   index = findNewPrefixIndex(ppar.userColumnCount == -1);
             }
             if (ppar.userColumnCount == -1) {
-                  columnCount = ppar.prefixArray[index][0];
-                  console.writeln('Using auto icon column ' + columnCount);
+                  global.columnCount = ppar.prefixArray[index][0];
+                  console.writeln('Using auto icon column ' + global.columnCount);
             } else {
-                  columnCount = ppar.userColumnCount;
-                  console.writeln('Using user icon column ' + columnCount);
+                  global.columnCount = ppar.userColumnCount;
+                  console.writeln('Using user icon column ' + global.columnCount);
             }
-            iconStartRow = 0;
-            write_processing_log_file = true;
+            global.iconStartRow = 0;
+            global.write_processing_log_file = true;
             Autorun(parent);
-            if (haveIconized) {
+            if (global.haveIconized) {
                   // We have iconized something so update prefix array
-                  ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, haveIconized ];
+                  ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, global.haveIconized ];
                   fix_win_prefix_array();
                   if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
-                        ppar.userColumnCount = columnCount + 1;
+                        ppar.userColumnCount = global.columnCount + 1;
                         parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
                   }
                   savePersistentSettings(false);
@@ -3080,56 +2899,53 @@ function newAutoContinueButton(parent, toolbutton)
 
             // Do not create subdirectory structure with AutoContinue
 
-            clearDefaultDirs();
+            util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
             batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
-            haveIconized = 0;
-            write_processing_log_file = true;
+            global.haveIconized = 0;
+            global.write_processing_log_file = true;
             try {
                   updateWindowPrefix();
-                  autocontinue_narrowband = is_narrowband_option();
-                  run_auto_continue = true;
+                  global.run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
-                        AutoIntegrateNarrowbandPaletteBatch(parent.dialog, true);
+                    engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
                   } else {
                         var index = findPrefixIndex(ppar.win_prefix);
                         if (index == -1) {
-                              iconStartRow = 0;
+                              global.iconStartRow = 0;
                               index = findNewPrefixIndex(ppar.userColumnCount == -1);
                         } else {
                               // With AutoContinue start icons below current
                               // icons.
-                              iconStartRow = ppar.prefixArray[index][2];
+                              global.iconStartRow = ppar.prefixArray[index][2];
                         }
                         if (ppar.userColumnCount == -1) {
-                              columnCount = ppar.prefixArray[index][0];
-                              console.writeln('Using auto icon column ' + columnCount);
+                              global.columnCount = ppar.prefixArray[index][0];
+                              console.writeln('Using auto icon column ' + global.columnCount);
                         } else {
-                              columnCount = ppar.userColumnCount;
-                              iconStartRow = 11;
-                              console.writeln('Using user icon column ' + columnCount);
+                              global.columnCount = ppar.userColumnCount;
+                              global.iconStartRow = 11;
+                              console.writeln('Using user icon column ' + global.columnCount);
                         }
-                        AutoIntegrateEngine(parent.dialog, true);
+                        engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option());
                   }
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
+                  global.run_auto_continue = false;
+                  util.setDefaultDirs();
                   update_extra_target_image_window_list(parent.dialog, null);
-                  if (haveIconized && !batch_narrowband_palette_mode) {
+                  if (global.haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
-                        ppar.prefixArray[index] = [ columnCount, ppar.win_prefix, Math.max(haveIconized, iconStartRow) ];
+                        ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, Math.max(global.haveIconized, global.iconStartRow) ];
                         fix_win_prefix_array();
-                        //parent.columnCountControlComboBox.currentItem = columnCount + 1;
+                        //parent.columnCountControlComboBox.currentItem = global.columnCount + 1;
                         savePersistentSettings(false);
                   }
             }
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true, null);
-                  autocontinue_narrowband = false;
-                  run_auto_continue = false;
-                  setDefaultDirs();
+                  engine.writeProcessingSteps(null, true, null);
+                  global.run_auto_continue = false;
+                  util.setDefaultDirs();
                   fix_win_prefix_array();
             }
       };
@@ -3199,7 +3015,7 @@ function blinkArrowButton(parent, icon, x, y)
 
 function newPageButtonsSizer(parent)
 {
-      if (!use_preview) {
+      if (!global.use_preview) {
             // Blink
             var blinkLabel = new Label( parent );
             parent.rootingArr.push(blinkLabel);
@@ -3306,10 +3122,10 @@ function newPageButtonsSizer(parent)
             var pageIndex = parent.tabBox.currentPageIndex;
             parent.treeBox[pageIndex].clear();
             updateInfoLabel(parent);
-            if (parent.tabBox.currentPageIndex == pages.LIGHTS) {
-                  user_selected_best_image = null;
-                  user_selected_reference_image = [];
-                  star_alignment_image = null;
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
+                  global.user_selected_best_image = null;
+                  global.user_selected_reference_image = [];
+                  global.star_alignment_image = null;
             }
       };
       var currentPageCollapseButton = new ToolButton( parent );
@@ -3350,8 +3166,8 @@ function newPageButtonsSizer(parent)
       setBestImageButton.setScaledFixedSize( 20, 20 );
       setBestImageButton.onClick = function()
       {
-            if (parent.tabBox.currentPageIndex == pages.LIGHTS && current_selected_file_name != null) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name, "");
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS && current_selected_file_name != null) {
+                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "");
             }
       };
 
@@ -3362,8 +3178,8 @@ function newPageButtonsSizer(parent)
       setReferenceImageButton.setScaledFixedSize( 20, 20 );
       setReferenceImageButton.onClick = function()
       {
-            if (parent.tabBox.currentPageIndex == pages.LIGHTS && current_selected_file_name != null) {
-                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], current_selected_file_name, "", current_selected_file_filter);
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS && current_selected_file_name != null) {
+                  setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], current_selected_file_name, "", current_selected_file_filter);
             }
       };
 
@@ -3374,12 +3190,12 @@ function newPageButtonsSizer(parent)
       clearBestImageButton.setScaledFixedSize( 20, 20 );
       clearBestImageButton.onClick = function()
       {
-            if (parent.tabBox.currentPageIndex == pages.LIGHTS) {
-                  setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, "");
-                  setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], null, "", null);
-                  user_selected_best_image = null;
-                  user_selected_reference_image = [];
-                  star_alignment_image = null;
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
+                  setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "");
+                  setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], null, "", null);
+                  global.user_selected_best_image = null;
+                  global.user_selected_reference_image = [];
+                  global.star_alignment_image = null;
             }
       };
 
@@ -3391,21 +3207,21 @@ function newPageButtonsSizer(parent)
       findBestImageButton.setScaledFixedSize( 20, 20 );
       findBestImageButton.onClick = function()
       {
-            if (parent.tabBox.currentPageIndex == pages.LIGHTS) {
-                  if (findBestImageFromTreeBoxFiles(parent.treeBox[pages.LIGHTS])) {
-                        // Best files are set into user_selected_best_image and user_selected_reference_image
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
+                  if (findBestImageFromTreeBoxFiles(parent.treeBox[global.pages.LIGHTS])) {
+                        // Best files are set into global.user_selected_best_image and global.user_selected_reference_image
                         setBestImageInTreeBox(
                               parent, 
-                              parent.treeBox[pages.LIGHTS], 
-                              user_selected_best_image,
+                              parent.treeBox[global.pages.LIGHTS], 
+                              global.user_selected_best_image,
                               "");
-                        for (var i = 0; i < user_selected_reference_image.length; i++)  {
+                        for (var i = 0; i < global.user_selected_reference_image.length; i++)  {
                               setReferenceImageInTreeBox(
                                     parent, 
-                                    parent.treeBox[pages.LIGHTS], 
-                                    user_selected_reference_image[i][0],
+                                    parent.treeBox[global.pages.LIGHTS], 
+                                    global.user_selected_reference_image[i][0],
                                     "",
-                                    user_selected_reference_image[i][1]);
+                                    global.user_selected_reference_image[i][1]);
                         }
                   }
             }
@@ -3415,7 +3231,7 @@ function newPageButtonsSizer(parent)
       parent.rootingArr.push(buttonsSizer);
       buttonsSizer.spacing = 4;
 
-      if (!use_preview) {
+      if (!global.use_preview) {
             buttonsSizer.add( blinkLabel );
             buttonsSizer.add( blinkFitButton );
             buttonsSizer.add( blinkZoomButton );
@@ -3471,7 +3287,7 @@ function newPageButtonsSizer(parent)
 
 function getSectionVisible(name, control)
 {
-      if (do_not_read_settings) {
+      if (global.do_not_read_settings) {
             return;
       }
       var tempSetting = Settings.read(name, DataType_Boolean);
@@ -3486,7 +3302,7 @@ function newSectionBar(parent, control, title, name)
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
-            if (!do_not_write_settings) {
+            if (!global.do_not_write_settings) {
                   Settings.write(name, DataType_Boolean, control.visible);
             }
             parent.adjustToContents();
@@ -3510,7 +3326,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
-            if (!do_not_write_settings) {
+            if (!global.do_not_write_settings) {
                   Settings.write(name, DataType_Boolean, control.visible);
             }
             parent.adjustToContents();
@@ -3599,25 +3415,25 @@ function exitFromDialog()
 
 function updateSidePreviewState()
 {
-      if (!use_preview || sidePreviewControl == null) {
+      if (!global.use_preview || global.sidePreviewControl == null) {
             return;
       }
       if (ppar.side_preview_visible) {
-            sidePreviewInfoLabel.show();
-            sideStatusInfoLabel.show();
-            sidePreviewControl.show();
+            global.sidePreviewInfoLabel.show();
+            global.sideStatusInfoLabel.show();
+            global.sidePreviewControl.show();
             ppar.side_preview_visible = true;
       } else {      
-            sidePreviewInfoLabel.hide();
-            sideStatusInfoLabel.hide();
-            sidePreviewControl.hide();
+            global.sidePreviewInfoLabel.hide();
+            global.sideStatusInfoLabel.hide();
+            global.sidePreviewControl.hide();
             ppar.side_preview_visible = false;
       }
 }
 
 function toggleSidePreview()
 {
-      if (!use_preview) {
+      if (!global.use_preview) {
             return;
       }
 
@@ -3630,8 +3446,8 @@ function toggleSidePreview()
  *    AutoIntegrateDialog
  * 
  */
- function AutoIntegrateDialog()
- {
+function AutoIntegrateDialog()
+{
        this.__base__ = Dialog;
        this.__base__();
  
@@ -3656,7 +3472,7 @@ function toggleSidePreview()
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in PixInsight." +
       "</p><p>"+
-      directoryInfo +
+      global.directoryInfo +
       "</p><p>" +
       "User can give output root directory which can be relative or absolute path." +
       "</p><p>"+
@@ -3693,17 +3509,17 @@ function toggleSidePreview()
       this.autoContinueButton = newAutoContinueButton(this, false);
       
       this.filesToolTip = [];
-      this.filesToolTip[pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
+      this.filesToolTip[global.pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
                              "they are assumed to be already calibrated.</p>" +
                              "<p>If IMAGETYP is set on images script tries to automatically detect "+
                              "bias, dark flat and flat dark images. This can be disabled with No autodetect option.</p>";
-      this.filesToolTip[pages.BIAS] = "<p>Add bias files. If only one file is added " + 
+      this.filesToolTip[global.pages.BIAS] = "<p>Add bias files. If only one file is added " + 
                              "it is assumed to be a master file.</p>";
-      this.filesToolTip[pages.DARKS] = "<p>Add dark files. If only one file is added " + 
+      this.filesToolTip[global.pages.DARKS] = "<p>Add dark files. If only one file is added " + 
                              "it is assumed to be a master file.</p>";
-      this.filesToolTip[pages.FLATS] = "<p>Add flat files. If only one file is added " + 
+      this.filesToolTip[global.pages.FLATS] = "<p>Add flat files. If only one file is added " + 
                              "it is assumed to be a master file.</p>";
-      this.filesToolTip[pages.FLAT_DARKS] = "<p>Add flat dark image files. If only one file is added " + 
+      this.filesToolTip[global.pages.FLAT_DARKS] = "<p>Add flat dark image files. If only one file is added " + 
                              "it is assumed to be a master file. If flat dark files are selected " + 
                              "then master flat dark is used instead of master bias and master dark " + 
                              "is not used to calibrate flats.</p>";
@@ -3714,23 +3530,23 @@ function toggleSidePreview()
 
       this.tabBox = new TabBox( this );
 
-      let newFilesTreeBox = new filesTreeBox( this, lightsOptions(this), pages.LIGHTS );
+      let newFilesTreeBox = new filesTreeBox( this, lightsOptions(this), global.pages.LIGHTS );
       this.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Lights" );
 
-      newFilesTreeBox = new filesTreeBox( this, biasOptions(this), pages.BIAS );
+      newFilesTreeBox = new filesTreeBox( this, biasOptions(this), global.pages.BIAS );
       this.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Bias" );
 
-      newFilesTreeBox = new filesTreeBox( this, darksOptions(this), pages.DARKS );
+      newFilesTreeBox = new filesTreeBox( this, darksOptions(this), global.pages.DARKS );
       this.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Darks" );
 
-      newFilesTreeBox = new filesTreeBox( this, flatsOptions(this), pages.FLATS );
+      newFilesTreeBox = new filesTreeBox( this, flatsOptions(this), global.pages.FLATS );
       this.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flats" );
 
-      newFilesTreeBox = new filesTreeBox( this, flatdarksOptions(this), pages.FLAT_DARKS );
+      newFilesTreeBox = new filesTreeBox( this, flatdarksOptions(this), global.pages.FLAT_DARKS );
       this.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flat Darks" );
 
@@ -3818,14 +3634,13 @@ function toggleSidePreview()
             "recommended that each part of the batch is stored in a separate directory. </p>");
       this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", par.skip_autodetect_imagetyp, 
             "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
-      this.aiPages = pages;
       this.autodetect_filter_CheckBox = newCheckBoxEx(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
             "<p>If selected do not try to autodetect light and flat files based on FILTER keyword.</p>" +
             "<p>Selecting this enables manual adding of filter files for lights and flats.</p>",
             function(checked) { 
                   this.dialog.autodetect_filter_CheckBox.aiParam.val = checked; 
-                  showOrHideFilterSectionBar(this.dialog.aiPages.LIGHTS);
-                  showOrHideFilterSectionBar(this.dialog.aiPages.FLATS);
+                  showOrHideFilterSectionBar(global.LIGHTS);
+                  showOrHideFilterSectionBar(global.FLATS);
             });
       this.save_processed_channel_images_CheckBox = newCheckBox(this, "Save processed channel images", par.save_processed_channel_images, 
             "<p>If selected save also processed channel images for AutoContinue and iconize them to the desktop.</p>" +
@@ -3840,9 +3655,9 @@ function toggleSidePreview()
             function(checked) { 
                   this.dialog.no_subdirs_CheckBox.aiParam.val = checked;
                   if (this.dialog.no_subdirs_CheckBox.aiParam.val) {
-                        clearDefaultDirs();
+                        util.clearDefaultDirs();
                   } else {
-                        setDefaultDirs();
+                        util.setDefaultDirs();
                   }
             });
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle, 
@@ -3875,7 +3690,7 @@ function toggleSidePreview()
             "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
       this.shadowClip_CheckBox = newCheckBox(this, "Shadow clip", par.shadow_clip, 
             "<p>Clip shadows.</p>" +
-            "<p>Clipping shadows increases contrast but clips out some data. Shadow clip clips " + shadow_clip_value + "% of shadows " +
+            "<p>Clipping shadows increases contrast but clips out some data. Shadow clip clips " + global.shadow_clip_value + "% of shadows " +
             "after image is stretched.</p>");
       this.forceNewMask_CheckBox = newCheckBox(this, "New mask", par.force_new_mask, 
             "<p>Do not use an existing mask but always create a new mask.</p>)");
@@ -4651,8 +4466,8 @@ function toggleSidePreview()
       /* Narrowband to RGB mappings. 
        */
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
-      for (var i = 0; i < narrowBandPalettes.length; i++) {
-            this.narrowbandCustomPalette_ComboBox.addItem( narrowBandPalettes[i].name );
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            this.narrowbandCustomPalette_ComboBox.addItem( global.narrowBandPalettes[i].name );
       }
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
@@ -4664,9 +4479,9 @@ function toggleSidePreview()
             narrowbandToolTip;
       this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
       {
-            this.dialog.narrowbandCustomPalette_R_ComboBox.editText = narrowBandPalettes[itemIndex].R;
-            this.dialog.narrowbandCustomPalette_G_ComboBox.editText = narrowBandPalettes[itemIndex].G;
-            this.dialog.narrowbandCustomPalette_B_ComboBox.editText = narrowBandPalettes[itemIndex].B;
+            this.dialog.narrowbandCustomPalette_R_ComboBox.editText = global.narrowBandPalettes[itemIndex].R;
+            this.dialog.narrowbandCustomPalette_G_ComboBox.editText = global.narrowBandPalettes[itemIndex].G;
+            this.dialog.narrowbandCustomPalette_B_ComboBox.editText = global.narrowBandPalettes[itemIndex].B;
 
             par.custom_R_mapping.val = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
             par.custom_G_mapping.val = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
@@ -4851,17 +4666,17 @@ function toggleSidePreview()
       {
             console.writeln("Test narrowband mapping");
             par.use_RGBNB_Mapping.val = true;
-            clearDefaultDirs();
+            util.clearDefaultDirs();
             try {
-                  testRGBNBmapping();
-                  setDefaultDirs();
+                  engine.testRGBNBmapping();
+                  util.setDefaultDirs();
             } 
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
+                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
                   console.endLog();
-                  setDefaultDirs();
+                  util.setDefaultDirs();
             }
             par.use_RGBNB_Mapping.val = false;
       };   
@@ -5046,11 +4861,11 @@ function toggleSidePreview()
             "selected from the combo box.</p>" +
             "<p>Star image is searched using the following steps:</p>" +
             "<ol>" +
-            "<li>All occurances of text starless replaced with text stars</li>"
-            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>"
-            "<li>Text starless at the end replaced with text stars</li>"
-            "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>"
-            "<li></li>"
+            "<li>All occurances of text starless replaced with text stars</li>" +
+            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
+            "<li>Text starless at the end replaced with text stars</li>" +
+            "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>" +
+            "<li></li>" +
             "</ol>" +
             stars_combine_operations_Tooltip + 
             extraCombineStarsReduce_Tooltip;
@@ -5286,22 +5101,22 @@ function toggleSidePreview()
       this.extraImageComboBox.minItemCharWidth = 20;
       this.extraImageComboBox.onItemSelected = function( itemIndex )
       {
-            if (extra_target_image == extra_target_image_window_list[itemIndex]) {
+            if (global.extra_target_image == extra_target_image_window_list[itemIndex]) {
                   return;
             }
             close_undo_images(this.dialog);
-            extra_target_image = extra_target_image_window_list[itemIndex];
-            console.writeln("extra_target_image " + extra_target_image);
-            if (extra_target_image == "Auto") {
+            global.extra_target_image = extra_target_image_window_list[itemIndex];
+            console.writeln("global.extra_target_image " + global.extra_target_image);
+            if (global.extra_target_image == "Auto") {
                   updatePreviewNoImage();
                   this.dialog.extraSaveButton.enabled = false;
             } else {
-                  updatePreviewIdReset(extra_target_image, true);
+                  updatePreviewIdReset(global.extra_target_image, true);
                   this.dialog.extraSaveButton.enabled = true;
             }
       };
       update_extra_target_image_window_list(this, "Auto");
-      extra_target_image = extra_target_image_window_list[0];
+      global.extra_target_image = extra_target_image_window_list[0];
 
       var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
       this.extraApplyButton = new PushButton( this );
@@ -5311,48 +5126,45 @@ function toggleSidePreview()
             notetsaved_note;
       this.extraApplyButton.onClick = function()
       {
-            if (!is_extra_option() && !is_narrowband_option()) {
+            if (!util.is_extra_option() && !util.is_narrowband_option()) {
                   console.criticalln("No extra processing option selected!");
-            } else if (extra_target_image == null) {
+            } else if (global.extra_target_image == null) {
                   console.criticalln("No image!");
-            } else if (extra_target_image == "Auto") {
+            } else if (global.extra_target_image == "Auto") {
                   console.criticalln("Auto target image cannot be used with Apply button!");
-            } else if (findWindow(extra_target_image) == null) {
-                  console.criticalln("Could not find target image " + extra_target_image);
+            } else if (util.findWindow(global.extra_target_image) == null) {
+                  console.criticalln("Could not find target image " + global.extra_target_image);
             } else {
                   if (undo_images.length == 0) {
-                        var saved_extra_target_image = extra_target_image;
+                        var saved_extra_target_image = global.extra_target_image;
                         if (!par.extra_apply_no_copy_image.val) {
                               // make copy of the original image
-                              extra_target_image = copy_undo_edit_image(extra_target_image);
+                              global.extra_target_image = copy_undo_edit_image(global.extra_target_image);
                         }
-                        var first_undo_image_id = create_undo_image(extra_target_image);
+                        var first_undo_image_id = create_undo_image(global.extra_target_image);
                   } else {
                         var first_undo_image_id = null;
                   }
-                  console.writeln("Apply extra processing edits on " + extra_target_image);
+                  console.writeln("Apply extra processing edits on " + global.extra_target_image);
                   try {
-                        narrowband = is_narrowband_option();
-                        extraProcessingEngine(this.dialog, extra_target_image);
-                        narrowband = false;
+                        engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (undo_images.length == 0) {
                               // add first/original undo image
-                              add_undo_image(this.dialog, extra_target_image, first_undo_image_id);
+                              add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id);
                               // save copy of original image to the window list and make is current
-                              update_extra_target_image_window_list(this.dialog, extra_target_image);
+                              update_extra_target_image_window_list(this.dialog, global.extra_target_image);
                         }
-                        let undo_image_id = create_undo_image(extra_target_image);
-                        add_undo_image(this.dialog, extra_target_image, undo_image_id);
+                        let undo_image_id = create_undo_image(global.extra_target_image);
+                        add_undo_image(this.dialog, global.extra_target_image, undo_image_id);
                         console.noteln("Apply completed");
                   } 
                   catch(err) {
                         if (first_undo_image_id != null) {
                               remove_undo_image(first_undo_image_id);
-                              extra_target_image = saved_extra_target_image;
+                              global.extra_target_image = saved_extra_target_image;
                         }
                         console.criticalln(err);
                         console.criticalln("Operation failed!");
-                        narrowband = false;
                   }
             }
       };   
@@ -5510,7 +5322,7 @@ function toggleSidePreview()
             console.noteln("Close prefix");
             updateWindowPrefix();
             // Close all using the current ppar.win_prefix
-            closeAllWindows(par.keep_integrated_images.val, false);
+            engine.closeAllWindows(par.keep_integrated_images.val, false);
             var index = findPrefixIndex(ppar.win_prefix);
             if (index != -1) {
                   // If prefix was found update array
@@ -5524,7 +5336,7 @@ function toggleSidePreview()
                         fix_win_prefix_array();
                   }
                   savePersistentSettings(false);
-                  //this.columnCountControlComboBox.currentItem = columnCount + 1;
+                  //this.columnCountControlComboBox.currentItem = global.columnCount + 1;
             }
             update_extra_target_image_window_list(this.dialog, null);
             console.writeln("Close prefix completed");
@@ -5542,21 +5354,21 @@ function toggleSidePreview()
                   // Always close default/empty prefix
                   // For delete to work we need to update fixed window
                   // names with the prefix we use for closing
-                  fixAllWindowArrays("");
+                  util.fixAllWindowArrays("");
                   console.writeln("Close default empty prefix");
-                  closeAllWindows(par.keep_integrated_images.val, false);
+                  engine.closeAllWindows(par.keep_integrated_images.val, false);
                   if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
                         console.writeln("Close prefix '" + ppar.win_prefix + "'");
-                        fixAllWindowArrays(ppar.win_prefix);
-                        closeAllWindows(par.keep_integrated_images.val, false);
+                        util.fixAllWindowArrays(ppar.win_prefix);
+                        engine.closeAllWindows(par.keep_integrated_images.val, false);
                   }
                   // Go through the prefix list
                   for (var i = 0; i < ppar.prefixArray.length; i++) {
                         if (ppar.prefixArray[i][1] != '-') {
                               console.writeln("Close prefix '" + ppar.prefixArray[i][1] + "'");
-                              fixAllWindowArrays(ppar.prefixArray[i][1]);
-                              closeAllWindows(par.keep_integrated_images.val, false);
+                              util.fixAllWindowArrays(ppar.prefixArray[i][1]);
+                              engine.closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
                                     // If we keep integrated images then we can start
                                     // from zero icon position
@@ -5576,7 +5388,7 @@ function toggleSidePreview()
             fix_win_prefix_array();
             savePersistentSettings(false);
             // restore original prefix
-            fixAllWindowArrays(ppar.win_prefix);
+            util.fixAllWindowArrays(ppar.win_prefix);
             update_extra_target_image_window_list(this.dialog, null);
             console.writeln("Close all prefixes completed");
       };
@@ -5622,7 +5434,7 @@ function toggleSidePreview()
       this.mosaicSaveXisfButton.onClick = function()
       {
             console.writeln("Save XISF");
-            saveAllFinalImageWindows(32);
+            util.saveAllFinalImageWindows(32);
       };   
       this.mosaicSave16bitButton = new PushButton( this );
       this.mosaicSave16bitButton.text = "16 bit TIFF";
@@ -5630,7 +5442,7 @@ function toggleSidePreview()
       this.mosaicSave16bitButton.onClick = function()
       {
             console.writeln("Save 16 bit TIFF");
-            saveAllFinalImageWindows(16);
+            util.saveAllFinalImageWindows(16);
       };   
       this.mosaicSave8bitButton = new PushButton( this );
       this.mosaicSave8bitButton.text = "8 bit TIFF";
@@ -5638,7 +5450,7 @@ function toggleSidePreview()
       this.mosaicSave8bitButton.onClick = function()
       {
             console.writeln("Save 8 bit TIFF");
-            saveAllFinalImageWindows(8);
+            util.saveAllFinalImageWindows(8);
       };   
 
       this.mosaicSaveControl = new Control( this );
@@ -5667,7 +5479,7 @@ function toggleSidePreview()
 
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { this.dialog.show_preview_CheckBox.aiParam.use_preview = checked; });
+            function(checked) { this.dialog.show_preview_CheckBox.aiParam.global.use_preview = checked; });
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
@@ -5740,7 +5552,7 @@ function toggleSidePreview()
             this.interfaceManualColumnSizer.add( this.columnCountControlComboBox );
             this.interfaceManualColumnSizer.addStretch();
       }
-      if (use_preview) {
+      if (global.use_preview) {
             this.previewToggleButton = new PushButton( this );
             this.previewToggleButton.text = "Toggle preview";
             this.previewToggleButton.toolTip = "<p>Show/hide image preview on the side of the dialog.</p>" +
@@ -5766,7 +5578,7 @@ function toggleSidePreview()
       if (par.use_manual_icon_column.val) {
             this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
       }
-      if (use_preview) {
+      if (global.use_preview) {
             this.interfaceControl.sizer.add( this.previewToggleButtonSizer );
       }
       this.interfaceControl.sizer.addStretch();
@@ -5826,11 +5638,11 @@ function toggleSidePreview()
       this.info1_Sizer.add( this.imageInfoLabel );
       this.info1_Sizer.addStretch();
 
-      if (!use_preview) {
+      if (!global.use_preview) {
             this.tabStatusInfoLabel = new Label( this );
             this.tabStatusInfoLabel.text = "";
             this.tabStatusInfoLabel.textAlignment = TextAlign_VertCenter;
-            tabStatusInfoLabel = this.tabStatusInfoLabel;
+            global.tabStatusInfoLabel = this.tabStatusInfoLabel;
 
             this.info2_Sizer = new HorizontalSizer;
             this.info2_Sizer.spacing = 6;
@@ -5840,7 +5652,7 @@ function toggleSidePreview()
 
       this.info_Sizer = new VerticalSizer;
       this.info_Sizer.add( this.info1_Sizer );
-      if (!use_preview) {
+      if (!global.use_preview) {
             this.info_Sizer.add( this.info2_Sizer );
       }
       this.info_Sizer.addStretch();
@@ -5899,8 +5711,6 @@ function toggleSidePreview()
             this.leftGroupBox.sizer.addStretch();
       }
 
-
-
       this.rightGroupBox = newSectionBar(this, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
@@ -5922,7 +5732,7 @@ function toggleSidePreview()
             this.cols.addStretch();
       }
 
-      if (use_preview) {
+      if (global.use_preview) {
             /* Tab preview.
              */
             if (use_tab_preview) {
@@ -5930,16 +5740,16 @@ function toggleSidePreview()
 
                   tabPreviewControl = this.tabPreviewObj.control;
                   tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
-                  tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
+                  global.tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
             }
             /* Side preview.
              */
             if (use_side_preview) {
                   this.sidePreviewObj = newPreviewObj(this);
 
-                  sidePreviewControl = this.sidePreviewObj.control;
-                  sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
-                  sideStatusInfoLabel = this.sidePreviewObj.statuslabel;
+                  global.sidePreviewControl = this.sidePreviewObj.control;
+                  global.sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
+                  global.sideStatusInfoLabel = this.sidePreviewObj.statuslabel;
 
                   updateSidePreviewState();
             }
@@ -5948,7 +5758,7 @@ function toggleSidePreview()
        */
       this.dialogSizer = new VerticalSizer;
       //this.dialogSizer.add( this.tabBox, 300 );
-      if (!use_preview) {
+      if (!global.use_preview) {
             this.dialogSizer.add( this.tabBox);
             this.dialogSizer.add( this.filesButtonsSizer);
       }
@@ -5965,9 +5775,9 @@ function toggleSidePreview()
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
 
-      if (use_preview && use_tab_preview) {
+      if (global.use_preview && use_tab_preview) {
             this.mainTabBox = new TabBox( this );
-            mainTabBox = this.mainTabBox;
+            global.mainTabBox = this.mainTabBox;
 
             let tabSizer = new mainSizerTab(this, this.dialogSizer);
             this.rootingArr.push(tabSizer);
@@ -5982,7 +5792,7 @@ function toggleSidePreview()
             }
             this.mainSizer.add( this.mainTabBox );
 
-      } else if (use_preview && use_side_preview) {
+      } else if (global.use_preview && use_side_preview) {
             this.mainSizer.add( this.sidePreviewObj.sizer);
             this.mainSizer.add( this.dialogSizer );
 
@@ -5994,7 +5804,7 @@ function toggleSidePreview()
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
-      if (use_preview) {
+      if (global.use_preview) {
             this.sizer.add( this.tabBox);
             this.sizer.add( this.filesButtonsSizer);
       }
@@ -6003,7 +5813,7 @@ function toggleSidePreview()
       //this.sizer.addStretch();
 
       // Version number
-      this.windowTitle = autointegrate_version; 
+      this.windowTitle = global.autointegrate_version; 
       this.userResizable = true;
       this.adjustToContents();
       //this.setVariableSize();
@@ -6014,3 +5824,32 @@ function toggleSidePreview()
       console.show();
 
 }
+
+AutoIntegrateDialog.prototype = new Dialog;
+
+this.AutoIntegrateDialog = AutoIntegrateDialog;
+
+/* Interface functions.
+ */
+this.updatePreviewWin = updatePreviewWin;
+this.updatePreviewFilename = updatePreviewFilename;
+this.updatePreviewId = updatePreviewId;
+this.readJsonFile = readJsonFile;
+this.setBestImageInTreeBox = setBestImageInTreeBox;
+this.setReferenceImageInTreeBox = setReferenceImageInTreeBox;
+this.addFilesToTreeBox = addFilesToTreeBox;
+this.updateInfoLabel = updateInfoLabel;
+this.addJsonFileInfo = addJsonFileInfo;
+this.initJsonSaveInfo = initJsonSaveInfo;
+this.compareReferenceFileNames = compareReferenceFileNames;
+this.setTreeBoxNodeSsweight = setTreeBoxNodeSsweight;
+this.close_undo_images = close_undo_images;
+this.setParameterDefaults = setParameterDefaults;
+this.update_extra_target_image_window_list = update_extra_target_image_window_list;
+this.saveJsonFileEx = saveJsonFileEx;
+this.fix_win_prefix_array = fix_win_prefix_array;
+
+
+}  /* AutoIntegrateGUI*/
+
+AutoIntegrateGUI.prototype = new Object;

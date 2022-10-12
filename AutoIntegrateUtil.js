@@ -1,19 +1,50 @@
-function runGC()
+/*
+        AutoIntegrate utility functions.
+
+Copyright (c) 2018-2022 Jarmo Ruuth.
+
+Crop to common area code
+
+      Copyright (c) 2022 Jean-Marc Lugrin.
+
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile.
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+*/
+
+function AutoIntegrateUtil(global)
+{
+
+this.__base__ = Object;
+this.__base__();
+
+var util = this;
+
+var par = global.par;
+var ppar = global.ppar;
+
+var use_force_close = true;
+
+this.runGC = function()
 {
       gc(false);        // run soft gc
 }
 
-function checkEvents()
+this.checkEvents = function()
 {
       processEvents();  // process events to keep GUI responsible
-      runGC();
+      util.runGC();
 }
 
 /// Init filter sets. We used to have actual Set object but
 // use a simple array so we can add object into it.
 // There are file sets for each possible filters and
 // each array element has file name and used flag.
-function initFilterSets()
+this.initFilterSets = function()
 {
       return [
             ['L', []],
@@ -28,20 +59,20 @@ function initFilterSets()
 }
 
 // find filter set object based on file type
-function findFilterSet(filterSet, filetype)
+this.findFilterSet = function(filterSet, filetype)
 {
       for (var i = 0; i < filterSet.length; i++) {
             if (filterSet[i][0] == filetype) {
                   return filterSet[i][1];
             }
       }
-      throwFatalError("findFilterSet bad filetype " + filetype);
+      util.throwFatalError("findFilterSet bad filetype " + filetype);
       return null;
 }
 
 // Add file base name to the filter set object
 // We use file base name to detect filter files
-function addFilterSetFile(filterSet, filePath, filetype)
+this.addFilterSetFile = function(filterSet, filePath, filetype)
 {
       var basename = File.extractName(filePath);
       console.writeln("addFilterSetFile add " + basename + " filter "+ filetype);
@@ -51,7 +82,7 @@ function addFilterSetFile(filterSet, filePath, filetype)
 // Try to find base file name from filter set objects.
 // We use simple linear search which should be fine
 // for most data sizes.
-function findFilterForFile(filterSet, filePath, filename_postfix)
+this.findFilterForFile = function(filterSet, filePath, filename_postfix)
 {
       var basename = File.extractName(filePath);
       if (filename_postfix.length > 0) {
@@ -61,7 +92,7 @@ function findFilterForFile(filterSet, filePath, filename_postfix)
       console.writeln("findFilterForFile " + basename);
       for (var i = 0; i < filterSet.length; i++) {
             var filterFileSet = filterSet[i][1];
-            for (j = 0; j < filterFileSet.length; j++) {
+            for (var j = 0; j < filterFileSet.length; j++) {
                   if (!filterFileSet[j].used && filterFileSet[j].name == basename) {
                         console.writeln("findFilterForFile filter " + filterSet[i][0]);
                         filterFileSet[j].used = true;
@@ -72,35 +103,35 @@ function findFilterForFile(filterSet, filePath, filename_postfix)
       return null;
 }
 
-function clearFilterFileUsedFlags(filterSet)
+this.clearFilterFileUsedFlags = function(filterSet)
 {
       console.writeln("clearUsedFilterForFiles");
       for (var i = 0; i < filterSet.length; i++) {
             var filterFileSet = filterSet[i][1];
-            for (j = 0; j < filterFileSet.length; j++) {
+            for (var j = 0; j < filterFileSet.length; j++) {
                   filterFileSet[j].used = false;
             }
       }
       return null;
 }
 
-function setDefaultDirs()
+this.setDefaultDirs = function()
 {
-      AutoOutputDir = "AutoOutput";
-      AutoCalibratedDir = "AutoCalibrated";
-      AutoMasterDir = "AutoMaster";
-      AutoProcessedDir = "AutoProcessed";
+      global.AutoOutputDir = "AutoOutput";
+      global.AutoCalibratedDir = "AutoCalibrated";
+      global.AutoMasterDir = "AutoMaster";
+      global.AutoProcessedDir = "AutoProcessed";
 }
 
-function clearDefaultDirs()
+this.clearDefaultDirs = function()
 {
-      AutoOutputDir = ".";
-      AutoCalibratedDir = ".";
-      AutoMasterDir = ".";
-      AutoProcessedDir = ".";
+      global.AutoOutputDir = ".";
+      global.AutoCalibratedDir = ".";
+      global.AutoMasterDir = ".";
+      global.AutoProcessedDir = ".";
 }
 
-function ensurePathEndSlash(dir)
+this.ensurePathEndSlash = function(dir)
 {
       if (dir.length > 0) {
             switch (dir[dir.length-1]) {
@@ -115,7 +146,7 @@ function ensurePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndSlash(dir)
+this.removePathEndSlash = function(dir)
 {
       if (dir.length > 1) {
             switch (dir[dir.length-1]) {
@@ -129,7 +160,7 @@ function removePathEndSlash(dir)
       return dir;
 }
 
-function removePathEndDot(dir)
+this.removePathEndDot = function(dir)
 {
       if (dir.length > 0) {
             switch (dir.substr(-2, 2)) {
@@ -144,17 +175,17 @@ function removePathEndDot(dir)
 }
 
 // parse full path from file name appended with '/
-function parseNewOutputDir(filePath, subdir)
+this.parseNewOutputDir = function(filePath, subdir)
 {
-      var path = ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
-      path = ensurePathEndSlash(path + subdir);
+      var path = util.ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
+      path = util.ensurePathEndSlash(path + subdir);
       console.writeln("parseNewOutputDir " + path);
       return path;
 }
 
 // If path is relative and not absolute, we append it to the 
 // path of the image file
-function pathIsRelative(p)
+this.pathIsRelative = function(p)
 {
       var dir = File.extractDirectory(p);
       if (dir == null || dir == '') {
@@ -169,37 +200,15 @@ function pathIsRelative(p)
       }
 }
 
-function throwFatalError(txt)
+this.throwFatalError = function(txt)
 {
-      addProcessingStepAndStatusInfo(txt);
-      run_results.fatal_error = txt;
-      is_processing = false;
+      util.addProcessingStepAndStatusInfo(txt);
+      global.run_results.fatal_error = txt;
+      global.is_processing = false;
       throw new Error(txt);
 }
 
-function winIsValid(w)
-{
-      return w != null;
-}
-
-function checkWinFilePath(w)
-{
-      if (w.filePath) {
-            outputRootDir = getOutputDir(w.filePath);
-      }
-}
-
-function checkAutoCont(w)
-{
-      if (winIsValid(w))  {
-            checkWinFilePath(w);
-            return true;
-      } else {
-            return false;
-      }
-}
-
-function findWindow(id)
+this.findWindow = function(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -219,7 +228,7 @@ function findWindow(id)
       return null;
 }
 
-function closeAllWindowsSubstr(id_substr)
+this.closeAllWindowsSubstr = function(id_substr)
 {
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
@@ -235,7 +244,7 @@ function closeAllWindowsSubstr(id_substr)
       }
 }
 
-function getWindowList()
+this.getWindowList = function()
 {
       var windowList = [];
       var images = ImageWindow.windows;
@@ -254,10 +263,10 @@ function getWindowList()
       return windowList;
 }
 
-function getWindowListReverse()
+this.getWindowListReverse = function()
 {
       var windowListReverse = [];
-      var windowList = getWindowList();
+      var windowList = util.getWindowList();
       for (var i = windowList.length-1; i >= 0; i--) {
             if (windowList[i].match(/undo[1-9]*/g) == null) {
                   windowListReverse[windowListReverse.length] = windowList[i];
@@ -266,9 +275,9 @@ function getWindowListReverse()
       return windowListReverse;
 }
 
-function findWindowId(id)
+this.findWindowId = function(id)
 {
-      var w = findWindow(id);
+      var w = util.findWindow(id);
 
       if (w == null) {
             return null;
@@ -277,22 +286,22 @@ function findWindowId(id)
       return w.mainView.id;
 }
 
-function windowShowif(id)
+this.windowShowif = function(id)
 {
-      var w = findWindow(id);
+      var w = util.findWindow(id);
       if (w != null) {
             w.show();
       }
 }
 
 // Iconify the window, the return value is the window,
-// only as a convenience to windowIconizeAndKeywordif()
-function windowIconizeif(id)
+// only as a convenience to this.windowIconizeAndKeywordif()
+this.windowIconizeif = function(id)
 {
       if (id == null) {
             return null;
       }
-      var w = findWindow(id);
+      var w = util.findWindow(id);
 
       if (w != null) {
             /* Method iconize() will put the icon at the middle position
@@ -302,33 +311,89 @@ function windowIconizeif(id)
                window position back to old position.
             */
             var oldpos = new Point(w.position);  // save old position
-            if (iconPoint == null) {
+            if (global.iconPoint == null) {
                   /* Get first icon to upper left corner. */
-                  iconPoint = new Point(
-                                    -(w.width / 2) + 5 + columnCount*300,
-                                    -(w.height / 2) + 5 + iconStartRow * 32);
-                  console.writeln("Icon " + id + " start from position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
+                  global.iconPoint = new Point(
+                                    -(w.width / 2) + 5 + global.columnCount*300,
+                                    -(w.height / 2) + 5 + global.iconStartRow * 32);
+                  console.writeln("Icon " + id + " start from position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */
-                  // iconPoint.moveBy(0, 32);
-                  iconPoint = new Point(
-                        -(w.width / 2) + 5 + columnCount*300,
-                        -(w.height / 2) + 5 + iconStartRow * 32 + haveIconized * 32);
-                  // console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
+                  // global.iconPoint.moveBy(0, 32);
+                  global.iconPoint = new Point(
+                        -(w.width / 2) + 5 + global.columnCount*300,
+                        -(w.height / 2) + 5 + global.iconStartRow * 32 + global.haveIconized * 32);
+                  // console.writeln("Next icon " + id + " position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
             }
-            w.position = new Point(iconPoint);  // set window position to get correct icon position
+            w.position = new Point(global.iconPoint);  // set window position to get correct icon position
             w.iconize();
             w.position = oldpos;                // restore window position
 
-            haveIconized++;
+            global.haveIconized++;
       }
       return w;
 }
 
-function windowIconizeAndKeywordif(id)
+this.filterKeywords = function(imageWindow, keywordname) 
 {
-      var w = windowIconizeif(id);
+      var oldKeywords = [];
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name != keywordname) {
+                  oldKeywords[oldKeywords.length] = keyword;
+            }
+      }
+      return oldKeywords;
+}
+
+this.setFITSKeyword = function(imageWindow, name, value, comment) 
+{
+      var oldKeywords = util.filterKeywords(imageWindow, name);
+      imageWindow.keywords = oldKeywords.concat([
+         new FITSKeyword(
+            name,
+            value,
+            comment
+         )
+      ]);
+}
+
+function findKeywords(imageWindow, keywordname) 
+{
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == keywordname) {
+                  return true;
+            }
+      }
+      return false;
+}
+
+function setFITSKeywordNoOverwrite(imageWindow, name, value, comment) 
+{
+      if (findKeywords(imageWindow, name)) {
+            console.writeln("keyword already set");
+            return;
+      }
+      util.setFITSKeyword(imageWindow, name, value, comment);
+}
+
+function setProcessedImageKeyword(imageWindow) 
+{
+      console.writeln("setProcessedImageKeyword to " + imageWindow.mainView.id);
+      setFITSKeywordNoOverwrite(
+            imageWindow,
+            "AutoIntegrate",
+            "processedimage",
+            "AutoIntegrate processed intermediate image");
+}
+
+this.windowIconizeAndKeywordif = function(id)
+{
+      var w = util.windowIconizeif(id);
 
       if (w != null) {
  
@@ -339,7 +404,14 @@ function windowIconizeAndKeywordif(id)
       }
 }
 
-function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
+// Add a script window that will be closed when close all is clicked
+// Useful for temporary windows that do not have a fixed name
+this.addScriptWindow = function(name)
+{
+      global.all_windows[global.all_windows.length] = name;
+}
+
+this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate_name)
 {
       if (old_name == new_name) {
             return new_name;
@@ -347,32 +419,25 @@ function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
       var w = ImageWindow.windowById(old_name);
       w.mainView.id = new_name;
       if (!keepif) {
-            addScriptWindow(new_name);
+            util.addScriptWindow(new_name);
       }
       if (!allow_duplicate_name && w.mainView.id != new_name) {
-            fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
+            util.fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
       }
       return w.mainView.id;
 }
 
-function windowRenameKeepif(old_name, new_name, keepif)
+this.windowRenameKeepif = function(old_name, new_name, keepif)
 {
-      return windowRenameKeepifEx(old_name, new_name, keepif, false);
+      return util.windowRenameKeepifEx(old_name, new_name, keepif, false);
 }
 
-function windowRename(old_name, new_name)
+this.windowRename = function(old_name, new_name)
 {
-      return windowRenameKeepif(old_name, new_name, false);
+      return util.windowRenameKeepif(old_name, new_name, false);
 }
 
-// Add a script window that will be closed when close all is clicked
-// Useful for temporary windows that do not have a fixed name
-function addScriptWindow(name)
-{
-      all_windows[all_windows.length] = name;
-}
-
-function forceCloseOneWindow(w)
+this.forceCloseOneWindow = function(w)
 {
       if (w == null) {
             return;
@@ -390,64 +455,58 @@ function forceCloseOneWindow(w)
 }
 
 // close one window
-function closeOneWindow(id)
+this.closeOneWindow = function(id)
 {
-      var w = findWindow(id);
+      var w = util.findWindow(id);
       if (w != null) {
-            forceCloseOneWindow(w);
-      }
-}
-
-// close all windows from an array
-function closeAllWindowsFromArray(arr)
-{
-      for (var i = 0; i < arr.length; i++) {
-            // console.writeln(" AINew Closing Window: " + arr[i]);
-            closeOneWindow(arr[i]+"_stars");
-            closeOneWindow(arr[i]);
+            util.forceCloseOneWindow(w);
       }
 }
 
 // For the final window, we may have more different names with
 // both prefix or postfix added
-function closeFinalWindowsFromArray(arr)
+this.closeFinalWindowsFromArray = function(arr, force_close)
 {
+      use_force_close = force_close;
+
       for (var i = 0; i < arr.length; i++) {
-            closeOneWindow(arr[i]);
-            closeOneWindow(arr[i]+"_stars");
-            closeOneWindow(arr[i]+"_starless");
-            closeOneWindow(arr[i]+"_extra");
-            closeOneWindow(arr[i]+"_extra_starless");
-            closeOneWindow(arr[i]+"_extra_stars");
-            closeOneWindow(arr[i]+"_extra_combined");
+            util.closeOneWindow(arr[i]);
+            util.closeOneWindow(arr[i]+"_stars");
+            util.closeOneWindow(arr[i]+"_starless");
+            util.closeOneWindow(arr[i]+"_extra");
+            util.closeOneWindow(arr[i]+"_extra_starless");
+            util.closeOneWindow(arr[i]+"_extra_stars");
+            util.closeOneWindow(arr[i]+"_extra_combined");
       }
+
+      use_force_close = true;
 }
 
-function closeTempWindowsForOneImage(id)
+this.closeTempWindowsForOneImage = function(id)
 {
-      closeOneWindow(id + "_max");
-      closeOneWindow(id + "_map");
-      closeOneWindow(id + "_stars");
-      closeOneWindow(id + "_map_mask");
-      closeOneWindow(id + "_map_stars");
-      closeOneWindow(id + "_map_pm");
-      closeOneWindow(id + "_mask");
-      closeOneWindow(id + "_tmp");
+      util.closeOneWindow(id + "_max");
+      util.closeOneWindow(id + "_map");
+      util.closeOneWindow(id + "_stars");
+      util.closeOneWindow(id + "_map_mask");
+      util.closeOneWindow(id + "_map_stars");
+      util.closeOneWindow(id + "_map_pm");
+      util.closeOneWindow(id + "_mask");
+      util.closeOneWindow(id + "_tmp");
 }
 
-function closeTempWindows()
+this.closeTempWindows = function()
 {
-      for (var i = 0; i < integration_LRGB_windows.length; i++) {
-            closeTempWindowsForOneImage(integration_LRGB_windows[i]);
-            closeTempWindowsForOneImage(integration_LRGB_windows[i] + "_BE");
+      for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
+            util.closeTempWindowsForOneImage(global.integration_LRGB_windows[i]);
+            util.closeTempWindowsForOneImage(global.integration_LRGB_windows[i] + "_BE");
       }
-      for (var i = 0; i < integration_color_windows.length; i++) {
-            closeTempWindowsForOneImage(integration_color_windows[i]);
-            closeTempWindowsForOneImage(integration_color_windows[i] + "_BE");
+      for (var i = 0; i < global.integration_color_windows.length; i++) {
+            util.closeTempWindowsForOneImage(global.integration_color_windows[i]);
+            util.closeTempWindowsForOneImage(global.integration_color_windows[i] + "_BE");
       }
 }
 
-function findFromArray(arr, id)
+this.findFromArray = function(arr, id)
 {
       for (var i = 0; i < arr.length; i++) {
             if (arr[i] == id) {
@@ -457,63 +516,57 @@ function findFromArray(arr, id)
       return false;
 }
 
-// close all windows created by this script
-function closeAllWindows(keep_integrated_imgs, force_close)
+function fixWindowArray(arr, prev_prefix, cur_prefix)
 {
-      closeTempWindows();
+    if (prev_prefix != "") {
+        // in this situation we've fixed up the array at least once, but the user changed the prefix
+        // in the UI and so the old prefix must be removed from the array before prepending the new one.
 
-      if (keep_integrated_imgs) {
-            var isLRGB = false;
-            var integration_windows = integration_LRGB_windows;
-            if (par.save_processed_channel_images.val ||
-                  preprocessed_images == start_images.L_R_G_B_PROCESSED) 
-            {
-                  integration_windows = integration_windows.concat(integration_processed_channel_windows);
-            }
-            for (var i = 0; i < integration_windows.length; i++) {
-                  if (findWindow(integration_windows[i]) != null) {
-                        // we have LRGB images
-                        closeAllWindowsFromArray(integration_color_windows);
-                        isLRGB = true;
-                        break;
-                  }
-            }
-            if (!isLRGB) {
-                  // we have color image
-                  closeAllWindowsFromArray(integration_windows);
-                  integration_windows = integration_color_windows;
-            }
-            for (var i = 0; i < all_windows.length; i++) {
-                  // check that we do not close integration windows
-                  if (!findFromArray(integration_windows, all_windows[i])) {
-                        closeOneWindow(all_windows[i]);
-                  }
-            }
-      } else {
-            closeAllWindowsFromArray(all_windows);
-            closeAllWindowsFromArray(integration_LRGB_windows);
-            closeAllWindowsFromArray(integration_color_windows);
-            closeAllWindowsFromArray(integration_crop_windows);
-            closeAllWindowsFromArray(integration_processed_channel_windows);
-      }
-      closeAllWindowsFromArray(fixed_windows);
-      closeAllWindowsFromArray(calibrate_windows);
+        for (var i = 0; i < arr.length; i++) {
+            arr[i] = arr[i].substring(arr[i].indexOf(prev_prefix.toString()) + prev_prefix.length);
+        }
+    }
 
-      use_force_close = force_close;
+    // add the window prefix to the array.
 
-      closeFinalWindowsFromArray(final_windows);
+    for (var i = 0; i < arr.length; i++) {
+        arr[i] = cur_prefix + arr[i];
+    }
 
-      use_force_close = true;
-
-      runGC();
 }
 
-function getOutputDir(filePath)
+function getWindowPrefix(basename, curname)
 {
-      var outputDir = outputRootDir;
-      if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
+      return curname.substring(0, curname.length - basename.length);
+}
+
+// Fix all fixed window names by having the given prefix
+// We find possible previous prefix from the known fixed
+// window name
+this.fixAllWindowArrays = function(new_prefix)
+{
+      var old_prefix = getWindowPrefix("Integration_L", global.integration_LRGB_windows[0]);
+      if (old_prefix == new_prefix) {
+            // no change
+            // console.writeln("fixAllWindowArrays no change in prefix '" + new_prefix + "'");
+            return;
+      }
+      // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
+      fixWindowArray(global.integration_LRGB_windows, old_prefix, new_prefix);
+      fixWindowArray(global.integration_processed_channel_windows, old_prefix, new_prefix);
+      fixWindowArray(global.integration_color_windows, old_prefix, new_prefix);
+      fixWindowArray(global.integration_crop_windows, old_prefix, new_prefix);
+      fixWindowArray(global.fixed_windows, old_prefix, new_prefix);
+      fixWindowArray(global.calibrate_windows, old_prefix, new_prefix);
+      fixWindowArray(global.final_windows, old_prefix, new_prefix);
+}
+
+this.getOutputDir = function(filePath)
+{
+      var outputDir = global.outputRootDir;
+      if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
             if (filePath != null && filePath != "") {
-                  outputDir = parseNewOutputDir(filePath, outputRootDir);
+                  outputDir = util.parseNewOutputDir(filePath, global.outputRootDir);
                   console.writeln("getOutputDir, outputDir ", outputDir);
             } else {
                   outputDir = "";
@@ -524,10 +577,10 @@ function getOutputDir(filePath)
 }
 
 
-function testDirectoryIsWriteable(dir)
+this.testDirectoryIsWriteable = function(dir)
 {
-      var fname = ensurePathEndSlash(dir) + "info.txt";
-      var info = directoryInfo.replace(/<br>/g, "\n");
+      var fname = util.ensurePathEndSlash(dir) + "info.txt";
+      var info = global.directoryInfo.replace(/<br>/g, "\n");
       try {
             let file = new File();
             file.createForWriting(fname);
@@ -535,47 +588,47 @@ function testDirectoryIsWriteable(dir)
             file.close();
       } catch (error) {
             console.criticalln(error);
-            throwFatalError("Failed to write to directory " + dir);
+            util.throwFatalError("Failed to write to directory " + dir);
       }
 }
 
-function ensureDir(dir)
+this.ensureDir = function(dir)
 {
       // console.writeln("ensureDir " + dir)
       if (dir == "") {
             return;
       }
-      var noslashdir = removePathEndSlash(dir);
-      noslashdir = removePathEndDot(noslashdir);
+      var noslashdir = util.removePathEndSlash(dir);
+      noslashdir = util.removePathEndDot(noslashdir);
       if (!File.directoryExists(noslashdir)) {
             console.writeln("Create directory " + noslashdir);
             File.createDirectory(noslashdir);
             if (!File.directoryExists(noslashdir)) {
-                  throwFatalError("Failed to create directory " + noslashdir);
+                  util.throwFatalError("Failed to create directory " + noslashdir);
             }
-            testDirectoryIsWriteable(noslashdir);
+            util.testDirectoryIsWriteable(noslashdir);
       }
 }
 
-function saveLastDir(dirname)
+this.saveLastDir = function(dirname)
 {
-      ppar.lastDir = removePathEndSlash(dirname);
-      if (!do_not_write_settings) {
+      ppar.lastDir = util.removePathEndSlash(dirname);
+      if (!global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
             console.writeln("Save lastDir '" + ppar.lastDir + "'");
       }
 }
 
-function combinePath(p1, p2)
+this.combinePath = function(p1, p2)
 {
       if (p1 == "") {
             return "";
       } else {
-            return ensurePathEndSlash(p1) + p2;
+            return util.ensurePathEndSlash(p1) + p2;
       }
 }
 
-function saveWindowEx(path, id, optional_unique_part, save_id)
+this.saveWindowEx = function(path, id, optional_unique_part, save_id)
 {
       if (path == null || id == null) {
             return null;
@@ -598,65 +651,26 @@ function saveWindowEx(path, id, optional_unique_part, save_id)
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!w.saveAs(fname, false, false, false, false)) {
-            throwFatalError("Failed to save image: " + fname);
+            util.throwFatalError("Failed to save image: " + fname);
       }
       return fname;
 }
 
-function saveProcessedChannelImage(id, save_id)
+this.getOptionalUniqueFilenamePart = function()
 {
-      if (id == null || !par.save_processed_channel_images.val) {
-            return;
-      }
-
-      // Replace _map or _map_pm to _processed
-      if (save_id) {
-            save_id = save_id.replace(/_map.*/g, "_processed");
+      if (par.unique_file_names.val) {
+            return format("_%04d%02d%02d_%02d%02d%02d",
+                          global.processingDate.getFullYear(), global.processingDate.getMonth() + 1, global.processingDate.getDate(),
+                          global.processingDate.getHours(), global.processingDate.getMinutes(), global.processingDate.getSeconds());
       } else {
-            save_id = id.replace(/_map.*/g, "_processed");
+            return "";
       }
-      copyWindow(findWindow(id), save_id);
-
-      processed_channel_images[processed_channel_images.length] = save_id;
-
-      console.writeln("Save processed channel image " + id + " as " + save_id);
-
-      saveProcessedWindow(outputRootDir, save_id);
 }
 
-function saveProcessedWindow(path, id)
-{
-      if (id == null) {
-            return null;
-      }
-      if (path == "") {
-            console.criticalln("No output directory, cannot save image "+ id);
-            return null;
-      }
-      var processedPath = combinePath(path, AutoProcessedDir);
-      ensureDir(processedPath);
-      return saveWindowEx(ensurePathEndSlash(processedPath), id, getOptionalUniqueFilenamePart());
-}
-
-function saveMasterWindow(path, id)
-{
-      if (path == "") {
-            throwFatalError("No output directory, cannot save image "+ id);
-      }
-      var masterDir = combinePath(path, AutoMasterDir);
-      ensureDir(outputRootDir);
-      ensureDir(masterDir);
-      var fname = saveWindowEx(ensurePathEndSlash(masterDir), id, "");
-      if (fname == null) {
-            throwFatalError("Failed to save work image: " + ensurePathEndSlash(masterDir) + id);
-      }
-      return fname;
-}
-
-function saveFinalImageWindow(win, dir, name, bits)
+this.saveFinalImageWindow = function(win, dir, name, bits)
 {
       console.writeln("saveFinalImageWindow " + name);
-      var copy_win = copyWindow(win, ensure_win_prefix(name + "_savetmp"));
+      var copy_win = util.copyWindow(win, util.ensure_win_prefix(name + "_savetmp"));
       var save_name;
 
       // 8 and 16 bite are TIFF, 32 is XISF
@@ -668,10 +682,10 @@ function saveFinalImageWindow(win, dir, name, bits)
             }
             var old_postfix = name.substr(name.length - new_postfix.length);
             if (old_postfix != new_postfix) {
-                  save_name = ensurePathEndSlash(dir) + name + new_postfix + getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = this.ensurePathEndSlash(dir) + name + new_postfix + util.getOptionalUniqueFilenamePart() + ".tif";
             } else {
                   // we already have bits added to name
-                  save_name = ensurePathEndSlash(dir) + name + getOptionalUniqueFilenamePart() + ".tif";
+                  save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".tif";
             }
 
             if (copy_win.bitsPerSample != bits) {
@@ -679,18 +693,18 @@ function saveFinalImageWindow(win, dir, name, bits)
                   copy_win.setSampleFormat(bits, false);
             }
       } else {
-            save_name = ensurePathEndSlash(dir) + name + getOptionalUniqueFilenamePart() + ".xisf";
+            save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".xisf";
       }
       console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
-            throwFatalError("Failed to save image: " + outputPath);
+            util.throwFatalError("Failed to save image: " + save_name);
       }
-      forceCloseOneWindow(copy_win);
+      util.forceCloseOneWindow(copy_win);
 }
 
-function saveAllFinalImageWindows(bits)
+this.saveAllFinalImageWindows = function(bits)
 {
       console.writeln("saveAllFinalImageWindows");
 
@@ -741,25 +755,25 @@ function saveAllFinalImageWindows(bits)
 
       if (gdd.execute()) {
             console.writeln("saveAllFinalImageWindows:dir " + gdd.directory);
-            saveLastDir(gdd.directory);
+            util.saveLastDir(gdd.directory);
             for (var i = 0; i < finalimages.length; i++) {
-                  saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
+                  util.saveFinalImageWindow(finalimages[i], gdd.directory, finalimages[i].mainView.id, bits);
             }
       }
       console.writeln("All final image windows are saved!");
 }
 
-function fatalWindowNameFailed(txt)
+this.fatalWindowNameFailed = function(txt)
 {
       console.criticalln(txt);
       console.criticalln("Close old images or use a different window prefix.");
-      throwFatalError("Processing stopped");
+      util.throwFatalError("Processing stopped");
 }
 
-function copyWindowEx(sourceWindow, name, allow_duplicate_name)
+this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 {
       if (sourceWindow == null) {
-            throwFatalError("Window not found, cannot copy to " + name);
+            util.throwFatalError("Window not found, cannot copy to " + name);
       }
       var targetWindow = new ImageWindow(
                               sourceWindow.mainView.image.width,
@@ -776,10 +790,10 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
 
       targetWindow.show();
 
-      addScriptWindow(name);
+      util.addScriptWindow(name);
 
       if (targetWindow.mainView.id != name && !allow_duplicate_name) {
-            fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
+            util.fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
       }
 
       console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
@@ -787,8 +801,96 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
       return targetWindow;
 }
 
-function copyWindow(sourceWindow, name)
+this.copyWindow = function(sourceWindow, name)
 {
-      return copyWindowEx(sourceWindow, name, false);
+      return util.copyWindowEx(sourceWindow, name, false);
 }
 
+this.addProcessingStep = function(txt)
+{
+      console.noteln("AutoIntegrate: " + txt);
+      global.processing_steps = global.processing_steps + "\n" + txt;
+}
+
+this.updateStatusInfoLabel = function(txt)
+{
+      if (txt.length > 100) {
+            txt = txt.substring(0, 100);
+      }
+      if (global.tabStatusInfoLabel != null) {
+            global.tabStatusInfoLabel.text = txt;
+      }
+      if (global.use_preview && global.sideStatusInfoLabel != null) {
+            global.sideStatusInfoLabel.text = txt;
+      }
+}
+
+this.addStatusInfo = function(txt)
+{
+      console.noteln("------------------------");
+      util.updateStatusInfoLabel(txt);
+      util.checkEvents();
+}
+
+this.addProcessingStepAndStatusInfo = function(txt)
+{
+      util.addProcessingStep(txt);
+      util.updateStatusInfoLabel(txt);
+}
+
+this.ensure_win_prefix = function(id)
+{
+      if (ppar.win_prefix != "" && !id.startsWith(ppar.win_prefix)) {
+            return ppar.win_prefix + id;
+      } else {
+            return id;
+      }
+}
+
+function is_non_starless_option()
+{
+      return par.extra_ABE.val || 
+             par.extra_darker_background.val || 
+             par.extra_ET.val || 
+             par.extra_HDRMLT.val || 
+             par.extra_LHE.val || 
+             par.extra_contrast.val ||
+             par.extra_stretch.val ||
+             par.extra_shadowclipping.val ||
+             par.extra_smoothbackground.val ||
+             par.extra_noise_reduction.val ||
+             par.extra_ACDNR.val ||
+             par.extra_color_noise.val ||
+             par.extra_sharpen.val ||
+             par.extra_unsharpmask.val ||
+             par.extra_saturation.val ||
+             par.extra_smaller_stars.val;
+}
+
+this.is_extra_option = function()
+{
+      return par.extra_remove_stars.val || 
+             par.extra_combine_stars.val ||
+             is_non_starless_option();
+}
+
+this.is_narrowband_option = function()
+{
+      return par.fix_narrowband_star_color.val ||
+             par.run_orange_hue_shift.val ||
+             par.run_hue_shift.val ||
+             par.run_narrowband_SCNR.val ||
+             par.leave_some_green.val;
+}
+
+this.mapBadChars = function(str)
+{
+      str = str.replace(/ /g,"_");
+      str = str.replace(/-/g,"_");
+      str = str.replace(/,/g,"_");
+      return str;
+}
+
+}  /* AutoIntegrateUtil */
+
+AutoIntegrateUtil.prototype = new Object;

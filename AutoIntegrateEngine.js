@@ -1,3 +1,405 @@
+/*
+      AutoIntegrate Engine.
+
+Processing this.
+
+Interface functions:
+
+      autointegrateProcessingEngine
+      extraProcessingEngine
+      autointegrateNarrowbandPaletteBatch
+      openImageWindowFromFile
+      openImageFiles
+      getImagetypFiles
+      getFilterFiles
+      subframeSelectorMeasure
+      runHistogramTransformSTFex
+      testRGBNBmapping
+      writeProcessingSteps
+      closeAllWindows
+      getProcessDefaultValues
+      ensureDialogFilePath
+
+Copyright (c) 2018-2022 Jarmo Ruuth.
+
+Crop to common area code
+
+      Copyright (c) 2022 Jean-Marc Lugrin.
+
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile.
+
+PreviewControl module
+
+      Copyright (C) 2013, Andres del Pozo
+
+The following copyright notice is for Linear Defect Detection
+
+   Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
+
+The following copyright notice is for routines ApplyAutoSTF and applySTF:
+
+   Copyright (c) 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.
+
+The following condition apply for routines ApplyAutoSTF, applySTF and 
+Linear Defect Detection:
+
+   Redistribution and use in both source and binary forms, with or without
+   modification, is permitted provided that the following conditions are met:
+   
+   1. All redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   
+   2. All redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+   
+   3. Neither the names "PixInsight" and "Pleiades Astrophoto", nor the names
+      of their contributors, may be used to endorse or promote products derived
+      from this software without specific prior written permission. For written
+      permission, please contact info@pixinsight.com.
+  
+   4. All products derived from this software, in any form whatsoever, must
+      reproduce the following acknowledgment in the end-user documentation
+      and/or other materials provided with the product:
+  
+      "This product is based on software from the PixInsight project, developed
+      by Pleiades Astrophoto and its contributors (https://pixinsight.com/)."
+   
+      Alternatively, if that is where third-party acknowledgments normally
+      appear, this acknowledgment must be reproduced in the product itself.
+  
+   THIS SOFTWARE IS PROVIDED BY PLEIADES ASTROPHOTO AND ITS CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+   PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL PLEIADES ASTROPHOTO OR ITS
+   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, BUSINESS
+   INTERRUPTION; PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; AND LOSS OF USE,
+   DATA OR PROFITS) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGE.
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+*/
+
+function AutoIntegrateEngine(global, util)
+{
+
+this.__base__ = Object;
+this.__base__();
+
+var gui;
+var par = global.par;
+var ppar = global.ppar;
+var engine = this;
+
+this.setGUI = function(aig) {
+      gui = aig;
+}
+
+var same_stf_for_all_images = false;            /* does not work, colors go bad */
+var ssweight_set = false;
+var run_HT = true;
+var linear_fit_done = false;
+var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
+var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
+
+var crop_truncate_amount = null;       // used when cropping channel images
+var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
+var crop_lowClipImage_changed = false; // changed flag for saving to disk
+
+var L_images;
+var R_images;
+var G_images;
+var B_images;
+var H_images;
+var S_images;
+var O_images;
+var C_images;
+
+var autocontinue_processed_channel_images = {
+      lrgb_channels: [ 'L', 'R', 'G', 'B' ],
+      narrowband_channels: [ 'H', 'S', 'O' ],
+      image_ids: [],
+      luminance_id: null,
+      rbg: false,
+      narrowband: false
+};
+
+var narrowband;
+
+var logfname;
+var alignedFiles;
+
+/* Variable used during processing images.
+ */
+var mask_win;
+var mask_win_id;
+var star_mask_win;
+var star_mask_win_id;
+var star_fix_mask_win;
+var star_fix_mask_win_id;
+var RGB_win;
+var RGB_win_id;
+var is_color_files = false;
+var preprocessed_images;
+var L_ABE_id;
+var L_ABE_HT_win;
+var L_ABE_HT_id;
+var L_HT_win;
+var RGB_ABE_id;
+
+var luminance_id = null;      // These are working images and copies of 
+var red_id = null;            // original integrated images
+var green_id = null;
+var blue_id = null;
+
+var luminance_id_cropped = false;
+
+var L_id;                     // Original integrated images
+var R_id;                     // We make copies of these images during processing
+var G_id;
+var B_id;
+var H_id;
+var S_id;
+var O_id;
+var RGBcolor_id;              // Integrate RGB from OSC/DSLR data
+
+var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
+var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
+var RGB_stars = [];           // linear RGB channel star image ids
+
+var R_ABE_id = null;
+var G_ABE_id = null;
+var B_ABE_id = null;
+var start_time;
+var L_BE_win;
+var R_BE_win;
+var G_BE_win;
+var B_BE_win;
+var H_BE_win;
+var S_BE_win;
+var O_BE_win;
+var RGB_BE_win;
+var L_HT_win;
+var L_stf;
+var RGB_HT_win;
+var range_mask_win;
+var final_win;
+
+var retval = {
+      ERROR : 0,
+      SUCCESS : 1,
+      INCOMPLETE: 2
+};
+
+var channels = {
+      L: 0,
+      R: 1,
+      G: 2,
+      B: 3,
+      H: 4,
+      S: 5,
+      O: 6,
+      C: 7
+};
+
+function targetTypeSetup()
+{
+      if (par.target_type_galaxy.val) {
+            par.image_stretching.val = 'Masked Stretch';
+            console.writeln("Galaxy target using " + par.image_stretching.val);
+      } else if (par.target_type_nebula.val) {
+            par.image_stretching.val = 'Auto STF';
+            console.writeln("Nebula target using " + par.image_stretching.val);
+      }
+}
+
+function printImageInfo(images, name)
+{
+      if (images.images.length == 0) {
+            return;
+      }
+      util.addProcessingStep("* " + name + " " + images.images.length + " data files *");
+      util.addProcessingStep(name + " images best ssweight: "+images.best_ssweight);
+      util.addProcessingStep(name + " images best image: "+images.best_image);
+      util.addProcessingStep(name + " exptime: "+images.exptime);
+}
+
+function winIsValid(w)
+{
+      return w != null;
+}
+
+function checkWinFilePath(w)
+{
+      if (w.filePath) {
+            global.outputRootDir = util.getOutputDir(w.filePath);
+      }
+}
+
+function checkAutoCont(w)
+{
+      if (winIsValid(w))  {
+            checkWinFilePath(w);
+            return true;
+      } else {
+            return false;
+      }
+}
+
+// close all windows from an array
+function closeAllWindowsFromArray(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            util.closeOneWindow(arr[i]+"_stars");
+            util.closeOneWindow(arr[i]);
+      }
+}
+
+// close all windows created by this script
+this.closeAllWindows = function(keep_integrated_imgs, force_close)
+{
+      util.closeTempWindows();
+
+      if (keep_integrated_imgs) {
+            var isLRGB = false;
+            var integration_windows = global.integration_LRGB_windows;
+            if (par.save_processed_channel_images.val ||
+                  preprocessed_images == global.start_images.L_R_G_B_PROCESSED) 
+            {
+                  integration_windows = integration_windows.concat(global.integration_processed_channel_windows);
+            }
+            for (var i = 0; i < integration_windows.length; i++) {
+                  if (util.findWindow(integration_windows[i]) != null) {
+                        // we have LRGB images
+                        closeAllWindowsFromArray(global.integration_color_windows);
+                        isLRGB = true;
+                        break;
+                  }
+            }
+            if (!isLRGB) {
+                  // we have color image
+                  closeAllWindowsFromArray(integration_windows);
+                  integration_windows = global.integration_color_windows;
+            }
+            for (var i = 0; i < global.all_windows.length; i++) {
+                  // check that we do not close integration windows
+                  if (!util.findFromArray(integration_windows, global.all_windows[i])) {
+                        util.closeOneWindow(global.all_windows[i]);
+                  }
+            }
+      } else {
+            closeAllWindowsFromArray(global.all_windows);
+            closeAllWindowsFromArray(global.integration_LRGB_windows);
+            closeAllWindowsFromArray(global.integration_color_windows);
+            closeAllWindowsFromArray(global.integration_crop_windows);
+            closeAllWindowsFromArray(global.integration_processed_channel_windows);
+      }
+      closeAllWindowsFromArray(global.fixed_windows);
+      closeAllWindowsFromArray(global.calibrate_windows);
+
+      util.closeFinalWindowsFromArray(global.final_windows, force_close);
+
+      util.runGC();
+}
+
+function saveProcessedChannelImage(id, save_id)
+{
+      if (id == null || !par.save_processed_channel_images.val) {
+            return;
+      }
+
+      // Replace _map or _map_pm to _processed
+      if (save_id) {
+            save_id = save_id.replace(/_map.*/g, "_processed");
+      } else {
+            save_id = id.replace(/_map.*/g, "_processed");
+      }
+      util.copyWindow(util.findWindow(id), save_id);
+
+      global.processed_channel_images[global.processed_channel_images.length] = save_id;
+
+      console.writeln("Save processed channel image " + id + " as " + save_id);
+
+      saveProcessedWindow(global.outputRootDir, save_id);
+}
+
+function saveProcessedWindow(path, id)
+{
+      if (id == null) {
+            return null;
+      }
+      if (path == "") {
+            console.criticalln("No output directory, cannot save image "+ id);
+            return null;
+      }
+      var processedPath = util.combinePath(path, global.AutoProcessedDir);
+      util.ensureDir(processedPath);
+      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart());
+}
+
+function saveMasterWindow(path, id)
+{
+      if (path == "") {
+            util.throwFatalError("No output directory, cannot save image "+ id);
+      }
+      var masterDir = util.combinePath(path, global.AutoMasterDir);
+      util.ensureDir(global.outputRootDir);
+      util.ensureDir(masterDir);
+      var fname = util.saveWindowEx(util.ensurePathEndSlash(masterDir), id, "");
+      if (fname == null) {
+            util.throwFatalError("Failed to save work image: " + util.ensurePathEndSlash(masterDir) + id);
+      }
+      return fname;
+}
+
+function boolToInteger(b)
+{
+      b == true ? 1 : 0;
+}
+
+function checkOptions()
+{
+      var intval = boolToInteger(par.remove_stars_before_stretch.val) + boolToInteger(par.remove_stars_channel.val) + 
+                   boolToInteger(par.remove_stars_stretched.val);
+      if (intval > 1) {
+            util.throwFatalError("Only one remove stars option can be selected.")
+      }
+      var intval = boolToInteger(par.target_type_galaxy.val) + boolToInteger(par.target_type_nebula.val);
+      if (intval > 1) {
+            util.throwFatalError("Only one target type option can be selected.")
+      }
+}
+
+function setMaskChecked(imgWin, maskWin)
+{
+      try {
+            imgWin.setMask(maskWin);
+      } catch(err) {
+            console.criticalln("setMask failed: " + err);
+            console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
+            util.throwFatalError("Error setting the mask.");
+      }
+}
+
+function getProcessingOptions()
+{
+      var options = [];
+      for (let x in par) {
+            var param = par[x];
+            if (param.val != param.def) {
+                  options[options.length] = [ param.name, param.val ];
+            }
+      }
+      return options;
+}
+
 function extractHSchannels(sourceWindow)
 {
       var P = new ChannelExtraction;
@@ -278,15 +680,15 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
             /* If we have color files we extract lightness component and
                use it as a mask.
             */
-            addProcessingStepAndStatusInfo("Create mask by extracting lightness component from color image " + sourceWindow.mainView.id);
+            util.addProcessingStepAndStatusInfo("Create mask by extracting lightness component from color image " + sourceWindow.mainView.id);
 
             targetWindow = extractLchannel(sourceWindow);
             
-            windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
+            util.windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
       } else {
             /* Default mask is the same as stretched image. */
-            addProcessingStepAndStatusInfo("Create mask from image " + sourceWindow.mainView.id);
-            targetWindow = copyWindowEx(sourceWindow, name, allow_duplicate_name);
+            util.addProcessingStepAndStatusInfo("Create mask from image " + sourceWindow.mainView.id);
+            targetWindow = util.copyWindowEx(sourceWindow, name, allow_duplicate_name);
       }
 
       // addMildBlur(targetWindow); Not sure if this actually helps
@@ -315,7 +717,19 @@ function maskIsCompatible(imgWin, maskWin)
       return maskWin;
 }
 
-function openImageFiles(filetype, lights_only, json_only)
+function treeboxfilesToFilenames(treeboxfiles)
+{
+      var filenames = [];
+      for (var i = 0; i < treeboxfiles.length; i++) {
+            if (treeboxfiles[i][1]) {
+                  // checked
+                  filenames[filenames.length] = treeboxfiles[i][0];
+            }
+      }
+      return filenames;
+}
+
+this.openImageFiles = function(filetype, lights_only, json_only)
 {
       var ofd = new OpenFileDialog;
 
@@ -356,7 +770,7 @@ function openImageFiles(filetype, lights_only, json_only)
       if (ofd.fileNames.length < 1) {
             return null;
       }
-      saveLastDir(File.extractDrive(ofd.fileNames[0]) + File.extractDirectory(ofd.fileNames[0]));
+      util.saveLastDir(File.extractDrive(ofd.fileNames[0]) + File.extractDirectory(ofd.fileNames[0]));
       if (json_only) {
             // accept any single file selected
             if (ofd.fileNames.length != 1)  {
@@ -372,12 +786,12 @@ function openImageFiles(filetype, lights_only, json_only)
              * If lights_only, return a simple file array of light files
              * If not lights_only, return treebox files for each page
              */
-            var pagearray = readJsonFile(ofd.fileNames[0], lights_only);
+            var pagearray = gui.readJsonFile(ofd.fileNames[0], lights_only);
             if (lights_only) {
-                  if (pagearray[pages.LIGHTS] == null) {
+                  if (pagearray[global.pages.LIGHTS] == null) {
                         return null;
                   } else {
-                        return treeboxfilesToFilenames(pagearray[pages.LIGHTS].files);
+                        return treeboxfilesToFilenames(pagearray[global.pages.LIGHTS].files);
                   }
             } else {
                   return pagearray;
@@ -439,31 +853,6 @@ function updateBinningKeywords(imageWindow, binning_size)
       imageWindow.keywords = newKeywords;
 }
 
-function filterKeywords(imageWindow, keywordname) 
-{
-      var oldKeywords = [];
-      var keywords = imageWindow.keywords;
-      for (var i = 0; i < keywords.length; i++) {
-            var keyword = keywords[i];
-            if (keyword.name != keywordname) {
-                  oldKeywords[oldKeywords.length] = keyword;
-            }
-      }
-      return oldKeywords;
-}
-
-function findKeywords(imageWindow, keywordname) 
-{
-      var keywords = imageWindow.keywords;
-      for (var i = 0; i < keywords.length; i++) {
-            var keyword = keywords[i];
-            if (keyword.name == keywordname) {
-                  return true;
-            }
-      }
-      return false;
-}
-
 // Running PixelMath removes all keywords
 // We make a copy of selected keywords that are
 // put back to PixelMath generated image
@@ -491,7 +880,7 @@ function setTargetFITSKeywordsForPixelmath(imageWindow, keywords)
 
 function setSSWEIGHTkeyword(imageWindow, SSWEIGHT) 
 {
-      var oldKeywords = filterKeywords(imageWindow, "SSWEIGHT");
+      var oldKeywords = util.filterKeywords(imageWindow, "SSWEIGHT");
       imageWindow.keywords = oldKeywords.concat([
          new FITSKeyword(
             "SSWEIGHT",
@@ -502,50 +891,19 @@ function setSSWEIGHTkeyword(imageWindow, SSWEIGHT)
       ssweight_set = true;
 }
 
-function setFITSKeyword(imageWindow, name, value, comment) 
-{
-      var oldKeywords = filterKeywords(imageWindow, name);
-      imageWindow.keywords = oldKeywords.concat([
-         new FITSKeyword(
-            name,
-            value,
-            comment
-         )
-      ]);
-}
-
-function setFITSKeywordNoOverwrite(imageWindow, name, value, comment) 
-{
-      if (findKeywords(imageWindow, name)) {
-            console.writeln("keyword already set");
-            return;
-      }
-      setFITSKeyword(imageWindow, name, value, comment);
-}
-
 function setFinalImageKeyword(imageWindow) 
 {
       console.writeln("setFinalImageKeyword to " + imageWindow.mainView.id);
-      setFITSKeyword(
+      util.setFITSKeyword(
             imageWindow,
             "AutoIntegrate",
             "finalimage",
             "AutoIntegrate processed final image");
 }
 
-function setProcessedImageKeyword(imageWindow) 
-{
-      console.writeln("setProcessedImageKeyword to " + imageWindow.mainView.id);
-      setFITSKeywordNoOverwrite(
-            imageWindow,
-            "AutoIntegrate",
-            "processedimage",
-            "AutoIntegrate processed intermediate image");
-}
-
 function setImagetypKeyword(imageWindow, imagetype) 
 {
-      setFITSKeyword(
+      util.setFITSKeyword(
             imageWindow,
             "IMAGETYP",
             imagetype,
@@ -554,7 +912,7 @@ function setImagetypKeyword(imageWindow, imagetype)
 
 function setFilterKeyword(imageWindow, value) 
 {
-      setFITSKeyword(
+      util.setFITSKeyword(
             imageWindow,
             "FILTER",
             value,
@@ -608,7 +966,7 @@ function runImageIntegrationBiasDarks(images, name)
       P.weightMode = ImageIntegration.prototype.DontCare;
       P.normalization = ImageIntegration.prototype.NoNormalization;
       P.rangeClipLow = false;
-      if (pixinsight_version_num < 1080812) {
+      if (global.pixinsight_version_num < 1080812) {
             P.evaluateNoise = false;
       } else {
             P.evaluateSNR = false;
@@ -616,11 +974,11 @@ function runImageIntegrationBiasDarks(images, name)
 
       P.executeGlobal();
 
-      closeOneWindow(P.highRejectionMapImageId);
-      closeOneWindow(P.lowRejectionMapImageId);
-      closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindow(P.highRejectionMapImageId);
+      util.closeOneWindow(P.lowRejectionMapImageId);
+      util.closeOneWindow(P.slopeMapImageId);
 
-      var new_name = windowRename(P.integrationImageId, name);
+      var new_name = util.windowRename(P.integrationImageId, name);
 
       console.writeln("runImageIntegrationBiasDarks, integrated image " + new_name);
 
@@ -642,21 +1000,21 @@ function runSuberBias(biasWin)
 
       var targetWindow = ImageWindow.activeWindow;
 
-      windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
+      util.windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
 
       return targetWindow.mainView.id
 }
 
 /* Open a file as image window. */
-function openImageWindowFromFile(fileName)
+this.openImageWindowFromFile = function(fileName)
 {
       var imageWindows = ImageWindow.open(fileName);
       if (imageWindows.length != 1) {
-            throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
+            util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
       }
       var imageWindow = imageWindows[0];
       if (imageWindow == null) {
-            throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
+            util.throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
       }
       return imageWindow;
 }
@@ -679,7 +1037,7 @@ function matchMasterToImages(images, masterPath)
       /* Try find best match from masterPath for images.
        * Pick first image file as a reference.
        */
-      var imageWin = openImageWindowFromFile(images[0][1]);
+      var imageWin = engine.openImageWindowFromFile(images[0][1]);
       console.writeln("matchMasterToImages, images[0][1] " + images[0][1]);
       console.writeln("matchMasterToImages, imageWin.width " + imageWin.mainView.image.width + ", imageWin.height "+ imageWin.mainView.image.height);
 
@@ -687,7 +1045,7 @@ function matchMasterToImages(images, masterPath)
        */
       var matchingMaster = null;
       for (var i = 0; i < masterPath.length; i++) {
-            var masterWin = openImageWindowFromFile(masterPath[i]);
+            var masterWin = engine.openImageWindowFromFile(masterPath[i]);
             console.writeln("matchMasterToImages, check masterPath[ " + i + "] " + masterPath[i]);
             console.writeln("matchMasterToImages, masterWin.width " + masterWin.mainView.image.width + ", masterWin.height " + masterWin.mainView.image.height);
             if (masterWin.mainView.image.width == imageWin.mainView.image.width 
@@ -697,15 +1055,15 @@ function matchMasterToImages(images, masterPath)
                   matchingMaster = masterPath[i];
                   console.writeln("matchMasterToImages, found match " + matchingMaster);
             }
-            forceCloseOneWindow(masterWin);
+            util.forceCloseOneWindow(masterWin);
             if (matchingMaster != null) {
                   break;
             }
       }
-      forceCloseOneWindow(imageWin);
+      util.forceCloseOneWindow(imageWin);
 
       if (matchingMaster == null) {
-            throwFatalError("*** matchMasterToImages Error: Can't find matching master file");
+            util.throwFatalError("*** matchMasterToImages Error: Can't find matching master file");
       }
 
       return matchingMaster;
@@ -720,18 +1078,18 @@ function runCalibrateDarks(fileNames, masterbiasPath)
             return fileNames;
       }
 
-      console.noteln("runCalibrateDarks, images[0] " + images[0][1] + ", master bias " + masterbiasPath);
+      console.noteln("runCalibrateDarks, images[0] " + fileNames[0][1] + ", master bias " + masterbiasPath);
       console.writeln("runCalibrateDarks, master bias " + masterbiasPath);
 
       var P = new ImageCalibration;
       P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.masterBiasEnabled = true;
       P.masterBiasPath = matchMasterToImages(P.targetFrames, masterbiasPath);
       P.masterDarkEnabled = false;
       P.masterFlatEnabled = false;
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -753,7 +1111,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
       if (masterflatdarkPath != null) {
             console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
             P.masterBiasEnabled = true;
@@ -784,7 +1142,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       } else {
             P.calibrateDark = true;
       }
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -817,11 +1175,11 @@ function runImageIntegrationFlats(images, name)
 
       P.executeGlobal();
 
-      closeOneWindow(P.highRejectionMapImageId);
-      closeOneWindow(P.lowRejectionMapImageId);
-      closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindow(P.highRejectionMapImageId);
+      util.closeOneWindow(P.lowRejectionMapImageId);
+      util.closeOneWindow(P.slopeMapImageId);
 
-      var new_name = windowRename(P.integrationImageId, name);
+      var new_name = util.windowRename(P.integrationImageId, name);
 
       console.writeln("runImageIntegrationFlats, integrated image " + new_name);
 
@@ -840,7 +1198,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
@@ -887,7 +1245,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             P.calibrateFlat = false;
             P.optimizeDarks = false;
       }
-      P.outputDirectory = outputRootDir + AutoCalibratedDir;
+      P.outputDirectory = global.outputRootDir + global.AutoCalibratedDir;
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -1021,7 +1379,7 @@ function getDefectInfo(fileNames)
       // Run image integration as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
       var LDD_id = runImageIntegration(LDD_images, "LDD");
-      var LDD_win = findWindow(LDD_id);
+      var LDD_win = util.findWindow(LDD_id);
       var defects = [];
 
       if (par.fix_column_defects.val) {
@@ -1035,14 +1393,14 @@ function getDefectInfo(fileNames)
             defects = defects.concat(rowDefects);
       }
 
-      closeOneWindow(LDD_id);
+      util.closeOneWindow(LDD_id);
 
       return { ccFileNames: fileNames, ccDefects: defects };
 }
 
 function runLinearDefectDetection(fileNames)
 {
-      addProcessingStepAndStatusInfo("Run Linear Defect Detection");
+      util.addProcessingStepAndStatusInfo("Run Linear Defect Detection");
       console.writeln("runLinearDefectDetection, fileNames[0]=" + fileNames[0]);
       var ccInfo = [];
 
@@ -1050,28 +1408,28 @@ function runLinearDefectDetection(fileNames)
       var LDD_groups = getLDDgroups(fileNames);
 
       if (LDD_groups.length > 4) {
-            throwFatalError("too many LDD groups: " + LDD_groups.length);
+            util.throwFatalError("too many LDD groups: " + LDD_groups.length);
       }
 
       // For each group, generate own defect information
       for (var i = 0; i < LDD_groups.length; i++) {
             console.writeln("runLinearDefectDetection, group " + i);
             if (par.use_processed_files.val) {
-                  for (var j = 0; j < LDDDefectInfo.length; j++) {
-                        if (LDDDefectInfo[j].groupname == LDD_groups[i].groupname) {
+                  for (var j = 0; j < global.LDDDefectInfo.length; j++) {
+                        if (global.LDDDefectInfo[j].groupname == LDD_groups[i].groupname) {
                               // found existing defect info
-                              console.writeln("Use existing defect info " + LDDDefectInfo[j].groupname);
+                              console.writeln("Use existing defect info " + global.LDDDefectInfo[j].groupname);
                               break;
                         }
                   }
             }
-            if (!par.use_processed_files.val || j == LDDDefectInfo.length) {
+            if (!par.use_processed_files.val || j == global.LDDDefectInfo.length) {
                   // generate new defect info
                   var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles);
-                  LDDDefectInfo[LDDDefectInfo.length] = { groupname: LDD_groups[i].groupname, defects: ccGroupInfo.ccDefects }
+                  global.LDDDefectInfo[global.LDDDefectInfo.length] = { groupname: LDD_groups[i].groupname, defects: ccGroupInfo.ccDefects }
             } else {
                   // use existing defect info
-                  var ccGroupInfo = { ccFileNames: LDD_groups[i].groupfiles, ccDefects: LDDDefectInfo[j].defects };
+                  var ccGroupInfo = { ccFileNames: LDD_groups[i].groupfiles, ccDefects: global.LDDDefectInfo[j].defects };
             }
             ccInfo[ccInfo.length] = ccGroupInfo;
       }
@@ -1081,7 +1439,7 @@ function runLinearDefectDetection(fileNames)
 
 function generateNewFileName(fileName, outputdir, postfix, extension)
 {
-      return ensurePathEndSlash(outputdir) + File.extractName(fileName) + postfix + extension;
+      return util.ensurePathEndSlash(outputdir) + File.extractName(fileName) + postfix + extension;
 }
 
 function generateNewFileNames(oldFileNames, outputdir, postfix, extension)
@@ -1117,12 +1475,12 @@ function getBinningPostfix()
 function runBinningOnLights(fileNames, filtered_files)
 {
       var newFileNames = [];
-      var outputDir = outputRootDir + AutoOutputDir;
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
       var postfix = getBinningPostfix();
       var outputExtension = ".xisf";
  
-      addStatusInfo("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files");
-      addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + postfix + ".xisf");
+      util.addStatusInfo("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files");
+      util.addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + postfix + ".xisf");
       console.writeln("runBinningOnLights input[0] " + fileNames[0]);
 
       for (var i = 0; i < fileNames.length; i++) {
@@ -1137,11 +1495,11 @@ function runBinningOnLights(fileNames, filtered_files)
                   // Open source image window from a file
                   var imageWindows = ImageWindow.open(fileNames[i]);
                   if (imageWindows.length != 1) {
-                        throwFatalError("*** runBinningOnLights Error: imageWindows.length: " + imageWindows.length);
+                        util.throwFatalError("*** runBinningOnLights Error: imageWindows.length: " + imageWindows.length);
                   }
                   var imageWindow = imageWindows[0];
                   if (imageWindow == null) {
-                        throwFatalError("*** runBinningOnLights Error: Can't read file: " + fileNames[i]);
+                        util.throwFatalError("*** runBinningOnLights Error: Can't read file: " + fileNames[i]);
                   }
 
                   var P = new IntegerResample;
@@ -1160,10 +1518,10 @@ function runBinningOnLights(fileNames, filtered_files)
 
                   // Save window
                   if (!writeImage(filePath, imageWindow)) {
-                        throwFatalError("*** runBinningOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+                        util.throwFatalError("*** runBinningOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
                   }
                   // Close window
-                  forceCloseOneWindow(imageWindow);   
+                  util.forceCloseOneWindow(imageWindow);   
             } else{
                   // keep the old file name
                   var filePath = fileNames[i];
@@ -1180,11 +1538,11 @@ function runBinningOnLights(fileNames, filtered_files)
 function runABEOnLights(fileNames)
 {
       var newFileNames = [];
-      var outputDir = outputRootDir + AutoOutputDir;
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
       var postfix = "_ABE";
       var outputExtension = ".xisf";
 
-      addProcessingStepAndStatusInfo("Run ABE on on light files");
+      util.addProcessingStepAndStatusInfo("Run ABE on on light files");
 
       console.writeln("runABEOnLights output *" + postfix + ".xisf");
       console.writeln("runABEOnLights input[0] " + fileNames[0]);
@@ -1193,31 +1551,31 @@ function runABEOnLights(fileNames)
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (imageWindows.length != 1) {
-                  throwFatalError("*** runABEOnLights Error: imageWindows.length: " + imageWindows.length);
+                  util.throwFatalError("*** runABEOnLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
-                  throwFatalError("*** runABEOnLights Error: Can't read file: " + fileNames[i]);
+                  util.throwFatalError("*** runABEOnLights Error: Can't read file: " + fileNames[i]);
             }
             
             // Run ABE which creates a new window with _ABE extension
             var new_id = runABEex(imageWindow, false, postfix);
-            var new_win = findWindow(new_id);
+            var new_win = util.findWindow(new_id);
             if (new_win == null) {
-                  throwFatalError("*** runABEOnLights Error: could not find window: " + new_id);
+                  util.throwFatalError("*** runABEOnLights Error: could not find window: " + new_id);
             }
             
             // Source image window is not needed any more
-            forceCloseOneWindow(imageWindow);
+            util.forceCloseOneWindow(imageWindow);
 
             var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
 
             // Save ABE window
             if (!writeImage(filePath, new_win)) {
-                  throwFatalError("*** runABEOnLights Error: Can't write output image: " + new_id);
+                  util.throwFatalError("*** runABEOnLights Error: Can't write output image: " + new_id);
             }
             // Close ABE window
-            forceCloseOneWindow(new_win);
+            util.forceCloseOneWindow(new_win);
 
             newFileNames[newFileNames.length] = filePath;
       }
@@ -1229,11 +1587,11 @@ function runABEOnLights(fileNames)
 
 function runCosmeticCorrection(fileNames, defects, color_images)
 {
-      addStatusInfo("Run CosmeticCorrection, number of line defects to fix is " + defects.length);
+      util.addStatusInfo("Run CosmeticCorrection, number of line defects to fix is " + defects.length);
       if (defects.length > 0) {
-            addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
+            util.addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, number of line defects to fix is " + defects.length);
       } else {
-            addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
+            util.addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
       }
       console.writeln("fileNames[0] " + fileNames[0]);
 
@@ -1245,7 +1603,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       } else {
             P.cfa = false;
       }
-      P.outputDir = outputRootDir + AutoOutputDir;
+      P.outputDir = global.outputRootDir + global.AutoOutputDir;
       P.useAutoDetect = true;
       P.hotAutoCheck = true;
       P.hotAutoValue = par.cosmetic_correction_hot_sigma.val;
@@ -1265,7 +1623,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
             P.executeGlobal();
       } catch(err) {
             console.criticalln(err);
-            throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
+            util.throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
       }
 
       fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
@@ -1351,7 +1709,7 @@ function filterOutliers(measurements, name, index, type, do_filtering, fileindex
                   newMeasurements[newMeasurements.length] = measurements[i];
             }
       }
-      addProcessingStep(name + " outliers filtered " + (measurements.length - newMeasurements.length) + " files");
+      util.addProcessingStep(name + " outliers filtered " + (measurements.length - newMeasurements.length) + " files");
       return newMeasurements;
 }
 
@@ -1373,7 +1731,7 @@ function filterLimit(measurements, name, index, limit_val, fileindex, filtered_f
                   newMeasurements[newMeasurements.length] = measurements[i];
             }
       }
-      addProcessingStep(name + " limit filtered " + (measurements.length - newMeasurements.length) + " files");
+      util.addProcessingStep(name + " limit filtered " + (measurements.length - newMeasurements.length) + " files");
       return newMeasurements;
 }
 
@@ -1399,9 +1757,9 @@ function getScaledValPos(val, min, max)
 //    returns array of [ filename, checked, weight ]
 // else
 //    returns array of [ filename, weight ]
-function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
+this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_filtering)
 {
-      console.writeln("SubframeSelectorMeasure, input[0] " + fileNames[0]);
+      console.writeln("subframeSelectorMeasure, input[0] " + fileNames[0]);
 
       var indexPath = 3;
       var indexWeight = 4;
@@ -1413,7 +1771,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       /* Index for indexSNRWeight has changed at some point.
        * I assume it is in old position before version 1.8.8.10.
        */
-      if (pixinsight_version_num < 1080810) {
+      if (global.pixinsight_version_num < 1080810) {
             var indexSNRWeight = 7;
       } else {
             var indexSNRWeight = 9;
@@ -1421,22 +1779,22 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
 
       var measurements = null;
 
-      if (saved_measurements != null) {
-            // Find old measurements from saved_measurements
-            console.writeln("SubframeSelectorMeasure, use saved measurements");
+      if (global.saved_measurements != null) {
+            // Find old measurements from global.saved_measurements
+            console.writeln("subframeSelectorMeasure, use saved measurements");
             measurements = [];
             for (var i = 0; i < fileNames.length; i++) {
                   var found = false;
-                  for (var j = 0; j < saved_measurements.length; j++) {
-                        if (saved_measurements[j][indexPath] == fileNames[i]) {
-                              measurements[measurements.length] = saved_measurements[j];
+                  for (var j = 0; j < global.saved_measurements.length; j++) {
+                        if (global.saved_measurements[j][indexPath] == fileNames[i]) {
+                              measurements[measurements.length] = global.saved_measurements[j];
                               found = true;
                               break;
                         }
                   }
                   if (!found) {
                         // something went wrong, list are not compatible, generate new ones
-                        console.writeln("SubframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
+                        console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
                         measurements = null;
                         break;
                   }
@@ -1444,12 +1802,12 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       }
       if (measurements == null) {
             // collect new measurements
-            console.writeln("SubframeSelectorMeasure, collect measurements");
+            console.writeln("subframeSelectorMeasure, collect measurements");
             var P = new SubframeSelector;
             P.nonInteractive = true;
             P.subframes = fileNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
             P.noiseLayers = 2;
-            P.outputDirectory = outputRootDir + AutoOutputDir;
+            P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
             P.overwriteExistingFiles = true;
             P.maxPSFFits = 8000;
             /*
@@ -1468,12 +1826,12 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
            */
             
             P.executeGlobal();
-            saved_measurements = P.measurements;
+            global.saved_measurements = P.measurements;
             measurements = P.measurements;
       }
 
       // Close measurements and expressions windows
-      closeAllWindowsSubstr("SubframeSelector");
+      util.closeAllWindowsSubstr("SubframeSelector");
 
       // We filter outliers here so they are not included in the
       // min/max calculations below
@@ -1481,13 +1839,13 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       measurements = filterOutliers(measurements, "FWHM", indexFWHM, 'max', par.outliers_fwhm.val, indexPath, filtered_files);
       measurements = filterOutliers(measurements, "Eccentricity", indexEccentricity, 'max', par.outliers_ecc.val, indexPath, filtered_files);
       measurements = filterOutliers(measurements, "SNR", indexSNRWeight, 'min', par.outliers_snr.val, indexPath, filtered_files);
-      if (pixinsight_version_num >= 1080810) {
+      if (global.pixinsight_version_num >= 1080810) {
             measurements = filterOutliers(measurements, "PSF Signal", indexPSFSignal, 'min', par.outliers_psfsignal.val, indexPath, filtered_files);
             measurements = filterOutliers(measurements, "PSF Power", indexPSFPower, 'min', par.outliers_psfpower.val, indexPath, filtered_files);
       }
       measurements = filterOutliers(measurements, "Stars", indexStars, 'min', par.outliers_stars.val, indexPath, filtered_files);
 
-      console.writeln("SubframeSelectorMeasure:calculate weight");
+      console.writeln("subframeSelectorMeasure:calculate weight");
 
       /* Calculate weight */
       var FWHMMin = findMin(measurements, indexFWHM);
@@ -1496,7 +1854,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       var EccentricityMax = findMax(measurements, indexEccentricity);
       var SNRWeightMin = findMin(measurements, indexSNRWeight);
       var SNRWeightMax = findMax(measurements, indexSNRWeight);
-      if (pixinsight_version_num >= 1080810) {
+      if (global.pixinsight_version_num >= 1080810) {
             var PSFSignalMin = findMin(measurements, indexPSFSignal);
             var PSFSignalMax = findMax(measurements, indexPSFSignal);
             var PSFPowerMin = findMin(measurements, indexPSFPower);
@@ -1547,14 +1905,14 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                               10;
                         break;
                   case 'PSF Signal':
-                        if (pixinsight_version_num < 1080810) {
-                              throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
+                        if (global.pixinsight_version_num < 1080810) {
+                              util.throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
                         }
                         SSWEIGHT = measurements[i][indexPSFSignal] + 1; // Add one to avoid zero value
                         break;
                   case 'PSF Signal scaled':
-                        if (pixinsight_version_num < 1080810) {
-                              throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
+                        if (global.pixinsight_version_num < 1080810) {
+                              util.throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
                         }
                         SSWEIGHT = 99 * getScaledValPos(measurements[i][indexPSFSignal], PSFSignalMin, PSFSignalMax) + 1;
                         break;
@@ -1571,9 +1929,9 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                         SSWEIGHT = measurements[i][indexStars] + 1;      // Add one to avoid zero value
                         break;
                   default:
-                        throwFatalError("Invalid option " + par.use_weight.val);
+                        util.throwFatalError("Invalid option " + par.use_weight.val);
             }
-            addProcessingStep("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
+            util.addProcessingStep("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
                               ", Stars " + measurements[i][indexStars] + ", PSFSignal " + measurements[i][indexPSFSignal] + ", PSFPower " + measurements[i][indexPSFPower] +
                               ", " + measurements[i][indexPath]);
             // set SSWEIGHT to indexWeight column
@@ -1590,7 +1948,7 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
 
       if (weight_filtering) {
             // sorting for files that are filtered out
-            if (pixinsight_version_num < 1080810) {
+            if (global.pixinsight_version_num < 1080810) {
                   var filteredSortIndex = indexFWHM;
             } else {
                   var filteredSortIndex = indexPSFSignal;
@@ -1602,11 +1960,11 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             measurements.sort( function(a, b) {
                   return b[indexWeight] - a[indexWeight];
             });
-            console.writeln("SubframeSelectorMeasure, " + filtered_files.length + " discarded files");
+            console.writeln("subframeSelectorMeasure, " + filtered_files.length + " discarded files");
             for (var i = 0; i < filtered_files.length; i++) {
                   console.writeln(filtered_files[i][indexPath]);
             }
-            console.writeln("SubframeSelectorMeasure, " + measurements.length + " accepted files");
+            console.writeln("subframeSelectorMeasure, " + measurements.length + " accepted files");
             for (var i = 0; i < measurements.length; i++) {
                   console.writeln(measurements[i][indexPath]);
             }
@@ -1629,14 +1987,14 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                   } else {
                         // create Json output string
                         let fileInfoList = [];
-                        addJsonFileInfo(fileInfoList, pages.LIGHTS, treeboxfiles, null);
-                        let saveInfo = initJsonSaveInfo(fileInfoList, false, "");
+                        gui.addJsonFileInfo(fileInfoList, global.pages.LIGHTS, treeboxfiles, null);
+                        let saveInfo = gui.initJsonSaveInfo(fileInfoList, false, "");
                         console.writeln("saveInfo " + saveInfo);
                         let saveInfoJson = JSON.stringify(saveInfo, null, 2);
                         console.writeln("saveInfoJson " + saveInfoJson);
                         // save to a file
-                        let weightsFile = ensure_win_prefix("AutoWeights.json");
-                        let outputDir = getOutputDir(treeboxfiles[0][0]);
+                        let weightsFile = util.ensure_win_prefix("AutoWeights.json");
+                        let outputDir = util.getOutputDir(treeboxfiles[0][0]);
                         let outputFile = outputDir + weightsFile;
                         console.noteln("Write processing steps to " + outputFile);
                         var file = new File();
@@ -1647,17 +2005,17 @@ function SubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                   return ssFiles;
             }
       } else {
-            console.writeln("SubframeSelectorMeasure, output[0] " + ssFiles[0][0]);
+            console.writeln("subframeSelectorMeasure, output[0] " + ssFiles[0][0]);
             return ssFiles;
       }
 }
 
 function runSubframeSelector(fileNames)
 {
-      addProcessingStepAndStatusInfo("Run SubframeSelector");
+      util.addProcessingStepAndStatusInfo("Run SubframeSelector");
       console.writeln("input[0] " + fileNames[0]);
       
-      var ssWeights = SubframeSelectorMeasure(fileNames, par.image_weight_testing.val, false);
+      var ssWeights = engine.subframeSelectorMeasure(fileNames, par.image_weight_testing.val, false);
       // SubframeSelectorOutput(P.measurements); Does not write weight keyword
 
       var newFileNames = [];
@@ -1677,7 +2035,7 @@ function runSubframeSelector(fileNames)
             * and printing best files for each channel it is useful to write
             * output files with SSWEIGHT on them.
             */
-            var outputDir = outputRootDir + AutoOutputDir;
+            var outputDir = global.outputRootDir + global.AutoOutputDir;
             var postfix = "_a";
             var outputExtension = ".xisf";
             for (var i = 0; i < ssWeights.length; i++) {
@@ -1698,18 +2056,18 @@ function runSubframeSelector(fileNames)
                         }
                         setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
                         if (!writeImage(newFilePath, imageWindow)) {
-                              forceCloseOneWindow(imageWindow);
+                              util.forceCloseOneWindow(imageWindow);
                               console.writeln(
                               "*** Error: Can't write output image: ", newFilePath
                               );
                               continue;
                         }         
-                        forceCloseOneWindow(imageWindow);
+                        util.forceCloseOneWindow(imageWindow);
                   }
                   newFileNames[newFileNames.length] = newFilePath;
             }
       }
-      addProcessingStep("runSubframeSelector, input " + fileNames.length + " files, output " + newFileNames.length + " files");
+      util.addProcessingStep("runSubframeSelector, input " + fileNames.length + " files, output " + newFileNames.length + " files");
       console.writeln("output[0] " + newFileNames[0]);
 
       var names_and_weights = { filenames: newFileNames, ssweights: ssWeights, postfix: postfix };
@@ -1724,16 +2082,16 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
 
       if (names_and_weights.filenames.length < names_and_weights.ssweights.length) {
             // we have inconsistent lengths
-            throwFatalError("Inconsistent lengths, filenames.length=" + names_and_weights.filenames.length + ", ssweights.length=" + names_and_weights.ssweights.length);
+            util.throwFatalError("Inconsistent lengths, filenames.length=" + names_and_weights.filenames.length + ", ssweights.length=" + names_and_weights.ssweights.length);
       }
 
       run_HT = true;
-      best_ssweight = 0;
-      best_image = null;
+      global.best_ssweight = 0;
+      global.best_image = null;
 
       /* Loop through files and find image with best SSWEIGHT.
        */
-      addProcessingStepAndStatusInfo("Find best SSWEIGHT");
+      util.addProcessingStepAndStatusInfo("Find best SSWEIGHT");
       var n = 0;
       var first_image = true;
       var best_ssweight_naxis = 0;
@@ -1794,13 +2152,13 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                         }
                   }
             }
-            if (user_selected_best_image != null 
+            if (global.user_selected_best_image != null 
                 && found_user_selected_best_image == null
-                && compareReferenceFileNames(user_selected_best_image, filePath, filename_postfix))
+                && gui.compareReferenceFileNames(global.user_selected_best_image, filePath, filename_postfix))
               {
                     found_user_selected_best_image = filePath;
                     found_user_selected_best_image_ssweight = ssweight;
-                    console.writeln("found user selected best image " + user_selected_best_image + " as " + filePath);
+                    console.writeln("found user selected best image " + global.user_selected_best_image + " as " + filePath);
               }
               if (fileNames[i].indexOf("best_image") != -1) {
                     // User has marked this image as the best
@@ -1815,11 +2173,11 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                         accept_file = false;
                   } else {
                         if (!first_image && naxis1 > best_ssweight_naxis) {
-                              addProcessingStep("Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
+                              util.addProcessingStep("Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
                         }
                         if (first_image || 
                             naxis1 > best_ssweight_naxis ||
-                            (ssweight > best_ssweight &&
+                            (ssweight > global.best_ssweight &&
                              naxis1 == best_ssweight_naxis))
                         {
                               /* Set a new best image if
@@ -1827,40 +2185,40 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                               - this has a bigger resolution
                               - this has a bigger SSWEIGHT value and is the same resolution
                               */
-                              best_ssweight = ssweight;
-                              console.writeln("new best_ssweight=" +  best_ssweight);
-                              best_image = filePath;
+                              global.best_ssweight = ssweight;
+                              console.writeln("new best_ssweight=" +  global.best_ssweight);
+                              global.best_image = filePath;
                               best_ssweight_naxis = naxis1;
                               first_image = false;
                         }
                   }
-                  setTreeBoxNodeSsweight(parent.treeBox[pages.LIGHTS], filePath, ssweight, filename_postfix);
+                  gui.setTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
             }
             if (accept_file) {
                   newFileNames[newFileNames.length] = fileNames[i];
             }
       }
       if (newFileNames.length == 0) {
-            throwFatalError("No files found for processing.");
+            util.throwFatalError("No files found for processing.");
       }
       if (found_user_selected_best_image != null || file_name_text_best_image != null) {
             if (found_user_selected_best_image != null) {
                   console.writeln("Using user selected best image " + found_user_selected_best_image + ", ssweight " + found_user_selected_best_image_ssweight);
-                  best_image = found_user_selected_best_image;
-                  best_ssweight = found_user_selected_best_image_ssweight;
+                  global.best_image = found_user_selected_best_image;
+                  global.best_ssweight = found_user_selected_best_image_ssweight;
             } else {
                   console.writeln("Using best image as a file with text best_image " + file_name_text_best_image + ", ssweight " + file_name_text_best_image_ssweight);
-                  best_image = file_name_text_best_image;
-                  best_ssweight = file_name_text_best_image_ssweight;
+                  global.best_image = file_name_text_best_image;
+                  global.best_ssweight = file_name_text_best_image_ssweight;
             }
-      } else if (best_image != null) {
-            console.writeln("Using best image " + best_image);
+      } else if (global.best_image != null) {
+            console.writeln("Using best image " + global.best_image);
       } else {
             console.writeln("Unable to find image with best SSWEIGHT, using first image " + newFileNames[0]);
-            best_image = newFileNames[0];
-            best_ssweight = 1.0;
+            global.best_image = newFileNames[0];
+            global.best_ssweight = 1.0;
       }
-      return [ best_image, newFileNames ];
+      return [ global.best_image, newFileNames ];
 }
 
 function filterByFileName(filePath, filename_postfix)
@@ -1903,9 +2261,9 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
 
       // Check if we have user selected reference image for the channel.
       var refImage = null;
-      for (var i = 0; i < user_selected_reference_image.length; i++) {
-            if (user_selected_reference_image[i][1] == filter) {
-                  refImage = user_selected_reference_image[i][0];
+      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+            if (global.user_selected_reference_image[i][1] == filter) {
+                  refImage = global.user_selected_reference_image[i][0];
                   console.writeln("User selected reference image " + refImage);
                   break;
             }
@@ -1916,13 +2274,13 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             // the base file names. We ignore directory as output files are placed
             // info a different directory.
             for (var i = 0; i < filearr.length; i++) {
-                  if (compareReferenceFileNames(refImage, filearr[i].name, filename_postfix)) {
+                  if (gui.compareReferenceFileNames(refImage, filearr[i].name, filename_postfix)) {
                         refImage = filearr[i].name;
                         break;
                   }
             }
             if (i == filearr.length) {
-                  throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list, filename_postfix " + filename_postfix);
+                  util.throwFatalError("User selected reference image " + refImage + " for filter " + filter + " not found from image list, filename_postfix " + filename_postfix);
             }
       }
 
@@ -1951,7 +2309,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             files.exptime += filearr[i].exptime;
       }
       if (automatic_reference_image != null) {
-            setReferenceImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
+            gui.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
       }
 }
 
@@ -1968,15 +2326,15 @@ function getFileKeywords(filePath)
       var ext = '.' + filePath.split('.').pop();
       var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
       if (F.isNull) {
-            throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
+            util.throwFatalError("No installed file format can read \'" + ext + "\' files."); // shouldn't happen
       }
       var f = new FileFormatInstance(F);
       if (f.isNull) {
-            throwFatalError("Unable to instantiate file format: " + F.name);
+            util.throwFatalError("Unable to instantiate file format: " + F.name);
       }
       var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
       if (info.length <= 0) {
-            throwFatalError("Unable to open input file: " + filePath);
+            util.throwFatalError("Unable to open input file: " + filePath);
       }
       if (F.canStoreKeywords) {
             keywords = f.keywords;
@@ -1989,7 +2347,7 @@ function getFileKeywords(filePath)
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
 // or treeboxfiles array having [ filename, checked, weight ] members
-function getFilterFiles(files, pageIndex, filename_postfix)
+this.getFilterFiles = function(files, pageIndex, filename_postfix)
 {
       var luminance = false;
       var rgb = false;
@@ -2009,16 +2367,16 @@ function getFilterFiles(files, pageIndex, filename_postfix)
       };
 
       switch (pageIndex) {
-            case pages.LIGHTS:
-                  filterSet = lightFilterSet;
+            case global.pages.LIGHTS:
+                  filterSet = global.lightFilterSet;
                   break;
-            case pages.FLATS:
-                  filterSet = flatFilterSet;
+            case global.pages.FLATS:
+                  filterSet = global.flatFilterSet;
                   break;
       }
 
       if (filterSet != null) {
-            clearFilterFileUsedFlags(filterSet);
+            util.clearFilterFileUsedFlags(filterSet);
       }
 
       if (par.force_narrowband_mapping.val) {
@@ -2059,7 +2417,7 @@ function getFilterFiles(files, pageIndex, filename_postfix)
             console.writeln("getFilterFiles file " +  filePath);
 
             if (filterSet != null) {
-                  filter = findFilterForFile(filterSet, filePath, filename_postfix);
+                  filter = util.findFilterForFile(filterSet, filePath, filename_postfix);
             }
 
             var keywords = getFileKeywords(filePath);
@@ -2087,7 +2445,7 @@ function getFilterFiles(files, pageIndex, filename_postfix)
                               break;
                         case "TELESCOP":
                               console.writeln("TELESCOP=" +  value);
-                              if (pageIndex == pages.LIGHTS
+                              if (pageIndex == global.pages.LIGHTS
                                   && par.debayerPattern.val == 'Auto'
                                   && value.search(/slooh/i) != -1
                                   && value.search(/T3/) != -1) 
@@ -2280,11 +2638,11 @@ function getFilterFiles(files, pageIndex, filename_postfix)
              };
 }
 
-function getImagetypFiles(files)
+this.getImagetypFiles = function(files)
 {
       var allfiles = [];
 
-      for (var i = 0; i < pages.END; i++) {
+      for (var i = 0; i < global.pages.END; i++) {
             allfiles[i] = [];
       }
 
@@ -2317,31 +2675,31 @@ function getImagetypFiles(files)
                   case 'bias frame':
                   case 'bias':
                   case 'master bias':
-                        allfiles[pages.BIAS][allfiles[pages.BIAS].length] = filePath;
+                        allfiles[global.pages.BIAS][allfiles[global.pages.BIAS].length] = filePath;
                         break;
                   case 'dark frame':
                   case 'dark':
                   case 'master dark':
-                        allfiles[pages.DARKS][allfiles[pages.DARKS].length] = filePath;
+                        allfiles[global.pages.DARKS][allfiles[global.pages.DARKS].length] = filePath;
                         break;
                   case 'flat frame':
                   case 'flat field':
                   case 'flat':
                   case 'master flat':
-                        allfiles[pages.FLATS][allfiles[pages.FLATS].length] = filePath;
+                        allfiles[global.pages.FLATS][allfiles[global.pages.FLATS].length] = filePath;
                         break;
                   case 'flatdark':
                   case 'flat dark':
                   case 'darkflat':
                   case 'dark flat':
                   case 'master flat dark':
-                        allfiles[pages.FLAT_DARKS][allfiles[pages.FLAT_DARKS].length] = filePath;
+                        allfiles[global.pages.FLAT_DARKS][allfiles[global.pages.FLAT_DARKS].length] = filePath;
                         break;
                   case 'light frame':
                   case 'light':
                   case 'master light':
                   default:
-                        allfiles[pages.LIGHTS][allfiles[pages.LIGHTS].length] = filePath;
+                        allfiles[global.pages.LIGHTS][allfiles[global.pages.LIGHTS].length] = filePath;
                         break;
             }
       }
@@ -2352,7 +2710,7 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
 {
       /* Loop through aligned files and find different channels.
        */
-      addProcessingStepAndStatusInfo("Find L,R,G,B,H,S,O and color channels");
+      util.addProcessingStepAndStatusInfo("Find L,R,G,B,H,S,O and color channels");
 
       L_images = init_images();
       R_images = init_images();
@@ -2365,7 +2723,7 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
 
       /* Collect all different file types and some information about them.
        */
-      var filter_info = getFilterFiles(alignedFiles, pages.LIGHTS, filename_postfix);
+      var filter_info = engine.getFilterFiles(alignedFiles, global.pages.LIGHTS, filename_postfix);
 
       var allfilesarr = filter_info.allfilesarr;
       var rgb = filter_info.rgb;
@@ -2381,9 +2739,9 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
                   (par.synthetic_missing_images.val && allfilesarr[channels.L].files.length == 0))
             {
                   if (allfilesarr[channels.L].files.length == 0) {
-                        addProcessingStep("No luminance images, synthetic luminance image from all other images");
+                        util.addProcessingStep("No luminance images, synthetic luminance image from all other images");
                   } else {
-                        addProcessingStep("Synthetic luminance image from all light images");
+                        util.addProcessingStep("Synthetic luminance image from all light images");
                   }
                   allfilesarr[channels.L].files = allfilesarr[channels.L].files.concat(allfilesarr[channels.R].files);
                   allfilesarr[channels.L].files = allfilesarr[channels.L].files.concat(allfilesarr[channels.G].files);
@@ -2393,19 +2751,19 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
                   allfilesarr[channels.L].files = allfilesarr[channels.L].files.concat(allfilesarr[channels.O].files);
             }
             if (allfilesarr[channels.R].files.length == 0 && par.synthetic_missing_images.val) {
-                  addProcessingStep("No red images, synthetic red image from luminance images");
+                  util.addProcessingStep("No red images, synthetic red image from luminance images");
                   allfilesarr[channels.R].files = allfilesarr[channels.R].files.concat(allfilesarr[channels.L].files);
             }
             if (allfilesarr[channels.G].files.length == 0 && par.synthetic_missing_images.val) {
-                  addProcessingStep("No green images, synthetic green image from luminance images");
+                  util.addProcessingStep("No green images, synthetic green image from luminance images");
                   allfilesarr[channels.G].files = allfilesarr[channels.G].files.concat(allfilesarr[channels.L].files);
             }
             if (allfilesarr[channels.B].files.length == 0 && par.synthetic_missing_images.val) {
-                  addProcessingStep("No blue images, synthetic blue image from luminance images");
+                  util.addProcessingStep("No blue images, synthetic blue image from luminance images");
                   allfilesarr[channels.B].files = allfilesarr[channels.B].files.concat(allfilesarr[channels.L].files);
             }
             if (par.RRGB_image.val) {
-                  addProcessingStep("RRGB image, use R as L image");
+                  util.addProcessingStep("RRGB image, use R as L image");
                   console.writeln("L images " +  allfilesarr[channels.L].files.length);
                   console.writeln("R images " +  allfilesarr[channels.R].files.length);
                   allfilesarr[channels.L].files = [];
@@ -2428,33 +2786,33 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
       if (C_images.images.length > 0) {
             // Color image
             if (L_images.images.length > 0) {
-                  throwFatalError("Cannot mix color and luminance filter files");
+                  util.throwFatalError("Cannot mix color and luminance filter files");
             }
             if (R_images.images.length > 0) {
-                  throwFatalError("Cannot mix color and red filter files");
+                  util.throwFatalError("Cannot mix color and red filter files");
             }
             if (B_images.images.length > 0) {
-                  throwFatalError("Cannot mix color and blue filter files");
+                  util.throwFatalError("Cannot mix color and blue filter files");
             }
             if (G_images.images.length > 0) {
-                  throwFatalError("Cannot mix color and green filter files");
+                  util.throwFatalError("Cannot mix color and green filter files");
             }
       } else {
             if (par.monochrome_image.val) {
                   // Monochrome
                   if (L_images.images.length == 0) {
-                        throwFatalError("No Luminance images found");
+                        util.throwFatalError("No Luminance images found");
                   }
             } else if (rgb) {
                   // LRGB or RGB
                   if (R_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
-                        throwFatalError("No Red images found");
+                        util.throwFatalError("No Red images found");
                   }
                   if (B_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
-                        throwFatalError("No Blue images found");
+                        util.throwFatalError("No Blue images found");
                   }
                   if (G_images.images.length == 0 && !par.integrate_only.val && !par.image_weight_testing.val) {
-                        throwFatalError("No Green images found");
+                        util.throwFatalError("No Green images found");
                   }
             }
             if (L_images.images.length > 0) {
@@ -2488,7 +2846,7 @@ function ensureLightImages(ch, check_allfilesarr)
             var filterName = check_allfilesarr[i].filter;
             if (filterName == ch) {
                   if (filterFiles.length == 0) {
-                        throwFatalError("No " + ch + " images that are needed for PixelMath mapping");
+                        util.throwFatalError("No " + ch + " images that are needed for PixelMath mapping");
                   }
                   break;
             }
@@ -2514,7 +2872,7 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
             if (check_allfilesarr != null) {
                   ensureLightImages(from, check_allfilesarr);
             } else {
-                  if (preprocessed_images == start_images.L_R_G_B_PROCESSED) {
+                  if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                         add_missing_image(images, to + "_processed");
                   } else {
                         add_missing_image(images, to);
@@ -2542,13 +2900,13 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
                               if (check_allfilesarr != null) {
                                     ensureLightImages(from, check_allfilesarr);
                               } else {
-                                    if (preprocessed_images == start_images.L_R_G_B_PROCESSED) {
+                                    if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                                           var to_id = to + "_processed";
                                     } else {
                                           var to_id = to;
                                     }
-                                    if (findWindowNoPrefixIf(to_id, run_auto_continue) == null) {
-                                          throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
+                                    if (findWindowNoPrefixIf(to_id, global.run_auto_continue) == null) {
+                                          util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
                                     }
                                     add_missing_image(images, to_id);
                               }
@@ -2613,9 +2971,9 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 /* Run single expression PixelMath and optionally create new image. */
 function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols)
 {
-      addProcessingStepAndStatusInfo("Run PixelMath single mapping");
+      util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
 
-      var idWin = findWindow(id);
+      var idWin = util.findWindow(id);
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
       }
@@ -2638,7 +2996,7 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols)
       idWin.mainView.endProcess();
 
       if (createNewImage) {
-            setTargetFITSKeywordsForPixelmath(findWindow(P.newImageId), targetFITSKeywords);
+            setTargetFITSKeywordsForPixelmath(util.findWindow(P.newImageId), targetFITSKeywords);
       }
 
       return P.newImageId;
@@ -2656,18 +3014,18 @@ function runPixelMathSingleMapping(id, mapping)
 */
 function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
 {
-      addProcessingStepAndStatusInfo("Run PixelMath RGB mapping");
+      util.addProcessingStepAndStatusInfo("Run PixelMath RGB mapping");
 
       var reference_images = [ "Integration_H", "Integration_S", "Integration_O" ];
 
       for (var i = 0; i < reference_images.length && idWin == null; i++) {
             var refId = reference_images[i];
-            if (preprocessed_images == start_images.L_R_G_B_PROCESSED) {
+            if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                   refId = refId + "_processed";
             } else {
                   refId = refId + "_map";
             }
-            idWin = findWindowCheckBaseNameIf(refId, run_auto_continue);
+            idWin = findWindowCheckBaseNameIf(refId, global.run_auto_continue);
       }
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
@@ -2697,7 +3055,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       idWin.mainView.endProcess();
 
       if (newId != null) {
-            setTargetFITSKeywordsForPixelmath(findWindow(newId), targetFITSKeywords);
+            setTargetFITSKeywordsForPixelmath(util.findWindow(newId), targetFITSKeywords);
       }
 
       return newId;
@@ -2754,7 +3112,7 @@ function findLinearFitHSOMapRefimage(images, suggestion)
             if (arrayFindImage(images, refimage)) {
                   return(refimage);
             }
-            throwFatalError("Could not find linear fit reference image " + suggestion);
+            util.throwFatalError("Could not find linear fit reference image " + suggestion);
       }
       // Just pick something
       return(images[0]);
@@ -2780,9 +3138,9 @@ function processChannelImage(image_id, is_luminance)
 
       if (par.remove_stars_channel.val) {
             if (is_luminance) {
-                  removeStars(findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
+                  removeStars(util.findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
             } else {
-                  removeStars(findWindow(image_id), true, true, RGB_stars, null, par.unscreen_stars.val);
+                  removeStars(util.findWindow(image_id), true, true, RGB_stars, null, par.unscreen_stars.val);
             }
       }
 }
@@ -2794,14 +3152,14 @@ function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
-            var copyname = ensure_win_prefix(images[i] + "_map");
-            if (findWindow(copyname) == null) {
+            var copyname = util.ensure_win_prefix(images[i] + "_map");
+            if (util.findWindow(copyname) == null) {
                   console.writeln("copy from " + images[i] + " to " + copyname);
-                  copyWindow(
-                        findWindowNoPrefixIf(images[i], run_auto_continue), 
+                  util.copyWindow(
+                        findWindowNoPrefixIf(images[i], global.run_auto_continue), 
                         copyname);
                   // crop
-                  CropImageIf(findWindow(copyname), crop_truncate_amount);
+                  CropImageIf(util.findWindow(copyname), crop_truncate_amount);
             } else {
                   console.writeln("map image " + copyname + " already copied");
             }
@@ -2815,9 +3173,9 @@ function copyOneProcessedToMapImage(id)
             return null;
       }
 
-      var copyname = ensure_win_prefix(id.replace("_processed", "_map"));
+      var copyname = util.ensure_win_prefix(id.replace("_processed", "_map"));
 
-      copyWindow(findWindow(id), copyname);
+      util.copyWindow(util.findWindow(id), copyname);
 
       return copyname;
 }
@@ -2844,7 +3202,7 @@ function mapRGBchannel(images, refimage, mapping, is_luminance)
       }
       refimage = refimage + "_map";
       console.writeln("mapRGBchannel, new refimage " + refimage);
-      if (findWindow(refimage) == null) {
+      if (util.findWindow(refimage) == null) {
             refimage = images[0];
             console.writeln("mapRGBchannel, refimage from images[0] " + refimage);
       }
@@ -2869,7 +3227,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
             return;
       }
 
-      addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
       if (maskWin == null && !par.use_noisexterminator.val) {
             /* Create a temporary mask. */
@@ -2880,10 +3238,10 @@ function luminanceNoiseReduction(imgWin, maskWin)
       }
 
       runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 
       if (temp_mask_win != null) {
-            forceCloseOneWindow(temp_mask_win);
+            util.forceCloseOneWindow(temp_mask_win);
       }
 }
 
@@ -2895,9 +3253,9 @@ function channelNoiseReduction(image_id)
       {
             return;
       }
-      addProcessingStepAndStatusInfo("Reduce noise on channel image " + image_id);
+      util.addProcessingStepAndStatusInfo("Reduce noise on channel image " + image_id);
 
-      var image_win = findWindow(image_id);
+      var image_win = util.findWindow(image_id);
 
       if (!par.use_noisexterminator.val) {
             /* Create a temporary mask. */
@@ -2908,10 +3266,10 @@ function channelNoiseReduction(image_id)
 
       runNoiseReductionEx(image_win, temp_mask_win, par.noise_reduction_strength.val, true);
 
-      updatePreviewWin(image_win);
+      gui.updatePreviewWin(image_win);
 
       if (temp_mask_win != null) {
-            forceCloseOneWindow(temp_mask_win);
+            util.forceCloseOneWindow(temp_mask_win);
       }
 }
 
@@ -2925,8 +3283,8 @@ function createNewStarXTerminator(star_mask, linear_data)
       } catch(err) {
             console.criticalln("StarXTerminator failed");
             console.criticalln(err);
-            addProcessingStep("Maybe StarXTerminator is not installed, AI is missing or platform is not supported");
-            throwFatalError("StarXTerminator failed");
+            util.addProcessingStep("Maybe StarXTerminator is not installed, AI is missing or platform is not supported");
+            util.throwFatalError("StarXTerminator failed");
       }
       return P;
 }
@@ -2940,8 +3298,8 @@ function createNewStarNet(star_mask)
       } catch(err) {
             console.criticalln("StarNet failed");
             console.criticalln(err);
-            addProcessingStep("Maybe weight files are missing or platform is not supported");
-            throwFatalError("StarNet failed");
+            util.addProcessingStep("Maybe weight files are missing or platform is not supported");
+            util.throwFatalError("StarNet failed");
       }
       return P;
 }
@@ -2955,8 +3313,8 @@ function createNewStarNet2(star_mask)
       } catch(err) {
             console.criticalln("StarNet2 failed");
             console.criticalln(err);
-            addProcessingStep("Maybe StarNet2 is not installed, weight files are missing or platform is not supported");
-            throwFatalError("StarNet2 failed");
+            util.addProcessingStep("Maybe StarNet2 is not installed, weight files are missing or platform is not supported");
+            util.throwFatalError("StarNet2 failed");
       }
       return P;
 }
@@ -2965,16 +3323,16 @@ function getStarMaskWin(imgWin, name)
 {
       if (par.use_starxterminator.val) {
             var win_id = imgWin.mainView.id + "_stars";
-            var win = findWindow(win_id);
+            var win = util.findWindow(win_id);
             console.writeln("getStarMaskWin win_id " + win_id);
             if (win == null) {
-                  throwFatalError("Could not find StarXTerminator stars window " + win_id);
+                  util.throwFatalError("Could not find StarXTerminator stars window " + win_id);
             }
-            windowRename(win_id, name);
+            util.windowRename(win_id, name);
       } else {
             console.writeln("getStarMaskWin win_id " + ImageWindow.activeWindow.mainView.id);
             var win = ImageWindow.activeWindow;
-            windowRename(win.mainView.id, name);
+            util.windowRename(win.mainView.id, name);
       }
       console.writeln("getStarMaskWin completed " + name);
       return win;
@@ -2984,7 +3342,7 @@ function getStarMaskWin(imgWin, name)
 // for star image.
 function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_unscreen)
 {
-      addProcessingStepAndStatusInfo("Remove stars");
+      util.addProcessingStepAndStatusInfo("Remove stars");
 
       if (linear_data && use_unscreen) {
             console.writeln("Not using unscreen for linear data");
@@ -2992,20 +3350,20 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 
       var create_star_mask = save_stars;
       if (save_stars && use_unscreen) {
-            var originalwin_copy = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
+            var originalwin_copy = util.copyWindow(imgWin, util.ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
             create_star_mask = false;
       }
 
       if (par.use_starxterminator.val) {
-            addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
+            util.addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(create_star_mask, linear_data);
       } else if (linear_data) {
-            throwFatalError("StarNet/StarNet2 cannot be used to remove stars while image is still in linear stage.");
+            util.throwFatalError("StarNet/StarNet2 cannot be used to remove stars while image is still in linear stage.");
       } else if (par.use_starnet2.val) {
-            addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
+            util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
             var P = createNewStarNet2(create_star_mask);
       } else {
-            addProcessingStep("Run StarNet on " + imgWin.mainView.id);
+            util.addProcessingStep("Run StarNet on " + imgWin.mainView.id);
             var P = createNewStarNet(create_star_mask);
       }
 
@@ -3021,7 +3379,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             console.writeln("StarXTerminator completed");
       }
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 
       if (save_stars) {
             if (stars_image_name == null) {
@@ -3034,10 +3392,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
                               imgWin.mainView.id,
                               "~((~" + originalwin_copy.mainView.id + ")/(~" + imgWin.mainView.id + "))",
                               true);
-                  var star_win = findWindow(id);
+                  var star_win = util.findWindow(id);
                   console.writeln("removeStars, rename " + id + " to " + stars_image_name);
-                  windowRename(id, stars_image_name);
-                  forceCloseOneWindow(originalwin_copy);
+                  util.windowRename(id, stars_image_name);
+                  util.forceCloseOneWindow(originalwin_copy);
             } else {
                   var star_win = getStarMaskWin(imgWin, stars_image_name);
             }
@@ -3057,9 +3415,9 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 function customMapping(RGBmapping, check_allfilesarr)
 {
       if (check_allfilesarr != null) {
-            addProcessingStep("Check custom mapping");
+            util.addProcessingStep("Check custom mapping");
       } else {
-            addProcessingStepAndStatusInfo("Custom mapping");
+            util.addProcessingStepAndStatusInfo("Custom mapping");
       }
 
       /* Get updated mapping strings and collect images
@@ -3147,16 +3505,16 @@ function customMapping(RGBmapping, check_allfilesarr)
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
                    */
-                  addProcessingStep("Custom mapping, linear narrowband images");
+                  util.addProcessingStep("Custom mapping, linear narrowband images");
             } else {
                   /* Stretch images to non-linear before combining with PixelMath.
                    */
-                  addProcessingStep("Custom mapping, stretched narrowband images");
+                  util.addProcessingStep("Custom mapping, stretched narrowband images");
                   if (par.remove_stars_before_stretch.val) {
-                        throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
+                        util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
                   }
                   for (var i = 0; i < images.length; i++) {
-                        runHistogramTransform(findWindow(images[i]), null, false, 'RGB');
+                        runHistogramTransform(util.findWindow(images[i]), null, false, 'RGB');
                   }
                   RGBmapping.stretched = true;
             }
@@ -3167,8 +3525,8 @@ function customMapping(RGBmapping, check_allfilesarr)
 
             RGBmapping.combined = true;
 
-            RGB_win = findWindow(RGB_win_id);
-            updatePreviewWin(RGB_win);
+            RGB_win = util.findWindow(RGB_win_id);
+            gui.updatePreviewWin(RGB_win);
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
                   RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
@@ -3179,7 +3537,7 @@ function customMapping(RGBmapping, check_allfilesarr)
             }
 
             RGB_win.show();
-            addScriptWindow(RGB_win_id);
+            util.addScriptWindow(RGB_win_id);
 
       } else {
             // We have both RGB and narrowband, do custom mapping on individual channels.
@@ -3187,13 +3545,13 @@ function customMapping(RGBmapping, check_allfilesarr)
             // then continue as normal RGB processing.
             // If we have multiple images in mapping we use linear fit to match
             // them before PixelMath.
-            addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
+            util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (autocontinue_processed_channel_images.rgb) {
-                  throwFatalError("Never should have RGB+Narrowband with mapped images.");
+                  util.throwFatalError("Never should have RGB+Narrowband with mapped images.");
             }
             if (par.custom_L_mapping.val != '') {
                   luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping, true);
-                  updatePreviewId(luminance_id);
+                  gui.updatePreviewId(luminance_id);
                   is_luminance_images = true;
             }
 
@@ -3216,10 +3574,10 @@ function isCustomMapping(narrowband)
 function copyToMapIf(id)
 {
       if (id != null) {
-            var new_id = ensure_win_prefix(id + "_map");
-            copyWindow(findWindow(id), new_id);
+            var new_id = util.ensure_win_prefix(id + "_map");
+            util.copyWindow(util.findWindow(id), new_id);
             // crop
-            CropImageIf(findWindow(new_id), crop_truncate_amount);
+            CropImageIf(util.findWindow(new_id), crop_truncate_amount);
             return new_id;
       } else {
             return id;
@@ -3231,8 +3589,8 @@ function copyToMapIf(id)
  */ 
 function mapColorImage()
 {
-      RGB_win_id = ensure_win_prefix("Integration_RGB");
-      copyWindow(findWindow(RGBcolor_id), RGB_win_id);
+      RGB_win_id = util.ensure_win_prefix("Integration_RGB");
+      util.copyWindow(util.findWindow(RGBcolor_id), RGB_win_id);
       RGB_win = ImageWindow.windowById(RGB_win_id);
       // crop
       CropImageIf(RGB_win, crop_truncate_amount);
@@ -3249,21 +3607,21 @@ function mapLRGBchannels(RGBmapping)
       var custom_mapping = isCustomMapping(narrowband);
 
       if (rgb && narrowband && !par.force_narrowband_mapping.val) {
-            addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
+            util.addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
             narrowband = false;
       }
       if (narrowband) {
-            addProcessingStep("Processing as narrowband image");
+            util.addProcessingStep("Processing as narrowband image");
       }
 
-      addProcessingStepAndStatusInfo("Map LRGB channels");
+      util.addProcessingStepAndStatusInfo("Map LRGB channels");
 
       if (custom_mapping) {
-            addProcessingStep("Narrowband files, use custom mapping");
+            util.addProcessingStep("Narrowband files, use custom mapping");
             RGBmapping = customMapping(RGBmapping, null);
 
       } else {
-            addProcessingStep("Normal RGB processing");
+            util.addProcessingStep("Normal RGB processing");
 
             if (autocontinue_processed_channel_images.rgb) {
                   /* Use already mapped images. */
@@ -3321,7 +3679,7 @@ function runStarAlignment(imagetable, refImage)
 {
       var alignedFiles;
 
-      addProcessingStepAndStatusInfo("Star alignment reference image " + refImage);
+      util.addProcessingStepAndStatusInfo("Star alignment reference image " + refImage);
       console.writeln("runStarAlignment input[0] " + imagetable[0]);
 
       var targets = [];
@@ -3340,7 +3698,7 @@ function runStarAlignment(imagetable, refImage)
       } else {
             P.generateDrizzleData = false;
       }
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.referenceImage = refImage;
       P.referenceIsFile = true;
       P.targets = targets;
@@ -3350,10 +3708,10 @@ function runStarAlignment(imagetable, refImage)
 
       alignedFiles = fileNamesFromOutputData(P.outputData);
 
-      addProcessingStep("runStarAlignment, " + alignedFiles.length + " files");
+      util.addProcessingStep("runStarAlignment, " + alignedFiles.length + " files");
       console.writeln("output[0] " + alignedFiles[0]);
 
-      star_alignment_image = refImage;
+      global.star_alignment_image = refImage;
 
       return alignedFiles;
 }
@@ -3397,11 +3755,11 @@ function runLocalNormalization(imagetable, refImage, filter)
 {
       if (imagetable.length == 0) {
             // No new files are needed
-            addProcessingStep("No files for local normalization for filter " + filter);
+            util.addProcessingStep("No files for local normalization for filter " + filter);
             return;
       }
 
-      addProcessingStepAndStatusInfo("Local normalization, filter " + filter + ", reference image " + refImage);
+      util.addProcessingStepAndStatusInfo("Local normalization, filter " + filter + ", reference image " + refImage);
 
       var targets = [];
 
@@ -3441,7 +3799,7 @@ function runLocalNormalization(imagetable, refImage, filter)
       }
       if (targets.length == 0) {
             // No new files are needed
-            addProcessingStep("Using existing local normalization files");
+            util.addProcessingStep("Using existing local normalization files");
             return;
       }
 
@@ -3452,11 +3810,11 @@ function runLocalNormalization(imagetable, refImage, filter)
             P.scale = scale;
       }
       P.referencePathOrViewId = refImage;
-      if (pixinsight_version_num >= 1080900) {
+      if (global.pixinsight_version_num >= 1080900) {
             P.referenceIsView = false;
       }
       P.targetItems = targets;            // [ enabled, image ]
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
 
       P.executeGlobal();
@@ -3464,9 +3822,9 @@ function runLocalNormalization(imagetable, refImage, filter)
 
 function runLinearFit(refViewId, targetId)
 {
-      addProcessingStepAndStatusInfo("Run linear fit on " + targetId + " using " + refViewId + " as reference");
+      util.addProcessingStepAndStatusInfo("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       if (refViewId == null || targetId == null) {
-            throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
+            util.throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
       }
       linear_fit_done = true;
       var targetWin = ImageWindow.windowById(targetId);
@@ -3480,7 +3838,7 @@ function runLinearFit(refViewId, targetId)
 
 function runDrizzleIntegration(images, name, local_normalization)
 {
-      addProcessingStepAndStatusInfo("Run DrizzleIntegration");
+      util.addProcessingStepAndStatusInfo("Run DrizzleIntegration");
 
       var drizzleImages = [];
       for (var i = 0; i < images.length; i++) {
@@ -3500,64 +3858,64 @@ function runDrizzleIntegration(images, name, local_normalization)
 
       P.executeGlobal();
 
-      closeOneWindow(P.weightImageId);
+      util.closeOneWindow(P.weightImageId);
 
-      var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
-      updatePreviewId(new_name);
-      //addScriptWindow(new_name);
+      var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+      gui.updatePreviewId(new_name);
+      //util.addScriptWindow(new_name);
       return new_name;
 }
 
 function getRejectionAlgorithm(numimages)
 {
       if (par.use_clipping.val == 'None') {
-            addProcessingStep("Using no rejection");
+            util.addProcessingStep("Using no rejection");
             return ImageIntegration.prototype.NoRejection;
       } else if (par.use_clipping.val == 'Percentile') {
-            addProcessingStep("Using Percentile clip for rejection");
+            util.addProcessingStep("Using Percentile clip for rejection");
             return ImageIntegration.prototype.PercentileClip;
       } else if (par.use_clipping.val == 'Sigma') {
-            addProcessingStep("Using Sigma clip for rejection");
+            util.addProcessingStep("Using Sigma clip for rejection");
             return ImageIntegration.prototype.SigmaClip;
       } else if (par.use_clipping.val == 'Winsorised sigma') {
-            addProcessingStep("Using Winsorised sigma clip for rejection");
+            util.addProcessingStep("Using Winsorised sigma clip for rejection");
             return ImageIntegration.prototype.WinsorizedSigmaClip;
       } else if (par.use_clipping.val == 'Averaged sigma') {
-            addProcessingStep("Using Averaged sigma clip for rejection");
+            util.addProcessingStep("Using Averaged sigma clip for rejection");
             return ImageIntegration.prototype.AveragedSigmaClip;
       } else if (par.use_clipping.val == 'Linear fit') {
-            addProcessingStep("Using Linear fit clip for rejection");
+            util.addProcessingStep("Using Linear fit clip for rejection");
             return ImageIntegration.prototype.LinearFit;
       } else if (par.use_clipping.val == 'ESD') {
-            addProcessingStep("Using ESD clip for rejection");
+            util.addProcessingStep("Using ESD clip for rejection");
             return ImageIntegration.prototype.Rejection_ESD;
       } else if (par.use_clipping.val == 'Auto2') {
             /* In theory these should be good choices but sometime give much more uneven
              * highlights than Sigma.
              */
             if (numimages < 8) {
-                  addProcessingStep("Auto2 using Percentile clip for rejection");
+                  util.addProcessingStep("Auto2 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else if (numimages <= 10) {
-                  addProcessingStep("Auto2 using Sigma clip for rejection");
+                  util.addProcessingStep("Auto2 using Sigma clip for rejection");
                   return ImageIntegration.prototype.SigmaClip;
             } else if (numimages < 20) {
-                  addProcessingStep("Auto2 using Winsorised sigma clip for rejection");
+                  util.addProcessingStep("Auto2 using Winsorised sigma clip for rejection");
                   return ImageIntegration.prototype.WinsorizedSigmaClip;
             } else if (numimages < 25 || ImageIntegration.prototype.Rejection_ESD === undefined) {
-                  addProcessingStep("Auto2 using Linear fit clip for rejection");
+                  util.addProcessingStep("Auto2 using Linear fit clip for rejection");
                   return ImageIntegration.prototype.LinearFit;
             } else {
-                  addProcessingStep("Auto2 using ESD clip for rejection");
+                  util.addProcessingStep("Auto2 using ESD clip for rejection");
                   return ImageIntegration.prototype.Rejection_ESD;
             }
       } else {
             /* par.use_clipping.val == 'Auto1' */
             if (numimages < 8) {
-                  addProcessingStep("Auto1 using Percentile clip for rejection");
+                  util.addProcessingStep("Auto1 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
             } else {
-                  addProcessingStep("Auto1 using Sigma clip for rejection");
+                  util.addProcessingStep("Auto1 using Sigma clip for rejection");
                   return ImageIntegration.prototype.SigmaClip;
             }
       }
@@ -3581,21 +3939,21 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
       if (ssweight_set && par.use_imageintegration_ssweight.val) {
-            addProcessingStep("Using SSWEIGHT for ImageIntegration weightMode");
+            util.addProcessingStep("Using SSWEIGHT for ImageIntegration weightMode");
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
       if (local_normalization) {
-            addProcessingStep("Using LocalNormalization for ImageIntegration normalization");
+            util.addProcessingStep("Using LocalNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.LocalNormalization;
       } else if (par.imageintegration_normalization.val == 'Additive') {
-            addProcessingStep("Using AdditiveWithScaling for ImageIntegration normalization");
+            util.addProcessingStep("Using AdditiveWithScaling for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdditiveWithScaling;
       } else if (par.imageintegration_normalization.val == 'Adaptive') {
-            addProcessingStep("Using AdaptiveNormalization for ImageIntegration normalization");
+            util.addProcessingStep("Using AdaptiveNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.AdaptiveNormalization;
       } else {
-            addProcessingStep("Using NoNormalization for ImageIntegration normalization");
+            util.addProcessingStep("Using NoNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.NoNormalization;
       }
       if (name == 'LDD') {
@@ -3633,25 +3991,25 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       P.executeGlobal();
 
-      closeOneWindow(P.highRejectionMapImageId);
-      closeOneWindow(P.lowRejectionMapImageId);
-      closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindow(P.highRejectionMapImageId);
+      util.closeOneWindow(P.lowRejectionMapImageId);
+      util.closeOneWindow(P.slopeMapImageId);
 
       if (par.use_drizzle.val && name != 'LDD') {
-            updatePreviewId(P.integrationImageId);
-            closeOneWindow(P.integrationImageId);
+            gui.updatePreviewId(P.integrationImageId);
+            util.closeOneWindow(P.integrationImageId);
             return runDrizzleIntegration(images, name, local_normalization);
       } else {
-            var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+            var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
             console.writeln("runImageIntegrationEx completed, new name " + new_name);
-            updatePreviewId(new_name);
+            gui.updatePreviewId(new_name);
             return new_name
       }
 }
 
 function runImageIntegrationNormalized(images, best_image, name)
 {
-      addProcessingStepAndStatusInfo("ImageIntegration with LocalNormalization");
+      util.addProcessingStepAndStatusInfo("ImageIntegration with LocalNormalization");
 
       runLocalNormalization(images, best_image, name);
 
@@ -3681,7 +4039,7 @@ function runImageIntegration(channel_images, name)
       if (images == null || images.length == 0) {
             return null;
       }
-      addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
+      util.addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
 
       ensureThreeImages(images);
 
@@ -3706,7 +4064,6 @@ function runImageIntegration(channel_images, name)
       }
       return image_id;
 }
-
 
 function runImageIntegrationForCrop(images)
 {
@@ -3800,9 +4157,9 @@ function runImageIntegrationForCrop(images)
 
       // Depending on integration options, some useless maps may be generated, especially low rejection map,
       // With the current integration parameters, these images are not generated,
-      closeOneWindow(P.lowRejectionMapImageId);
-      closeOneWindow(P.highRejectionMapImageId);
-      closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindow(P.lowRejectionMapImageId);
+      util.closeOneWindow(P.highRejectionMapImageId);
+      util.closeOneWindow(P.slopeMapImageId);
       // KEEP (P.integrationImageId);
 
       //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
@@ -3813,7 +4170,7 @@ function runImageIntegrationForCrop(images)
       //   console.writeln("lowRejectionMapImageId ", P.lowRejectionMapImageId)
 
       //console.writeln("Rename '",P.integrationImageId,"' to ",ppar.win_prefix + "LowRejectionMap_ALL")
-      var new_name = windowRename(P.integrationImageId, ppar.win_prefix + "LowRejectionMap_ALL");
+      var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "LowRejectionMap_ALL");
 
       return new_name
       
@@ -3829,21 +4186,21 @@ function noABEcopyWin(win)
       if (new_win_id.endsWith(fix_postfix)) {
             new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
       }
-      var noABE_id = ensure_win_prefix(new_win_id + "_noABE");
-      addProcessingStep("No ABE for " + win.mainView.id);
-      addScriptWindow(noABE_id);
-      copyWindow(win, noABE_id);
+      var noABE_id = util.ensure_win_prefix(new_win_id + "_noABE");
+      util.addProcessingStep("No ABE for " + win.mainView.id);
+      util.addScriptWindow(noABE_id);
+      util.copyWindow(win, noABE_id);
       return noABE_id;
 }
 
 function runABEex(win, replaceTarget, postfix)
 {
       if (replaceTarget) {
-            addProcessingStepAndStatusInfo("Run ABE on image " + win.mainView.id);
+            util.addProcessingStepAndStatusInfo("Run ABE on image " + win.mainView.id);
             var ABE_id = win.mainView.id;
       } else {
-            var ABE_id = ensure_win_prefix(win.mainView.id + postfix);
-            addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
+            var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
+            util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
 
       var P = new AutomaticBackgroundExtractor;
@@ -3852,7 +4209,7 @@ function runABEex(win, replaceTarget, postfix)
       P.discardModel = true;
       P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
 
-      if (ai_debug) {
+      if (global.ai_debug) {
             console.writeln(P.toSource());
       }
 
@@ -3862,7 +4219,7 @@ function runABEex(win, replaceTarget, postfix)
 
       win.mainView.endProcess();
 
-      addScriptWindow(ABE_id);
+      util.addScriptWindow(ABE_id);
 
       return ABE_id;
 }
@@ -3876,24 +4233,12 @@ function runABE(win, replaceTarget)
 function run_ABE_before_channel_combination(id)
 {
       if (id == null) {
-            throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
+            util.throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
       }
       var id_win = ImageWindow.windowById(id);
       runABEex(id_win, true, "");
       return id;
 }
-
-/*
- * Default STF Parameters
- */
-
-// Shadows clipping point in (normalized) MAD units from the median.
-#define DEFAULT_AUTOSTRETCH_SCLIP  -2.80
-// Target mean background in the [0,1] range.
-#define DEFAULT_AUTOSTRETCH_TBGND   0.25
-// Apply the same STF to all nominal channels (true), or treat each channel
-// separately (false).
-#define DEFAULT_AUTOSTRETCH_CLINK   true
 
 /* ApplyAutoSTF routine is from PixInsight scripts.
  *
@@ -4092,10 +4437,10 @@ function getRgbLinked(iscolor)
       }
 }
 
-function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, silent)
+this.runHistogramTransformSTFex = function(ABE_win, stf_to_use, iscolor, targetBackground, silent)
 {
       if (!silent) {
-            addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
+            util.addProcessingStep("Run histogram transform on " + ABE_win.mainView.id + " based on autostretch");
       }
 
       if (stf_to_use == null) {
@@ -4132,12 +4477,12 @@ function runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackgrou
 
 function runHistogramTransformSTF(ABE_win, stf_to_use, iscolor, targetBackground)
 {
-      return runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, false);
+      return engine.runHistogramTransformSTFex(ABE_win, stf_to_use, iscolor, targetBackground, false);
 }
 
 function runHistogramTransformMaskedStretch(ABE_win)
 {
-      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using MaskedStretch");
 
       var P = new MaskedStretch;
       P.targetBackground = par.MaskedStretch_targetBackground.val;
@@ -4152,7 +4497,7 @@ function runHistogramTransformMaskedStretch(ABE_win)
 
 function runHistogramTransformArcsinhStretch(ABE_win)
 {
-      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using ArcsinhStretch");
 
       var stretch = Math.pow(par.Arcsinh_stretch_factor.val, 1/par.Arcsinh_iterations.val);
 
@@ -4181,7 +4526,7 @@ function runHistogramTransformArcsinhStretch(ABE_win)
 
 function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
 {
-      addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
       console.writeln("Start values D = " + par.Hyperbolic_D.val + ", b = " + par.Hyperbolic_b.val + ", SP = " + par.Hyperbolic_SP.val);
 
       var res = { 
@@ -4199,7 +4544,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
             res.iteration_number = i + 1;
             var window_updated = runHistogramTransformHyperbolic(res, iscolor);
             if (window_updated) {
-                  updatePreviewWin(res.win);
+                  gui.updatePreviewWin(res.win);
             }
             if (res.completed) {
                   break;
@@ -4222,7 +4567,7 @@ function stretchHistogramTransformIterationsChannel(ABE_win, channel)
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, channel);
             if (window_updated) {
-                  updatePreviewWin(res.win);
+                  gui.updatePreviewWin(res.win);
             }
             if (res.completed) {
                   break;
@@ -4239,7 +4584,7 @@ function stretchHistogramTransformIterations(ABE_win, iscolor)
             var rgbLinked = true;
       }
 
-      addProcessingStepAndStatusInfo("Run histogram stretch on " + ABE_win.mainView.id + " using HistogramTransform iterations");
+      util.addProcessingStepAndStatusInfo("Run histogram stretch on " + ABE_win.mainView.id + " using HistogramTransform iterations");
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
@@ -4250,17 +4595,6 @@ function stretchHistogramTransformIterations(ABE_win, iscolor)
                   ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, i);
             }
             return ABE_win;
-      }
-}
-
-function forceNewHistogram(target_win)
-{
-      try {
-            if (!target_win.mainView.deleteProperty("Histogram16")) {
-                  console.writeln("Failed to delete property Histogram16");
-            }
-      } catch(err) {
-            console.writeln("Failed to delete property Histogram16 : " + err);
       }
 }
 
@@ -4278,7 +4612,6 @@ function printImageStatistics(win, channel)
                                              " Mean " + view.computeOrFetchProperty("Mean").at(stat_channel) +
                                              " StdDev " + view.computeOrFetchProperty("StdDev").at(stat_channel));
 }
-
 
 /* Experimenting with stretching, mostly just for fun and to understand
  * some functions and concepts.
@@ -4305,7 +4638,7 @@ function stretchHistogramTransform(res, channel)
       var target_value = par.histogram_stretch_target.val;
       var use_median = par.histogram_stretch_type.val == 'Median';
 
-      var new_win = copyWindowEx(res.win, "temp_stretchHistogramTransform", true);
+      var new_win = util.copyWindowEx(res.win, "temp_stretchHistogramTransform", true);
 
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
@@ -4462,7 +4795,7 @@ function stretchHistogramTransform(res, channel)
       if (current_value > target_value + 0.1 * target_value) {
             // We are past the target value, ignore this iteration
             res.skipped++;
-            forceCloseOneWindow(new_win);
+            util.forceCloseOneWindow(new_win);
             if (res.skipped > 3) {
                   console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
                   res.completed = true;
@@ -4483,9 +4816,9 @@ function stretchHistogramTransform(res, channel)
             setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
             // close old image
             var image_id = res.win.mainView.id;
-            forceCloseOneWindow(res.win);
+            util.forceCloseOneWindow(res.win);
             // rename new as old
-            windowRename(new_win.mainView.id, image_id);
+            util.windowRename(new_win.mainView.id, image_id);
             res.win = new_win;
             if (clip) {
                   res.clipCount += clip.clipCount;
@@ -4600,9 +4933,9 @@ function runHistogramTransformHyperbolic(res, iscolor)
 
       res.win.mainView.endProcess();
 
-      var new_win = findWindow(P.newImageId);
+      var new_win = util.findWindow(P.newImageId);
 
-      // copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
+      // util.copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
 
       var median = findSymmetryPoint(new_win, 50);
       var peak_val = findHistogramPeak(new_win).normalizedPeakCol;
@@ -4613,16 +4946,16 @@ function runHistogramTransformHyperbolic(res, iscolor)
       if (median >= 0.5) {
             // We are past the median limit value, ignore this iteration and keep old image
             console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
-            closeOneWindow(P.newImageId);
+            util.closeOneWindow(P.newImageId);
             res.skipped++;
       } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
             // We are past the target value, ignore this iteration and keep old image
             console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            closeOneWindow(P.newImageId);
+            util.closeOneWindow(P.newImageId);
             res.skipped++;
       } else if (peak_val < res.peak_val) {
             console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
-            closeOneWindow(P.newImageId);
+            util.closeOneWindow(P.newImageId);
             res.skipped++;
       } else {
             // we are close enough, we are done
@@ -4632,9 +4965,9 @@ function runHistogramTransformHyperbolic(res, iscolor)
             // find new window and copy keywords
             setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
             // close old image
-            closeOneWindow(image_id);
+            util.closeOneWindow(image_id);
             // rename new as old
-            windowRename(P.newImageId, image_id);
+            util.windowRename(P.newImageId, image_id);
             res.win = new_win;
             res.peak_val = peak_val;
       }
@@ -4644,7 +4977,7 @@ function runHistogramTransformHyperbolic(res, iscolor)
 function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
 {
       if (!run_HT) {
-            addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
+            util.addProcessingStep("Do not run histogram transform on " + ABE_win.mainView.id);
             return { win: ABE_win, stf: null };
       }
 
@@ -4678,12 +5011,12 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             ABE_win = stretchHistogramTransformIterations(ABE_win, iscolor);
             
       } else {
-            throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
+            util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
       }
       if (par.shadow_clip.val) {
-            clipShadows(ABE_win, shadow_clip_value);
+            clipShadows(ABE_win, global.shadow_clip_value);
       }
-      updatePreviewWin(ABE_win);
+      gui.updatePreviewWin(ABE_win);
       return { win: ABE_win, stf: stf };
 }
 
@@ -4692,7 +5025,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
       if (par.ACDNR_noise_reduction.val == 0.0) {
             return;
       }
-      addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ACDNR;
       P.applyToChrominance = false;
@@ -4715,7 +5048,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function noiseSuperStrong()
@@ -4829,7 +5162,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
                   var P = noiseSuperStrong();
                   break;
             default:
-                  throwFatalError("Bad noise reduction value " + strength);
+                  util.throwFatalError("Bad noise reduction value " + strength);
       } 
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -4877,7 +5210,7 @@ function runNoiseXTerminator(imgWin, strength, linear)
                   var detail = 0.20;
                   break;
             default:
-                  throwFatalError("Bad noise reduction value " + strength);
+                  util.throwFatalError("Bad noise reduction value " + strength);
       }
 
       console.writeln("Run NoiseXTerminator using denoise " + denoise + " and detail " + detail);
@@ -4891,7 +5224,7 @@ function runNoiseXTerminator(imgWin, strength, linear)
             console.criticalln("NoiseXTerminator failed");
             console.criticalln(err);
             console.criticalln("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
-            throwFatalError("NoiseXTerminator failed");
+            util.throwFatalError("NoiseXTerminator failed");
       }
 
       console.writeln("runNoiseXTerminator on " + imgWin.mainView.id + " using denoise " + denoise + ", detail " + detail, ", linear " + linear);
@@ -4924,16 +5257,16 @@ function runNoiseReduction(imgWin, maskWin, linear)
       }
 
       if (par.use_noisexterminator.val) {
-            addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
       } else {
-            addProcessingStepAndStatusInfo("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       }
       runNoiseReductionEx(imgWin, maskWin, par.noise_reduction_strength.val, linear);
 }
 
 function runColorReduceNoise(imgWin)
 {
-      addProcessingStepAndStatusInfo("Color noise reduction on " + imgWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Color noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
       P.rgbkMode = false;
@@ -4948,12 +5281,12 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function starReduceNoise(imgWin)
 {
-      addProcessingStepAndStatusInfo("Star noise reduction on " + imgWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Star noise reduction on " + imgWin.mainView.id);
 
       var P = new TGVDenoise;
       P.rgbkMode = false;
@@ -4988,7 +5321,7 @@ function starReduceNoise(imgWin)
 
 function runBackgroundNeutralization(imgView)
 {
-      addProcessingStepAndStatusInfo("Background neutralization on " + imgView.id);
+      util.addProcessingStepAndStatusInfo("Background neutralization on " + imgView.id);
 
       var P = new BackgroundNeutralization;
 
@@ -4998,21 +5331,21 @@ function runBackgroundNeutralization(imgView)
 
       imgView.endProcess();
 
-      updatePreviewId(imgView.id);
+      gui.updatePreviewId(imgView.id);
 }
 
 function runColorCalibration(imgView)
 {
       if (narrowband) {
-            addProcessingStep("No color calibration for narrowband");
+            util.addProcessingStep("No color calibration for narrowband");
             return;
       }
       if (par.skip_color_calibration.val) {
-            addProcessingStep("No color calibration was selected");
+            util.addProcessingStep("No color calibration was selected");
             return;
       }
       try {
-            addProcessingStepAndStatusInfo("Color calibration on " + imgView.id);
+            util.addProcessingStepAndStatusInfo("Color calibration on " + imgView.id);
 
             var P = new ColorCalibration;
 
@@ -5021,18 +5354,19 @@ function runColorCalibration(imgView)
             P.executeOn(imgView, false);
 
             imgView.endProcess();
-            updatePreviewId(imgView.id);
+            gui.updatePreviewId(imgView.id);
       } catch(err) {
             console.criticalln("Color calibration failed");
             console.criticalln(err);
-            addProcessingStep("Maybe filter files or file format were not recognized correctly");
-            throwFatalError("Color calibration failed");
+            util.addProcessingStep("Maybe filter files or file format were not recognized correctly");
+            util.throwFatalError("Color calibration failed");
       }
 }
 
+// This function is not used but kept here for possible future use.
 function runColorSaturation(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       var P = new ColorSaturation;
       P.HS = [ // x, y
             [0.00000, 0.43636],
@@ -5044,7 +5378,6 @@ function runColorSaturation(imgWin, maskWin)
             [0.76744, 1.29091],
             [1.00000, 0.76364]
       ];
-
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -5058,15 +5391,15 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
 {
       if (maskWin == null) {
-            addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id);
       } else {
-            addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       }
 
       var P = new CurvesTransformation;
@@ -5092,7 +5425,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function increaseSaturation(imgWin, maskWin)
@@ -5103,11 +5436,11 @@ function increaseSaturation(imgWin, maskWin)
 
 function runLRGBCombination(RGB_id, L_id)
 {
-      var targetWin = copyWindow(
+      var targetWin = util.copyWindow(
                         ImageWindow.windowById(RGB_id), 
-                        ensure_win_prefix(RGB_id.replace("RGB", "LRGB")));
+                        util.ensure_win_prefix(RGB_id.replace("RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
-      addProcessingStepAndStatusInfo("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
+      util.addProcessingStepAndStatusInfo("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
       P.channels = [ // enabled, id, k
             [false, "", 1.00000],
@@ -5125,7 +5458,7 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
-      updatePreviewId(RGBimgView.id);
+      gui.updatePreviewId(RGBimgView.id);
 
       return RGBimgView.id;
 }
@@ -5133,12 +5466,12 @@ function runLRGBCombination(RGB_id, L_id)
 function runSCNR(RGBimgView, fixing_stars)
 {
       if (!fixing_stars) {
-            addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
+            util.addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
       }
       var P = new SCNR;
       if (narrowband && par.leave_some_green.val && !fixing_stars) {
             P.amount = 0.50;
-            addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
+            util.addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
       } else {
             P.amount = 1.00;
       }
@@ -5149,13 +5482,13 @@ function runSCNR(RGBimgView, fixing_stars)
 
       RGBimgView.endProcess();
 
-      updatePreviewId(RGBimgView.id);
+      gui.updatePreviewId(RGBimgView.id);
 }
 
 // Run hue shift on narrowband image to enhance orange.
 function narrowbandOrangeHueShift(imgView)
 {
-      addProcessingStepAndStatusInfo("Hue shift on " + imgView.id);
+      util.addProcessingStepAndStatusInfo("Hue shift on " + imgView.id);
       
       var P = new CurvesTransformation;
       P.H = [ // x, y
@@ -5171,15 +5504,15 @@ function narrowbandOrangeHueShift(imgView)
 
       imgView.endProcess();
 
-      updatePreviewId(imgView.id);
+      gui.updatePreviewId(imgView.id);
 }
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
       if (maskWin != null) {
-            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       } else {
-            addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id);
+            util.addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id);
       }
 
       var P = new MultiscaleLinearTransform;
@@ -5209,23 +5542,12 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
-function getOptionalUniqueFilenamePart()
+this.ensureDialogFilePath = function(names)
 {
-      if (par.unique_file_names.val) {
-            return format( "_%04d%02d%02d_%02d%02d%02d",
-                        processingDate.getFullYear(), processingDate.getMonth() + 1, processingDate.getDate(),
-                        processingDate.getHours(), processingDate.getMinutes(), processingDate.getSeconds());
-      } else {
-            return "";
-      }
-}
-
-function ensureDialogFilePath(names)
-{
-      if (outputRootDir == "") {
+      if (global.outputRootDir == "") {
             var gdd = new GetDirectoryDialog;
             gdd.caption = "Select Save Directory for " + names;
             gdd.initialPath = ppar.lastDir;
@@ -5234,19 +5556,19 @@ function ensureDialogFilePath(names)
                   console.writeln("No path for " + names + ', nothing written');
                   return 0;
             }
-            saveLastDir(gdd.directory);
-            outputRootDir = gdd.directory;
-            if (outputRootDir != "") {
-                  outputRootDir = ensurePathEndSlash(outputRootDir);
+            util.saveLastDir(gdd.directory);
+            global.outputRootDir = gdd.directory;
+            if (global.outputRootDir != "") {
+                  global.outputRootDir = util.ensurePathEndSlash(global.outputRootDir);
             }
-            console.writeln("ensureDialogFilePath, set outputRootDir ", outputRootDir);
+            console.writeln("ensureDialogFilePath, set global.outputRootDir ", global.outputRootDir);
             return 1;
       } else {
             return 2;
       }
 }
 
-function writeProcessingSteps(alignedFiles, autocontinue, basename)
+this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
 {
       if (basename == null) {
             if (autocontinue) {
@@ -5255,17 +5577,17 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
                   basename = "AutoIntegrate";
             }
       }
-      logfname = basename + getOptionalUniqueFilenamePart() + ".log";
+      logfname = basename + util.getOptionalUniqueFilenamePart() + ".log";
       if (par.win_prefix_to_log_files.val) {
             logfname = ppar.win_prefix + logfname;
       }
 
-      if (!write_processing_log_file) {
+      if (!global.write_processing_log_file) {
             console.writeln(basename + " log file not written.");
             return;
       }
 
-      var dialogRet = ensureDialogFilePath(basename + ".log");
+      var dialogRet = engine.ensureDialogFilePath(basename + ".log");
       if (dialogRet == 0) {
             // Canceled, do not save
             return;
@@ -5273,27 +5595,27 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
 
       if (dialogRet == 1) {
             // User gave explicit directory
-            var processedPath = outputRootDir;
+            var processedPath = global.outputRootDir;
       } else {
             // Use defaults
-            var processedPath = combinePath(outputRootDir, AutoProcessedDir);
+            var processedPath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
       }
-      processedPath = ensurePathEndSlash(processedPath);
+      processedPath = util.ensurePathEndSlash(processedPath);
 
-      run_results.processing_steps_file = processedPath + logfname;
+      global.run_results.processing_steps_file = processedPath + logfname;
 
-      console.writeln("Write processing steps to " + run_results.processing_steps_file);
+      console.writeln("Write processing steps to " + global.run_results.processing_steps_file);
 
 
       var file = new File();
-      file.createForWriting(run_results.processing_steps_file);
+      file.createForWriting(global.run_results.processing_steps_file);
 
       file.write(console.endLog());
       file.outTextLn("======================================");
-      if (lightFileNames != null) {
+      if (global.lightFileNames != null) {
             file.outTextLn("Dialog files:");
-            for (var i = 0; i < lightFileNames.length; i++) {
-                  file.outTextLn(lightFileNames[i]);
+            for (var i = 0; i < global.lightFileNames.length; i++) {
+                  file.outTextLn(global.lightFileNames[i]);
             }
       }
       if (alignedFiles != null) {
@@ -5302,19 +5624,19 @@ function writeProcessingSteps(alignedFiles, autocontinue, basename)
                   file.outTextLn(alignedFiles[i]);
             }
       }
-      file.outTextLn(processing_steps);
+      file.outTextLn(global.processing_steps);
       file.close();
 }
 
 // Find window and optionally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
-      var win = findWindow(ppar.win_prefix + id);
+      var win = util.findWindow(ppar.win_prefix + id);
       if (win == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
-            win = findWindow(id);
+            win = util.findWindow(id);
       }
       return win;
 }
@@ -5322,12 +5644,12 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 // Find window id and optionally search without a prefix
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
-      var id = findWindowId(ppar.win_prefix + name);
+      var id = util.findWindowId(ppar.win_prefix + name);
       if (id == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
-            id = findWindowId(name);
+            id = util.findWindowId(name);
             autocontinue_prefix = "";
       } else {
             autocontinue_prefix = ppar.win_prefix;
@@ -5342,10 +5664,10 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
 // then try without prefix
 function findWindowNoPrefixIf(id, check_base)
 {
-      var win = findWindow(id);
+      var win = util.findWindow(id);
       if (win == null && check_base && ppar.win_prefix != '' && id.startsWith(ppar.win_prefix)) {
             // Try without prefix
-            var win = findWindow(id.substring(ppar.win_prefix.length));
+            var win = util.findWindow(id.substring(ppar.win_prefix.length));
       }
       return win;
 }
@@ -5373,7 +5695,7 @@ function findProcessedChannelImages(check_base_name)
             }
       }
       if (autocontinue_processed_channel_images.rgb && autocontinue_processed_channel_images.image_ids.length < 3) {
-            throwFatalError("Not all RGB processed channel images found");
+            util.throwFatalError("Not all RGB processed channel images found");
       }
       for (var i = 0; i < autocontinue_processed_channel_images.narrowband_channels.length; i++) {
             var id = findWindowIdCheckBaseNameIf("Integration_" + autocontinue_processed_channel_images.narrowband_channels[i] + "_processed", check_base_name);
@@ -5414,13 +5736,13 @@ function debayerImages(fileNames)
 {
       var succ = true;
 
-      addStatusInfo("Debayer " + fileNames.length + " images");
-      addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
+      util.addStatusInfo("Debayer " + fileNames.length + " images");
+      util.addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
 
       var P = new Debayer;
-      P.cfaPattern = debayerPattern_enums[debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
       P.targetItems = fileNamesToEnabledPath(fileNames);
-      P.outputDirectory = outputRootDir + AutoOutputDir;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
 
       try {
@@ -5432,8 +5754,8 @@ function debayerImages(fileNames)
 
       if (!succ) {
             console.criticalln("Debayer failed");
-            addProcessingStep("Error, maybe debayer pattern was not correctly selected");
-            throwFatalError("Debayer failed");
+            util.addProcessingStep("Error, maybe debayer pattern was not correctly selected");
+            util.throwFatalError("Debayer failed");
       }
 
       return fileNamesFromOutputData(P.outputFileData);
@@ -5444,7 +5766,7 @@ function debayerImages(fileNames)
 function extractChannels(fileNames)
 {
       var newFileNames = [];
-      var outputDir = outputRootDir + AutoOutputDir;
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
       var outputExtension = ".xisf";
       if (par.extract_channel_mapping.val == 'LRGB') {
             var channel_map = "RGB";
@@ -5452,65 +5774,65 @@ function extractChannels(fileNames)
             var channel_map = par.extract_channel_mapping.val;
       }
 
-      addStatusInfo("Extract channels, " + par.extract_channel_mapping.val);
-      addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
+      util.addStatusInfo("Extract channels, " + par.extract_channel_mapping.val);
+      util.addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
       
       for (var i = 0; i < fileNames.length; i++) {
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (imageWindows.length != 1) {
-                  throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
+                  util.throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
-                  throwFatalError("*** extractChannels Error: Can't read file: " + fileNames[i]);
+                  util.throwFatalError("*** extractChannels Error: Can't read file: " + fileNames[i]);
             }
 
             // Extract channels and save each channel to a separate file.
             if (par.extract_channel_mapping.val == 'LRGB') {
                   var targetWindow = extractLchannel(imageWindow);
                   var filePath = generateNewFileName(fileNames[i], outputDir, "_L", outputExtension);
-                  setFITSKeyword(targetWindow, "FILTER", "L", "AutoIntegrate extracted channel")
+                  util.setFITSKeyword(targetWindow, "FILTER", "L", "AutoIntegrate extracted channel")
                   // Save window
                   if (!writeImage(filePath, targetWindow)) {
-                        throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+                        util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
                   }
                   newFileNames[newFileNames.length] = filePath;
-                  forceCloseOneWindow(targetWindow);
+                  util.forceCloseOneWindow(targetWindow);
             }
 
             var rId = extractRGBchannel(imageWindow.mainView.id, 'R');
-            var rWin = findWindow(rId);
+            var rWin = util.findWindow(rId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[0], outputExtension);
-            setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
+            util.setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, rWin)) {
-                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+                  util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            forceCloseOneWindow(rWin);
+            util.forceCloseOneWindow(rWin);
 
             var gId = extractRGBchannel(imageWindow.mainView.id, 'G');
-            var gWin = findWindow(gId);
+            var gWin = util.findWindow(gId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[1], outputExtension);
-            setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
+            util.setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, gWin)) {
-                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+                  util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            forceCloseOneWindow(gWin);
+            util.forceCloseOneWindow(gWin);
 
             var bId = extractRGBchannel(imageWindow.mainView.id, 'B');
-            var bWin = findWindow(bId);
+            var bWin = util.findWindow(bId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[2], outputExtension);
-            setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
+            util.setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, bWin)) {
-                  throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
+                  util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            forceCloseOneWindow(bWin);
+            util.forceCloseOneWindow(bWin);
 
             // Close window
-            forceCloseOneWindow(imageWindow);
+            util.forceCloseOneWindow(imageWindow);
       }
       return newFileNames;
 }
@@ -5541,9 +5863,9 @@ function findStartImages(auto_continue, check_base_name)
 
       findChannelImages(check_base_name);
 
-      if (is_extra_option() || is_narrowband_option()) {
-            for (var i = 0; i < final_windows.length; i++) {
-                  final_win = findWindowNoPrefixIf(final_windows[i], check_base_name);
+      if (util.is_extra_option() || util.is_narrowband_option()) {
+            for (var i = 0; i < global.final_windows.length; i++) {
+                  final_win = findWindowNoPrefixIf(global.final_windows[i], check_base_name);
                   if (final_win != null) {
                         break;
                   }
@@ -5558,58 +5880,58 @@ function findStartImages(auto_continue, check_base_name)
       var preview_id = null;
 
       if (final_win != null) {
-            addProcessingStep("Final image " + final_win.mainView.id);
+            util.addProcessingStep("Final image " + final_win.mainView.id);
             preview_id = final_win.mainView.id;
-            preprocessed_images = start_images.FINAL;
+            preprocessed_images = global.start_images.FINAL;
       } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {      /* L,RGB HistogramTransformation */
-            addProcessingStep("L,RGB HistogramTransformation");
+            util.addProcessingStep("L,RGB HistogramTransformation");
             preview_id = L_HT_win.mainView.id;
-            preprocessed_images = start_images.L_RGB_HT;
+            preprocessed_images = global.start_images.L_RGB_HT;
       } else if (checkAutoCont(RGB_HT_win)) {                                 /* RGB (color) HistogramTransformation */
-            addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
+            util.addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
             preview_id = RGB_HT_win.mainView.id;
-            preprocessed_images = start_images.RGB_HT;
+            preprocessed_images = global.start_images.RGB_HT;
       } else if (checkAutoCont(L_BE_win) && checkAutoCont(RGB_BE_win)) {      /* L,RGB background extracted */
-            addProcessingStep("L,RGB background extracted");
+            util.addProcessingStep("L,RGB background extracted");
             preview_id = L_BE_win.mainView.id;
-            preprocessed_images = start_images.L_RGB_BE;
+            preprocessed_images = global.start_images.L_RGB_BE;
       } else if (checkAutoCont(RGB_BE_win)) {                                 /* RGB (color) background extracted */
-            addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
+            util.addProcessingStep("RGB (color) background extracted " + RGB_BE_win.mainView.id);
             preview_id = RGB_BE_win.mainView.id;
-            preprocessed_images = start_images.RGB_BE;
+            preprocessed_images = global.start_images.RGB_BE;
       } else if ((checkAutoCont(R_BE_win) && checkAutoCont(G_BE_win) && checkAutoCont(B_BE_win)) ||
                   (checkAutoCont(H_BE_win) && checkAutoCont(O_BE_win))) {     /* L,R,G,B background extracted */
-            addProcessingStep("L,R,G,B background extracted");
+            util.addProcessingStep("L,R,G,B background extracted");
             preview_id = checkAutoCont(R_BE_win) ? R_BE_win.mainView.id : H_BE_win.mainView.id;
-            preprocessed_images = start_images.L_R_G_B_BE;
+            preprocessed_images = global.start_images.L_R_G_B_BE;
             narrowband = checkAutoCont(H_BE_win) || checkAutoCont(O_BE_win);
       } else if (RGBcolor_id != null 
                   && H_id == null && O_id == null && L_id == null) {          /* RGB (color) integrated image */
-            addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
+            util.addProcessingStep("RGB (color) integrated image " + RGBcolor_id);
             preview_id = RGBcolor_id;
             var check_name = ppar.win_prefix + "Integration_RGB_ABE";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+            if (auto_continue && util.findWindow(check_name)) {
+                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                     "Close previously processed images or use a different window prefix.")
             }
             var check_name = ppar.win_prefix + "Integration_RGB_noABE";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+            if (auto_continue && util.findWindow(check_name)) {
+                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                     "Close previously processed images or use a different window prefix.")
             }
-            checkAutoCont(findWindow(RGBcolor_id));
-            preprocessed_images = start_images.RGB_COLOR;
+            checkAutoCont(util.findWindow(RGBcolor_id));
+            preprocessed_images = global.start_images.RGB_COLOR;
       } else if (autocontinue_processed_channel_images.image_ids.length > 0) {                           /* L,R,G,B,H,S,O map images */
-            addProcessingStep("L,R,G,B processed channel images");
+            util.addProcessingStep("L,R,G,B processed channel images");
             preview_id = autocontinue_processed_channel_images.image_ids[0];
             var check_name = ppar.win_prefix + "Integration_RGB";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+            if (auto_continue && util.findWindow(check_name)) {
+                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                     "Close previously processed images or use a different window prefix.")
             }
-            checkAutoCont(findWindow(autocontinue_processed_channel_images.image_ids[0]));
+            checkAutoCont(util.findWindow(autocontinue_processed_channel_images.image_ids[0]));
             narrowband = autocontinue_processed_channel_images.narrowband;
-            preprocessed_images = start_images.L_R_G_B_PROCESSED;
+            preprocessed_images = global.start_images.L_R_G_B_PROCESSED;
             if (autocontinue_processed_channel_images.luminance_id != null) {
                   is_luminance_images = true;
             }
@@ -5619,22 +5941,22 @@ function findStartImages(auto_continue, check_base_name)
             O_id != null;
       } else if ((R_id != null && G_id != null && B_id != null) ||
                   (H_id != null && O_id != null)) {                           /* L,R,G,B integrated images */
-            addProcessingStep("L,R,G,B integrated images");
+            util.addProcessingStep("L,R,G,B integrated images");
             preview_id = R_id != null ? R_id : H_id;
             var check_name = ppar.win_prefix + "Integration_RGB";
-            if (auto_continue && findWindow(check_name)) {
-                  throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
+            if (auto_continue && util.findWindow(check_name)) {
+                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
                                     "Close previously processed images or use a different window prefix.")
             }
-            checkAutoCont(findWindow(R_id));
-            checkAutoCont(findWindow(H_id));
+            checkAutoCont(util.findWindow(R_id));
+            checkAutoCont(util.findWindow(H_id));
             narrowband = H_id != null || S_id != null || O_id != null;
-            preprocessed_images = start_images.L_R_G_B;
+            preprocessed_images = global.start_images.L_R_G_B;
       } else {
-            preprocessed_images = start_images.NONE;
+            preprocessed_images = global.start_images.NONE;
       }
       if (preview_id != null && auto_continue) {
-            updatePreviewId(preview_id);
+            gui.updatePreviewId(preview_id);
       }
       return preprocessed_images;
 }
@@ -5663,38 +5985,38 @@ function getFileProcessedStatusEx(fileNames, postfix, outputDir)
 
 function getFileProcessedStatus(fileNames, postfix)
 {
-      return getFileProcessedStatusEx(fileNames, postfix, outputRootDir + AutoOutputDir);
+      return getFileProcessedStatusEx(fileNames, postfix, global.outputRootDir + global.AutoOutputDir);
 }
 
 function getFileProcessedStatusCalibrated(fileNames, postfix)
 {
-      return getFileProcessedStatusEx(fileNames, postfix, outputRootDir + AutoCalibratedDir);
+      return getFileProcessedStatusEx(fileNames, postfix, global.outputRootDir + global.AutoCalibratedDir);
 }
 
 function preprocessedName(pi)
 {
       switch (pi) {
-            case start_images.NONE:
+            case global.start_images.NONE:
                   return "None";
-            case start_images.L_R_G_B_BE:
+            case global.start_images.L_R_G_B_BE:
                   return "Background extracted channel images";
-            case start_images.L_RGB_BE:
+            case global.start_images.L_RGB_BE:
                   return "Background extracted L and RGB images";
-            case start_images.RGB_BE:
+            case global.start_images.RGB_BE:
                   return "Background extracted RGB image";
-            case start_images.L_RGB_HT:
+            case global.start_images.L_RGB_HT:
                   return "Stretched L and RGB images";
-            case start_images.RGB_HT:
+            case global.start_images.RGB_HT:
                   return "Stretched RGB image";
-            case start_images.RGB_COLOR:
+            case global.start_images.RGB_COLOR:
                   return "Integrated RGB image";
-            case start_images.L_R_G_B_PROCESSED:
+            case global.start_images.L_R_G_B_PROCESSED:
                   return "Processed channel images";
-            case start_images.L_R_G_B:
+            case global.start_images.L_R_G_B:
                   return "Integrated channel images";
-            case start_images.FINAL:
+            case global.start_images.FINAL:
                   return "Final image";
-            case start_images.CALIBRATE_ONLY:
+            case global.start_images.CALIBRATE_ONLY:
                   return "Calibrate only";
             default:
                   return "Unknown " + pi;
@@ -5721,15 +6043,15 @@ function preprocessedName(pi)
  */
 function CreateChannelImages(parent, auto_continue)
 {
-      addProcessingStepAndStatusInfo("Create channel images");
+      util.addProcessingStepAndStatusInfo("Create channel images");
 
       final_win = null;
-      write_processing_log_file = false;  // do not write the log file if we fail very early
+      global.write_processing_log_file = false;  // do not write the log file if we fail very early
 
       if (auto_continue) {
             console.writeln("AutoContinue, find start images with prefix");
             preprocessed_images = findStartImages(true, false);
-            if (preprocessed_images == start_images.NONE && ppar.win_prefix != "") {
+            if (preprocessed_images == global.start_images.NONE && ppar.win_prefix != "") {
                   console.writeln("AutoContinue, find start images without prefix");
                   preprocessed_images = findStartImages(true, true);
             }
@@ -5739,14 +6061,14 @@ function CreateChannelImages(parent, auto_continue)
       }
 
       if (auto_continue) {
-          if (preprocessed_images == start_images.NONE) {
-            addProcessingStep("No preprocessed images found, processing not started!");
+          if (preprocessed_images == global.start_images.NONE) {
+            util.addProcessingStep("No preprocessed images found, processing not started!");
             return retval.ERROR;
           }
       } else {
-            if (preprocessed_images != start_images.NONE) {
-                  addProcessingStep("There are already preprocessed images, processing not started!");
-                  addProcessingStep("Close or rename old images before continuing.");
+            if (preprocessed_images != global.start_images.NONE) {
+                  util.addProcessingStep("There are already preprocessed images, processing not started!");
+                  util.addProcessingStep("Close or rename old images before continuing.");
                   return retval.ERROR;
             }  
       }
@@ -5754,70 +6076,70 @@ function CreateChannelImages(parent, auto_continue)
       /* Check if we have manually created mask. */
       range_mask_win = null;
 
-      write_processing_log_file = true;
+      global.write_processing_log_file = true;
 
-      if (preprocessed_images == start_images.FINAL) {
+      if (preprocessed_images == global.start_images.FINAL) {
             return true;
-      } else if (preprocessed_images != start_images.NONE) {
-            addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
+      } else if (preprocessed_images != global.start_images.NONE) {
+            util.addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
             console.writeln("L_BE_win="+L_BE_win);
             console.writeln("RGB_BE_win="+RGB_BE_win);
             console.writeln("L_HT_win="+L_HT_win);
             console.writeln("RGB_HT_win="+RGB_HT_win);
-            if (preprocessed_images == start_images.RGB_BE ||
-                preprocessed_images == start_images.RGB_HT ||
-                preprocessed_images == start_images.RGB_COLOR) 
+            if (preprocessed_images == global.start_images.RGB_BE ||
+                preprocessed_images == global.start_images.RGB_HT ||
+                preprocessed_images == global.start_images.RGB_COLOR) 
             {
                   if (narrowband) {
-                        addProcessingStep("Processing as narrowband images");
+                        util.addProcessingStep("Processing as narrowband images");
                   } else {
                         /* No L files, assume color. */
-                        addProcessingStep("Processing as color images");
+                        util.addProcessingStep("Processing as color images");
                         is_color_files = true;
                   }
             }
             if (par.force_new_mask.val) {
-                  closeOneWindow(ppar.win_prefix + "AutoMask");
+                  util.closeOneWindow(ppar.win_prefix + "AutoMask");
                   mask_win_id = null;
                   range_mask_win = null;
             } else {
                   /* Check if we already have a mask. It can be from previous run or manually created. */
                   mask_win_id = ppar.win_prefix + "AutoMask";
-                  range_mask_win = findWindow(mask_win_id);
+                  range_mask_win = util.findWindow(mask_win_id);
             }
       } else {
             /* Open dialog files and run SubframeSelector on them
              * to assigns SSWEIGHT.
              */
             var fileNames;
-            if (lightFileNames == null) {
-                  lightFileNames = openImageFiles("Light", true, false);
-                  addProcessingStep("Get files from dialog");
+            if (global.lightFileNames == null) {
+                  global.lightFileNames = engine.openImageFiles("Light", true, false);
+                  util.addProcessingStep("Get files from dialog");
             }
-            if (lightFileNames == null) {
-                  write_processing_log_file = false;
+            if (global.lightFileNames == null) {
+                  global.write_processing_log_file = false;
                   console.writeln("No files to process");
                   return retval.ERROR;
             }
 
-            updatePreviewFilename(lightFileNames[0]);
+            gui.updatePreviewFilename(global.lightFileNames[0]);
 
             // We keep track of extensions added to the file names
             // If we need to original file names we can substract
             // added extensions.
             var filename_postfix = '';
 
-            if (outputRootDir == "" || pathIsRelative(outputRootDir)) {
+            if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
                   /* Get path to current directory. */
-                  outputRootDir = parseNewOutputDir(lightFileNames[0], outputRootDir);
-                  console.writeln("CreateChannelImages, set outputRootDir ", outputRootDir);
+                  global.outputRootDir = util.parseNewOutputDir(global.lightFileNames[0], global.outputRootDir);
+                  console.writeln("CreateChannelImages, set global.outputRootDir ", global.outputRootDir);
             }
 
-            ensureDir(outputRootDir);
-            ensureDir(combinePath(outputRootDir, AutoOutputDir));
-            ensureDir(combinePath(outputRootDir, AutoProcessedDir));
+            util.ensureDir(global.outputRootDir);
+            util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
+            util.ensureDir(util.combinePath(global.outputRootDir, global.AutoProcessedDir));
 
-            var filtered_lights = getFilterFiles(lightFileNames, pages.LIGHTS, '');
+            var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
             if (isCustomMapping(filtered_lights.narrowband)
                 && !par.image_weight_testing.val
                 && !par.debayer_only.val
@@ -5829,20 +6151,20 @@ function CreateChannelImages(parent, auto_continue)
                   // Do a check round in custom mapping to verify that all needed
                   // channels have files.
                   // We exit with fatal error if some files are missing
-                  write_processing_log_file = false;
+                  global.write_processing_log_file = false;
                   customMapping(null, filtered_lights.allfilesarr);
-                  write_processing_log_file = true;
+                  global.write_processing_log_file = true;
             }
 
             if (par.extract_channels_only.val && par.extract_channel_mapping.val == 'None') {
-                  throwFatalError("Extract channels only is selected but Extract channels option is " + par.extract_channel_mapping.val);
+                  util.throwFatalError("Extract channels only is selected but Extract channels option is " + par.extract_channel_mapping.val);
             }
 
             // Run image calibration if we have calibration frames
             var calibrateInfo = calibrateEngine(filtered_lights);
-            lightFileNames = calibrateInfo[0];
+            global.lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
-            updatePreviewFilename(lightFileNames[0]);
+            gui.updatePreviewFilename(global.lightFileNames[0]);
 
             if (par.calibrate_only.val) {
                   return(retval.INCOMPLETE);
@@ -5850,7 +6172,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (filename_postfix != '') {
                   // We did run calibration, filter again with calibrated lights
-                  var filtered_files = getFilterFiles(lightFileNames, pages.LIGHTS, filename_postfix);
+                  var filtered_files = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, filename_postfix);
             } else {
                   // Calibration was not run
                   var filtered_files = filtered_lights;
@@ -5861,7 +6183,7 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = true;
             }
 
-            fileNames = lightFileNames;
+            fileNames = global.lightFileNames;
 
             if (par.start_from_imageintegration.val 
                 || par.image_weight_testing.val
@@ -5874,7 +6196,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (par.binning.val > 0 && !skip_early_steps) {
                   if (is_color_files) {
-                        addProcessingStep("No binning for color files");
+                        util.addProcessingStep("No binning for color files");
                   } else {
                         var fileProcessedStatus = getFileProcessedStatus(fileNames, getBinningPostfix());
                         if (fileProcessedStatus.unprocessed.length == 0) {
@@ -5884,10 +6206,10 @@ function CreateChannelImages(parent, auto_continue)
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                         }
                         filename_postfix = filename_postfix + getBinningPostfix();
-                        updatePreviewFilename(fileNames[0]);
+                        gui.updatePreviewFilename(fileNames[0]);
                   }
             } else if (par.binning_only.val) {
-                  throwFatalError("Binning only set but no binning done, binning " + par.binning.val + " binning resample factor " + par.binning_resample.val);
+                  util.throwFatalError("Binning only set but no binning done, binning " + par.binning.val + " binning resample factor " + par.binning_resample.val);
             }
             if (par.binning_only.val) {
                   console.writeln("Binning only, stop");
@@ -5902,13 +6224,13 @@ function CreateChannelImages(parent, auto_continue)
                               if (fileProcessedStatus.unprocessed.length == 0) {
                                     ccFileNames = ccFileNames.concat(fileProcessedStatus.processed);
                               } else {
-                                    addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + fileProcessedStatus.unprocessed.length + " files");
+                                    util.addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + fileProcessedStatus.unprocessed.length + " files");
                                     let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, ccInfo[i].ccDefects, is_color_files);
                                     ccFileNames = ccFileNames.concat(processedFileNames, fileProcessedStatus.processed);
                               }
                         }
                         fileNames = ccFileNames;
-                        updatePreviewFilename(fileNames[0]);
+                        gui.updatePreviewFilename(fileNames[0]);
                   } else {
                         var defects = [];
                         /* Run CosmeticCorrection for each file.
@@ -5921,7 +6243,7 @@ function CreateChannelImages(parent, auto_continue)
                               let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, defects, is_color_files);
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                         }
-                        updatePreviewFilename(fileNames[0]);
+                        gui.updatePreviewFilename(fileNames[0]);
                   }
                   filename_postfix = filename_postfix + '_cc';
             }
@@ -5938,7 +6260,7 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_d';
-                  updatePreviewFilename(fileNames[0]);
+                  gui.updatePreviewFilename(fileNames[0]);
             }
 
             if (is_color_files && par.debayer_only.val) {
@@ -5949,13 +6271,13 @@ function CreateChannelImages(parent, auto_continue)
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
-                  updatePreviewFilename(fileNames[0]);
+                  gui.updatePreviewFilename(fileNames[0]);
 
                   // We extracted channels, filter again with extracted channels
                   console.writeln("Filter again with extracted channels")
                   filename_postfix = '';
                   is_color_files = false;
-                  filtered_files = getFilterFiles(fileNames, pages.LIGHTS, filename_postfix);
+                  filtered_files = engine.getFilterFiles(fileNames, global.pages.LIGHTS, filename_postfix);
                   console.writeln("Continue with mono processing")
             }
             if (par.extract_channels_only.val) {
@@ -5970,7 +6292,7 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_ABE';
-                  updatePreviewFilename(fileNames[0]);
+                  gui.updatePreviewFilename(fileNames[0]);
             }
 
             if (!par.skip_subframeselector.val 
@@ -5989,7 +6311,7 @@ function CreateChannelImages(parent, auto_continue)
                         } else {
                               var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
                               if (names_and_weights.postfix != '_a') {
-                                    throwFatalError("Incorrect postfix " + names_and_weights.postfix + " returned from runSubframeSelector");
+                                    util.throwFatalError("Incorrect postfix " + names_and_weights.postfix + " returned from runSubframeSelector");
                               }
                               names_and_weights.filenames = names_and_weights.filenames.concat(fileProcessedStatus.processed);
                         }
@@ -6004,15 +6326,15 @@ function CreateChannelImages(parent, auto_continue)
              * Also possible file list filtering is done.
              */
             var retarr = findBestSSWEIGHT(parent, names_and_weights, filename_postfix);
-            if (par.use_processed_files.val && star_alignment_image != null) {
-                  console.writeln("Switching best image to already used star alignment image " + star_alignment_image);
-                  best_image = star_alignment_image;
+            if (par.use_processed_files.val && global.star_alignment_image != null) {
+                  console.writeln("Switching best image to already used star alignment image " + global.star_alignment_image);
+                  global.best_image = global.star_alignment_image;
             } else {
-                  best_image = retarr[0];
+                  global.best_image = retarr[0];
             }
             fileNames = retarr[1];
 
-            setBestImageInTreeBox(parent, parent.treeBox[pages.LIGHTS], best_image, filename_postfix);
+            gui.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.best_image, filename_postfix);
 
             if (par.image_weight_testing.val) {
                   return retval.INCOMPLETE;
@@ -6027,11 +6349,11 @@ function CreateChannelImages(parent, auto_continue)
                   if (fileProcessedStatus.unprocessed.length == 0) {
                         alignedFiles = fileProcessedStatus.processed;
                   } else {
-                        let processedFileNames = runStarAlignment(fileProcessedStatus.unprocessed, best_image);
+                        let processedFileNames = runStarAlignment(fileProcessedStatus.unprocessed, global.best_image);
                         alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_r';
-                  updatePreviewFilename(alignedFiles[0]);
+                  gui.updatePreviewFilename(alignedFiles[0]);
             } else {
                   alignedFiles = fileNames;
             }
@@ -6042,16 +6364,16 @@ function CreateChannelImages(parent, auto_continue)
 
             if (par.start_from_imageintegration.val || par.cropinfo_only.val) {
                   /* We start from *_r.xisf files that are normally in AutoOutput
-                   * subdirectory. So in the outputRootDir we replace AutoOutput
+                   * subdirectory. So in the global.outputRootDir we replace AutoOutput
                    * with . (dot). In normal setup this will put output files
                    * to a correct AutoProcessed subdirectory.
                    */
                   console.writeln("Option start_from_imageintegration or cropinfo_only selected, fix output directory");
-                  console.writeln("Current outputRootDir " + outputRootDir);
+                  console.writeln("Current global.outputRootDir " + global.outputRootDir);
 
-                  outputRootDir = outputRootDir.replace("AutoOutput", ".");
+                  global.outputRootDir = global.outputRootDir.replace("AutoOutput", ".");
 
-                  console.writeln("Fixes outputRootDir " + outputRootDir);
+                  console.writeln("Fixes global.outputRootDir " + global.outputRootDir);
             }
             if (par.cropinfo_only.val) {
                   return retval.INCOMPLETE;
@@ -6062,12 +6384,12 @@ function CreateChannelImages(parent, auto_continue)
                   /* We have LRGB files. */
                   if (!par.monochrome_image.val) {
                         if (is_luminance_images) {
-                              addProcessingStepAndStatusInfo("Processing as LRGB files");
+                              util.addProcessingStepAndStatusInfo("Processing as LRGB files");
                         } else {
-                              addProcessingStepAndStatusInfo("Processing as RGB files");
+                              util.addProcessingStepAndStatusInfo("Processing as RGB files");
                         }
                   } else {
-                        addProcessingStepAndStatusInfo("Processing as monochrome files");
+                        util.addProcessingStepAndStatusInfo("Processing as monochrome files");
                   }
                   is_color_files = false;
 
@@ -6087,17 +6409,17 @@ function CreateChannelImages(parent, auto_continue)
                         S_id = runImageIntegration(S_images, 'S');
                         O_id = runImageIntegration(O_images, 'O');
 
-                        windowShowif(R_id);
-                        windowShowif(G_id);
-                        windowShowif(B_id);
-                        windowShowif(H_id);
-                        windowShowif(S_id);
-                        windowShowif(O_id);
+                        util.windowShowif(R_id);
+                        util.windowShowif(G_id);
+                        util.windowShowif(B_id);
+                        util.windowShowif(H_id);
+                        util.windowShowif(S_id);
+                        util.windowShowif(O_id);
                   }
 
             } else {
                   /* We have color files. */
-                  addProcessingStepAndStatusInfo("Processing as color files");
+                  util.addProcessingStepAndStatusInfo("Processing as color files");
                   RGBcolor_id = runImageIntegration(C_images, 'RGBcolor');
             }
       }
@@ -6111,7 +6433,7 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
 {
       console.writeln("CreateNewTempMaskFromLinearWin from " + imgWin.mainView.id);
 
-      var winCopy = copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
+      var winCopy = util.copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
 
       /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
       winCopy = runHistogramTransform(winCopy, null, is_color, 'mask').win;
@@ -6120,7 +6442,7 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
        */
       var maskWin = newMaskWindow(winCopy, imgWin.mainView.id + "_mask", true);
 
-      forceCloseOneWindow(winCopy);
+      util.forceCloseOneWindow(winCopy);
 
       return maskWin;
 }
@@ -6131,47 +6453,47 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
  */
 function LRGBEnsureMaskEx(L_id_for_mask, stretched)
 {
-      addProcessingStepAndStatusInfo("LRGB ensure mask");
+      util.addProcessingStepAndStatusInfo("LRGB ensure mask");
 
       if (L_id_for_mask != null) {
             if (range_mask_win != null) {
                   console.writeln("Close old mask " + mask_win_id);
             }
             range_mask_win = null;
-            closeOneWindow(mask_win_id);
+            util.closeOneWindow(mask_win_id);
       }
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
-            addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+            util.addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
             mask_win = range_mask_win;
       } else {
             var L_win;
             if (L_id_for_mask != null) {
-                  addProcessingStep("Using image " + L_id_for_mask + " for a mask");
-                  L_win = copyWindowEx(ImageWindow.windowById(L_id_for_mask), ppar.win_prefix + "L_win_mask", true);
+                  util.addProcessingStep("Using image " + L_id_for_mask + " for a mask");
+                  L_win = util.copyWindowEx(ImageWindow.windowById(L_id_for_mask), ppar.win_prefix + "L_win_mask", true);
                   if (!stretched) {
                         L_win = runHistogramTransform(L_win, null, false, 'mask').win;
                   }
-            } else if (preprocessed_images == start_images.L_RGB_HT) {
+            } else if (preprocessed_images == global.start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
-                  addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
-                  L_win = copyWindow(L_HT_win, ppar.win_prefix + "L_win_mask");
+                  util.addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
+                  L_win = util.copyWindow(L_HT_win, ppar.win_prefix + "L_win_mask");
             } else {
-                  if (preprocessed_images == start_images.L_RGB_BE ||
-                      preprocessed_images == start_images.L_R_G_B_BE) 
+                  if (preprocessed_images == global.start_images.L_RGB_BE ||
+                      preprocessed_images == global.start_images.L_R_G_B_BE) 
                   {
                         /* We have background extracted from L. */
-                        addProcessingStep("Using image " + L_BE_win.mainView.id + " for a mask");
+                        util.addProcessingStep("Using image " + L_BE_win.mainView.id + " for a mask");
                         L_win = ImageWindow.windowById(L_BE_win.mainView.id);
                   } else {
                         if (luminance_id) {
-                              addProcessingStep("Using image " + luminance_id + " for a mask");
+                              util.addProcessingStep("Using image " + luminance_id + " for a mask");
                               L_win = ImageWindow.windowById(luminance_id);
                         } else {
-                              throwFatalError("No luminance image id for a mask");
+                              util.throwFatalError("No luminance image id for a mask");
                         }
                   }
-                  L_win = copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
+                  L_win = util.copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
 
                   /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
                   L_win = runHistogramTransform(L_win, null, false, 'mask').win;
@@ -6180,7 +6502,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(L_win, mask_win_id, false);
-            closeOneWindow(L_win.mainView.id);
+            util.closeOneWindow(L_win.mainView.id);
       }
 }
 
@@ -6194,21 +6516,21 @@ function LRGBEnsureMask(L_id_for_mask)
  */
 function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 {
-      addProcessingStepAndStatusInfo("Color ensure mask");
+      util.addProcessingStepAndStatusInfo("Color ensure mask");
 
       if (force_new_mask) {
             range_mask_win = null;
-            closeOneWindow(mask_win_id);
+            util.closeOneWindow(mask_win_id);
       }
 
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
-            addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
+            util.addProcessingStep("Use existing mask " + range_mask_win.mainView.id);
             mask_win = range_mask_win;
       } else {
             var color_win = ImageWindow.windowById(color_img_id);
-            addProcessingStep("Using image " + color_img_id + " for a mask");
-            var color_win_copy = copyWindowEx(color_win, "color_win_mask", true);
+            util.addProcessingStep("Using image " + color_img_id + " for a mask");
+            var color_win_copy = util.copyWindowEx(color_win, "color_win_mask", true);
 
             if (!RGBstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
@@ -6219,7 +6541,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(color_win_copy, mask_win_id, false);
-            closeOneWindow(color_win_copy.mainView.id);
+            util.closeOneWindow(color_win_copy.mainView.id);
       }
       console.writeln("ColorEnsureMask done");
 }
@@ -6233,30 +6555,30 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
  */
 function ProcessLimage(RGBmapping)
 {
-      addProcessingStepAndStatusInfo("Process L image");
+      util.addProcessingStepAndStatusInfo("Process L image");
 
       /* LRGB files */
-      if (preprocessed_images == start_images.L_RGB_HT) {
+      if (preprocessed_images == global.start_images.L_RGB_HT) {
             /* We have run HistogramTransformation. */
-            addProcessingStep("Start from image " + L_HT_win.mainView.id);
+            util.addProcessingStep("Start from image " + L_HT_win.mainView.id);
             L_ABE_HT_win = L_HT_win;
             L_ABE_HT_id = L_HT_win.mainView.id;
       } else {
-            if (preprocessed_images == start_images.L_R_G_B_PROCESSED) {
+            if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                   console.writeln("Use processed channel image for L");
                   if (autocontinue_processed_channel_images.luminance_id == null) {
-                        throwFatalError("Missing processed luminance channel image");
+                        util.throwFatalError("Missing processed luminance channel image");
                   }
                   if (luminance_id == null) {
                         luminance_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.luminance_id);
                   }
                   var L_win = ImageWindow.windowById(luminance_id);
                   L_ABE_id = noABEcopyWin(L_win);
-            } else if (preprocessed_images == start_images.L_RGB_BE ||
-                       preprocessed_images == start_images.L_R_G_B_BE) 
+            } else if (preprocessed_images == global.start_images.L_RGB_BE ||
+                       preprocessed_images == global.start_images.L_R_G_B_BE) 
             {
                   /* We have background extracted from L. */
-                  addProcessingStep("Start from image " + L_ABE_id);
+                  util.addProcessingStep("Start from image " + L_ABE_id);
                   L_ABE_id = L_BE_win.mainView.id;
             } else {
                   var L_win = ImageWindow.windowById(luminance_id);
@@ -6276,13 +6598,13 @@ function ProcessLimage(RGBmapping)
                   }
                   if (par.use_RGBNB_Mapping.val) {
                         var mapped_L_ABE_id = RGBNB_Channel_Mapping(L_ABE_id, 'L', par.L_bandwidth.val, par.L_mapping.val, par.L_BoostFactor.val);
-                        mapped_L_ABE_id = windowRename(mapped_L_ABE_id, L_ABE_id + "_NB");
-                        closeOneWindow(L_ABE_id);
+                        mapped_L_ABE_id = util.windowRename(mapped_L_ABE_id, L_ABE_id + "_NB");
+                        util.closeOneWindow(L_ABE_id);
                         L_ABE_id = mapped_L_ABE_id;
                   }
             }
 
-            if (preprocessed_images != start_images.L_R_G_B_PROCESSED) {
+            if (preprocessed_images != global.start_images.L_R_G_B_PROCESSED) {
                   if (!RGBmapping.combined && !RGBmapping.channel_noise_reduction) {
                         /* Noise reduction for L. */
                         luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
@@ -6293,7 +6615,7 @@ function ProcessLimage(RGBmapping)
             }
             /* On L image run HistogramTransform  to stretch image to non-linear
             */
-            L_ABE_HT_id = ensure_win_prefix(L_ABE_id + "_HT");
+            L_ABE_HT_id = util.ensure_win_prefix(L_ABE_id + "_HT");
             if (!RGBmapping.stretched) {
                   if (par.remove_stars_before_stretch.val) {
                         removeStars(
@@ -6307,7 +6629,7 @@ function ProcessLimage(RGBmapping)
                         LRGBEnsureMask(L_ABE_id);
                   }
                   var res = runHistogramTransform(
-                              copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
+                              util.copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
                               false,
                               'L');
@@ -6327,7 +6649,7 @@ function ProcessLimage(RGBmapping)
                         L_stf = null;
                   }
             } else {
-                  copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id);
+                  util.copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id);
                   same_stf_for_all_images = false;
                   L_stf = null;
             }
@@ -6343,17 +6665,17 @@ function ProcessLimage(RGBmapping)
  */
 function LinearFitLRGBchannels()
 {
-      addProcessingStepAndStatusInfo("Linear fit LRGB channels");
+      util.addProcessingStepAndStatusInfo("Linear fit LRGB channels");
 
       var use_linear_fit = par.use_linear_fit.val;
 
       if (luminance_id == null && use_linear_fit == 'Luminance') {
             // no luminance
             if (narrowband) {
-                  addProcessingStep("No Luminance, no linear fit with narrowband");
+                  util.addProcessingStep("No Luminance, no linear fit with narrowband");
                   use_linear_fit = 'No linear fit';
             } else {
-                  addProcessingStep("No Luminance, linear fit using R with RGB");
+                  util.addProcessingStep("No Luminance, linear fit using R with RGB");
                   use_linear_fit = 'Red';
             }
       }
@@ -6363,7 +6685,7 @@ function LinearFitLRGBchannels()
       if (use_linear_fit == 'Red') {
             /* Use R.
              */
-            addProcessingStep("Linear fit using R");
+            util.addProcessingStep("Linear fit using R");
             if (luminance_id != null) {
                   runLinearFit(red_id, luminance_id);
             }
@@ -6372,7 +6694,7 @@ function LinearFitLRGBchannels()
       } else if (use_linear_fit == 'Green') {
             /* Use G.
               */
-            addProcessingStep("Linear fit using G");
+            util.addProcessingStep("Linear fit using G");
             if (luminance_id != null) {
                   runLinearFit(green_id, luminance_id);
             }
@@ -6381,7 +6703,7 @@ function LinearFitLRGBchannels()
       } else if (use_linear_fit == 'Blue') {
             /* Use B.
               */
-            addProcessingStep("Linear fit using B");
+            util.addProcessingStep("Linear fit using B");
             if (luminance_id != null) {
                   runLinearFit(blue_id, luminance_id);
             }
@@ -6390,12 +6712,12 @@ function LinearFitLRGBchannels()
       } else if (use_linear_fit == 'Luminance' && luminance_id != null) {
             /* Use L.
              */
-            addProcessingStep("Linear fit using L");
+            util.addProcessingStep("Linear fit using L");
             runLinearFit(luminance_id, red_id);
             runLinearFit(luminance_id, green_id);
             runLinearFit(luminance_id, blue_id);
       } else {
-            addProcessingStep("No linear fit");
+            util.addProcessingStep("No linear fit");
       }
 }
 
@@ -6406,11 +6728,11 @@ function LinearFitLRGBchannels()
  */
 function CombineRGBimageEx(target_name, images)
 {
-      addProcessingStepAndStatusInfo("Combine RGB image");
+      util.addProcessingStepAndStatusInfo("Combine RGB image");
 
       if (autocontinue_processed_channel_images.image_ids.length == 0) {
             if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
-                  addProcessingStep("Noise reduction on channel images");
+                  util.addProcessingStep("Noise reduction on channel images");
                   for (var i = 0; i < images.length; i++) {
                         channelNoiseReduction(images[i]);
                   }
@@ -6421,7 +6743,7 @@ function CombineRGBimageEx(target_name, images)
       }
       /* ChannelCombination
        */
-      addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
+      util.addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
 
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.prototype.RGB;
@@ -6446,14 +6768,14 @@ function CombineRGBimageEx(target_name, images)
                         rgb_name);                          // const IsoString &id=IsoString()
 
       if (win.mainView.id != rgb_name) {
-            fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
+            util.fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
       }
                   
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
-      updatePreviewWin(win);
+      gui.updatePreviewWin(win);
 
       return win;
 }
@@ -6478,7 +6800,7 @@ function CombineRGBimage()
       RGB_win = CombineRGBimageEx("Integration_RGB", [red_id, green_id, blue_id]);
 
       RGB_win_id = RGB_win.mainView.id;
-      addScriptWindow(RGB_win_id);
+      util.addScriptWindow(RGB_win_id);
       RGB_win.show();
 
       return RGB_win;
@@ -6486,8 +6808,8 @@ function CombineRGBimage()
 
 function extractRGBchannel(RGB_id, channel)
 {
-      addProcessingStepAndStatusInfo("Extract " + channel + " from " + RGB_id);
-      var sourceWindow = findWindow(RGB_id);
+      util.addProcessingStepAndStatusInfo("Extract " + channel + " from " + RGB_id);
+      var sourceWindow = util.findWindow(RGB_id);
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.RGB;
       P.sampleFormat = ChannelExtraction.prototype.SameAsSource;
@@ -6528,7 +6850,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       console.writeln("RGBNB channel mapping " + RGB_id);
 
       if (channel == 'L') {
-            var L_win_copy = copyWindow(findWindow(RGB_id), ensure_win_prefix(RGB_id + "_RGBNBcopy"));
+            var L_win_copy = util.copyWindow(util.findWindow(RGB_id), util.ensure_win_prefix(RGB_id + "_RGBNBcopy"));
             var channelId = L_win_copy.mainView.id;
       } else {
             var channelId = extractRGBchannel(RGB_id, channel);
@@ -6550,10 +6872,10 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
             case '':
                   return channelId;
             default:
-                  throwFatalError("Invalid NB mapping " + mapping);
+                  util.throwFatalError("Invalid NB mapping " + mapping);
       }
       if (NB_id == null) {
-            throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
+            util.throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
       }
       if (par.use_RGB_image.val) {
             var sourceChannelId = RGB_id;
@@ -6562,7 +6884,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
             var sourceChannelId = channelId;
       }
 
-      addProcessingStepAndStatusInfo("Run " + channel + " mapping using " + NB_id + ", " + 
+      util.addProcessingStepAndStatusInfo("Run " + channel + " mapping using " + NB_id + ", " + 
                         channel + " bandwidth " + channel_bandwidth + ", " + 
                         mapping + " bandwidth " + NB_bandwidth + 
                         " and boost factor " + BoostFactor);
@@ -6586,59 +6908,59 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
                                     mappedChannelId2,
                                     "max(" + mappedChannelId + ", " + mappedChannelId2 + ")");
 
-      closeOneWindow(channelId);
-      closeOneWindow(mappedChannelId);
-      closeOneWindow(mappedChannelId2);
+      util.closeOneWindow(channelId);
+      util.closeOneWindow(mappedChannelId);
+      util.closeOneWindow(mappedChannelId2);
 
       return mappedChannelId3;
 }
 
 function doRGBNBmapping(RGB_id)
 {
-      addProcessingStepAndStatusInfo("Create mapped channel images from " + RGB_id);
+      util.addProcessingStepAndStatusInfo("Create mapped channel images from " + RGB_id);
       var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.R_bandwidth.val, par.R_mapping.val, par.R_BoostFactor.val);
       var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.G_bandwidth.val, par.G_mapping.val, par.G_BoostFactor.val);
       var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.B_bandwidth.val, par.B_mapping.val, par.B_BoostFactor.val);
 
       /* Combine RGB image from mapped channel images. */
-      addProcessingStep("Combine mapped channel images to an RGB image");
+      util.addProcessingStep("Combine mapped channel images to an RGB image");
       var RGB_mapped_id = runPixelMathRGBMapping(
                               RGB_id + "_NB", 
-                              findWindow(RGB_id),
+                              util.findWindow(RGB_id),
                               R_mapped,
                               G_mapped,
                               B_mapped);
 
-      closeOneWindow(R_mapped);
-      closeOneWindow(G_mapped);
-      closeOneWindow(B_mapped);
-      closeOneWindow(RGB_id);
+      util.closeOneWindow(R_mapped);
+      util.closeOneWindow(G_mapped);
+      util.closeOneWindow(B_mapped);
+      util.closeOneWindow(RGB_id);
 
       return RGB_mapped_id;
 }
 
-function testRGBNBmapping()
+this.testRGBNBmapping = function()
 {
       console.beginLog();
 
-      addProcessingStep("Test narrowband mapping to RGB");
+      util.addProcessingStep("Test narrowband mapping to RGB");
 
       findChannelImages(false);
 
       if (RGBcolor_id == null) {
-            throwFatalError("Could not find RGB image");
+            util.throwFatalError("Could not find RGB image");
       }
 
-      var color_win = findWindow(RGBcolor_id);
+      var color_win = util.findWindow(RGBcolor_id);
 
       checkWinFilePath(color_win);
 
-      var test_win = copyWindow(color_win, ensure_win_prefix(RGBcolor_id + "_test"));
+      var test_win = util.copyWindow(color_win, util.ensure_win_prefix(RGBcolor_id + "_test"));
 
       doRGBNBmapping(test_win.mainView.id);
       
-      addProcessingStep("Processing completed");
-      writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
+      util.addProcessingStep("Processing completed");
+      engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
 
       console.endLog();
 }
@@ -6654,27 +6976,27 @@ function testRGBNBmapping()
  */
 function ProcessRGBimage(RGBmapping)
 {
-      addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBmapping.stretched);
+      util.addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBmapping.stretched);
 
       var RGB_ABE_HT_id;
 
-      if (preprocessed_images == start_images.L_RGB_HT ||
-            preprocessed_images == start_images.RGB_HT) 
+      if (preprocessed_images == global.start_images.L_RGB_HT ||
+            preprocessed_images == global.start_images.RGB_HT) 
       {
             /* We already have run HistogramTransformation. */
             RGB_ABE_HT_id = RGB_HT_win.mainView.id;
-            addProcessingStep("Start from image " + RGB_ABE_HT_id);
-            if (preprocessed_images == start_images.RGB_HT) {
+            util.addProcessingStep("Start from image " + RGB_ABE_HT_id);
+            if (preprocessed_images == global.start_images.RGB_HT) {
                   ColorEnsureMask(RGB_ABE_HT_id, true, false);
             }
             RGBmapping.stretched = true;
       } else {
-            if (preprocessed_images == start_images.L_RGB_BE ||
-                preprocessed_images == start_images.RGB_BE) 
+            if (preprocessed_images == global.start_images.L_RGB_BE ||
+                preprocessed_images == global.start_images.RGB_BE) 
             {
                   /* We already have background extracted. */
                   RGB_ABE_id = RGB_BE_win.mainView.id;
-                  addProcessingStep("Start from image " + RGB_ABE_id);
+                  util.addProcessingStep("Start from image " + RGB_ABE_id);
             } else {
                   if (par.color_calibration_before_ABE.val) {
                         if (par.use_background_neutralization.val) {
@@ -6738,8 +7060,8 @@ function ProcessRGBimage(RGBmapping)
             }
             if (!RGBmapping.stretched) {
                   if (par.remove_stars_before_stretch.val) {
-                        RGB_stars_win = removeStars(findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
-                        windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
+                        RGB_stars_win = removeStars(util.findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
+                        util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
                               ColorEnsureMask(RGB_ABE_id, false, true);
@@ -6747,9 +7069,9 @@ function ProcessRGBimage(RGBmapping)
                   }
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
-                  RGB_ABE_HT_id = ensure_win_prefix(RGB_ABE_id + "_HT");
+                  RGB_ABE_HT_id = util.ensure_win_prefix(RGB_ABE_id + "_HT");
                   var stf = runHistogramTransform(
-                              copyWindow(
+                              util.copyWindow(
                                     ImageWindow.windowById(RGB_ABE_id), 
                                     RGB_ABE_HT_id), 
                               L_stf,
@@ -6758,7 +7080,7 @@ function ProcessRGBimage(RGBmapping)
                   RGBmapping.stretched = true;
 
                   if (par.remove_stars_stretched.val) {
-                        RGB_stars_HT_win = removeStars(findWindow(RGB_ABE_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        RGB_stars_HT_win = removeStars(util.findWindow(RGB_ABE_HT_id), false, true, null, null, par.unscreen_stars.val);
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
                               ColorEnsureMask(RGB_ABE_HT_id, true, true);
@@ -6773,11 +7095,11 @@ function ProcessRGBimage(RGBmapping)
       if (RGB_stars_win != null)  {
             let stars_id = RGB_ABE_HT_id + "_stars";
             runHistogramTransform(
-                  copyWindow(RGB_stars_win, stars_id), 
+                  util.copyWindow(RGB_stars_win, stars_id), 
                   L_stf == null ? stf : L_stf,
                   true,
                   'stars');
-            RGB_stars_HT_win = findWindow(stars_id);
+            RGB_stars_HT_win = util.findWindow(stars_id);
       } else if (RGB_stars_HT_win != null)  {
             RGB_stars_HT_win.mainView.id =  RGB_ABE_HT_id + "_stars";
       }
@@ -6813,10 +7135,10 @@ function invertImage(targetView)
 function createStarFixMask(imgView)
 {
       if (star_fix_mask_win == null) {
-            star_fix_mask_win = findWindow(ppar.win_prefix + "star_fix_mask");
+            star_fix_mask_win = util.findWindow(ppar.win_prefix + "star_fix_mask");
       }
       if (star_fix_mask_win == null) {
-            star_fix_mask_win = findWindow(ppar.win_prefix + "AutoStarFixMask");
+            star_fix_mask_win = util.findWindow(ppar.win_prefix + "AutoStarFixMask");
       }
       if (star_fix_mask_win != null) {
             // Use already created start mask
@@ -6835,10 +7157,10 @@ function createStarFixMask(imgView)
 
       star_fix_mask_win = ImageWindow.activeWindow;
 
-      windowRenameKeepif(star_fix_mask_win.mainView.id, ppar.win_prefix + "AutoStarFixMask", true);
+      util.windowRenameKeepif(star_fix_mask_win.mainView.id, ppar.win_prefix + "AutoStarFixMask", true);
       star_fix_mask_win_id = star_fix_mask_win.mainView.id;
 
-      addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
+      util.addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
 }
 
 /* Do a rough fix on magenta stars by inverting the image, applying
@@ -6861,7 +7183,7 @@ function fixNarrowbandStarColor(targetWin)
             use_mask = false;
       }
 
-      addProcessingStepAndStatusInfo("Fix narrowband star color");
+      util.addProcessingStepAndStatusInfo("Fix narrowband star color");
 
       if (use_mask) {
             createStarFixMask(targetWin.mainView);
@@ -6871,7 +7193,7 @@ function fixNarrowbandStarColor(targetWin)
 
       if (use_mask) {
             /* Use mask to change only star colors. */
-            addProcessingStep("Using mask " + star_fix_mask_win.mainView.id + " when fixing star colors");
+            util.addProcessingStep("Using mask " + star_fix_mask_win.mainView.id + " when fixing star colors");
             setMaskChecked(targetWin, star_fix_mask_win);
             targetWin.maskInverted = false;
       }      
@@ -6884,7 +7206,7 @@ function fixNarrowbandStarColor(targetWin)
 
       invertImage(targetWin.mainView);
 
-      updatePreviewWin(targetWin);
+      gui.updatePreviewWin(targetWin);
 }
 
 // When start removal is run we do some things differently
@@ -6898,10 +7220,10 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       /* Close old star mask. If needed we create a new one from
        * the stars image.
        */
-      closeOneWindow(ensure_win_prefix("AutoStarMask"));
+      util.closeOneWindow(util.ensure_win_prefix("AutoStarMask"));
 
-      let stars_win = removeStars(imgWin, false, true, null, ensure_win_prefix(imgWin.mainView.id + "_stars_tmp"), par.extra_unscreen_stars.val);
-      let stars_win_id = ensure_win_prefix(imgWin.mainView.id + "_stars");
+      let stars_win = removeStars(imgWin, false, true, null, util.ensure_win_prefix(imgWin.mainView.id + "_stars_tmp"), par.extra_unscreen_stars.val);
+      let stars_win_id = util.ensure_win_prefix(imgWin.mainView.id + "_stars");
       if (stars_win.mainView.id != stars_win_id) {
             console.writeln("extraRemoveStars, rename " + stars_win.mainView.id + " to " + stars_win_id);
             stars_win.mainView.id = stars_win_id;
@@ -6911,30 +7233,30 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       var FITSkeywords = getTargetFITSKeywordsForPixelmath(imgWin);
       setTargetFITSKeywordsForPixelmath(stars_win, FITSkeywords);
 
-      ensureDir(outputRootDir);
+      util.ensureDir(global.outputRootDir);
 
       setFinalImageKeyword(stars_win);
-      addProcessingStep("Stars image " + stars_win_id);
+      util.addProcessingStep("Stars image " + stars_win_id);
 
       if (par.extra_combine_stars.val || apply_directly) {
             /* Make a copy of the starless image.
             */
             console.writeln("extraRemoveStars copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
-            var copywin = copyWindow(imgWin, ensure_win_prefix(imgWin.mainView.id + "_starless"));
+            var copywin = util.copyWindow(imgWin, util.ensure_win_prefix(imgWin.mainView.id + "_starless"));
       } else {
             /* We do not combine images so just rename old image.
              */
             var copywin = imgWin;
-            copywin.mainView.id = ensure_win_prefix(copywin.mainView.id + "_starless");
+            copywin.mainView.id = util.ensure_win_prefix(copywin.mainView.id + "_starless");
 
       }
       setFinalImageKeyword(copywin);
-      addProcessingStep("Starless image " + copywin.mainView.id);
+      util.addProcessingStep("Starless image " + copywin.mainView.id);
       copywin.show();
 
-      updatePreviewWin(copywin);
+      gui.updatePreviewWin(copywin);
 
-      update_extra_target_image_window_list(parent, null);
+      gui.update_extra_target_image_window_list(parent, null);
 
       // return possibly new starless image for further processing
       return { starless_win: copywin, stars_id: stars_win_id };
@@ -6942,7 +7264,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
 
 function extraDarkerBackground(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -6963,12 +7285,12 @@ function extraDarkerBackground(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var failed = false;
       var hsChannels = null;
@@ -7020,26 +7342,26 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
             }
-            updatePreviewWin(imgWin);
+            gui.updatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
             console.criticalln(err);
       }
       if (hsChannels != null) {
-            forceCloseOneWindow(hsChannels[0]);
-            forceCloseOneWindow(hsChannels[1]);
+            util.forceCloseOneWindow(hsChannels[0]);
+            util.forceCloseOneWindow(hsChannels[1]);
       }
       if (iChannel != null) {
-            forceCloseOneWindow(iChannel);
+            util.forceCloseOneWindow(iChannel);
       }
       if (failed) {
-            throwFatalError("HDRMultiscaleTransform failed");
+            util.throwFatalError("HDRMultiscaleTransform failed");
       }
 }
 
 function extraLocalHistogramEqualization(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new LocalHistogramEqualization;
       P.radius = par.extra_LHE_kernelradius.val;
@@ -7058,12 +7380,12 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function extraExponentialTransformation(imgWin, maskWin)
 {
-      addProcessingStepAndStatusInfo("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
 
       var P = new ExponentialTransformation;
       P.functionType = ExponentialTransformation.prototype.PIP;
@@ -7083,7 +7405,7 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function createNewStarMaskWin(imgWin)
@@ -7106,10 +7428,10 @@ function createStarMaskIf(imgWin)
       if (!par.extra_force_new_mask.val) {
             star_mask_win = maskIsCompatible(imgWin, star_mask_win);
             if (star_mask_win == null) {
-                  star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "star_mask"));
+                  star_mask_win = maskIsCompatible(imgWin, util.findWindow(ppar.win_prefix + "star_mask"));
             }
             if (star_mask_win == null) {
-                  star_mask_win = maskIsCompatible(imgWin, findWindow(ppar.win_prefix + "AutoStarMask"));
+                  star_mask_win = maskIsCompatible(imgWin, util.findWindow(ppar.win_prefix + "AutoStarMask"));
             }
             if (star_mask_win != null) {
                   // Use already created start mask
@@ -7118,13 +7440,13 @@ function createStarMaskIf(imgWin)
                   return;
             }
       }
-      closeOneWindow("AutoStarMask");
+      util.closeOneWindow("AutoStarMask");
 
       star_mask_win = createNewStarMaskWin(imgWin);
 
-      windowRenameKeepif(star_mask_win.mainView.id, "AutoStarMask", true);
+      util.windowRenameKeepif(star_mask_win.mainView.id, "AutoStarMask", true);
 
-      addProcessingStep("Created star mask " + star_mask_win.mainView.id);
+      util.addProcessingStep("Created star mask " + star_mask_win.mainView.id);
       star_mask_win_id = star_mask_win.mainView.id;
 }
 
@@ -7132,7 +7454,7 @@ function createStarMaskIf(imgWin)
  */
 function smallerStarsBillsPixelmathMethod(combined_id, starless_id)
 {
-      addProcessingStepAndStatusInfo("Reduce stars using " + par.extra_combine_stars_reduce.val + " method");
+      util.addProcessingStepAndStatusInfo("Reduce stars using " + par.extra_combine_stars_reduce.val + " method");
 
       switch (par.extra_combine_stars_reduce.val) {
             case 'Transfer':
@@ -7189,7 +7511,7 @@ function smallerStarsBillsPixelmathMethod(combined_id, starless_id)
                   break;
 
             default:
-                  throwFatalError("Invalid star reduce mode " + par.extra_combine_stars_reduce.val);
+                  util.throwFatalError("Invalid star reduce mode " + par.extra_combine_stars_reduce.val);
                   break;
       }
 
@@ -7206,10 +7528,10 @@ function extraSmallerStars(imgWin, is_star_image)
       }
 
       if (is_star_image) {
-            addProcessingStepAndStatusInfo("Smaller stars on stars image " + imgWin.mainView.id + 
+            util.addProcessingStepAndStatusInfo("Smaller stars on stars image " + imgWin.mainView.id + 
                         " using " + par.extra_smaller_stars_iterations.val + " iterations");
       } else {
-            addProcessingStepAndStatusInfo("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
+            util.addProcessingStepAndStatusInfo("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
                         " and " + par.extra_smaller_stars_iterations.val + " iterations");
       }
 
@@ -7264,12 +7586,12 @@ function extraSmallerStars(imgWin, is_star_image)
 
       targetWin.mainView.endProcess();
 
-      updatePreviewWin(targetWin);
+      gui.updatePreviewWin(targetWin);
 }
 
 function extraContrast(imgWin)
 {
-      addProcessingStepAndStatusInfo("Increase contrast on " + imgWin.mainView.id);
+      util.addProcessingStepAndStatusInfo("Increase contrast on " + imgWin.mainView.id);
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -7285,12 +7607,12 @@ function extraContrast(imgWin)
 
       imgWin.mainView.endProcess();
 
-      updatePreviewWin(imgWin);
+      gui.updatePreviewWin(imgWin);
 }
 
 function extraStretch(win)
 {
-      addProcessingStepAndStatusInfo("Extra stretch on " + win.mainView.id);
+      util.addProcessingStepAndStatusInfo("Extra stretch on " + win.mainView.id);
 
       win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
       return win;
@@ -7298,22 +7620,22 @@ function extraStretch(win)
 
 function extraShadowClipping(win, perc)
 {
-      addProcessingStepAndStatusInfo("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
+      util.addProcessingStepAndStatusInfo("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
 
       clipShadows(win, perc);
 
-      updatePreviewWin(win);
+      gui.updatePreviewWin(win);
 }
 
 function extraSmoothBackground(win, val)
 {
-      addProcessingStepAndStatusInfo("Extra background smoothing with value " + val);
+      util.addProcessingStepAndStatusInfo("Extra background smoothing with value " + val);
 
       var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)/2,$T)";
 
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
 
-      updatePreviewWin(win);
+      gui.updatePreviewWin(win);
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -7321,7 +7643,7 @@ function extraNoiseReduction(win, mask_win)
       if (par.extra_noise_reduction_strength.val == 0) {
             return;
       }
-      addProcessingStepAndStatusInfo("Extra noise reduction on " + win.mainView.id);
+      util.addProcessingStepAndStatusInfo("Extra noise reduction on " + win.mainView.id);
 
       runNoiseReductionEx(
             win, 
@@ -7329,20 +7651,20 @@ function extraNoiseReduction(win, mask_win)
             par.extra_noise_reduction_strength.val,
             false);
 
-      updatePreviewWin(win);
+      gui.updatePreviewWin(win);
 }
 
 function extraACDNR(extraWin, mask_win)
 {
-      addProcessingStepAndStatusInfo("Extra ACDNR");
+      util.addProcessingStepAndStatusInfo("Extra ACDNR");
       if (par.ACDNR_noise_reduction.val == 0.0) {
-            addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
+            util.addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
             return;
       }
 
       runACDNRReduceNoise(extraWin, mask_win);
 
-      updatePreviewWin(extraWin);
+      gui.updatePreviewWin(extraWin);
 }
 
 function extraColorNoise(extraWin)
@@ -7352,7 +7674,7 @@ function extraColorNoise(extraWin)
 
 function extraUnsharpMask(extraWin, mask_win)
 {
-      addProcessingStepAndStatusInfo("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
+      util.addProcessingStepAndStatusInfo("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
 
       var P = new UnsharpMask;
       P.sigma = par.extra_unsharpmask_stddev.val;
@@ -7373,34 +7695,34 @@ function extraUnsharpMask(extraWin, mask_win)
             extraWin.removeMask();
       }
 
-      updatePreviewWin(extraWin);
+      gui.updatePreviewWin(extraWin);
 }
 
 function extraSharpen(extraWin, mask_win)
 {
-      addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
+      util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
 
       for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
             runMultiscaleLinearTransformSharpen(extraWin, mask_win);
       }
-      updatePreviewWin(extraWin);
+      gui.updatePreviewWin(extraWin);
 }
 
 function extraSaturation(extraWin, mask_win)
 {
-      addProcessingStepAndStatusInfo("Extra saturation on " + extraWin.mainView.id + " using " + par.extra_saturation_iterations.val + " iterations");
+      util.addProcessingStepAndStatusInfo("Extra saturation on " + extraWin.mainView.id + " using " + par.extra_saturation_iterations.val + " iterations");
 
       for (var i = 0; i < par.extra_saturation_iterations.val; i++) {
             increaseSaturation(extraWin, mask_win);
       }
-      updatePreviewWin(extraWin);
+      gui.updatePreviewWin(extraWin);
 }
 
 function extraABE(extraWin)
 {
-      addProcessingStepAndStatusInfo("Extra ABE");
+      util.addProcessingStepAndStatusInfo("Extra ABE");
       runABE(extraWin, true);
-      updatePreviewWin(extraWin);
+      gui.updatePreviewWin(extraWin);
 }
 
 function extraSHOHueShift(imgWin)
@@ -7447,111 +7769,70 @@ function extraSHOHueShift(imgWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
-      updatePreviewWin(imgWin);
-}
-
-function is_non_starless_option()
-{
-      return par.extra_ABE.val || 
-             par.extra_darker_background.val || 
-             par.extra_ET.val || 
-             par.extra_HDRMLT.val || 
-             par.extra_LHE.val || 
-             par.extra_contrast.val ||
-             par.extra_stretch.val ||
-             par.extra_shadowclipping.val ||
-             par.extra_smoothbackground.val ||
-             par.extra_noise_reduction.val ||
-             par.extra_ACDNR.val ||
-             par.extra_color_noise.val ||
-             par.extra_sharpen.val ||
-             par.extra_unsharpmask.val ||
-             par.extra_saturation.val ||
-             par.extra_smaller_stars.val;
-}
-
-function is_extra_option()
-{
-      return par.extra_remove_stars.val || 
-             par.extra_combine_stars.val ||
-             is_non_starless_option();
-}
-
-function is_narrowband_option()
-{
-      return par.fix_narrowband_star_color.val ||
-             par.run_orange_hue_shift.val ||
-             par.run_hue_shift.val ||
-             par.run_narrowband_SCNR.val ||
-             par.leave_some_green.val;
-}
-
-function isbatchNarrowbandPaletteMode()
-{
-      return par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All";
+      gui.updatePreviewWin(imgWin);
 }
 
 // Rename and save palette batch image
 function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 {
       // rename and save image using palette name
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch:rename " + winId + " using " + palette_name);
-      var palette_image = mapBadChars(palette_name);
+      console.writeln("narrowbandPaletteBatchFinalImage:rename " + winId + " using " + palette_name);
+      var palette_image = util.mapBadChars(palette_name);
       palette_image = "Auto_" + palette_image;
       if (extra) {
             palette_image = palette_image + "_extra";
       }
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch:new name " + palette_image);+
-      windowRenameKeepif(winId, palette_image, true);
+      console.writeln("narrowbandPaletteBatchFinalImage:new name " + palette_image);+
+      util.windowRenameKeepif(winId, palette_image, true);
       // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch:set final image keyword");
+      console.writeln("narrowbandPaletteBatchFinalImage:set final image keyword");
       setFinalImageKeyword(ImageWindow.windowById(palette_image));
       // save image
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch:save image " + palette_image);
-      saveProcessedWindow(outputRootDir, palette_image);
-      addProcessingStep("Narrowband palette batch final image " + palette_image);
+      console.writeln("narrowbandPaletteBatchFinalImage:save image " + palette_image);
+      saveProcessedWindow(global.outputRootDir, palette_image);
+      util.addProcessingStep("Narrowband palette batch final image " + palette_image);
 }
 
 // Run through all narrowband palette options
-function AutoIntegrateNarrowbandPaletteBatch(parent, auto_continue)
+this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
 {
-      console.writeln("AutoIntegrateNarrowbandPaletteBatch");
-      for (var i = 0; i < narrowBandPalettes.length; i++) {
-            console.writeln("AutoIntegrateNarrowbandPaletteBatch loop ", i);
-            if (narrowBandPalettes[i].all) {
+      console.writeln("autointegrateNarrowbandPaletteBatch");
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            console.writeln("autointegrateNarrowbandPaletteBatch loop ", i);
+            if (global.narrowBandPalettes[i].all) {
                   if (auto_continue) {
-                        ensureDialogFilePath("narrowband batch result files");
+                        engine.ensureDialogFilePath("narrowband batch result files");
                   }
-                  par.custom_R_mapping.val = narrowBandPalettes[i].R;
-                  par.custom_G_mapping.val = narrowBandPalettes[i].G;
-                  par.custom_B_mapping.val = narrowBandPalettes[i].B;
-                  addProcessingStepAndStatusInfo("Narrowband palette " + narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
+                  par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
+                  par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
+                  par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
+                  util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
-                  var succ = AutoIntegrateEngine(parent, auto_continue);
+                  var succ = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option());
                   if (!succ) {
-                        addProcessingStep("Narrowband palette batch could not process all palettes");
+                        util.addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
                   // rename and save the final image
-                  narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
-                  if (findWindow(ppar.win_prefix + "AutoRGB_extra") != null) {
-                        narrowbandPaletteBatchFinalImage(narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
+                  narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
+                  if (util.findWindow(ppar.win_prefix + "AutoRGB_extra") != null) {
+                        narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
                   }
                   // next runs are always auto_continue
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:set auto_continue = true");
+                  console.writeln("autointegrateNarrowbandPaletteBatch:set auto_continue = true");
                   auto_continue = true;
                   // close all but integrated images
-                  console.writeln("AutoIntegrateNarrowbandPaletteBatch:close all windowsm keep integrated images");
-                  closeAllWindows(true, true);
+                  console.writeln("autointegrateNarrowbandPaletteBatch:close all windowsm keep integrated images");
+                  engine.closeAllWindows(true, true);
             }
       }
-      addProcessingStep("Narrowband palette batch completed");
+      util.addProcessingStep("Narrowband palette batch completed");
 }
 
 function findStarImageIdEx(starless_id, stars_id)
 {
       if (stars_id != starless_id) {
             console.writeln("findStarImageId try " + stars_id)
-            var w = findWindow(stars_id);
+            var w = util.findWindow(stars_id);
             if (w != null) {
                   return stars_id;
             }
@@ -7590,14 +7871,14 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
       var createNewImage = true;
 
       /* Restore stars by combining starless image and stars. */
-      addProcessingStepAndStatusInfo("Combining starless and star images using " + stars_combine);
+      util.addProcessingStepAndStatusInfo("Combining starless and star images using " + stars_combine);
       if (stars_id == null) {
             stars_id = findStarImageId(starless_id);
       }
       if (stars_id == null) {
-            throwFatalError("Could not find starless image for star image " + starless_id);
+            util.throwFatalError("Could not find starless image for star image " + starless_id);
       }
-      addProcessingStepAndStatusInfo("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
+      util.addProcessingStepAndStatusInfo("Combining " + starless_id + " and " + stars_id + " using " + stars_combine);
       switch (stars_combine) {
             case 'Screen':
                   var new_id = runPixelMathSingleMappingEx(
@@ -7649,13 +7930,13 @@ function extraProcessing(parent, id, apply_directly)
       extra_stars_id = null;
 
       checkWinFilePath(extraWin);
-      ensureDir(outputRootDir);
-      ensureDir(combinePath(outputRootDir, AutoOutputDir));
-      ensureDir(combinePath(outputRootDir, AutoProcessedDir));
+      util.ensureDir(global.outputRootDir);
+      util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
+      util.ensureDir(util.combinePath(global.outputRootDir, global.AutoProcessedDir));
 
       if (!apply_directly) {
-            extra_id = ensure_win_prefix(id + "_extra");
-            extraWin = copyWindow(extraWin, extra_id);
+            extra_id = util.ensure_win_prefix(id + "_extra");
+            extraWin = util.copyWindow(extraWin, extra_id);
       }
 
       if (par.extra_stretch.val) {
@@ -7694,12 +7975,12 @@ function extraProcessing(parent, id, apply_directly)
             } else {
                   mask_win = maskIsCompatible(extraWin, mask_win);
                   if (mask_win == null) {
-                        mask_win = maskIsCompatible(extraWin, findWindow(ppar.win_prefix +"AutoMask"));
+                        mask_win = maskIsCompatible(extraWin, util.findWindow(ppar.win_prefix +"AutoMask"));
                   }
             }
             if (mask_win == null) {
                   mask_win_id = ppar.win_prefix + "AutoMask";
-                  closeOneWindow(mask_win_id);
+                  util.closeOneWindow(mask_win_id);
                   mask_win = newMaskWindow(extraWin, mask_win_id, false);
             }
             console.writeln("Use mask " + mask_win.mainView.id);
@@ -7766,27 +8047,27 @@ function extraProcessing(parent, id, apply_directly)
                                     extraWin.mainView.id, // starless
                                     extra_stars_id);
             // Close original window that was created before stars were removed
-            closeOneWindow(extra_id);
+            util.closeOneWindow(extra_id);
             // restore original final image name
             var new_name = extra_id;
             console.writeln("Rename " + new_image_id + " as " + new_name);
-            windowRename(new_image_id, new_name);
+            util.windowRename(new_image_id, new_name);
             extraWin = ImageWindow.windowById(new_name);
             extraWin.show();
       }
       extra_id = extraWin.mainView.id;
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
-            updatePreviewWin(final_win);
+            gui.updatePreviewWin(final_win);
             setFinalImageKeyword(final_win);
       } else {
             var final_win = ImageWindow.windowById(extra_id);
-            updatePreviewWin(final_win);
+            gui.updatePreviewWin(final_win);
             setFinalImageKeyword(final_win);
-            saveProcessedWindow(outputRootDir, extra_id); /* Extra window */
+            saveProcessedWindow(global.outputRootDir, extra_id); /* Extra window */
             if (par.extra_remove_stars.val) {
-                  saveProcessedWindow(outputRootDir, extra_starless_id);      /* Extra starless window */
-                  saveProcessedWindow(outputRootDir, extra_stars_id);         /* Extra stars window */
+                  saveProcessedWindow(global.outputRootDir, extra_starless_id);      /* Extra starless window */
+                  saveProcessedWindow(global.outputRootDir, extra_stars_id);         /* Extra stars window */
             }
       }
 }
@@ -7872,7 +8153,7 @@ function find_up_down(image,col)
                   break;
             }
       }
-      if (ai_debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      if (global.ai_debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
       return [row_up, row_down];
 }
 
@@ -7896,7 +8177,7 @@ function find_left_right(image,row)
                   break;
             }
       }
-      if (ai_debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      if (global.ai_debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
       return [col_left, col_right];
 }
 
@@ -7909,21 +8190,19 @@ function findMaximalBoundingBox(lowClipImage)
             // TODO - should return an error message and use the uncropped lowClipImage
             // Could look if other points around are ok in case of accidental dark middle point
             // Could also accept a % of rejection
-            throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+            util.throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
       }
 
       // Find extent of black area at mid points (the black points nearest to the border)
       let [top,bottom] = find_up_down(lowClipImage,col_mid);
       let [left,right] = find_left_right(lowClipImage,row_mid);
 
-      if (ai_debug)
+      if (global.ai_debug)
       {
             console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
       }
 
       return [top,bottom,left,right];
-     
-
 }
 
 // Find the bounding box of the area without rejected image, starting from the
@@ -8082,9 +8361,9 @@ function findBounding_box(lowClipImageWindow)
 
       } // for
 
-      // Show the valid points for ai_debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
+      // Show the valid points for global.ai_debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
       // recalculated.
-      if (ai_debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
+      if (global.ai_debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
 
       // Check that the whiole line at the border is valid, in case the border is wiggly
       let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];
@@ -8096,7 +8375,7 @@ function findBounding_box(lowClipImageWindow)
             number_cycle += 1;
             if (number_cycle>100) 
             {
-                  throwFatalError("Borders too wiggly for crop after ", number_cycle, " cycles"); 
+                  util.throwFatalError("Borders too wiggly for crop after ", number_cycle, " cycles"); 
             }
 
             let all_valid = true;
@@ -8276,7 +8555,7 @@ function CropImageIf(window, truncate_amount)
 
 function calculate_crop_amount(window_id, crop_auto_continue)
 {
-      let lowClipImageWindow = findWindow(window_id);
+      let lowClipImageWindow = util.findWindow(window_id);
       if (lowClipImageWindow == null) {
             return null;
       }
@@ -8284,7 +8563,7 @@ function calculate_crop_amount(window_id, crop_auto_continue)
       if (crop_auto_continue && !par.cropinfo_only.val) {
             let preview = lowClipImageWindow.previewById("crop");
             if (preview.isNull) {
-                  throwFatalError("Error: crop preview not found from " + lowClipImageWindow.mainView.id);
+                  util.throwFatalError("Error: crop preview not found from " + lowClipImageWindow.mainView.id);
             }
             var rect = lowClipImageWindow.previewRect(preview);
             var bounding_box = [ rect.x0, rect.x1, rect.y0, rect.y1 ];
@@ -8329,7 +8608,7 @@ function calculate_crop_amount(window_id, crop_auto_continue)
 // Find the crop area and cop all channel images
 function cropChannelImages()
 {
-      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
+      util.addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");
 
       // Make integration low
       let all_images = make_full_image_list();
@@ -8344,7 +8623,7 @@ function cropChannelImages()
 
       // Autostretch for the convenience of the user
       ApplyAutoSTF(
-            findWindow(lowClipImageName).mainView, 
+            util.findWindow(lowClipImageName).mainView, 
             DEFAULT_AUTOSTRETCH_SCLIP,
             DEFAULT_AUTOSTRETCH_TBGND,
             false,
@@ -8352,7 +8631,7 @@ function cropChannelImages()
 
       crop_truncate_amount = calculate_crop_amount(lowClipImageName, false);
       if (crop_truncate_amount == null) {
-            throwFatalError("cropChannelImages failed to find image " + lowClipImageName);
+            util.throwFatalError("cropChannelImages failed to find image " + lowClipImageName);
       }
 
       crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
@@ -8361,7 +8640,7 @@ function cropChannelImages()
       /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
        */
-      if (CropImageIf(findWindow(luminance_id), crop_truncate_amount)) {
+      if (CropImageIf(util.findWindow(luminance_id), crop_truncate_amount)) {
             luminance_id_cropped = true;
       }
 
@@ -8370,18 +8649,18 @@ function cropChannelImages()
 
 function cropChannelImagesAutoContinue()
 {
-      if (preprocessed_images != start_images.RGB_COLOR
-          && preprocessed_images != start_images.L_R_G_B)
+      if (preprocessed_images != global.start_images.RGB_COLOR
+          && preprocessed_images != global.start_images.L_R_G_B)
       {
             console.writeln("Crop ignored in AutoContinue, only integrated channel images can be cropped.") ;
             return;
       }
-      addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
+      util.addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
       let lowClipImageName = autocontinue_prefix + "LowRejectionMap_ALL";
       crop_lowClipImageName = lowClipImageName;       // save the name for minimizing
       crop_truncate_amount = calculate_crop_amount(lowClipImageName, true);
       if (crop_truncate_amount == null) {
-            throwFatalError("cropChannelImagesAutoContinue failed to find image " + lowClipImageName);
+            util.throwFatalError("cropChannelImagesAutoContinue failed to find image " + lowClipImageName);
       }
 }
 
@@ -8394,41 +8673,41 @@ function cropChannelImagesAutoContinue()
  */
  function calibrateEngine(filtered_lights)
  {
-       if (biasFileNames == null) {
-             biasFileNames = [];
+       if (global.biasFileNames == null) {
+             global.biasFileNames = [];
        }
-       if (flatdarkFileNames == null) {
-             flatdarkFileNames = [];
+       if (global.flatdarkFileNames == null) {
+             global.flatdarkFileNames = [];
        }
-       if (flatFileNames == null) {
-             flatFileNames = [];
+       if (global.flatFileNames == null) {
+             global.flatFileNames = [];
        }
-       if (darkFileNames == null) {
-             darkFileNames = [];
+       if (global.darkFileNames == null) {
+             global.darkFileNames = [];
        }
-       if (biasFileNames.length == 0
-           && flatdarkFileNames.length == 0
-           && flatFileNames.length == 0
-           && darkFileNames.length == 0)
+       if (global.biasFileNames.length == 0
+           && global.flatdarkFileNames.length == 0
+           && global.flatFileNames.length == 0
+           && global.darkFileNames.length == 0)
        {
              // do not calibrate
-             addProcessingStep("calibrateEngine, no bias, flat or dark files");
-             return [ lightFileNames , '' ];
+             util.addProcessingStep("calibrateEngine, no bias, flat or dark files");
+             return [ global.lightFileNames , '' ];
        }
  
-       addProcessingStepAndStatusInfo("Image calibration");
+       util.addProcessingStepAndStatusInfo("Image calibration");
  
-       ensureDir(outputRootDir);
-       ensureDir(combinePath(outputRootDir, AutoMasterDir));
-       ensureDir(combinePath(outputRootDir, AutoOutputDir));
-       ensureDir(combinePath(outputRootDir, AutoCalibratedDir));
+       util.ensureDir(global.outputRootDir);
+       util.ensureDir(util.combinePath(global.outputRootDir, global.AutoMasterDir));
+       util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
+       util.ensureDir(util.combinePath(global.outputRootDir, global.AutoCalibratedDir));
  
        // Collect filter files
-       var filtered_flats = getFilterFiles(flatFileNames, pages.FLATS, '');
+       var filtered_flats = engine.getFilterFiles(global.flatFileNames, global.pages.FLATS, '');
  
        is_color_files = filtered_flats.color_files;
  
-       if (flatFileNames.length > 0 && lightFileNames.length > 0) {
+       if (global.flatFileNames.length > 0 && global.lightFileNames.length > 0) {
              // we have flats and lights
              // check that filtered files match
              for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
@@ -8436,98 +8715,98 @@ function cropChannelImagesAutoContinue()
                    var is_lights = filtered_lights.allfilesarr[i].files.length > 0;
                    if (is_flats != is_lights) {
                          // lights and flats do not match on filters
-                         throwFatalError("Filters on light and flat images do not match.");
+                         util.throwFatalError("Filters on light and flat images do not match.");
                    }
              }
        }
  
        if (par.bias_master_files.val) {
-             addProcessingStep("calibrateEngine use existing master bias files " + biasFileNames);
-             var masterbiasPath = biasFileNames;
-       } else if (biasFileNames.length == 1) {
-             addProcessingStep("calibrateEngine use existing master bias " + biasFileNames[0]);
-             var masterbiasPath = biasFileNames[0];
-       } else if (biasFileNames.length > 0) {
-             addProcessingStep("calibrateEngine generate master bias using " + biasFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master bias files " + global.biasFileNames);
+             var masterbiasPath = global.biasFileNames;
+       } else if (global.biasFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master bias " + global.biasFileNames[0]);
+             var masterbiasPath = global.biasFileNames[0];
+       } else if (global.biasFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master bias using " + global.biasFileNames.length + " files");
              // integrate bias images
-             var biasimages = filesForImageIntegration(biasFileNames);
+             var biasimages = filesForImageIntegration(global.biasFileNames);
              var masterbiasid = runImageIntegrationBiasDarks(biasimages, ppar.win_prefix + "AutoMasterBias");
  
              // save master bias
-             setImagetypKeyword(findWindow(masterbiasid), "Master bias");
-             var masterbiasPath = saveMasterWindow(outputRootDir, masterbiasid);
+             setImagetypKeyword(util.findWindow(masterbiasid), "Master bias");
+             var masterbiasPath = saveMasterWindow(global.outputRootDir, masterbiasid);
  
              // optionally generate superbias
              if (par.create_superbias.val) {
-                   var masterbiaswin = findWindow(masterbiasid);
+                   var masterbiaswin = util.findWindow(masterbiasid);
                    var mastersuperbiasid = runSuberBias(masterbiaswin);
-                   setImagetypKeyword(findWindow(mastersuperbiasid), "Master bias");
-                   var masterbiasPath = saveMasterWindow(outputRootDir, mastersuperbiasid);
-                   updatePreviewId(mastersuperbiasid);
+                   setImagetypKeyword(util.findWindow(mastersuperbiasid), "Master bias");
+                   var masterbiasPath = saveMasterWindow(global.outputRootDir, mastersuperbiasid);
+                   gui.updatePreviewId(mastersuperbiasid);
              } else {
-                   updatePreviewId(masterbiasid);
+                   gui.updatePreviewId(masterbiasid);
              }
        } else {
-             addProcessingStep("calibrateEngine no master bias");
+             util.addProcessingStep("calibrateEngine no master bias");
              var masterbiasPath = null;
        }
  
        if (par.flat_dark_master_files.val) {
-             addProcessingStep("calibrateEngine use existing master flat dark files " + flatdarkFileNames);
-             var masterflatdarkPath = darkFileNames;
-       } else if (flatdarkFileNames.length == 1) {
-             addProcessingStep("calibrateEngine use existing master flat dark " + flatdarkFileNames[0]);
-             var masterflatdarkPath = flatdarkFileNames[0];
-       } else if (flatdarkFileNames.length > 0) {
-             addProcessingStep("calibrateEngine generate master flat dark using " + flatdarkFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master flat dark files " + global.flatdarkFileNames);
+             var masterflatdarkPath = global.darkFileNames;
+       } else if (global.flatdarkFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master flat dark " + global.flatdarkFileNames[0]);
+             var masterflatdarkPath = global.flatdarkFileNames[0];
+       } else if (global.flatdarkFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master flat dark using " + global.flatdarkFileNames.length + " files");
              // integrate flat dark images
-             var flatdarkimages = filesForImageIntegration(flatdarkFileNames);
+             var flatdarkimages = filesForImageIntegration(global.flatdarkFileNames);
              var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark");
-             setImagetypKeyword(findWindow(masterflatdarkid), "Master flat dark");
-             var masterflatdarkPath = saveMasterWindow(outputRootDir, masterflatdarkid);
-             updatePreviewId(masterflatdarkid);
+             setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
+             var masterflatdarkPath = saveMasterWindow(global.outputRootDir, masterflatdarkid);
+             gui.updatePreviewId(masterflatdarkid);
        } else {
-             addProcessingStep("calibrateEngine no master flat dark");
+             util.addProcessingStep("calibrateEngine no master flat dark");
              var masterflatdarkPath = null;
        }
  
        if (par.dark_master_files.val) {
-             addProcessingStep("calibrateEngine use existing master dark files " + darkFileNames);
-             var masterdarkPath = darkFileNames;
-       } else if (darkFileNames.length == 1) {
-             addProcessingStep("calibrateEngine use existing master dark " + darkFileNames[0]);
-             var masterdarkPath = darkFileNames[0];
-       } else if (darkFileNames.length > 0) {
-             addProcessingStep("calibrateEngine generate master dark using " + darkFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master dark files " + global.darkFileNames);
+             var masterdarkPath = global.darkFileNames;
+       } else if (global.darkFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master dark " + global.darkFileNames[0]);
+             var masterdarkPath = global.darkFileNames[0];
+       } else if (global.darkFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master dark using " + global.darkFileNames.length + " files");
              if (par.pre_calibrate_darks.val && masterbiasPath != null) {
                    // calibrate dark frames with bias
-                   var darkcalFileNames = runCalibrateDarks(darkFileNames, masterbiasPath);
+                   var darkcalFileNames = runCalibrateDarks(global.darkFileNames, masterbiasPath);
                    var darkimages = filesForImageIntegration(darkcalFileNames);
              } else {
-                   var darkimages = filesForImageIntegration(darkFileNames);
+                   var darkimages = filesForImageIntegration(global.darkFileNames);
              }
              // generate master dark file
              var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark");
-             setImagetypKeyword(findWindow(masterdarkid), "Master dark");
-             var masterdarkPath = saveMasterWindow(outputRootDir, masterdarkid);
-             updatePreviewId(masterdarkid);
+             setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
+             var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
+             gui.updatePreviewId(masterdarkid);
        } else {
-             addProcessingStep("calibrateEngine no master dark");
+             util.addProcessingStep("calibrateEngine no master dark");
              var masterdarkPath = null;
        }
  
        // generate master flat for each filter
-       addProcessingStepAndStatusInfo("Image calibration, generate master flats");
+       util.addProcessingStepAndStatusInfo("Image calibration, generate master flats");
        var masterflatPath = [];
        for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
              var filterFiles = filtered_flats.allfilesarr[i].files;
              var filterName = filtered_flats.allfilesarr[i].filter;
              if (filterFiles.length == 1) {
-                   addProcessingStep("calibrateEngine use existing " + filterName + " master flat " + filterFiles[0].name);
+                   util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat " + filterFiles[0].name);
                    masterflatPath[i] = filterFiles[0].name;
              } else if (filterFiles.length > 0) {
                    // calibrate flats for each filter with master bias and master dark
-                   addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
+                   util.addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
                    var flatcalimages = fileNamesToEnabledPathFromFilearr(filterFiles);
                    console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
                    var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath);
@@ -8538,16 +8817,16 @@ function cropChannelImagesAutoContinue()
                    console.writeln("flatimages[0] " + flatimages[0][1]);
                    let masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName);
                    console.writeln("masterflatid " + masterflatid);
-                   setImagetypKeyword(findWindow(masterflatid), "Master flat");
-                   setFilterKeyword(findWindow(masterflatid), filterFiles[0].filter);
-                   masterflatPath[i] = saveMasterWindow(outputRootDir, masterflatid);
-                   updatePreviewId(masterflatid);
+                   setImagetypKeyword(util.findWindow(masterflatid), "Master flat");
+                   setFilterKeyword(util.findWindow(masterflatid), filterFiles[0].filter);
+                   masterflatPath[i] = saveMasterWindow(global.outputRootDir, masterflatid);
+                   gui.updatePreviewId(masterflatid);
              } else {
                    masterflatPath[i] = null;
              }
        }
  
-       addProcessingStepAndStatusInfo("Image calibration, calibrate light images");
+       util.addProcessingStepAndStatusInfo("Image calibration, calibrate light images");
        var calibratedLightFileNames = [];
        for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
              var filterFiles = filtered_lights.allfilesarr[i].files;
@@ -8559,7 +8838,7 @@ function cropChannelImagesAutoContinue()
                    if (fileProcessedStatus.unprocessed.length == 0) {
                          calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
                    } else {
-                         addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
+                         util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
                          let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
  
                          let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i]);
@@ -8575,7 +8854,7 @@ function cropChannelImagesAutoContinue()
  
        console.writeln("calibrateEngine, return calibrated images, calibratedLightFileNames[0] " + calibratedLightFileNames[0]);
  
-       runGC();
+       util.runGC();
  
        return [ calibratedLightFileNames, '_c' ];
 }
@@ -8585,53 +8864,57 @@ function cropChannelImagesAutoContinue()
  *    extraProcessingEngine
  * 
  */
- function extraProcessingEngine(parent)
+ this.extraProcessingEngine = function(parent, extra_target_image, extra_narrowband)
  {
-       is_processing = true;
+       global.is_processing = true;
+
+       narrowband = extra_narrowband;
+
        mask_win = null;
        mask_win_id = null;
        star_mask_win = null;
        star_mask_win_id = null;
        star_fix_mask_win = null;
        star_fix_mask_win_id = null;
-       processing_steps = "";
+       global.processing_steps = "";
  
        console.noteln("Start extra processing...");
-       updatePreviewId(extra_target_image);
-       if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
-             mainTabBox.currentPageIndex = 1;
+       gui.updatePreviewId(extra_target_image);
+       if (global.use_preview && !ppar.side_preview_visible && global.mainTabBox != null) {
+             global.mainTabBox.currentPageIndex = 1;
        }
  
        extraProcessing(parent, extra_target_image, true);
  
-       windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
-       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
-       windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+       util.windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
+       util.windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+       util.windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
  
        console.noteln("Processing steps:");
-       console.writeln(processing_steps);
+       console.writeln(global.processing_steps);
        console.writeln("");
        console.noteln("Extra processing completed.");
-       is_processing = false;
+
+       global.is_processing = false;
  
-       runGC();
+       util.runGC();
 }
  
 /***************************************************************************
  * 
- *    AutoIntegrateEngine
+ *    autointegrateProcessingEngine
  * 
  */
- function AutoIntegrateEngine(parent, auto_continue)
+ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband)
  {
-       if (extra_target_image != "Auto") {
+       if (global.extra_target_image != "Auto") {
              console.criticalln("Extra processing target image can be used only with Apply button!");
              return false;
        }
  
-       runGC();
+       util.runGC();
  
-       is_processing = true;
+       global.is_processing = true;
  
        var LRGB_ABE_HT_id = null;
        var RGB_ABE_HT_id = null;
@@ -8668,7 +8951,7 @@ function cropChannelImagesAutoContinue()
        RGB_stars_HT_win = null;
        RGB_stars = [];
  
-       processed_channel_images = [];
+       global.processed_channel_images = [];
  
        luminance_id_cropped = false;
        var luminance_crop_id = null;
@@ -8676,43 +8959,43 @@ function cropChannelImagesAutoContinue()
        console.beginLog();
        console.show();
  
-       processingDate = new Date;
-       processing_steps = "";
-       all_windows = [];
-       iconPoint = null;
+       global.processingDate = new Date;
+       global.processing_steps = "";
+       global.all_windows = [];
+       global.iconPoint = null;
        L_stf = null;
        linear_fit_done = false;
        narrowband = autocontinue_narrowband;
        is_luminance_images = false;
        var stars_id = null;
  
-       if (use_preview && !ppar.side_preview_visible && mainTabBox != null) {
-             mainTabBox.currentPageIndex = 1;
+       if (global.use_preview && !ppar.side_preview_visible && global.mainTabBox != null) {
+             global.mainTabBox.currentPageIndex = 1;
        }
  
        console.noteln("--------------------------------------");
-       addProcessingStep("PixInsight version " + pixinsight_version_str);
-       addProcessingStep(autointegrate_version);
+       util.addProcessingStep("PixInsight version " + global.pixinsight_version_str);
+       util.addProcessingStep(global.autointegrate_version);
        var processingOptions = getProcessingOptions();
        if (processingOptions.length > 0) {
-             addProcessingStep("Processing options:");
+             util.addProcessingStep("Processing options:");
              for (var i = 0; i < processingOptions.length; i++) {
-                   addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
+                   util.addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
              }
        } else {
-             addProcessingStep("Using default processing options");
+             util.addProcessingStep("Using default processing options");
        }
-       if (user_selected_best_image != null) {
-             addProcessingStep("User selected best image: " + user_selected_best_image);
+       if (global.user_selected_best_image != null) {
+             util.addProcessingStep("User selected best image: " + global.user_selected_best_image);
        }
-       for (var i = 0; i < user_selected_reference_image.length; i++) {
-             addProcessingStep("User selected reference image for filter " + user_selected_reference_image[i][1] + 
-             " : " + user_selected_reference_image[i][0]);
+       for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+             util.addProcessingStep("User selected reference image for filter " + global.user_selected_reference_image[i][1] + 
+             " : " + global.user_selected_reference_image[i][0]);
        }
        console.noteln("--------------------------------------");
-       addProcessingStepAndStatusInfo("Start processing...");
+       util.addProcessingStepAndStatusInfo("Start processing...");
  
-       close_undo_images(parent);
+       gui.close_undo_images(parent);
  
        targetTypeSetup();
        checkOptions();
@@ -8722,7 +9005,7 @@ function cropChannelImagesAutoContinue()
        if (create_channel_images_ret == retval.ERROR) {
              console.criticalln("Failed!");
              console.endLog();
-             is_processing = false;
+             global.is_processing = false;
              return false;
        }
  
@@ -8757,33 +9040,33 @@ function cropChannelImagesAutoContinue()
  
        var do_extra_processing = false;
        if (par.calibrate_only.val) {
-             preprocessed_images = start_images.CALIBRATE_ONLY;
-       } else if (preprocessed_images == start_images.FINAL) {
+             preprocessed_images = global.start_images.CALIBRATE_ONLY;
+       } else if (preprocessed_images == global.start_images.FINAL) {
              // We have a final image, just run run possible extra processing steps
              do_extra_processing = true;
              LRGB_ABE_HT_id = final_win.mainView.id;
-             updatePreviewId(LRGB_ABE_HT_id);
+             gui.updatePreviewId(LRGB_ABE_HT_id);
        } else if (!par.image_weight_testing.val 
                   && !par.debayer_only.val 
                   && !par.binning_only.val
                   && !par.extract_channels_only.val
                   && !par.integrate_only.val 
                   && !par.cropinfo_only.val 
-                  && preprocessed_images != start_images.FINAL) 
+                  && preprocessed_images != global.start_images.FINAL) 
        {
              do_extra_processing = true;
              /* processRGB flag means we have channel images from LRGBHSO */
              var processRGB = !is_color_files && 
                               !par.monochrome_image.val &&
-                              (preprocessed_images == start_images.NONE ||
-                               preprocessed_images == start_images.L_R_G_B_BE ||
-                               preprocessed_images == start_images.L_R_G_B_PROCESSED ||
-                               preprocessed_images == start_images.L_R_G_B);
+                              (preprocessed_images == global.start_images.NONE ||
+                               preprocessed_images == global.start_images.L_R_G_B_BE ||
+                               preprocessed_images == global.start_images.L_R_G_B_PROCESSED ||
+                               preprocessed_images == global.start_images.L_R_G_B);
              var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false };
  
-             runGC();
+             util.runGC();
  
-             if (preprocessed_images == start_images.L_R_G_B_BE) {
+             if (preprocessed_images == global.start_images.L_R_G_B_BE) {
                    mapBEchannels();
              }
              if (processRGB) {
@@ -8795,7 +9078,7 @@ function cropChannelImagesAutoContinue()
                     * mapLRGBchannels -> customMapping.
                     */
                    mapLRGBchannels(RGBmapping);
-                   if (!RGBmapping.combined && preprocessed_images != start_images.L_R_G_B_PROCESSED) {
+                   if (!RGBmapping.combined && preprocessed_images != global.start_images.L_R_G_B_PROCESSED) {
                          // We have not yet combined the RGB image
                          LinearFitLRGBchannels();
                    }
@@ -8821,8 +9104,8 @@ function cropChannelImagesAutoContinue()
  
              if (par.monochrome_image.val) {
                    console.writeln("monochrome image, rename windows")
-                   LRGB_ABE_HT_id = windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
-                   updatePreviewId(LRGB_ABE_HT_id);
+                   LRGB_ABE_HT_id = util.windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
+                   gui.updatePreviewId(LRGB_ABE_HT_id);
  
              } else if (!par.channelcombination_only.val) {
  
@@ -8837,7 +9120,7 @@ function cropChannelImagesAutoContinue()
                           * will be the final result file.
                           */
                          LRGB_ABE_HT_id = "copy_" + RGB_ABE_HT_id;
-                         copyWindow(
+                         util.copyWindow(
                                ImageWindow.windowById(RGB_ABE_HT_id), 
                                LRGB_ABE_HT_id);
                    } else {
@@ -8847,7 +9130,7 @@ function cropChannelImagesAutoContinue()
                                            RGB_ABE_HT_id,
                                            L_ABE_HT_id);
                          LRGB_Combined = LRGB_ABE_HT_id;
-                         copyWindow(
+                         util.copyWindow(
                                ImageWindow.windowById(LRGB_ABE_HT_id), 
                                "copy_" + LRGB_ABE_HT_id);
                          LRGB_ABE_HT_id = "copy_" + LRGB_ABE_HT_id;
@@ -8907,136 +9190,136 @@ function cropChannelImagesAutoContinue()
                    if (!is_color_files && is_luminance_images) {
                          /* LRGB files */
                          if (par.RRGB_image.val) {
-                               LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRRGB");
+                               LRGB_ABE_HT_id = util.windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRRGB");
                          } else {
-                               LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoLRGB");
+                               LRGB_ABE_HT_id = util.windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoLRGB");
                          }
                    } else {
                          /* Color or narrowband or RGB files */
-                         LRGB_ABE_HT_id = windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
+                         LRGB_ABE_HT_id = util.windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
                    }
-                   updatePreviewId(LRGB_ABE_HT_id);
+                   gui.updatePreviewId(LRGB_ABE_HT_id);
              }
              if (stars_id != null) {
                    console.writeln("Stars image is " + stars_id);
                    setFinalImageKeyword(ImageWindow.windowById(stars_id));
-                   stars_id = windowRename(stars_id, LRGB_ABE_HT_id + "_stars");
+                   stars_id = util.windowRename(stars_id, LRGB_ABE_HT_id + "_stars");
        
                    var starless_id = LRGB_ABE_HT_id + "_starless";
                    console.writeln("Rename " + LRGB_ABE_HT_id + " as " + starless_id);
-                   windowRename(LRGB_ABE_HT_id, starless_id);
+                   util.windowRename(LRGB_ABE_HT_id, starless_id);
                    var new_image = combineStarsAndStarless(
                                      par.stars_combine.val,
                                      starless_id, 
                                      stars_id);
                    // restore original final image name
                    console.writeln("Rename " + new_image + " as " + LRGB_ABE_HT_id);
-                   windowRename(new_image, LRGB_ABE_HT_id);
+                   util.windowRename(new_image, LRGB_ABE_HT_id);
                    ImageWindow.windowById(LRGB_ABE_HT_id).show();
        
                    setFinalImageKeyword(ImageWindow.windowById(starless_id));
        
-                   saveProcessedWindow(outputRootDir, stars_id);
-                   saveProcessedWindow(outputRootDir, starless_id);
+                   saveProcessedWindow(global.outputRootDir, stars_id);
+                   saveProcessedWindow(global.outputRootDir, starless_id);
              }
        }
  
        console.writeln("Basic processing completed");
  
-       if (do_extra_processing && (is_extra_option() || is_narrowband_option())) {
+       if (do_extra_processing && (util.is_extra_option() || util.is_narrowband_option())) {
              extraProcessing(parent, LRGB_ABE_HT_id, false);
        }
  
-       ensureDialogFilePath("processed files");
+       engine.ensureDialogFilePath("processed files");
  
        if (crop_lowClipImage_changed) {
-             saveProcessedWindow(outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
+             saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
        }
-       if (preprocessed_images < start_images.L_R_G_B_BE) {
+       if (preprocessed_images < global.start_images.L_R_G_B_BE) {
              // We have generated integrated images, save them
              console.writeln("Save processed windows");
-             saveProcessedWindow(outputRootDir, L_id);                    /* Integration_L */
-             saveProcessedWindow(outputRootDir, R_id);                    /* Integration_R */
-             saveProcessedWindow(outputRootDir, G_id);                    /* Integration_G */
-             saveProcessedWindow(outputRootDir, B_id);                    /* Integration_B */
-             saveProcessedWindow(outputRootDir, H_id);                    /* Integration_H */
-             saveProcessedWindow(outputRootDir, S_id);                    /* Integration_S */
-             saveProcessedWindow(outputRootDir, O_id);                    /* Integration_O */
-             saveProcessedWindow(outputRootDir, RGBcolor_id);             /* Integration_RGBcolor */
+             saveProcessedWindow(global.outputRootDir, L_id);                    /* Integration_L */
+             saveProcessedWindow(global.outputRootDir, R_id);                    /* Integration_R */
+             saveProcessedWindow(global.outputRootDir, G_id);                    /* Integration_G */
+             saveProcessedWindow(global.outputRootDir, B_id);                    /* Integration_B */
+             saveProcessedWindow(global.outputRootDir, H_id);                    /* Integration_H */
+             saveProcessedWindow(global.outputRootDir, S_id);                    /* Integration_S */
+             saveProcessedWindow(global.outputRootDir, O_id);                    /* Integration_O */
+             saveProcessedWindow(global.outputRootDir, RGBcolor_id);             /* Integration_RGBcolor */
              if (luminance_id_cropped) {
                    console.writeln("luminance_id="+ luminance_id );
-                   let L_win_crop = copyWindow(findWindow(luminance_id), ensure_win_prefix("Integration_L_crop"));
+                   let L_win_crop = util.copyWindow(util.findWindow(luminance_id), util.ensure_win_prefix("Integration_L_crop"));
                    luminance_crop_id = L_win_crop.mainView.id;
-                   saveProcessedWindow(outputRootDir, luminance_crop_id); /* Integration_L_crop */
+                   saveProcessedWindow(global.outputRootDir, luminance_crop_id); /* Integration_L_crop */
              }
        }
-       if (preprocessed_images <= start_images.L_R_G_B_BE) {
+       if (preprocessed_images <= global.start_images.L_R_G_B_BE) {
              // We have generated RGB image, save it
              console.writeln("Save generated RGB image");
-             saveProcessedWindow(outputRootDir, RGB_win_id);              /* Integration_RGB */
+             saveProcessedWindow(global.outputRootDir, RGB_win_id);              /* Integration_RGB */
        }
-       if (preprocessed_images < start_images.FINAL && LRGB_ABE_HT_id != null) {
+       if (preprocessed_images < global.start_images.FINAL && LRGB_ABE_HT_id != null) {
              console.writeln("Save final image");
              // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
              setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
              // We have generated final image, save it
-             run_results.final_image_file = saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);  /* Final image. */
+             global.run_results.final_image_file = saveProcessedWindow(global.outputRootDir, LRGB_ABE_HT_id);  /* Final image. */
        }
  
        /* All done, do cleanup on windows on screen 
         */
-       addProcessingStepAndStatusInfo("Processing completed");
+       util.addProcessingStepAndStatusInfo("Processing completed");
  
-       closeTempWindows();
+       util.closeTempWindows();
        if (!par.calibrate_only.val) {
-             closeAllWindowsFromArray(calibrate_windows);
+             closeAllWindowsFromArray(global.calibrate_windows);
        }
  
-       windowIconizeAndKeywordif(L_id);                    /* Integration_L */
-       windowIconizeAndKeywordif(R_id);                    /* Integration_R */
-       windowIconizeAndKeywordif(G_id);                    /* Integration_G */
-       windowIconizeAndKeywordif(B_id);                    /* Integration_B */
-       windowIconizeAndKeywordif(H_id);                    /* Integration_H */
-       windowIconizeAndKeywordif(S_id);                    /* Integration_S */
-       windowIconizeAndKeywordif(O_id);                    /* Integration_O */
-       windowIconizeAndKeywordif(RGBcolor_id);             /* Integration_RGBcolor */
+       util.windowIconizeAndKeywordif(L_id);                    /* Integration_L */
+       util.windowIconizeAndKeywordif(R_id);                    /* Integration_R */
+       util.windowIconizeAndKeywordif(G_id);                    /* Integration_G */
+       util.windowIconizeAndKeywordif(B_id);                    /* Integration_B */
+       util.windowIconizeAndKeywordif(H_id);                    /* Integration_H */
+       util.windowIconizeAndKeywordif(S_id);                    /* Integration_S */
+       util.windowIconizeAndKeywordif(O_id);                    /* Integration_O */
+       util.windowIconizeAndKeywordif(RGBcolor_id);             /* Integration_RGBcolor */
        if (crop_lowClipImageName != null) {
-             windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
+             util.windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
        }
-       windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
-       windowIconizeAndKeywordif(luminance_crop_id);       /* Integration_L_crop */
+       util.windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
+       util.windowIconizeAndKeywordif(luminance_crop_id);       /* Integration_L_crop */
  
        if (RGB_stars_win != null) {
-             windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
+             util.windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
        }
        if (RGB_stars_HT_win != null) {
              setFinalImageKeyword(ImageWindow.windowById(RGB_stars_HT_win.mainView.id));   /* Integration_RGB_stars (non-linear) */
        }
  
-       for (var i = 0; i < processed_channel_images.length; i++) {
-             windowIconizeAndKeywordif(processed_channel_images[i]);
+       for (var i = 0; i < global.processed_channel_images.length; i++) {
+             util.windowIconizeAndKeywordif(global.processed_channel_images[i]);
        }
  
-       windowIconizeAndKeywordif(L_ABE_id);
-       windowIconizeAndKeywordif(R_ABE_id);
-       windowIconizeAndKeywordif(G_ABE_id);
-       windowIconizeAndKeywordif(B_ABE_id);
-       windowIconizeAndKeywordif(RGB_ABE_id);
+       util.windowIconizeAndKeywordif(L_ABE_id);
+       util.windowIconizeAndKeywordif(R_ABE_id);
+       util.windowIconizeAndKeywordif(G_ABE_id);
+       util.windowIconizeAndKeywordif(B_ABE_id);
+       util.windowIconizeAndKeywordif(RGB_ABE_id);
  
        closeAllWindowsFromArray(RGB_stars);
  
-       windowIconizeAndKeywordif(RGB_ABE_HT_id);
-       windowIconizeAndKeywordif(L_ABE_HT_id);
-       windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
-       windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
-       windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
-       windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+       util.windowIconizeAndKeywordif(RGB_ABE_HT_id);
+       util.windowIconizeAndKeywordif(L_ABE_HT_id);
+       util.windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
+       util.windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
+       util.windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
+       util.windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
  
        if (par.batch_mode.val) {
              /* Rename image based on first file directory name. 
               * First check possible device in Windows (like c:)
               */
-             var fname = lightFileNames[0];
+             var fname = global.lightFileNames[0];
              console.writeln("Batch mode, get directory from file " + fname);
              var ss = fname.split(':');
              if (ss.length > 1) {
@@ -9056,12 +9339,12 @@ function cropChannelImagesAutoContinue()
                    // We have number which is not valid
                    fname = 'P' + fname;
              }
-             addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
-             LRGB_ABE_HT_id = windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, true);
-             saveProcessedWindow(outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
+             util.addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
+             LRGB_ABE_HT_id = util.windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, true);
+             saveProcessedWindow(global.outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
        }
  
-       if (preprocessed_images == start_images.NONE 
+       if (preprocessed_images == global.start_images.NONE 
            && !par.image_weight_testing.val
            && !par.calibrate_only.val
            && !par.binning_only.val
@@ -9070,13 +9353,13 @@ function cropChannelImagesAutoContinue()
        {
              /* Output some info of files.
              */
-             addProcessingStep("* All data files *");
-             addProcessingStep(alignedFiles.length + " files accepted");
-             addProcessingStep("best_ssweight="+best_ssweight);
-             addProcessingStep("best_image="+best_image);
+             util.addProcessingStep("* All data files *");
+             util.addProcessingStep(alignedFiles.length + " files accepted");
+             util.addProcessingStep("best_ssweight="+global.best_ssweight);
+             util.addProcessingStep("best_image="+global.best_image);
              var totalexptime = L_images.exptime + R_images.exptime + G_images.exptime +
                                 B_images.exptime + C_images.exptime;
-             addProcessingStep("total exptime="+totalexptime);
+             util.addProcessingStep("total exptime="+totalexptime);
              
              console.writeln("");
  
@@ -9103,13 +9386,13 @@ function cropChannelImagesAutoContinue()
              var full_run = false;
        }
        var end_time = Date.now();
-       addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
+       util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
        console.noteln("======================================");
  
-       if (preprocessed_images != start_images.FINAL
+       if (preprocessed_images != global.start_images.FINAL
            && par.autosave_setup.val 
            && !auto_continue 
-           && !ai_get_process_defaults
+           && !global.ai_get_process_defaults
            && full_run
            && create_channel_images_ret == retval.SUCCESS)
        {
@@ -9117,14 +9400,14 @@ function cropChannelImagesAutoContinue()
              if (par.win_prefix_to_log_files.val) {
                    json_file = ppar.win_prefix + json_file;
              }
-             saveJsonFileEx(parent, true, json_file);
+             gui.saveJsonFileEx(parent, true, json_file);
        }
-       if (preprocessed_images != start_images.FINAL || ai_get_process_defaults) {
-             writeProcessingSteps(alignedFiles, auto_continue, null);
+       if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
+             engine.writeProcessingSteps(alignedFiles, auto_continue, null);
        }
  
        console.noteln("Processing steps:");
-       console.writeln(processing_steps);
+       console.writeln(global.processing_steps);
        console.writeln("--------------------------------------");
        var processingOptions = getProcessingOptions();
        if (processingOptions.length > 0) {
@@ -9133,19 +9416,82 @@ function cropChannelImagesAutoContinue()
                    console.writeln(processingOptions[i][0] + " " + processingOptions[i][1]);
              }
        } else {
-             addProcessingStep("Default processing options were used");
+             util.addProcessingStep("Default processing options were used");
  
        }
        console.writeln("--------------------------------------");
-       if (preprocessed_images != start_images.FINAL) {
+       if (preprocessed_images != global.start_images.FINAL) {
              console.noteln("Console output is written into file " + logfname);
        }
        console.noteln("Processing completed.");
-       is_processing = false;
+       global.is_processing = false;
  
-       runGC();
+       util.runGC();
  
        return true;
- }
+}
  
- 
+function printProcessDefaultValues(name, obj)
+{
+      console.writeln(name);
+      console.writeln(obj.toSource());
+}
+
+this.getProcessDefaultValues = function()
+{
+      console.beginLog();
+
+      global.write_processing_log_file = true;
+      console.writeln("PixInsight process default values");
+      console.writeln("PixInsight version " + global.pixinsight_version_str);
+
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new ImageIntegration", new ImageIntegration);
+      printProcessDefaultValues("new Superbias", new Superbias);
+      printProcessDefaultValues("new ImageCalibration", new ImageCalibration);
+      printProcessDefaultValues("new IntegerResample", new IntegerResample);
+      printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
+      printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
+      printProcessDefaultValues("new PixelMath", new PixelMath);
+      if (par.use_starxterminator.val) {
+            printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      }
+      if (par.use_noisexterminator.val) {
+            printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
+      }
+      if (par.use_starnet2.val) {
+            printProcessDefaultValues("new StarNet2", new StarNet2);
+      }
+      printProcessDefaultValues("new StarNet", new StarNet);
+      printProcessDefaultValues("new StarAlignment", new StarAlignment);
+      printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
+      printProcessDefaultValues("new LinearFit", new LinearFit);
+      printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
+      printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
+      printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
+      printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
+      printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
+      printProcessDefaultValues("new ACDNR", new ACDNR);
+      printProcessDefaultValues("new MultiscaleLinearTransform", new MultiscaleLinearTransform);
+      printProcessDefaultValues("new TGVDenoise", new TGVDenoise);
+      printProcessDefaultValues("new BackgroundNeutralization", new BackgroundNeutralization);
+      printProcessDefaultValues("new ColorCalibration", new ColorCalibration);
+      printProcessDefaultValues("new ColorSaturation", new ColorSaturation);
+      printProcessDefaultValues("new CurvesTransformation", new CurvesTransformation);
+      printProcessDefaultValues("new LRGBCombination", new LRGBCombination);
+      printProcessDefaultValues("new SCNR", new SCNR);
+      printProcessDefaultValues("new Debayer", new Debayer);
+      printProcessDefaultValues("new ChannelCombination", new ChannelCombination);
+      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
+      printProcessDefaultValues("new Invert", new Invert);
+      printProcessDefaultValues("new StarMask", new StarMask);
+      printProcessDefaultValues("new HDRMultiscaleTransform", new HDRMultiscaleTransform);
+      printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
+      printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
+
+      engine.writeProcessingSteps(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str);
+}
+
+}  /* AutoIntegrateEngine*/
+
+AutoIntegrateEngine.prototype = new Object;

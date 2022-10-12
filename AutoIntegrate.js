@@ -262,8 +262,6 @@ Linear Defect Detection:
 
 #feature-info A script for running basic image processing workflow
 
-#define SETTINGSKEY "AutoIntegrate"
-
 #include <pjsr/ColorSpace.jsh>
 #include <pjsr/FrameStyle.jsh>
 #include <pjsr/Sizer.jsh>
@@ -284,129 +282,24 @@ Linear Defect Detection:
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
 #include "AutoIntegrateLDD.js"
-#include "AutoIntegratePreview.js"
 #include "AutoIntegrateEngine.js"
+#include "AutoIntegratePreview.js"
 #include "AutoIntegrateGUI.js"
 
-// temporary debugging
-#ifndef TEST_AUTO_INTEGRATE
-// The variables defined here should have a default of 'false' and must be defined
-// by the testing scripts including this script. This allow changing the ai_debug
-// in the test scripts without modifying the main script
-var ai_debug = false;                  // temp setting for debugging
-var ai_get_process_defaults = false;   // temp setting to print process defaults
-var ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
-#endif
-
-/*
- * Wrapper function to hide global variables and function to avoid name collisions.
- */
 function AutoIntegrate() {
 
 this.__base__ = Object;
 this.__base__();
 
-function setMaskChecked(imgWin, maskWin)
-{
-      try {
-            imgWin.setMask(maskWin);
-      } catch(err) {
-            console.criticalln("setMask failed: " + err);
-            console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
-            throwFatalError("Error setting the mask.");
-      }
-}
+var global = new AutoIntegrateGlobal();
+var util = new AutoIntegrateUtil(global);
+var engine = new AutoIntegrateEngine(global, util);
+var gui = new AutoIntegrateGUI(global, util, engine);
 
-function getProcessingOptions()
-{
-      var options = [];
-      for (let x in par) {
-            var param = par[x];
-            if (param.val != param.def) {
-                  options[options.length] = [ param.name, param.val ];
-            }
-      }
-      return options;
-}
+engine.setGUI(gui);
 
-function boolToInteger(b)
-{
-      b == true ? 1 : 0;
-}
-
-function checkOptions()
-{
-      var intval = boolToInteger(par.remove_stars_before_stretch.val) + boolToInteger(par.remove_stars_channel.val) + 
-                   boolToInteger(par.remove_stars_stretched.val);
-      if (intval > 1) {
-            throwFatalError("Only one remove stars option can be selected.")
-      }
-      var intval = boolToInteger(par.target_type_galaxy.val) + boolToInteger(par.target_type_nebula.val);
-      if (intval > 1) {
-            throwFatalError("Only one target type option can be selected.")
-      }
-}
-
-function printProcessDefaultValues(name, obj)
-{
-      console.writeln(name);
-      console.writeln(obj.toSource());
-}
-
-function getProcessDefaultValues()
-{
-      console.beginLog();
-
-      write_processing_log_file = true;
-      console.writeln("PixInsight process default values");
-      console.writeln("PixInsight version " + pixinsight_version_str);
-
-      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
-      printProcessDefaultValues("new ImageIntegration", new ImageIntegration);
-      printProcessDefaultValues("new Superbias", new Superbias);
-      printProcessDefaultValues("new ImageCalibration", new ImageCalibration);
-      printProcessDefaultValues("new IntegerResample", new IntegerResample);
-      printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
-      printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
-      printProcessDefaultValues("new PixelMath", new PixelMath);
-      if (par.use_starxterminator.val) {
-            printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
-      }
-      if (par.use_noisexterminator.val) {
-            printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
-      }
-      if (par.use_starnet2.val) {
-            printProcessDefaultValues("new StarNet2", new StarNet2);
-      }
-      printProcessDefaultValues("new StarNet", new StarNet);
-      printProcessDefaultValues("new StarAlignment", new StarAlignment);
-      printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
-      printProcessDefaultValues("new LinearFit", new LinearFit);
-      printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
-      printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
-      printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
-      printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
-      printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
-      printProcessDefaultValues("new ACDNR", new ACDNR);
-      printProcessDefaultValues("new MultiscaleLinearTransform", new MultiscaleLinearTransform);
-      printProcessDefaultValues("new TGVDenoise", new TGVDenoise);
-      printProcessDefaultValues("new BackgroundNeutralization", new BackgroundNeutralization);
-      printProcessDefaultValues("new ColorCalibration", new ColorCalibration);
-      printProcessDefaultValues("new ColorSaturation", new ColorSaturation);
-      printProcessDefaultValues("new CurvesTransformation", new CurvesTransformation);
-      printProcessDefaultValues("new LRGBCombination", new LRGBCombination);
-      printProcessDefaultValues("new SCNR", new SCNR);
-      printProcessDefaultValues("new Debayer", new Debayer);
-      printProcessDefaultValues("new ChannelCombination", new ChannelCombination);
-      printProcessDefaultValues("new ChannelExtraction", new ChannelExtraction);
-      printProcessDefaultValues("new Invert", new Invert);
-      printProcessDefaultValues("new StarMask", new StarMask);
-      printProcessDefaultValues("new HDRMultiscaleTransform", new HDRMultiscaleTransform);
-      printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
-      printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
-
-      writeProcessingSteps(null, false, "AutoProcessDefaults_" + pixinsight_version_str);
-}
+var par = global.par;
+var ppar = global.ppar;
 
 /***************************************************************************
  * 
@@ -415,12 +308,173 @@ function getProcessDefaultValues()
  */
 function init_pixinsight_version()
 {
-      pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                               CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
-      pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
-                               CoreApplication.versionMinor * 1e4 + 
-                               CoreApplication.versionRelease * 1e2 + 
-                               CoreApplication.versionRevision;
+      global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
+                                      CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
+      global.pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
+                                      CoreApplication.versionMinor * 1e4 + 
+                                      CoreApplication.versionRelease * 1e2 + 
+                                      CoreApplication.versionRevision;
+}
+
+function readPersistentSettings()
+{
+      if (global.do_not_read_settings) {
+            console.writeln("Use default settings, do not read session settings from persistent module settings");
+            return;
+      }
+      // Read prefix info. We use new setting names to avoid conflict with
+      // older global.columnCount/winPrefix names
+      console.noteln("Read window prefix settings");
+      var tempSetting = Settings.read(SETTINGSKEY + "/prefixName", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored prefixName '" + tempSetting + "' from settings.");
+            ppar.win_prefix = tempSetting;
+      }
+      if (par.start_with_empty_window_prefix.val) {
+            ppar.win_prefix = '';
+      }
+      var tempSetting  = Settings.read(SETTINGSKEY + "/prefixArray", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored prefixArray '" + tempSetting + "' from settings.");
+            ppar.prefixArray = JSON.parse(tempSetting);
+            if (ppar.prefixArray.length > 0 && ppar.prefixArray[0].length == 2) {
+                  // We have old format prefix array without column position
+                  // Add column position as the first array element
+                  console.writeln("AutoIntegrate:converting old format prefix array " + JSON.stringify(ppar.prefixArray));
+                  for (var i = 0; i < ppar.prefixArray.length; i++) {
+                        if (ppar.prefixArray[i] == null) {
+                              ppar.prefixArray[i] = [0, '-', 0];
+                        } else if (ppar.prefixArray[i][0] == '-') {
+                              // add zero column position
+                              ppar.prefixArray[i].unshift(0);
+                        } else {
+                              // Used slot, add i as column position
+                              ppar.prefixArray[i].unshift(i);
+                        }
+                  }
+            }
+            gui.fix_win_prefix_array();
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/global.columnCount", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored global.columnCount '" + tempSetting + "' from settings.");
+            ppar.userColumnCount = tempSetting;
+      }
+      if (!par.use_manual_icon_column.val) {
+            ppar.userColumnCount = -1;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            ppar.lastDir = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
+            ppar.global.use_preview = tempSetting;
+            global.use_preview = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
+            ppar.side_preview_visible = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored defaultPreviewSize '" + tempSetting + "' from settings.");
+            ppar.default_preview_size = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
+            ppar.preview_width = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
+            ppar.preview_height = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
+            ppar.use_single_column = tempSetting;
+      }
+}
+
+// Read default parameters from process icon
+function readParametersFromProcessIcon() 
+{
+      if (global.do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from process icon");
+            return;
+      }
+      console.writeln("readParametersFromProcessIcon");
+      for (let x in par) {
+            var param = par[x];
+            var name = util.mapBadChars(param.name);
+            if (Parameters.has(name)) {
+                  switch (param.type) {
+                        case 'S':
+                              param.val = Parameters.getString(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'B':
+                              param.val = Parameters.getBoolean(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'I':
+                              param.val = Parameters.getInteger(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        case 'R':
+                              param.val = Parameters.getReal(name);
+                              console.writeln(name + "=" + param.val);
+                              break;
+                        default:
+                              util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                              break;
+                  }
+            }
+      }
+}
+
+// Read default parameters from persistent module settings
+function ReadParametersFromPersistentModuleSettings()
+{
+      if (global.do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from persistent module settings");
+            return;
+      }
+      if (!global.ai_use_persistent_module_settings) {
+            console.writeln("skip ReadParametersFromPersistentModuleSettings");
+            return;
+      }
+      console.writeln("ReadParametersFromPersistentModuleSettings");
+      for (let x in par) {
+            var param = par[x];
+            var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
+            switch (param.type) {
+                  case 'S':
+                        var tempSetting = Settings.read(name, DataType_String);
+                        break;
+                  case 'B':
+                        var tempSetting = Settings.read(name, DataType_Boolean);
+                        break;
+                  case 'I':
+                        var tempSetting = Settings.read(name, DataType_Int32);
+                        break;
+                  case 'R':
+                        var tempSetting = Settings.read(name, DataType_Real32);
+                        break;
+                  default:
+                        util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                        break;
+            }
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+                  param.val = tempSetting;
+            }
+      }
 }
 
 this.test_initialize = function()
@@ -429,9 +483,9 @@ this.test_initialize = function()
 
       init_pixinsight_version();
 
-      do_not_write_settings = true;
+      global.do_not_write_settings = true;
 
-      setDefaultDirs();
+      util.setDefaultDirs();
 
       // Initialize ppar to the default values they have when the script is started
       ppar.win_prefix = '';
@@ -440,10 +494,10 @@ this.test_initialize = function()
       ppar.lastDir = '';  
 
       // Hopefully remove the prefixes of a previous run
-      fixAllWindowArrays(ppar.win_prefix);
+      util.fixAllWindowArrays(ppar.win_prefix);
 
       // Reset the parameters to the default they would have when the program is loaded
-      setParameterDefaults();
+      gui.setParameterDefaults();
 
       console.writeln("test_initialize done");
 }
@@ -452,14 +506,14 @@ this.test_autosetup = function(autosetup_path)
 {
       console.writeln("test_autosetup");
 
-      var pagearray = readJsonFile(autosetup_path, false);
+      var pagearray = gui.readJsonFile(autosetup_path, false);
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {
-                  addFilesToTreeBox(this.dialog, i, pagearray[i]);
+                  gui.addFilesToTreeBox(this.dialog, i, pagearray[i]);
             }
       }
-      updateInfoLabel(this.dialog);
+      gui.updateInfoLabel(this.dialog);
 
       console.writeln("test_autosetup done");
 }
@@ -476,17 +530,17 @@ this.test_getppar = function()
 
 this.get_run_results = function()
 {
-      return run_results;
+      return global.run_results;
 }
 
 this.get_autointegrate_version = function()
 {
-      return autointegrate_version;
+      return global.autointegrate_version;
 }
 
 this.set_outputRootDir = function(dir)
 {
-      outputRootDir = dir;
+      global.outputRootDir = dir;
 }
 
 this.set_dialog = function(dialog)
@@ -496,7 +550,7 @@ this.set_dialog = function(dialog)
 
 this.openImageWindowFromFile = function(name)
 {
-      return openImageWindowFromFile(name);
+      return engine.openImageWindowFromFile(name);
 }
 
 /***************************************************************************
@@ -504,7 +558,7 @@ this.openImageWindowFromFile = function(name)
  *    autointerate_main
  * 
  */
- this.autointerate_main = function ()
+this.autointerate_main = function()
 {
       console.writeln("autointerate_main");
       try {
@@ -519,15 +573,15 @@ this.openImageWindowFromFile = function(name)
             for (let i = 0; i < jsArguments.length; i++) {
                   if (jsArguments[i] == "do_not_read_settings") {
                         console.writeln("Found do_not_read_settings argument, no parameters are read from persistent module settings or from icon.");
-                        do_not_read_settings = true;
+                        global.do_not_read_settings = true;
                   } 
                   if (jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
-                        do_not_write_settings = true;
+                        global.do_not_write_settings = true;
                   } 
             }
 
-            setDefaultDirs();
+            util.setDefaultDirs();
 
             // 1. Read saved parameters from persistent module settings
             console.noteln("Read persistent module settings");
@@ -540,14 +594,14 @@ this.openImageWindowFromFile = function(name)
                   readParametersFromProcessIcon();
             }
             
-            if (ai_use_persistent_module_settings) {
+            if (global.ai_use_persistent_module_settings) {
                   // 3. Read persistent module settings that are temporary work values
                   readPersistentSettings();
             } else {
                   console.noteln("Skip reading persistent settings");
             }
 
-            fixAllWindowArrays(ppar.win_prefix);
+            util.fixAllWindowArrays(ppar.win_prefix);
 
             init_pixinsight_version();
             console.noteln("======================================================");
@@ -558,10 +612,10 @@ this.openImageWindowFromFile = function(name)
             console.noteln("For more information visit the following link:");
             console.noteln("https://ruuth.xyz/AutoIntegrateInfo.html");
             console.noteln("======================================================");
-            console.noteln(autointegrate_version + ", PixInsight v" + pixinsight_version_str + ' (' + pixinsight_version_num + ')');
+            console.noteln(global.autointegrate_version + ", PixInsight v" + global.pixinsight_version_str + ' (' + global.pixinsight_version_num + ')');
             console.noteln("======================================================");
             
-            if (pixinsight_version_num < 1080810) {
+            if (global.pixinsight_version_num < 1080810) {
                   var old_default = 'Generic';
                   if (par.use_weight.val == par.use_weight.def 
                       && par.use_weight.def != old_default) 
@@ -577,16 +631,12 @@ this.openImageWindowFromFile = function(name)
             console.writeln( x );
       }
 
-
-      this.dialog = new AutoIntegrateDialog();
-
+      this.dialog = new gui.AutoIntegrateDialog();
       this.dialog.execute();
 }
 
 } // AutoIntegrate wrapper end
 
-AutoIntegrateDialog.prototype = new Dialog;
-PreviewControl.prototype = new Frame;
 AutoIntegrate.prototype = new Object;
 
 function main()

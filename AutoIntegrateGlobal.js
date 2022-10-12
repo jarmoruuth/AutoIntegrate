@@ -1,45 +1,64 @@
+/*
+    AutoIntegrate Global variables.
+
+Copyright (c) 2018-2022 Jarmo Ruuth.
+
+Crop to common area code
+
+      Copyright (c) 2022 Jean-Marc Lugrin.
+
+Window name prefix and icon location code
+
+      Copyright (c) 2021 rob pfile.
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+*/
+
+#define SETTINGSKEY "AutoIntegrate"
+
+/*
+ * Default STF Parameters
+ */
+
+// Shadows clipping point in (normalized) MAD units from the median.
+#define DEFAULT_AUTOSTRETCH_SCLIP  -2.80
+// Target mean background in the [0,1] range.
+#define DEFAULT_AUTOSTRETCH_TBGND   0.25
+// Apply the same STF to all nominal channels (true), or treat each channel
+// separately (false).
+#define DEFAULT_AUTOSTRETCH_CLINK   true
+
+function AutoIntegrateGlobal()
+{
+
+this.__base__ = Object;
+this.__base__();
+
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-var autointegrate_version = "AutoIntegrate v1.53";                // Version, also updated into updates.xri
-var autointegrate_info = "Save processed channel images.";        // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.53";                // Version, also updated into updates.xri
+this.autointegrate_info = "Save processed channel images.";        // For updates.xri
 
-var pixinsight_version_str;   // PixInsight version string, e.g. 1.8.8.10
-var pixinsight_version_num;   // PixInsight version number, e.h. 1080810
+this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
+this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 
+this.processingDate = null;
 
 // GUI variables
-var infoLabel;
-var imageInfoLabel;
-var windowPrefixHelpTips;     // For updating tooTip
-var closeAllPrefixButton;     // For updating toolTip
-var windowPrefixComboBox = null; // For updating prefix name list
-var outputDirEdit;            // For updating output root directory
-var tabPreviewControl = null;        // For updating preview window
-var tabPreviewInfoLabel = null;      // For updating preview info text
-var tabStatusInfoLabel = null;       // For update processing status
-var sidePreviewControl = null;       // For updating preview window
-var sidePreviewInfoLabel = null;     // For updating preview info text
-var sideStatusInfoLabel = null;      // For update processing status
-var mainTabBox = null                // For switching to preview tab
+this.mainTabBox = null                  // For switching to preview tab
+this.tabStatusInfoLabel = null;         // For update processing status
+this.sidePreviewControl = null;         // For updating preview window
+this.sidePreviewInfoLabel = null;       // For updating preview info text
+this.sideStatusInfoLabel = null;        // For update processing status
 
-var do_not_read_settings = false;   // do not read Settings from persistent module settings
-var do_not_write_settings = false;  // do not write Settings to persistent module settings
-var use_preview = true;
-var use_tab_preview = true;
-var use_side_preview = true;
-var def_side_preview_visible = false;
-var is_some_preview = false;
-var is_processing = false;
-var preview_size_changed = false;
-var preview_keep_zoom = false;
+this.do_not_read_settings = false;      // do not read Settings from persistent module settings
+this.do_not_write_settings = false;     // do not write Settings to persistent module settings
+this.use_preview = true;
+this.is_processing = false;
 
-var current_selected_file_name = null;
-var current_selected_file_filter = null;
-
-var undo_images = [];
-var undo_images_pos = -1;
-
-var LDDDefectInfo = [];             // { groupname: name,  defects: defects }
+this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 
 /*
       Parameters that can be adjusted in the GUI
@@ -278,8 +297,6 @@ this.par = {
       use_manual_icon_column: { val: false, def: false, name: "manualIconColumn", type: 'B' }                  // Allow manual control of icon column
 };
 
-var par = this.par;
-
 /*
       Parameters that are persistent and are saved to only Settings and
       restored only from Settings at the start.
@@ -293,213 +310,65 @@ this.ppar = {
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
-      side_preview_visible: def_side_preview_visible,   // Show image preview on the side of the dialog too
+      side_preview_visible: false, // Show image preview on the side of the dialog too
       preview_width: 400,     // Preview width
       preview_height: 400,    // preview height
       default_preview_size: true, // do we have default preview size
       use_single_column: false // show all options in a single column
 };
 
-var ppar = this.ppar;
-
-var run_results = {
+// Run results for testing
+this.run_results = {
       processing_steps_file: '',    // file where processing steps were written
       final_image_file: '',         // final image file
       fatal_error: ''               // if non-empty, fatal error during processing
 };
 
-var debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
-                              "GRBG", "GRGB", "GBGR", "RGBG", 
-                              "BGRG", "None" ];
-var debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
-                             Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
-                             Debayer.prototype.BGRG, Debayer.prototype.Auto ];
-var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
-var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
-var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
-var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
-var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic', 'Histogram stretch' ];
-var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
-var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
-var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
-var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
-var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
-var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-                            '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
-var binning_values = [ 'None', 'Color', 'L and color'];
-var starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
-var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
-var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
-var histogram_stretch_type_values = [ 'Median', 'Peak' ];
+this.debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
+                               "GRBG", "GRGB", "GBGR", "RGBG", 
+                               "BGRG", "None" ];
+this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
+                              Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
+                              Debayer.prototype.BGRG, Debayer.prototype.Auto ];
 
-var monochrome_text = "Monochrome: ";
 
-var blink_window = null;
-var blink_zoom = false;
-var blink_zoom_x = 0;
-var blink_zoom_y = 0;
-var saved_measurements = null;
+this.saved_measurements = null;
 
-var same_stf_for_all_images = false;            /* does not work, colors go bad */
-var ssweight_set = false;
-var run_HT = true;
-var batch_narrowband_palette_mode = false;
-var narrowband = false;
-var autocontinue_narrowband = false;
-var linear_fit_done = false;
-var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
-var run_auto_continue = false;
-var use_force_close = true;
-var write_processing_log_file = true;  // if we fail very early we set this to false
-var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
-var shadow_clip_value = 0.01;
+this.run_auto_continue = false;
+this.write_processing_log_file = true;  // if we fail very early we set this to false
+this.shadow_clip_value = 0.01;
 
-var crop_truncate_amount = null;       // used when cropping channel images
-var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
-var crop_lowClipImage_changed = false; // changed flag for saving to disk
+this.outputRootDir = "";
+this.lightFileNames = null;
+this.darkFileNames = null;
+this.biasFileNames = null;
+this.flatdarkFileNames = null;
+this.flatFileNames = null;
+this.best_ssweight = 0;
+this.best_image = null;
+this.user_selected_best_image = null;
+this.user_selected_reference_image = [];
+this.star_alignment_image = null;
 
-var processingDate;
-var outputRootDir = "";
-var lightFileNames = null;
-var darkFileNames = null;
-var biasFileNames = null;
-var flatdarkFileNames = null;
-var flatFileNames = null;
-var best_ssweight = 0;
-var best_image = null;
-var user_selected_best_image = null;
-var user_selected_reference_image = [];
-var star_alignment_image = null;
+this.processed_channel_images = [];
 
-var L_images;
-var R_images;
-var G_images;
-var B_images;
-var H_images;
-var S_images;
-var O_images;
-var C_images;
+this.extra_target_image = null;
 
-var autocontinue_processed_channel_images = {
-      lrgb_channels: [ 'L', 'R', 'G', 'B' ],
-      narrowband_channels: [ 'H', 'S', 'O' ],
-      image_ids: [],
-      luminance_id: null,
-      rbg: false,
-      narrowband: false
-};
+this.processing_steps = "";
+this.all_windows = [];
+this.iconPoint = null;
+this.iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position
 
-var processed_channel_images = [];
+this.lightFilterSet = null;
+this.flatFilterSet = null;
 
-var extra_target_image = null;
-var extra_target_image_window_list = null;
+// These are initialized by util.setDefaultDirs
+this.AutoOutputDir = null;
+this.AutoCalibratedDir = null;
+this.AutoMasterDir = null;
+this.AutoProcessedDir = null;
 
-var processing_steps = "";
-var all_windows = [];
-var iconPoint;
-var iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position
-var logfname;
-
-var filterSectionbars = [];
-var filterSectionbarcontrols = [];
-var lightFilterSet = null;
-var flatFilterSet = null;
-    
-// These are initialized by setDefaultDirs
-var AutoOutputDir = null;
-var AutoCalibratedDir = null;
-var AutoMasterDir = null;
-var AutoProcessedDir = null;
-
-/* Variable used during processing images.
- */
-var alignedFiles;
-var mask_win;
-var mask_win_id;
-var star_mask_win;
-var star_mask_win_id;
-var star_fix_mask_win;
-var star_fix_mask_win_id;
-var RGB_win;
-var RGB_win_id;
-var is_color_files = false;
-var preprocessed_images;
-var L_ABE_id;
-var L_ABE_HT_win;
-var L_ABE_HT_id;
-var L_HT_win;
-var RGB_ABE_id;
-
-var luminance_id = null;      // These are working images and copies of 
-var red_id = null;            // original integrated images
-var green_id = null;
-var blue_id = null;
-
-var luminance_id_cropped = false;
-
-var L_id;                     // Original integrated images
-var R_id;                     // We make copies of these images during processing
-var G_id;
-var B_id;
-var H_id;
-var S_id;
-var O_id;
-var RGBcolor_id;              // Integrate RGB from OSC/DSLR data
-
-var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
-var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
-var RGB_stars = [];           // linear RGB channel star image ids
-
-var R_ABE_id = null;
-var G_ABE_id = null;
-var B_ABE_id = null;
-var start_time;
-var L_BE_win;
-var R_BE_win;
-var G_BE_win;
-var B_BE_win;
-var H_BE_win;
-var S_BE_win;
-var O_BE_win;
-var RGB_BE_win;
-var L_HT_win;
-var L_stf;
-var RGB_HT_win;
-var range_mask_win;
-var final_win;
-var start_images = {
-      NONE : 0,
-      L_R_G_B_BE : 1,
-      L_RGB_BE : 2,
-      RGB_BE : 3,
-      L_RGB_HT : 4,
-      RGB_HT : 5,
-      RGB_COLOR : 6,
-      L_R_G_B_PROCESSED : 7,
-      L_R_G_B : 8,
-      FINAL : 9,
-      CALIBRATE_ONLY : 10
-};
-
-var retval = {
-      ERROR : 0,
-      SUCCESS : 1,
-      INCOMPLETE: 2
-};
-
-var channels = {
-      L: 0,
-      R: 1,
-      G: 2,
-      B: 3,
-      H: 4,
-      S: 5,
-      O: 6,
-      C: 7
-};
-
-var pages = {
+this.pages = {
       LIGHTS : 0,
       BIAS : 1,
       DARKS : 2,
@@ -508,11 +377,25 @@ var pages = {
       END : 5
 };
 
-var columnCount = 0;          // A column position
-var haveIconized = 0;
+this.columnCount = 0;          // A column position
+this.haveIconized = 0;
+
+this.start_images = {
+    NONE : 0,
+    L_R_G_B_BE : 1,
+    L_RGB_BE : 2,
+    RGB_BE : 3,
+    L_RGB_HT : 4,
+    RGB_HT : 5,
+    RGB_COLOR : 6,
+    L_R_G_B_PROCESSED : 7,
+    L_R_G_B : 8,
+    FINAL : 9,
+    CALIBRATE_ONLY : 10
+};
 
 // known window names
-var integration_LRGB_windows = [
+this.integration_LRGB_windows = [
       "Integration_L",  // must be first
       "Integration_R",
       "Integration_G",
@@ -522,7 +405,7 @@ var integration_LRGB_windows = [
       "Integration_O"
 ];
 
-var integration_processed_channel_windows = [
+this.integration_processed_channel_windows = [
       "Integration_L_processed",
       "Integration_R_processed",
       "Integration_G_processed",
@@ -532,15 +415,15 @@ var integration_processed_channel_windows = [
       "Integration_O_processed"
 ];
 
-var integration_color_windows = [
+this.integration_color_windows = [
       "Integration_RGBcolor"
 ];
 
-var integration_crop_windows = [
+this.integration_crop_windows = [
       "LowRejectionMap_ALL"
 ];
 
-var fixed_windows = [
+this.fixed_windows = [
       "Mapping_L",
       "Mapping_R",
       "Mapping_G",
@@ -600,7 +483,7 @@ var fixed_windows = [
       "Integration_L_map_pm_noABE_HT"
 ];
 
-var calibrate_windows = [
+this.calibrate_windows = [
       "AutoMasterBias",
       "AutoMasterSuperBias",
       "AutoMasterFlatDark",
@@ -618,14 +501,14 @@ var calibrate_windows = [
 /* Final processed window names, depending on input data and options used.
  * These may have Drizzle prefix if that option is used.
  */
-var final_windows = [
+this.final_windows = [
       "AutoLRGB",
       "AutoRRGB",
       "AutoRGB",
       "AutoMono"
 ];
 
-var narrowBandPalettes = [
+this.narrowBandPalettes = [
       { name: "SHO", R: "S", G: "H", B: "O", all: true }, 
       { name: "HOS", R: "H", G: "O", B: "S", all: true }, 
       { name: "HSO", R: "H", G: "S", B: "O", all: true }, 
@@ -649,9 +532,23 @@ var narrowBandPalettes = [
       { name: "All", R: "All", G: "All", B: "All", all: false }
 ];
 
-var directoryInfo = "AutoIntegrate output files go to the following subdirectories:<br>" +
+this.directoryInfo = "AutoIntegrate output files go to the following subdirectories:<br>" +
                     "- AutoOutput contains intermediate files generated during processing<br>" +
                     "- AutoMaster contains generated master calibration files<br>" +
                     "- AutoCalibrated contains calibrated light files<br>" +
                     "- AutoProcessed contains processed final images. Also integrated images and log output is here.";
 
+// temporary debugging
+#ifndef TEST_AUTO_INTEGRATE
+// The variables defined here should have a default of 'false' and must be defined
+// by the testing scripts including this script. This allow changing the global.ai_debug
+// in the test scripts without modifying the main script
+this.ai_debug = false;                          // temp setting for debugging
+this.ai_get_process_defaults = false;           // temp setting to print process defaults
+this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
+#endif
+
+
+}   /* AutoIntegrateGlobal*/
+
+AutoIntegrateGlobal.prototype = new Object;
