@@ -93,6 +93,8 @@ function AutoIntegrateEngine(global, util)
 this.__base__ = Object;
 this.__base__();
 
+var autointegrateLDD = new AutoIntegrateLDD();
+
 var gui;
 var par = global.par;
 var ppar = global.ppar;
@@ -1358,12 +1360,12 @@ function getDefects(LDD_win, detectColumns)
       var imageShift = 50;
 
       // detect line defects
-      var detectedLines = new LDDEngine( LDD_win, detectColumns, detectPartialLines,
-                                         layersToRemove, rejectionLimit, imageShift,
-                                         detectionThreshold, partialLineDetectionThreshold );
+      var detectedLines = new autointegrateLDD.LDDEngine( LDD_win, detectColumns, detectPartialLines,
+                                                          layersToRemove, rejectionLimit, imageShift,
+                                                          detectionThreshold, partialLineDetectionThreshold );
       // Generate output for cosmetic correction
       console.writeln("getDefects, LDDOutput");
-      var defects = LDDOutput( detectColumns, detectedLines, detectionThreshold );
+      var defects = autointegrateLDD.LDDOutput( detectColumns, detectedLines, detectionThreshold );
 
       return defects;
 }
@@ -8905,8 +8907,8 @@ function cropChannelImagesAutoContinue()
  *    autointegrateProcessingEngine
  * 
  */
- this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband)
- {
+this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband)
+{
        if (global.extra_target_image != "Auto") {
              console.criticalln("Extra processing target image can be used only with Apply button!");
              return false;
@@ -9423,10 +9425,12 @@ function cropChannelImagesAutoContinue()
        if (preprocessed_images != global.start_images.FINAL) {
              console.noteln("Console output is written into file " + logfname);
        }
+
+       console.writeln("Run GC");
+       util.runGC();
+ 
        console.noteln("Processing completed.");
        global.is_processing = false;
- 
-       util.runGC();
  
        return true;
 }

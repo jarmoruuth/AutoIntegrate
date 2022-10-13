@@ -538,16 +538,11 @@ this.directoryInfo = "AutoIntegrate output files go to the following subdirector
                     "- AutoCalibrated contains calibrated light files<br>" +
                     "- AutoProcessed contains processed final images. Also integrated images and log output is here.";
 
-// temporary debugging
-#ifndef TEST_AUTO_INTEGRATE
-// The variables defined here should have a default of 'false' and must be defined
-// by the testing scripts including this script. This allow changing the global.ai_debug
-// in the test scripts without modifying the main script
+// variables for temporary debugging and testing
 this.ai_debug = false;                          // temp setting for debugging
 this.ai_get_process_defaults = false;           // temp setting to print process defaults
-this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
-#endif
 
+this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 
 }   /* AutoIntegrateGlobal*/
 

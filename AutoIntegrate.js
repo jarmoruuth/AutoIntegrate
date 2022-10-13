@@ -477,6 +477,14 @@ function ReadParametersFromPersistentModuleSettings()
       }
 }
 
+this.test_initdebug = function()
+{
+      global.ai_debug = true;
+      global.ai_get_process_defaults = false;
+      global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
+
+}
+
 this.test_initialize = function()
 {
       console.writeln("test_initialize");
@@ -526,6 +534,11 @@ this.test_getpar = function()
 this.test_getppar = function()
 {
       return ppar;
+}
+
+this.test_gui = function()
+{
+      return gui;
 }
 
 this.get_run_results = function()

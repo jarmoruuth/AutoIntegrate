@@ -2,9 +2,9 @@
 
 Linear Defect Detection from LinearDefectDetection.js script.
 
-    Slightly modifies by Jarmo Ruuth for AutoIntegrate script.
+Slightly modifies by Jarmo Ruuth for AutoIntegrate script.
 
-   Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
+Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
    Redistribution and use in both source and binary forms, with or without
    modification, is permitted provided that the following conditions are met:
@@ -47,6 +47,12 @@ Linear Defect Detection from LinearDefectDetection.js script.
    by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
+
+function AutoIntegrateLDD()
+{
+
+this.__base__ = Object;
+this.__base__();
 
 function LDDEngine( win, detectColumns, detectPartialLines,
     layersToRemove, rejectionLimit, imageShift,
@@ -637,3 +643,9 @@ function LDDOutput( detectColumns, detectedLines, threshold, outputDir )
     return defects;
 }
 
+this.LDDEngine = LDDEngine;
+this.LDDOutput = LDDOutput;
+
+}  /* AutoIntegrateLDD */
+
+AutoIntegrateLDD.prototype = new Object;

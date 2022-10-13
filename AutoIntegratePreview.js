@@ -2,16 +2,16 @@
  * 
  *    PreviewControl
  * 
- * Slightly modifies by Jarmo Ruuth for AutoIntegrate script.
+ * Slightly modified by Jarmo Ruuth for AutoIntegrate script.
  * 
  * Copyright (C) 2013, Andres del Pozo
  * 
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
- function PreviewControl(parent, size_x, size_y)
- {
-     this.__base__ = Frame;
+function AutoIntegratePreviewControl(parent, size_x, size_y)
+{
+       this.__base__ = Frame;
        this.__base__(parent);
  
  
@@ -338,4 +338,4 @@
        this.setScaledMinSize(size_x + width_overhead + 6, size_y + heigth_overhead + 6);
 }
  
-PreviewControl.prototype = new Frame;
+AutoIntegratePreviewControl.prototype = new Frame;

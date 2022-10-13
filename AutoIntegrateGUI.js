@@ -1300,9 +1300,9 @@ function readJsonFile(fname, lights_only)
             console.writeln("Restored reference images " + saveInfo.reference_image);
             global.user_selected_reference_image = saveInfo.reference_image;
       }
-      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
-            console.writeln("Restored star alignment image " + saveInfo.global.star_alignment_image);
-            global.star_alignment_image = saveInfo.global.star_alignment_image;
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
+            global.star_alignment_image = saveInfo.star_alignment_image;
       }
       if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
             console.writeln("Restored defect info");
@@ -1447,7 +1447,7 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
                   saveInfo.reference_image = copy_user_selected_reference_image_array();
             }
             if (global.star_alignment_image != null) {
-                  saveInfo.global.star_alignment_image = global.star_alignment_image;
+                  saveInfo.star_alignment_image = global.star_alignment_image;
             }
             if (global.LDDDefectInfo.length > 0) {
                   saveInfo.defectInfo = global.LDDDefectInfo;
@@ -1496,9 +1496,9 @@ function saveInfoMakeRelativePaths(saveInfo, saveDir)
                   }
             }
       }
-      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
-            if (saveInfo.global.star_alignment_image.startsWith(saveDir)) {
-                  saveInfo.global.star_alignment_image = saveInfo.global.star_alignment_image.substring(saveDir.length);
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (saveInfo.star_alignment_image.startsWith(saveDir)) {
+                  saveInfo.star_alignment_image = saveInfo.star_alignment_image.substring(saveDir.length);
             }
       }
       return saveInfo;
@@ -1532,9 +1532,9 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
                   }
             }
       }
-      if (saveInfo.global.star_alignment_image != null && saveInfo.global.star_alignment_image != undefined) {
-            if (util.pathIsRelative(saveInfo.global.star_alignment_image)) {
-                  saveInfo.global.star_alignment_image = saveDir + saveInfo.global.star_alignment_image;
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (util.pathIsRelative(saveInfo.star_alignment_image)) {
+                  saveInfo.star_alignment_image = saveDir + saveInfo.star_alignment_image;
             }
       }
       return saveInfo;
@@ -3365,7 +3365,7 @@ function getWindowBitmap(imgWin)
 
 function newPreviewObj(parent)
 {
-      var newPreviewControl = new PreviewControl(parent, ppar.preview_width, ppar.preview_height);
+      var newPreviewControl = new AutoIntegratePreviewControl(parent, ppar.preview_width, ppar.preview_height);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -5479,7 +5479,7 @@ function AutoIntegrateDialog()
 
       this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { this.dialog.show_preview_CheckBox.aiParam.global.use_preview = checked; });
+            function(checked) { this.dialog.show_preview_CheckBox.aiParam.use_preview = checked; });
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
@@ -5849,6 +5849,9 @@ this.update_extra_target_image_window_list = update_extra_target_image_window_li
 this.saveJsonFileEx = saveJsonFileEx;
 this.fix_win_prefix_array = fix_win_prefix_array;
 
+/* Exported data for testing.
+ */
+this.closeAllPrefixButton = closeAllPrefixButton;
 
 }  /* AutoIntegrateGUI*/
 
