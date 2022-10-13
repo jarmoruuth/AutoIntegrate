@@ -281,8 +281,11 @@ Linear Defect Detection:
 
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
+
 #include "AutoIntegrateLDD.js"
+#include "AutoIntegrateBanding.js"
 #include "AutoIntegrateEngine.js"
+
 #include "AutoIntegratePreview.js"
 #include "AutoIntegrateGUI.js"
 

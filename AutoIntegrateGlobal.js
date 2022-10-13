@@ -279,6 +279,9 @@ this.par = {
 
       // Calibration settings
       debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
+      banding_reduction: { val: false, def: false, name : "Banding reduction", type : 'B' },
+      banding_reduction_protect_highlights: { val: false, def: false, name : "Banding reduction protect highlights", type : 'B' },
+      banding_reduction_amount: { val: 1, def: 1, name : "Banding reduction amount", type : 'R' },
       extract_channel_mapping: { val: "None", def: "None", name : "Extract channel mapping", type : 'S' },
       create_superbias: { val: true, def: true, name : "Superbias", type : 'B' },
       bias_master_files: { val: false, def: false, name : "Bias master files", type : 'B' },
@@ -330,7 +333,6 @@ this.debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG",
 this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, Debayer.prototype.BGGR, Debayer.prototype.GBRG,
                               Debayer.prototype.GRBG, Debayer.prototype.GRGB, Debayer.prototype.GBGR, Debayer.prototype.RGBG,
                               Debayer.prototype.BGRG, Debayer.prototype.Auto ];
-
 
 this.saved_measurements = null;
 

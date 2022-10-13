@@ -5763,6 +5763,46 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
+function bandingEngineForImages(fileNames)
+{
+      util.addStatusInfo("Banding reduction for " + fileNames.length + " images");
+      util.addProcessingStep("bandingEngineForImages, fileNames[0] " + fileNames[0]);
+
+      var newFileNames = [];
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
+      var outputExtension = ".xisf";
+
+      var bandingEngine = new AutoIntegrateBandingEngine();
+
+      bandingEngine.setAmount(global.banding_reduction_amount);
+      bandingEngine.setHighlightProtect(global.banding_reduction_protect_highlights);
+
+      for (var i = 0; i < fileNames.length; i++) {
+            console.writeln("bandingEngineForImages, "+ fileNames[i]);
+            var imageWindows = ImageWindow.open(fileNames[i]);
+            if (imageWindows.length != 1) {
+                  util.throwFatalError("*** bandingEngineForImages Error: imageWindows.length: " + imageWindows.length);
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  util.throwFatalError("*** bandingEngineForImages Error: Can't read file: " + fileNames[i]);
+            }
+
+            bandingEngine.setTargetImage(imageWindow.mainView.image);
+            bandingEngine.doit(imageWindow.mainView);
+
+            var filePath = generateNewFileName(fileNames[i], outputDir, "_cb", outputExtension);
+
+            if (!writeImage(filePath, imageWindow)) {
+                  util.throwFatalError("*** bandingEngineForImages Error: Can't write output image: " + filePath);
+            }
+            newFileNames[newFileNames.length] = filePath;
+            util.forceCloseOneWindow(imageWindow);
+      }
+
+      return newFileNames;
+}
+
 // Extract channels from color/OSC/DSLR files. As a result
 // we get a new file list with channel files.
 function extractChannels(fileNames)
@@ -6262,6 +6302,18 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_d';
+                  gui.updatePreviewFilename(fileNames[0]);
+            }
+
+            if (par.banding_reduction.val) {
+                  var fileProcessedStatus = getFileProcessedStatus(fileNames, '_cb');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        fileNames = fileProcessedStatus.processed;
+                  } else {
+                        let processedFileNames = bandingEngineForImages(fileProcessedStatus.unprocessed);
+                        fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                  }
+                  filename_postfix = filename_postfix + '_cb';
                   gui.updatePreviewFilename(fileNames[0]);
             }
 

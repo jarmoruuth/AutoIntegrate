@@ -3947,6 +3947,24 @@ function AutoIntegrateDialog()
       this.binningGroupBoxSizer.add( this.binningSpinBox );
       this.binningGroupBoxSizer.addStretch();
 
+      // Banding
+      this.bandingCheckBox = newCheckBox(this, "Banding reduction", par.banding_reduction, 
+            "Do Canon banding reduction using the method in CanonBandingReduction script.");
+      this.bandingHighlightCheckBox = newCheckBox(this, "Protect highlights", par.banding_reduction_protect_highlights, 
+            "Protection for highlights.");
+      this.bandingAmountControl = newNumericEdit(this, "Amount", par.banding_reduction_amount, 0, 4, 
+            "<p>Reduction amount. An amount less than 1.0 is often necessary with fainter banding. </p>");
+
+      this.bandingGroupBoxLabel = newSectionLabel(this, "Banding");
+      this.bandingGroupBoxSizer = new HorizontalSizer;
+      this.bandingGroupBoxSizer.margin = 6;
+      this.bandingGroupBoxSizer.spacing = 4;
+      this.bandingGroupBoxSizer.add( this.bandingCheckBox );
+      this.bandingGroupBoxSizer.add( this.bandingHighlightCheckBox );
+      this.bandingGroupBoxSizer.addSpacing( 5 );
+      this.bandingGroupBoxSizer.add( this.bandingAmountControl );
+      this.bandingGroupBoxSizer.addStretch();
+
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
       this.otherParamsSet1.margin = 6;
@@ -5702,8 +5720,10 @@ function AutoIntegrateDialog()
               this.StarAlignmentGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftGroupBox, "Weighting and filtering settings", "ps_weighting",
             [ this.weightSizer ]);
-      newSectionBarAddArray(this, this.leftGroupBox, "Binning and cosmetic correction settings", "ps_binning_CC",
-            [ this.binningGroupBoxLabel,
+      newSectionBarAddArray(this, this.leftGroupBox, "Banding, binning and cosmetic correction settings", "ps_binning_CC",
+            [ this.bandingGroupBoxLabel,
+              this.bandingGroupBoxSizer,
+              this.binningGroupBoxLabel,
               this.binningGroupBoxSizer,
               this.cosmeticCorrectionGroupBoxSizer ]);
       
