@@ -375,7 +375,7 @@ function readPersistentSettings()
       var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
-            ppar.global.use_preview = tempSetting;
+            ppar.use_preview = tempSetting;
             global.use_preview = tempSetting;
       }
       var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);

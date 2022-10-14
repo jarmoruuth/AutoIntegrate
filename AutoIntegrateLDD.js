@@ -48,7 +48,7 @@ Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
 */
 
-function AutoIntegrateLDD()
+function AutoIntegrateLDD(util)
 {
 
 this.__base__ = Object;

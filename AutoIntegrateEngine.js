@@ -93,7 +93,7 @@ function AutoIntegrateEngine(global, util)
 this.__base__ = Object;
 this.__base__();
 
-var autointegrateLDD = new AutoIntegrateLDD();
+var autointegrateLDD = new AutoIntegrateLDD(util);
 
 var gui;
 var par = global.par;
