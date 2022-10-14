@@ -5781,8 +5781,8 @@ function bandingEngineForImages(fileNames)
 
       var bandingEngine = new AutoIntegrateBandingEngine();
 
-      bandingEngine.setAmount(global.banding_reduction_amount);
-      bandingEngine.setHighlightProtect(global.banding_reduction_protect_highlights);
+      bandingEngine.setAmount(par.banding_reduction_amount.val);
+      bandingEngine.setHighlightProtect(par.banding_reduction_protect_highlights.val);
 
       for (var i = 0; i < fileNames.length; i++) {
             console.writeln("bandingEngineForImages, "+ fileNames[i]);
