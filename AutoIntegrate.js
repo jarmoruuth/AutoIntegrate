@@ -299,6 +299,7 @@ var util = new AutoIntegrateUtil(global);
 var engine = new AutoIntegrateEngine(global, util);
 var gui = new AutoIntegrateGUI(global, util, engine);
 
+util.setGUI(gui);
 engine.setGUI(gui);
 
 var par = global.par;
@@ -517,7 +518,7 @@ this.test_autosetup = function(autosetup_path)
 {
       console.writeln("test_autosetup");
 
-      var pagearray = gui.readJsonFile(autosetup_path, false);
+      var pagearray = util.readJsonFile(autosetup_path, false);
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {

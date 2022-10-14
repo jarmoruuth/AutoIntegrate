@@ -23,11 +23,19 @@ this.__base__ = Object;
 this.__base__();
 
 var util = this;
+var gui = null;
 
 var par = global.par;
 var ppar = global.ppar;
 
 var use_force_close = true;
+
+/* Set optional GUI object to update GUI components.
+ */
+this.setGUI = function(aigui)
+{
+      gui = aigui;
+}
 
 this.runGC = function()
 {
@@ -889,6 +897,499 @@ this.mapBadChars = function(str)
       str = str.replace(/-/g,"_");
       str = str.replace(/,/g,"_");
       return str;
+}
+
+this.ensureDialogFilePath = function(names)
+{
+      if (global.outputRootDir == "") {
+            var gdd = new GetDirectoryDialog;
+            gdd.caption = "Select Save Directory for " + names;
+            gdd.initialPath = ppar.lastDir;
+            console.noteln(gdd.caption);
+            if (!gdd.execute()) {
+                  console.writeln("No path for " + names + ', nothing written');
+                  return 0;
+            }
+            util.saveLastDir(gdd.directory);
+            global.outputRootDir = gdd.directory;
+            if (global.outputRootDir != "") {
+                  global.outputRootDir = util.ensurePathEndSlash(global.outputRootDir);
+            }
+            console.writeln("ensureDialogFilePath, set global.outputRootDir ", global.outputRootDir);
+            return 1;
+      } else {
+            return 2;
+      }
+}
+
+function getSettingsFromJson(settings)
+{
+      if (settings == null || settings == undefined) {
+            console.noteln("getSettingsFromJson: empty settings");
+            return;
+      }
+
+      console.noteln("Restore " + settings.length + " settings");
+
+      for (var i = 0; i < settings.length; i++) {
+            for (let x in par) {
+                  var param = par[x];
+                  if (param.name == settings[i][0]) {
+                        param.val = settings[i][1];
+                        if (param.reset != undefined) {
+                              param.reset();
+                        }
+                        console.writeln("getSettingsFromJson, set " + param.name + "=" + param.val);
+                  }
+            }
+      }
+}
+
+/* Read saved Json file info.
+ */ 
+this.readJsonFile = function(fname, lights_only)
+{
+      console.writeln("readJsonFile " + fname + " lights_only " + lights_only);
+
+      var jsonFile = File.openFileForReading(fname);
+      if (!jsonFile.isOpen) {
+            console.criticalln("Could not open file " + fname);
+            return null;
+      }
+      var jsonStr = jsonFile.read(DataType_ByteArray, jsonFile.size);
+      jsonFile.close();
+
+      var saveInfo = JSON.parse(jsonStr);
+      if (saveInfo == null) {
+            console.criticalln("Could not parse Json data in file " + fname);
+            return null;
+      }
+      switch (saveInfo.version) {
+            case 1:
+            case 2:
+            case 3:
+                  // ok
+                  break;
+            default:
+                  console.criticalln("Incorrect version " +  saveInfo.version + " in file " + fname);
+                  return null;
+      }
+      
+      if (saveInfo.version >= 2) {
+            // read parameter values
+            getSettingsFromJson(saveInfo.settings);
+      }
+      if (saveInfo.window_prefix != null && saveInfo.window_prefix != undefined) {
+            ppar.win_prefix = saveInfo.window_prefix;
+            if (gui) {
+                  gui.updateWindowPrefix();
+            }
+            console.writeln("Restored window prefix " + ppar.win_prefix);
+      }
+
+      let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
+
+      if (saveInfo.output_dir != null && saveInfo.output_dir != undefined) {
+            var outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
+            outputDir = saveInfo.output_dir.replace("$(saveDir)", saveDir);   // for compatibility
+            if (gui) {
+                  gui.updateOutputDirEdit(outputDir);
+            }
+            console.writeln("Restored output directory " + outputDir);
+      }
+
+      saveInfoMakeFullPaths(saveInfo, saveDir);
+
+      if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
+            console.writeln("Restored best image " + saveInfo.best_image);
+            global.user_selected_best_image = saveInfo.best_image;
+      }
+      if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
+            console.writeln("Restored reference images " + saveInfo.reference_image);
+            global.user_selected_reference_image = saveInfo.reference_image;
+      }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
+            global.star_alignment_image = saveInfo.star_alignment_image;
+      }
+      if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
+            console.writeln("Restored defect info");
+            global.LDDDefectInfo = saveInfo.defectInfo;
+      }
+
+      var pagearray = [];
+      for (var i = 0; i < global.pages.END; i++) {
+            pagearray[i] = null;
+      }
+      var fileInfoList = saveInfo.fileinfo;
+      var found_files = false;
+      for (var i = 0; i < fileInfoList.length; i++) {
+            var saveInfo = fileInfoList[i];
+            console.writeln("readJsonFile " + saveInfo.pagename);
+            if (lights_only && saveInfo.pageindex != global.pages.LIGHTS) {
+                  console.writeln("readJsonFile, lights_only, skip");
+                  continue;
+            }
+            if (saveInfo.files.length == 0) {
+                  console.writeln("readJsonFile, no files, skip");
+                  continue;
+            }
+            found_files = true;
+            pagearray[saveInfo.pageindex] = saveInfo.files;
+            var filterSet = saveInfo.filterset;
+            if (filterSet != null) {
+                  switch (saveInfo.pageindex) {
+                        case global.pages.LIGHTS:
+                              console.writeln("readJsonFile, set manual filters for lights");
+                              global.lightFilterSet = filterSet;
+                              break;
+                        case global.pages.FLATS:
+                              console.writeln("readJsonFile, set manual filters for flats");
+                              global.flatFilterSet = filterSet;
+                              break;
+                        default:
+                              console.criticalln("Incorrect page index " +  saveInfo.pageindex + " for filter set in file " + fname);
+                              return null;
+                  }
+            }
+      }
+      if (!found_files) {
+            console.writeln("readJsonFile, no files found");
+            return null;
+      }
+      console.writeln("readJsonFile, return files for pages");
+      return pagearray;
+}
+
+this.addJsonFileInfo = function(fileInfoList, pageIndex, treeboxfiles, filterset)
+{
+      var name = "";
+      switch (pageIndex) {
+            case global.pages.LIGHTS:
+                  name = "Lights";
+                  break;
+            case global.pages.BIAS:
+                  name = "Bias";
+                  break;
+            case global.pages.DARKS:
+                  name = "Darks";
+                  break;
+            case global.pages.FLATS:
+                  name = "Flats";
+                  break;
+            case global.pages.FLAT_DARKS:
+                  name = "FlatDarks";
+                  break;
+      }
+      fileInfoList[fileInfoList.length] = { pageindex: pageIndex, pagename: name, files: treeboxfiles, filterset: filterset };
+}
+
+function getChangedSettingsAsJson()
+{
+      var settings = [];
+      console.writeln("getChangedSettingsAsJson");
+      for (let x in par) {
+            var param = par[x];
+            if (param.val != param.def) {
+                  console.writeln("getChangedSettingsAsJson, save " + param.name + "=" + param.val);
+                  settings[settings.length] = [ param.name, param.val ];
+            }
+      }
+      console.noteln("Saving " + settings.length + " settings");
+      return settings;
+}
+
+function copy_user_selected_reference_image_array()
+{
+      var copyarr = [];
+
+      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+            var elem = [];
+            for (var j = 0; j < global.user_selected_reference_image[i].length; j++) {
+                  elem[elem.length] = global.user_selected_reference_image[i][j];
+            }
+            copyarr[copyarr.length] = elem;
+      }
+      return copyarr;
+}
+
+this.initJsonSaveInfo = function(fileInfoList, save_settings, saveDir)
+{
+      if (save_settings) {
+            var changed_settings = getChangedSettingsAsJson();
+            var saveInfo = { version: 3, fileinfo: fileInfoList, settings: changed_settings };
+            if (ppar.win_prefix != '') {
+                  saveInfo.window_prefix = ppar.win_prefix;
+            }
+            if (gui) {
+                  var outputDirEditPath = gui.getOutputDirEdit();
+            } else {
+                  var outputDirEditPath = '';
+            }
+            if (outputDirEditPath != '') {
+                  /* Output directory box is not empty, save it in the Json file.
+                   * If saveDir is a prefix of outputDirEditPath we save
+                   * relative path and add special marker $(setupDir).
+                   * When reading a Json file $(setupDir) is replaced with
+                   * used saveDir. This makes the Json easier to move or
+                   * share since the path is relative.
+                   */ 
+                  if (outputDirEditPath.startsWith(saveDir)) {
+                        // replace saveDir prefix with $(setupDir)
+                        saveInfo.output_dir = outputDirEditPath.replace(saveDir, "$(setupDir)");
+                  } else {
+                        // save full path
+                        saveInfo.output_dir = outputDirEditPath;
+                  }
+            }
+            if (global.user_selected_best_image != null) {
+                  saveInfo.best_image = global.user_selected_best_image;
+            }
+            if (global.user_selected_reference_image.length > 0) {
+                  // Need to make a copy so we do not update the original array
+                  saveInfo.reference_image = copy_user_selected_reference_image_array();
+            }
+            if (global.star_alignment_image != null) {
+                  saveInfo.star_alignment_image = global.star_alignment_image;
+            }
+            if (global.LDDDefectInfo.length > 0) {
+                  saveInfo.defectInfo = global.LDDDefectInfo;
+            }
+      } else {
+            var saveInfo = { version: 1, fileinfo: fileInfoList };
+      }
+      return saveInfo
+}
+
+/* Fix paths so that they are relative to saveDir if they have a common prefix.
+ *
+ * Relative paths make it easier to move files and corresponding Json file
+ * around or even share it with someone else.
+ *
+ * For example if saveDir is /Telescopes/TelescopeLive/NGC104/ and 
+ * file name is /Telescopes/TelescopeLive/NGC104/Lights/Red/NGC104_R.fits
+ * we save the file name as Lights/Red/NGC104_R.fits. If saveDir is not a prefix
+ * of file name we save the full path.
+ */
+function saveInfoMakeRelativePaths(saveInfo, saveDir)
+{
+      if (saveDir == null || saveDir == "") {
+            util.throwFatalError("saveInfoMakeRelativePaths, empty saveDir");
+      }
+      saveDir = util.ensurePathEndSlash(saveDir);
+      console.writeln("saveInfoMakeRelativePaths, saveDir "+ saveDir);
+      var fileInfoList = saveInfo.fileinfo;
+      for (var i = 0; i < fileInfoList.length; i++) {
+            for (var j = 0; j < fileInfoList[i].files.length; j++) {
+                  var fname = fileInfoList[i].files[j][0];
+                  if (fname.startsWith(saveDir)) {
+                        fileInfoList[i].files[j][0] = fname.substring(saveDir.length);
+                  }
+            }
+      }
+      if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
+            if (saveInfo.best_image.startsWith(saveDir)) {
+                  saveInfo.best_image = saveInfo.best_image.substring(saveDir.length);
+            }
+      }
+      if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
+            for (var i = 0; i < saveInfo.reference_image.length; i++) {
+                  if (saveInfo.reference_image[i][0].startsWith(saveDir)) {
+                        saveInfo.reference_image[i][0] = saveInfo.reference_image[i][0].substring(saveDir.length);
+                  }
+            }
+      }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (saveInfo.star_alignment_image.startsWith(saveDir)) {
+                  saveInfo.star_alignment_image = saveInfo.star_alignment_image.substring(saveDir.length);
+            }
+      }
+      return saveInfo;
+}
+
+function saveInfoMakeFullPaths(saveInfo, saveDir)
+{
+      if (saveDir == null || saveDir == "") {
+            util.throwFatalError("saveInfoMakeFullPaths, empty saveDir");
+      }
+      saveDir = util.ensurePathEndSlash(saveDir);
+      console.writeln("saveInfoMakeFullPaths, saveDir " + saveDir);
+      var fileInfoList = saveInfo.fileinfo;
+      for (var i = 0; i < fileInfoList.length; i++) {
+            for (var j = 0; j < fileInfoList[i].files.length; j++) {
+                  var fname = fileInfoList[i].files[j][0];
+                  if (util.pathIsRelative(fname)) {
+                        fileInfoList[i].files[j][0] = saveDir + fname;
+                  }
+            }
+      }
+      if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
+            if (util.pathIsRelative(saveInfo.best_image)) {
+                  saveInfo.best_image = saveDir + saveInfo.best_image;
+            }
+      }
+      if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
+            for (var i = 0; i < saveInfo.reference_image.length; i++) {
+                  if (util.pathIsRelative(saveInfo.reference_image[i][0])) {
+                        saveInfo.reference_image[i][0] = saveDir + saveInfo.reference_image[i][0];
+                  }
+            }
+      }
+      if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
+            if (util.pathIsRelative(saveInfo.star_alignment_image)) {
+                  saveInfo.star_alignment_image = saveDir + saveInfo.star_alignment_image;
+            }
+      }
+      return saveInfo;
+}
+
+/* Save file info to a file.
+ */
+this.saveJsonFileEx = function(parent, save_settings, autosave_json_filename)
+{
+      if (!gui) {
+            return;
+      }
+      console.writeln("saveJsonFile");
+
+      let fileInfoList = [];
+
+      for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
+            let treeBox = parent.treeBox[pageIndex];
+            let treeboxfiles = [];
+            let filterSet = null;
+            let name = "";
+            switch (pageIndex) {
+                  case global.pages.LIGHTS:
+                        name = "Lights";
+                        filterSet = global.lightFilterSet;
+                        break;
+                  case global.pages.BIAS:
+                        name = "Bias";
+                        break;
+                  case global.pages.DARKS:
+                        name = "Darks";
+                        break;
+                  case global.pages.FLATS:
+                        name = "Flats";
+                        filterSet = global.flatFilterSet;
+                        break;
+                  case global.pages.FLAT_DARKS:
+                        name = "FlatDarks";
+                        break;
+                  default:
+                        name = "Unknown";
+                        break;
+            }
+
+            if (treeBox.numberOfChildren == 0) {
+                  continue;
+            }
+
+            console.writeln(name + " files");
+
+            gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
+
+            console.writeln("Found " + treeboxfiles.length + " files");
+
+            if (treeboxfiles.length == 0) {
+                  // no files
+                  continue;
+            }
+
+            if (filterSet != null) {
+                  util.clearFilterFileUsedFlags(filterSet);
+            }
+            util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
+      }
+
+      if (fileInfoList.length == 0 && !save_settings) {
+            // nothing to save
+            console.writeln("No files to save.");
+            return;
+      }
+
+      if (autosave_json_filename == null) {
+            let saveFileDialog = new SaveFileDialog();
+            saveFileDialog.caption = "Save As";
+            saveFileDialog.filters = [["Json files", "*.json"], ["All files", "*.*"]];
+            if (fileInfoList.length > 0) {
+                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(fileInfoList[0].files[0][0]));
+            } else {
+                  var outputDir = util.ensurePathEndSlash(util.getOutputDir(""));
+                  if (outputDir == "") {
+                        outputDir = util.ensurePathEndSlash(ppar.lastDir);
+                  }
+            }
+            if (save_settings) {
+                  saveFileDialog.initialPath = outputDir + "AutoSetup.json";
+            } else {
+                  saveFileDialog.initialPath = outputDir + "AutoFiles.json";
+            }
+            if (!saveFileDialog.execute()) {
+                  return;
+            }
+            var saveDir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
+            var json_path_and_filename = saveFileDialog.fileName;
+      } else {
+            let dialogRet = util.ensureDialogFilePath(autosave_json_filename);
+            if (dialogRet == 0) {
+                  // Canceled, do not save
+                  return;
+            }
+            let json_path;
+            if (dialogRet == 1) {
+                  // User gave explicit directory
+                  json_path = global.outputRootDir;
+            } else {
+                  // Not saving to AutoProcessed directory
+                  //json_path = util.combinePath(global.outputRootDir, global.AutoProcessedDir); 
+                  
+                  // Saving to lights directory, or user given output directory
+                  // This way we get relative paths to file so it is easy to move around
+                  // or even share with lights files.
+                  json_path = global.outputRootDir;
+            }
+            var saveDir = util.ensurePathEndSlash(json_path);
+            var json_path_and_filename = saveDir + autosave_json_filename;
+      }
+      util.saveLastDir(saveDir);
+      try {
+            let saveInfo = util.initJsonSaveInfo(fileInfoList, save_settings, saveDir);
+            let file = new File();
+            saveInfoMakeRelativePaths(saveInfo, saveDir);
+            let saveInfoJson = JSON.stringify(saveInfo, null, 2);
+            file.createForWriting(json_path_and_filename);
+            file.outTextLn(saveInfoJson);
+            file.close();
+            console.noteln("Saved to a file "+ json_path_and_filename);
+      } catch (error) {
+            console.criticalln("Error: failed to write file "+ json_path_and_filename);
+            console.criticalln(error);
+      }
+}
+
+function getReferenceBasename(processed_name, filename_postfix)
+{
+      let processed_basename = File.extractName(processed_name);
+      if (filename_postfix.length > 0 && processed_basename.endsWith(filename_postfix)) {
+            // strip filename_postfix from the end
+            processed_basename = processed_basename.slice(0, processed_basename.length - filename_postfix.length);
+      }
+      //console.writeln("getReferenceBasename ", processed_name, " ", filename_postfix, " ", processed_basename);
+      return processed_basename;
+}
+
+this.compareReferenceFileNames = function(reference_name, processed_name, filename_postfix)
+{
+      let reference_basename = getReferenceBasename(reference_name, filename_postfix);
+      let processed_basename = getReferenceBasename(processed_name, filename_postfix);
+      return reference_basename == processed_basename;
+}
+
+this.saveJsonFile = function(parent, save_settings)
+{
+      util.saveJsonFileEx(parent, save_settings, null);
 }
 
 }  /* AutoIntegrateUtil */

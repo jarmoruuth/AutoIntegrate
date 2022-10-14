@@ -100,8 +100,10 @@ var par = global.par;
 var ppar = global.ppar;
 var engine = this;
 
-this.setGUI = function(aig) {
-      gui = aig;
+/* Set optional GUI object to update GUI components.
+ */
+this.setGUI = function(aigui) {
+      gui = aigui;
 }
 
 var same_stf_for_all_images = false;            /* does not work, colors go bad */
@@ -210,6 +212,34 @@ var channels = {
       O: 6,
       C: 7
 };
+
+function guiSetTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
+{
+      if (gui) {
+            gui.setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix);
+      }
+}
+
+function guiUpdatePreviewWin(imgWin)
+{
+      if (gui) {
+            gui.updatePreviewWin(imgWin);
+      }
+}
+
+function guiUpdatePreviewId(id)
+{
+      if (gui) {
+            gui.updatePreviewId(id);
+      }
+}
+
+function guiUpdatePreviewFilename(filename, stf)
+{
+      if (gui) {
+            gui.updatePreviewFilename(filename, stf);
+      }
+}
 
 function targetTypeSetup()
 {
@@ -788,7 +818,7 @@ this.openImageFiles = function(filetype, lights_only, json_only)
              * If lights_only, return a simple file array of light files
              * If not lights_only, return treebox files for each page
              */
-            var pagearray = gui.readJsonFile(ofd.fileNames[0], lights_only);
+            var pagearray = util.readJsonFile(ofd.fileNames[0], lights_only);
             if (lights_only) {
                   if (pagearray[global.pages.LIGHTS] == null) {
                         return null;
@@ -1989,8 +2019,8 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
                   } else {
                         // create Json output string
                         let fileInfoList = [];
-                        gui.addJsonFileInfo(fileInfoList, global.pages.LIGHTS, treeboxfiles, null);
-                        let saveInfo = gui.initJsonSaveInfo(fileInfoList, false, "");
+                        util.addJsonFileInfo(fileInfoList, global.pages.LIGHTS, treeboxfiles, null);
+                        let saveInfo = util.initJsonSaveInfo(fileInfoList, false, "");
                         console.writeln("saveInfo " + saveInfo);
                         let saveInfoJson = JSON.stringify(saveInfo, null, 2);
                         console.writeln("saveInfoJson " + saveInfoJson);
@@ -2156,7 +2186,7 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
             }
             if (global.user_selected_best_image != null 
                 && found_user_selected_best_image == null
-                && gui.compareReferenceFileNames(global.user_selected_best_image, filePath, filename_postfix))
+                && util.compareReferenceFileNames(global.user_selected_best_image, filePath, filename_postfix))
               {
                     found_user_selected_best_image = filePath;
                     found_user_selected_best_image_ssweight = ssweight;
@@ -2194,7 +2224,7 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                               first_image = false;
                         }
                   }
-                  gui.setTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
+                  guiSetTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
             }
             if (accept_file) {
                   newFileNames[newFileNames.length] = fileNames[i];
@@ -2276,7 +2306,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             // the base file names. We ignore directory as output files are placed
             // info a different directory.
             for (var i = 0; i < filearr.length; i++) {
-                  if (gui.compareReferenceFileNames(refImage, filearr[i].name, filename_postfix)) {
+                  if (util.compareReferenceFileNames(refImage, filearr[i].name, filename_postfix)) {
                         refImage = filearr[i].name;
                         break;
                   }
@@ -2310,7 +2340,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             }
             files.exptime += filearr[i].exptime;
       }
-      if (automatic_reference_image != null) {
+      if (automatic_reference_image != null && gui) {
             gui.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
       }
 }
@@ -3240,7 +3270,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
       }
 
       runNoiseReductionEx(imgWin, maskWin, par.luminance_noise_reduction_strength.val, true);
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 
       if (temp_mask_win != null) {
             util.forceCloseOneWindow(temp_mask_win);
@@ -3268,7 +3298,7 @@ function channelNoiseReduction(image_id)
 
       runNoiseReductionEx(image_win, temp_mask_win, par.noise_reduction_strength.val, true);
 
-      gui.updatePreviewWin(image_win);
+      guiUpdatePreviewWin(image_win);
 
       if (temp_mask_win != null) {
             util.forceCloseOneWindow(temp_mask_win);
@@ -3381,7 +3411,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             console.writeln("StarXTerminator completed");
       }
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 
       if (save_stars) {
             if (stars_image_name == null) {
@@ -3528,7 +3558,7 @@ function customMapping(RGBmapping, check_allfilesarr)
             RGBmapping.combined = true;
 
             RGB_win = util.findWindow(RGB_win_id);
-            gui.updatePreviewWin(RGB_win);
+            guiUpdatePreviewWin(RGB_win);
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
                   RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
@@ -3553,7 +3583,7 @@ function customMapping(RGBmapping, check_allfilesarr)
             }
             if (par.custom_L_mapping.val != '') {
                   luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping, true);
-                  gui.updatePreviewId(luminance_id);
+                  guiUpdatePreviewId(luminance_id);
                   is_luminance_images = true;
             }
 
@@ -3863,7 +3893,7 @@ function runDrizzleIntegration(images, name, local_normalization)
       util.closeOneWindow(P.weightImageId);
 
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
-      gui.updatePreviewId(new_name);
+      guiUpdatePreviewId(new_name);
       //util.addScriptWindow(new_name);
       return new_name;
 }
@@ -3998,13 +4028,13 @@ function runImageIntegrationEx(images, name, local_normalization)
       util.closeOneWindow(P.slopeMapImageId);
 
       if (par.use_drizzle.val && name != 'LDD') {
-            gui.updatePreviewId(P.integrationImageId);
+            guiUpdatePreviewId(P.integrationImageId);
             util.closeOneWindow(P.integrationImageId);
             return runDrizzleIntegration(images, name, local_normalization);
       } else {
             var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
             console.writeln("runImageIntegrationEx completed, new name " + new_name);
-            gui.updatePreviewId(new_name);
+            guiUpdatePreviewId(new_name);
             return new_name
       }
 }
@@ -4546,7 +4576,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
             res.iteration_number = i + 1;
             var window_updated = runHistogramTransformHyperbolic(res, iscolor);
             if (window_updated) {
-                  gui.updatePreviewWin(res.win);
+                  guiUpdatePreviewWin(res.win);
             }
             if (res.completed) {
                   break;
@@ -4569,7 +4599,7 @@ function stretchHistogramTransformIterationsChannel(ABE_win, channel)
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, channel);
             if (window_updated) {
-                  gui.updatePreviewWin(res.win);
+                  guiUpdatePreviewWin(res.win);
             }
             if (res.completed) {
                   break;
@@ -5018,7 +5048,7 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       if (par.shadow_clip.val) {
             clipShadows(ABE_win, global.shadow_clip_value);
       }
-      gui.updatePreviewWin(ABE_win);
+      guiUpdatePreviewWin(ABE_win);
       return { win: ABE_win, stf: stf };
 }
 
@@ -5050,7 +5080,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function noiseSuperStrong()
@@ -5283,7 +5313,7 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function starReduceNoise(imgWin)
@@ -5333,7 +5363,7 @@ function runBackgroundNeutralization(imgView)
 
       imgView.endProcess();
 
-      gui.updatePreviewId(imgView.id);
+      guiUpdatePreviewId(imgView.id);
 }
 
 function runColorCalibration(imgView)
@@ -5356,7 +5386,7 @@ function runColorCalibration(imgView)
             P.executeOn(imgView, false);
 
             imgView.endProcess();
-            gui.updatePreviewId(imgView.id);
+            guiUpdatePreviewId(imgView.id);
       } catch(err) {
             console.criticalln("Color calibration failed");
             console.criticalln(err);
@@ -5393,7 +5423,7 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function runCurvesTransformationSaturation(imgWin, maskWin)
@@ -5427,7 +5457,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function increaseSaturation(imgWin, maskWin)
@@ -5460,7 +5490,7 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
-      gui.updatePreviewId(RGBimgView.id);
+      guiUpdatePreviewId(RGBimgView.id);
 
       return RGBimgView.id;
 }
@@ -5484,7 +5514,7 @@ function runSCNR(RGBimgView, fixing_stars)
 
       RGBimgView.endProcess();
 
-      gui.updatePreviewId(RGBimgView.id);
+      guiUpdatePreviewId(RGBimgView.id);
 }
 
 // Run hue shift on narrowband image to enhance orange.
@@ -5506,7 +5536,7 @@ function narrowbandOrangeHueShift(imgView)
 
       imgView.endProcess();
 
-      gui.updatePreviewId(imgView.id);
+      guiUpdatePreviewId(imgView.id);
 }
 
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
@@ -5544,30 +5574,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
-}
-
-this.ensureDialogFilePath = function(names)
-{
-      if (global.outputRootDir == "") {
-            var gdd = new GetDirectoryDialog;
-            gdd.caption = "Select Save Directory for " + names;
-            gdd.initialPath = ppar.lastDir;
-            console.noteln(gdd.caption);
-            if (!gdd.execute()) {
-                  console.writeln("No path for " + names + ', nothing written');
-                  return 0;
-            }
-            util.saveLastDir(gdd.directory);
-            global.outputRootDir = gdd.directory;
-            if (global.outputRootDir != "") {
-                  global.outputRootDir = util.ensurePathEndSlash(global.outputRootDir);
-            }
-            console.writeln("ensureDialogFilePath, set global.outputRootDir ", global.outputRootDir);
-            return 1;
-      } else {
-            return 2;
-      }
+      guiUpdatePreviewWin(imgWin);
 }
 
 this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
@@ -5589,7 +5596,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
             return;
       }
 
-      var dialogRet = engine.ensureDialogFilePath(basename + ".log");
+      var dialogRet = util.ensureDialogFilePath(basename + ".log");
       if (dialogRet == 0) {
             // Canceled, do not save
             return;
@@ -5998,7 +6005,7 @@ function findStartImages(auto_continue, check_base_name)
             preprocessed_images = global.start_images.NONE;
       }
       if (preview_id != null && auto_continue) {
-            gui.updatePreviewId(preview_id);
+            guiUpdatePreviewId(preview_id);
       }
       return preprocessed_images;
 }
@@ -6164,7 +6171,7 @@ function CreateChannelImages(parent, auto_continue)
                   return retval.ERROR;
             }
 
-            gui.updatePreviewFilename(global.lightFileNames[0]);
+            guiUpdatePreviewFilename(global.lightFileNames[0]);
 
             // We keep track of extensions added to the file names
             // If we need to original file names we can substract
@@ -6206,7 +6213,7 @@ function CreateChannelImages(parent, auto_continue)
             var calibrateInfo = calibrateEngine(filtered_lights);
             global.lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
-            gui.updatePreviewFilename(global.lightFileNames[0]);
+            guiUpdatePreviewFilename(global.lightFileNames[0]);
 
             if (par.calibrate_only.val) {
                   return(retval.INCOMPLETE);
@@ -6248,7 +6255,7 @@ function CreateChannelImages(parent, auto_continue)
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                         }
                         filename_postfix = filename_postfix + getBinningPostfix();
-                        gui.updatePreviewFilename(fileNames[0]);
+                        guiUpdatePreviewFilename(fileNames[0]);
                   }
             } else if (par.binning_only.val) {
                   util.throwFatalError("Binning only set but no binning done, binning " + par.binning.val + " binning resample factor " + par.binning_resample.val);
@@ -6272,7 +6279,7 @@ function CreateChannelImages(parent, auto_continue)
                               }
                         }
                         fileNames = ccFileNames;
-                        gui.updatePreviewFilename(fileNames[0]);
+                        guiUpdatePreviewFilename(fileNames[0]);
                   } else {
                         var defects = [];
                         /* Run CosmeticCorrection for each file.
@@ -6285,7 +6292,7 @@ function CreateChannelImages(parent, auto_continue)
                               let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, defects, is_color_files);
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                         }
-                        gui.updatePreviewFilename(fileNames[0]);
+                        guiUpdatePreviewFilename(fileNames[0]);
                   }
                   filename_postfix = filename_postfix + '_cc';
             }
@@ -6302,7 +6309,7 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_d';
-                  gui.updatePreviewFilename(fileNames[0]);
+                  guiUpdatePreviewFilename(fileNames[0]);
             }
 
             if (par.banding_reduction.val) {
@@ -6314,7 +6321,7 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_cb';
-                  gui.updatePreviewFilename(fileNames[0]);
+                  guiUpdatePreviewFilename(fileNames[0]);
             }
 
             if (is_color_files && par.debayer_only.val) {
@@ -6325,7 +6332,7 @@ function CreateChannelImages(parent, auto_continue)
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
                   fileNames = extractChannels(fileNames);
-                  gui.updatePreviewFilename(fileNames[0]);
+                  guiUpdatePreviewFilename(fileNames[0]);
 
                   // We extracted channels, filter again with extracted channels
                   console.writeln("Filter again with extracted channels")
@@ -6346,7 +6353,7 @@ function CreateChannelImages(parent, auto_continue)
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_ABE';
-                  gui.updatePreviewFilename(fileNames[0]);
+                  guiUpdatePreviewFilename(fileNames[0]);
             }
 
             if (!par.skip_subframeselector.val 
@@ -6388,7 +6395,9 @@ function CreateChannelImages(parent, auto_continue)
             }
             fileNames = retarr[1];
 
-            gui.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.best_image, filename_postfix);
+            if (gui) {
+                  gui.setBestImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], global.best_image, filename_postfix);
+            }
 
             if (par.image_weight_testing.val) {
                   return retval.INCOMPLETE;
@@ -6407,7 +6416,7 @@ function CreateChannelImages(parent, auto_continue)
                         alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
                   }
                   filename_postfix = filename_postfix + '_r';
-                  gui.updatePreviewFilename(alignedFiles[0]);
+                  guiUpdatePreviewFilename(alignedFiles[0]);
             } else {
                   alignedFiles = fileNames;
             }
@@ -6829,7 +6838,7 @@ function CombineRGBimageEx(target_name, images)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
-      gui.updatePreviewWin(win);
+      guiUpdatePreviewWin(win);
 
       return win;
 }
@@ -7260,7 +7269,7 @@ function fixNarrowbandStarColor(targetWin)
 
       invertImage(targetWin.mainView);
 
-      gui.updatePreviewWin(targetWin);
+      guiUpdatePreviewWin(targetWin);
 }
 
 // When start removal is run we do some things differently
@@ -7308,9 +7317,11 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       util.addProcessingStep("Starless image " + copywin.mainView.id);
       copywin.show();
 
-      gui.updatePreviewWin(copywin);
+      guiUpdatePreviewWin(copywin);
 
-      gui.update_extra_target_image_window_list(parent, null);
+      if (gui) {
+            gui.update_extra_target_image_window_list(parent, null);
+      }
 
       // return possibly new starless image for further processing
       return { starless_win: copywin, stars_id: stars_win_id };
@@ -7339,7 +7350,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
@@ -7396,7 +7407,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
             }
-            gui.updatePreviewWin(imgWin);
+            guiUpdatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
             console.criticalln(err);
@@ -7434,7 +7445,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function extraExponentialTransformation(imgWin, maskWin)
@@ -7459,7 +7470,7 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function createNewStarMaskWin(imgWin)
@@ -7640,7 +7651,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
       targetWin.mainView.endProcess();
 
-      gui.updatePreviewWin(targetWin);
+      guiUpdatePreviewWin(targetWin);
 }
 
 function extraContrast(imgWin)
@@ -7661,7 +7672,7 @@ function extraContrast(imgWin)
 
       imgWin.mainView.endProcess();
 
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 function extraStretch(win)
@@ -7678,7 +7689,7 @@ function extraShadowClipping(win, perc)
 
       clipShadows(win, perc);
 
-      gui.updatePreviewWin(win);
+      guiUpdatePreviewWin(win);
 }
 
 function extraSmoothBackground(win, val)
@@ -7689,7 +7700,7 @@ function extraSmoothBackground(win, val)
 
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
 
-      gui.updatePreviewWin(win);
+      guiUpdatePreviewWin(win);
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -7705,7 +7716,7 @@ function extraNoiseReduction(win, mask_win)
             par.extra_noise_reduction_strength.val,
             false);
 
-      gui.updatePreviewWin(win);
+      guiUpdatePreviewWin(win);
 }
 
 function extraACDNR(extraWin, mask_win)
@@ -7718,7 +7729,7 @@ function extraACDNR(extraWin, mask_win)
 
       runACDNRReduceNoise(extraWin, mask_win);
 
-      gui.updatePreviewWin(extraWin);
+      guiUpdatePreviewWin(extraWin);
 }
 
 function extraColorNoise(extraWin)
@@ -7749,7 +7760,7 @@ function extraUnsharpMask(extraWin, mask_win)
             extraWin.removeMask();
       }
 
-      gui.updatePreviewWin(extraWin);
+      guiUpdatePreviewWin(extraWin);
 }
 
 function extraSharpen(extraWin, mask_win)
@@ -7759,7 +7770,7 @@ function extraSharpen(extraWin, mask_win)
       for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
             runMultiscaleLinearTransformSharpen(extraWin, mask_win);
       }
-      gui.updatePreviewWin(extraWin);
+      guiUpdatePreviewWin(extraWin);
 }
 
 function extraSaturation(extraWin, mask_win)
@@ -7769,14 +7780,14 @@ function extraSaturation(extraWin, mask_win)
       for (var i = 0; i < par.extra_saturation_iterations.val; i++) {
             increaseSaturation(extraWin, mask_win);
       }
-      gui.updatePreviewWin(extraWin);
+      guiUpdatePreviewWin(extraWin);
 }
 
 function extraABE(extraWin)
 {
       util.addProcessingStepAndStatusInfo("Extra ABE");
       runABE(extraWin, true);
-      gui.updatePreviewWin(extraWin);
+      guiUpdatePreviewWin(extraWin);
 }
 
 function extraSHOHueShift(imgWin)
@@ -7823,7 +7834,7 @@ function extraSHOHueShift(imgWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
-      gui.updatePreviewWin(imgWin);
+      guiUpdatePreviewWin(imgWin);
 }
 
 // Rename and save palette batch image
@@ -7855,7 +7866,7 @@ this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
             console.writeln("autointegrateNarrowbandPaletteBatch loop ", i);
             if (global.narrowBandPalettes[i].all) {
                   if (auto_continue) {
-                        engine.ensureDialogFilePath("narrowband batch result files");
+                        util.ensureDialogFilePath("narrowband batch result files");
                   }
                   par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
                   par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
@@ -8112,11 +8123,11 @@ function extraProcessing(parent, id, apply_directly)
       extra_id = extraWin.mainView.id;
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
-            gui.updatePreviewWin(final_win);
+            guiUpdatePreviewWin(final_win);
             setFinalImageKeyword(final_win);
       } else {
             var final_win = ImageWindow.windowById(extra_id);
-            gui.updatePreviewWin(final_win);
+            guiUpdatePreviewWin(final_win);
             setFinalImageKeyword(final_win);
             saveProcessedWindow(global.outputRootDir, extra_id); /* Extra window */
             if (par.extra_remove_stars.val) {
@@ -8796,9 +8807,9 @@ function cropChannelImagesAutoContinue()
                    var mastersuperbiasid = runSuberBias(masterbiaswin);
                    setImagetypKeyword(util.findWindow(mastersuperbiasid), "Master bias");
                    var masterbiasPath = saveMasterWindow(global.outputRootDir, mastersuperbiasid);
-                   gui.updatePreviewId(mastersuperbiasid);
+                   guiUpdatePreviewId(mastersuperbiasid);
              } else {
-                   gui.updatePreviewId(masterbiasid);
+                   guiUpdatePreviewId(masterbiasid);
              }
        } else {
              util.addProcessingStep("calibrateEngine no master bias");
@@ -8818,7 +8829,7 @@ function cropChannelImagesAutoContinue()
              var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark");
              setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
              var masterflatdarkPath = saveMasterWindow(global.outputRootDir, masterflatdarkid);
-             gui.updatePreviewId(masterflatdarkid);
+             guiUpdatePreviewId(masterflatdarkid);
        } else {
              util.addProcessingStep("calibrateEngine no master flat dark");
              var masterflatdarkPath = null;
@@ -8843,7 +8854,7 @@ function cropChannelImagesAutoContinue()
              var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark");
              setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
              var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
-             gui.updatePreviewId(masterdarkid);
+             guiUpdatePreviewId(masterdarkid);
        } else {
              util.addProcessingStep("calibrateEngine no master dark");
              var masterdarkPath = null;
@@ -8874,7 +8885,7 @@ function cropChannelImagesAutoContinue()
                    setImagetypKeyword(util.findWindow(masterflatid), "Master flat");
                    setFilterKeyword(util.findWindow(masterflatid), filterFiles[0].filter);
                    masterflatPath[i] = saveMasterWindow(global.outputRootDir, masterflatid);
-                   gui.updatePreviewId(masterflatid);
+                   guiUpdatePreviewId(masterflatid);
              } else {
                    masterflatPath[i] = null;
              }
@@ -8933,9 +8944,9 @@ function cropChannelImagesAutoContinue()
        global.processing_steps = "";
  
        console.noteln("Start extra processing...");
-       gui.updatePreviewId(extra_target_image);
-       if (global.use_preview && !ppar.side_preview_visible && global.mainTabBox != null) {
-             global.mainTabBox.currentPageIndex = 1;
+       guiUpdatePreviewId(extra_target_image);
+       if (gui) {
+            gui.resetCurrentPageIndex();
        }
  
        extraProcessing(parent, extra_target_image, true);
@@ -9023,8 +9034,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        is_luminance_images = false;
        var stars_id = null;
  
-       if (global.use_preview && !ppar.side_preview_visible && global.mainTabBox != null) {
-             global.mainTabBox.currentPageIndex = 1;
+       if (gui) {
+            gui.resetCurrentPageIndex();
        }
  
        console.noteln("--------------------------------------");
@@ -9049,7 +9060,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        console.noteln("--------------------------------------");
        util.addProcessingStepAndStatusInfo("Start processing...");
  
-       gui.close_undo_images(parent);
+       if (gui) {
+            gui.close_undo_images(parent);
+       }
  
        targetTypeSetup();
        checkOptions();
@@ -9099,7 +9112,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              // We have a final image, just run run possible extra processing steps
              do_extra_processing = true;
              LRGB_ABE_HT_id = final_win.mainView.id;
-             gui.updatePreviewId(LRGB_ABE_HT_id);
+             guiUpdatePreviewId(LRGB_ABE_HT_id);
        } else if (!par.image_weight_testing.val 
                   && !par.debayer_only.val 
                   && !par.binning_only.val
@@ -9159,7 +9172,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              if (par.monochrome_image.val) {
                    console.writeln("monochrome image, rename windows")
                    LRGB_ABE_HT_id = util.windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
-                   gui.updatePreviewId(LRGB_ABE_HT_id);
+                   guiUpdatePreviewId(LRGB_ABE_HT_id);
  
              } else if (!par.channelcombination_only.val) {
  
@@ -9252,7 +9265,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          /* Color or narrowband or RGB files */
                          LRGB_ABE_HT_id = util.windowRename(LRGB_ABE_HT_id, ppar.win_prefix + "AutoRGB");
                    }
-                   gui.updatePreviewId(LRGB_ABE_HT_id);
+                   guiUpdatePreviewId(LRGB_ABE_HT_id);
              }
              if (stars_id != null) {
                    console.writeln("Stars image is " + stars_id);
@@ -9284,7 +9297,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              extraProcessing(parent, LRGB_ABE_HT_id, false);
        }
  
-       engine.ensureDialogFilePath("processed files");
+       util.ensureDialogFilePath("processed files");
  
        if (crop_lowClipImage_changed) {
              saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
@@ -9454,7 +9467,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              if (par.win_prefix_to_log_files.val) {
                    json_file = ppar.win_prefix + json_file;
              }
-             gui.saveJsonFileEx(parent, true, json_file);
+             util.saveJsonFileEx(parent, true, json_file);
        }
        if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
              engine.writeProcessingSteps(alignedFiles, auto_continue, null);

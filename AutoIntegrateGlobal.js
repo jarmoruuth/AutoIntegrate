@@ -38,7 +38,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.53";                // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.54 test1";          // Version, also updated into updates.xri
 this.autointegrate_info = "Save processed channel images.";        // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -47,10 +47,7 @@ this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 this.processingDate = null;
 
 // GUI variables
-this.mainTabBox = null                  // For switching to preview tab
 this.tabStatusInfoLabel = null;         // For update processing status
-this.sidePreviewControl = null;         // For updating preview window
-this.sidePreviewInfoLabel = null;       // For updating preview info text
 this.sideStatusInfoLabel = null;        // For update processing status
 
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
