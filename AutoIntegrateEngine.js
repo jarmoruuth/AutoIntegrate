@@ -7936,11 +7936,15 @@ this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
       util.addProcessingStep("Narrowband palette batch completed");
 }
 
-function findStarImageIdEx(starless_id, stars_id)
+function findStarImageIdEx(starless_id, stars_id, use_re)
 {
       if (stars_id != starless_id) {
             console.writeln("findStarImageId try " + stars_id)
-            var w = util.findWindow(stars_id);
+            if (use_re) {
+                  var w = util.findWindowRe(stars_id);
+            } else {
+                  var w = util.findWindow(stars_id);
+            }
             if (w != null) {
                   return w.mainView.id;
             }
@@ -7951,30 +7955,30 @@ function findStarImageIdEx(starless_id, stars_id)
 function findStarImageId(starless_id, original_id)
 {
       console.noteln("Try to find stars image for starless image " + starless_id)
-      var stars_id = findStarImageIdEx(starless_id, starless_id.replace("starless", "stars"));
+      var stars_id = findStarImageIdEx(starless_id, starless_id.replace("starless", "stars"), false);
       if (stars_id != null) {
             return stars_id;
       }
-      stars_id = findStarImageIdEx(starless_id, starless_id + "_stars");
+      stars_id = findStarImageIdEx(starless_id, starless_id + "_stars", false);
       if (stars_id != null) {
             return stars_id;
       }
-      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless_edit[1-9]*/g, "stars"));
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless_edit[1-9]*/g, "stars"), false);
       if (stars_id != null) {
             return stars_id;
       }
-      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless$/g, "stars"));
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless$/g, "stars"), false);
       if (stars_id != null) {
             return stars_id;
       }
-      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless.*/g, "stars"));
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless.*/g, "stars"), false);
       if (stars_id != null) {
             return stars_id;
       }
       const find_id = starless_id.replace(/starless.*/g, "stars");
       if (find_id != starless_id) {
             const re = new RegExp(find_id + ".*");
-            stars_id = findStarImageIdEx(starless_id, re);
+            stars_id = findStarImageIdEx(starless_id, re, true);
             if (stars_id != null) {
                   return stars_id;
             }

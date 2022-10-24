@@ -228,7 +228,27 @@ this.findWindow = function(id)
       for (var i in images) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
-                && images[i].mainView.id.match(id))
+                && images[i].mainView.id == id)
+            {
+               return images[i];
+            }
+      }
+      return null;
+}
+
+this.findWindowRe = function(re)
+{
+      if (re == null || re == undefined) {
+            return null;
+      }
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return null;
+      }
+      for (var i in images) {
+            if (images[i].mainView != null
+                && images[i].mainView != undefined
+                && images[i].mainView.id.match(re))
             {
                return images[i];
             }
@@ -424,7 +444,10 @@ this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate
       if (old_name == new_name) {
             return new_name;
       }
-      var w = ImageWindow.windowById(old_name);
+      var w = util.findWindow(old_name);
+      if (!w) {
+            util.throwFatalError("Could not find image " + old_name + " for rename");
+      }
       w.mainView.id = new_name;
       if (!keepif) {
             util.addScriptWindow(new_name);
