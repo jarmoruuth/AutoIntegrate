@@ -228,7 +228,7 @@ this.findWindow = function(id)
       for (var i in images) {
             if (images[i].mainView != null
                 && images[i].mainView != undefined
-                && images[i].mainView.id == id) 
+                && images[i].mainView.id.match(id))
             {
                return images[i];
             }

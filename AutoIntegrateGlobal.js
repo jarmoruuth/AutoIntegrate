@@ -38,8 +38,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.54 test2";          // Version, also updated into updates.xri
-this.autointegrate_info = "Save processed channel images.";        // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.54 test2";               // Version, also updated into updates.xri
+this.autointegrate_info = "Code reorganization, banding reduction.";    // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -134,6 +134,7 @@ this.par = {
       use_processed_files: { val: false, def: false, name: "Use processed files", type: 'B' },
 
       // Narrowband processing
+      narrowband_mapping: { val: 'SHO', def: 'SHO', name : "Narrowband mapping", type : 'S' },
       custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
       custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
       custom_B_mapping: { val: 'O', def: 'O', name : "Narrowband B mapping", type : 'S' },
@@ -389,8 +390,10 @@ this.start_images = {
     RGB_COLOR : 6,
     L_R_G_B_PROCESSED : 7,
     L_R_G_B : 8,
-    FINAL : 9,
-    CALIBRATE_ONLY : 10
+    L_RGB : 9,
+    RGB : 10,
+    FINAL : 11,
+    CALIBRATE_ONLY : 12
 };
 
 // known window names
@@ -415,7 +418,7 @@ this.integration_processed_channel_windows = [
 ];
 
 this.integration_color_windows = [
-      "Integration_RGBcolor"
+      "Integration_RGB_color"
 ];
 
 this.integration_crop_windows = [
@@ -428,6 +431,9 @@ this.fixed_windows = [
       "Mapping_G",
       "Mapping_B",
       "Integration_RGB",
+      // "Integration_RGB_narrowband",
+      // "Integration_L_start",
+      // "Integration_RGB_start",
       "Integration_L_crop",
       "Integration_L_ABE",
       "Integration_R_ABE",
@@ -439,7 +445,6 @@ this.fixed_windows = [
       "Integration_G_BE",
       "Integration_B_BE",
       "Integration_RGB_BE",
-      "Integration_RGB_ABE_NB",
       "Integration_L_ABE_HT",
       "Integration_RGB_ABE_HT",
       "Integration_L_BE_HT",
@@ -465,8 +470,8 @@ this.fixed_windows = [
       "copy_Integration_LRGB_noABE_HT",
       "Integration_LRGB_noABE_NB_HT",
       "copy_Integration_LRGB_noABE_NB_HT",
-      "L_BE_HT",
-      "RGB_BE_HT",
+      // "L_BE_HT",
+      // "RGB_BE_HT",
       "AutoMask",
       "AutoStarMask",
       "AutoStarFixMask",

@@ -85,7 +85,7 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic', 'Histogram stretch' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Hyperbolic', 'Histogram stretch'];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -2513,10 +2513,13 @@ function newAutoContinueButton(parent, toolbutton)
             "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
             "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
             "<li>Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images</li>" +
-            "<li>Integration_RGBcolor - Integrated Color image</li>" +
+            "<li>Integration_RGB_color - Integrated Color RGB image</li>" +
+            "<li>Integration_RGB_narrowband - Integrated narrowband RGB image</li>" +
             "<li>Integration_<i>channel</i>_processed - <i>channel</i> can be LRGBHSO</li>" +
             "<li>Integration_H + Integration_S + Integration_O - Integrated channel images</li>" +
             "<li>Integration_L + Integration_R + Integration_G + Integration_B - Integrated channel images</li>" +
+            "<li>Integration_L_start + Integration_RGB_start - Integrated L and RGB image</li>" +
+            "<li>Integration_RGB_start - Integrated RGB image</li>" +
             "</ol>" +
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
@@ -3773,8 +3776,9 @@ function AutoIntegrateDialog()
       this.STFSizer.toolTip = this.STFLabel.toolTip;
       this.STFSizer.add( this.STFLabel );
       this.STFSizer.add( this.STFComboBox );
+      this.STFSizer.addStretch()
 
-      this.STFTargetBackgroundControl = newNumericControl(this, "STF targetBackground", par.STF_targetBackground, 0, 1,
+      this.STFTargetBackgroundControl = newNumericControl(this, "Auto STF targetBackground", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>");
 
       /* Masked.
@@ -4035,6 +4039,9 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
       for (var i = 0; i < global.narrowBandPalettes.length; i++) {
             this.narrowbandCustomPalette_ComboBox.addItem( global.narrowBandPalettes[i].name );
+            if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
+                  this.narrowbandCustomPalette_ComboBox.currentItem = i;
+            }
       }
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
@@ -4050,6 +4057,7 @@ function AutoIntegrateDialog()
             this.dialog.narrowbandCustomPalette_G_ComboBox.editText = global.narrowBandPalettes[itemIndex].G;
             this.dialog.narrowbandCustomPalette_B_ComboBox.editText = global.narrowBandPalettes[itemIndex].B;
 
+            par.narrowband_mapping.val = global.narrowBandPalettes[itemIndex].name;
             par.custom_R_mapping.val = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
             par.custom_G_mapping.val = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
             par.custom_B_mapping.val = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;

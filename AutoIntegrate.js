@@ -121,7 +121,7 @@ Steps with color files
 
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
-   After this step there is Integration_RGBcolor image.
+   After this step there is Integration_RGB_color image.
 2. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
    If use_background_neutralization is selected then BackgroundNeutralization is run before
    color calibration.
