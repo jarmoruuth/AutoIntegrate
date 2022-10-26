@@ -813,7 +813,7 @@ function lightsOptions(parent)
                       "<p>Auto option tries to recognize debayer pattern from image metadata.</p>" +
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
-      var debayerCombobox = newComboBox(parent, par.debayerPattern, global.debayerPattern_values, debayerLabel.toolTip);
+      var debayerCombobox = newComboBox(parent, par.debayer_pattern, global.debayerPattern_values, debayerLabel.toolTip);
       parent.rootingArr.push(debayerCombobox);
 
       var extractChannelsLabel = new Label( parent );

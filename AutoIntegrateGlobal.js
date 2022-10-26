@@ -16,6 +16,10 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#include <pjsr/ColorSpace.jsh>
+#include <pjsr/UndoFlag.jsh>
+#include <pjsr/DataType.jsh>
+
 #define SETTINGSKEY "AutoIntegrate"
 
 /*
@@ -38,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.54 test3";               // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.54 test4";               // Version, also updated into updates.xri
 this.autointegrate_info = "Code reorganization, banding reduction.";    // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -276,7 +280,7 @@ this.par = {
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
 
       // Calibration settings
-      debayerPattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
+      debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
       banding_reduction: { val: false, def: false, name : "Banding reduction", type : 'B' },
       banding_reduction_protect_highlights: { val: false, def: false, name : "Banding reduction protect highlights", type : 'B' },
       banding_reduction_amount: { val: 1, def: 1, name : "Banding reduction amount", type : 'R' },

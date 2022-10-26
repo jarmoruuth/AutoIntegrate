@@ -766,6 +766,11 @@ function treeboxfilesToFilenames(treeboxfiles)
       return filenames;
 }
 
+/* openImageFiles
+
+Function to open image files, or Json file.      
+
+*/
 this.openImageFiles = function(filetype, lights_only, json_only)
 {
       var ofd = new OpenFileDialog;
@@ -1120,8 +1125,8 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       var P = new ImageCalibration;
       P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
-      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       P.masterBiasEnabled = true;
       P.masterBiasPath = matchMasterToImages(P.targetFrames, masterbiasPath);
       P.masterDarkEnabled = false;
@@ -1147,8 +1152,8 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
-      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       if (masterflatdarkPath != null) {
             console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
             P.masterBiasEnabled = true;
@@ -1234,8 +1239,8 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
-      P.enableCFA = is_color_files && par.debayerPattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
@@ -1635,7 +1640,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       var P = new CosmeticCorrection;
       P.targetFrames = fileNamesToEnabledPath(fileNames);
       P.overwrite = true;
-      if (color_images && par.debayerPattern.val != 'None') {
+      if (color_images && par.debayer_pattern.val != 'None') {
             P.cfa = true;
       } else {
             P.cfa = false;
@@ -2229,7 +2234,9 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                               first_image = false;
                         }
                   }
-                  guiSetTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
+                  if (gui) {
+                        guiSetTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
+                  }
             }
             if (accept_file) {
                   newFileNames[newFileNames.length] = fileNames[i];
@@ -2483,12 +2490,12 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                         case "TELESCOP":
                               console.writeln("TELESCOP=" +  value);
                               if (pageIndex == global.pages.LIGHTS
-                                  && par.debayerPattern.val == 'Auto'
+                                  && par.debayer_pattern.val == 'Auto'
                                   && value.search(/slooh/i) != -1
                                   && value.search(/T3/) != -1) 
                               {
                                     console.writeln("Set debayer pattern from Auto to None");
-                                    par.debayerPattern.val = 'None';
+                                    par.debayer_pattern.val = 'None';
                               }
                               break;
                         case "NAXIS1":
@@ -5758,7 +5765,7 @@ function debayerImages(fileNames)
       util.addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
 
       var P = new Debayer;
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayerPattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       P.targetItems = fileNamesToEnabledPath(fileNames);
       P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
@@ -6333,7 +6340,7 @@ function CreateChannelImages(parent, auto_continue)
                   filename_postfix = filename_postfix + '_cc';
             }
 
-            if (is_color_files && par.debayerPattern.val != 'None' && !skip_early_steps) {
+            if (is_color_files && par.debayer_pattern.val != 'None' && !skip_early_steps) {
                   /* After cosmetic correction we need to debayer
                    * OSC/RAW images
                    */
@@ -8986,6 +8993,8 @@ function cropChannelImagesAutoContinue()
  */
  this.extraProcessingEngine = function(parent, extra_target_image, extra_narrowband)
  {
+       engineInit();
+
        global.is_processing = true;
 
        narrowband = extra_narrowband;
@@ -9019,15 +9028,56 @@ function cropChannelImagesAutoContinue()
  
        util.runGC();
 }
+
+function engineInit()
+{
+      util.init_pixinsight_version();
+      if (global.AutoOutputDir == null) {
+            util.setDefaultDirs();
+      }
+}
  
 /***************************************************************************
  * 
  *    autointegrateProcessingEngine
  * 
+ * Main processing function for AutoIntegrate.
+ * 
+ * Parameters:
+ * 
+ *          parent
+ *                parent dialog, or null
+ * 
+ *          auto_continue
+ *                if true run autocontinue
+ * 
+ *          autocontinue_narrowband
+ *                if true run autocontinue in narrowband mode
+ * 
+ * Globals used:
+ * 
+ *          global.lightFileNames
+ *                Array if light file names
+ * 
+ *          global.darkFileNames
+ *                Optional array if dark file names for calibrate.
+ * 
+ *          global.biasFileNames
+ *                Optional array if bias file names for calibrate.
+ * 
+ *          global.flatFileNames
+ *                Optional array if flat file names for calibrate.
+ * 
+ *          global.flatdarkFileNames
+ *                Optional array if flat dark file names for calibrate.
+ * 
+ *          global.par.*
+ *                Processing parameters.
+ * 
  */
 this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband)
 {
-       if (global.extra_target_image != "Auto") {
+       if (global.extra_target_image != "Auto" && global.extra_target_image != null) {
              console.criticalln("Extra processing target image can be used only with Apply button!");
              return false;
        }
@@ -9078,6 +9128,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        console.beginLog();
        console.show();
+
+       engineInit();
  
        global.processingDate = new Date;
        global.processing_steps = "";

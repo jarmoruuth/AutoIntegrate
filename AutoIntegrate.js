@@ -312,12 +312,7 @@ var ppar = global.ppar;
  */
 function init_pixinsight_version()
 {
-      global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                                      CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
-      global.pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
-                                      CoreApplication.versionMinor * 1e4 + 
-                                      CoreApplication.versionRelease * 1e2 + 
-                                      CoreApplication.versionRevision;
+      util.init_pixinsight_version();
 }
 
 function readPersistentSettings()
