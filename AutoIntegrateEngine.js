@@ -4568,9 +4568,13 @@ function runHistogramTransformArcsinhStretch(ABE_win)
       }
 }
 
-function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
+function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS)
 {
-      util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching");
+      if (use_GHS) {
+            util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching process");
+      } else {
+            util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching PixelMath formulas");
+      }
       console.writeln("Start values D = " + par.Hyperbolic_D.val + ", b = " + par.Hyperbolic_b.val + ", SP = " + par.Hyperbolic_SP.val);
 
       var res = { 
@@ -4586,7 +4590,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor)
 
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
-            var window_updated = runHistogramTransformHyperbolic(res, iscolor);
+            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS);
             if (window_updated) {
                   guiUpdatePreviewWin(res.win);
             }
@@ -4876,7 +4880,7 @@ function stretchHistogramTransform(res, channel)
       return window_updated;
 }
 
-function runHistogramTransformHyperbolic(res, iscolor)
+function runHistogramTransformHyperbolic(res, iscolor, use_GHS)
 {
       var iteration_number = res.iteration_number;
       var image_id = res.win.mainView.id;
@@ -4888,8 +4892,12 @@ function runHistogramTransformHyperbolic(res, iscolor)
       var iteration_Hyperbolic_D_val = res.Hyperbolic_D_val - (iteration_number - 1) / 2;
       var Hyperbolic_b_val = res.Hyperbolic_b_val;
 
-      /* expect D to be ln(D+1) as in GeneralizedHyperbolicStretch script. */
-      var Hyperbolic_D_val = Math.exp(iteration_Hyperbolic_D_val) - 1.0;
+      if (use_GHS) {
+            var Hyperbolic_D_val = iteration_Hyperbolic_D_val;
+      } else {
+            /* expect D to be ln(D+1) as in GeneralizedHyperbolicStretch script. */
+            var Hyperbolic_D_val = Math.exp(iteration_Hyperbolic_D_val) - 1.0;
+      }
 
       console.writeln("D " + res.Hyperbolic_D_val + 
                       " b " + res.Hyperbolic_b_val +
@@ -4922,62 +4930,97 @@ function runHistogramTransformHyperbolic(res, iscolor)
             return false;
       }
 
-      var P = new PixelMath;
+      if (use_GHS) {
 
-      var expression = 
-            "Ds=D*b;\n"+
-            "q0=(1+Ds*SP)^(-1/b);\n"+
-            "q1=2-2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-SP-1))^(-1/b);\n"+
-            "iif($T<SP,"+
-                  "(1+Ds*(SP-$T))^(-1/b)-q0, "+
-                  "iif($T>1.0, "+
-                        "2-(2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-$T-SP))^(-1/b))-q0, "+
-                        "2-(1+Ds*($T-SP))^(-1/b)-q0)) / (q1-q0);\n";
-      var symbols = 
-            "D = " + Hyperbolic_D_val + ";\n" +
-            "b = " + Hyperbolic_b_val + ";\n" +
-            "SP = " + Hyperbolic_SP_val + ";\n" +
-            "q0;\n" +
-            "q1;\n" +
-            "Ds;\n";
+            try {
+                  var new_win = util.copyWindow(res.win, res.win.mainView.id + "_GHStmp");
 
-      P.expression = expression;
-      P.expression1 = "";
-      P.expression2 = "";
-      P.expression3 = "";
-      P.symbols = symbols;
-      P.useSingleExpression = true;
+                  var P = new GeneralizedHyperbolicStretch;
+                  P.stretchType = GeneralizedHyperbolicStretch.prototype.ST_GeneralisedHyperbolic;
+                  P.stretchChannel = GeneralizedHyperbolicStretch.prototype.SC_RGB;
+                  P.inverse = false;
+                  P.stretchFactor = Hyperbolic_D_val;
+                  P.localIntensity = Hyperbolic_b_val;
+                  P.symmetryPoint = Hyperbolic_SP_val;
+                  P.highlightProtection = 1.000000;
+                  P.shadowProtection = 0.000000;
+                  P.blackPoint = 0.000000;
+                  P.whitePoint = 1.000000;
+                  P.colourBlend = 1.000;
+                  P.clipType = GeneralizedHyperbolicStretch.prototype.CT_Clip;
+                  P.useRGBWorkingSpace = false;
 
-      P.clearImageCacheAndExit = false;
-      P.cacheGeneratedImages = false;
-      P.generateOutput = true;
-      P.singleThreaded = false;
-      P.optimization = true;
-      P.use64BitWorkingImage = false;
-      P.rescale = false;
-      P.rescaleLower = 0;
-      P.rescaleUpper = 1;
-      P.truncate = true;
-      P.truncateLower = 0;
-      P.truncateUpper = 1;
-      P.createNewImage = true;
-      P.showNewImage = true;
-      P.newImageId = image_id + "_pm";
-      P.newImageWidth = 0;
-      P.newImageHeight = 0;
-      P.newImageAlpha = false;
-      P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-      P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+                  new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      console.writeln("Symbols " + P.symbols);
+                  P.executeOn(new_win.mainView);
 
-      res.win.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  new_win.mainView.endProcess();
+            } catch(err) {
+                  console.criticalln("GeneralizedHyperbolicStretch failed");
+                  console.criticalln(err);
+                  util.addProcessingStep("Maybe GeneralizedHyperbolicStretch is not installed");
+                  util.closeOneWindow(new_win.mainView.id);
+                  util.throwFatalError("GeneralizedHyperbolicStretch failed to run");
+            }
+      
+      } else {
+            var P = new PixelMath;
 
-      P.executeOn(res.win.mainView);
+            var expression = 
+                  "Ds=D*b;\n"+
+                  "q0=(1+Ds*SP)^(-1/b);\n"+
+                  "q1=2-2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-SP-1))^(-1/b);\n"+
+                  "iif($T<SP,"+
+                        "(1+Ds*(SP-$T))^(-1/b)-q0, "+
+                        "iif($T>1.0, "+
+                              "2-(2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-$T-SP))^(-1/b))-q0, "+
+                              "2-(1+Ds*($T-SP))^(-1/b)-q0)) / (q1-q0);\n";
+            var symbols = 
+                  "D = " + Hyperbolic_D_val + ";\n" +
+                  "b = " + Hyperbolic_b_val + ";\n" +
+                  "SP = " + Hyperbolic_SP_val + ";\n" +
+                  "q0;\n" +
+                  "q1;\n" +
+                  "Ds;\n";
 
-      res.win.mainView.endProcess();
+            P.expression = expression;
+            P.expression1 = "";
+            P.expression2 = "";
+            P.expression3 = "";
+            P.symbols = symbols;
+            P.useSingleExpression = true;
 
-      var new_win = util.findWindow(P.newImageId);
+            P.clearImageCacheAndExit = false;
+            P.cacheGeneratedImages = false;
+            P.generateOutput = true;
+            P.singleThreaded = false;
+            P.optimization = true;
+            P.use64BitWorkingImage = false;
+            P.rescale = false;
+            P.rescaleLower = 0;
+            P.rescaleUpper = 1;
+            P.truncate = true;
+            P.truncateLower = 0;
+            P.truncateUpper = 1;
+            P.createNewImage = true;
+            P.showNewImage = true;
+            P.newImageId = image_id + "_pm";
+            P.newImageWidth = 0;
+            P.newImageHeight = 0;
+            P.newImageAlpha = false;
+            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+            console.writeln("Symbols " + P.symbols);
+
+            res.win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+            P.executeOn(res.win.mainView);
+
+            res.win.mainView.endProcess();
+
+            var new_win = util.findWindow(P.newImageId);
+      }
 
       // util.copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
 
@@ -4990,16 +5033,16 @@ function runHistogramTransformHyperbolic(res, iscolor)
       if (median >= 0.5) {
             // We are past the median limit value, ignore this iteration and keep old image
             console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
-            util.closeOneWindow(P.newImageId);
+            util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
             // We are past the target value, ignore this iteration and keep old image
             console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            util.closeOneWindow(P.newImageId);
+            util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val < res.peak_val) {
             console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
-            util.closeOneWindow(P.newImageId);
+            util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else {
             // we are close enough, we are done
@@ -5011,7 +5054,7 @@ function runHistogramTransformHyperbolic(res, iscolor)
             // close old image
             util.closeOneWindow(image_id);
             // rename new as old
-            util.windowRename(P.newImageId, image_id);
+            util.windowRename(new_win.mainView.id, image_id);
             res.win = new_win;
             res.peak_val = peak_val;
       }
@@ -5049,8 +5092,11 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             runHistogramTransformArcsinhStretch(ABE_win);
 
       } else if (image_stretching == 'Hyperbolic') {
-            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor);
-            
+            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor, false);
+
+      } else if (image_stretching == 'GHS') {
+            ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor, true);
+
       } else if (image_stretching == 'Histogram stretch') {
             ABE_win = stretchHistogramTransformIterations(ABE_win, iscolor);
             
