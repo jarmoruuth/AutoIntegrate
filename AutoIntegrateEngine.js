@@ -9059,11 +9059,11 @@ function engineInit()
  *          global.lightFileNames
  *                Array if light file names
  * 
- *          global.darkFileNames
- *                Optional array if dark file names for calibrate.
- * 
  *          global.biasFileNames
  *                Optional array if bias file names for calibrate.
+ * 
+ *          global.darkFileNames
+ *                Optional array if dark file names for calibrate.
  * 
  *          global.flatFileNames
  *                Optional array if flat file names for calibrate.
