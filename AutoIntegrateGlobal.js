@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.55 test1";                     // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.55 test2";                     // Version, also updated into updates.xri
 this.autointegrate_info = "Using GeneralizedHyperbolicStretch process.";      // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -101,6 +101,7 @@ this.par = {
       shadow_clip: { val: false, def: false, name : "Shadow clip", type : 'B' },
       force_new_mask: { val: false, def: false, name : "Force new mask", type : 'B' },
       crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
+      unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
@@ -136,6 +137,7 @@ this.par = {
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
       autosave_setup: { val: false, def: false, name: "Autosave setup", type: 'B' },
       use_processed_files: { val: false, def: false, name: "Use processed files", type: 'B' },
+      save_cropped_images: { val: false, def: false, name: "Save cropped images", type: 'B' },
 
       // Narrowband processing
       narrowband_mapping: { val: 'SHO', def: 'SHO', name : "Narrowband mapping", type : 'S' },
@@ -149,7 +151,6 @@ this.par = {
       remove_stars_before_stretch: { val: false, def: false, name : "Remove stars early", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
       remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
-      unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
 
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -235,6 +236,7 @@ this.par = {
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
       leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
       run_narrowband_SCNR: { val: false, def: false, name : "Extra narrowband remove green", type : 'B' },
+      remove_magenta_color: { val: false, def: false, name : "Extra remove magenta color", type : 'B' },
       fix_narrowband_star_color: { val: false, def: false, name : "Extra narrowband fix star colors", type : 'B' },
       skip_star_fix_mask: { val: false, def: false, name : "Extra narrowband no star mask", type : 'B' },
 

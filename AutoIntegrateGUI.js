@@ -3299,6 +3299,7 @@ function AutoIntegrateDialog()
             "then star alignment reference image and possible defect info is saved.</p>" +
             "<p>With image calibration it is possible to use previously generated master files by adding already processed master files " +
             "into calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
+      this.saveCroppedImagesBox = newCheckBox(this, "Save cropped files", par.save_cropped_images, "Save cropped image files with _crop postfix.");
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -3559,6 +3560,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.ManualIconColumnBox );
       this.otherParamsSet2.add( this.AutoSaveSetupBox );
       this.otherParamsSet2.add( this.UseProcessedFilesBox );
+      this.otherParamsSet2.add( this.saveCroppedImagesBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -4373,12 +4375,15 @@ function AutoIntegrateDialog()
             "<p>Run SCNR to remove green cast. Useful with SHO color palette. This is also run with AutoContinue and Extra processing.</p>" );
       this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask, 
             "<p>Do not use star mask when fixing star colors</p>" );
+      this.remove_magenta_color_CheckBox = newCheckBox(this, "Remove magenta color", par.remove_magenta_color, 
+            "<p>Remove magenta color from image.</p>" );
 
       this.narrowbandOptions1_sizer = new VerticalSizer;
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.remove_magenta_color_CheckBox );
       this.narrowbandOptions1_sizer.add( this.fix_narrowband_star_color_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
@@ -5244,8 +5249,9 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.info_Sizer );
       this.buttons_Sizer.addStretch();
-      this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( closeAllPrefixButton );
+      this.buttons_Sizer.addSpacing( 48 );
+      this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( this.autoContinueButton );
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );

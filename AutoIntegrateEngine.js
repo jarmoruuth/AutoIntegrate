@@ -363,7 +363,7 @@ function saveProcessedChannelImage(id, save_id)
       saveProcessedWindow(global.outputRootDir, save_id);
 }
 
-function saveProcessedWindow(path, id)
+function saveProcessedWindow(path, id, optional_save_id)
 {
       if (id == null) {
             return null;
@@ -374,7 +374,7 @@ function saveProcessedWindow(path, id)
       }
       var processedPath = util.combinePath(path, global.AutoProcessedDir);
       util.ensureDir(processedPath);
-      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart());
+      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id);
 }
 
 function saveMasterWindow(path, id)
@@ -7293,18 +7293,21 @@ function invertImage(targetView)
 // Mask used when fixing star colors in narrowband images.
 function createStarFixMask(imgView)
 {
-      if (star_fix_mask_win == null) {
-            star_fix_mask_win = util.findWindow(ppar.win_prefix + "star_fix_mask");
+      if (!par.extra_force_new_mask.val) {
+            if (star_fix_mask_win == null) {
+                  star_fix_mask_win = util.findWindow(ppar.win_prefix + "star_fix_mask");
+            }
+            if (star_fix_mask_win == null) {
+                  star_fix_mask_win = util.findWindow(ppar.win_prefix + "AutoStarFixMask");
+            }
+            if (star_fix_mask_win != null) {
+                  // Use already created start mask
+                  console.writeln("Use existing star mask " + star_fix_mask_win.mainView.id);
+                  star_fix_mask_win_id = star_fix_mask_win.mainView.id;
+                  return;
+            }
       }
-      if (star_fix_mask_win == null) {
-            star_fix_mask_win = util.findWindow(ppar.win_prefix + "AutoStarFixMask");
-      }
-      if (star_fix_mask_win != null) {
-            // Use already created start mask
-            console.writeln("Use existing star mask " + star_fix_mask_win.mainView.id);
-            star_fix_mask_win_id = star_fix_mask_win.mainView.id;
-            return;
-      }
+      util.closeOneWindow("AutoStarFixMask");
 
       var P = new StarMask;
       P.waveletLayers = 8;
@@ -7320,6 +7323,17 @@ function createStarFixMask(imgView)
       star_fix_mask_win_id = star_fix_mask_win.mainView.id;
 
       util.addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
+}
+
+function removeMagentaColor(targetWin)
+{
+      util.addProcessingStepAndStatusInfo("Remove magenta color");
+
+      invertImage(targetWin.mainView);
+      runSCNR(targetWin.mainView, true);
+      invertImage(targetWin.mainView);
+
+      guiUpdatePreviewWin(targetWin);
 }
 
 /* Do a rough fix on magenta stars by inverting the image, applying
@@ -8125,6 +8139,9 @@ function extraProcessing(parent, id, apply_directly)
             if (par.run_narrowband_SCNR.val || par.leave_some_green.val) {
                   runSCNR(extraWin.mainView, false);
             }
+            if (par.remove_magenta_color.val) {
+                  removeMagentaColor(extraWin);
+            }
             if (par.fix_narrowband_star_color.val) {
                   fixNarrowbandStarColor(extraWin);
             }
@@ -8723,6 +8740,17 @@ function CropImageIf(window, truncate_amount)
       crop.executeOn(window.mainView, false);  
       window.mainView.endProcess();
 
+      if (par.save_cropped_images.val) {
+            var win_id = window.mainView.id;
+            if (win_id.endsWith("_map")) {
+                  var crop_id = win_id.replace(/_map$/, "_crop");
+            } else {
+                  var crop_id = win_id + "_crop";
+            }
+            console.writeln("Save cropped image " + win_id + " as " + crop_id);
+            saveProcessedWindow(global.outputRootDir, win_id, crop_id);
+      }
+
       return true;
 }
 
@@ -8778,7 +8806,7 @@ function calculate_crop_amount(window_id, crop_auto_continue)
       return truncate_amount;
 }
 
-// Find the crop area and cop all channel images
+// Find the crop area and crop all channel images
 function cropChannelImages()
 {
       util.addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area");

@@ -669,13 +669,13 @@ this.combinePath = function(p1, p2)
       }
 }
 
-this.saveWindowEx = function(path, id, optional_unique_part, save_id)
+this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id)
 {
       if (path == null || id == null) {
             return null;
       }
-      if (save_id) {
-            var fname = path + save_id + optional_unique_part + ".xisf";
+      if (optional_save_id) {
+            var fname = path + optional_save_id + optional_unique_part + ".xisf";
             console.writeln("saveWindowEx " + id + " as " + fname);
       } else {
             var fname = path + id + optional_unique_part + ".xisf";
@@ -921,7 +921,8 @@ this.is_narrowband_option = function()
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_narrowband_SCNR.val ||
-             par.leave_some_green.val;
+             par.leave_some_green.val ||
+             par.remove_magenta_color.val;
 }
 
 this.mapBadChars = function(str)
