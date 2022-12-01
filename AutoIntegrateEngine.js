@@ -4226,9 +4226,14 @@ function runImageIntegrationForCrop(images)
 function noABEcopyWin(win)
 {
       var new_win_id = win.mainView.id;
-      var fix_postfix = "_map";
+      var fix_postfix = "_map_pm";
       if (new_win_id.endsWith(fix_postfix)) {
             new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
+      } else {
+            var fix_postfix = "_map";
+            if (new_win_id.endsWith(fix_postfix)) {
+                  new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
+            }
       }
       var noABE_id = util.ensure_win_prefix(new_win_id + "_noABE");
       util.addProcessingStep("No ABE for " + win.mainView.id);
@@ -5646,7 +5651,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
       }
       logfname = basename + util.getOptionalUniqueFilenamePart() + ".log";
       if (par.win_prefix_to_log_files.val) {
-            logfname = ppar.win_prefix + logfname;
+            logfname = util.ensure_win_prefix(logfname);
       }
 
       if (!global.write_processing_log_file) {
@@ -5698,7 +5703,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
 // Find window and optionally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
-      var win = util.findWindow(ppar.win_prefix + id);
+      var win = util.findWindow(util.ensure_win_prefix(id));
       if (win == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
@@ -5711,7 +5716,7 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 // Find window id and optionally search without a prefix
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
-      var id = util.findWindowId(ppar.win_prefix + name);
+      var id = util.findWindowId(util.ensure_win_prefix(name));
       if (id == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
@@ -6908,7 +6913,7 @@ function CombineRGBimageEx(target_name, images)
       ];
 
       var model_win = ImageWindow.windowById(images[0]);
-      var rgb_name = ppar.win_prefix + target_name;
+      var rgb_name = util.ensure_win_prefix(target_name);
 
       console.writeln("CombineRGBimageEx, rgb_name " + rgb_name + ", model_win " + images[0]);
 
@@ -9645,7 +9650,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        {
              let json_file = "AutosaveSetup.json";
              if (par.win_prefix_to_log_files.val) {
-                   json_file = ppar.win_prefix + json_file;
+                   json_file = util.ensure_win_prefix(json_file);
              }
              util.saveJsonFileEx(parent, true, json_file);
        }
