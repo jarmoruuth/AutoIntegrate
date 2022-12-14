@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.55 test3";                     // Version, also updated into updates.xri
-this.autointegrate_info = "Using GeneralizedHyperbolicStretch process.";      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.55 test4";                                       // Version, also updated into updates.xri
+this.autointegrate_info = "Using BlurXTerminator, GeneralizedHyperbolicStretch processes.";     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -130,6 +130,7 @@ this.par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
+      use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },

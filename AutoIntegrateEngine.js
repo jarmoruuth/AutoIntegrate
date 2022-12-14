@@ -5277,6 +5277,38 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       imgWin.mainView.endProcess();
 }
 
+function runBlurXTerminator(imgWin)
+{
+      console.writeln("Run BlurXTerminator");
+
+      try {
+            var P = new BlurXTerminator;
+            P.correct_only = false;
+            P.correct_first = false;
+            P.nonstellar_then_stellar = false;
+            P.sharpen_stars = 0.25;
+            P.adjust_halos = 0.00;
+            P.nonstellar_psf_diameter = 0.00;
+            P.auto_nonstellar_psf = true;
+            P.sharpen_nonstellar = 0.90;
+      } catch(err) {
+            console.criticalln("BlurXTerminator failed");
+            console.criticalln(err);
+            console.criticalln("Maybe BlurXTerminator is not installed, AI is missing or platform is not supported");
+            util.throwFatalError("BlurXTerminator failed");
+      }
+
+      console.writeln("runBlurXTerminator on " + imgWin.mainView.id);
+
+      /* Execute on image.
+       */
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+      
+      imgWin.mainView.endProcess();
+}
+
 function runNoiseXTerminator(imgWin, strength, linear)
 {
       switch (strength) {
@@ -7882,8 +7914,12 @@ function extraSharpen(extraWin, mask_win)
 {
       util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
 
-      for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
-            runMultiscaleLinearTransformSharpen(extraWin, mask_win);
+      if (par.use_blurxterminator.val) {
+            runBlurXTerminator(extraWin);
+      } else {
+            for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
+                  runMultiscaleLinearTransformSharpen(extraWin, mask_win);
+            }
       }
       guiUpdatePreviewWin(extraWin);
 }
@@ -9419,6 +9455,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    */
                    if (par.skip_sharpening.val) {
                          console.writeln("No sharpening on " + LRGB_ABE_HT_id);
+                   } else if (par.use_blurxterminator.val) {
+                        runBlurXTerminator(ImageWindow.windowById(LRGB_ABE_HT_id));
                    } else {
                          runMultiscaleLinearTransformSharpen(
                                ImageWindow.windowById(LRGB_ABE_HT_id),

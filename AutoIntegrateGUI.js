@@ -3258,6 +3258,8 @@ function AutoIntegrateDialog()
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
+      this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
+            "<p>Use BlurXTerminator for sharpening.</p>" );
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -3538,6 +3540,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
       this.otherParamsSet1.add( this.use_starnet2_CheckBox );
       this.otherParamsSet1.add( this.use_noisexterminator_CheckBox );
+      this.otherParamsSet1.add( this.use_blurxterminator_CheckBox );
 
       // Other parameters set 2.
       this.otherParamsSet2 = new VerticalSizer;
