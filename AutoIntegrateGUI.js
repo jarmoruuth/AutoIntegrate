@@ -3259,7 +3259,10 @@ function AutoIntegrateDialog()
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
       this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
-            "<p>Use BlurXTerminator for sharpening.</p>" );
+            "<p>Use BlurXTerminator for sharpening.</p>" +
+            "<p>BlurXTerminator is applied on the linear image just before it is stetched to non-linear. Extra processing " +
+            "sharpening option can be used to apply BlurXTerminator on non-linear image.</p>" +
+            "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>");
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -3475,6 +3478,22 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer1 );
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
       //this.noiseReductionGroupBoxSizer.addStretch();
+
+      this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
+
+      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXterminator. To use BlurXterminator you need to check <i>Use BlurXTerminator</i> in <i>Other parameters</i> section.");
+      this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.");
+      this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos.");
+      this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features.");
+
+      this.sharpeningGroupBoxSizer = new HorizontalSizer;
+      this.sharpeningGroupBoxSizer.margin = 6;
+      this.sharpeningGroupBoxSizer.spacing = 4;
+      this.sharpeningGroupBoxSizer.add( this.bxtLabel );
+      this.sharpeningGroupBoxSizer.add( this.bxtSharpenStars );
+      this.sharpeningGroupBoxSizer.add( this.bxtAdjustHalo );
+      this.sharpeningGroupBoxSizer.add( this.bxtSharpenNonstellar );
+      this.sharpeningGroupBoxSizer.addStretch();
 
       this.binningLabel = new Label( this );
       this.binningLabel.text = "Binning";
@@ -4633,7 +4652,8 @@ function AutoIntegrateDialog()
             "<p>Run star noise reduction on star image.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
-                                  "<p>Number of iterations specifies how many times the sharpening is run.</p>";
+                                  "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
+                                  "<p>If BlurXTerminator is used for sharpening then iterations parameter is ignored.</p>";
       this.extra_sharpen_CheckBox = newCheckBox(this, "Sharpening", par.extra_sharpen, extra_sharpen_tooltip);
 
       this.extraSharpenIterationsSpinBox = newSpinBox(this, par.extra_sharpen_iterations, 1, 10, extra_sharpen_tooltip);
@@ -5274,11 +5294,13 @@ function AutoIntegrateDialog()
               this.linearFitGroupBoxSizer,
               this.LRGBCombinationGroupBoxLabel,
               this.LRGBCombinationGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftGroupBox, "Saturation and noise reduction settings", "ps_saturation_noise",
+      newSectionBarAddArray(this, this.leftGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
               this.noiseReductionGroupBoxLabel,
-              this.noiseReductionGroupBoxSizer ]);
+              this.noiseReductionGroupBoxSizer,
+              this.sharpeningGroupBoxLabel,
+              this.sharpeningGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftGroupBox, "Image integration settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer ]);

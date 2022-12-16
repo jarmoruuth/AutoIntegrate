@@ -3557,6 +3557,12 @@ function customMapping(RGBmapping, check_allfilesarr)
                   if (par.remove_stars_before_stretch.val) {
                         util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
                   }
+                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                        /* For now, we support BlurXTerminator only for linear data. For non-linear data
+                         * extra processing option can be used.
+                         */
+                        util.throwFatalError("Narrowband mapping using non-linear data is not compatible with BlurXTerminator");
+                  }
                   for (var i = 0; i < images.length; i++) {
                         runHistogramTransform(util.findWindow(images[i]), null, false, 'RGB');
                   }
@@ -5279,26 +5285,25 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
 
 function runBlurXTerminator(imgWin)
 {
-      console.writeln("Run BlurXTerminator");
+      console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + par.bxt_sharpen_stars.val + 
+                      ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val);
 
       try {
             var P = new BlurXTerminator;
             P.correct_only = false;
             P.correct_first = false;
             P.nonstellar_then_stellar = false;
-            P.sharpen_stars = 0.25;
-            P.adjust_halos = 0.00;
+            P.sharpen_stars = par.bxt_sharpen_stars.val;
+            P.adjust_halos = par.bxt_adjust_halo.val;
             P.nonstellar_psf_diameter = 0.00;
             P.auto_nonstellar_psf = true;
-            P.sharpen_nonstellar = 0.90;
+            P.sharpen_nonstellar = par.bxt_sharpen_nonstellar.val;
       } catch(err) {
             console.criticalln("BlurXTerminator failed");
             console.criticalln(err);
             console.criticalln("Maybe BlurXTerminator is not installed, AI is missing or platform is not supported");
             util.throwFatalError("BlurXTerminator failed");
       }
-
-      console.writeln("runBlurXTerminator on " + imgWin.mainView.id);
 
       /* Execute on image.
        */
@@ -6810,7 +6815,7 @@ function ProcessLimage(RGBmapping)
                         saveProcessedChannelImage(L_ABE_id, luminance_id);
                   }
             }
-            /* On L image run HistogramTransform  to stretch image to non-linear
+            /* On L image run HistogramTransform to stretch image to non-linear
             */
             L_ABE_HT_id = util.ensure_win_prefix(L_ABE_id + "_HT");
             if (!RGBmapping.stretched) {
@@ -6825,7 +6830,10 @@ function ProcessLimage(RGBmapping)
                         // use starless L image as mask
                         LRGBEnsureMask(L_ABE_id);
                   }
-                  var res = runHistogramTransform(
+                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                        runBlurXTerminator(ImageWindow.windowById(L_ABE_id));
+                  }
+                  runHistogramTransform(
                               util.copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
                               false,
@@ -7263,6 +7271,9 @@ function ProcessRGBimage(RGBmapping)
                               ColorEnsureMask(RGB_ABE_id, false, true);
                         }
                   }
+                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                        runBlurXTerminator(ImageWindow.windowById(RGB_ABE_id));
+                  }
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_ABE_HT_id = util.ensure_win_prefix(RGB_ABE_id + "_HT");
@@ -7289,6 +7300,9 @@ function ProcessRGBimage(RGBmapping)
       /* If we have non-stretched stars image stretch it.
        */
       if (RGB_stars_win != null)  {
+            if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                  runBlurXTerminator(RGB_stars_win);
+            }
             let stars_id = RGB_ABE_HT_id + "_stars";
             runHistogramTransform(
                   util.copyWindow(RGB_stars_win, stars_id), 
@@ -9375,7 +9389,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              }
  
              if (!is_color_files && is_luminance_images) {
-                   /* This need to be run early as we create a mask from
+                   /* Process and stretch L image from linear to non-linear.
+                    * This need to be run early as we create a mask from
                     * L image.
                     */
                    LRGBEnsureMask(null);
@@ -9397,6 +9412,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
              } else if (!par.channelcombination_only.val) {
  
+                   /* Process and stretch RGB image from linear to non-linear.
+                    */
                    RGB_ABE_HT_id = ProcessRGBimage(RGBmapping);
  
                    if (par.non_linear_noise_reduction.val) {
@@ -9456,8 +9473,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    if (par.skip_sharpening.val) {
                          console.writeln("No sharpening on " + LRGB_ABE_HT_id);
                    } else if (par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(LRGB_ABE_HT_id));
-                   } else {
+                        /* We have already applied BlurXTerminator on linear image. */
+                  } else {
                          runMultiscaleLinearTransformSharpen(
                                ImageWindow.windowById(LRGB_ABE_HT_id),
                                mask_win);
