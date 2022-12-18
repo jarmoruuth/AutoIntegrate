@@ -4579,9 +4579,9 @@ function runHistogramTransformArcsinhStretch(ABE_win)
       }
 }
 
-function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS)
+function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS_process)
 {
-      if (use_GHS) {
+      if (use_GHS_process) {
             util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching process");
       } else {
             util.addProcessingStepAndStatusInfo("Run histogram transform on " + ABE_win.mainView.id + " using Generalized Hyperbolic Stretching PixelMath formulas");
@@ -4601,7 +4601,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS)
 
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
-            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS);
+            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS_process);
             if (window_updated) {
                   guiUpdatePreviewWin(res.win);
             }
@@ -4891,7 +4891,7 @@ function stretchHistogramTransform(res, channel)
       return window_updated;
 }
 
-function runHistogramTransformHyperbolic(res, iscolor, use_GHS)
+function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process)
 {
       var iteration_number = res.iteration_number;
       var image_id = res.win.mainView.id;
@@ -4903,7 +4903,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS)
       var iteration_Hyperbolic_D_val = res.Hyperbolic_D_val - (iteration_number - 1) / 2;
       var Hyperbolic_b_val = res.Hyperbolic_b_val;
 
-      if (use_GHS) {
+      if (use_GHS_process) {
             var Hyperbolic_D_val = iteration_Hyperbolic_D_val;
       } else {
             /* expect D to be ln(D+1) as in GeneralizedHyperbolicStretch script. */
@@ -4941,7 +4941,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS)
             return false;
       }
 
-      if (use_GHS) {
+      if (use_GHS_process) {
 
             try {
                   var new_win = util.copyWindow(res.win, res.win.mainView.id + "_GHStmp");
@@ -5102,10 +5102,10 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(ABE_win);
 
-      } else if (image_stretching == 'Hyperbolic') {
+      } else if (image_stretching == 'Hyperbolic formulas not used') {
             ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor, false);
 
-      } else if (image_stretching == 'GHS') {
+      } else if (image_stretching == 'Hyperbolic') {
             ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
