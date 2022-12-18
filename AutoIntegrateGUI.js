@@ -3259,10 +3259,12 @@ function AutoIntegrateDialog()
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
       this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
-            "<p>Use BlurXTerminator for sharpening.</p>" +
+            "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
             "<p>BlurXTerminator is applied on the linear image just before it is stetched to non-linear. Extra processing " +
-            "sharpening option can be used to apply BlurXTerminator on non-linear image.</p>" +
-            "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>");
+            "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
+            "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>" +
+            "<p>When using BlurXTerminator it is recommended to do noise reduction at non-linear phase " + 
+            "by checking option <i>Non-linear noise reduction</i>.</p>");
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -3481,7 +3483,7 @@ function AutoIntegrateDialog()
 
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
 
-      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXterminator. To use BlurXterminator you need to check <i>Use BlurXTerminator</i> in <i>Other parameters</i> section.");
+      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Other parameters</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.");
       this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos.");
       this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features.");
