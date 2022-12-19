@@ -1388,7 +1388,7 @@ function findBestImageFromTreeBoxFiles(treebox)
       util.addStatusInfo("Finding...");
 
       var checked_files = [];
-      getTreeBoxNodeFileNamesCheckedIf(treebox, checked_files, true);
+      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
 
       // get array of [ filename, weight ]
       var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false);
@@ -1423,7 +1423,7 @@ function findBestImageFromTreeBoxFiles(treebox)
                   } else {
                         console.writeln("Filter " + filter + ", " + filePath + ", SSWEIGHT=" + SSWEIGHT);
                   }
-                  setTreeBoxNodeSsweight(treebox, filePath, SSWEIGHT, "");
+                  setTreeBoxSsweight(treebox, filePath, SSWEIGHT, "");
             }
             if (bestSSWEIGHTindex == -1) {
                   console.noteln("findBestImageFromTreeBoxFiles, no SSWEIGHT for filter " + filter);
@@ -1538,6 +1538,15 @@ function setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
       return false;
 }
 
+function setTreeBoxSsweight(node, filename, ssweight, filename_postfix)
+{
+      if (node.numberOfChildren == 0) {
+            return false;
+      } else {
+            return setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix);
+      }
+}
+
 function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
 {
       if (node.numberOfChildren == 0) {
@@ -1548,6 +1557,13 @@ function getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked)
             for (var i = 0; i < node.numberOfChildren; i++) {
                   getTreeBoxNodeFileNamesCheckedIf(node.child(i), filenames, checked);
             }
+      }
+}
+
+function getTreeBoxFileNamesCheckedIf(node, filenames, checked)
+{
+      if (node.numberOfChildren > 0) {
+            getTreeBoxNodeFileNamesCheckedIf(node, filenames, checked);
       }
 }
 
@@ -1579,7 +1595,7 @@ function getTreeBoxNodeCheckedFileNames(node, filenames)
       }
 }
 
-function findFileFromTreeBox(node, filename)
+function findFileFromTreeBoxNode(node, filename)
 {
       if (node.numberOfChildren == 0) {
             if (node.filename == filename) {
@@ -1587,12 +1603,21 @@ function findFileFromTreeBox(node, filename)
             }
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  if (findFileFromTreeBox(node.child(i), filename)) {
+                  if (findFileFromTreeBoxNode(node.child(i), filename)) {
                         return true;
                   }
             }
       }
       return false;
+}
+
+function findFileFromTreeBox(node, filename)
+{
+      if (node.numberOfChildren == 0) {
+            return false;
+      } else {
+            return findFileFromTreeBoxNode(node, filename);
+      }
 }
 
 function setExpandedTreeBoxNode(node, expanded)
@@ -1623,8 +1648,8 @@ function filterTreeBoxFiles(parent, pageIndex)
       var checked_files = [];
       var unchecked_files = [];
 
-      getTreeBoxNodeFileNamesCheckedIf(treebox, checked_files, true);
-      getTreeBoxNodeFileNamesCheckedIf(treebox, unchecked_files, false);
+      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
 
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
@@ -1760,11 +1785,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                   filternode.setText( 0, filterName +  ' (' + filterFiles[0].filter + ') ' + filterFiles.length + ' files');
                   filternode.nodeData_type = "FrameGroup";
                   filternode.collapsable = true;
-                  filternode.filename = null;
-                  filternode.checked = null;
-                  filternode.best_image = null;
-                  filternode.reference_image = null;
-                  filternode.filter = null;
+                  filternode.filename = "";
 
                   for (var j = 0; j < filterFiles.length; j++) {
                         if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
@@ -1858,7 +1879,7 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
             node.filter = '';
             node.best_image = false;
             node.reference_image = false;
-}
+      }
       files_TreeBox.canUpdate = true;
 }
 
@@ -5454,7 +5475,7 @@ this.setBestImageInTreeBox = setBestImageInTreeBox;
 this.setReferenceImageInTreeBox = setReferenceImageInTreeBox;
 this.addFilesToTreeBox = addFilesToTreeBox;
 this.updateInfoLabel = updateInfoLabel;
-this.setTreeBoxNodeSsweight = setTreeBoxNodeSsweight;
+this.setTreeBoxSsweight = setTreeBoxSsweight;
 this.close_undo_images = close_undo_images;
 this.setParameterDefaults = setParameterDefaults;
 this.update_extra_target_image_window_list = update_extra_target_image_window_list;

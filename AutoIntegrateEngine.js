@@ -217,7 +217,7 @@ var channels = {
 function guiSetTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
 {
       if (gui) {
-            gui.setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix);
+            gui.setTreeBoxSsweight(node, filename, ssweight, filename_postfix);
       }
 }
 
