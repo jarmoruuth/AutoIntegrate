@@ -1760,6 +1760,11 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                   filternode.setText( 0, filterName +  ' (' + filterFiles[0].filter + ') ' + filterFiles.length + ' files');
                   filternode.nodeData_type = "FrameGroup";
                   filternode.collapsable = true;
+                  filternode.filename = null;
+                  filternode.checked = null;
+                  filternode.best_image = null;
+                  filternode.reference_image = null;
+                  filternode.filter = null;
 
                   for (var j = 0; j < filterFiles.length; j++) {
                         if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
