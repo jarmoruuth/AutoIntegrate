@@ -7926,11 +7926,11 @@ function extraUnsharpMask(extraWin, mask_win)
 
 function extraSharpen(extraWin, mask_win)
 {
-      util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
-
       if (par.use_blurxterminator.val) {
+            util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using BlurXTerminator");
             runBlurXTerminator(extraWin);
       } else {
+            util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
             for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
                   runMultiscaleLinearTransformSharpen(extraWin, mask_win);
             }

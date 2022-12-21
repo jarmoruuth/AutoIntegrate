@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Fixes";                          // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.56 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "Processing tab in dialog";       // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -57,6 +57,7 @@ this.sideStatusInfoLabel = null;        // For update processing status
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
+this.use_processing_tab = true;
 this.is_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
