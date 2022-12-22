@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56 test2";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.56 test3";   // Version, also updated into updates.xri
 this.autointegrate_info = "Processing tab in dialog";       // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -95,7 +95,6 @@ this.par = {
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_star_noise_reduction: { val: false, def: false, name : "No star noise reduction", type : 'B' },
-      non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       skip_mask_contrast: { val: false, def: false, name : "No mask contrast", type : 'B' },
       skip_sharpening: { val: false, def: false, name : "No sharpening", type : 'B' },
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
@@ -179,6 +178,8 @@ this.par = {
       O_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
 
       // Processing settings
+      channel_noise_reduction: { val: true, def: true, name : "Channel noise reduction", type : 'B' },
+      non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
       luminance_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on luminance image", type : 'I' },
       combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on combined image", type : 'B' },

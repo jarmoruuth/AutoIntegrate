@@ -3261,13 +3261,79 @@ function mapRGBchannel(images, refimage, mapping, is_luminance)
       return target_image;
 }
 
+function checkNoiseReduction(image, phase)
+{
+      let noise_reduction = false;
+
+      if (par.skip_noise_reduction.val) {
+            console.writeln("checkNoiseReduction, " + image + ", " + phase, ", skip noise_reduction");
+            return false;
+      }
+      switch (image) {
+            case 'L':
+                  if (par.luminance_noise_reduction_strength.val == 0) {
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", luminance_noise_reduction_strength == 0");
+                        return false;
+                  }
+                  switch (phase) {
+                        case 'channel':
+                              noise_reduction = par.channel_noise_reduction.val;
+                              break;
+                        case 'linear':
+                              noise_reduction = par.combined_image_noise_reduction.val;
+                              break;
+                        case 'nonlinear':
+                              noise_reduction = par.non_linear_noise_reduction.val;
+                              break;
+                        default:
+                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
+                  }
+                  break;
+            case 'RGB':
+                  if (par.noise_reduction_strength.val == 0) {
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
+                        return false;
+                  }
+                  switch (phase) {
+                        case 'channel':
+                              noise_reduction = par.channel_noise_reduction.val;
+                              break;
+                        case 'linear':
+                              noise_reduction = par.combined_image_noise_reduction.val;
+                              break;
+                        case 'nonlinear':
+                              noise_reduction = par.non_linear_noise_reduction.val;
+                              break;
+                        default:
+                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
+                  }
+                  break;
+            case 'color':
+                  if (par.noise_reduction_strength.val == 0) {
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
+                        return false;
+                  }
+                  switch (phase) {
+                        case 'linear':
+                              noise_reduction = par.channel_noise_reduction.val || par.combined_image_noise_reduction.val;
+                              break;
+                        case 'nonlinear':
+                              noise_reduction = par.non_linear_noise_reduction.val;
+                              break;
+                        default:
+                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
+                  }
+                  break;
+            default:
+                  util.throwFatalError("checkNoiseReduction bad parameters, image " + image + ", phase " + phase);
+      }
+      console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction " + noise_reduction);
+      return noise_reduction;
+}
+
 function luminanceNoiseReduction(imgWin, maskWin)
 {
-      if (par.skip_noise_reduction.val 
-          || par.luminance_noise_reduction_strength.val == 0
-          || par.non_linear_noise_reduction.val
-          || imgWin == null) 
-      {
+      if (imgWin == null) {
             return;
       }
 
@@ -3291,12 +3357,6 @@ function luminanceNoiseReduction(imgWin, maskWin)
 
 function channelNoiseReduction(image_id)
 {
-      if (par.skip_noise_reduction.val 
-          || par.noise_reduction_strength.val == 0
-          || par.non_linear_noise_reduction.val) 
-      {
-            return;
-      }
       util.addProcessingStepAndStatusInfo("Reduce noise on channel image " + image_id);
 
       var image_win = util.findWindow(image_id);
@@ -3535,7 +3595,7 @@ function customMapping(RGBmapping, check_allfilesarr)
                         var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
                         linearFitArray(refimage, images);
                   }
-                  if (par.noise_reduction_strength.val > 0 && !par.combined_image_noise_reduction.val) {
+                  if (checkNoiseReduction('RGB', 'channel')) {
                         // Do noise reduction after linear fit.
                         for (var i = 0; i < images.length; i++) {
                               channelNoiseReduction(images[i]);
@@ -5384,10 +5444,6 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
 
 function runNoiseReduction(imgWin, maskWin, linear)
 {
-      if (par.skip_noise_reduction.val || par.noise_reduction_strength.val == 0) {
-            return;
-      }
-
       if (par.use_noisexterminator.val) {
             util.addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
       } else {
@@ -6808,8 +6864,10 @@ function ProcessLimage(RGBmapping)
 
             if (preprocessed_images != global.start_images.L_R_G_B_PROCESSED) {
                   if (!RGBmapping.combined && !RGBmapping.channel_noise_reduction) {
-                        /* Noise reduction for L. */
-                        luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                        if (checkNoiseReduction('L', 'channel')) {
+                              /* Noise reduction for L. */
+                              luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                        }
                   }
                   if (L_ABE_id && luminance_id) {
                         saveProcessedChannelImage(L_ABE_id, luminance_id);
@@ -6833,6 +6891,9 @@ function ProcessLimage(RGBmapping)
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
                         runBlurXTerminator(ImageWindow.windowById(L_ABE_id));
                   }
+                  if (checkNoiseReduction('L', 'linear')) {
+                        luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                  }
                   runHistogramTransform(
                               util.copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id), 
                               null,
@@ -6850,12 +6911,15 @@ function ProcessLimage(RGBmapping)
                         LRGBEnsureMaskEx(L_ABE_HT_id, true);
                   }
             } else {
+                  if (checkNoiseReduction('L', 'linear')) {
+                        luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
+                  }
                   util.copyWindow(ImageWindow.windowById(L_ABE_id), L_ABE_HT_id);
             }
 
             L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
       }
-      if (par.non_linear_noise_reduction.val) {
+      if (checkNoiseReduction('L', 'nonlinear')) {
             runNoiseReduction(L_ABE_HT_win, mask_win, false);
       }
 }
@@ -6930,7 +6994,7 @@ function CombineRGBimageEx(target_name, images)
       util.addProcessingStepAndStatusInfo("Combine RGB image");
 
       if (autocontinue_processed_channel_images.image_ids.length == 0) {
-            if (par.noise_reduction_strength.val > 0 && !narrowband && !par.combined_image_noise_reduction.val) {
+            if (checkNoiseReduction('RGB', 'channel') && !narrowband) {
                   util.addProcessingStep("Noise reduction on channel images");
                   for (var i = 0; i < images.length; i++) {
                         channelNoiseReduction(images[i]);
@@ -7252,16 +7316,6 @@ function ProcessRGBimage(RGBmapping)
                   }
             }
 
-            if ((is_color_files || par.combined_image_noise_reduction.val)
-                && !par.non_linear_noise_reduction.val) 
-            {
-                  /* Optional noise reduction for RGB
-                   */
-                  runNoiseReduction(
-                        ImageWindow.windowById(RGB_ABE_id),
-                        mask_win,
-                        !RGBmapping.stretched);
-            }
             if (!RGBmapping.stretched) {
                   if (par.remove_stars_before_stretch.val) {
                         RGB_stars_win = removeStars(util.findWindow(RGB_ABE_id), true, true, null, null, par.unscreen_stars.val);
@@ -7274,6 +7328,11 @@ function ProcessRGBimage(RGBmapping)
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
                         runBlurXTerminator(ImageWindow.windowById(RGB_ABE_id));
                   }
+                  /* Check noise reduction only after BlurXTerminator. */
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
+                        runNoiseReduction(ImageWindow.windowById(RGB_ABE_id), mask_win, !RGBmapping.stretched);
+                  }
+
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_ABE_HT_id = util.ensure_win_prefix(RGB_ABE_id + "_HT");
@@ -7294,13 +7353,20 @@ function ProcessRGBimage(RGBmapping)
                         }
                   }
             } else {
+                  /* Image is not really linear any more but anyway check for noise reduction. */
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
+                        runNoiseReduction(ImageWindow.windowById(RGB_ABE_id), mask_win, !RGBmapping.stretched);
+                  }
                   RGB_ABE_HT_id = RGB_ABE_id;
+                 
             }
       }
       /* If we have non-stretched stars image stretch it.
        */
       if (RGB_stars_win != null)  {
             if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                  /* Using BlurXTerminator when stars are separated early is not a good idea 
+                   * but we try it anyway. */
                   runBlurXTerminator(RGB_stars_win);
             }
             let stars_id = RGB_ABE_HT_id + "_stars";
@@ -9139,7 +9205,7 @@ function cropChannelImagesAutoContinue()
        console.noteln("Start extra processing...");
        guiUpdatePreviewId(extra_target_image);
        if (gui) {
-            gui.resetCurrentPageIndex();
+            gui.switchtoPreviewTab();
        }
  
        extraProcessing(parent, extra_target_image, true);
@@ -9270,7 +9336,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        var stars_id = null;
  
        if (gui) {
-            gui.resetCurrentPageIndex();
+            gui.switchtoPreviewTab();
        }
  
        console.noteln("--------------------------------------");
@@ -9416,7 +9482,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                     */
                    RGB_ABE_HT_id = ProcessRGBimage(RGBmapping);
  
-                   if (par.non_linear_noise_reduction.val) {
+                   if (checkNoiseReduction('RGB', 'nonlinear')) {
                          runNoiseReduction(ImageWindow.windowById(RGB_ABE_HT_id), mask_win, false);
                    }
        

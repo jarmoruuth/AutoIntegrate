@@ -55,6 +55,7 @@ var mainTabBox = null                  // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 
 var use_tab_preview = true;
+var tab_preview_index = 1;
 var use_side_preview = true;
 var is_some_preview = false;
 var preview_size_changed = false;
@@ -2165,10 +2166,10 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
       imageWindow.viewportPosition = center;
 }
 
-function resetCurrentPageIndex()
+function switchtoPreviewTab()
 {
       if (global.use_preview && !ppar.side_preview_visible && mainTabBox != null) {
-            mainTabBox.currentPageIndex = 1;
+            mainTabBox.currentPageIndex = tab_preview_index;
       }
 }
 
@@ -2243,7 +2244,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               updatePreviewWin(imageWindow);
                               util.updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
-                              resetCurrentPageIndex();
+                              switchtoPreviewTab();
                         }
                         current_selected_file_name = files_TreeBox.currentNode.filename;
                         current_selected_file_filter = files_TreeBox.currentNode.filter;
@@ -3246,8 +3247,6 @@ function AutoIntegrateDialog()
             "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
       this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
-      this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear noise reduction", par.non_linear_noise_reduction, 
-            "<p>Do noise reduction in non-linear state after stretching.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
@@ -3349,7 +3348,6 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.no_sharpening_CheckBox );
       this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.skip_star_noise_reduction_CheckBox );
-      this.imageParamsSet2.add( this.non_linear_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
@@ -3459,8 +3457,12 @@ function AutoIntegrateDialog()
    
       this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
 
+      this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image noise reduction", par.channel_noise_reduction,
+            "<p>Do noise reduction on each color channels and luminance image separately. This option enables also color/OSC image noise reduction.</p>");
       this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction,
-            "<p>Do noise reduction on combined image instead of each color channels separately.</p>" );
+            "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately. This option enables also color/OSC image noise reduction.</p>" );
+      this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear noise reduction", par.non_linear_noise_reduction, 
+            "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
             "<p>Do color noise reduction.</p>" );
 
@@ -3483,8 +3485,9 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer2 = new HorizontalSizer;
       this.noiseReductionGroupBoxSizer2.margin = 2;
       this.noiseReductionGroupBoxSizer2.spacing = 4;
-      this.noiseReductionGroupBoxSizer2.add( this.color_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.combined_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.non_linear_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.addStretch();
 
       this.noiseReductionGroupBoxSizer = new VerticalSizer;
@@ -3492,6 +3495,7 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.spacing = 4;
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer1 );
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
+      this.noiseReductionGroupBoxSizer.add( this.color_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer.addStretch();
 
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
@@ -5420,17 +5424,21 @@ function AutoIntegrateDialog()
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
 
+      let tab_index = 0;
       let tabSizer = new mainSizerTab(this, this.cols);
       this.rootingArr.push(tabSizer);
       this.mainTabBox.addPage( tabSizer, "Settings" );
 
       if (global.use_processing_tab) {
+            tab_index++;
             tabSizer = new mainSizerTab(this, this.processingCols);
             this.rootingArr.push(tabSizer);
             this.mainTabBox.addPage( tabSizer, "Processing" );
       }
 
       if (global.use_preview && use_tab_preview) {
+            tab_index++;
+            tab_preview_index = tab_index;
             tabSizer = new mainSizerTab(this, this.tabPreviewObj.sizer);
             this.rootingArr.push(tabSizer);
             this.mainTabBox.addPage( tabSizer, "Preview" );
@@ -5486,7 +5494,7 @@ this.updateWindowPrefix = updateWindowPrefix;
 this.updateOutputDirEdit = updateOutputDirEdit;
 this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
-this.resetCurrentPageIndex = resetCurrentPageIndex;
+this.switchtoPreviewTab = switchtoPreviewTab;
 
 /* Exported data for testing.
  */
