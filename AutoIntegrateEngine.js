@@ -3576,15 +3576,20 @@ function customMapping(RGBmapping, check_allfilesarr)
                   }
 
                   var narrowband_linear_fit = par.narrowband_linear_fit.val;
-                  if (narrowband_linear_fit == "Auto"
-                  && par.image_stretching.val == 'Auto STF') 
-                  {
+                  if (narrowband_linear_fit == "Auto") {
                         /* By default we do not do linear fit
-                        * if we stretch with STF. If we stretch
-                        * with MaskedStretch we use linear
-                        * fit to balance channels better.
-                        * */
-                        narrowband_linear_fit = "None";
+                         * if we stretch with STF. If we stretch
+                         * with MaskedStretch we use linear
+                         * fit to balance channels better.
+                         */
+                        if (par.image_stretching.val == 'Auto STF'
+                            || par.image_stretching.val == 'Histogram stretch')
+                        {
+                              console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", do not use linear fit.");
+                              narrowband_linear_fit = "None";
+                        } else {
+                              console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", use linear fit.");
+                        }
                   }
                   var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
 
@@ -6877,6 +6882,9 @@ function ProcessLimage(RGBmapping)
             */
             L_ABE_HT_id = util.ensure_win_prefix(L_ABE_id + "_HT");
             if (!RGBmapping.stretched) {
+                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                        runBlurXTerminator(ImageWindow.windowById(L_ABE_id));
+                  }
                   if (par.remove_stars_before_stretch.val) {
                         removeStars(
                               ImageWindow.windowById(L_ABE_id), 
@@ -6887,9 +6895,6 @@ function ProcessLimage(RGBmapping)
                               par.unscreen_stars.val);
                         // use starless L image as mask
                         LRGBEnsureMask(L_ABE_id);
-                  }
-                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(L_ABE_id));
                   }
                   if (checkNoiseReduction('L', 'linear')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_ABE_id), mask_win);
@@ -7364,11 +7369,6 @@ function ProcessRGBimage(RGBmapping)
       /* If we have non-stretched stars image stretch it.
        */
       if (RGB_stars_win != null)  {
-            if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                  /* Using BlurXTerminator when stars are separated early is not a good idea 
-                   * but we try it anyway. */
-                  runBlurXTerminator(RGB_stars_win);
-            }
             let stars_id = RGB_ABE_HT_id + "_stars";
             runHistogramTransform(
                   util.copyWindow(RGB_stars_win, stars_id), 

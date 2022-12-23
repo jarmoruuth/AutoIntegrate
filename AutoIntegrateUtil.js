@@ -354,7 +354,7 @@ this.windowIconizeif = function(id)
                   global.iconPoint = new Point(
                                     -(w.width / 2) + 5 + global.columnCount*300,
                                     -(w.height / 2) + 5 + global.iconStartRow * 32);
-                  console.writeln("Icon " + id + " start from position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
+                  //console.writeln("Icon " + id + " start from position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */

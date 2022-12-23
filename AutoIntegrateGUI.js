@@ -3274,8 +3274,9 @@ function AutoIntegrateDialog()
             "<p>BlurXTerminator is applied on the linear image just before it is stetched to non-linear. Extra processing " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
             "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>" +
-            "<p>When using BlurXTerminator it is recommended to do noise reduction it non-linear phase " + 
-            "by checking option <i>Non-linear noise reduction</i>. But it is always good to experiment what " +
+            "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
+            "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
+            "But it is always good to experiment what " +
             "is best for your own data.</p>");
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
