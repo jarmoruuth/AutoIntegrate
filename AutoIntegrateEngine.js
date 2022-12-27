@@ -7592,7 +7592,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             var P = new HDRMultiscaleTransform;
             P.numberOfLayers = par.extra_HDRMLT_layers.val;
             P.medianTransform = true;
-            P.deringing = true;
+            P.deringing = false;
             P.toLightness = true;
             P.luminanceMask = true;
             if (par.extra_HDRMLT_color.val == 'Preserve hue') {
