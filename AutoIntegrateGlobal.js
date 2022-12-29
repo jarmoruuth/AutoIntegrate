@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56 test5";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.56 test6";   // Version, also updated into updates.xri
 this.autointegrate_info = "Processing tab in dialog";       // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -89,6 +89,7 @@ this.par = {
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
       ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
+      use_ABE_on_L_RGB_stretched: { val: false, def: false, name : "Use ABE on L, RGB stretched", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
@@ -238,6 +239,7 @@ this.par = {
       histogram_shadow_clip: { val: 0.00, def: 0.00, name : "Histogram shadow clip", type : 'I' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
       histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
+      smoothbackground: { val: 0, def: 0, name : "Smooth background", type : 'R' },
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },

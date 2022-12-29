@@ -3162,6 +3162,8 @@ function AutoIntegrateDialog()
             "<p>Use AutomaticBackgroundExtractor on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.useABE_L_RGB_CheckBox = newCheckBox(this, "Use ABE on combined images", par.use_ABE_on_L_RGB, 
             "<p>Use AutomaticBackgroundExtractor on L and RGB images while image is still in linear mode.</p>" );
+      this.useABE_L_RGB_stretched_CheckBox = newCheckBox(this, "Use ABE on stretched images", par.use_ABE_on_L_RGB_stretched, 
+            "<p>Use AutomaticBackgroundExtractor on L and RGB images after they have been stretched to non-linear mode.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
@@ -3356,6 +3358,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.ABE_on_lights_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
+      this.imageParamsSet2.add( this.useABE_L_RGB_stretched_CheckBox );
       this.imageParamsSet2.add( this.use_drizzle_CheckBox );
 
       // Image group par.
@@ -3385,6 +3388,13 @@ function AutoIntegrateDialog()
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
       this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
       this.LRGBCombinationGroupBoxSizer.addStretch();
+
+      this.LRGBCombinationSizer = new VerticalSizer;
+      this.LRGBCombinationSizer.margin = 6;
+      this.LRGBCombinationSizer.spacing = 4;
+      this.LRGBCombinationSizer.add( this.LRGBCombinationGroupBoxLabel );
+      this.LRGBCombinationSizer.add( this.LRGBCombinationGroupBoxSizer );
+      this.LRGBCombinationSizer.addStretch();
 
       // StarAlignment selection
       var starAlignmentValuesToolTip = "<p>If star aligment fails you can try change values. Here is one suggestion of values that might help:<br>" +
@@ -3502,9 +3512,9 @@ function AutoIntegrateDialog()
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
 
       this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Other parameters</i> section.");
-      this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.");
-      this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos.");
-      this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features.");
+      this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
+      this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
+      this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features. Use a value between 0.00 and 1.00.");
 
       this.sharpeningGroupBoxSizer = new HorizontalSizer;
       this.sharpeningGroupBoxSizer.margin = 6;
@@ -3759,6 +3769,19 @@ function AutoIntegrateDialog()
       this.linearFitGroupBoxSizer.add( this.linearFitComboBox );
       this.linearFitGroupBoxSizer.addStretch();
 
+      this.linearFitSizer = new VerticalSizer;
+      this.linearFitSizer.margin = 6;
+      this.linearFitSizer.spacing = 4;
+      this.linearFitSizer.add( this.linearFitGroupBoxLabel );
+      this.linearFitSizer.add( this.linearFitGroupBoxSizer );
+      this.linearFitSizer.addStretch();
+
+      this.linearFitAndLRGBCombinationSizer = new HorizontalSizer;
+      this.linearFitAndLRGBCombinationSizer.spacing = 4;
+      this.linearFitAndLRGBCombinationSizer.add( this.linearFitSizer );
+      this.linearFitAndLRGBCombinationSizer.add( this.LRGBCombinationSizer );
+      this.linearFitAndLRGBCombinationSizer.addStretch();
+
       //
       // Stretching
       //
@@ -3815,20 +3838,22 @@ function AutoIntegrateDialog()
       "</p>";
       this.STFComboBox = newComboBox(this, par.STF_linking, STF_linking_values, this.STFLabel.toolTip);
 
+      this.STFTargetBackgroundControl = newNumericEdit(this, "Auto STF targetBackground", par.STF_targetBackground, 0, 1,
+                                          "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
+                                          "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+
       this.STFSizer = new HorizontalSizer;
       this.STFSizer.spacing = 4;
       this.STFSizer.toolTip = this.STFLabel.toolTip;
+      this.STFSizer.add( this.STFTargetBackgroundControl );
       this.STFSizer.add( this.STFLabel );
       this.STFSizer.add( this.STFComboBox );
       this.STFSizer.addStretch()
 
-      this.STFTargetBackgroundControl = newNumericControl(this, "Auto STF targetBackground", par.STF_targetBackground, 0, 1,
-            "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>");
-
       /* Masked.
        */
-      this.MaskedStretchTargetBackgroundControl = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
-            "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best.</p>");
+      this.MaskedStretchTargetBackgroundEdit = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+            "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
 
       /* Arcsinh.
        */
@@ -3911,7 +3936,9 @@ function AutoIntegrateDialog()
                                           "Percentage of shadows that are clipped with Histogram stretch.", 3);
       this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
-      this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 99, "Target value specifies where we try to get the the value calculated using Target type.");
+      this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 1, 
+            "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
 
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
@@ -3921,6 +3948,28 @@ function AutoIntegrateDialog()
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
       this.histogramStretchingSizer.addStretch();
+
+      var smoothBackgroundTooltipGeneric = 
+            "<p>A limit value specifies below which the smoothing is done. " + 
+            "The value should be selected so that no foreground data is lost.</p>" + 
+            "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
+            "The new pixel values will be slightly higher than the old values.</p>" +
+            "<p>Smoothening can also help ABE to clean up the background better in case of " + 
+            "very uneven background.</p>";
+
+      this.smoothBackgroundEdit = newNumericEdit(this, "Smoothen background %", par.smoothbackground, 0, 100, 
+            "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
+            "smoothing. Smoothing is done after image has been stretched to non-linear " + 
+            "and before optional Use ABE on stretched image is done.</p>" +
+            "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
+            "Zero values does not do smoothing.</p>" +
+            smoothBackgroundTooltipGeneric);
+
+      this.smoothBackgroundSizer = new HorizontalSizer;
+      this.smoothBackgroundSizer.spacing = 4;
+      this.smoothBackgroundSizer.margin = 2;
+      this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
+      this.smoothBackgroundSizer.addStretch();
       
       /* Options.
        */
@@ -3928,8 +3977,7 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
-      this.StretchingOptionsSizer.add( this.STFTargetBackgroundControl );
-      this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundControl );
+      this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundEdit );
       this.StretchingOptionsSizer.add( this.ArcsinhSizer );
       //this.StretchingOptionsSizer.addStretch();
 
@@ -3942,6 +3990,7 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
       this.StretchingOptionsSizer.add( this.hyperbolicSizer );
       this.StretchingOptionsSizer.add( this.histogramStretchingSizer );
+      this.StretchingOptionsSizer.add( this.smoothBackgroundSizer );
       this.StretchingGroupBoxSizer.addStretch();
 
       //
@@ -4616,11 +4665,11 @@ function AutoIntegrateDialog()
       this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
       this.extra_shadowclip_Sizer.addStretch();
 
-      var smoothBackgroundTooltip = "<p>Smoothen background below a given value.</p>" +
-                                    "<p>A limit value can be given below which the smoothing is done. " + 
-                                    "The value should be selected so that no background data is lost.</p>" + 
-                                    "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
-                                    "The new pixel values will be slightly higher than the old values.</p>";
+      var smoothBackgroundTooltip = 
+            "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
+            "from the preview image using a mouse.</p>" +
+            smoothBackgroundTooltipGeneric;
+
       this.extra_smoothBackground_CheckBox = newCheckBox(this, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
       this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 5);
       this.extra_smoothBackground_Sizer = new HorizontalSizer;
@@ -5323,10 +5372,7 @@ function AutoIntegrateDialog()
             [ this.StretchingGroupBoxLabel,
               this.StretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, gb, "Linear fit and LRGB combination settings", "ps_linearfit_combination",
-            [ this.linearFitGroupBoxLabel,
-              this.linearFitGroupBoxSizer,
-              this.LRGBCombinationGroupBoxLabel,
-              this.LRGBCombinationGroupBoxSizer ]);
+            [ this.linearFitAndLRGBCombinationSizer ]);
       newSectionBarAddArray(this, gb, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,

@@ -4306,7 +4306,11 @@ function noABEcopyWin(win)
                   new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
             }
       }
-      var noABE_id = util.ensure_win_prefix(new_win_id + "_noABE");
+      if (par.use_ABE_on_L_RGB_stretched.val) {
+            var noABE_id = util.ensure_win_prefix(new_win_id + "_ABE");
+      } else {
+            var noABE_id = util.ensure_win_prefix(new_win_id + "_noABE");
+      }
       util.addProcessingStep("No ABE for " + win.mainView.id);
       util.addScriptWindow(noABE_id);
       util.copyWindow(win, noABE_id);
@@ -6804,6 +6808,18 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
       console.writeln("ColorEnsureMask done");
 }
 
+function smoothBackgroundAfterStretch(win)
+{
+      if (par.smoothbackground.val == 0) {
+            return;
+      }
+      console.writeln("smoothBackgroundAfterStretch, percentage " + par.smoothbackground.val);
+      var clip = getClipShadowsValue(win, par.smoothbackground.val);
+      var val = clip.normalizedShadowClipping;
+      console.writeln("smoothBackgroundAfterStretch, value " + val);
+      smoothBackground(win, val);
+}
+
 /* Process L image
  *
  * optionally run ABE on L image
@@ -6853,6 +6869,7 @@ function ProcessLimage(RGBmapping)
                               L_ABE_id = noABEcopyWin(L_win);
                         } else if (par.use_ABE_on_L_RGB.val) {
                               // run ABE
+                              console.writeln("ABE L");
                               L_ABE_id = runABE(L_win, false);
                         } else {
                               // no ABE
@@ -6923,6 +6940,11 @@ function ProcessLimage(RGBmapping)
             }
 
             L_ABE_HT_win = ImageWindow.windowById(L_ABE_HT_id);
+      }
+      if (par.use_ABE_on_L_RGB_stretched.val) {
+            console.writeln("ABE L stretched");
+            smoothBackgroundAfterStretch(L_ABE_HT_win);
+            runABE(L_ABE_HT_win, true);
       }
       if (checkNoiseReduction('L', 'nonlinear')) {
             runNoiseReduction(L_ABE_HT_win, mask_win, false);
@@ -7365,6 +7387,11 @@ function ProcessRGBimage(RGBmapping)
                   RGB_ABE_HT_id = RGB_ABE_id;
                  
             }
+      }
+      if (par.use_ABE_on_L_RGB_stretched.val) {
+            console.writeln("ABE RGB stretched");
+            smoothBackgroundAfterStretch(util.findWindow(RGB_ABE_HT_id));
+            runABE(util.findWindow(RGB_ABE_HT_id), true);
       }
       /* If we have non-stretched stars image stretch it.
        */
@@ -7919,13 +7946,18 @@ function extraShadowClipping(win, perc)
       guiUpdatePreviewWin(win);
 }
 
+function smoothBackground(win, val)
+{
+      var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)/2,$T)";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+}
+
 function extraSmoothBackground(win, val)
 {
       util.addProcessingStepAndStatusInfo("Extra background smoothing with value " + val);
 
-      var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)/2,$T)";
-
-      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+      smoothBackground(win, val);
 
       guiUpdatePreviewWin(win);
 }
