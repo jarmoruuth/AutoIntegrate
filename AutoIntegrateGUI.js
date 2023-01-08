@@ -3190,6 +3190,10 @@ function AutoIntegrateDialog()
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
+      this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
+            "<p>Run ColorCalibration using SpectrophotometricColorCalibration. This requires image solving which is done automatically on " + 
+            "Integration_RGB image if it is not already done.</p>" +
+            "<p>SpectrophotometricColorCalibration is run only on RGB images, it is not run on narrowband images.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
       this.batch_mode_CheckBox = newCheckBox(this, "Batch/mosaic mode", par.batch_mode, 
@@ -3355,6 +3359,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
+      this.imageParamsSet2.add( this.use_spcc_CheckBox );
       this.imageParamsSet2.add( this.ABE_on_lights_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
@@ -3852,7 +3857,7 @@ function AutoIntegrateDialog()
 
       /* Masked.
        */
-      this.MaskedStretchTargetBackgroundEdit = newNumericControl(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+      this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
 
       /* Arcsinh.
@@ -5224,6 +5229,9 @@ function AutoIntegrateDialog()
             this.interfaceManualColumnSizer.add( this.columnCountControlComboBox );
             this.interfaceManualColumnSizer.addStretch();
       }
+      this.interfaceSizer2 = new HorizontalSizer;
+      this.interfaceSizer2.margin = 6;
+      this.interfaceSizer2.spacing = 4;
       if (global.use_preview) {
             this.previewToggleButton = new PushButton( this );
             this.previewToggleButton.text = "Toggle side preview";
@@ -5233,12 +5241,16 @@ function AutoIntegrateDialog()
                   toggleSidePreview();
                   this.adjustToContents();
             }
-            this.previewToggleButtonSizer = new HorizontalSizer;
-            this.previewToggleButtonSizer.margin = 6;
-            this.previewToggleButtonSizer.spacing = 4;
-            this.previewToggleButtonSizer.add( this.previewToggleButton );
-            this.previewToggleButtonSizer.addStretch();
+            this.interfaceSizer2.add( this.previewToggleButton );
       }
+      this.interfaceSizer2.addStretch();
+      this.processDefaultsButton = new PushButton( this );
+      this.processDefaultsButton.text = "Print process defaults";
+      this.processDefaultsButton.toolTip = "<p>Print process default values.</p>";
+      this.processDefaultsButton.onClick = function() {
+            engine.getProcessDefaultValues();
+      }
+      this.interfaceSizer2.add( this.processDefaultsButton );
 
       this.interfaceControl = new Control( this );
       this.interfaceControl.sizer = new VerticalSizer;
@@ -5250,9 +5262,8 @@ function AutoIntegrateDialog()
       if (par.use_manual_icon_column.val) {
             this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
       }
-      if (global.use_preview) {
-            this.interfaceControl.sizer.add( this.previewToggleButtonSizer );
-      }
+      this.interfaceControl.sizer.add( this.interfaceSizer2 );
+
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = false;
 
