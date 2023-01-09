@@ -33,6 +33,8 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#include "../AdP/SearchCoordinatesDialog.js"
+
 function AutoIntegrateGUI(global, util, engine)
 {
 
@@ -3015,7 +3017,7 @@ function AutoIntegrateDialog()
 {
        this.__base__ = Dialog;
        this.__base__();
- 
+
       if (ppar.default_preview_size && this.availableScreenRect != undefined) {
             let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.4, this.availableScreenRect.height * 0.4));
             ppar.preview_width = preview_size;
@@ -3193,6 +3195,7 @@ function AutoIntegrateDialog()
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
             "<p>Run ColorCalibration using SpectrophotometricColorCalibration. This requires image solving which is done automatically on " + 
             "Integration_RGB image if it is not already done.</p>" +
+            "<p>If image does not have correct coordinates embedded they can be given in Image solving section in Processing tab.</p>" +
             "<p>SpectrophotometricColorCalibration is run only on RGB images, it is not run on narrowband images.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
@@ -3572,6 +3575,60 @@ function AutoIntegrateDialog()
       this.bandingGroupBoxSizer.add( this.bandingHighlightCheckBox );
       this.bandingGroupBoxSizer.addSpacing( 5 );
       this.bandingGroupBoxSizer.add( this.bandingAmountControl );
+      this.bandingGroupBoxSizer.addStretch();
+
+      this.targetNameLabel = newLabel(this, "Name", "Target name (optional).");
+      this.targetNameEdit = new Edit( this );
+      this.targetNameEdit.toolTip = this.targetNameLabel.toolTip;
+      this.targetNameEdit.text = par.target_name.val;
+      this.targetNameEdit.onTextUpdated = function()
+      {
+            console.writeln("Target name " + this.targetNameEdit.text);
+            par.target_name.val = this.dialog.targetNameEdit.text;
+      };
+
+      this.targetRaDecLabel = newLabel(this, "RA DEC", "<p>Target RA DEC in decimal hours and degrees.</p>" + 
+                                                       "<p>Should be given if target image does not contain coordinates.</p>" +
+                                                       "<p>Search button can be used to search coordinames.</p>");
+      this.targetRaDecEdit = new Edit( this );
+      this.targetRaDecEdit.toolTip = this.targetRaDecLabel.toolTip;
+      this.targetRaDecEdit.text = par.target_radec.val;
+      this.targetRaDecEdit.onTextUpdated = function()
+      {
+            console.writeln("Target RA DEC " + this.targetRaDecEdit.text);
+            par.target_radec.val = this.dialog.targetRaDecEdit.text;
+      };
+
+      this.findTargetCoordinatesButton = new ToolButton(this);
+      this.findTargetCoordinatesButton.text = "Search";
+      this.findTargetCoordinatesButton.icon = this.scaledResource(":/icons/find.png");
+      this.findTargetCoordinatesButton.toolTip = "<p>Search for target coordinates or add coordinates manually.</p>";
+      this.findTargetCoordinatesButton.onClick = function()
+      {
+            let search = new SearchCoordinatesDialog(null, true, true);
+            search.windowTitle = "Search Coordinates";
+            if (search.execute()) {
+                  if (search.object == null) {
+                        console.writeln("Failed to search coordinates");
+                        return;
+                  }
+                  console.writeln("name "+ search.object.name + ", ra " + search.object.posEq.x/15 + ", dec " + search.object.posEq.y);
+                  this.dialog.targetNameEdit.text = search.object.name;
+                  par.target_radec.val = this.dialog.targetRaDecEdit.text;
+                  this.dialog.targetRaDecEdit.text = (search.object.posEq.x/15).toFixed(5) + " " + search.object.posEq.y.toFixed(5);
+                  par.target_radec.val = this.dialog.targetRaDecEdit.text;
+            }
+      };
+   
+      this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
+      this.imageSolvingGroupBoxSizer = new HorizontalSizer;
+      this.imageSolvingGroupBoxSizer.margin = 6;
+      this.imageSolvingGroupBoxSizer.spacing = 4;
+      this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
+      this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
+      this.imageSolvingGroupBoxSizer.add( this.targetRaDecLabel );
+      this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
+      this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
       this.bandingGroupBoxSizer.addStretch();
 
       // Other parameters set 1.
@@ -5239,7 +5296,7 @@ function AutoIntegrateDialog()
                                                "<p>Note that sometimes you need to adjust the screen manually or restart the script.</p>";
             this.previewToggleButton.onClick = function() {
                   toggleSidePreview();
-                  this.adjustToContents();
+                  this.dialog.adjustToContents();
             }
             this.interfaceSizer2.add( this.previewToggleButton );
       }
@@ -5409,7 +5466,10 @@ function AutoIntegrateDialog()
               this.binningGroupBoxLabel,
               this.binningGroupBoxSizer,
               this.cosmeticCorrectionGroupBoxSizer ]);
-      
+      newSectionBarAddArray(this, gb, "Image solving", "ps_imagesolving",
+            [ this.imageSolvingGroupBoxLabel,
+              this.imageSolvingGroupBoxSizer ]);
+        
       if (!ppar.use_single_column) {
             this.leftGroupBox.sizer.addStretch();
       }

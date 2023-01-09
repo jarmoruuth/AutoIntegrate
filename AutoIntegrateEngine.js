@@ -5578,6 +5578,18 @@ function runImageSolver(id)
             
             solver.Init(imgWin);
 
+            if (par.target_radec.val != '') {
+                  let radec = par.target_radec.val.trim().split(/\s+/);
+                  if (radec.length != 2) {
+                        throwFatalError("Incorrect RA DEC value " + par.target_radec.val);
+                  }
+                  solver.metadata.ra = parseFloat(radec[0]) * 15;
+                  solver.metadata.dec = parseFloat(radec[1]);
+                  console.writeln("Using user coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+            } else {
+                  console.writeln("Using image coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+            }
+
             console.writeln("runImageSolver: call SolveImage");
             if (!solver.SolveImage(imgWin)) {
                   console.writeln("runImageSolver: SolveImage failed");
