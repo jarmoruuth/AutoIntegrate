@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56 test8";   // Version, also updated into updates.xri
-this.autointegrate_info = "Processing tab in dialog";       // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.56 test9";         // Version, also updated into updates.xri
+this.autointegrate_info = "SpectrophotometricColorCalibration";   // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -243,6 +243,9 @@ this.par = {
       smoothbackground: { val: 0, def: 0, name : "Smooth background", type : 'R' },
       target_name: { val: '', def: '', name : "Target name", type : 'S' }, 
       target_radec: { val: '', def: '', name : "Target RA/DEC", type : 'S' }, 
+      spcc_detection_scales: { val: 5, def: 5, name : "SPCC detection scales", type : 'I' }, 
+      spcc_noise_scales: { val: 1, def: 1, name : "SPCC noise scales", type : 'I' }, 
+      spcc_min_struct_size: { val: 0, def: 0, name : "SPCC min struct size", type : 'I' }, 
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },

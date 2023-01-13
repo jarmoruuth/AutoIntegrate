@@ -5658,14 +5658,14 @@ function runColorCalibration(imgWin, phase)
                   P.limitMagnitude = 12.00;
                   P.autoLimitMagnitude = true;
                   P.targetSourceCount = 8000;
-                  P.psfStructureLayers = 5;
+                  P.psfStructureLayers = par.spcc_detection_scales.val;
                   P.saturationThreshold = 0.75;
                   P.saturationRelative = true;
                   P.saturationShrinkFactor = 0.10;
-                  P.psfNoiseLayers = 1;
+                  P.psfNoiseLayers = par.spcc_noise_scales.val;
                   P.psfHotPixelFilterRadius = 1;
                   P.psfNoiseReductionFilterRadius = 0;
-                  P.psfMinStructureSize = 0;
+                  P.psfMinStructureSize = par.spcc_min_struct_size.val;
                   P.psfMinSNR = 40.00;
                   P.psfAllowClusteredSources = true;
                   P.psfType = SpectrophotometricColorCalibration.prototype.PSFType_Auto;

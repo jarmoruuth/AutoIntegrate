@@ -3193,6 +3193,7 @@ function AutoIntegrateDialog()
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
+            "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process.</p>" +
             "<p>Run ColorCalibration using SpectrophotometricColorCalibration. This requires image solving which is done automatically on " + 
             "Integration_RGB image if it is not already done.</p>" +
             "<p>If image does not have correct coordinates embedded they can be given in Image solving section in Processing tab.</p>" +
@@ -3629,7 +3630,26 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer.add( this.targetRaDecLabel );
       this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
-      this.bandingGroupBoxSizer.addStretch();
+      this.imageSolvingGroupBoxSizer.addStretch();
+
+      this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
+      this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
+      this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. Can be increased to avoid detecting image artifacts as real stars.");
+      this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
+      this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
+      this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
+
+      this.colorCalibrationGroupBoxLabel = newSectionLabel(this, "Spectrophotometric Color Calibration");
+      this.colorCalibrationGroupBoxSizer = new HorizontalSizer;
+      this.colorCalibrationGroupBoxSizer.margin = 6;
+      this.colorCalibrationGroupBoxSizer.spacing = 4;
+      this.colorCalibrationGroupBoxSizer.add( this.spccDetectionScalesLabel );
+      this.colorCalibrationGroupBoxSizer.add( this.spccDetectionScalesSpinBox );
+      this.colorCalibrationGroupBoxSizer.add( this.spccNoiseScalesLabel );
+      this.colorCalibrationGroupBoxSizer.add( this.spccNoiseScalesSpinBox );
+      this.colorCalibrationGroupBoxSizer.add( this.spccMinStructSizeLabel );
+      this.colorCalibrationGroupBoxSizer.add( this.spccMinStructSizeSpinBox );
+      this.colorCalibrationGroupBoxSizer.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -3917,6 +3937,12 @@ function AutoIntegrateDialog()
       this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
 
+      this.MaskedStretchSizer = new HorizontalSizer;
+      this.MaskedStretchSizer.spacing = 4;
+      this.MaskedStretchSizer.margin = 2;
+      this.MaskedStretchSizer.add( this.MaskedStretchTargetBackgroundEdit );
+      this.MaskedStretchSizer.addStretch();
+      
       /* Arcsinh.
        */
       this.Arcsinh_stretch_factor_Edit = newNumericEdit(this, "Arcsinh Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
@@ -4039,9 +4065,9 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.spacing = 4;
       this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
-      this.StretchingOptionsSizer.add( this.MaskedStretchTargetBackgroundEdit );
+      this.StretchingOptionsSizer.add( this.MaskedStretchSizer );
       this.StretchingOptionsSizer.add( this.ArcsinhSizer );
-      //this.StretchingOptionsSizer.addStretch();
+      this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
       this.StretchingGroupBoxLabel.toolTip = "Settings for stretching linear image image to non-linear.";
@@ -5466,9 +5492,11 @@ function AutoIntegrateDialog()
               this.binningGroupBoxLabel,
               this.binningGroupBoxSizer,
               this.cosmeticCorrectionGroupBoxSizer ]);
-      newSectionBarAddArray(this, gb, "Image solving", "ps_imagesolving",
+      newSectionBarAddArray(this, gb, "Image solving and color calibration", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
-              this.imageSolvingGroupBoxSizer ]);
+              this.imageSolvingGroupBoxSizer,
+              this.colorCalibrationGroupBoxLabel,
+              this.colorCalibrationGroupBoxSizer ]);
         
       if (!ppar.use_single_column) {
             this.leftGroupBox.sizer.addStretch();
