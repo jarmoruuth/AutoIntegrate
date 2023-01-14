@@ -5587,7 +5587,13 @@ function runImageSolver(id)
                   solver.metadata.dec = parseFloat(radec[1]);
                   console.writeln("Using user coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
             } else {
-                  console.writeln("Using image coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+                  console.writeln("Using image metadata coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+            }
+            if (par.target_focal.val != '') {
+                  solver.metadata.focal = parseFloat(par.target_focal.val);
+                  console.writeln("Using user focal length: " + par.target_focal.val);
+            } else {
+                  console.writeln("Using image metadata focal length: " + solver.metadata.focal);
             }
 
             console.writeln("runImageSolver: call SolveImage");

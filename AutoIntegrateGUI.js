@@ -601,6 +601,21 @@ function newLabel(parent, text, tip)
       return lbl;
 }
 
+function newTextEdit(parent, param, tooltip)
+{
+      var edt = new Edit( parent );
+      edt.aiParam = param;
+      edt.onTextUpdated = function(value) { 
+            edt.aiParam.val = value; 
+      };
+      edt.text = edt.aiParam.val;
+      edt.toolTip = tooltip;
+      edt.aiParam.reset = function() {
+            edt.text = edt.aiParam.val;
+      };
+      return edt;
+}
+
 function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision)
 {
       var edt = new NumericEdit( parent );
@@ -1204,32 +1219,6 @@ function addWinPrefix(parent)
             ppar.win_prefix = validateWindowPrefix(windowPrefixComboBox.editText.trim());
             windowPrefixComboBox.editText = ppar.win_prefix;
       };
-
-      /*
-      var edt = new Edit( parent );
-      edt.text = ppar.win_prefix;
-      edt.toolTip = lbl.toolTip;
-      edt.onEditCompleted = function() {
-            ppar.win_prefix = edt.text.trim();
-            if (ppar.win_prefix != last_win_prefix) {
-                  ppar.win_prefix = ppar.win_prefix.replace(/[^A-Za-z0-9]/gi,'_');
-                  ppar.win_prefix = ppar.win_prefix.replace(/_+$/,'');
-                  if (ppar.win_prefix.match(/^\d/)) {
-                        // if user tries to start prefix with a digit, prepend an underscore
-                        ppar.win_prefix = "_" + ppar.win_prefix;
-                  }
-                  if (ppar.win_prefix != "") {
-                        ppar.win_prefix = ppar.win_prefix + "_";
-                  }
-                  util.fixAllWindowArrays(ppar.win_prefix);
-                  last_win_prefix = ppar.win_prefix;
-                  edt.text = ppar.win_prefix;
-
-            }
-
-            console.writeln("addWinPrefix, set winPrefix ", ppar.win_prefix);
-      };
-      */
 
       // Add help button to show known prefixes. Maybe this should be in
       // label and edit box toolTips.
@@ -3579,26 +3568,12 @@ function AutoIntegrateDialog()
       this.bandingGroupBoxSizer.addStretch();
 
       this.targetNameLabel = newLabel(this, "Name", "Target name (optional).");
-      this.targetNameEdit = new Edit( this );
-      this.targetNameEdit.toolTip = this.targetNameLabel.toolTip;
-      this.targetNameEdit.text = par.target_name.val;
-      this.targetNameEdit.onTextUpdated = function()
-      {
-            console.writeln("Target name " + this.targetNameEdit.text);
-            par.target_name.val = this.dialog.targetNameEdit.text;
-      };
+      this.targetNameEdit = newTextEdit(this, par.target_name, this.targetNameLabel.toolTip);
 
       this.targetRaDecLabel = newLabel(this, "RA DEC", "<p>Target RA DEC in decimal hours and degrees.</p>" + 
                                                        "<p>Should be given if target image does not contain coordinates.</p>" +
                                                        "<p>Search button can be used to search coordinames.</p>");
-      this.targetRaDecEdit = new Edit( this );
-      this.targetRaDecEdit.toolTip = this.targetRaDecLabel.toolTip;
-      this.targetRaDecEdit.text = par.target_radec.val;
-      this.targetRaDecEdit.onTextUpdated = function()
-      {
-            console.writeln("Target RA DEC " + this.targetRaDecEdit.text);
-            par.target_radec.val = this.dialog.targetRaDecEdit.text;
-      };
+      this.targetRaDecEdit = newTextEdit(this, par.target_radec, this.targetRaDecLabel.toolTip);
 
       this.findTargetCoordinatesButton = new ToolButton(this);
       this.findTargetCoordinatesButton.text = "Search";
@@ -3615,12 +3590,25 @@ function AutoIntegrateDialog()
                   }
                   console.writeln("name "+ search.object.name + ", ra " + search.object.posEq.x/15 + ", dec " + search.object.posEq.y);
                   this.dialog.targetNameEdit.text = search.object.name;
-                  par.target_radec.val = this.dialog.targetRaDecEdit.text;
+                  par.target_name.val = search.object.name;
                   this.dialog.targetRaDecEdit.text = (search.object.posEq.x/15).toFixed(5) + " " + search.object.posEq.y.toFixed(5);
                   par.target_radec.val = this.dialog.targetRaDecEdit.text;
             }
       };
-   
+
+      this.imageSolvingGroupBoxSizer = new HorizontalSizer;
+      this.imageSolvingGroupBoxSizer.margin = 6;
+      this.imageSolvingGroupBoxSizer.spacing = 4;
+      this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
+      this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
+      this.imageSolvingGroupBoxSizer.add( this.targetRaDecLabel );
+      this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
+      this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
+      this.imageSolvingGroupBoxSizer.addStretch();
+
+      this.targetFocalLabel = newLabel(this, "Focal length", "Focal length in millimeters. Empty value uses image metadata.");
+      this.targetFocalEdit = newTextEdit(this, par.target_focal, this.targetFocalLabel.toolTip);
+
       this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
       this.imageSolvingGroupBoxSizer = new HorizontalSizer;
       this.imageSolvingGroupBoxSizer.margin = 6;
@@ -3631,6 +3619,8 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
       this.imageSolvingGroupBoxSizer.addStretch();
+      this.imageSolvingGroupBoxSizer.add( this.targetFocalLabel );
+      this.imageSolvingGroupBoxSizer.add( this.targetFocalEdit );
 
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
