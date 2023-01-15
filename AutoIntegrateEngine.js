@@ -1430,7 +1430,7 @@ function getDefectInfo(fileNames)
       }
       // Run image integration as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
-      var LDD_id = runImageIntegration(LDD_images, "LDD");
+      var LDD_id = runImageIntegration(LDD_images, "LDD", false);
       var LDD_win = util.findWindow(LDD_id);
       var defects = [];
 
@@ -4158,7 +4158,7 @@ function runImageIntegrationNormalized(images, best_image, name)
       return runImageIntegrationEx(norm_images, name, true);
 }
 
-function runImageIntegration(channel_images, name)
+function runImageIntegration(channel_images, name, save_to_file)
 {
       var images = channel_images.images;
       if (images == null || images.length == 0) {
@@ -4186,6 +4186,9 @@ function runImageIntegration(channel_images, name)
 
       } else {
             var image_id = runImageIntegrationNormalized(images, channel_images.best_image, name);
+      }
+      if (save_to_file) {
+            saveProcessedWindow(global.outputRootDir, image_id);
       }
       util.runGC();
       return image_id;
@@ -5592,8 +5595,15 @@ function runImageSolver(id)
             if (par.target_focal.val != '') {
                   solver.metadata.focal = parseFloat(par.target_focal.val);
                   console.writeln("Using user focal length: " + par.target_focal.val);
+                  if (solver.metadata.xpixsz) {
+                        solver.metadata.resolution = solver.metadata.focal > 0 
+                                                      ? solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI 
+                                                      : 0;
+                  }
+                  console.writeln("Using user resolution: " + par.target_focal.resolution);
             } else {
                   console.writeln("Using image metadata focal length: " + solver.metadata.focal);
+                  console.writeln("Using image metadata resolution: " + par.target_focal.resolution);
             }
 
             console.writeln("runImageSolver: call SolveImage");
@@ -5611,6 +5621,8 @@ function runImageSolver(id)
 
       }
       if (!succ) {
+            console.writeln("Focal length: " + solver.metadata.focal);
+            console.writeln("Resolution: " + solver.metadata.resolution*3600);
             util.throwFatalError("ImageSolver failed");
       }
 }
@@ -6466,7 +6478,7 @@ function CreateChannelImages(parent, auto_continue)
       global.write_processing_log_file = false;  // do not write the log file if we fail very early
 
       if (auto_continue) {
-            console.writeln("AutoContinue, find start images with prefix");
+            console.writeln("AutoContinue, find start images with prefix " + ppar.win_prefix);
             preprocessed_images = findStartImages(true, false);
             if (preprocessed_images == global.start_images.NONE && ppar.win_prefix != "") {
                   console.writeln("AutoContinue, find start images without prefix");
@@ -6833,7 +6845,7 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = false;
 
                   if (is_luminance_images) {
-                        L_id = runImageIntegration(L_images, 'L');
+                        L_id = runImageIntegration(L_images, 'L', true);
                         // Make a copy of the luminance image so we do not
                         // change the original image. Original image may be
                         // needed in AutoContinue.
@@ -6841,12 +6853,12 @@ function CreateChannelImages(parent, auto_continue)
                   }
 
                   if (!par.monochrome_image.val) {
-                        R_id = runImageIntegration(R_images, 'R');
-                        G_id = runImageIntegration(G_images, 'G');
-                        B_id = runImageIntegration(B_images, 'B');
-                        H_id = runImageIntegration(H_images, 'H');
-                        S_id = runImageIntegration(S_images, 'S');
-                        O_id = runImageIntegration(O_images, 'O');
+                        R_id = runImageIntegration(R_images, 'R', true);
+                        G_id = runImageIntegration(G_images, 'G', true);
+                        B_id = runImageIntegration(B_images, 'B', true);
+                        H_id = runImageIntegration(H_images, 'H', true);
+                        S_id = runImageIntegration(S_images, 'S', true);
+                        O_id = runImageIntegration(O_images, 'O', true);
 
                         util.windowShowif(R_id);
                         util.windowShowif(G_id);
@@ -6859,7 +6871,7 @@ function CreateChannelImages(parent, auto_continue)
             } else {
                   /* We have color files. */
                   util.addProcessingStepAndStatusInfo("Processing as color files");
-                  RGB_color_id = runImageIntegration(C_images, 'RGB_color');
+                  RGB_color_id = runImageIntegration(C_images, 'RGB_color', true);
             }
       }
       return retval.SUCCESS;
