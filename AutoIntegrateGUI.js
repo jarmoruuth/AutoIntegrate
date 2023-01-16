@@ -3182,10 +3182,10 @@ function AutoIntegrateDialog()
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
-            "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process.</p>" +
+            "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
             "<p>Run ColorCalibration using SpectrophotometricColorCalibration. This requires image solving which is done automatically on " + 
             "Integration_RGB image if it is not already done.</p>" +
-            "<p>If image does not have correct coordinates embedded they can be given in Image solving section in Processing tab.</p>" +
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
             "<p>SpectrophotometricColorCalibration is run only on RGB images, it is not run on narrowband images.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
