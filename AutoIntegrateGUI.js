@@ -3008,7 +3008,9 @@ function AutoIntegrateDialog()
        this.__base__();
 
       if (ppar.default_preview_size && this.availableScreenRect != undefined) {
-            let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.4, this.availableScreenRect.height * 0.4));
+            let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.3, this.availableScreenRect.height * 0.3));
+            /* Use a small preview size as a default to ensure that it fits on screen. */
+            preview_size = Math.min(preview_size, 400);
             ppar.preview_width = preview_size;
             ppar.preview_height = preview_size;
             console.writeln("Screen size " + this.availableScreenRect.width + "x" + this.availableScreenRect.height, ", using preview size " + ppar.preview_width + "x" + ppar.preview_height);
@@ -3466,17 +3468,20 @@ function AutoIntegrateDialog()
    
       this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
 
-      this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image noise reduction", par.channel_noise_reduction,
+      this.noise_reduction_checkbox_label = newLabel(this, "Noise reduction on", 
+                                                "Select when noise reduction is done. Multiple options can be selected. " +
+                                                "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
+      this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
             "<p>Do noise reduction on each color channels and luminance image separately. This option enables also color/OSC image noise reduction.</p>");
-      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image noise reduction", par.combined_image_noise_reduction,
+      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image", par.combined_image_noise_reduction,
             "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately. This option enables also color/OSC image noise reduction.</p>" );
-      this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear noise reduction", par.non_linear_noise_reduction, 
+      this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
             "<p>Do color noise reduction.</p>" );
 
       var ACDNR_StdDev_tooltip = "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>";
-      this.ACDNR_noise_reduction_Control = newNumericControl(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
+      this.ACDNR_noise_reduction_Control = newNumericEdit(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
             "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
             ACDNR_StdDev_tooltip);
 
@@ -3488,12 +3493,19 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthComboBox );
       this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthLabel );
       this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthComboBox );
-      this.noiseReductionGroupBoxSizer1.add( this.ACDNR_noise_reduction_Control );
       this.noiseReductionGroupBoxSizer1.addStretch();
+
+      this.noiseReductionGroupBoxSizer11 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer11.margin = 2;
+      this.noiseReductionGroupBoxSizer11.spacing = 4;
+      this.noiseReductionGroupBoxSizer11.add( this.color_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer11.add( this.ACDNR_noise_reduction_Control );
+      this.noiseReductionGroupBoxSizer11.addStretch();
 
       this.noiseReductionGroupBoxSizer2 = new HorizontalSizer;
       this.noiseReductionGroupBoxSizer2.margin = 2;
       this.noiseReductionGroupBoxSizer2.spacing = 4;
+      this.noiseReductionGroupBoxSizer2.add( this.noise_reduction_checkbox_label );
       this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.combined_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.non_linear_noise_reduction_CheckBox );
@@ -3503,8 +3515,8 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.margin = 6;
       this.noiseReductionGroupBoxSizer.spacing = 4;
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer1 );
+      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer11 );
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
-      this.noiseReductionGroupBoxSizer.add( this.color_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer.addStretch();
 
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
@@ -3597,7 +3609,7 @@ function AutoIntegrateDialog()
       };
 
       this.imageSolvingGroupBoxSizer = new HorizontalSizer;
-      this.imageSolvingGroupBoxSizer.margin = 6;
+      this.imageSolvingGroupBoxSizer.margin = 2;
       this.imageSolvingGroupBoxSizer.spacing = 4;
       this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
       this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
@@ -3611,7 +3623,7 @@ function AutoIntegrateDialog()
 
       this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
       this.imageSolvingGroupBoxSizer = new HorizontalSizer;
-      this.imageSolvingGroupBoxSizer.margin = 6;
+      this.imageSolvingGroupBoxSizer.margin = 2;
       this.imageSolvingGroupBoxSizer.spacing = 4;
       this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
       this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
@@ -3619,8 +3631,13 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
       this.imageSolvingGroupBoxSizer.addStretch();
-      this.imageSolvingGroupBoxSizer.add( this.targetFocalLabel );
-      this.imageSolvingGroupBoxSizer.add( this.targetFocalEdit );
+
+      this.imageSolvingGroupBoxSizer2 = new HorizontalSizer;
+      this.imageSolvingGroupBoxSizer2.margin = 2;
+      this.imageSolvingGroupBoxSizer2.spacing = 4;
+      this.imageSolvingGroupBoxSizer2.add( this.targetFocalLabel );
+      this.imageSolvingGroupBoxSizer2.add( this.targetFocalEdit );
+      this.imageSolvingGroupBoxSizer2.addStretch();
 
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
@@ -5485,6 +5502,7 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, gb, "Image solving and color calibration", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
               this.imageSolvingGroupBoxSizer,
+              this.imageSolvingGroupBoxSizer2,
               this.colorCalibrationGroupBoxLabel,
               this.colorCalibrationGroupBoxSizer ]);
         

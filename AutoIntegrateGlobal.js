@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56";               // Version, also updated into updates.xri
-this.autointegrate_info = "SpectrophotometricColorCalibration";   // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.56.1";                         // Version, also updated into updates.xri
+this.autointegrate_info = "SpectrophotometricColorCalibration, GUI updates";  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -335,8 +335,8 @@ this.ppar = {
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       use_preview: true,      // Show image preview on dialog preview window
       side_preview_visible: false, // Show image preview on the side of the dialog too
-      preview_width: 400,     // Preview width
-      preview_height: 400,    // preview height
+      preview_width: 400,     // Preview width, use a small preview size as a default to ensure that it fits on screen.
+      preview_height: 400,    // preview height, use a small preview size as a default to ensure that it fits on screen.
       default_preview_size: true, // do we have default preview size
       use_single_column: false // show all options in a single column
 };
