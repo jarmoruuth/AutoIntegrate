@@ -681,7 +681,6 @@ this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id)
             var fname = path + id + optional_unique_part + ".xisf";
             console.writeln("saveWindowEx " + fname);
       }
-      console.writeln("saveWindowEx " + fname);
 
       var w = ImageWindow.windowById(id);
 

@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.56.1";                         // Version, also updated into updates.xri
-this.autointegrate_info = "SpectrophotometricColorCalibration, GUI updates";  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "PSF";                                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -137,6 +137,8 @@ this.par = {
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },
       bxt_adjust_halo: { val: 0.00, def: 0.00, name : "BlurXTerminator adjust halos", type : 'R' },
       bxt_sharpen_nonstellar: { val: 0.90, def: 0.90, name : "BlurXTerminator sharpen nonstellar", type : 'R' },
+      bxt_psf: { val: 0, def: 0, name : "BlurXTerminator PSF", type : 'R' },
+      bxt_image_psf: { val: false, def: false, name : "BlurXTerminator image PSF", type : 'B' },
 
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },

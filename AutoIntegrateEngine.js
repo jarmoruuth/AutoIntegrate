@@ -206,6 +206,7 @@ var L_HT_win;
 var RGB_HT_win;
 var range_mask_win;
 var final_win;
+var telescop = "";
 
 var retval = {
       ERROR : 0,
@@ -223,6 +224,20 @@ var channels = {
       O: 6,
       C: 7
 };
+
+var focal_lengths = [
+      [ 'CHI-1-CMOS', 3991]
+];
+
+function find_focal_length()
+{
+      for (var i = 0; i < focal_lengths.length; i++) {
+            if (telescop.indexOf(focal_lengths[i][0]) != -1) {
+                  return focal_lengths[i][1];
+            }
+      }
+      return 0;
+}
 
 function guiSetTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
 {
@@ -385,6 +400,31 @@ function saveProcessedWindow(path, id, optional_save_id)
       var processedPath = util.combinePath(path, global.AutoProcessedDir);
       util.ensureDir(processedPath);
       return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id);
+}
+
+function saveOutputWindow(id, save_id)
+{
+      console.writeln("saveOutputWindow, id " + id + " as " + save_id);
+
+      if (id == null) {
+            return null;
+      }
+      var path = global.outputRootDir;
+      if (path == "") {
+            console.criticalln("No output directory, cannot save image "+ id);
+            return null;
+      }
+
+      util.copyWindow(util.findWindow(id), save_id);
+
+      var outputPath = util.combinePath(path, global.AutoOutputDir);
+      util.ensureDir(outputPath);
+
+      var saved_name = util.saveWindowEx(util.ensurePathEndSlash(outputPath), save_id, util.getOptionalUniqueFilenamePart());
+
+      util.closeOneWindow(save_id);
+
+      return saved_name;
 }
 
 function saveMasterWindow(path, id)
@@ -1805,6 +1845,56 @@ function getScaledValPos(val, min, max)
       }
 }
 
+function getSubframeSelectorMeasurements(fileNames)
+{
+      console.writeln("run SubframeSelector");
+
+      var P = new SubframeSelector;
+      P.nonInteractive = true;
+      P.subframes = fileNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
+      P.noiseLayers = 2;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
+      P.overwriteExistingFiles = true;
+      P.maxPSFFits = 8000;
+      /*
+      ** PI 1.8.8-10
+      P.measurements = [ 
+            measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                                              0-4
+            measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,                    5-9
+            measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                                   10-14
+            measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev, measurementAzimuth,      15-19
+            measurementAltitude                                                                                                                       20
+            *** New in PI 1.8.9-1
+                               measurementPSFFlux, measurementPSFFluxPower, measurementPSFTotalMeanFlux, measurementPSFTotalMeanPowerFlux,            21-24
+            measurementPSFCount, measurementMStar, measurementNStar, measurementPSFSNR, measurementPSFScale,                                          25-29
+            measurementPSFScaleSNR                                                                                                                    30
+      ];
+     */
+      
+      P.executeGlobal();
+
+      return P.measurements;
+}
+
+function getImagePSF(imgWin)
+{
+      var indexFWHM = 5;
+
+      console.writeln("Calculate PSF from image " + imgWin.mainView.id);
+
+      var save_id = imgWin.mainView.id + "_psf";
+      var savedName = saveOutputWindow(imgWin.mainView.id, save_id);
+      if (savedName == null) {
+            throwFatalError("Failed to save image " + save_id);
+      }
+
+      console.writeln("Using saved image " + savedName);
+
+      var measurements = getSubframeSelectorMeasurements([ savedName ]);
+
+      return measurements[0][indexFWHM];
+}
+
 // If weight_filtering == true and treebox_filtering == true
 //    returns array of [ filename, checked, weight ]
 // else
@@ -1855,31 +1945,8 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       if (measurements == null) {
             // collect new measurements
             console.writeln("subframeSelectorMeasure, collect measurements");
-            var P = new SubframeSelector;
-            P.nonInteractive = true;
-            P.subframes = fileNamesToEnabledPath(fileNames);     // [ subframeEnabled, subframePath ]
-            P.noiseLayers = 2;
-            P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
-            P.overwriteExistingFiles = true;
-            P.maxPSFFits = 8000;
-            /*
-            ** PI 1.8.8-10
-            P.measurements = [ 
-                  measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                                              0-4
-                  measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,                    5-9
-                  measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                                   10-14
-                  measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev, measurementAzimuth,      15-19
-                  measurementAltitude                                                                                                                       20
-                  *** New in PI 1.8.9-1
-                                     measurementPSFFlux, measurementPSFFluxPower, measurementPSFTotalMeanFlux, measurementPSFTotalMeanPowerFlux,            21-24
-                  measurementPSFCount, measurementMStar, measurementNStar, measurementPSFSNR, measurementPSFScale,                                          25-29
-                  measurementPSFScaleSNR                                                                                                                    30
-            ];
-           */
-            
-            P.executeGlobal();
-            global.saved_measurements = P.measurements;
-            measurements = P.measurements;
+            global.saved_measurements = getSubframeSelectorMeasurements(fileNames);
+            measurements = global.saved_measurements;
       }
 
       // Close measurements and expressions windows
@@ -2507,6 +2574,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                                     console.writeln("Set debayer pattern from Auto to None");
                                     par.debayer_pattern.val = 'None';
                               }
+                              telescop = value;
                               break;
                         case "NAXIS1":
                               console.writeln("NAXIS1=" + value);
@@ -5383,6 +5451,21 @@ function runBlurXTerminator(imgWin)
       console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + par.bxt_sharpen_stars.val + 
                       ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val);
 
+
+      if (par.bxt_psf.val > 0) {
+            var auto_psf = false;
+            var psf = par.bxt_psf.val;
+            console.writeln("Using user given PSF " + psf);
+      } else if (par.bxt_image_psf.val) {
+            var auto_psf = false;
+            var psf = getImagePSF(imgWin);
+            console.writeln("Using PSF " + psf + " calculated from image");
+      } else {
+            var auto_psf = true;
+            var psf = 0.0;
+            console.writeln("Using auto PSF");
+      }
+
       try {
             var P = new BlurXTerminator;
             P.correct_only = false;
@@ -5390,8 +5473,8 @@ function runBlurXTerminator(imgWin)
             P.nonstellar_then_stellar = false;
             P.sharpen_stars = par.bxt_sharpen_stars.val;
             P.adjust_halos = par.bxt_adjust_halo.val;
-            P.nonstellar_psf_diameter = 0.00;
-            P.auto_nonstellar_psf = true;
+            P.nonstellar_psf_diameter = psf;
+            P.auto_nonstellar_psf = auto_psf;
             P.sharpen_nonstellar = par.bxt_sharpen_nonstellar.val;
       } catch(err) {
             console.criticalln("BlurXTerminator failed");
@@ -5593,17 +5676,22 @@ function runImageSolver(id)
                   console.writeln("Using image metadata coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
             }
             if (par.target_focal.val != '') {
-                  solver.metadata.focal = parseFloat(par.target_focal.val);
-                  console.writeln("Using user focal length: " + par.target_focal.val);
+                  var focal_len = parseFloat(par.target_focal.val);
+            } else {
+                  var focal_len = find_focal_length();
+            }
+            if (focal_len != 0) {
+                  solver.metadata.focal = focal_len;
+                  console.writeln("Using user focal length: " + focal_len);
                   if (solver.metadata.xpixsz) {
                         solver.metadata.resolution = solver.metadata.focal > 0 
                                                       ? solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI 
                                                       : 0;
                   }
-                  console.writeln("Using user resolution: " + par.target_focal.resolution);
+                  console.writeln("Using user resolution: " + solver.metadata.resolution);
             } else {
                   console.writeln("Using image metadata focal length: " + solver.metadata.focal);
-                  console.writeln("Using image metadata resolution: " + par.target_focal.resolution);
+                  console.writeln("Using image metadata resolution: " + solver.metadata.resolution);
             }
 
             console.writeln("runImageSolver: call SolveImage");
@@ -7651,6 +7739,7 @@ function createStarFixMask(imgView)
       util.closeOneWindow("AutoStarFixMask");
 
       var P = new StarMask;
+      P.midtonesBalance = 0.80000;        // default: 0.50000
       P.waveletLayers = 8;
       P.smoothness = 8;
 

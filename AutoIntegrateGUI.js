@@ -3527,13 +3527,24 @@ function AutoIntegrateDialog()
       this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features. Use a value between 0.00 and 1.00.");
 
       this.sharpeningGroupBoxSizer = new HorizontalSizer;
-      this.sharpeningGroupBoxSizer.margin = 6;
+      this.sharpeningGroupBoxSizer.margin = 2;
       this.sharpeningGroupBoxSizer.spacing = 4;
       this.sharpeningGroupBoxSizer.add( this.bxtLabel );
       this.sharpeningGroupBoxSizer.add( this.bxtSharpenStars );
       this.sharpeningGroupBoxSizer.add( this.bxtAdjustHalo );
       this.sharpeningGroupBoxSizer.add( this.bxtSharpenNonstellar );
       this.sharpeningGroupBoxSizer.addStretch();
+
+      this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
+      this.bxtImagePSF = newCheckBox(this, "Get PSF from image.", par.bxt_image_psf, 
+            "<p>Get PSF value from image.</p>" );
+
+      this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
+      this.sharpeningGroupBoxSizer2.margin = 2;
+      this.sharpeningGroupBoxSizer2.spacing = 4;
+      this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
+      this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
+      this.sharpeningGroupBoxSizer2.addStretch();
 
       this.binningLabel = new Label( this );
       this.binningLabel.text = "Binning";
@@ -5480,7 +5491,8 @@ function AutoIntegrateDialog()
               this.noiseReductionGroupBoxLabel,
               this.noiseReductionGroupBoxSizer,
               this.sharpeningGroupBoxLabel,
-              this.sharpeningGroupBoxSizer ]);
+              this.sharpeningGroupBoxSizer,
+              this.sharpeningGroupBoxSizer2 ]);
       if (global.use_processing_tab) {
             // then add to the right
             gb = this.rightProcessingGroupBox;
