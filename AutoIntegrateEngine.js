@@ -5469,7 +5469,7 @@ function runBlurXTerminator(imgWin)
       try {
             var P = new BlurXTerminator;
             P.correct_only = false;
-            P.correct_first = false;
+            P.correct_first = par.bxt_correct_first.val;
             P.nonstellar_then_stellar = false;
             P.sharpen_stars = par.bxt_sharpen_stars.val;
             P.adjust_halos = par.bxt_adjust_halo.val;

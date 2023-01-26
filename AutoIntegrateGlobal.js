@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "PSF";                                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -139,7 +139,8 @@ this.par = {
       bxt_sharpen_nonstellar: { val: 0.90, def: 0.90, name : "BlurXTerminator sharpen nonstellar", type : 'R' },
       bxt_psf: { val: 0, def: 0, name : "BlurXTerminator PSF", type : 'R' },
       bxt_image_psf: { val: false, def: false, name : "BlurXTerminator image PSF", type : 'B' },
-
+      bxt_correct_first: { val: false, def: false, name : "BlurXTerminator correct first", type : 'B' },
+      
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },

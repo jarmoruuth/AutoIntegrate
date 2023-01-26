@@ -3537,13 +3537,16 @@ function AutoIntegrateDialog()
 
       this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
       this.bxtImagePSF = newCheckBox(this, "Get PSF from image.", par.bxt_image_psf, 
-            "<p>Get PSF value from image.</p>" );
+            "<p>Get PSF value from image using FWHM.</p>" );
+      this.bxtCorrectFirst = newCheckBox(this, "Correct first", par.bxt_correct_first, 
+            "<p>Set correct first flag for BlurXTerminator.</p>" );
 
       this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
       this.sharpeningGroupBoxSizer2.margin = 2;
       this.sharpeningGroupBoxSizer2.spacing = 4;
       this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
+      this.sharpeningGroupBoxSizer2.add( this.bxtCorrectFirst );
       this.sharpeningGroupBoxSizer2.addStretch();
 
       this.binningLabel = new Label( this );
