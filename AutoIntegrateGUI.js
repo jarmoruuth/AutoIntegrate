@@ -3755,7 +3755,7 @@ function AutoIntegrateDialog()
                                "it is not included in the set of processed images.";
       this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 4);
       
-      var filterLimitHelpToolTips= "Choose filter measure and value. Images with a smaller value than the value given here are filtered out.";
+      var filterLimitHelpToolTips= "Choose filter measure and value. FWHM and Eccentricity are filtered for too high values, and all others are filtered for too low values.";
       this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
       this.filterLimit1ComboBox = newComboBox(this, par.filter_limit1_type, filter_limit_values, filterLimitHelpToolTips);
       this.filterLimit1Edit = newNumericEditPrecision(this, "Limit", par.filter_limit1_val, 0, 999999, filterLimitHelpToolTips, 4);
