@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test2";         // Version, also updated into updates.xri
-this.autointegrate_info = "PSF";                                  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test3";         // Version, also updated into updates.xri
+this.autointegrate_info = "PSF, Filtering";                       // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -191,7 +191,11 @@ this.par = {
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
-      ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'I' },
+      ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'R' },
+      filter_limit1_type: { val: 'None', def: 'None', name : "Filter limit 1 type", type : 'S' },
+      filter_limit1_val: { val: 0, def: 0, name : "Filter limit 1 value", type : 'R' },
+      filter_limit2_type: { val: 'None', def: 'None', name : "Filter limit 2 type", type : 'S' },
+      filter_limit2_val: { val: 0, def: 0, name : "Filter limit 2 value", type : 'R' },
       outliers_ssweight: { val: false, def: false, name : "Outliers SSWEIGHT", type : 'B' },
       outliers_fwhm: { val: false, def: false, name : "Outliers FWHM", type : 'B' },
       outliers_ecc: { val: false, def: false, name : "Outliers eccentricity", type : 'B' },

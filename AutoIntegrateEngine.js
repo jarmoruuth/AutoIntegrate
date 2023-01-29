@@ -1805,19 +1805,26 @@ function filterOutliers(measurements, name, index, type, do_filtering, fileindex
       return newMeasurements;
 }
 
-function filterLimit(measurements, name, index, limit_val, fileindex, filtered_files)
+function filterLimit(measurements, name, index_info, limit_val, fileindex, filtered_files)
 {
+      var index = index_info[0];
+      var filter_high = index_info[1];
+
       if (limit_val == 0) {
-            console.writeln("No limit filter");
             return measurements;
       }
 
-      console.writeln("filterLimit "+ limit_val);
+      console.writeln("filterLimit " + limit_val);
 
       var newMeasurements = [];
       for (var i = 0; i < measurements.length; i++) {
-            if (measurements[i][index] < limit_val) {
-                  console.writeln(name + " below limit " + limit_val + ", ignoring file " + measurements[i][fileindex]);
+            if (filter_high) {
+                  var filter_out = measurements[i][index] > limit_val;
+            } else {
+                  var filter_out = measurements[i][index] < limit_val;
+            }
+            if (filter_out) {
+                  console.writeln(name + " outside limit " + limit_val + ", ignoring file " + measurements[i][fileindex]);
                   filtered_files[filtered_files.length] = measurements[i];
             } else {
                   newMeasurements[newMeasurements.length] = measurements[i];
@@ -1885,7 +1892,7 @@ function getImagePSF(imgWin)
       var save_id = imgWin.mainView.id + "_psf";
       var savedName = saveOutputWindow(imgWin.mainView.id, save_id);
       if (savedName == null) {
-            throwFatalError("Failed to save image " + save_id);
+            util.throwFatalError("Failed to save image " + save_id);
       }
 
       console.writeln("Using saved image " + savedName);
@@ -1893,6 +1900,27 @@ function getImagePSF(imgWin)
       var measurements = getSubframeSelectorMeasurements([ savedName ]);
 
       return measurements[0][indexFWHM];
+}
+
+function findFilterIndex(name)
+{
+      switch (name) {
+            case 'FWHM':
+                  return [ 5, true ];
+            case 'Eccentricity':
+                  return [ 6, true ];;
+            case 'PSFSignal':
+                  return [ 7, false ];
+            case 'PSFPower':
+                  return [ 8, false ];
+            case 'SNR':
+                  return [ 9, false ];
+            case 'Stars':
+                  return [ 14, false ];
+            default:
+                  util.throwFatalError("Unknown measure filtering name " + name);
+                  return [ 0, false ];
+      }
 }
 
 // If weight_filtering == true and treebox_filtering == true
@@ -1990,6 +2018,7 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       console.writeln("FWHMMin " + FWHMMin + ", EccMin " + EccentricityMin + ", SNRMin " + SNRWeightMin + ", PSFSignalMin " + PSFSignalMin + ", PSFPowerMin " + PSFPowerMin + ", StarsMin " + StarsMin);
       console.writeln("FWHMMax " + FWHMMax + ", EccMax " + EccentricityMax + ", SNRMax " + SNRWeightMax + ", PSFSignalMax " + PSFSignalMax + ", PSFPowerMax " + PSFPowerMax + ", StarsMax " + StarsMax);
 
+      var filter_high = false;
       for (var i = 0; i < measurements.length; i++) {
             var FWHM = measurements[i][indexFWHM];
             var Eccentricity = measurements[i][indexEccentricity];
@@ -2037,9 +2066,11 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
                         break;
                   case 'FWHM scaled':
                         SSWEIGHT = 99 * getScaledValNeg(measurements[i][indexFWHM], FWHMMin, FWHMMax) + 1;
+                        filter_high = true;
                         break;
                   case 'Eccentricity scaled':
                         SSWEIGHT = 99 * getScaledValNeg(measurements[i][indexEccentricity], EccentricityMin, EccentricityMax) + 1;
+                        filter_high = true;
                         break;
                   case 'SNR scaled':
                         SSWEIGHT = 99 * getScaledValPos(measurements[i][indexSNRWeight], SNRWeightMin, SNRWeightMax) + 1;
@@ -2058,7 +2089,13 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       }
       console.writeln("SSWEIGHTMin " + findMin(measurements, indexWeight) + " SSWEIGHTMax " + findMax(measurements, indexWeight));
       measurements = filterOutliers(measurements, "SSWEIGHT", indexWeight, 'min', par.outliers_ssweight.val, indexPath, filtered_files);
-      measurements = filterLimit(measurements, "SSWEIGHT", indexWeight, par.ssweight_limit.val, indexPath, filtered_files);
+      measurements = filterLimit(measurements, "SSWEIGHT", [ indexWeight, filter_high ], par.ssweight_limit.val, indexPath, filtered_files);
+      if (par.filter_limit1_type.val != 'None') {
+            measurements = filterLimit(measurements, par.filter_limit1_type.val, findFilterIndex(par.filter_limit1_type.val), par.filter_limit1_val.val, indexPath, filtered_files);
+      }
+      if (par.filter_limit2_type.val != 'None') {
+            measurements = filterLimit(measurements, par.filter_limit2_type.val, findFilterIndex(par.filter_limit2_type.val), par.filter_limit2_val.val, indexPath, filtered_files);
+      }
       
       var ssFiles = [];
       for (var i = 0; i < measurements.length; i++) {

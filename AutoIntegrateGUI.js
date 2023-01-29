@@ -86,6 +86,7 @@ var filterSectionbarcontrols = [];
 var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
+var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic'];
@@ -3752,8 +3753,15 @@ function AutoIntegrateDialog()
 
       var weightLimitToolTip = "Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
                                "it is not included in the set of processed images.";
-      this.weightLimitSpinBoxLabel = newLabel(this, "Limit", weightLimitToolTip);
-      this.weightLimitSpinBox = newSpinBox(this, par.ssweight_limit, 0, 999999, weightLimitToolTip);
+      this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 4);
+      
+      var filterLimitHelpToolTips= "Choose filter measure and value. Images with a smaller value than the value given here are filtered out.";
+      this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
+      this.filterLimit1ComboBox = newComboBox(this, par.filter_limit1_type, filter_limit_values, filterLimitHelpToolTips);
+      this.filterLimit1Edit = newNumericEditPrecision(this, "Limit", par.filter_limit1_val, 0, 999999, filterLimitHelpToolTips, 4);
+      this.filterLimit2Label = newLabel(this, "Filter 2", filterLimitHelpToolTips);
+      this.filterLimit2ComboBox = newComboBox(this, par.filter_limit2_type, filter_limit_values, filterLimitHelpToolTips);
+      this.filterLimit2Edit = newNumericEditPrecision(this, "Limit", par.filter_limit2_val, 0, 999999, filterLimitHelpToolTips, 4);
 
       this.outlierMethodLabel = new Label( this );
       this.outlierMethodLabel.text = "Outlier method";
@@ -3796,9 +3804,19 @@ function AutoIntegrateDialog()
       this.weightGroupBoxSizer.spacing = 4;
       this.weightGroupBoxSizer.add( this.weightLabel );
       this.weightGroupBoxSizer.add( this.weightComboBox );
-      this.weightGroupBoxSizer.add( this.weightLimitSpinBoxLabel );
-      this.weightGroupBoxSizer.add( this.weightLimitSpinBox );
+      this.weightGroupBoxSizer.add( this.weightLimitEdit );
       this.weightGroupBoxSizer.addStretch();
+
+      this.filterGroupBoxSizer = new HorizontalSizer;
+      this.filterGroupBoxSizer.margin = 6;
+      this.filterGroupBoxSizer.spacing = 4;
+      this.filterGroupBoxSizer.add( this.filterLimit1Label );
+      this.filterGroupBoxSizer.add( this.filterLimit1ComboBox );
+      this.filterGroupBoxSizer.add( this.filterLimit1Edit );
+      this.filterGroupBoxSizer.add( this.filterLimit2Label );
+      this.filterGroupBoxSizer.add( this.filterLimit2ComboBox );
+      this.filterGroupBoxSizer.add( this.filterLimit2Edit );
+      this.filterGroupBoxSizer.addStretch();
 
       this.weightGroupBoxSizer2 = new HorizontalSizer;
       this.weightGroupBoxSizer2.margin = 6;
@@ -3826,6 +3844,7 @@ function AutoIntegrateDialog()
       //this.weightSizer.spacing = 4;
       this.weightSizer.add( this.weightGroupBoxLabel );
       this.weightSizer.add( this.weightGroupBoxSizer );
+      this.weightSizer.add( this.filterGroupBoxSizer );
       this.weightSizer.add( this.weightGroupBoxSizer2 );
       this.weightSizer.add( this.weightGroupBoxSizer3 );
 
