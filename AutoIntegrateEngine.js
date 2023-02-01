@@ -6189,22 +6189,88 @@ function findProcessedChannelImages(check_base_name)
       }
 }
 
+// Try to find window with file name. 
+// If not found read it.
+function findOrReadImage(fname)
+{
+      console.writeln("findOrReadImage " + fname);
+
+      var id = File.extractName(fname);
+      if (util.findWindow(id)) {
+            // we have already loaded the file into memory
+            console.writeln("findOrReadImage, use already loaded image " + id);
+            return id;
+      }
+
+      // read the file
+      console.writeln("findOrReadImage, reading file " + fname);
+      var imageWindows = ImageWindow.open(fname);
+      if (imageWindows.length != 1) {
+            util.throwFatalError("*** findOrReadImage Error: file " + fname + ", imageWindows.length: " + imageWindows.length);
+      }
+      var imageWindow = imageWindows[0];
+      if (imageWindow == null) {
+            util.throwFatalError("*** runBinningOnLights Error: Can't read file: " + fname);
+      }
+      console.writeln("findOrReadImage, read id " + imageWindow.mainView.id);
+      return imageWindow.mainView.id;
+}
+
+function findIntegratedLightImage(channel, filtered_lights)
+{
+      for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
+            if (filtered_lights.allfilesarr[i].filter == channel) {
+                  if (filtered_lights.allfilesarr[i].files.length == 1) {
+                        // Only one file, assume it is the integrated file
+                        return findOrReadImage(filtered_lights.allfilesarr[i].files[0].name);
+                  } else {
+                        return null;
+                  }
+            }
+      }
+      return null;
+}
+
+function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
+{
+      var id = findWindowIdCheckBaseNameIf("Integration_" + channel, check_base_name);
+      if (id == null && filtered_lights != null) {
+            id = findIntegratedLightImage(channel, filtered_lights);
+      }
+      return id;
+}
+
+function findIntegratedRGBImage(channel, check_base_name, filtered_lights)
+{
+      var id = findIntegratedChannelImage("Integration_RGB_color", check_base_name);
+      if (id == null) {
+            // Try with old name
+            id = findWindowIdCheckBaseNameIf("Integration_RGBcolor", check_base_name);
+      }
+      if (id == null) {
+            id = findIntegratedLightImage('C', filtered_lights);
+      }
+      return id;
+}
+
 function findChannelImages(check_base_name)
 {
       findProcessedChannelImages(check_base_name);
 
-      L_id = findWindowIdCheckBaseNameIf("Integration_L", check_base_name);
-      R_id = findWindowIdCheckBaseNameIf("Integration_R", check_base_name);
-      G_id = findWindowIdCheckBaseNameIf("Integration_G", check_base_name);
-      B_id = findWindowIdCheckBaseNameIf("Integration_B", check_base_name);
-      H_id = findWindowIdCheckBaseNameIf("Integration_H", check_base_name);
-      S_id = findWindowIdCheckBaseNameIf("Integration_S", check_base_name);
-      O_id = findWindowIdCheckBaseNameIf("Integration_O", check_base_name);
-      RGB_color_id = findWindowIdCheckBaseNameIf("Integration_RGB_color", check_base_name);
-      if (RGB_color_id == null) {
-            // Try with old name
-            RGB_color_id = findWindowIdCheckBaseNameIf("Integration_RGBcolor", check_base_name);
+      if (global.lightFileNames != null) {
+            var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
+      } else {
+            var filtered_lights = null;
       }
+
+      L_id = findIntegratedChannelImage("L", check_base_name, filtered_lights);
+      R_id = findIntegratedChannelImage("R", check_base_name, filtered_lights);
+      G_id = findIntegratedChannelImage("G", check_base_name, filtered_lights);
+      B_id = findIntegratedChannelImage("B", check_base_name, filtered_lights);
+      H_id = findIntegratedChannelImage("H", check_base_name, filtered_lights);
+      S_id = findIntegratedChannelImage("S", check_base_name, filtered_lights);
+      O_id = findIntegratedChannelImage("O", check_base_name, filtered_lights);
+      RGB_color_id = findIntegratedRGBImage('RGB', check_base_name, filtered_lights);
 }
 
 function fileNamesFromOutputData(outputFileData)
