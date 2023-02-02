@@ -6247,7 +6247,7 @@ function findIntegratedRGBImage(channel, check_base_name, filtered_lights)
             // Try with old name
             id = findWindowIdCheckBaseNameIf("Integration_RGBcolor", check_base_name);
       }
-      if (id == null) {
+      if (id == null && filtered_lights != null) {
             id = findIntegratedLightImage('C', filtered_lights);
       }
       return id;
