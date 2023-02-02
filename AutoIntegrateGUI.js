@@ -5491,7 +5491,8 @@ function AutoIntegrateDialog()
       this.leftGroupBox = newGroupBoxSizer(this);
 
       newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
-      newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      // newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
 
       let gb = this.leftGroupBox;
       if (global.use_processing_tab) {
@@ -5546,7 +5547,8 @@ function AutoIntegrateDialog()
       }
 
       this.rightGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.rightGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      // newSectionBarAdd(this, this.rightGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       if (global.use_processing_tab) {
             // add Narrowband to RGB mapping to the processing tab
             gb = this.rightProcessingGroupBox;
@@ -5554,7 +5556,7 @@ function AutoIntegrateDialog()
             gb = this.rightGroupBox;
       }
       newSectionBarAdd(this, gb, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-      newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
+      // newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
 
@@ -5626,11 +5628,20 @@ function AutoIntegrateDialog()
       }
 
       if (global.use_preview && use_tab_preview) {
+            this.extraGroupBox = newGroupBoxSizer(this);
+            newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
+
             tab_index++;
             tab_preview_index = tab_index;
-            tabSizer = new mainSizerTab(this, this.tabPreviewObj.sizer);
+
+            this.previewAndExtraSizer = new HorizontalSizer;
+            this.previewAndExtraSizer.spacing = 4;
+            this.previewAndExtraSizer.add( this.tabPreviewObj.sizer );
+            this.previewAndExtraSizer.add( this.extraGroupBox );
+
+            tabSizer = new mainSizerTab(this, this.previewAndExtraSizer);
             this.rootingArr.push(tabSizer);
-            this.mainTabBox.addPage( tabSizer, "Preview" );
+            this.mainTabBox.addPage( tabSizer, "Preview and extra processing" );
       }
 
       if (global.use_preview && use_side_preview) {
