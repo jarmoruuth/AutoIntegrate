@@ -2532,6 +2532,7 @@ function newAutoContinueButton(parent, toolbutton)
             "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
             "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
             "<li>Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images</li>" +
+            "<li>Light file list - Integrated channel/RGB images if only one image for a filter</li>" +
             "<li>Integration_RGB_color - Integrated Color RGB image</li>" +
             "<li>Integration_RGB_narrowband - Integrated narrowband RGB image</li>" +
             "<li>Integration_<i>channel</i>_processed - <i>channel</i> can be LRGBHSO</li>" +
