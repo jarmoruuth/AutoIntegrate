@@ -5630,6 +5630,7 @@ function AutoIntegrateDialog()
       if (global.use_preview && use_tab_preview) {
             this.extraGroupBox = newGroupBoxSizer(this);
             newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
+            this.extraGroupBox.sizer.addStretch();
 
             tab_index++;
             tab_preview_index = tab_index;
@@ -5637,7 +5638,7 @@ function AutoIntegrateDialog()
             this.previewAndExtraSizer = new HorizontalSizer;
             this.previewAndExtraSizer.spacing = 4;
             this.previewAndExtraSizer.add( this.tabPreviewObj.sizer );
-            this.previewAndExtraSizer.add( this.extraGroupBox );
+            this.previewAndExtraSizer.add( this.extraGroupBox);
 
             tabSizer = new mainSizerTab(this, this.previewAndExtraSizer);
             this.rootingArr.push(tabSizer);
