@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test5-gui";     // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test6-gui";     // Version, also updated into updates.xri
 this.autointegrate_info = "PSF, Filtering, AutoContinue, GUI";    // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -83,6 +83,8 @@ this.par = {
       staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
       staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
       staralignment_noisereductionfilterradius: { val: 0, def: 0, name : "StarAlignment noise reduction", type : 'I' },
+      comet_first_xy: { val: '', def: '', name : "Comet first XY", type : 'S' },
+      comet_last_xy: { val: '', def: '', name : "Comet first XY", type : 'S' },
       binning: { val: 0, def: 0, name : "Binning", type : 'I' },
       binning_resample: { val: 2, def: 2, name : "Binning resample factor", type : 'I' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },

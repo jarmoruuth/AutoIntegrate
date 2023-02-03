@@ -221,6 +221,9 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
              var preview = this.parent.parent;
  
              var p =  preview.transform(x, y, preview);
+
+             preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
+
              if(preview.onCustomMouseUp)
              {
                    preview.onCustomMouseUp.call(this, p.x, p.y, button, buttonState, modifiers )
@@ -289,22 +292,35 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
        }
  
        this.zoomLabel_Label =new Label(this);
+       this.zoomLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.zoomLabel_Label.text = "Zoom:";
        this.zoomVal_Label =new Label(this);
+       this.zoomVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.zoomVal_Label.text = "1:1";
  
        this.Xlabel_Label = new Label(this);
+       this.Xlabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.Xlabel_Label .text = "X:";
        this.Xval_Label = new Label(this);
+       this.Xval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.Xval_Label.text = "---";
        this.Ylabel_Label = new Label(this);
+       this.Ylabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.Ylabel_Label.text = "Y:";
        this.Yval_Label = new Label(this);
+       this.Yval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.Yval_Label.text = "---";
        this.SampleLabel_Label = new Label(this);
+       this.SampleLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.SampleLabel_Label.text = "Val:";
        this.SampleVal_Label = new Label(this);
+       this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.SampleVal_Label.text = "---";
+
+       this.coordinatesLabel = new Label(this);
+       this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+       this.coordinatesLabel.text = "X,Y:";
+       this.coordinatesEdit = new Edit(this);
  
        this.coords_Frame = new Frame(this);
        this.coords_Frame.backgroundColor = 0xffffffff;
@@ -322,6 +338,9 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
        this.coords_Frame.sizer.addSpacing(6);
        this.coords_Frame.sizer.add(this.SampleLabel_Label);
        this.coords_Frame.sizer.add(this.SampleVal_Label);
+       this.coords_Frame.sizer.addStretch();
+       this.coords_Frame.sizer.add(this.coordinatesLabel);
+       this.coords_Frame.sizer.add(this.coordinatesEdit);
  
        this.coords_Frame.sizer.addStretch();
  

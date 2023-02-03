@@ -3457,6 +3457,24 @@ function AutoIntegrateDialog()
       this.StarAlignmentGroupBoxSizer.add( this.noiseReductionFilterRadiusStarAlignmentControl );
       this.StarAlignmentGroupBoxSizer.addStretch();
 
+      this.cometAlignmentGroupBoxLabel = newSectionLabel(this, "CometAlignment settings");
+      this.cometAlignmentGroupBoxLabel.toolTip = 
+            "<p>CometAlignment settings can be used to set values for comet alignment process.</p>";
+
+      this.cometAlignFirstLabel = newLabel(this, "First image X,Y:", this.cometAlignmentGroupBoxLabel.toolTip);
+      this.cometAlignFirstXY = newTextEdit(this, par.comet_first_xy, this.cometAlignmentGroupBoxLabel.toolTip);
+      this.cometAlignLastLabel = newLabel(this, "Last image X,Y:", this.cometAlignmentGroupBoxLabel.toolTip);
+      this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignmentGroupBoxLabel.toolTip);
+
+      this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
+      this.cometAlignmentGroupBoxSizer.margin = 6;
+      this.cometAlignmentGroupBoxSizer.spacing = 4;
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignFirstLabel );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignFirstXY );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastLabel );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastXY );
+      this.cometAlignmentGroupBoxSizer.addStretch();
+
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
       this.linearSaturationLabel.text = "Linear saturation increase";
@@ -5555,9 +5573,11 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star alignment settings", "ps_alignment",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
             [ this.StarAlignmentGroupBoxLabel,
-              this.StarAlignmentGroupBoxSizer ]);
+              this.StarAlignmentGroupBoxSizer,
+              this.cometAlignmentGroupBoxLabel,
+              this.cometAlignmentGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Weighting and filtering settings", "ps_weighting",
             [ this.weightSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Banding, binning and cosmetic correction settings", "ps_binning_CC",

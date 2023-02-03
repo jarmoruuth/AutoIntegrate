@@ -2552,6 +2552,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
             var use_treebox_ssweight = false;
             var treebox_best_image = false;
             var treebox_reference_image = false;
+            var date_obs = null;
             if (Array.isArray(obj)) {
                   // we have treeboxfiles array
                   var filePath = obj[0];
@@ -2632,6 +2633,10 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                               console.writeln(keywords[j].name + "=" + value);
                               exptime = parseFloat(value);
                               break;
+                        case "DATE-OBS":
+                              console.writeln(keywords[j].name + "=" + value);
+                              date_obs = value;
+                              break;
                         default:
                               break;
                   }
@@ -2696,68 +2701,57 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
             }
             // Do final resolve based on first letter in the filter'
             var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
+            var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                              best_image: treebox_best_image, reference_image: treebox_reference_image,
+                              width: imgwidth, heigth: imgheigth, date_obs: date_obs };
             switch (filter_keyword) {
                   case 'L':
                         if (allfiles.L.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.L[allfiles.L.length] = file_info;
                         luminance = true;
                         break;
                   case 'R':
                         if (allfiles.R.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.R[allfiles.R.length] = file_info;
                         rgb = true;
                         break;
                   case 'G':
                         if (allfiles.G.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.G[allfiles.G.length] = file_info;
                         rgb = true;
                         break;
                   case 'B':
                         if (allfiles.B.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.B[allfiles.B.length] = file_info;
                         rgb = true;
                         break;
                   case 'H':
                         if (allfiles.H.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.H[allfiles.H.length] = file_info;
                         narrowband = true;
                         break;
                   case 'S':
                         if (allfiles.S.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.S[allfiles.S.length] = file_info;
                         narrowband = true;
                         break;
                   case 'O':
                         if (allfiles.O.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.O[allfiles.O.length] = file_info;
                         narrowband = true;
                         break;
                   case 'C':
@@ -2765,9 +2759,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                         if (allfiles.C.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.C[allfiles.C.length] = file_info;
                         color_files = true;
                         break;
             }
@@ -3944,6 +3936,42 @@ function runStarAlignment(imagetable, refImage)
       global.star_alignment_image = refImage;
 
       return alignedFiles;
+}
+
+function runCometAlignment()
+{
+      var P = new CometAlignment;
+      P.targetFrames = [ // path, enabled, date, jd, x, y, fixed, drizzlePath
+            ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T04-47-07_COMETC2022E3_Luminance_30s_ID333839_cal.fits", true, "", 2459975.699387777596712, 6950.60, 1804.66, true, ""],
+            ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T04-47-40_COMETC2022E3_Luminance_30s_ID333840_cal.fits", true, "", 2459975.699768784921616, 6901.26, 1817.37, false, ""],
+            ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T05-30-01_COMETC2022E3_Blue_30s_ID333926_cal.fits", true, "", 2459975.729182534851134, 3091.91, 2798.20, false, ""],
+            ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T05-30-34_COMETC2022E3_Blue_30s_ID333927_cal.fits", true, "", 2459975.729565069545060, 3042.37, 2810.96, true, ""]
+      ];
+      P.referenceIndex = 0;
+      P.fitPSF = true;
+      P.operandImageFilePath = "";
+      P.operandSubtractAligned = true;
+      P.operandLinearFit = true;
+      P.operandLinearFitLow = 0.000000;
+      P.operandLinearFitHigh = 0.920000;
+      P.operandNormalize = true;
+      P.drizzleWriteStarAlignedImage = true;
+      P.drizzleWriteCometAlignedImage = true;
+      P.pixelInterpolation = CometAlignment.prototype.Lanczos4;
+      P.linearClampingThreshold = 0.30;
+      P.inputHints = "";
+      P.outputHints = "";
+      P.outputDirectory = "";
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_ca";
+      P.overwriteExistingFiles = true;
+      P.generateCometPathMap = false;
+      P.onError = CometAlignment.prototype.OnError_Continue;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.maxFileReadThreads = 0;
+      P.maxFileWriteThreads = 0;
 }
 
 function getWindowSizeFromFilename(filename)
