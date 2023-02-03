@@ -57,7 +57,6 @@ this.sideStatusInfoLabel = null;        // For update processing status
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
-this.use_processing_tab = true;
 this.is_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }

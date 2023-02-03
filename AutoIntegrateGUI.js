@@ -2980,11 +2980,22 @@ function updateSidePreviewState()
             sidePreviewInfoLabel.show();
             global.sideStatusInfoLabel.show();
             sidePreviewControl.show();
+
+            tabPreviewInfoLabel.hide();
+            global.tabStatusInfoLabel.hide();
+            tabPreviewControl.hide();
+
             ppar.side_preview_visible = true;
+
       } else {      
             sidePreviewInfoLabel.hide();
             global.sideStatusInfoLabel.hide();
             sidePreviewControl.hide();
+
+            tabPreviewInfoLabel.show();
+            global.tabStatusInfoLabel.show();
+            tabPreviewControl.show();
+
             ppar.side_preview_visible = false;
       }
 }
@@ -5484,10 +5495,6 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      if (ppar.use_single_column) {
-            global.use_processing_tab = false;
-      }
-
       this.leftGroupBox = newGroupBoxSizer(this);
 
       newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
@@ -5495,7 +5502,7 @@ function AutoIntegrateDialog()
       newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
 
       let gb = this.leftGroupBox;
-      if (global.use_processing_tab) {
+      if (!ppar.use_single_column) {
             // add processing settings to a new tab
             this.leftProcessingGroupBox = newGroupBoxSizer(this);
             this.rightProcessingGroupBox = newGroupBoxSizer(this);
@@ -5517,7 +5524,7 @@ function AutoIntegrateDialog()
               this.sharpeningGroupBoxLabel,
               this.sharpeningGroupBoxSizer,
               this.sharpeningGroupBoxSizer2 ]);
-      if (global.use_processing_tab) {
+      if (!ppar.use_single_column) {
             // then add to the right
             gb = this.rightProcessingGroupBox;
       }
@@ -5548,15 +5555,10 @@ function AutoIntegrateDialog()
 
       this.rightGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
-      // newSectionBarAdd(this, this.rightGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
-      if (global.use_processing_tab) {
-            // add Narrowband to RGB mapping to the processing tab
-            gb = this.rightProcessingGroupBox;
-      } else {
-            gb = this.rightGroupBox;
+      newSectionBarAdd(this, this.rightGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      if (ppar.use_single_column) {
+            newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
       }
-      newSectionBarAdd(this, gb, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-      // newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
 
@@ -5574,7 +5576,7 @@ function AutoIntegrateDialog()
       if (ppar.use_single_column) {
             this.cols.addStretch();
       }
-      if (global.use_processing_tab) {
+      if (!ppar.use_single_column) {
             this.leftProcessingGroupBox.sizer.addStretch();
             this.rightProcessingGroupBox.sizer.addStretch();
             this.processingCols = new HorizontalSizer;
@@ -5620,7 +5622,7 @@ function AutoIntegrateDialog()
       this.rootingArr.push(tabSizer);
       this.mainTabBox.addPage( tabSizer, "Settings" );
 
-      if (global.use_processing_tab) {
+      if (!ppar.use_single_column) {
             tab_index++;
             tabSizer = new mainSizerTab(this, this.processingCols);
             this.rootingArr.push(tabSizer);
@@ -5628,21 +5630,27 @@ function AutoIntegrateDialog()
       }
 
       if (global.use_preview && use_tab_preview) {
-            this.extraGroupBox = newGroupBoxSizer(this);
-            newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
-            this.extraGroupBox.sizer.addStretch();
-
             tab_index++;
             tab_preview_index = tab_index;
+
 
             this.previewAndExtraSizer = new HorizontalSizer;
             this.previewAndExtraSizer.spacing = 4;
             this.previewAndExtraSizer.add( this.tabPreviewObj.sizer );
-            this.previewAndExtraSizer.add( this.extraGroupBox);
+            if (!ppar.use_single_column) {
+                  this.extraGroupBox = newGroupBoxSizer(this);
+                  newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
+                  this.extraGroupBox.sizer.addStretch();
+                  this.previewAndExtraSizer.add( this.extraGroupBox);
+            }
 
             tabSizer = new mainSizerTab(this, this.previewAndExtraSizer);
             this.rootingArr.push(tabSizer);
-            this.mainTabBox.addPage( tabSizer, "Preview and extra processing" );
+            if (ppar.use_single_column) {
+                  this.mainTabBox.addPage( tabSizer, "Preview" );
+            } else {
+                  this.mainTabBox.addPage( tabSizer, "Preview and extra processing" );
+            }
       }
 
       if (global.use_preview && use_side_preview) {

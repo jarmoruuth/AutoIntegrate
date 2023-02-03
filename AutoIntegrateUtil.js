@@ -857,7 +857,7 @@ this.updateStatusInfoLabel = function(txt)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      if (global.tabStatusInfoLabel != null) {
+      if (global.use_preview && global.tabStatusInfoLabel != null) {
             global.tabStatusInfoLabel.text = txt;
       }
       if (global.use_preview && global.sideStatusInfoLabel != null) {
