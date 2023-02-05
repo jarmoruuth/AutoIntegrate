@@ -3467,21 +3467,21 @@ function AutoIntegrateDialog()
             "<p>Below are the steps to use AutoIntegrate comet alignment:</p>" +
             "<ul>" +
             "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>First and last image are selected automatically based on image timestamps from DATE-OBS keyword when images are loaded.</li>" +
+            "<li>First and last image are selected automatically based on image timestamps from the DATE-OBS keyword when images are loaded.</li>" +
             "<li>To get the coordinates click the <i>Preview</i> button for the image, go to preview image, zoom " + 
-                  "to 1:1 view and click the comet nucleus with left mouse button.</li>" + 
+                  "to 1:1 view and click the comet nucleus with the left mouse button.</li>" + 
             "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box.</li>" +
             "<li>It may be beneficial to run comet alignment on starless images. In that case option <i>Remove stars from lights</i> " + 
                   "can be used.</li>" +
-            "<li>Use <i>Run</i> button to process images.</li>" +
+            "<li>Use the <i>Run</i> button to process images.</li>" +
             "</ul>" + 
             "<p>CometAlignment will automatically skip star alignment and SCNR. Star alignment may invalidate coordinates given here " + 
             "so it is not used.</p>" +
-            "<p>Usually it is useful to run a normal image processing workflow first. This results into properly aligned stars that can be later used in the final image. " + 
+            "<p>Usually it is useful to run a normal image processing workflow first. This results in properly aligned stars that can be later used in the final image. " + 
                   "A different Window prefix can be used to separate star and comet aligned images.</p>" +
             "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error on ImageIntegration + "
             "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
-            "<p>It is possible to manually run CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
+            "<p>It is possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
             "<ul>" + 
             "<li>Run a normal image processing.</li>" + 
             "<li>Manually run the CometAlignment on registered *_r.xisf files. This will create *_ca.xisf files.</li>" + 
