@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test6-gui";     // Version, also updated into updates.xri
-this.autointegrate_info = "PSF, Filtering, AutoContinue, GUI";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test7-gui";     // Version, also updated into updates.xri
+this.autointegrate_info = "CometAlignment";                       // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -83,8 +83,9 @@ this.par = {
       staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
       staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
       staralignment_noisereductionfilterradius: { val: 0, def: 0, name : "StarAlignment noise reduction", type : 'I' },
-      comet_first_xy: { val: '', def: '', name : "Comet first XY", type : 'S' },
-      comet_last_xy: { val: '', def: '', name : "Comet first XY", type : 'S' },
+      comet_align: { val: false, def: false, name : "Comet align", type : 'B' },
+      comet_first_xy: { val: '', def: '', name : "Comet align first XY", type : 'S' },
+      comet_last_xy: { val: '', def: '', name : "Comet align last XY", type : 'S' },
       binning: { val: 0, def: 0, name : "Binning", type : 'I' },
       binning_resample: { val: 2, def: 2, name : "Binning resample factor", type : 'I' },
       ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
@@ -125,6 +126,7 @@ this.par = {
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
+      reset_on_setup_load: { val: false, def: false, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
       skip_imageintegration_clipping: { val: false, def: false, name : "No ImageIntegration clipping", type : 'B' },
@@ -161,6 +163,7 @@ this.par = {
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
       force_narrowband_mapping: { val: false, def: false, name : "Force narrowband mapping", type : 'B' },
       remove_stars_before_stretch: { val: false, def: false, name : "Remove stars early", type : 'B' },
+      remove_stars_light: { val: false, def: false, name : "Remove stars light", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
       remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
 

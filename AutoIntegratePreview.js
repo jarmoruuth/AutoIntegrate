@@ -222,7 +222,9 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
  
              var p =  preview.transform(x, y, preview);
 
-             preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
+             if (preview.zoom == 1) {
+                  preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
+             }
 
              if(preview.onCustomMouseUp)
              {
@@ -320,7 +322,9 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
        this.coordinatesLabel = new Label(this);
        this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
        this.coordinatesLabel.text = "X,Y:";
+       this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
        this.coordinatesEdit = new Edit(this);
+       this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
  
        this.coords_Frame = new Frame(this);
        this.coords_Frame.backgroundColor = 0xffffffff;

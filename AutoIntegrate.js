@@ -504,7 +504,7 @@ this.test_initialize = function()
       util.fixAllWindowArrays(ppar.win_prefix);
 
       // Reset the parameters to the default they would have when the program is loaded
-      gui.setParameterDefaults();
+      util.setParameterDefaults();
 
       console.writeln("test_initialize done");
 }
