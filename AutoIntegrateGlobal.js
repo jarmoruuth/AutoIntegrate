@@ -142,6 +142,7 @@ this.par = {
       bxt_sharpen_nonstellar: { val: 0.90, def: 0.90, name : "BlurXTerminator sharpen nonstellar", type : 'R' },
       bxt_psf: { val: 0, def: 0, name : "BlurXTerminator PSF", type : 'R' },
       bxt_image_psf: { val: false, def: false, name : "BlurXTerminator image PSF", type : 'B' },
+      bxt_median_psf: { val: false, def: false, name : "BlurXTerminator median PSF", type : 'B' },
       bxt_correct_first: { val: false, def: false, name : "BlurXTerminator correct first", type : 'B' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },

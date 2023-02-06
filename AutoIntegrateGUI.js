@@ -3110,7 +3110,6 @@ function AutoIntegrateDialog()
             "<li>Check <i>Start from ImageIntegration</i> in <i>Other parameters</i>.</li>" +
             "<li>Use the <i>Run</i> button to process images.</li>" +
             "</ul>";
-            "";
 
       this.helpTips = new ToolButton( this );
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
@@ -3642,8 +3641,11 @@ function AutoIntegrateDialog()
       this.sharpeningGroupBoxSizer.addStretch();
 
       this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
-      this.bxtImagePSF = newCheckBox(this, "Get PSF from image.", par.bxt_image_psf, 
+      this.bxtImagePSF = newCheckBox(this, "Get PSF from image", par.bxt_image_psf, 
             "<p>Get PSF value from image using FWHM.</p>" + 
+            "<p>" + BXT_no_PSF_tip + "</p>" );
+      this.bxtMedianPSF = newCheckBox(this, "Use median PSF", par.bxt_median_psf, 
+            "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectFirst = newCheckBox(this, "Correct first", par.bxt_correct_first, 
             "<p>Set correct first flag for BlurXTerminator.</p>" );
@@ -3653,6 +3655,7 @@ function AutoIntegrateDialog()
       this.sharpeningGroupBoxSizer2.spacing = 4;
       this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
+      this.sharpeningGroupBoxSizer2.add( this.bxtMedianPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtCorrectFirst );
       this.sharpeningGroupBoxSizer2.addStretch();
 

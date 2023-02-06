@@ -129,6 +129,8 @@ var crop_lowClipImage_changed = false; // changed flag for saving to disk
 this.firstDateFileInfo = null;
 this.lastDateFileInfo = null;
 
+var medianFWHM = null;
+
 var L_images;
 var R_images;
 var G_images;
@@ -2100,6 +2102,12 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
             measurements = filterLimit(measurements, par.filter_limit2_type.val, findFilterIndex(par.filter_limit2_type.val), par.filter_limit2_val.val, indexPath, filtered_files);
       }
       
+      /* Sort by FWHM to find median FWHM. */
+      measurements.sort( function(a, b) {
+            return a[indexFWHM] - b[indexFWHM];
+      });
+      medianFWHM = measurements[measurements.length / 2][indexFWHM];
+
       var ssFiles = [];
       for (var i = 0; i < measurements.length; i++) {
             ssFiles[ssFiles.length] = [ measurements[i][indexPath], measurements[i][indexWeight] ];
@@ -4018,6 +4026,7 @@ function runCometAlignment(filenames, filename_postfix)
                   return 1;
             } else {
                   util.throwFatalError("Comet alignment failed, equal DATE-OBS " + a.date_obs + " in files " + a.name + " and " + b.name);
+                  return 0;
             }
       });
 
@@ -5688,6 +5697,13 @@ function runBlurXTerminator(imgWin)
             var auto_psf = false;
             var psf = par.bxt_psf.val;
             console.writeln("Using user given PSF " + psf);
+      } else if (par.bxt_median_psf.val) {
+            var auto_psf = false;
+            if (medianFWHM == null) {
+                  util.throwFatalError("Cannot run BlurXTerminator, median FWHM is not calculated. Maybe subframe selector was not run.")
+            }
+            var psf = medianFWHM;
+            console.writeln("Using PSF " + psf + " frome madian FWHM value");
       } else if (par.bxt_image_psf.val) {
             var auto_psf = false;
             var psf = getImagePSF(imgWin);
@@ -9965,6 +9981,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        crop_lowClipImageName = null;
        crop_lowClipImage_changed = false;
        autocontinue_prefix = "";
+       medianFWHM = null;
  
        RGB_stars_win = null;
        RGB_stars_HT_win = null;
