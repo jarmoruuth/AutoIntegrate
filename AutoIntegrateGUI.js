@@ -3079,7 +3079,38 @@ function AutoIntegrateDialog()
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
 
-      var BXT_no_PSF_tip = "Note that sometimes on starless images PSF value can not calculated. Then a manual value should be given or BlurXTerminator should not be used.";
+      var BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
+      var comet_alignment_toolTip = 
+            "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
+            "<ul>" +
+            "<li>Run a normal workflow to get correct stars and background objects.</li>" +
+            "<li>Load start aligned *_r.xisf files as light files.</li>" + 
+            "<li>Set Window prefix to avoid overwriting files in the first step.</li>" + 
+            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>No CosmetiCorrection</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Go to the <i>Processing tab</i> and <i>CometAlignment</i> section.</li>" +
+            "<li>Fill first and last comet position coordinates. Note that the first and last images " + 
+                "are selected automatically based on image timestamps from the DATE-OBS keyword when images are loaded.</li>" +
+            "<li>To get the coordinates click the <i>Preview</i> button for the image, go to preview image tab, zoom " + 
+                  "to 1:1 view and click the comet nucleus with the left mouse button.</li>" + 
+            "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box.</li>" +
+            "<li>Use the <i>Run</i> button to process images.</li>" +
+            "</ul>" + 
+            "<p>Comet alignment will automatically skip star alignment and SCNR. If you are not using already star aligned images " + 
+               "then Star alignment may invalidate coordinates given here so it is not used.</p>" +
+            "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error in ImageIntegration " +
+            "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
+            "<p>It is possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
+            "<ul>" + 
+            "<li>Run normal workflow to get correct stars and background objects.</li>" +
+            "<li>Manually run the CometAlignment on star aligned *_r.xisf files. This will create *_ca.xisf files.</li>" + 
+            "<li>Remove stars from *_ca.xisf files. StarXTerminator has a batch mode that makes this easier.</li>" + 
+            "<li>Load comet aligned files into AutoIntegrate as lights files.</li>" + 
+            "<li>Check <i>Start from ImageIntegration</i> in <i>Other parameters</i>.</li>" +
+            "<li>Use the <i>Run</i> button to process images.</li>" +
+            "</ul>";
+            "";
 
       this.helpTips = new ToolButton( this );
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
@@ -3147,8 +3178,8 @@ function AutoIntegrateDialog()
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
-            "<p>If checked, run CometAlign process using settings in CometAlignment settings section in Processing tab.</p>" +
-            "<p>For more details see help tips in CometAlignment settings section.</p>" );
+            "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing</i> tab.</p>" +
+            comet_alignment_toolTip);
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
@@ -3464,32 +3495,7 @@ function AutoIntegrateDialog()
       this.cometAlignmentGroupBoxLabel = newSectionLabel(this, "CometAlignment settings");
       this.cometAlignmentGroupBoxLabel.toolTip = 
             "<p>CometAlignment settings can be used to set values for comet alignment process.</p>" +
-            "<p>Below are the steps to use AutoIntegrate comet alignment:</p>" +
-            "<ul>" +
-            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>First and last image are selected automatically based on image timestamps from the DATE-OBS keyword when images are loaded.</li>" +
-            "<li>To get the coordinates click the <i>Preview</i> button for the image, go to preview image, zoom " + 
-                  "to 1:1 view and click the comet nucleus with the left mouse button.</li>" + 
-            "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box.</li>" +
-            "<li>It may be beneficial to run comet alignment on starless images. In that case option <i>Remove stars from lights</i> " + 
-                  "can be used.</li>" +
-            "<li>Use the <i>Run</i> button to process images.</li>" +
-            "</ul>" + 
-            "<p>CometAlignment will automatically skip star alignment and SCNR. Star alignment may invalidate coordinates given here " + 
-            "so it is not used.</p>" +
-            "<p>Usually it is useful to run a normal image processing workflow first. This results in properly aligned stars that can be later used in the final image. " + 
-                  "A different Window prefix can be used to separate star and comet aligned images.</p>" +
-            "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error on ImageIntegration + "
-            "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
-            "<p>It is possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
-            "<ul>" + 
-            "<li>Run a normal image processing.</li>" + 
-            "<li>Manually run the CometAlignment on registered *_r.xisf files. This will create *_ca.xisf files.</li>" + 
-            "<li>Optionally remove stars from *_ca.xisf files. StarXTerminator has a batch mode that makes this easier.</li>" + 
-            "<li>Load comet aligned files into AutoIntegrate as lights files.</li>" + 
-            "<li>Run AutoIntegrate with <i>Start from ImageIntegration</i> option.</li>" +
-            "</ul>";
-            "";
+            comet_alignment_toolTip;
 
       var cometFirstImageAction = function() {
             if (engine.firstDateFileInfo == null) {
@@ -3506,12 +3512,12 @@ function AutoIntegrateDialog()
             }
       }
 
-      this.cometAlignFirstLabel = newLabel(this, "First image X,Y:", "<p>Coordinates for the first comet image.</p>" + this.cometAlignmentGroupBoxLabel.toolTip);
+      this.cometAlignFirstLabel = newLabel(this, "First image X,Y:", "<p>Coordinates for the first comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignFirstXY = newTextEdit(this, par.comet_first_xy, this.cometAlignFirstLabel.toolTip);
-      this.cometAlignFirstXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + this.cometAlignmentGroupBoxLabel.toolTip, cometFirstImageAction, false);
-      this.cometAlignLastLabel = newLabel(this, "Last image X,Y:", "<p>Coordinates for the last comet image.</p>" + this.cometAlignmentGroupBoxLabel.toolTip);
+      this.cometAlignFirstXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + comet_alignment_toolTip, cometFirstImageAction, false);
+      this.cometAlignLastLabel = newLabel(this, "Last image X,Y:", "<p>Coordinates for the last comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignLastLabel.toolTip);
-      this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + this.cometAlignmentGroupBoxLabel.toolTip, cometLastImageAction, false);
+      this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
 
       this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
       this.cometAlignmentGroupBoxSizer.margin = 6;
