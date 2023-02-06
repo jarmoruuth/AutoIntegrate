@@ -278,6 +278,11 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
             Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
+            Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
+            Settings.write (SETTINGSKEY + "/useLargePreview", DataType_Boolean, ppar.use_large_preview);
+            if (ppar.use_single_column) {
+                  ppar.use_more_tabs = false;
+            }
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -1996,20 +2001,38 @@ function addFilesButtons(parent)
       var winprefix_sizer = addWinPrefix(parent);
       var outputdir_sizer = addOutputDir(parent);
 
-      var filesButtons_Sizer = new HorizontalSizer;
-      parent.rootingArr.push(filesButtons_Sizer);
-      filesButtons_Sizer.spacing = 4;
-      filesButtons_Sizer.add( addLightsButton );
-      filesButtons_Sizer.add( addBiasButton );
-      filesButtons_Sizer.add( addDarksButton );
-      filesButtons_Sizer.add( addFlatsButton );
-      filesButtons_Sizer.add( addFlatDarksButton );
-      filesButtons_Sizer.addSpacing( 12 );
-      filesButtons_Sizer.add( target_type_sizer );
-      filesButtons_Sizer.addStretch();
-      filesButtons_Sizer.addSpacing( 12 );
-      filesButtons_Sizer.add( winprefix_sizer );
-      filesButtons_Sizer.add( outputdir_sizer );
+      var filesButtons_Sizer1 = new HorizontalSizer;
+      parent.rootingArr.push(filesButtons_Sizer1);
+      filesButtons_Sizer1.spacing = 4;
+      filesButtons_Sizer1.add( addLightsButton );
+      filesButtons_Sizer1.add( addBiasButton );
+      filesButtons_Sizer1.add( addDarksButton );
+      filesButtons_Sizer1.add( addFlatsButton );
+      filesButtons_Sizer1.add( addFlatDarksButton );
+
+      var filesButtons_Sizer2 = new HorizontalSizer;
+      parent.rootingArr.push(filesButtons_Sizer2);
+      filesButtons_Sizer1.spacing = 4;
+      filesButtons_Sizer1.margin = 4;
+      filesButtons_Sizer2.add( target_type_sizer );
+      filesButtons_Sizer2.addStretch();
+      filesButtons_Sizer2.addSpacing( 12 );
+      filesButtons_Sizer2.add( winprefix_sizer );
+      filesButtons_Sizer2.add( outputdir_sizer );
+
+      if (ppar.use_single_column || ppar.use_more_tabs) {
+            var filesButtons_Sizer = new VerticalSizer;
+            parent.rootingArr.push(filesButtons_Sizer);
+            filesButtons_Sizer.add( filesButtons_Sizer1 );
+            filesButtons_Sizer.add( filesButtons_Sizer2 );
+            filesButtons_Sizer1.addStretch();
+      } else {
+            var filesButtons_Sizer = new HorizontalSizer;
+            parent.rootingArr.push(filesButtons_Sizer);
+            filesButtons_Sizer.add( filesButtons_Sizer1 );
+            filesButtons_Sizer.addSpacing( 12 );
+            filesButtons_Sizer.add( filesButtons_Sizer2 );
+      }
       return filesButtons_Sizer;
 }
 
@@ -5395,11 +5418,22 @@ function AutoIntegrateDialog()
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
             function(checked) { this.dialog.use_single_column_CheckBox.aiParam.use_single_column = checked; });
 
+      this.use_more_tabs_CheckBox = newGenericCheckBox(this, "More tabs", ppar, ppar.use_more_tabs, 
+            "<p>Use more tabs to show settings.</p>" +
+            "<p>Can be useful when using the side preview.</p>",
+            function(checked) { this.dialog.use_more_tabs_CheckBox.aiParam.use_more_tabs = checked; });
+
+      this.use_large_preview_CheckBox = newGenericCheckBox(this, "Large preview", ppar, ppar.use_large_preview, 
+            "<p>Use a large preview window on the side of the main dialog.</p>",
+            function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.use_large_preview = checked; });
+
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
       this.preview1Sizer.add( this.show_preview_CheckBox );
       this.preview1Sizer.add( this.use_single_column_CheckBox );
+      this.preview1Sizer.add( this.use_more_tabs_CheckBox );
+      this.preview1Sizer.add( this.use_large_preview_CheckBox );
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
       this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview_width, 100, 4000, 
@@ -5655,40 +5689,11 @@ function AutoIntegrateDialog()
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       this.rightProcessingGroupBox.sizer.addStretch();
         
-      // Exptra processing group box
+      // Extra processing group box
       this.extraGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
       this.extraGroupBox.sizer.addStretch();
 
-      /*
-       * Settings.
-       */
-      if (ppar.use_single_column) {
-            this.settingsCols = new VerticalSizer;
-      } else {
-            this.settingsCols = new HorizontalSizer;
-      }
-      this.settingsCols.spacing = 4;
-      this.settingsCols.add( this.leftGroupBox );
-      this.settingsCols.add( this.rightGroupBox );
-      //this.settingsCols.addStretch();
-
-      /*
-       * Processing.
-       */
-      if (ppar.use_single_column) {
-            this.processingCols = new VerticalSizer;
-      } else {
-            this.processingCols = new HorizontalSizer;
-      }
-      this.processingCols.spacing = 4;
-      this.processingCols.add( this.leftProcessingGroupBox );
-      this.processingCols.add( this.rightProcessingGroupBox );
-      //this.processingCols.addStretch();
-
-      /*
-       * Preview.
-       */
       if (global.use_preview) {
             /* Create preview objects.
              */
@@ -5711,82 +5716,147 @@ function AutoIntegrateDialog()
       /* Create tabs.                    */
       /* ------------------------------- */
 
+      this.mainTabBox = new TabBox( this );
+      mainTabBox = this.mainTabBox;
+      let tab_index = 0;
+
       if (ppar.use_single_column) {
-            /* Collect all groupd into single sizer.
+            /* Collect all into a single sizer.
              */
             this.singleColumnSizer = new VerticalSizer;
             this.singleColumnSizer.margin = 6;
             this.singleColumnSizer.spacing = 4;
-            this.singleColumnSizer.add( this.settingsCols );
-            this.singleColumnSizer.add( this.processingCols );
+            this.singleColumnSizer.add( this.leftGroupBox );
+            this.singleColumnSizer.add( this.rightGroupBox );
+            this.singleColumnSizer.add( this.leftProcessingGroupBox );
+            this.singleColumnSizer.add( this.rightProcessingGroupBox );
             this.singleColumnSizer.add( this.extraGroupBox );
-            this.singleColumnSizer.addStretch();
+            this.mainTabBox.addPage( mainSizerTab(this, this.singleColumnSizer), "Settings" );
+            tab_index++;
+
+            if (global.use_preview) {
+                  this.mainTabBox.addPage( mainSizerTab(this, this.tabPreviewObj.sizer), "Preview" );
+                  tab_preview_index = tab_index;
+                  tab_index++;
+            }
+      } else if (ppar.use_more_tabs) {
+            /* More tabs view. 
+             */
+            this.settingsSizer = new HorizontalSizer;
+            this.settingsSizer.margin = 6;
+            this.settingsSizer.spacing = 4;
+            this.settingsSizer.add( this.leftGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer), "Settings" );
+            tab_index++;
+
+            this.settingsSizer2 = new HorizontalSizer;
+            this.settingsSizer2.margin = 6;
+            this.settingsSizer2.spacing = 4;
+            this.settingsSizer2.add( this.rightGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer2), "Other" );
+            tab_index++;
+
+            this.processingsSizer = new HorizontalSizer;
+            this.processingsSizer.margin = 6;
+            this.processingsSizer.spacing = 4;
+            this.processingsSizer.add( this.leftProcessingGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer), "Processing 1" );
+            tab_index++;
+
+            this.processingsSizer2 = new HorizontalSizer;
+            this.processingsSizer2.margin = 6;
+            this.processingsSizer2.spacing = 4;
+            this.processingsSizer2.add( this.rightProcessingGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer2), "Processing 2" );
+            tab_index++;
+
+            this.previewSizer = new HorizontalSizer;
+            this.previewSizer.margin = 6;
+            this.previewSizer.spacing = 4;
+            if (global.use_preview) {
+                  this.previewSizer.add( this.tabPreviewObj.sizer );
+            }
+            this.previewSizer.add( this.extraGroupBox );
+            let tabname;
+            if (global.use_preview) {
+                  if (ppar.side_preview_visible) {
+                        tabname = "Extra processing";
+                  } else {
+                        tabname = "Preview and extra processing";
+                  }
+            } else {
+                  tabname = "Extra processing";
+            }
+            this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
+            tab_preview_index = tab_index;
+            tab_index++;
+
+      } else {
+            /* Default view. 
+             */
+            this.settingsSizer = new HorizontalSizer;
+            this.settingsSizer.margin = 6;
+            this.settingsSizer.spacing = 4;
+            this.settingsSizer.add( this.leftGroupBox );
+            this.settingsSizer.add( this.rightGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer), "Settings" );
+            tab_index++;
+
+            this.processingsSizer = new HorizontalSizer;
+            this.processingsSizer.margin = 6;
+            this.processingsSizer.spacing = 4;
+            this.processingsSizer.add( this.leftProcessingGroupBox );
+            this.processingsSizer.add( this.rightProcessingGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer), "Processing" );
+            tab_index++;
+
+            this.previewSizer = new HorizontalSizer;
+            this.previewSizer.margin = 6;
+            this.previewSizer.spacing = 4;
+            if (global.use_preview) {
+                  this.previewSizer.add( this.tabPreviewObj.sizer );
+            }
+            this.previewSizer.add( this.extraGroupBox );
+            let tabname;
+            if (global.use_preview) {
+                  if (ppar.side_preview_visible) {
+                        tabname = "Extra processing";
+                  } else {
+                        tabname = "Preview and extra processing";
+                  }
+            } else {
+                  tabname = "Extra processing";
+            }
+            this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
+            tab_preview_index = tab_index;
+            tab_index++;
       }
 
       this.mainSizer = new HorizontalSizer;
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
 
-      this.mainTabBox = new TabBox( this );
-      mainTabBox = this.mainTabBox;
-
-      /* Create settings tab.
-       */
-      let tab_index = 0;
-      if (ppar.use_single_column) {
-            var tabSizer = new mainSizerTab(this, this.singleColumnSizer);
-      } else {
-            var tabSizer = new mainSizerTab(this, this.settingsCols);
-      }
-      this.rootingArr.push(tabSizer);
-      this.mainTabBox.addPage( tabSizer, "Settings" );
-
-      if (!ppar.use_single_column) {
-            /* Create processing tab.
-             */
-            tab_index++;
-            tabSizer = new mainSizerTab(this, this.processingCols);
-            this.rootingArr.push(tabSizer);
-            this.mainTabBox.addPage( tabSizer, "Processing" );
-      }
-
-      if (global.use_preview) {
-            /* Create preview tab.
-             */
-            tab_index++;
-            tab_preview_index = tab_index;
-
-            this.previewAndExtraSizer = new HorizontalSizer;
-            this.previewAndExtraSizer.spacing = 4;
-            this.previewAndExtraSizer.add( this.tabPreviewObj.sizer );
-            if (!ppar.use_single_column) {
-                  this.previewAndExtraSizer.add( this.extraGroupBox);
-            }
-
-            tabSizer = new mainSizerTab(this, this.previewAndExtraSizer);
-            this.rootingArr.push(tabSizer);
-            if (ppar.use_single_column) {
-                  this.mainTabBox.addPage( tabSizer, "Preview" );
-            } else if (ppar.side_preview_visible) {
-                  mainTabBox.addPage( tabSizer, "Extra processing" );
-            } else {
-                  this.mainTabBox.addPage( tabSizer, "Preview and extra processing" );
-            }
-      }
-
-      if (global.use_preview) {
+      if (global.use_preview && !ppar.use_large_preview) {
             this.mainSizer.add( this.sidePreviewObj.sizer);
       }
       this.mainSizer.add( this.mainTabBox );
       //this.mainSizer.addStretch();
 
-      this.sizer = new VerticalSizer;
+      this.baseSizer = new VerticalSizer;
+      this.baseSizer.margin = 6;
+      this.baseSizer.spacing = 4;
+      this.baseSizer.add( this.tabBox);             // Files tabs
+      this.baseSizer.add( this.filesButtonsSizer);  // Buttons row below files
+      this.baseSizer.add( this.mainSizer );         // Main view with tabbs
+      this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom
+
+      this.sizer = new HorizontalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
-      this.sizer.add( this.tabBox);
-      this.sizer.add( this.filesButtonsSizer);
-      this.sizer.add( this.mainSizer );
-      this.sizer.add( this.buttons_Sizer );
+      if (global.use_preview && ppar.use_large_preview) {
+            this.sizer.add( this.sidePreviewObj.sizer);
+      }
+      this.sizer.add( this.baseSizer);
       //this.sizer.addStretch();
 
       // Version number

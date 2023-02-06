@@ -398,6 +398,16 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
             ppar.use_single_column = tempSetting;
       }
+      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored useMoreTabs'" + tempSetting + "' from settings.");
+            ppar.use_more_tabs = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/useLargePreview", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored useLargePreview'" + tempSetting + "' from settings.");
+            ppar.use_large_preview = tempSetting;
+      }
 }
 
 // Read default parameters from process icon
