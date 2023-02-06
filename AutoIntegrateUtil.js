@@ -857,7 +857,7 @@ this.updateStatusInfoLabel = function(txt)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      if (global.tabStatusInfoLabel != null) {
+      if (global.use_preview && global.tabStatusInfoLabel != null) {
             global.tabStatusInfoLabel.text = txt;
       }
       if (global.use_preview && global.sideStatusInfoLabel != null) {
@@ -955,11 +955,27 @@ this.ensureDialogFilePath = function(names)
       }
 }
 
+this.setParameterDefaults = function()
+{
+      console.writeln("Set parameter defaults");
+      for (let x in par) {
+            var param = par[x];
+            param.val = param.def;
+            if (param.reset != undefined) {
+                  param.reset();
+            }
+      }
+}
+
 function getSettingsFromJson(settings)
 {
       if (settings == null || settings == undefined) {
             console.noteln("getSettingsFromJson: empty settings");
             return;
+      }
+
+      if (par.reset_on_setup_load.val) {
+            util.setParameterDefaults();
       }
 
       console.noteln("Restore " + settings.length + " settings");

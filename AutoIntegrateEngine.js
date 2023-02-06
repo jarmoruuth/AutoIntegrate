@@ -126,6 +126,9 @@ var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
 var crop_lowClipImage_changed = false; // changed flag for saving to disk
 
+this.firstDateFileInfo = null;
+this.lastDateFileInfo = null;
+
 var L_images;
 var R_images;
 var G_images;
@@ -2519,6 +2522,8 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
       var imgheigth = 0;
       var minwidth = 0;
       var minheigth = 0;
+      var firstDate = null;
+      var lastDate = null;
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
@@ -2552,6 +2557,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
             var use_treebox_ssweight = false;
             var treebox_best_image = false;
             var treebox_reference_image = false;
+            var date_obs = null;
             if (Array.isArray(obj)) {
                   // we have treeboxfiles array
                   var filePath = obj[0];
@@ -2632,6 +2638,10 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                               console.writeln(keywords[j].name + "=" + value);
                               exptime = parseFloat(value);
                               break;
+                        case "DATE-OBS":
+                              console.writeln(keywords[j].name + "=" + value);
+                              date_obs = value;
+                              break;
                         default:
                               break;
                   }
@@ -2694,70 +2704,71 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                   default:
                         break;
             }
-            // Do final resolve based on first letter in the filter'
+            // Do final resolve based on first letter in the filter
             var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
+            var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+                              best_image: treebox_best_image, reference_image: treebox_reference_image,
+                              width: imgwidth, heigth: imgheigth, date_obs: date_obs, isFirstDate: false, isLastDate: false };
+            if (date_obs != null) {
+                  if (firstDate == null || date_obs < firstDate) {
+                        console.writeln("firstDate " + date_obs);
+                        firstDate = date_obs;
+                        engine.firstDateFileInfo = file_info;
+                  }
+                  if (lastDate == null || date_obs > lastDate) {
+                        console.writeln("lastDate " + date_obs);
+                        lastDate = date_obs;
+                        engine.lastDateFileInfo = file_info;
+                  }
+            }
             switch (filter_keyword) {
                   case 'L':
                         if (allfiles.L.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.L[allfiles.L.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.L[allfiles.L.length] = file_info;
                         luminance = true;
                         break;
                   case 'R':
                         if (allfiles.R.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.R[allfiles.R.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.R[allfiles.R.length] = file_info;
                         rgb = true;
                         break;
                   case 'G':
                         if (allfiles.G.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.G[allfiles.G.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.G[allfiles.G.length] = file_info;
                         rgb = true;
                         break;
                   case 'B':
                         if (allfiles.B.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.B[allfiles.B.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.B[allfiles.B.length] = file_info;
                         rgb = true;
                         break;
                   case 'H':
                         if (allfiles.H.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.H[allfiles.H.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.H[allfiles.H.length] = file_info;
                         narrowband = true;
                         break;
                   case 'S':
                         if (allfiles.S.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.S[allfiles.S.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.S[allfiles.S.length] = file_info;
                         narrowband = true;
                         break;
                   case 'O':
                         if (allfiles.O.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.O[allfiles.O.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.O[allfiles.O.length] = file_info;
                         narrowband = true;
                         break;
                   case 'C':
@@ -2765,9 +2776,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                         if (allfiles.C.length == 0) {
                               console.writeln("Found "+ filter_keyword + " files (" + filePath + ")");
                         }
-                        allfiles.C[allfiles.C.length] = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
-                                                          best_image: treebox_best_image, reference_image: treebox_reference_image,
-                                                          width: imgwidth, heigth: imgheigth };
+                        allfiles.C[allfiles.C.length] = file_info;
                         color_files = true;
                         break;
             }
@@ -2793,7 +2802,9 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                narrowband : narrowband,
                color_files : color_files,
                ssweight_set : ssweight_set,
-               error_text: error_text
+               error_text: error_text,
+               firstDateFileInfo: engine.firstDateFileInfo,
+               lastDateFileInfo: engine.lastDateFileInfo
              };
 }
 
@@ -3628,6 +3639,45 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 }
 
+function removeStarsFromLights(fileNames)
+{
+      var newFileNames = [];
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
+      var postfix = "_starless";
+      var outputExtension = ".xisf";
+
+      for (var i = 0; i < fileNames.length; i++) {
+            console.writeln("Remove stars from image " + fileNames[i]);
+
+            // Open source image window from a file
+            var imageWindows = ImageWindow.open(fileNames[i]);
+            if (imageWindows.length != 1) {
+                  util.throwFatalError("*** removeStarsFromLights Error: imageWindows.length: " + imageWindows.length);
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  util.throwFatalError("*** removeStarsFromLights Error: Can't read file: " + fileNames[i]);
+            }
+
+            removeStars(imageWindow, true, false, null, null, false);
+            
+            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+
+            // Save window
+            console.writeln("Save starless image as " + filePath);
+            if (!writeImage(filePath, imageWindow)) {
+                  util.throwFatalError("*** removeStarsFromLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+            }
+            // Close window
+            util.forceCloseOneWindow(imageWindow);   
+
+            newFileNames[newFileNames.length] = filePath;
+      }
+      console.writeln("removeStarsFromLights output[0] " + newFileNames[0]);
+
+      return newFileNames;
+}
+
 /* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
  */
@@ -3942,6 +3992,151 @@ function runStarAlignment(imagetable, refImage)
       console.writeln("output[0] " + alignedFiles[0]);
 
       global.star_alignment_image = refImage;
+
+      return alignedFiles;
+}
+
+function runCometAlignment(filenames, filename_postfix)
+{
+      console.writeln("Comet alignment, get metadata for images.");
+      var filter_files = engine.getFilterFiles(filenames, global.pages.LIGHTS, '');
+
+      /* Collect all file infos into a single list. 
+       */
+      console.writeln("Comet alignment, sort images by date.");
+      var file_info_list = [];
+      for (var i = 0; i < filter_files.allfilesarr.length; i++) {
+            file_info_list = file_info_list.concat(filter_files.allfilesarr[i].files);
+      }
+
+      /* Sort the list by date. 
+       */
+      file_info_list.sort(function(a, b) {
+            if (a.date_obs < b.date_obs) {
+                  return -1;
+            } else if (a.date_obs > b.date_obs) {
+                  return 1;
+            } else {
+                  util.throwFatalError("Comet alignment failed, equal DATE-OBS " + a.date_obs + " in files " + a.name + " and " + b.name);
+            }
+      });
+
+      /* Generate targetFrames.
+       */
+      console.writeln("Comet alignment, generate target frame info.");
+      var splt = par.comet_first_xy.val.split(",");
+      if (splt.length != 2) {
+            util.throwFatalError("Comet alignment failed, incorrect first image X,Y format " + par.comet_first_xy.val);
+      }
+      var first_x = parseInt(splt[0]);
+      var first_y = parseInt(splt[1]);
+      var splt = par.comet_last_xy.val.split(",");
+      if (splt.length != 2) {
+            util.throwFatalError("Comet alignment failed, incorrect last image X,Y format " + par.comet_last_xy.val);
+      }
+      var last_x = parseInt(splt[0]);
+      var last_y = parseInt(splt[1]);
+      var first_jd = Math.calendarTimeToJD(file_info_list[0].date_obs);
+      var last_jd = Math.calendarTimeToJD(file_info_list[file_info_list.length - 1].date_obs);
+
+      var diff_x = last_x - first_x;
+      var diff_y = last_y - first_y;
+      var diff_jd = last_jd - first_jd;
+
+      var speed_x = diff_x / diff_jd;
+      var speed_y = diff_y / diff_jd;
+
+      // Number Math.calendarTimeToJD( String dateTime )
+
+      // Target frames example
+      // [ path, enabled, date, jd, x, y, fixed, drizzlePath
+      //      ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T04-47-07_COMETC2022E3_Luminance_30s_ID333839_cal.fits", true, "", 2459975.699387777596712, 6950.60, 1804.66, true, ""],
+      //      ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T04-47-40_COMETC2022E3_Luminance_30s_ID333840_cal.fits", true, "", 2459975.699768784921616, 6901.26, 1817.37, false, ""],
+      //      ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T05-30-01_COMETC2022E3_Blue_30s_ID333926_cal.fits", true, "", 2459975.729182534851134, 3091.91, 2798.20, false, ""],
+      //      ["D:/Telescopes/TelescopeLive/COMETC2022E3_LRGB_SPA-1-CMOS/SPA-1-CMOS_2023-01-31T05-30-34_COMETC2022E3_Blue_30s_ID333927_cal.fits", true, "", 2459975.729565069545060, 3042.37, 2810.96, true, ""]
+      // ];
+      var targetFrames = [];
+      for (var i = 0; i < file_info_list.length; i++) {
+            let x;
+            let y;
+            let jd = Math.calendarTimeToJD(file_info_list[i].date_obs);
+            if (i == 0) {
+                  x = first_x;
+                  y = first_y;
+            } else {
+                  x = targetFrames[i-1][4] + (jd - targetFrames[i-1][3]) * speed_x;
+                  y = targetFrames[i-1][5] + (jd - targetFrames[i-1][3]) * speed_y;
+            }
+            // path, enabled, date, jd, x, y, fixed, drizzlePath
+            targetFrames[targetFrames.length] = [
+                  file_info_list[i].name,                                                       // 0 path
+                  true,                                                                         // 1 enabled
+                  "",                                                                           // 2 date
+                  jd,                                                                           // 3 jd
+                  x,                                                                            // 4 x
+                  y,                                                                            // 5 y
+                  false,                                                                        // 6 fixed
+                  par.use_drizzle.val ? file_info_list[i].name.replace(".xisf", ".xdrz") : ""   // 7 drizzlePath
+            ];
+      }
+      targetFrames[0][6] = true;
+      targetFrames[targetFrames.length-1][4] = last_x;
+      targetFrames[targetFrames.length-1][5] = last_y;
+      targetFrames[targetFrames.length-1][6] = true;
+
+      console.writeln("[ path, enabled, date, jd, x, y, fixed, drizzlePath, diff x, diff y]");
+      for (var i = 0; i < targetFrames.length; i++) {
+            console.write('[');
+            for (var j = 0; j < targetFrames[i].length; j++) {
+                  console.write(targetFrames[i][j] + ", ");
+            }
+            if (i == 0) {
+                  console.writeln("0, 0");
+            } else {
+                  console.writeln((targetFrames[i][4] - targetFrames[i-1][4]) + ", " +
+                                  (targetFrames[i][5] - targetFrames[i-1][5]));
+            }
+      }
+
+      console.writeln("Comet alignment, call CometAlignment.");
+
+      var P = new CometAlignment;
+      P.targetFrames = targetFrames;
+      P.referenceIndex = 0;
+      P.fitPSF = true;
+      P.operandImageFilePath = "";
+      P.operandSubtractAligned = true;
+      P.operandLinearFit = true;
+      P.operandLinearFitLow = 0.000000;
+      P.operandLinearFitHigh = 0.920000;
+      P.operandNormalize = true;
+      P.drizzleWriteStarAlignedImage = true;
+      P.drizzleWriteCometAlignedImage = true;
+      P.pixelInterpolation = CometAlignment.prototype.Lanczos4;
+      P.linearClampingThreshold = 0.30;
+      P.inputHints = "";
+      P.outputHints = "";
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
+      P.outputExtension = ".xisf";
+      P.outputPrefix = "";
+      P.outputPostfix = "_ca";
+      P.overwriteExistingFiles = true;
+      P.generateCometPathMap = true;
+      P.onError = CometAlignment.prototype.OnError_Continue;
+      P.useFileThreads = true;
+      P.fileThreadOverload = 1.00;
+      P.maxFileReadThreads = 0;
+      P.maxFileWriteThreads = 0;
+
+      P.executeGlobal();
+
+      var alignedFiles = [];
+      for (var i = 0; i < filenames.length; i++) {
+            alignedFiles[alignedFiles.length] = filenames[i].replace(filename_postfix + ".", filename_postfix + "_ca.");
+      }
+
+      util.addProcessingStep("Comet alignment, " + alignedFiles.length + " files");
+      console.writeln("output[0] " + alignedFiles[0]);
 
       return alignedFiles;
 }
@@ -6242,10 +6437,10 @@ function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
 
 function findIntegratedRGBImage(channel, check_base_name, filtered_lights)
 {
-      var id = findIntegratedChannelImage("Integration_RGB_color", check_base_name);
+      var id = findIntegratedChannelImage("RGB_color", check_base_name);
       if (id == null) {
             // Try with old name
-            id = findWindowIdCheckBaseNameIf("Integration_RGBcolor", check_base_name);
+            id = findWindowIdCheckBaseNameIf("RGBcolor", check_base_name);
       }
       if (id == null && filtered_lights != null) {
             id = findIntegratedLightImage('C', filtered_lights);
@@ -6780,6 +6975,15 @@ function CreateChannelImages(parent, auto_continue)
                   util.throwFatalError("Extract channels only is selected but Extract channels option is " + par.extract_channel_mapping.val);
             }
 
+            if (par.comet_align.val) {
+                  if (engine.firstDateFileInfo == null || engine.lastDateFileInfo == null) {
+                        util.throwFatalError("No first and last images for comet alignment. Maybe DATE-OBS is missing from image metadata.");
+                  }
+                  if (par.comet_first_xy.val == "" || par.comet_last_xy.val == "") {
+                        util.throwFatalError("No first and last image coordinates for comet alignment.");
+                  }
+            }
+
             // Run image calibration if we have calibration frames
             var calibrateInfo = calibrateEngine(filtered_lights);
             global.lightFileNames = calibrateInfo[0];
@@ -6984,7 +7188,8 @@ function CreateChannelImages(parent, auto_continue)
             /* StarAlign
             */
             if (!par.start_from_imageintegration.val
-                && !par.cropinfo_only.val) 
+                && !par.cropinfo_only.val
+                && !par.comet_align.val) 
             {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_r');
                   if (fileProcessedStatus.unprocessed.length == 0) {
@@ -6999,6 +7204,33 @@ function CreateChannelImages(parent, auto_continue)
                   alignedFiles = fileNames;
             }
             util.runGC();
+
+            if (par.remove_stars_light.val
+                && !par.start_from_imageintegration.val
+                && !par.cropinfo_only.val)
+            {
+                  var fileProcessedStatus = getFileProcessedStatus(alignedFiles, '_starless');
+                  if (fileProcessedStatus.unprocessed.length == 0) {
+                        alignedFiles = fileProcessedStatus.processed;
+                  } else {
+                        let processedFileNames = removeStarsFromLights(fileProcessedStatus.unprocessed);
+                        alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
+                  }
+                  filename_postfix = filename_postfix + '_starless';
+                  guiUpdatePreviewFilename(alignedFiles[0]);
+            }
+
+            /* CometAlign
+            */
+            if (!par.start_from_imageintegration.val
+                && !par.cropinfo_only.val
+                && par.comet_align.val) 
+            {
+                  alignedFiles = runCometAlignment(alignedFiles, filename_postfix);
+                  filename_postfix = filename_postfix + '_ca';
+                  guiUpdatePreviewFilename(alignedFiles[0]);
+                  util.runGC();
+            }
 
             /* Find files for each L, R, G, B, H, O and S channels, or color files.
              */
@@ -9946,7 +10178,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          starReduceNoise(ImageWindow.windowById(stars_id));
                    }
  
-                   if (!narrowband && !par.use_RGBNB_Mapping.val && !par.skip_SCNR.val) {
+                   if (!narrowband && !par.use_RGBNB_Mapping.val && !par.skip_SCNR.val && !par.comet_align.val) {
                          /* Remove green cast, run SCNR
                           */
                          runSCNR(ImageWindow.windowById(LRGB_ABE_HT_id).mainView, false);

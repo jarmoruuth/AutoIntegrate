@@ -53,12 +53,10 @@ var outputDirEdit;                     // For updating output root directory
 var tabPreviewControl = null;          // For updating preview window
 var tabPreviewInfoLabel = null;        // For updating preview info text
 var sidePreviewControl = null;         // For updating preview window
-var mainTabBox = null                  // For switching to preview tab
+var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 
-var use_tab_preview = true;
 var tab_preview_index = 1;
-var use_side_preview = true;
 var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
@@ -135,17 +133,31 @@ function previewCleanup(previewObj)
       previewObj.statuslabel = null;
 }
 
+function variableCleanup()
+{
+      infoLabel = null;
+      imageInfoLabel = null;
+      windowPrefixHelpTips = null;
+      closeAllPrefixButton = null;
+      windowPrefixComboBox = null;
+      outputDirEdit = null;
+      tabPreviewControl = null;
+      tabPreviewInfoLabel = null;
+      sidePreviewControl = null;
+      mainTabBox = null;
+      sidePreviewInfoLabel = null;
+}
+
 function exitCleanup(dialog)
 {
       console.writeln("exitCleanup");
-      if (global.use_preview && use_tab_preview) {
+      if (global.use_preview) {
             previewCleanup(dialog.tabPreviewObj);
             dialog.tabPreviewObj = null;
-      }
-      if (global.use_preview && use_side_preview) {
             previewCleanup(dialog.sidePreviewObj);
             dialog.sidePreviewObj = null;
       }
+      variableCleanup();
       util.checkEvents();
 }
 
@@ -2321,18 +2333,6 @@ function saveParametersToProcessIcon()
       }
 }
 
-function setParameterDefaults()
-{
-      console.writeln("setParameterDefaults");
-      for (let x in par) {
-            var param = par[x];
-            param.val = param.def;
-            if (param.reset != undefined) {
-                  param.reset();
-            }
-      }
-}
-
 // Save default parameters to persistent module settings
 function saveParametersToPersistentModuleSettings()
 {
@@ -2380,7 +2380,9 @@ function newPushorToolButton(parent, icon, txt, tooltip, action, toolbutton)
             button.text = txt;
       }
       button.onClick = action;
-      button.icon = parent.scaledResource( icon );
+      if (icon) {
+            button.icon = parent.scaledResource( icon );
+      }
       button.toolTip = tooltip;
 
       return button;
@@ -2980,11 +2982,30 @@ function updateSidePreviewState()
             sidePreviewInfoLabel.show();
             global.sideStatusInfoLabel.show();
             sidePreviewControl.show();
+
+            tabPreviewInfoLabel.hide();
+            global.tabStatusInfoLabel.hide();
+            tabPreviewControl.hide();
+
+            if (!ppar.use_single_column && mainTabBox != null) {
+                  mainTabBox.setPageLabel(tab_preview_index, "Extra processing");
+            }
+
             ppar.side_preview_visible = true;
+
       } else {      
             sidePreviewInfoLabel.hide();
             global.sideStatusInfoLabel.hide();
             sidePreviewControl.hide();
+
+            tabPreviewInfoLabel.show();
+            global.tabStatusInfoLabel.show();
+            tabPreviewControl.show();
+
+            if (!ppar.use_single_column && mainTabBox != null) {
+                  mainTabBox.setPageLabel(tab_preview_index, "Preview and extra processing");
+            }
+
             ppar.side_preview_visible = false;
       }
 }
@@ -3058,6 +3079,39 @@ function AutoIntegrateDialog()
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
 
+      var BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
+      var comet_alignment_toolTip = 
+            "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
+            "<ul>" +
+            "<li>Run a normal workflow to get correct stars and background objects.</li>" +
+            "<li>Load start aligned *_r.xisf files as light files.</li>" + 
+            "<li>Set Window prefix to avoid overwriting files in the first step.</li>" + 
+            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>No CosmetiCorrection</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Go to the <i>Processing tab</i> and <i>CometAlignment</i> section.</li>" +
+            "<li>Fill first and last comet position coordinates. Note that the first and last images " + 
+                "are selected automatically based on image timestamps from the DATE-OBS keyword when images are loaded.</li>" +
+            "<li>To get the coordinates click the <i>Preview</i> button for the image, go to preview image tab, zoom " + 
+                  "to 1:1 view and click the comet nucleus with the left mouse button.</li>" + 
+            "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box.</li>" +
+            "<li>Use the <i>Run</i> button to process images.</li>" +
+            "</ul>" + 
+            "<p>Comet alignment will automatically skip star alignment and SCNR. If you are not using already star aligned images " + 
+               "then Star alignment may invalidate coordinates given here so it is not used.</p>" +
+            "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error in ImageIntegration " +
+            "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
+            "<p>It is possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
+            "<ul>" + 
+            "<li>Run normal workflow to get correct stars and background objects.</li>" +
+            "<li>Manually run the CometAlignment on star aligned *_r.xisf files. This will create *_ca.xisf files.</li>" + 
+            "<li>Remove stars from *_ca.xisf files. StarXTerminator has a batch mode that makes this easier.</li>" + 
+            "<li>Load comet aligned files into AutoIntegrate as lights files.</li>" + 
+            "<li>Check <i>Start from ImageIntegration</i> in <i>Other parameters</i>.</li>" +
+            "<li>Use the <i>Run</i> button to process images.</li>" +
+            "</ul>";
+            "";
+
       this.helpTips = new ToolButton( this );
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.helpTips.setScaledFixedSize( 20, 20 );
@@ -3123,6 +3177,9 @@ function AutoIntegrateDialog()
             "<p>Do not run CosmeticCorrection on image files</p>" );
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
+      this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
+            "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing</i> tab.</p>" +
+            comet_alignment_toolTip);
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
@@ -3149,6 +3206,9 @@ function AutoIntegrateDialog()
             "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" ); */
       this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
+      this.resetOnSetupLoadCheckBox = newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
+            "<p>Reset parameters toi default values before loading a setup. This ensures that only parametrers from the setup file are set " + 
+            "and user saved default parameters are not set.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", par.ABE_before_channel_combination, 
@@ -3175,6 +3235,8 @@ function AutoIntegrateDialog()
             "<p>With color images (DSLR/OSC) remove stars after image integration while image is still in linear stage. " + 
             "This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
+      this.remove_stars_light_CheckBox = newCheckBox(this, "Remove stars from lights", par.remove_stars_light, 
+            "<p>Remove stars from light image. Stars are removed after after star alignment. If comet alignmet is chosen then stars are removed before comet align.</p>");
       this.remove_stars_stretched_CheckBox = newCheckBox(this, "Remove_stars after stretch", par.remove_stars_stretched, 
             "<p>Remove stars after image has been stretched to non-linear state. Start from RGB image are saved and they " + 
             "can be later added back to the image. This needs StarXTerminator.</p>" +
@@ -3280,7 +3342,8 @@ function AutoIntegrateDialog()
             "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
             "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
             "But it is always good to experiment what " +
-            "is best for your own data.</p>");
+            "is best for your own data.</p>" + 
+            "<p>" + BXT_no_PSF_tip + "</p>");
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -3288,6 +3351,7 @@ function AutoIntegrateDialog()
             "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
             "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove " + 
             "bad files after alignment.</p>" +
+            "<p>This moption is also useful when doing comet alignment. Then input files should be comet aligned *_ca.xisf files.</p>" +
             "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
             "filter files must be added manually to the file list.</p>" );
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
@@ -3332,11 +3396,13 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
+      this.imageParamsSet1.add( this.CometAlignCheckBox );
       /* this.imageParamsSet1.add( this.relaxedStartAlignCheckBox); */
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
       this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
+      this.imageParamsSet1.add( this.remove_stars_light_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_before_stretch_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_stretched_CheckBox );
@@ -3425,6 +3491,44 @@ function AutoIntegrateDialog()
       this.StarAlignmentGroupBoxSizer.add( this.noiseReductionFilterRadiusStarAlignmentLabel );
       this.StarAlignmentGroupBoxSizer.add( this.noiseReductionFilterRadiusStarAlignmentControl );
       this.StarAlignmentGroupBoxSizer.addStretch();
+
+      this.cometAlignmentGroupBoxLabel = newSectionLabel(this, "CometAlignment settings");
+      this.cometAlignmentGroupBoxLabel.toolTip = 
+            "<p>CometAlignment settings can be used to set values for comet alignment process.</p>" +
+            comet_alignment_toolTip;
+
+      var cometFirstImageAction = function() {
+            if (engine.firstDateFileInfo == null) {
+                  console.criticalln("No first image.");
+            } else {
+                  updatePreviewFilename(engine.firstDateFileInfo.name, true);
+            }
+      }
+      var cometLastImageAction = function() {
+            if (engine.lastDateFileInfo == null) {
+                  console.criticalln("No last image.");
+            } else {
+                  updatePreviewFilename(engine.lastDateFileInfo.name, true);
+            }
+      }
+
+      this.cometAlignFirstLabel = newLabel(this, "First image X,Y:", "<p>Coordinates for the first comet image.</p>" + comet_alignment_toolTip);
+      this.cometAlignFirstXY = newTextEdit(this, par.comet_first_xy, this.cometAlignFirstLabel.toolTip);
+      this.cometAlignFirstXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + comet_alignment_toolTip, cometFirstImageAction, false);
+      this.cometAlignLastLabel = newLabel(this, "Last image X,Y:", "<p>Coordinates for the last comet image.</p>" + comet_alignment_toolTip);
+      this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignLastLabel.toolTip);
+      this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
+
+      this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
+      this.cometAlignmentGroupBoxSizer.margin = 6;
+      this.cometAlignmentGroupBoxSizer.spacing = 4;
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignFirstLabel );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignFirstXY );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignFirstXYButton );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastLabel );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastXY );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastXYButton );
+      this.cometAlignmentGroupBoxSizer.addStretch();
 
       // Saturation selection
       this.linearSaturationLabel = new Label( this );
@@ -3539,7 +3643,8 @@ function AutoIntegrateDialog()
 
       this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
       this.bxtImagePSF = newCheckBox(this, "Get PSF from image.", par.bxt_image_psf, 
-            "<p>Get PSF value from image using FWHM.</p>" );
+            "<p>Get PSF value from image using FWHM.</p>" + 
+            "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectFirst = newCheckBox(this, "Correct first", par.bxt_correct_first, 
             "<p>Set correct first flag for BlurXTerminator.</p>" );
 
@@ -3718,6 +3823,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.add( this.AutoSaveSetupBox );
       this.otherParamsSet2.add( this.UseProcessedFilesBox );
       this.otherParamsSet2.add( this.saveCroppedImagesBox );
+      this.otherParamsSet2.add( this.resetOnSetupLoadCheckBox );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -5417,7 +5523,7 @@ function AutoIntegrateDialog()
       this.reset_Button.toolTip = "Set default values for all parameters.";
       this.reset_Button.onMousePress = function()
       {
-            setParameterDefaults();
+            util.setParameterDefaults();
       };
       this.website_Button = new ToolButton(this);
       this.website_Button.icon = new Bitmap( ":/icons/internet.png" );
@@ -5484,31 +5590,32 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      if (ppar.use_single_column) {
-            global.use_processing_tab = false;
-      }
+      /* 
+       * Collect all items into GroupBox objects.
+       */
 
+      // Settings left group box
       this.leftGroupBox = newGroupBoxSizer(this);
 
       newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
-      newSectionBarAdd(this, this.leftGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      this.leftGroupBox.sizer.addStretch();
 
-      let gb = this.leftGroupBox;
-      if (global.use_processing_tab) {
-            // add processing settings to a new tab
-            this.leftProcessingGroupBox = newGroupBoxSizer(this);
-            this.rightProcessingGroupBox = newGroupBoxSizer(this);
-            // add first to the left
-            gb = this.leftProcessingGroupBox;
-      }
+      // Settings right group box
+      this.rightGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+      newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
+      this.rightGroupBox.sizer.addStretch();
 
-      // Add Processiong settings sections
-      newSectionBarAddArray(this, gb, "Stretching settings", "ps_stretching",
+      // Left processing group box
+      this.leftProcessingGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
             [ this.StretchingGroupBoxLabel,
               this.StretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, gb, "Linear fit and LRGB combination settings", "ps_linearfit_combination",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit and LRGB combination settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationSizer ]);
-      newSectionBarAddArray(this, gb, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
               this.noiseReductionGroupBoxLabel,
@@ -5516,95 +5623,102 @@ function AutoIntegrateDialog()
               this.sharpeningGroupBoxLabel,
               this.sharpeningGroupBoxSizer,
               this.sharpeningGroupBoxSizer2 ]);
-      if (global.use_processing_tab) {
-            // then add to the right
-            gb = this.rightProcessingGroupBox;
-      }
-      newSectionBarAddArray(this, gb, "Image integration settings", "ps_integration",
+      this.leftProcessingGroupBox.sizer.addStretch();
+
+      // Right processing group box
+      this.rightProcessingGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer ]);
-      newSectionBarAddArray(this, gb, "Star alignment settings", "ps_alignment",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
             [ this.StarAlignmentGroupBoxLabel,
-              this.StarAlignmentGroupBoxSizer ]);
-      newSectionBarAddArray(this, gb, "Weighting and filtering settings", "ps_weighting",
+              this.StarAlignmentGroupBoxSizer,
+              this.cometAlignmentGroupBoxLabel,
+              this.cometAlignmentGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Weighting and filtering settings", "ps_weighting",
             [ this.weightSizer ]);
-      newSectionBarAddArray(this, gb, "Banding, binning and cosmetic correction settings", "ps_binning_CC",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Banding, binning and cosmetic correction settings", "ps_binning_CC",
             [ this.bandingGroupBoxLabel,
               this.bandingGroupBoxSizer,
               this.binningGroupBoxLabel,
               this.binningGroupBoxSizer,
               this.cosmeticCorrectionGroupBoxSizer ]);
-      newSectionBarAddArray(this, gb, "Image solving and color calibration", "ps_imagesolving",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image solving and color calibration", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
               this.imageSolvingGroupBoxSizer,
               this.imageSolvingGroupBoxSizer2,
               this.colorCalibrationGroupBoxLabel,
               this.colorCalibrationGroupBoxSizer ]);
+      newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      this.rightProcessingGroupBox.sizer.addStretch();
         
-      if (!ppar.use_single_column) {
-            this.leftGroupBox.sizer.addStretch();
-      }
+      // Exptra processing group box
+      this.extraGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
+      this.extraGroupBox.sizer.addStretch();
 
-      this.rightGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.rightGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
-      if (global.use_processing_tab) {
-            // add Narrowband to RGB mapping to the processing tab
-            gb = this.rightProcessingGroupBox;
+      /*
+       * Settings.
+       */
+      if (ppar.use_single_column) {
+            this.settingsCols = new VerticalSizer;
       } else {
-            gb = this.rightGroupBox;
+            this.settingsCols = new HorizontalSizer;
       }
-      newSectionBarAdd(this, gb, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-      newSectionBarAdd(this, this.rightGroupBox, this.extraControl, "Extra processing", "Extra1");
-      newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
-      newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
+      this.settingsCols.spacing = 4;
+      this.settingsCols.add( this.leftGroupBox );
+      this.settingsCols.add( this.rightGroupBox );
+      //this.settingsCols.addStretch();
 
-      if (!ppar.use_single_column) {
-            this.rightGroupBox.sizer.addStretch();
-      }
+      /*
+       * Processing.
+       */
       if (ppar.use_single_column) {
-            this.cols = new VerticalSizer;
+            this.processingCols = new VerticalSizer;
       } else {
-            this.cols = new HorizontalSizer;
-      }
-      this.cols.spacing = 4;
-      this.cols.add( this.leftGroupBox );
-      this.cols.add( this.rightGroupBox );
-      if (ppar.use_single_column) {
-            this.cols.addStretch();
-      }
-      if (global.use_processing_tab) {
-            this.leftProcessingGroupBox.sizer.addStretch();
-            this.rightProcessingGroupBox.sizer.addStretch();
             this.processingCols = new HorizontalSizer;
-            this.processingCols.spacing = 4;
-            this.processingCols.add( this.leftProcessingGroupBox );
-            this.processingCols.add( this.rightProcessingGroupBox );
       }
+      this.processingCols.spacing = 4;
+      this.processingCols.add( this.leftProcessingGroupBox );
+      this.processingCols.add( this.rightProcessingGroupBox );
+      //this.processingCols.addStretch();
 
+      /*
+       * Preview.
+       */
       if (global.use_preview) {
-            /* Tab preview.
+            /* Create preview objects.
              */
-            if (use_tab_preview) {
-                  this.tabPreviewObj = newPreviewObj(this);
+            this.tabPreviewObj = newPreviewObj(this);
 
-                  tabPreviewControl = this.tabPreviewObj.control;
-                  tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
-                  global.tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
-            }
-            /* Side preview.
-             */
-            if (use_side_preview) {
-                  this.sidePreviewObj = newPreviewObj(this);
+            tabPreviewControl = this.tabPreviewObj.control;
+            tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
+            global.tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
 
-                  sidePreviewControl = this.sidePreviewObj.control;
-                  sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
-                  global.sideStatusInfoLabel = this.sidePreviewObj.statuslabel;
+            this.sidePreviewObj = newPreviewObj(this);
 
-                  updateSidePreviewState();
-            }
+            sidePreviewControl = this.sidePreviewObj.control;
+            sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
+            global.sideStatusInfoLabel = this.sidePreviewObj.statuslabel;
+
+            updateSidePreviewState();
       }
 
       /* ------------------------------- */
+      /* Create tabs.                    */
+      /* ------------------------------- */
+
+      if (ppar.use_single_column) {
+            /* Collect all groupd into single sizer.
+             */
+            this.singleColumnSizer = new VerticalSizer;
+            this.singleColumnSizer.margin = 6;
+            this.singleColumnSizer.spacing = 4;
+            this.singleColumnSizer.add( this.settingsCols );
+            this.singleColumnSizer.add( this.processingCols );
+            this.singleColumnSizer.add( this.extraGroupBox );
+            this.singleColumnSizer.addStretch();
+      }
 
       this.mainSizer = new HorizontalSizer;
       this.mainSizer.margin = 6;
@@ -5613,27 +5727,51 @@ function AutoIntegrateDialog()
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
 
+      /* Create settings tab.
+       */
       let tab_index = 0;
-      let tabSizer = new mainSizerTab(this, this.cols);
+      if (ppar.use_single_column) {
+            var tabSizer = new mainSizerTab(this, this.singleColumnSizer);
+      } else {
+            var tabSizer = new mainSizerTab(this, this.settingsCols);
+      }
       this.rootingArr.push(tabSizer);
       this.mainTabBox.addPage( tabSizer, "Settings" );
 
-      if (global.use_processing_tab) {
+      if (!ppar.use_single_column) {
+            /* Create processing tab.
+             */
             tab_index++;
             tabSizer = new mainSizerTab(this, this.processingCols);
             this.rootingArr.push(tabSizer);
             this.mainTabBox.addPage( tabSizer, "Processing" );
       }
 
-      if (global.use_preview && use_tab_preview) {
+      if (global.use_preview) {
+            /* Create preview tab.
+             */
             tab_index++;
             tab_preview_index = tab_index;
-            tabSizer = new mainSizerTab(this, this.tabPreviewObj.sizer);
+
+            this.previewAndExtraSizer = new HorizontalSizer;
+            this.previewAndExtraSizer.spacing = 4;
+            this.previewAndExtraSizer.add( this.tabPreviewObj.sizer );
+            if (!ppar.use_single_column) {
+                  this.previewAndExtraSizer.add( this.extraGroupBox);
+            }
+
+            tabSizer = new mainSizerTab(this, this.previewAndExtraSizer);
             this.rootingArr.push(tabSizer);
-            this.mainTabBox.addPage( tabSizer, "Preview" );
+            if (ppar.use_single_column) {
+                  this.mainTabBox.addPage( tabSizer, "Preview" );
+            } else if (ppar.side_preview_visible) {
+                  mainTabBox.addPage( tabSizer, "Extra processing" );
+            } else {
+                  this.mainTabBox.addPage( tabSizer, "Preview and extra processing" );
+            }
       }
 
-      if (global.use_preview && use_side_preview) {
+      if (global.use_preview) {
             this.mainSizer.add( this.sidePreviewObj.sizer);
       }
       this.mainSizer.add( this.mainTabBox );
@@ -5658,7 +5796,6 @@ function AutoIntegrateDialog()
       setWindowPrefixHelpTip(ppar.win_prefix);
 
       console.show();
-
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
@@ -5676,7 +5813,6 @@ this.addFilesToTreeBox = addFilesToTreeBox;
 this.updateInfoLabel = updateInfoLabel;
 this.setTreeBoxSsweight = setTreeBoxSsweight;
 this.close_undo_images = close_undo_images;
-this.setParameterDefaults = setParameterDefaults;
 this.update_extra_target_image_window_list = update_extra_target_image_window_list;
 this.fix_win_prefix_array = fix_win_prefix_array;
 this.updateWindowPrefix = updateWindowPrefix;
