@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test7-gui";     // Version, also updated into updates.xri
-this.autointegrate_info = "CometAlignment";                       // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test7";   // Version, also updated into updates.xri
+this.autointegrate_info = "CometAlignment";                 // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
