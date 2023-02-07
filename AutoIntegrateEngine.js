@@ -3877,6 +3877,7 @@ function copyToMapIf(id)
  */ 
 function mapColorImage()
 {
+      console.writeln("mapColorImage");
       RGB_win_id = util.ensure_win_prefix("Integration_RGB");
       util.copyWindow(util.findWindow(RGB_color_id), RGB_win_id);
       RGB_win = ImageWindow.windowById(RGB_win_id);
@@ -6151,11 +6152,23 @@ function increaseSaturation(imgWin, maskWin)
       runCurvesTransformationSaturation(imgWin, maskWin);
 }
 
+// Replace last occurance of oldtxt to newtxt in str.
+// If oldtxt is not found then return str + _ + newtxt.
+function replaceLastString(str, oldtxt, newtxt)
+{
+      var lstidx = str.lastIndexOf(oldtxt);
+      if (lstidx == -1) {
+            return str + "-" + newtxt;
+      }
+      return str.substring(0, lstidx) + newtxt + str.substring(lstidx + oldtxt.length);
+}
+
 function runLRGBCombination(RGB_id, L_id)
 {
+      console.writeln("runLRGBCombination using " + RGB_id + " and " + L_id );
       var targetWin = util.copyWindow(
                         ImageWindow.windowById(RGB_id), 
-                        util.ensure_win_prefix(RGB_id.replace("Integration_RGB", "Integration_LRGB")));
+                        util.ensure_win_prefix(replaceLastString(RGB_id, "RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
       util.addProcessingStepAndStatusInfo("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
       var P = new LRGBCombination;
@@ -6925,7 +6938,7 @@ function CreateChannelImages(parent, auto_continue)
                         util.addProcessingStep("Processing as narrowband images");
                   } else {
                         /* No L files, assume color. */
-                        util.addProcessingStep("Processing as color images");
+                        util.addProcessingStep("Processing as color image from preprocessewd RGB image");
                   }
                   is_color_files = true;
             }
@@ -10120,7 +10133,12 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          // We have not yet combined the RGB image
                          LinearFitLRGBchannels();
                    }
-             } else if (is_color_files) {
+             } else if (is_color_files && 
+                        (preprocessed_images == global.start_images.NONE ||
+                         preprocessed_images == global.start_images.RGB_COLOR ||
+                         preprocessed_images == global.start_images.L_RGB ||
+                         preprocessed_images == global.start_images.RGB))
+            {
                    mapColorImage();
              }
  
@@ -10160,6 +10178,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          /* Keep RGB_ABE_HT_id separate from LRGB_ABE_HT_id which
                           * will be the final result file.
                           */
+                         console.writeln("Color file or no luminance, make a copy of " + RGB_ABE_HT_id);
                          LRGB_ABE_HT_id = "copy_" + RGB_ABE_HT_id;
                          util.copyWindow(
                                ImageWindow.windowById(RGB_ABE_HT_id), 
