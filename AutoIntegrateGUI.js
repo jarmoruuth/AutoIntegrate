@@ -4713,17 +4713,22 @@ function AutoIntegrateDialog()
 
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
-            "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars. " + 
-            "This is also run with AutoContinue and Extra processing.</p>" );
+            "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
       this.narrowband_orange_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_orange_hue_shift, 
-            "<p>Do hue shift to enhance orange color. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
+            "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
-            "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette. Also run with AutoContinue and Extra processing.</p>" );
+            "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
-            "<p>Leave some green color on image when running SCNR (amount 0.50). Useful with SHO color palette. " +
-            "This is also run with AutoContinue and Extra processing.</p>" );
+            "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
+      this.narrowband_leave_some_green_Edit = newNumericEdit(this, "Amount", par.leave_some_green_amount, 0, 1, 
+            "<p>Amount value 0 keeps all the green, value 1 removes all green.</p>");
+      this.narrowband_leave_some_green_sizer = new HorizontalSizer;
+      this.narrowband_leave_some_green_sizer.spacing = 4;
+      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_CheckBox );
+      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_Edit );
+      this.narrowband_leave_some_green_sizer.addStretch();
       this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR, 
-            "<p>Run SCNR to remove green cast. Useful with SHO color palette. This is also run with AutoContinue and Extra processing.</p>" );
+            "<p>Run SCNR to remove green cast. Useful with SHO color palette.</p>");
       this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask, 
             "<p>Do not use star mask when fixing star colors</p>" );
       this.remove_magenta_color_CheckBox = newCheckBox(this, "Remove magenta color", par.remove_magenta_color, 
@@ -4741,7 +4746,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
       this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
-      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
       this.narrowbandExtraLabel = newSectionLabel(this, "Extra processing for narrowband");

@@ -6187,7 +6187,7 @@ function runSCNR(RGBimgView, fixing_stars)
       }
       var P = new SCNR;
       if (narrowband && par.leave_some_green.val && !fixing_stars) {
-            P.amount = 0.50;
+            P.amount = par.leave_some_green_amount.val;
             util.addProcessingStep("Run SCNR using amount " + P.amount + " to leave some green color");
       } else {
             P.amount = 1.00;
