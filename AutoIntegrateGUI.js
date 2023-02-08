@@ -2948,7 +2948,7 @@ function getWindowBitmap(imgWin)
 
 function newPreviewObj(parent)
 {
-      var newPreviewControl = new AutoIntegratePreviewControl(parent, ppar.preview_width, ppar.preview_height);
+      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview_width, ppar.preview_height);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -3534,10 +3534,10 @@ function AutoIntegrateDialog()
             }
       }
 
-      this.cometAlignFirstLabel = newLabel(this, "First image X,Y:", "<p>Coordinates for the first comet image.</p>" + comet_alignment_toolTip);
+      this.cometAlignFirstLabel = newLabel(this, "First image X₀,Y₀:", "<p>Coordinates for the first comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignFirstXY = newTextEdit(this, par.comet_first_xy, this.cometAlignFirstLabel.toolTip);
       this.cometAlignFirstXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + comet_alignment_toolTip, cometFirstImageAction, false);
-      this.cometAlignLastLabel = newLabel(this, "Last image X,Y:", "<p>Coordinates for the last comet image.</p>" + comet_alignment_toolTip);
+      this.cometAlignLastLabel = newLabel(this, "Last image X₁,Y₁:", "<p>Coordinates for the last comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignLastLabel.toolTip);
       this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
 

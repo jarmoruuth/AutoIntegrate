@@ -9,12 +9,11 @@
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parent, size_x, size_y)
+function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
 {
        this.__base__ = Frame;
-       this.__base__(parent);
- 
- 
+       this.__base__(parentDialog);
+
        // Set image window and bitmap
        this.SetImage = function(imgWin, image)
        {
@@ -325,6 +324,28 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
        this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
        this.coordinatesEdit = new Edit(this);
        this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+       
+       this.coordinatesCopyFirstButton = new ToolButton( this );
+       this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
+       this.coordinatesCopyFirstButton.onClick = function () {
+            var preview = this.parent.parent;
+            if (preview.coordinatesEdit.text != "") {
+                  parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
+                  par.comet_first_xy.val = preview.coordinatesEdit.text;
+            }
+       };
+       this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+
+       this.coordinatesCopyLastButton = new ToolButton( this );
+       this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
+       this.coordinatesCopyLastButton.onClick = function () {
+            var preview = this.parent.parent;
+            if (preview.coordinatesEdit.text != "") {
+                  parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
+                  par.comet_last_xy.val = preview.coordinatesEdit.text;
+            }
+       };
+       this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
  
        this.coords_Frame = new Frame(this);
        this.coords_Frame.backgroundColor = 0xffffffff;
@@ -345,6 +366,8 @@ function AutoIntegratePreviewControl(parent, size_x, size_y)
        this.coords_Frame.sizer.addStretch();
        this.coords_Frame.sizer.add(this.coordinatesLabel);
        this.coords_Frame.sizer.add(this.coordinatesEdit);
+       this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
+       this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
  
        this.coords_Frame.sizer.addStretch();
  
