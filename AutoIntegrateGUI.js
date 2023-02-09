@@ -3177,7 +3177,7 @@ function AutoIntegrateDialog()
             "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
             "<ul>" +
             "<li>Run a normal workflow to get correct stars and background objects.</li>" +
-            "<li>Load start aligned *_r.xisf files as light files.</li>" + 
+            "<li>Load star aligned *_r.xisf files as light files.</li>" + 
             "<li>Set Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
             "<li>Check <i>Remove stars from lights</i> in <i>Image processing parameters</i>.</li>" +
