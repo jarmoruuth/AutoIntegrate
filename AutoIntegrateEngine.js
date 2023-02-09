@@ -2107,6 +2107,7 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
             return a[indexFWHM] - b[indexFWHM];
       });
       medianFWHM = measurements[measurements.length / 2][indexFWHM];
+      console.writeln("medianFWHM " + medianFWHM);
 
       var ssFiles = [];
       for (var i = 0; i < measurements.length; i++) {
