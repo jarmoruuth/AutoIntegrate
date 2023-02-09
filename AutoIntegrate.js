@@ -367,32 +367,43 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
             ppar.lastDir = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+
+      var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType_String);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
-            ppar.use_preview = tempSetting;
-            global.use_preview = tempSetting;
+            console.writeln("AutoIntegrate: Restored previewSettings '" + tempSetting + "' from settings.");
+            ppar.preview = JSON.parse(tempSetting);
+            global.use_preview = ppar.preview.use_preview;
+      } else {
+            /* Read old style separate settings. */
+            var tempSetting = Settings.read(SETTINGSKEY + "/usePreview", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored usePreview '" + tempSetting + "' from settings.");
+                  ppar.preview.use_preview = tempSetting;
+                  global.use_preview = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
+                  ppar.preview.side_preview_visible = tempSetting;
+            }
+            /* Now we have preview size for each screen size. */
+            var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
+                  ppar.preview.preview_width = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
+                  ppar.preview.preview_height = tempSetting;
+            }
+            var tempSetting = Settings.read(SETTINGSKEY + "/useLargePreview", DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: Restored useLargePreview'" + tempSetting + "' from settings.");
+                  ppar.preview.use_large_preview = tempSetting;
+            }
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
-            ppar.side_preview_visible = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored defaultPreviewSize '" + tempSetting + "' from settings.");
-            ppar.default_preview_size = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored previewWidth '" + tempSetting + "' from settings.");
-            ppar.preview_width = tempSetting;
-      }
-      var tempSetting = Settings.read(SETTINGSKEY + "/previewHeight", DataType_Int32);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
-            ppar.preview_height = tempSetting;
-      }
+
       var tempSetting = Settings.read(SETTINGSKEY + "/useSingleColumn", DataType_Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
@@ -403,10 +414,8 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored useMoreTabs'" + tempSetting + "' from settings.");
             ppar.use_more_tabs = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/useLargePreview", DataType_Boolean);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored useLargePreview'" + tempSetting + "' from settings.");
-            ppar.use_large_preview = tempSetting;
+      if (ppar.use_single_column) {
+            ppar.use_more_tabs = false;
       }
 }
 
@@ -636,7 +645,7 @@ this.autointerate_main = function()
             console.noteln("======================================================");
             console.noteln(global.autointegrate_version + ", PixInsight v" + global.pixinsight_version_str + ' (' + global.pixinsight_version_num + ')');
             console.noteln("======================================================");
-            
+
             if (global.pixinsight_version_num < 1080810) {
                   var old_default = 'Generic';
                   if (par.use_weight.val == par.use_weight.def 

@@ -101,6 +101,8 @@ var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 
+var screen_size = "Unknown";       // Screen wxh size as a string
+
 function isbatchNarrowbandPaletteMode()
 {
       return par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All";
@@ -272,17 +274,9 @@ function savePersistentSettings(from_exit)
             if (par.use_manual_icon_column.val) {
                   Settings.write (SETTINGSKEY + "/global.columnCount", DataType_Int32, ppar.userColumnCount);
             }
-            Settings.write (SETTINGSKEY + "/usePreview", DataType_Boolean, ppar.use_preview);
-            Settings.write (SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean, ppar.side_preview_visible);
-            Settings.write (SETTINGSKEY + "/defaultPreviewSize", DataType_Boolean, ppar.default_preview_size);
-            Settings.write (SETTINGSKEY + "/previewWidth", DataType_Int32, ppar.preview_width);
-            Settings.write (SETTINGSKEY + "/previewHeight", DataType_Int32, ppar.preview_height);
+            Settings.write (SETTINGSKEY + "/previewSettings", DataType_String, JSON.stringify(ppar.preview));
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
             Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
-            Settings.write (SETTINGSKEY + "/useLargePreview", DataType_Boolean, ppar.use_large_preview);
-            if (ppar.use_single_column) {
-                  ppar.use_more_tabs = false;
-            }
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -1016,10 +1010,10 @@ function updatePreviewWinTxt(imgWin, txt)
       if (global.use_preview && imgWin != null) {
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
-                        tabPreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                        tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
                   }
                   if (sidePreviewControl != null) {
-                        sidePreviewControl.setSize(ppar.preview_width, ppar.preview_height);
+                        sidePreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
                   }
                   preview_size_changed = false;
             }
@@ -1038,7 +1032,7 @@ function updatePreviewWin(imgWin)
       updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
-function updatePreviewFilename(filename, stf)
+function updatePreviewFilenameAndInfo(filename, stf, update_info)
 {
       if (!global.use_preview) {
             return;
@@ -1057,8 +1051,16 @@ function updatePreviewFilename(filename, stf)
       }
 
       updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
+      if (update_info) {
+            util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+      }
 
       imageWindow.forceClose();
+}
+
+function updatePreviewFilename(filename, stf)
+{
+      updatePreviewFilenameAndInfo(filename, stf, false);
 }
 
 function updatePreviewId(id)
@@ -1072,7 +1074,9 @@ function updatePreviewIdReset(id, keep_zoom)
 {
       if (global.use_preview) {
             preview_keep_zoom = keep_zoom;
-            updatePreviewWinTxt(ImageWindow.windowById(id), id);
+            var win = ImageWindow.windowById(id);
+            updatePreviewWinTxt(win, id);
+            util.updateStatusInfoLabel("Size: " + win.mainView.image.width + "x" + win.mainView.image.height);
             is_some_preview = false;
             global.is_processing = false;
       }
@@ -1080,7 +1084,7 @@ function updatePreviewIdReset(id, keep_zoom)
 
 function updatePreviewNoImageInControl(control)
 {
-      var bitmap = new Bitmap(ppar.preview_width - ppar.preview_width/10, ppar.preview_height - ppar.preview_height/10);
+      var bitmap = new Bitmap(ppar.preview.preview_width - ppar.preview.preview_width/10, ppar.preview.preview_height - ppar.preview.preview_height/10);
       bitmap.fill(0xff808080);
 
       var graphics = new Graphics(bitmap);
@@ -1118,6 +1122,7 @@ function updatePreviewNoImage()
             updatePreviewNoImageInControl(tabPreviewControl);
             updatePreviewNoImageInControl(sidePreviewControl);
             updatePreviewTxt("No preview");
+            util.updateStatusInfoLabel("");
       }
 }
 
@@ -1856,10 +1861,9 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       }
 
       if (preview_file_name != null) {
-            updatePreviewFilename(preview_file_name, true);
+            updatePreviewFilenameAndInfo(preview_file_name, true, true);
             current_selected_file_name = preview_file_name;
             current_selected_file_filter = preview_file_filter;
-            util.updateStatusInfoLabel("");
       }
 }
 
@@ -2195,7 +2199,7 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
 
 function switchtoPreviewTab()
 {
-      if (global.use_preview && !ppar.side_preview_visible && mainTabBox != null) {
+      if (global.use_preview && !ppar.preview.side_preview_visible && mainTabBox != null) {
             mainTabBox.currentPageIndex = tab_preview_index;
       }
 }
@@ -2948,7 +2952,7 @@ function getWindowBitmap(imgWin)
 
 function newPreviewObj(parent)
 {
-      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview_width, ppar.preview_height);
+      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.preview_height);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -3001,7 +3005,7 @@ function updateSidePreviewState()
       if (!global.use_preview || sidePreviewControl == null) {
             return;
       }
-      if (ppar.side_preview_visible) {
+      if (ppar.preview.side_preview_visible) {
             sidePreviewInfoLabel.show();
             global.sideStatusInfoLabel.show();
             sidePreviewControl.show();
@@ -3014,7 +3018,7 @@ function updateSidePreviewState()
                   mainTabBox.setPageLabel(tab_preview_index, "Extra processing");
             }
 
-            ppar.side_preview_visible = true;
+            ppar.preview.side_preview_visible = true;
 
       } else {      
             sidePreviewInfoLabel.hide();
@@ -3029,7 +3033,7 @@ function updateSidePreviewState()
                   mainTabBox.setPageLabel(tab_preview_index, "Preview and extra processing");
             }
 
-            ppar.side_preview_visible = false;
+            ppar.preview.side_preview_visible = false;
       }
 }
 
@@ -3039,8 +3043,75 @@ function toggleSidePreview()
             return;
       }
 
-      ppar.side_preview_visible = !ppar.side_preview_visible;
+      ppar.preview.side_preview_visible = !ppar.preview.side_preview_visible;
       updateSidePreviewState();
+}
+
+function updatePreviewSize(w, h)
+{
+      preview_size_changed = true;
+
+      if (w > 0) {
+            ppar.preview.preview_width = w;
+      }
+      if (h > 0) {
+            ppar.preview.preview_height = h;
+      }
+
+      for (var i = 0; i < ppar.preview.preview_sizes.length; i++) {
+            if (ppar.preview.preview_sizes[i][0] == screen_size) {
+                  /* Found, update existing size. */
+                  if (w > 0) {
+                        ppar.preview.preview_sizes[i][1] = w;
+                  }
+                  if (h > 0) {
+                        ppar.preview.preview_sizes[i][2] = h;
+                  }
+                  console.writeln("Update existing preview size for screen size " + screen_size + " to " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2]);
+                  return;
+            }
+      }
+      /* Not found, add a new one. */
+      ppar.preview.preview_sizes[ppar.preview.preview_sizes.length] = [ screen_size, ppar.preview.preview_width, ppar.preview.preview_height ];
+      console.writeln("Add a new preview size for screen size " + screen_size + " as " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2]);
+}
+
+function getPreviewSize(availableScreenRect)
+{
+      ppar.preview.preview_width = 0;
+      ppar.preview.preview_height = 0;
+
+      if (ppar.preview.preview_sizes == undefined) {
+            ppar.preview.preview_sizes = [];
+      }
+
+      /* Try to find a saved screen size for this resolution. */
+      for (var i = 0; i < ppar.preview.preview_sizes.length; i++) {
+            if (ppar.preview.preview_sizes[i][0] == screen_size) {
+                  ppar.preview.preview_width = ppar.preview.preview_sizes[i][1];
+                  ppar.preview.preview_height = ppar.preview.preview_sizes[i][2];
+            }
+      }
+
+      if (ppar.preview.preview_width == 0 || ppar.preview.preview_width == 0) {
+            /* Preview size not set for this screen size. */
+            if (availableScreenRect != undefined) {
+                  /* Calculate preview size from screen size.
+                   * Use a small preview size as a default to ensure that it fits on screen. 
+                   */
+                  let preview_size = Math.floor(Math.min(availableScreenRect.width * 0.3, availableScreenRect.height * 0.3));
+                  preview_size = Math.min(preview_size, 400);
+                  ppar.preview.preview_width = preview_size;
+                  ppar.preview.preview_height = preview_size;
+            } else {
+                  /* Use a default size. 
+                   */
+                  console.writeln("Could not get screen size, use a default preview size.");
+                  ppar.preview.preview_width = 300;
+                  ppar.preview.preview_height = 300;
+            }
+      }
+      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height);
 }
 
 /***************************************************************************
@@ -3053,13 +3124,12 @@ function AutoIntegrateDialog()
        this.__base__ = Dialog;
        this.__base__();
 
-      if (ppar.default_preview_size && this.availableScreenRect != undefined) {
-            let preview_size = Math.floor(Math.min(this.availableScreenRect.width * 0.3, this.availableScreenRect.height * 0.3));
-            /* Use a small preview size as a default to ensure that it fits on screen. */
-            preview_size = Math.min(preview_size, 400);
-            ppar.preview_width = preview_size;
-            ppar.preview_height = preview_size;
-            console.writeln("Screen size " + this.availableScreenRect.width + "x" + this.availableScreenRect.height, ", using preview size " + ppar.preview_width + "x" + ppar.preview_height);
+       if (this.availableScreenRect != undefined) {
+            screen_size = this.availableScreenRect.width + "x" + this.availableScreenRect.height;
+       }
+
+       if (ppar.preview.use_preview) {
+            getPreviewSize(this.availableScreenRect);
       }
 
       this.textEditWidth = 25 * this.font.width( "M" );
@@ -5405,6 +5475,14 @@ function AutoIntegrateDialog()
       /* Interface.
        */
 
+      this.screenSizeLabel = newLabel(this, "Screen size: " + screen_size, "Screen size as reported by PixInsight.");
+
+      this.preview0Sizer = new HorizontalSizer;
+      this.preview0Sizer.margin = 6;
+      this.preview0Sizer.spacing = 4;
+      this.preview0Sizer.add( this.screenSizeLabel );
+      this.preview0Sizer.addStretch();
+
       this.saveInterfaceButton = new PushButton( this );
       this.saveInterfaceButton.text = "Save";
       this.saveInterfaceButton.toolTip = 
@@ -5415,9 +5493,9 @@ function AutoIntegrateDialog()
             savePersistentSettings(false);
       };
 
-      this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.use_preview, 
+      this.show_preview_CheckBox = newGenericCheckBox(this, "Enable preview", ppar, ppar.preview.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
-            function(checked) { this.dialog.show_preview_CheckBox.aiParam.use_preview = checked; });
+            function(checked) { this.dialog.show_preview_CheckBox.aiParam.preview.use_preview = checked; });
 
       this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
             "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
@@ -5428,9 +5506,9 @@ function AutoIntegrateDialog()
             "<p>Can be useful when using the side preview.</p>",
             function(checked) { this.dialog.use_more_tabs_CheckBox.aiParam.use_more_tabs = checked; });
 
-      this.use_large_preview_CheckBox = newGenericCheckBox(this, "Large preview", ppar, ppar.use_large_preview, 
+      this.use_large_preview_CheckBox = newGenericCheckBox(this, "Large preview", ppar, ppar.preview.use_large_preview, 
             "<p>Use a large preview window on the side of the main dialog.</p>",
-            function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.use_large_preview = checked; });
+            function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
 
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -5439,23 +5517,22 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.use_single_column_CheckBox );
       this.preview1Sizer.add( this.use_more_tabs_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
+      this.preview1Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
-      this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview_width, 100, 4000, 
+      this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
-                  this.dialog.preview_width_edit.aiParam.preview_width = value; 
-                  preview_size_changed = true; 
-                  this.dialog.preview_width_edit.aiParam.default_preview_size = false;
-      });
+                  updatePreviewSize(value, 0); 
+            }
+      );
       this.preview_height_label = newLabel(this, 'height', "Preview image height.");
-      this.preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview_height, 100, 4000, 
+      this.preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
-                  this.dialog.preview_height_edit.aiParam.preview_height = value; 
-                  preview_size_changed = true; 
-                  this.dialog.preview_height_edit.aiParam.default_preview_size = false;
-      });
+                  updatePreviewSize(0, value); 
+            }
+      );
 
       this.preview2Sizer = new HorizontalSizer;
       this.preview2Sizer.margin = 6;
@@ -5528,6 +5605,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer = new VerticalSizer;
       this.interfaceControl.sizer.margin = 6;
       this.interfaceControl.sizer.spacing = 4;
+      this.interfaceControl.sizer.add( this.preview0Sizer );
       this.interfaceControl.sizer.add( this.preview1Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
@@ -5537,7 +5615,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.add( this.interfaceSizer2 );
 
       this.interfaceControl.sizer.addStretch();
-      this.interfaceControl.visible = false;
+      this.interfaceControl.visible = true;
 
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
@@ -5647,7 +5725,6 @@ function AutoIntegrateDialog()
       this.rightGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
-      newSectionBarAdd(this, this.rightGroupBox, this.interfaceControl, "Interface settings", "interface");
       this.rightGroupBox.sizer.addStretch();
 
       // Left processing group box
@@ -5717,6 +5794,10 @@ function AutoIntegrateDialog()
             updateSidePreviewState();
       }
 
+      this.interfaceGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
+      this.interfaceGroupBox.sizer.addStretch();
+
       /* ------------------------------- */
       /* Create tabs.                    */
       /* ------------------------------- */
@@ -5736,6 +5817,7 @@ function AutoIntegrateDialog()
             this.singleColumnSizer.add( this.leftProcessingGroupBox );
             this.singleColumnSizer.add( this.rightProcessingGroupBox );
             this.singleColumnSizer.add( this.extraGroupBox );
+            this.singleColumnSizer.add( this.interfaceGroupBox );
             this.mainTabBox.addPage( mainSizerTab(this, this.singleColumnSizer), "Settings" );
             tab_index++;
 
@@ -5784,7 +5866,7 @@ function AutoIntegrateDialog()
             this.previewSizer.add( this.extraGroupBox );
             let tabname;
             if (global.use_preview) {
-                  if (ppar.side_preview_visible) {
+                  if (ppar.preview.side_preview_visible) {
                         tabname = "Extra processing";
                   } else {
                         tabname = "Preview and extra processing";
@@ -5794,6 +5876,13 @@ function AutoIntegrateDialog()
             }
             this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
             tab_preview_index = tab_index;
+            tab_index++;
+
+            this.interfaceTabSizer = new HorizontalSizer;
+            this.interfaceTabSizer.margin = 6;
+            this.interfaceTabSizer.spacing = 4;
+            this.interfaceTabSizer.add( this.interfaceGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.interfaceTabSizer), "Interface" );
             tab_index++;
 
       } else {
@@ -5824,7 +5913,7 @@ function AutoIntegrateDialog()
             this.previewSizer.add( this.extraGroupBox );
             let tabname;
             if (global.use_preview) {
-                  if (ppar.side_preview_visible) {
+                  if (ppar.preview.side_preview_visible) {
                         tabname = "Extra processing";
                   } else {
                         tabname = "Preview and extra processing";
@@ -5835,13 +5924,20 @@ function AutoIntegrateDialog()
             this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
             tab_preview_index = tab_index;
             tab_index++;
+
+            this.interfaceTabSizer = new HorizontalSizer;
+            this.interfaceTabSizer.margin = 6;
+            this.interfaceTabSizer.spacing = 4;
+            this.interfaceTabSizer.add( this.interfaceGroupBox );
+            this.mainTabBox.addPage( mainSizerTab(this, this.interfaceTabSizer), "Interface" );
+            tab_index++;
       }
 
       this.mainSizer = new HorizontalSizer;
       this.mainSizer.margin = 6;
       this.mainSizer.spacing = 4;
 
-      if (global.use_preview && !ppar.use_large_preview) {
+      if (global.use_preview && !ppar.preview.use_large_preview) {
             this.mainSizer.add( this.sidePreviewObj.sizer);
       }
       this.mainSizer.add( this.mainTabBox );
@@ -5858,7 +5954,7 @@ function AutoIntegrateDialog()
       this.sizer = new HorizontalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
-      if (global.use_preview && ppar.use_large_preview) {
+      if (global.use_preview && ppar.preview.use_large_preview) {
             this.sizer.add( this.sidePreviewObj.sizer);
       }
       this.sizer.add( this.baseSizer);

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57 test10";  // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57 test11";  // Version, also updated into updates.xri
 this.autointegrate_info = "CometAlignment, GUI updates";    // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -346,14 +346,16 @@ this.ppar = {
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
-      use_preview: true,      // Show image preview on dialog preview window
-      side_preview_visible: false, // Show image preview on the side of the dialog too
-      preview_width: 400,     // Preview width, use a small preview size as a default to ensure that it fits on screen.
-      preview_height: 400,    // preview height, use a small preview size as a default to ensure that it fits on screen.
-      default_preview_size: true, // do we have default preview size
+      preview: {
+            use_preview: true,            // Show image preview on dialog preview window
+            side_preview_visible: false,  // Show image preview on the side of the dialog
+            use_large_preview: false,     // Use large preview window
+            preview_sizes: [],            // Array of [ screen_size, width, height ]
+            preview_width: 0,             // Current preview width.
+            preview_height: 0             // Current preview height.
+      },
       use_single_column: false, // show all options in a single column
-      use_more_tabs: false,     // use more tabs for parameters and settings
-      use_large_preview: false  // Use large preview window
+      use_more_tabs: false     // use more tabs for parameters and settings
 };
 
 // Run results for testing
