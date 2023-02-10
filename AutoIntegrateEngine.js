@@ -2106,8 +2106,12 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       measurements.sort( function(a, b) {
             return a[indexFWHM] - b[indexFWHM];
       });
-      medianFWHM = measurements[measurements.length / 2][indexFWHM];
-      console.writeln("medianFWHM " + medianFWHM);
+      if (measurements.length > 0 && measurements[measurements.length / 2] != undefined) {
+            medianFWHM = measurements[measurements.length / 2][indexFWHM];
+            console.writeln("medianFWHM " + medianFWHM);
+      } else {
+            console.writeln("medianFWHM not available");
+      }
 
       var ssFiles = [];
       for (var i = 0; i < measurements.length; i++) {
