@@ -231,7 +231,16 @@ var channels = {
 };
 
 var focal_lengths = [
-      [ 'CHI-1-CMOS', 3991]
+      [ 'AUS-2', 382 ],
+      [ 'SPA-1', 382 ],
+      [ 'SPA-2', 5600 ],
+      [ 'SPA-3', 382 ],
+      [ 'CHI-1', 3991 ],
+      [ 'CHI-2', 1900 ],
+      [ 'CHI-3', 6800 ],
+      [ 'CHI-4', 1900 ],
+      [ 'CHI-5', 200 ],
+      [ 'CHI-6', 600 ]
 ];
 
 function find_focal_length()
