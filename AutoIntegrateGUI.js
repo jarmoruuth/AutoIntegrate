@@ -3158,9 +3158,14 @@ function AutoIntegrateDialog()
       "</p><p>" +
       "When using color/OSC/RAW files it is recommended to set Pure RAW in PixInsight settings." +
       "</p><p>" +
-      "For more details see:<br>" +
-      "https://ruuth.xyz/AutoIntegrateInfo.html" +
-      "</p><p>" +
+      "For more details see:" +
+      "</p>" +
+      "<ul>" +
+      "<li>Web site: https://ruuth.xyz/AutoIntegrateInfo.html</ul>" +
+      "<li>Discussion forums: https://forums.ruuth.xyz<>" +
+      "<li>Discord: https://discord.gg/baqMqmKS3N</ul>" +
+      "</ul>" +
+      "<p>" +
       "This product is based on software from the PixInsight project, developed " +
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p><p>" +

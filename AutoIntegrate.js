@@ -640,8 +640,10 @@ this.autointerate_main = function()
             console.noteln("the PixInsight update repository: ");
             console.noteln("https://ruuth.xyz/autointegrate ");
             console.noteln("======================================================");
-            console.noteln("For more information visit the following link:");
-            console.noteln("https://ruuth.xyz/AutoIntegrateInfo.html");
+            console.noteln("For more information visit the following links:");
+            console.noteln("Web site: https://ruuth.xyz/AutoIntegrateInfo.html");
+            console.noteln("Discussion forums: https://forums.ruuth.xyz");
+            console.noteln("Discord: https://discord.gg/baqMqmKS3N");
             console.noteln("======================================================");
             console.noteln(global.autointegrate_version + ", PixInsight v" + global.pixinsight_version_str + ' (' + global.pixinsight_version_num + ')');
             console.noteln("======================================================");
