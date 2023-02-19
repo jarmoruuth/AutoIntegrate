@@ -3410,7 +3410,8 @@ function AutoIntegrateDialog()
       this.unique_file_names_CheckBox = newCheckBox(this, "Use unique file names", par.unique_file_names, 
             "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction, 
-            "<p>Do not use noise reduction. More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
+            "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p>" + 
+            "<p>More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
       this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
