@@ -872,6 +872,9 @@ function lightsOptions(parent)
             add_manually_checkbox.aiParam.val = checked; 
             showOrHideFilterSectionBar(global.pages.LIGHTS);
       }
+      var interated_lights_checkbox = newCheckBox(parent, "Integrated lights", par.integrated_lights, 
+            "<p>If checked consider light files to be integrated files for AutoContinue.</p>" );
+      parent.rootingArr.push(interated_lights_checkbox);
 
       var monochrome_image_CheckBox = newCheckBoxEx(parent, "Force monochrome", par.monochrome_image, 
             "<p>Force create of a monochrome image. All images are treated as Luminance files and stacked together. " + 
@@ -888,6 +891,7 @@ function lightsOptions(parent)
       sizer.add(extractChannelsCombobox);
       sizer.add(monochrome_image_CheckBox);
       sizer.add(add_manually_checkbox);
+      sizer.add(interated_lights_checkbox);
       sizer.addStretch();
 
       return sizer;

@@ -6363,6 +6363,7 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 }
 
 // Find window id and optionally search without a prefix
+// Used to find AutoContinue images
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
       var id = util.findWindowId(util.ensure_win_prefix(name));
@@ -6454,13 +6455,18 @@ function findOrReadImage(fname)
       return imageWindow.mainView.id;
 }
 
+// Used to find AutoContinue images
 function findIntegratedLightImage(channel, filtered_lights)
 {
       for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
             if (filtered_lights.allfilesarr[i].filter == channel) {
                   if (filtered_lights.allfilesarr[i].files.length == 1) {
                         // Only one file, assume it is the integrated file
-                        return findOrReadImage(filtered_lights.allfilesarr[i].files[0].name);
+                        id = findOrReadImage(filtered_lights.allfilesarr[i].files[0].name);
+                        if (id) {
+                              console.writeln("findIntegratedChannelImage: found " + id);
+                        }
+                        return id;
                   } else {
                         return null;
                   }
@@ -6495,7 +6501,7 @@ function findChannelImages(check_base_name)
 {
       findProcessedChannelImages(check_base_name);
 
-      if (global.lightFileNames != null) {
+      if (global.lightFileNames != null && par.integrated_lights.val) {
             var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
       } else {
             var filtered_lights = null;

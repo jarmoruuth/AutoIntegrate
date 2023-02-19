@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57";         // Version, also updated into updates.xri
-this.autointegrate_info = "CometAlignment, GUI updates";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Fixes";                                // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -326,6 +326,7 @@ this.par = {
       stars_in_flats: { val: false, def: false, name : "Stars in flats", type : 'B' },
       no_darks_on_flat_calibrate: { val: false, def: false, name : "Do not use darks on flats", type : 'B' },
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
+      integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
