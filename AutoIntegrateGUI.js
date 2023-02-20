@@ -873,7 +873,8 @@ function lightsOptions(parent)
             showOrHideFilterSectionBar(global.pages.LIGHTS);
       }
       var interated_lights_checkbox = newCheckBox(parent, "Integrated lights", par.integrated_lights, 
-            "<p>If checked consider light files to be integrated files for AutoContinue.</p>" );
+            "<p>If checked consider light files to be integrated files for AutoContinue.</p>" +
+            "<p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>");
       parent.rootingArr.push(interated_lights_checkbox);
 
       var monochrome_image_CheckBox = newCheckBoxEx(parent, "Force monochrome", par.monochrome_image, 
