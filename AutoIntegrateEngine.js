@@ -1115,7 +1115,7 @@ function runSuberBias(biasWin)
 this.openImageWindowFromFile = function(fileName)
 {
       var imageWindows = ImageWindow.open(fileName);
-      if (imageWindows.length != 1) {
+      if (!imageWindows || imageWindows.length == 0) {
             util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
       }
       var imageWindow = imageWindows[0];
@@ -1600,7 +1600,7 @@ function runBinningOnLights(fileNames, filtered_files)
             if (do_binning) {
                   // Open source image window from a file
                   var imageWindows = ImageWindow.open(fileNames[i]);
-                  if (imageWindows.length != 1) {
+                  if (!imageWindows || imageWindows.length == 0) {
                         util.throwFatalError("*** runBinningOnLights Error: imageWindows.length: " + imageWindows.length);
                   }
                   var imageWindow = imageWindows[0];
@@ -1656,7 +1656,7 @@ function runABEOnLights(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
-            if (imageWindows.length != 1) {
+            if (!imageWindows || imageWindows.length == 0) {
                   util.throwFatalError("*** runABEOnLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
@@ -2226,7 +2226,7 @@ function runSubframeSelector(fileNames)
                         var newFilePath = generateNewFileName(filePath, outputDir, postfix, outputExtension);
                         console.writeln("Writing file " + newFilePath + ", SSWEIGHT=" + SSWEIGHT);
                         var imageWindows = ImageWindow.open(filePath);
-                        if (imageWindows.length != 1) {
+                        if (!imageWindows || imageWindows.length == 0) {
                               console.writeln("*** Error: imageWindows.length: ", imageWindows.length);
                               continue;
                         }
@@ -3623,9 +3623,13 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
        */
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      P.executeOn(imgWin.mainView, false);
+      var succp = P.executeOn(imgWin.mainView, false);
       
       imgWin.mainView.endProcess();
+
+      if (!succp) {
+            util.throwFatalError("Failed to remove stars!");
+      }
 
       if (par.use_starxterminator.val) {
             console.writeln("StarXTerminator completed");
@@ -3673,7 +3677,7 @@ function removeStarsFromLights(fileNames)
 
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
-            if (imageWindows.length != 1) {
+            if (!imageWindows || imageWindows.length == 0) {
                   util.throwFatalError("*** removeStarsFromLights Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
@@ -4168,7 +4172,7 @@ function runCometAlignment(filenames, filename_postfix)
 function getWindowSizeFromFilename(filename)
 {
       var imageWindows = ImageWindow.open(filename);
-      if (imageWindows == null || imageWindows.length != 1) {
+      if (imageWindows == null || imageWindows.length == 0) {
             return [0, 0];
       }
       var imageWindow = imageWindows[0];
@@ -6056,11 +6060,11 @@ function runColorCalibration(imgWin, phase)
                   P.generateTextFiles = false;
                   P.outputDirectory = "";
                   
-                  // imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  var succp = P.executeOn(imgWin.mainView);
 
-                  P.executeOn(imgWin.mainView);
-
-                  // imgWin.mainView.endProcess(); Error: View.endProcess(): the view is not being processed
+                  if (!succp) {
+                        util.throwFatalError("SpectrophotometricColorCalibration failed");
+                  }
 
                   guiUpdatePreviewId(imgWin.mainView.id);
 
@@ -6430,7 +6434,7 @@ function findProcessedChannelImages(check_base_name)
 
 // Try to find window with file name. 
 // If not found read it.
-function findOrReadImage(fname)
+function findOrReadImage(fname, new_id)
 {
       console.writeln("findOrReadImage " + fname);
 
@@ -6444,25 +6448,26 @@ function findOrReadImage(fname)
       // read the file
       console.writeln("findOrReadImage, reading file " + fname);
       var imageWindows = ImageWindow.open(fname);
-      if (imageWindows.length != 1) {
+      if (!imageWindows || imageWindows.length == 0) {
             util.throwFatalError("*** findOrReadImage Error: file " + fname + ", imageWindows.length: " + imageWindows.length);
       }
       var imageWindow = imageWindows[0];
       if (imageWindow == null) {
             util.throwFatalError("*** runBinningOnLights Error: Can't read file: " + fname);
       }
-      console.writeln("findOrReadImage, read id " + imageWindow.mainView.id);
+      console.writeln("findOrReadImage, read id " + imageWindow.mainView.id + ", renamed to " + new_id);
+      imageWindow.mainView.id = new_id;
       return imageWindow.mainView.id;
 }
 
 // Used to find AutoContinue images
-function findIntegratedLightImage(channel, filtered_lights)
+function findIntegratedLightImage(channel, filtered_lights, new_id)
 {
       for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
             if (filtered_lights.allfilesarr[i].filter == channel) {
                   if (filtered_lights.allfilesarr[i].files.length == 1) {
                         // Only one file, assume it is the integrated file
-                        id = findOrReadImage(filtered_lights.allfilesarr[i].files[0].name);
+                        id = findOrReadImage(filtered_lights.allfilesarr[i].files[0].name, new_id);
                         if (id) {
                               console.writeln("findIntegratedChannelImage: found " + id);
                         }
@@ -6479,20 +6484,20 @@ function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
 {
       var id = findWindowIdCheckBaseNameIf("Integration_" + channel, check_base_name);
       if (id == null && filtered_lights != null) {
-            id = findIntegratedLightImage(channel, filtered_lights);
+            id = findIntegratedLightImage(channel, filtered_lights, "Integration_" + channel);
       }
       return id;
 }
 
-function findIntegratedRGBImage(channel, check_base_name, filtered_lights)
+function findIntegratedRGBImage(check_base_name, filtered_lights)
 {
-      var id = findIntegratedChannelImage("RGB_color", check_base_name);
+      var id = findIntegratedChannelImage("RGB_color", check_base_name, null);
       if (id == null) {
             // Try with old name
-            id = findWindowIdCheckBaseNameIf("RGBcolor", check_base_name);
+            id = findWindowIdCheckBaseNameIf("RGBcolor", check_base_name, null);
       }
       if (id == null && filtered_lights != null) {
-            id = findIntegratedLightImage('C', filtered_lights);
+            id = findIntegratedLightImage('C', filtered_lights, "Integration_RGB_color");
       }
       return id;
 }
@@ -6514,7 +6519,7 @@ function findChannelImages(check_base_name)
       H_id = findIntegratedChannelImage("H", check_base_name, filtered_lights);
       S_id = findIntegratedChannelImage("S", check_base_name, filtered_lights);
       O_id = findIntegratedChannelImage("O", check_base_name, filtered_lights);
-      RGB_color_id = findIntegratedRGBImage('RGB', check_base_name, filtered_lights);
+      RGB_color_id = findIntegratedRGBImage(check_base_name, filtered_lights);
 }
 
 function fileNamesFromOutputData(outputFileData)
@@ -6575,7 +6580,7 @@ function bandingEngineForImages(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             console.writeln("bandingEngineForImages, "+ fileNames[i]);
             var imageWindows = ImageWindow.open(fileNames[i]);
-            if (imageWindows.length != 1) {
+            if (!imageWindows || imageWindows.length == 0) {
                   util.throwFatalError("*** bandingEngineForImages Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
@@ -6617,7 +6622,7 @@ function extractChannels(fileNames)
       for (var i = 0; i < fileNames.length; i++) {
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
-            if (imageWindows.length != 1) {
+            if (!imageWindows || imageWindows.length == 0) {
                   util.throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
@@ -6787,8 +6792,8 @@ function findStartImages(auto_continue, check_base_name)
             S_id = null; 
             O_id != null;
       } else if ((R_id != null && G_id != null && B_id != null) ||
-                  (H_id != null && O_id != null)) {                           /* L,R,G,B integrated images */
-            util.addProcessingStep("L,R,G,B integrated images");
+                  (H_id != null && O_id != null)) {                           /* L,R,G,B,H,S,O integrated images */
+            util.addProcessingStep("L,R,G,B,H,S,O integrated images");
             preview_id = R_id != null ? R_id : H_id;
             var check_name = ppar.win_prefix + "Integration_RGB";
             if (auto_continue && util.findWindow(check_name)) {
@@ -8883,7 +8888,11 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
       /* Restore stars by combining starless image and stars. */
       util.addProcessingStepAndStatusInfo("Combining starless and star images using " + stars_combine);
       if (stars_id == null) {
-            stars_id = findStarImageId(starless_id);
+            if (par.extra_combine_stars_image.val != "" && par.extra_combine_stars_image.val != 'Auto') {
+                  stars_id = par.extra_combine_stars_image.val;           
+            } else {
+                  stars_id = findStarImageId(starless_id);
+            }
       }
       if (stars_id == null) {
             util.throwFatalError("Could not find starless image for star image " + starless_id);

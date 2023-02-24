@@ -35,6 +35,74 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 #include "../AdP/SearchCoordinatesDialog.js"
 
+function AutoIntegrateSelectStarsImageDialog( util )
+{
+      this.__base__ = Dialog;
+      this.__base__();
+      this.restyle();
+   
+      this.labelWidth = this.font.width( "Object identifier:M" );
+      this.editWidth = this.font.width( 'M' )*40;
+
+      this.starsImageLabel = new Label( this );
+      this.starsImageLabel.text = "Select stars image:"
+   
+      this.starsImageComboBox = new ComboBox( this );
+      this.starsImageComboBox.minItemCharWidth = 20;
+
+      this.window_list = util.getWindowListReverse();
+      if (this.window_list.length == 0) {
+            this.name = "";
+      } else {
+            this.name = this.window_list[0];
+            for (var i = 0; i < this.window_list.length; i++) {
+                  this.starsImageComboBox.addItem( this.window_list[i] );
+            }
+      }
+
+      this.starsImageComboBox.onItemSelected = function( itemIndex )
+      {
+            this.dialog.name = this.dialog.window_list[itemIndex];
+      };
+
+      // Common Buttons
+      this.ok_Button = new PushButton( this );
+      this.ok_Button.text = "OK";
+      this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
+      this.ok_Button.onClick = function()
+      {
+            this.dialog.ok();
+      };
+
+      this.cancel_Button = new PushButton( this );
+      this.cancel_Button.text = "Cancel";
+      this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
+      this.cancel_Button.onClick = function()
+      {
+            this.dialog.cancel();
+      };
+
+      this.buttons_Sizer = new HorizontalSizer;
+      this.buttons_Sizer.spacing = 6;
+      this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( this.ok_Button );
+      this.buttons_Sizer.add( this.cancel_Button );
+
+
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 6;
+      this.sizer.spacing = 4;
+      this.sizer.add( this.starsImageLabel );
+      this.sizer.add( this.starsImageComboBox );
+      this.sizer.add( this.buttons_Sizer );
+   
+      this.windowTitle = "Select stars image";
+      this.adjustToContents();
+      this.setFixedSize();
+}
+
+AutoIntegrateSelectStarsImageDialog.prototype = new Dialog;
+
 function AutoIntegrateGUI(global, util, engine)
 {
 
@@ -1043,7 +1111,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
             return;
       }
       var imageWindows = ImageWindow.open(filename);
-      if (imageWindows == null || imageWindows.length != 1) {
+      if (imageWindows == null || imageWindows.length == 0) {
             return;
       }
       var imageWindow = imageWindows[0];
@@ -2238,7 +2306,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               updatePreviewTxt("Processing...");
                         }
                         var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
-                        if (imageWindows == null || imageWindows.length != 1) {
+                        if (imageWindows == null || imageWindows.length == 0) {
                               return;
                         }
                         var imageWindow = imageWindows[0];
@@ -4144,10 +4212,12 @@ function AutoIntegrateDialog()
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");
       this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
-      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:<br>" +
-                                             "Add - Use stars+starless formula in Pixelmath<br>" +
-                                             "Screen - Similar to screen in Photoshop<br>" +
-                                             "Lighten - Similar to lighten in Photoshop</p>";
+      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:</p>" +
+                                             "<ul>" + 
+                                             "<li>Add - Use stars+starless formula in Pixelmath</li>" +
+                                             "<li>Screen - Similar to screen in Photoshop</li>" +
+                                             "<li>Lighten - Similar to lighten in Photoshop</li>" +
+                                             "</ul>";
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
@@ -4876,26 +4946,29 @@ function AutoIntegrateDialog()
             "</p>";
       var extraCombineStars_Tooltip = 
             "<p>Create a combined image from starless and star images. Combine operation can be " + 
-            "selected from the combo box.</p>" +
+            "selected from the combo box. To use combine you need to have starless image selected as the " + 
+            "target image. Stars image must be open in the desktop.</p>" +
             "<p>Star image is searched using the following steps:</p>" +
             "<ol>" +
             "<li>All occurances of text starless replaced with text stars</li>" +
             "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
             "<li>Text starless at the end replaced with text stars</li>" +
             "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>" +
-            "<li></li>" +
+            "<li>Text starless and any text that follows it (starless.*) replaced with text stars and any text after text stars " + 
+            "is accepted (stars.*). So starless image <i>sameprefix</i>_starless_<i>whatever</i> is matched with stars image " + 
+            "<i>sameprefix</i>_stars_<i>doesnotmatterwhatishere</i>.</li>" +
             "</ol>" +
             stars_combine_operations_Tooltip + 
             extraCombineStarsReduce_Tooltip;
       this.extraCombineStars_CheckBox = newCheckBox(this, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
       this.extraCombineStars_ComboBox = newComboBox(this, par.extra_combine_stars_mode, starless_and_stars_combine_values, extraCombineStars_Tooltip);
       
-      this.extraCombioneStars_Sizer1= new HorizontalSizer;
-      this.extraCombioneStars_Sizer1.spacing = 4;
-      this.extraCombioneStars_Sizer1.add( this.extraCombineStars_CheckBox);
-      this.extraCombioneStars_Sizer1.add( this.extraCombineStars_ComboBox);
-      this.extraCombioneStars_Sizer1.toolTip = this.narrowbandExtraLabel.toolTip;
-      this.extraCombioneStars_Sizer1.addStretch();
+      this.extraCombineStars_Sizer1= new HorizontalSizer;
+      this.extraCombineStars_Sizer1.spacing = 4;
+      this.extraCombineStars_Sizer1.add( this.extraCombineStars_CheckBox);
+      this.extraCombineStars_Sizer1.add( this.extraCombineStars_ComboBox);
+      this.extraCombineStars_Sizer1.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer1.addStretch();
 
       this.extraCombineStarsReduce_Label = newLabel(this, "Reduce stars", extraCombineStarsReduce_Tooltip);
       this.extraCombineStarsReduce_ComboBox = newComboBox(this, par.extra_combine_stars_reduce, star_reduce_methods, 
@@ -4907,23 +4980,52 @@ function AutoIntegrateDialog()
       this.extraCombineStarsReduce_M_SpinBox = newSpinBox(this, par.extra_combine_stars_reduce_M, 1, 3, 
             extraCombineStarsReduce_M_toolTip);
 
-      this.extraCombioneStars_Sizer2 = new HorizontalSizer;
-      this.extraCombioneStars_Sizer2.spacing = 4;
-      this.extraCombioneStars_Sizer2.addSpacing(20);
-      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_Label);
-      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_ComboBox);
-      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
-      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
-      this.extraCombioneStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
-      this.extraCombioneStars_Sizer2.toolTip = this.narrowbandExtraLabel.toolTip;
-      this.extraCombioneStars_Sizer2.addStretch();
+      this.extraCombineStars_Sizer2 = new HorizontalSizer;
+      this.extraCombineStars_Sizer2.spacing = 4;
+      this.extraCombineStars_Sizer2.addSpacing(20);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_Label);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_ComboBox);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
+      this.extraCombineStars_Sizer2.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer2.addStretch();
 
-      this.extraCombioneStars_Sizer = new VerticalSizer;
-      this.extraCombioneStars_Sizer.spacing = 4;
-      this.extraCombioneStars_Sizer.add( this.extraCombioneStars_Sizer1);
-      this.extraCombioneStars_Sizer.add( this.extraCombioneStars_Sizer2);
-      this.extraCombioneStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
-      this.extraCombioneStars_Sizer.addStretch();
+      this.extraStarsImageLabel = newLabel(this, "Starless image", "Text Auto or empty image uses default starless image.");
+      this.extraStarsImageEdit = newTextEdit(this, par.extra_combine_stars_image, this.extraStarsImageLabel.toolTip);
+      this.extraStarsImageSelectButton = new ToolButton(this);
+      this.extraStarsImageSelectButton.text = "Select";
+      this.extraStarsImageSelectButton.icon = this.scaledResource(":/icons/find.png");
+      this.extraStarsImageSelectButton.toolTip = "<p>Select stars image manually from open images.</p>";
+      this.extraStarsImageSelectButton.onClick = function()
+      {
+            let selectStars = new AutoIntegrateSelectStarsImageDialog(util);
+            selectStars.windowTitle = "Select Stars Image";
+            if (selectStars.execute()) {
+                  if (selectStars.name == null) {
+                        console.writeln("Stars image not selected");
+                        return;
+                  }
+                  console.writeln("Stars image name " + selectStars.name);
+                  this.dialog.extraStarsImageEdit.text = selectStars.name;
+                  par.extra_combine_stars_image.val = selectStars.name;
+            }
+      };
+
+      this.extraCombineStarsSelect_Sizer = new HorizontalSizer;
+      this.extraCombineStarsSelect_Sizer.spacing = 4;
+      this.extraCombineStarsSelect_Sizer.addSpacing(20);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageLabel);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageEdit);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageSelectButton);
+
+      this.extraCombineStars_Sizer = new VerticalSizer;
+      this.extraCombineStars_Sizer.spacing = 4;
+      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer1);
+      this.extraCombineStars_Sizer.add( this.extraCombineStarsSelect_Sizer );
+      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer2);
+      this.extraCombineStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer.addStretch();
 
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker.</p>" );
@@ -5264,7 +5366,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSaturationIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
-      this.extra2.add( this.extraCombioneStars_Sizer );
+      this.extra2.add( this.extraCombineStars_Sizer );
 
       this.extraLabel = newSectionLabel(this, "Generic extra processing");
       this.extraLabel.toolTip = 

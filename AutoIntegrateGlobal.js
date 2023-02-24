@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57.1";       // Version, also updated into updates.xri
-this.autointegrate_info = "CometAlignment, GUI updates";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57.2 test1";       // Version, also updated into updates.xri
+this.autointegrate_info = "CometAlignment, GUI updates";          // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -275,6 +275,7 @@ this.par = {
       extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
       extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
       extra_combine_stars_mode: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
+      extra_combine_stars_image: { val: 'Auto', def: 'Auto', name : "Extra stars image", type : 'S' },
       extra_combine_stars_reduce: { val: 'None', def: 'None', name : "Extra combine stars reduce", type : 'S' },
       extra_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Extra combine stars reduce S", type : 'R' },
       extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
