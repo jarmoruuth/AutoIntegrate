@@ -4460,6 +4460,19 @@ function runImageIntegrationEx(images, name, local_normalization)
       }
 }
 
+function checkFilesExist(imagearray)
+{
+      var succp = true;
+
+      for (var i = 0; i < imagearray.length; i++) {
+            if (!File.exists(imagearray[i])) {
+                  console.criticalln("Error, could not find image file " + imagearray[i]);
+                  succp = false;
+            }
+      }
+      return succp;
+}
+
 function runImageIntegrationNormalized(images, best_image, name)
 {
       util.addProcessingStepAndStatusInfo("ImageIntegration with LocalNormalization");
@@ -4471,15 +4484,23 @@ function runImageIntegrationNormalized(images, best_image, name)
       var norm_images = [];
       for (var i = 0; i < images.length; i++) {
             var oneimage = [];
+            var imagearray = [];
             oneimage[0] = true;                                   // enabled
             oneimage[1] = images[i][1];                           // path
+            imagearray[imagearray.length] = oneimage[1];
             if (par.use_drizzle.val) {
                   oneimage[2] = images[i][1].replace(".xisf", ".xdrz"); // drizzlePath
+                  imagearray[imagearray.length] = oneimage[2];
             } else {
                   oneimage[2] = "";                                     // drizzlePath
             }
             oneimage[3] = images[i][1].replace(".xisf", ".xnml");    // localNormalizationDataPath
-            norm_images[norm_images.length] = oneimage;
+            imagearray[imagearray.length] = oneimage[3];
+            if (checkFilesExist(imagearray)) {
+                  norm_images[norm_images.length] = oneimage;
+            } else {
+                  console.criticalln("ImageIntegration with LocalNormalization skipping image " + imagearray[0]);
+            }
       }
       console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
 
