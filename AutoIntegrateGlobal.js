@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57.2 test2";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57.2 test3";       // Version, also updated into updates.xri
 this.autointegrate_info = "CometAlignment, GUI updates";          // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -167,6 +167,8 @@ this.par = {
       remove_stars_light: { val: false, def: false, name : "Remove stars light", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
       remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
+      use_narrowband_multiple_mappings: { val: false, def: false, name : "Use narrowband multiple mappings", type : 'B' },
+      narrowband_multiple_mappings_list: { val: "", def: "", name : "Narrowband multiple mappings list", type : 'S' },
 
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -231,6 +233,7 @@ this.par = {
       ESD_outliers: { val: 0.3, def: 0.3, name : "ESD outliers", type : 'R' },
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
+      use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Mmultiscale", type : 'B' },
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
@@ -555,34 +558,36 @@ this.final_windows = [
 ];
 
 this.narrowBandPalettes = [
-      { name: "SHO", R: "S", G: "H", B: "O", all: true }, 
-      { name: "HOS", R: "H", G: "O", B: "S", all: true }, 
-      { name: "HSO", R: "H", G: "S", B: "O", all: true }, 
-      { name: "OHS", R: "O", G: "H", B: "S", all: true }, 
-      { name: "HOO", R: "H", G: "O", B: "O", all: true }, 
-      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true }, 
-      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true }, 
-      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true }, 
-      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false }, 
-      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false }, 
-      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true }, 
-      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true }, 
-      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true }, 
-      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true }, 
-      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true }, 
-      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: false }, 
-      { name: "RGB", R: "R", G: "G", B: "B", all: false }, 
-      { name: "User defined", R: "", G: "", B: "", all: false },
-      { name: "All", R: "All", G: "All", B: "All", all: false }
+      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true }, 
+      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true }, 
+      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true }, 
+      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true }, 
+      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true }, 
+      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true }, 
+      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
+      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
+      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true }, 
+      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true }, 
+      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true }, 
+      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true }, 
+      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true }, 
+      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true }, 
+      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: true }, 
+      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false },
+      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false }
 ];
 
-this.directoryInfo = "AutoIntegrate output files go to the following subdirectories:<br>" +
-                    "- AutoOutput contains intermediate files generated during processing<br>" +
-                    "- AutoMaster contains generated master calibration files<br>" +
-                    "- AutoCalibrated contains calibrated light files<br>" +
-                    "- AutoProcessed contains processed final images. Also integrated images and log output is here.";
+this.directoryInfo = "<p>AutoIntegrate output files go to the following subdirectories:</p>" +
+                    "<ul>" +
+                    "<li>AutoOutput contains intermediate files generated during processing</li>" +
+                    "<li>AutoMaster contains generated master calibration files</li>" +
+                    "<li>AutoCalibrated contains calibrated light files</li>" +
+                    "<li>AutoProcessed contains processed final images. Also integrated images and log output is here.</li>" +
+                    "<ul>";
 
 // variables for temporary debugging and testing
 this.ai_debug = false;                          // temp setting for debugging

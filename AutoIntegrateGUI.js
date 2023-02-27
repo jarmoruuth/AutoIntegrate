@@ -88,7 +88,6 @@ function AutoIntegrateSelectStarsImageDialog( util )
       this.buttons_Sizer.add( this.ok_Button );
       this.buttons_Sizer.add( this.cancel_Button );
 
-
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
@@ -102,6 +101,100 @@ function AutoIntegrateSelectStarsImageDialog( util )
 }
 
 AutoIntegrateSelectStarsImageDialog.prototype = new Dialog;
+
+function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
+{
+      this.__base__ = Dialog;
+      this.__base__();
+      this.restyle();
+
+      this.labelWidth = this.font.width( "Object identifier:M" );
+      this.editWidth = this.font.width( 'M' )*40;
+
+      this.names = mappings_list;
+   
+      this.narrowbandSelectMultipleLabel = new Label( this );
+      this.narrowbandSelectMultipleLabel.text = "Select mappings:"
+
+      this.select_Sizer = new VerticalSizer;
+      this.select_Sizer.spacing = 6;
+
+      var current_mappings = mappings_list.split(",");
+      var checked_status = [];
+
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            if (!global.narrowBandPalettes[i].checkable) {
+                  continue;
+            }
+            var checked = false;
+            for (var j = 0; j < current_mappings.length; j++) {
+                  if (global.narrowBandPalettes[i].name == current_mappings[j].trim()) {
+                        checked = true;
+                        break;
+                  }
+            }
+            checked_status[i] = checked
+
+            var cb = new CheckBox( this );
+            cb.text = global.narrowBandPalettes[i].name;
+            cb.toolTip = "R: " + global.narrowBandPalettes[i].R + ", G: " + global.narrowBandPalettes[i].G + ", B: " + global.narrowBandPalettes[i].B;
+            cb.checked = checked;
+            cb.index = i;
+            cb.onClick = function(checked) { 
+                  checked_status[this.index] = checked;
+            }
+
+            this.select_Sizer.add( cb );
+      }
+
+      this.select_Sizer.addStretch();
+
+      // Common Buttons
+      this.ok_Button = new PushButton( this );
+      this.ok_Button.text = "OK";
+      this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
+      this.ok_Button.onClick = function()
+      {
+            this.dialog.names = "";
+            for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+                  if (checked_status[i]) {
+                        if (this.dialog.names == "") {
+                              this.dialog.names = global.narrowBandPalettes[i].name;
+                        } else {
+                              this.dialog.names = this.dialog.names + ", " + global.narrowBandPalettes[i].name;
+                        }
+                  }
+            }
+            this.dialog.ok();
+      };
+
+      this.cancel_Button = new PushButton( this );
+      this.cancel_Button.text = "Cancel";
+      this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
+      this.cancel_Button.onClick = function()
+      {
+            this.dialog.cancel();
+      };
+
+      this.buttons_Sizer = new HorizontalSizer;
+      this.buttons_Sizer.spacing = 6;
+      this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( this.ok_Button );
+      this.buttons_Sizer.add( this.cancel_Button );
+
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 6;
+      this.sizer.spacing = 4;
+      this.sizer.add( this.narrowbandSelectMultipleLabel );
+      this.sizer.add( this.select_Sizer );
+      this.sizer.add( this.buttons_Sizer );
+   
+      this.windowTitle = "Select Narrowband Mappings";
+      this.adjustToContents();
+      this.setFixedSize();
+}
+
+AutoIntegrateNarrowbandSelectMultipleDialog.prototype = new Dialog;
 
 function AutoIntegrateGUI(global, util, engine)
 {
@@ -4509,6 +4602,25 @@ function AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer3 );
       //this.clippingGroupBoxSizer.addStretch();
 
+      this.localNormalizationMultiscaleCheckBox = newCheckBox(this, "Use multiscale analysis", par.use_localnormalization_multiscale, 
+            "<p>During local normalization use multiscale analysis instead of PSF flux evaluation.</p>" +
+            "<p>Using multiscale analysis may help if you get errors like <i>PSFScaleEstimator::EstimateScale(): Internal error: No reference image has been defined</i>.</p>" );
+
+      this.localNormalizationSizer = new HorizontalSizer;
+      this.localNormalizationSizer.margin = 6;
+      this.localNormalizationSizer.spacing = 4;
+      this.localNormalizationSizer.add( this.localNormalizationMultiscaleCheckBox );
+      this.localNormalizationSizer.addStretch();
+      
+      this.localNormalizationGroupBoxLabel = newSectionLabel(this, 'Local normalization');
+      this.localNormalizationGroupBoxSizer = new VerticalSizer;
+      this.localNormalizationGroupBoxSizer.margin = 6;
+      this.localNormalizationGroupBoxSizer.spacing = 4;
+      this.localNormalizationGroupBoxSizer.toolTip = "Local normalization settings.";
+      this.localNormalizationGroupBoxSizer.add( this.localNormalizationGroupBoxLabel );
+      this.localNormalizationGroupBoxSizer.add( this.localNormalizationSizer );
+      //this.localNormalizationGroupBoxSizer.addStretch();
+
       // Narrowband palette
 
       var narrowbandAllTip = 
@@ -4539,7 +4651,7 @@ function AutoIntegrateDialog()
       this.narrowbandColorPaletteLabel = newSectionLabel(this, "Color palette");
       this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
 
-      /* Narrowband to RGB mappings. 
+      /* Narrowband mappings. 
        */
       this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
       for (var i = 0; i < global.narrowBandPalettes.length; i++) {
@@ -4645,6 +4757,7 @@ function AutoIntegrateDialog()
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.force_narrowband_mapping_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
+      this.mapping_on_nonlinear_data_Sizer.addStretch();
 
       /* Luminance channel mapping.
        */
@@ -4691,6 +4804,38 @@ function AutoIntegrateDialog()
       this.NbLuminanceSizer.add( this.narrowbandLinearFit_Label );
       this.NbLuminanceSizer.add( this.narrowbandLinearFit_ComboBox );
       this.NbLuminanceSizer.addStretch();
+
+      this.narrowbandSelectMultipleCheckBox = newCheckBox(this, "Use multiple mappings", par.use_narrowband_multiple_mappings, "Use multiple narrowband mappings.");
+      this.narrowbandSelectMultipleLabel = newLabel(this, "Mappings", "");
+      this.narrowbandSelectMultipleEdit = newTextEdit(this, par.narrowband_multiple_mappings_list, "");
+      this.narrowbandSelectMultipleEdit.setFixedWidth(32 * this.font.width( 'M' ));
+      this.narrowbandSelectMultipleButton = new PushButton(this);
+      this.narrowbandSelectMultipleButton.text = "Select";
+      this.narrowbandSelectMultipleButton.icon = this.scaledResource(":/icons/find.png");
+      this.narrowbandSelectMultipleButton.toolTip = "Select narrowband mappings.";
+      this.narrowbandSelectMultipleButton.onClick = function()
+      {
+            let narrowbandSelectMultiple = new AutoIntegrateNarrowbandSelectMultipleDialog(global, par.narrowband_multiple_mappings_list.val);
+            narrowbandSelectMultiple.windowTitle = "Select Narrowband Mappings";
+            if (narrowbandSelectMultiple.execute()) {
+                  if (narrowbandSelectMultiple.names == null) {
+                        console.writeln("No mappings selected");
+                        return;
+                  }
+                  console.writeln("Selected mappings " + narrowbandSelectMultiple.names);
+                  this.dialog.narrowbandSelectMultipleEdit.text = narrowbandSelectMultiple.names;
+                  par.narrowband_multiple_mappings_list.val = narrowbandSelectMultiple.names;
+            }
+      };
+
+      this.narrowbandSelectMultipleSizer = new HorizontalSizer;
+      this.narrowbandSelectMultipleSizer.margin = 2;
+      this.narrowbandSelectMultipleSizer.spacing = 4;
+      this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleCheckBox );
+      this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleButton );
+      this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleLabel );
+      this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleEdit );
+      this.narrowbandSelectMultipleSizer.addStretch();
 
       /* RGBNB mapping.
        */
@@ -4850,6 +4995,7 @@ function AutoIntegrateDialog()
       this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
       this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
       this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
+      this.narrowbandControl.sizer.add( this.narrowbandSelectMultipleSizer );
       this.narrowbandControl.visible = false;
 
       this.narrowbandRGBmappingControl = new Control( this );
@@ -5859,9 +6005,10 @@ function AutoIntegrateDialog()
 
       // Right processing group box
       this.rightProcessingGroupBox = newGroupBoxSizer(this);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration settings", "ps_integration",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and local normalization settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
-              this.clippingGroupBoxSizer ]);
+              this.clippingGroupBoxSizer,
+              this.localNormalizationGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
             [ this.StarAlignmentGroupBoxLabel,
               this.StarAlignmentGroupBoxSizer,

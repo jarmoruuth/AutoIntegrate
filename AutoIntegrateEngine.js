@@ -4258,6 +4258,12 @@ function runLocalNormalization(imagetable, refImage, filter)
 
 
       var P = new LocalNormalization;
+      if (par.use_localnormalization_multiscale.val) {
+            console.writeln("runLocalNormalization, use multiscale analysis");
+            P.scaleEvaluationMethod = LocalNormalization.prototype.ScaleEvaluationMethod_MultiscaleAnalysis;
+      } else {
+            // use default: P.scaleEvaluationMethod = LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal;
+      }
       var scale = getLocalNormalizationScale(refImage, P.scale);
       if (scale != 0) {
             P.scale = scale;
