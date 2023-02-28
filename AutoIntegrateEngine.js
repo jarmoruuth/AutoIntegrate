@@ -8827,9 +8827,35 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
 {
       console.writeln("autointegrateNarrowbandPaletteBatch");
+      if (par.use_narrowband_multiple_mappings.val) {
+            var current_mappings = par.narrowband_multiple_mappings_list.val.split(",");
+            for (var i = 0; i < current_mappings.length; i++) {
+                  var found = false;
+                  for (var j = 0; j < global.narrowBandPalettes.length; j++) {
+                        if (current_mappings[i].trim() == global.narrowBandPalettes[j].name) {
+                              found = true;
+                              break;
+                        }
+                  }
+                  if (!found) {
+                        util.throwFatalError("Unknow narrowband mapping " + current_mappings[i].trim());
+                  }
+            }
+      }
       for (var i = 0; i < global.narrowBandPalettes.length; i++) {
             console.writeln("autointegrateNarrowbandPaletteBatch loop ", i);
-            if (global.narrowBandPalettes[i].all) {
+            var run_this = false;
+            if (par.use_narrowband_multiple_mappings.val) {
+                  for (var j = 0; j < current_mappings.length; j++) {
+                        if (global.narrowBandPalettes[i].name == current_mappings[j].trim()) {
+                              run_this = true;
+                              break;
+                        }
+                  }
+            } else {
+                  run_this = global.narrowBandPalettes[i].all;
+            }
+            if (run_this) {
                   if (auto_continue) {
                         util.ensureDialogFilePath("narrowband batch result files");
                   }

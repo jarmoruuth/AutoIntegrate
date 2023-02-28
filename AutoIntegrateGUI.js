@@ -266,7 +266,8 @@ var screen_size = "Unknown";       // Screen wxh size as a string
 
 function isbatchNarrowbandPaletteMode()
 {
-      return par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All";
+      return (par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All") ||
+              par.use_narrowband_multiple_mappings.val;
 }
 
 function previewControlCleanup(control)
