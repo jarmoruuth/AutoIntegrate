@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57.2 test4";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.57.2 test5";       // Version, also updated into updates.xri
 this.autointegrate_info = "CometAlignment, GUI updates";          // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -58,6 +58,8 @@ this.do_not_read_settings = false;      // do not read Settings from persistent 
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
 this.is_processing = false;
+
+this.cancel_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 

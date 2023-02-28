@@ -2654,6 +2654,25 @@ function newExitButton(parent, toolbutton)
       );
 }
 
+function newCancelButton(parent, toolbutton)
+{
+      var cancel_action = function()
+      {
+            console.noteln("Cancel requested...");
+            global.cancel_processing = true;
+      };
+
+      return newPushorToolButton(
+                  parent,
+                  ":/icons/cancel.png",
+                  "Cancel",
+                  "<p>Cancel the current script run.</p>" + 
+                  "<p>Current processing is canceled as soon as control returns to the script.</p>",
+                  cancel_action,
+                  toolbutton
+      );
+}
+
 function newAutoContinueButton(parent, toolbutton)
 {
       var autocontinue_action = function()
@@ -3034,6 +3053,10 @@ function newPageButtonsSizer(parent)
       parent.rootingArr.push(obj);
       buttonsSizer.add( obj );
       buttonsSizer.addSpacing( 6 );
+      obj = newCancelButton(parent, true);
+      parent.rootingArr.push(obj);
+      buttonsSizer.add( obj );
+      buttonsSizer.addSpacing( 6 );
       obj = newAutoContinueButton(parent, true);
       parent.rootingArr.push(obj);
       buttonsSizer.add( obj );
@@ -3384,6 +3407,7 @@ function AutoIntegrateDialog()
       // Run, Exit and AutoContinue buttons
       this.run_Button = newRunButton(this, false);
       this.exit_Button = newExitButton(this, false);
+      this.cancel_Button = newCancelButton(this, false);
       this.autoContinueButton = newAutoContinueButton(this, false);
       
       this.filesToolTip = [];
@@ -5965,6 +5989,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( this.autoContinueButton );
+      this.buttons_Sizer.add( this.cancel_Button );
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
