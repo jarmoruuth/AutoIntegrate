@@ -2658,8 +2658,10 @@ function newCancelButton(parent, toolbutton)
 {
       var cancel_action = function()
       {
-            console.noteln("Cancel requested...");
-            global.cancel_processing = true;
+            if (global.is_processing) {
+                  console.noteln("Cancel requested...");
+                  global.cancel_processing = true;
+            }
       };
 
       return newPushorToolButton(
@@ -4032,8 +4034,10 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
       this.imageSolvingGroupBoxSizer.addStretch();
 
-      this.targetFocalLabel = newLabel(this, "Focal length", "Focal length in millimeters. Empty value uses image metadata.");
+      this.targetFocalLabel = newLabel(this, "Focal length mm", "Focal length in millimeters. Empty value uses image metadata.");
       this.targetFocalEdit = newTextEdit(this, par.target_focal, this.targetFocalLabel.toolTip);
+      this.targetPixelSizeLabel = newLabel(this, "Pixel size μm", "Pixel size in μm. Empty value uses image metadata.");
+      this.targetPixelSizeEdit = newTextEdit(this, par.target_pixel_size, this.targetPixelSizeLabel.toolTip);
 
       this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
       this.imageSolvingGroupBoxSizer = new HorizontalSizer;
@@ -4051,6 +4055,8 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer2.spacing = 4;
       this.imageSolvingGroupBoxSizer2.add( this.targetFocalLabel );
       this.imageSolvingGroupBoxSizer2.add( this.targetFocalEdit );
+      this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeLabel );
+      this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeEdit );
       this.imageSolvingGroupBoxSizer2.addStretch();
 
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");

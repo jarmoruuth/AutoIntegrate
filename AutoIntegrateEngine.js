@@ -211,7 +211,7 @@ var L_HT_win;
 var RGB_HT_win;
 var range_mask_win;
 var final_win;
-var telescop = "";
+var current_telescope_name = "";
 
 var retval = {
       ERROR : 0,
@@ -230,24 +230,36 @@ var channels = {
       C: 7
 };
 
-var focal_lengths = [
-      [ 'AUS-2', 382 ],
-      [ 'SPA-1', 382 ],
-      [ 'SPA-2', 5600 ],
-      [ 'SPA-3', 382 ],
-      [ 'CHI-1', 3991 ],
-      [ 'CHI-2', 1900 ],
-      [ 'CHI-3', 6800 ],
-      [ 'CHI-4', 1900 ],
-      [ 'CHI-5', 200 ],
-      [ 'CHI-6', 600 ]
+var telescope_info = [
+      [ 'AUS-2-CMOS', 382, 3.76 ],
+      [ 'SPA-1-CMOS', 382, 3.76 ],
+      [ 'SPA-2-CMOS', 5600, 3.76 ],
+      [ 'SPA-3-CMOS', 382, 3.76 ],
+      [ 'CHI-1-CMOS', 3991, 3.76 ],
+      [ 'CHI-2-CMOS', 1900, 3.76 ],
+      [ 'CHI-3-CMOS', 6800, 3.76 ],
+      [ 'CHI-4-CMOS', 1900, 3.76 ],
+      [ 'CHI-5-CMOS', 200, 3.76 ],
+      [ 'CHI-6-CMOS', 600, 3.76 ]
 ];
 
+// Find focal length using telescope name saved into variable current_telescope_name
 function find_focal_length()
 {
-      for (var i = 0; i < focal_lengths.length; i++) {
-            if (telescop.indexOf(focal_lengths[i][0]) != -1) {
-                  return focal_lengths[i][1];
+      for (var i = 0; i < telescope_info.length; i++) {
+            if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
+                  return telescope_info[i][1];
+            }
+      }
+      return 0;
+}
+
+// Find pixel size using telescope name saved into variable current_telescope_name
+function find_pixel_size()
+{
+      for (var i = 0; i < telescope_info.length; i++) {
+            if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
+                  return telescope_info[i][2];
             }
       }
       return 0;
@@ -2677,7 +2689,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                                     console.writeln("Set debayer pattern from Auto to None");
                                     par.debayer_pattern.val = 'None';
                               }
-                              telescop = value;
+                              current_telescope_name = value;
                               break;
                         case "NAXIS1":
                               console.writeln("NAXIS1=" + value);
@@ -6055,6 +6067,12 @@ function runImageSolver(id)
             
             solver.Init(imgWin);
 
+            console.writeln("Image metadata");
+            console.writeln("  coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+            console.writeln("  focal length: " + solver.metadata.focal);
+            console.writeln("  resolution: " + solver.metadata.resolution);
+            console.writeln("  xpixsz: " + solver.metadata.xpixsz);
+
             if (par.target_radec.val != '') {
                   let radec = par.target_radec.val.trim().split(/\s+/);
                   if (radec.length != 2) {
@@ -6074,15 +6092,25 @@ function runImageSolver(id)
             if (focal_len != 0) {
                   solver.metadata.focal = focal_len;
                   console.writeln("Using user focal length: " + focal_len);
-                  if (solver.metadata.xpixsz) {
-                        solver.metadata.resolution = solver.metadata.focal > 0 
-                                                      ? solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI 
-                                                      : 0;
-                  }
-                  console.writeln("Using user resolution: " + solver.metadata.resolution);
             } else {
                   console.writeln("Using image metadata focal length: " + solver.metadata.focal);
-                  console.writeln("Using image metadata resolution: " + solver.metadata.resolution);
+            }
+            if (par.target_pixel_size.val != '') {
+                  var pixel_size = parseFloat(par.target_pixel_size.val);
+            } else {
+                  var pixel_size = find_pixel_size();
+            }
+            if (pixel_size != 0) {
+                  console.writeln("Using user pixel size: " + pixel_size);
+                  solver.metadata.xpixsz = pixel_size;
+            } else {
+                  console.writeln("Using image metadata pixel size: " + solver.metadata.xpixsz);
+            }
+            if (solver.metadata.xpixsz && solver.metadata.focal) {
+                  solver.metadata.resolution = solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI;
+                  console.writeln("Using calculated resolution: " + solver.metadata.resolution);
+            } else {
+                  console.writeln("Using metadata resolution: " + solver.metadata.resolution);
             }
 
             console.writeln("runImageSolver: call SolveImage");
@@ -6092,6 +6120,11 @@ function runImageSolver(id)
             } else {
                   succ = true;
                   solver.metadata.Print();
+                  solver.solverCfg.SaveSettings();
+                  solver.solverCfg.SaveParameters();
+                  solver.metadata.SaveSettings();
+                  solver.metadata.SaveParameters();
+         
                   console.writeln("runImageSolver: SolveImage succeeded");
             }
       } catch (err) {
@@ -9872,7 +9905,8 @@ function cropChannelImages()
       }
 
       crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
-      crop_lowClipImage_changed = true;
+      saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
+      crop_lowClipImage_changed = false;
 
       /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
@@ -10107,6 +10141,7 @@ function cropChannelImagesAutoContinue()
        engineInit();
 
        global.is_processing = true;
+       global.cancel_processing = false;
 
        narrowband = extra_narrowband;
 
@@ -10196,6 +10231,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        util.runGC();
  
        global.is_processing = true;
+       global.cancel_processing = false;
  
        var LRGB_ABE_HT_id = null;
        var RGB_ABE_HT_id = null;
