@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.57.2 test6";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test7";         // Version, also updated into updates.xri
 this.autointegrate_info = "CometAlignment, GUI updates";          // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -265,6 +265,17 @@ this.par = {
       spcc_detection_scales: { val: 5, def: 5, name : "SPCC detection scales", type : 'I' }, 
       spcc_noise_scales: { val: 1, def: 1, name : "SPCC noise scales", type : 'I' }, 
       spcc_min_struct_size: { val: 0, def: 0, name : "SPCC min struct size", type : 'I' }, 
+      spcc_red_wavelength: { val: 671.60, def: 671.60, name : "SPCC red wavelength", type : 'R' },
+      spcc_red_bandwidth: { val: 3, def: 3, name : "SPCC red bandwidth", type : 'R' },
+      spcc_green_wavelength: { val: 656.30, def: 656.30, name : "SPCC green wavelength", type : 'R' },
+      spcc_green_bandwidth: { val: 3, def: 3, name : "SPCC green bandwidth", type : 'R' },
+      spcc_blue_wavelength: { val: 500.70, def: 500.70, name : "SPCC blue wavelength", type : 'R' },
+      spcc_blue_bandwidth: { val: 3, def: 3, name : "SSPCC blue bandwidth", type : 'R' },
+      spcc_narrowband_mode: { val: false, def: false, name : "SPCC narrowband mode", type : 'B' },
+      spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
+      spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
+      spcc_auto_narrowband: { val: true, def: true, name : "SPCC narrowband auto mode", type : 'B' },
+      spcc_white_reference: { val: 'Average Spiral Galaxy', def: 'Average Spiral Galaxy', name : "SPCC white reference", type : 'S' },
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
