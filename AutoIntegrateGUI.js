@@ -472,10 +472,10 @@ function forceNewHistogram(target_win)
 {
       try {
             if (!target_win.mainView.deleteProperty("Histogram16")) {
-                  console.writeln("Failed to delete property Histogram16");
+                  // console.writeln("Failed to delete property Histogram16");
             }
       } catch(err) {
-            console.writeln("Failed to delete property Histogram16 : " + err);
+            // console.writeln("Failed to delete property Histogram16 : " + err);
       }
 }
 
@@ -4569,7 +4569,7 @@ function AutoIntegrateDialog()
       this.smoothBackgroundSizer.margin = 2;
       this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
       this.smoothBackgroundSizer.addStretch();
-      
+
       /* Options.
        */
       this.StretchingOptionsSizer = new VerticalSizer;
@@ -5368,6 +5368,22 @@ function AutoIntegrateDialog()
       this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
       this.extra_smoothBackground_Sizer.addStretch();
 
+      var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>";
+
+      this.extraAdjustChannelsCheckBox = newCheckBox(this, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelR = newNumericEdit(this, "R", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelG = newNumericEdit(this, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelB = newNumericEdit(this, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
+
+      this.extraAdjustChannelsSizer = new HorizontalSizer;
+      this.extraAdjustChannelsSizer.spacing = 4;
+      this.extraAdjustChannelsSizer.margin = 2;
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelsCheckBox );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelB );
+      this.extraAdjustChannelsSizer.addStretch();
+
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
             "<p>Make stars smaller on image.</p>" );
       this.smallerStarsIterationsSpinBox = newSpinBox(this, par.extra_smaller_stars_iterations, 0, 10, 
@@ -5590,6 +5606,7 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
       this.extra1.add( this.extra_LHE_sizer );
@@ -5631,6 +5648,7 @@ function AutoIntegrateDialog()
             "<li>Remove stars</li>" +
             "<li>AutomaticBackgroundExtractor</li>" +
             "<li>Darker background</li>" +
+            "<li>Adjust channels</li>" +
             "<li>ExponentialTransformation</li>" +
             "<li>HDRMultiscaleTransform</li>" +
             "<li>LocalHistogramEqualization</li>" +

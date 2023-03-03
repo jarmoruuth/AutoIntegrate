@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test7";         // Version, also updated into updates.xri
-this.autointegrate_info = "CometAlignment, GUI updates";          // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test8";         // Version, also updated into updates.xri
+this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -312,6 +312,10 @@ this.par = {
       extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
       extra_smoothbackground: { val: false, def: false, name : "Extra smooth background", type : 'B' },
       extra_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Extra smooth background value", type : 'R' },
+      extra_adjust_channels: { val: false, def: false, name : "Extra adjust channels", type : 'B' },
+      extra_adjust_R: { val: 1, def: 1, name : "Extra adjust R", type : 'R' },
+      extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
+      extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
       extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },

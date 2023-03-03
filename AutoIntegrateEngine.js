@@ -8590,6 +8590,28 @@ function extraDarkerBackground(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
+function extraAdjustChannels(imgWin)
+{
+      util.addProcessingStepAndStatusInfo("Extra adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
+
+      var P = new PixelMath;
+
+      P.expression = "$T * " + par.extra_adjust_R.val;
+      P.expression1 = "$T * " + par.extra_adjust_G.val;
+      P.expression2 = "$T * " + par.extra_adjust_B.val;
+      P.useSingleExpression = false;
+      P.showNewImage = false;
+      P.createNewImage = false;
+      P.newImageId = "";
+      P.newImageColorSpace = PixelMath.prototype.RGB;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView);
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
 function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
       util.addProcessingStepAndStatusInfo("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
@@ -9363,6 +9385,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_darker_background.val) {
             extraDarkerBackground(extraWin, mask_win);
+      }
+      if (par.extra_adjust_channels.val) {
+            extraAdjustChannels(extraWin);
       }
       if (par.extra_ET.val) {
             extraExponentialTransformation(extraWin, mask_win);
