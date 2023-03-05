@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test8";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test9";         // Version, also updated into updates.xri
 this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -273,7 +273,6 @@ this.par = {
       spcc_blue_bandwidth: { val: 3, def: 3, name : "SSPCC blue bandwidth", type : 'R' },
       spcc_narrowband_mode: { val: false, def: false, name : "SPCC narrowband mode", type : 'B' },
       spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
-      spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
       spcc_auto_narrowband: { val: true, def: true, name : "SPCC narrowband auto mode", type : 'B' },
       spcc_white_reference: { val: 'Average Spiral Galaxy', def: 'Average Spiral Galaxy', name : "SPCC white reference", type : 'S' },
 
@@ -307,6 +306,8 @@ this.par = {
       extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
+      extra_auto_contrast: { val: false, def: false, name : "Extra auto contrast", type : 'B' },
+      extra_auto_contrast_limit: { val: 0.01, def: 0.01, name : "Extra auto contrast limit", type : 'R' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
       extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
@@ -317,6 +318,7 @@ this.par = {
       extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
       extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
       extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
+      extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },

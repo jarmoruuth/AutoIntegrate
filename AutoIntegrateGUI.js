@@ -4096,9 +4096,9 @@ function AutoIntegrateDialog()
       this.colorCalibrationGroupBoxSizerCheckBoxes = new HorizontalSizer;
       this.colorCalibrationGroupBoxSizerCheckBoxes.margin = 4;
       this.colorCalibrationGroupBoxSizerCheckBoxes.spacing = 4;
+      this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccAutoUpdateFiltersCheckBox );
       this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccNarrowbandCheckBox );
       this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccBackgroundNeutralizationCheckBox );
-      this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccAutoUpdateFiltersCheckBox );
       this.colorCalibrationGroupBoxSizerCheckBoxes.addStretch();
 
       var spccFilterTooTip = "<p>Wavelength and bandwidths for Red, Geen and Blue filters with narrowband processing.</p>" +
@@ -5339,6 +5339,16 @@ function AutoIntegrateDialog()
       this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
       this.extraContrastSizer.addStretch();
 
+      var extraAutoContrastTooltip = "<p>Do automatic contrast enhancement. Works best with starless image.</p>";
+      this.extraAutoContrastCheckBox = newCheckBox(this, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
+      this.extraAutoContrastEdit = newNumericEdit(this, 'limit', par.extra_auto_contrast_limit, 0, 1, "Upper and lower percentage of clipped pixels.");
+      this.extraAutoContrastSizer = new HorizontalSizer;
+      this.extraAutoContrastSizer.spacing = 4;
+      this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastEdit );
+      this.extraAutoContrastSizer.toolTip = extraAutoContrastTooltip;
+      this.extraAutoContrastSizer.addStretch();
+
       this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
             "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
       this.extra_force_new_mask_CheckBox = newCheckBox(this, "New mask", par.extra_force_new_mask, 
@@ -5353,6 +5363,14 @@ function AutoIntegrateDialog()
       this.extra_shadowclip_Sizer.add( this.extra_shadowclipperc_edit );
       this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
       this.extra_shadowclip_Sizer.addStretch();
+
+      var extraEnhanceShadowsTooltip = "<p>Enhance shadows by using log function on each pixel.</p>";
+      this.extraEnhanceShadowsCheckBox = newCheckBox(this, "Enhance shadows", par.extra_shadow_enhance, extraEnhanceShadowsTooltip);
+      this.extraEnhanceShadowsSizer = new HorizontalSizer;
+      this.extraEnhanceShadowsSizer.spacing = 4;
+      this.extraEnhanceShadowsSizer.add( this.extraEnhanceShadowsCheckBox );
+      this.extraEnhanceShadowsSizer.toolTip = shadowclipTooltip;
+      this.extraEnhanceShadowsSizer.addStretch();
 
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
@@ -5375,6 +5393,20 @@ function AutoIntegrateDialog()
       this.extraAdjustChannelG = newNumericEdit(this, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
       this.extraAdjustChannelB = newNumericEdit(this, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
 
+      this.extraAdjustChannelDefaultsButton = new ToolButton(this);
+      this.extraAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
+      this.extraAdjustChannelDefaultsButton.toolTip = 
+            "<p>Reset channel adjust values to defaults.</p>";
+      this.extraAdjustChannelDefaultsButton.onMousePress = function()
+      {
+            par.extra_adjust_R.val = par.extra_adjust_R.def;
+            par.extra_adjust_G.val = par.extra_adjust_G.def;
+            par.extra_adjust_B.val = par.extra_adjust_B.def;
+            this.dialog.extraAdjustChannelR.setValue(par.extra_adjust_R.val);
+            this.dialog.extraAdjustChannelG.setValue(par.extra_adjust_G.val);
+            this.dialog.extraAdjustChannelB.setValue(par.extra_adjust_B.val);
+      };
+
       this.extraAdjustChannelsSizer = new HorizontalSizer;
       this.extraAdjustChannelsSizer.spacing = 4;
       this.extraAdjustChannelsSizer.margin = 2;
@@ -5382,6 +5414,7 @@ function AutoIntegrateDialog()
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelB );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelDefaultsButton );
       this.extraAdjustChannelsSizer.addStretch();
 
       this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
@@ -5602,15 +5635,17 @@ function AutoIntegrateDialog()
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
       this.extra1.add( this.extraRemoveStars_Sizer );
-      this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraABE_CheckBox );
+      this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extraEnhanceShadowsSizer );
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
       this.extra1.add( this.extra_LHE_sizer );
       this.extra1.add( this.extraContrastSizer );
+      this.extra1.add( this.extraAutoContrastSizer );
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
@@ -5646,8 +5681,11 @@ function AutoIntegrateDialog()
             "<li>Auto stretch</li>" +
             "<li>Narrowband options</li>" +
             "<li>Remove stars</li>" +
+            "<li>Smoothen background</li>" +
             "<li>AutomaticBackgroundExtractor</li>" +
+            "<li>Clip shadows</li>" +
             "<li>Darker background</li>" +
+            "<li>Enhance shadows</li>" +
             "<li>Adjust channels</li>" +
             "<li>ExponentialTransformation</li>" +
             "<li>HDRMultiscaleTransform</li>" +
@@ -5660,8 +5698,6 @@ function AutoIntegrateDialog()
             "<li>Sharpening</li>" +
             "<li>Saturation</li>" +
             "<li>Smaller stars</li>" +
-            "<li>Clip shadows</li>" +
-            "<li>Smoothen background</li>" +
             "<li>Combine starless and stars images</li>" +
             "</ol>" +
             "<p>" +
@@ -6344,6 +6380,8 @@ function AutoIntegrateDialog()
       setWindowPrefixHelpTip(ppar.win_prefix);
 
       console.show();
+
+      console.writeln()
 }
 
 AutoIntegrateDialog.prototype = new Dialog;

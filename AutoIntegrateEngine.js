@@ -3221,7 +3221,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 }
 
 /* Run single expression PixelMath and optionally create new image. */
-function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols)
+function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols, rescale)
 {
       util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
 
@@ -3242,6 +3242,9 @@ function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols)
       P.createNewImage = createNewImage;
       P.showNewImage = false;
       P.newImageId = id + "_pm";
+      if (rescale) {
+            P.rescale = true;
+      }
 
       idWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(idWin.mainView);
@@ -8980,6 +8983,27 @@ function extraSmoothBackground(win, val)
       guiUpdatePreviewWin(win);
 }
 
+function extraEnhanceShadows(win)
+{
+      util.addProcessingStepAndStatusInfo("Extra enhance shadows");
+
+      var mapping = "ln(1+$T)";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
+}
+
+function extraAutoContrast(win)
+{
+      util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + par.extra_auto_contrast_limit.val);
+
+      var low_clip = getClipShadowsValue(win, par.extra_auto_contrast_limit.val);
+      var high_clip = getClipShadowsValue(win, 100 - par.extra_auto_contrast_limit.val);
+
+      var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+}
+
 function extraNoiseReduction(win, mask_win)
 {
       if (par.extra_noise_reduction_strength.val == 0) {
@@ -9361,6 +9385,9 @@ function extraProcessing(parent, id, apply_directly)
             extra_stars_id = res.stars_id;
             console.writeln("extra_starless_id " + extra_starless_id + ", extra_stars_id " + extra_stars_id);
       }
+      if (par.extra_smoothbackground.val) {
+            extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val);
+      }
       if (par.extra_ABE.val) {
             extraABE(extraWin);
       }
@@ -9383,8 +9410,14 @@ function extraProcessing(parent, id, apply_directly)
             }
             console.writeln("Use mask " + mask_win.mainView.id);
       }
+      if (par.extra_shadowclipping.val) {
+            extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
+      }
       if (par.extra_darker_background.val) {
             extraDarkerBackground(extraWin, mask_win);
+      }
+      if (par.extra_shadow_enhance.val) {
+            extraEnhanceShadows(extraWin);
       }
       if (par.extra_adjust_channels.val) {
             extraAdjustChannels(extraWin);
@@ -9402,6 +9435,9 @@ function extraProcessing(parent, id, apply_directly)
             for (var i = 0; i < par.extra_contrast_iterations.val; i++) {
                   extraContrast(extraWin);
             }
+      }
+      if (par.extra_auto_contrast.val) {
+            extraAutoContrast(extraWin);
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
@@ -9427,12 +9463,6 @@ function extraProcessing(parent, id, apply_directly)
             } else {
                   extraSmallerStars(extraWin, false);
             }
-      }
-      if (par.extra_shadowclipping.val) {
-            extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
-      }
-      if (par.extra_smoothbackground.val) {
-            extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val);
       }
       if (par.extra_star_noise_reduction.val) {
             if (par.extra_remove_stars.val) {
