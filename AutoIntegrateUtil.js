@@ -907,6 +907,7 @@ function is_non_starless_option()
              par.extra_smaller_stars.val ||
              par.extra_adjust_channels.val ||
              par.extra_shadow_enhance.val ||
+             par.extra_highlight_enhance.val ||
              par.extra_auto_contrast.val;
 }
 

@@ -119,7 +119,8 @@ this.setGUI = function(aigui) {
 var ssweight_set = false;
 var run_HT = true;
 var linear_fit_done = false;
-var color_calibration_done = false;
+var spcc_color_calibration_done = false;
+var H_in_R_channel = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
 
@@ -3786,17 +3787,22 @@ function initSPCCvalues()
 
 // Return default Wavelength and BandWidth for SPCC
 // We use Astrodon LRGB 2GEN filter values
-function getSPCCWavelengthBandWidth(filter)
+function getSPCCWavelengthBandWidth(filter, channel)
 {
-      switch (filter) {
-            case 'S':
-                  return [ 671.60, 3];
-            case 'H':
-                  return [ 656.30, 3];
-            case 'O':
-                  return [ 500.70, 3];
-            default:
-                  return null;
+      if (filter.indexOf('H') != -1) {
+            // There is H filter
+            if (channel == 'R') {
+                  H_in_R_channel = true;
+            }
+            return [ 656.30, 3];
+      } else if (filter.indexOf('O') != -1) {
+            // There is O filter
+            return [ 500.70, 3];
+      } else if (filter.indexOf('S') != -1) {
+            // There is S filter
+            return [ 671.60, 3];
+      } else {
+            return null;
       }
 }
 
@@ -3819,7 +3825,7 @@ function mapSPCCAutoNarrowband()
       }
       console.writeln("SPCC auto narrowband using " + spcc_params.white_reference + " white reference");
 
-      var values = getSPCCWavelengthBandWidth(par.custom_R_mapping.val);
+      var values = getSPCCWavelengthBandWidth(par.custom_R_mapping.val, 'R');
       if (values) {
             spcc_params.wavelengths[0] = values[0];
             spcc_params.bandhwidths[0] = values[1];
@@ -3827,7 +3833,7 @@ function mapSPCCAutoNarrowband()
       } else {
             console.writeln("SPCC auto narrowband for R mapping with filter " + par.custom_R_mapping.val + " use default wavelength " + spcc_params.wavelengths[0] + " and default bandwidth " + spcc_params.bandhwidths[0]);
       }
-      var values = getSPCCWavelengthBandWidth(par.custom_G_mapping.val);
+      var values = getSPCCWavelengthBandWidth(par.custom_G_mapping.val, 'G');
       if (values) {
             spcc_params.wavelengths[1] = values[0];
             spcc_params.bandhwidths[1] = values[1];
@@ -3835,7 +3841,7 @@ function mapSPCCAutoNarrowband()
       } else {
             console.writeln("SPCC auto narrowband for G mapping with filter " + par.custom_G_mapping.val + " use default wavelength " + spcc_params.wavelengths[1] + " and default bandwidth " + spcc_params.bandhwidths[1]);
       }
-      var values = getSPCCWavelengthBandWidth(par.custom_B_mapping.val);
+      var values = getSPCCWavelengthBandWidth(par.custom_B_mapping.val, 'B');
       if (values) {
             spcc_params.wavelengths[2] = values[0];
             spcc_params.bandhwidths[2] = values[1];
@@ -5093,11 +5099,11 @@ function getRgbLinked(iscolor)
                   if (linear_fit_done) {
                         console.writeln("Narrowband and linear fit done, use RGB channels linked");
                         rgbLinked = true;
-                  } else if (color_calibration_done) {
-                        console.writeln("Narrowband and color calibration done, use RGB channels linked");
+                  } else if (spcc_color_calibration_done && H_in_R_channel) {
+                        console.writeln("Narrowband, SPCC and H mapped into red channel, use RGB channels linked");
                         rgbLinked = true;
                   } else {
-                        console.writeln("Narrowband and no linear fit or color calibration, use RGB channels unlinked");
+                        console.writeln("Default narrowband, use RGB channels unlinked");
                         rgbLinked = false;
                   }
             } else if (iscolor) {
@@ -6252,7 +6258,7 @@ function runImageSolver(id)
 
 function runColorCalibration(imgWin, phase)
 {
-      if (narrowband && !spcc_params.narrowband_mode) {
+      if (narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
             util.addProcessingStep("No color calibration for narrowband");
             return;
       }
@@ -6347,7 +6353,7 @@ function runColorCalibration(imgWin, phase)
 
                   guiUpdatePreviewId(imgWin.mainView.id);
 
-                  color_calibration_done = true;
+                  spcc_color_calibration_done = true;
 
             } catch(err) {
                   console.criticalln("SpectrophotometricColorCalibration failed");
@@ -8992,6 +8998,15 @@ function extraEnhanceShadows(win)
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
 }
 
+function extraEnhanceHighlights(win)
+{
+      util.addProcessingStepAndStatusInfo("Extra enhance highlights");
+
+      var mapping = "exp($T)";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
+}
+
 function extraAutoContrast(win)
 {
       util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + par.extra_auto_contrast_limit.val);
@@ -9155,7 +9170,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       // rename and save image using palette name
       console.writeln("narrowbandPaletteBatchFinalImage:rename " + winId + " using " + palette_name);
       var palette_image = util.mapBadChars(palette_name);
-      palette_image = "Auto_" + palette_image;
+      palette_image = ppar.win_prefix + "Auto_" + palette_image;
       if (extra) {
             palette_image = palette_image + "_extra";
       }
@@ -9418,6 +9433,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_shadow_enhance.val) {
             extraEnhanceShadows(extraWin);
+      }
+      if (par.extra_highlight_enhance.val) {
+            extraEnhanceHighlights(extraWin);
       }
       if (par.extra_adjust_channels.val) {
             extraAdjustChannels(extraWin);
@@ -10458,7 +10476,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        global.all_windows = [];
        global.iconPoint = null;
        linear_fit_done = false;
-       color_calibration_done = false;
+       spcc_color_calibration_done = false;
+       H_in_R_channel = false;
        narrowband = autocontinue_narrowband;
        is_luminance_images = false;
        var stars_id = null;

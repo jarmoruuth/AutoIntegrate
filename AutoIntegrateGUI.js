@@ -4060,6 +4060,17 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeEdit );
       this.imageSolvingGroupBoxSizer2.addStretch();
 
+      this.colorCalibrationGroupBoxLabel = newSectionLabel(this, "Color Calibration");
+
+      this.colorCalibrationNarrowbandCheckBox = newCheckBox(this, "Use for narrowband", par.color_calibration_narrowband, 
+            "Enable ColorCalibration for narrowband images.");
+
+      this.colorCalibrationSizer = new HorizontalSizer;
+      this.colorCalibrationSizer.margin = 6;
+      this.colorCalibrationSizer.spacing = 4;
+      this.colorCalibrationSizer.add( this.colorCalibrationNarrowbandCheckBox );
+      this.colorCalibrationSizer.addStretch();
+
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
       this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. Can be increased to avoid detecting image artifacts as real stars.");
@@ -4072,19 +4083,19 @@ function AutoIntegrateDialog()
                                                                        "<p>Usually Average Spiral Galaxy is the best choice but for narrowband images Photon Flux should be used.</p>");
       this.spccWhiteReferenceComboBox = newComboBox(this, par.spcc_white_reference, spcc_white_reference_values, this.spccWhiteReferenceLabel.toolTip);
 
-      this.colorCalibrationGroupBoxLabel = newSectionLabel(this, "Spectrophotometric Color Calibration");
-      this.colorCalibrationGroupBoxSizer = new HorizontalSizer;
-      this.colorCalibrationGroupBoxSizer.margin = 6;
-      this.colorCalibrationGroupBoxSizer.spacing = 4;
-      this.colorCalibrationGroupBoxSizer.add( this.spccDetectionScalesLabel );
-      this.colorCalibrationGroupBoxSizer.add( this.spccDetectionScalesSpinBox );
-      this.colorCalibrationGroupBoxSizer.add( this.spccNoiseScalesLabel );
-      this.colorCalibrationGroupBoxSizer.add( this.spccNoiseScalesSpinBox );
-      this.colorCalibrationGroupBoxSizer.add( this.spccMinStructSizeLabel );
-      this.colorCalibrationGroupBoxSizer.add( this.spccMinStructSizeSpinBox );
-      this.colorCalibrationGroupBoxSizer.add( this.spccWhiteReferenceLabel );
-      this.colorCalibrationGroupBoxSizer.add( this.spccWhiteReferenceComboBox );
-      this.colorCalibrationGroupBoxSizer.addStretch();
+      this.spccGroupBoxLabel = newSectionLabel(this, "Spectrophotometric Color Calibration");
+      this.spccGroupBoxSizer = new HorizontalSizer;
+      this.spccGroupBoxSizer.margin = 6;
+      this.spccGroupBoxSizer.spacing = 4;
+      this.spccGroupBoxSizer.add( this.spccDetectionScalesLabel );
+      this.spccGroupBoxSizer.add( this.spccDetectionScalesSpinBox );
+      this.spccGroupBoxSizer.add( this.spccNoiseScalesLabel );
+      this.spccGroupBoxSizer.add( this.spccNoiseScalesSpinBox );
+      this.spccGroupBoxSizer.add( this.spccMinStructSizeLabel );
+      this.spccGroupBoxSizer.add( this.spccMinStructSizeSpinBox );
+      this.spccGroupBoxSizer.add( this.spccWhiteReferenceLabel );
+      this.spccGroupBoxSizer.add( this.spccWhiteReferenceComboBox );
+      this.spccGroupBoxSizer.addStretch();
 
       this.spccNarrowbandCheckBox = newCheckBox(this, "Narrowband mode", par.spcc_narrowband_mode, 
             "Enable SPCC for narrowband images and use narrowband filter values.");
@@ -4093,13 +4104,13 @@ function AutoIntegrateDialog()
       this.spccAutoUpdateFiltersCheckBox = newCheckBox(this, "Narrowband auto mode", par.spcc_auto_narrowband, 
             "Automatically update narrowband mode, white reference and filters. Filters are selected automatically when a single filter is used.");
 
-      this.colorCalibrationGroupBoxSizerCheckBoxes = new HorizontalSizer;
-      this.colorCalibrationGroupBoxSizerCheckBoxes.margin = 4;
-      this.colorCalibrationGroupBoxSizerCheckBoxes.spacing = 4;
-      this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccAutoUpdateFiltersCheckBox );
-      this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccNarrowbandCheckBox );
-      this.colorCalibrationGroupBoxSizerCheckBoxes.add( this.spccBackgroundNeutralizationCheckBox );
-      this.colorCalibrationGroupBoxSizerCheckBoxes.addStretch();
+      this.spccGroupBoxSizerCheckBoxes = new HorizontalSizer;
+      this.spccGroupBoxSizerCheckBoxes.margin = 4;
+      this.spccGroupBoxSizerCheckBoxes.spacing = 4;
+      this.spccGroupBoxSizerCheckBoxes.add( this.spccAutoUpdateFiltersCheckBox );
+      this.spccGroupBoxSizerCheckBoxes.add( this.spccNarrowbandCheckBox );
+      this.spccGroupBoxSizerCheckBoxes.add( this.spccBackgroundNeutralizationCheckBox );
+      this.spccGroupBoxSizerCheckBoxes.addStretch();
 
       var spccFilterTooTip = "<p>Wavelength and bandwidths for Red, Geen and Blue filters with narrowband processing.</p>" +
                              "<p>Default values are for Astrodon LRGB 2GEN filters using SHO palette.</p>";
@@ -4111,35 +4122,35 @@ function AutoIntegrateDialog()
       this.spccBlueFilterWavelength = newNumericEdit(this, "Narrowband Blue Wavelength", par.spcc_blue_wavelength, 0, 999999, spccFilterTooTip);
       this.spccBlueFilterBandwidth = newNumericEdit(this, "Bandwidth", par.spcc_blue_bandwidth, 0, 999999, spccFilterTooTip);
 
-      this.colorCalibrationGroupBoxSizerR = new HorizontalSizer;
-      this.colorCalibrationGroupBoxSizerR.margin = 2;
-      this.colorCalibrationGroupBoxSizerR.spacing = 4;
-      this.colorCalibrationGroupBoxSizerR.add( this.spccRedFilterWavelength );
-      this.colorCalibrationGroupBoxSizerR.add( this.spccRedFilterBandwidth );
-      this.colorCalibrationGroupBoxSizerR.addStretch();
+      this.spccGroupBoxSizerR = new HorizontalSizer;
+      this.spccGroupBoxSizerR.margin = 2;
+      this.spccGroupBoxSizerR.spacing = 4;
+      this.spccGroupBoxSizerR.add( this.spccRedFilterWavelength );
+      this.spccGroupBoxSizerR.add( this.spccRedFilterBandwidth );
+      this.spccGroupBoxSizerR.addStretch();
 
-      this.colorCalibrationGroupBoxSizerG = new HorizontalSizer;
-      this.colorCalibrationGroupBoxSizerG.margin = 2;
-      this.colorCalibrationGroupBoxSizerG.spacing = 4;
-      this.colorCalibrationGroupBoxSizerG.add( this.spccGreenFilterWavelength );
-      this.colorCalibrationGroupBoxSizerG.add( this.spccGreenFilterBandwidth );
-      this.colorCalibrationGroupBoxSizerG.addStretch();
+      this.spccGroupBoxSizerG = new HorizontalSizer;
+      this.spccGroupBoxSizerG.margin = 2;
+      this.spccGroupBoxSizerG.spacing = 4;
+      this.spccGroupBoxSizerG.add( this.spccGreenFilterWavelength );
+      this.spccGroupBoxSizerG.add( this.spccGreenFilterBandwidth );
+      this.spccGroupBoxSizerG.addStretch();
 
-      this.colorCalibrationGroupBoxSizerB = new HorizontalSizer;
-      this.colorCalibrationGroupBoxSizerB.margin = 2;
-      this.colorCalibrationGroupBoxSizerB.spacing = 4;
-      this.colorCalibrationGroupBoxSizerB.add( this.spccBlueFilterWavelength );
-      this.colorCalibrationGroupBoxSizerB.add( this.spccBlueFilterBandwidth );
-      this.colorCalibrationGroupBoxSizerB.addStretch();
+      this.spccGroupBoxSizerB = new HorizontalSizer;
+      this.spccGroupBoxSizerB.margin = 2;
+      this.spccGroupBoxSizerB.spacing = 4;
+      this.spccGroupBoxSizerB.add( this.spccBlueFilterWavelength );
+      this.spccGroupBoxSizerB.add( this.spccBlueFilterBandwidth );
+      this.spccGroupBoxSizerB.addStretch();
 
-      this.colorCalibrationGroupBoxSizer2 = new VerticalSizer;
-      this.colorCalibrationGroupBoxSizer2.margin = 2;
-      this.colorCalibrationGroupBoxSizer2.spacing = 2;
-      this.colorCalibrationGroupBoxSizer2.add( this.colorCalibrationGroupBoxSizerCheckBoxes );
-      this.colorCalibrationGroupBoxSizer2.add( this.colorCalibrationGroupBoxSizerR );
-      this.colorCalibrationGroupBoxSizer2.add( this.colorCalibrationGroupBoxSizerG );
-      this.colorCalibrationGroupBoxSizer2.add( this.colorCalibrationGroupBoxSizerB );
-      this.colorCalibrationGroupBoxSizer2.addStretch();
+      this.spccGroupBoxSizer2 = new VerticalSizer;
+      this.spccGroupBoxSizer2.margin = 2;
+      this.spccGroupBoxSizer2.spacing = 2;
+      this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerCheckBoxes );
+      this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerR );
+      this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerG );
+      this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerB );
+      this.spccGroupBoxSizer2.addStretch();
 
       // Other parameters set 1.
       this.otherParamsSet1 = new VerticalSizer;
@@ -5372,6 +5383,14 @@ function AutoIntegrateDialog()
       this.extraEnhanceShadowsSizer.toolTip = shadowclipTooltip;
       this.extraEnhanceShadowsSizer.addStretch();
 
+      var extraEnhanceHightlightsTooltip = "<p>Enhance highlights by using exp function on each pixel.</p>";
+      this.extraEnhanceHightlightsCheckBox = newCheckBox(this, "Enhance hightlights", par.extra_highlight_enhance, extraEnhanceHightlightsTooltip);
+      this.extraEnhanceHightlightsSizer = new HorizontalSizer;
+      this.extraEnhanceHightlightsSizer.spacing = 4;
+      this.extraEnhanceHightlightsSizer.add( this.extraEnhanceHightlightsCheckBox );
+      this.extraEnhanceHightlightsSizer.toolTip = shadowclipTooltip;
+      this.extraEnhanceHightlightsSizer.addStretch();
+
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
             "from the preview image using a mouse.</p>" +
@@ -5640,6 +5659,7 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extraEnhanceShadowsSizer );
+      this.extra1.add( this.extraEnhanceHightlightsSizer );
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
@@ -6176,8 +6196,10 @@ function AutoIntegrateDialog()
               this.imageSolvingGroupBoxSizer,
               this.imageSolvingGroupBoxSizer2,
               this.colorCalibrationGroupBoxLabel,
-              this.colorCalibrationGroupBoxSizer,
-              this.colorCalibrationGroupBoxSizer2 ]);
+              this.colorCalibrationSizer,
+              this.spccGroupBoxLabel,
+              this.spccGroupBoxSizer,
+              this.spccGroupBoxSizer2 ]);
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       this.rightProcessingGroupBox.sizer.addStretch();
         

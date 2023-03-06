@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test9";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test10";        // Version, also updated into updates.xri
 this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -275,6 +275,7 @@ this.par = {
       spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
       spcc_auto_narrowband: { val: true, def: true, name : "SPCC narrowband auto mode", type : 'B' },
       spcc_white_reference: { val: 'Average Spiral Galaxy', def: 'Average Spiral Galaxy', name : "SPCC white reference", type : 'S' },
+      color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
 
       // Extra processing for narrowband
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -319,6 +320,7 @@ this.par = {
       extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
       extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
       extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
+      extra_highlight_enhance: { val: false, def: false, name : "Extra highlight enhance", type : 'B' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
