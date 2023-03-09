@@ -235,8 +235,6 @@ var blink_zoom = false;
 var blink_zoom_x = 0;
 var blink_zoom_y = 0;
 
-var batch_narrowband_palette_mode = false;
-
 var extra_target_image_window_list = null;
 
 var filterSectionbars = [];
@@ -711,19 +709,15 @@ function newGroupBox( parent, title, toolTip )
 function Autorun(parent)
 {
       var stopped = true;
+      var first_step = true;
       var savedOutputRootDir = global.outputRootDir;
-      batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+      var batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       if (par.batch_mode.val) {
             stopped = false;
-            console.writeln("AutoRun in batch mode");
-      } else if (batch_narrowband_palette_mode) {
-            console.writeln("AutoRun in narrowband palette batch mode");
-      } else {
-            console.writeln("AutoRun");
       }
       do {
             if (global.lightFileNames == null) {
-                  global.lightFileNames = engine.openImageFiles("Light", true, false);
+                  global.lightFileNames = engine.openImageFiles("Light files", true, false);
                   if (global.lightFileNames != null) {
                         parent.dialog.treeBox[global.pages.LIGHTS].clear();
                         addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
@@ -731,6 +725,22 @@ function Autorun(parent)
                   }
             }
             if (global.lightFileNames != null) {
+                  if (batch_narrowband_palette_mode) {
+                        var filteredFiles = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
+                        if (!filteredFiles.narrowband) {
+                              batch_narrowband_palette_mode = false;
+                        }
+                  }
+                  if (first_step) {
+                        if (par.batch_mode.val) {
+                              console.writeln("AutoRun in batch mode");
+                        } else if (batch_narrowband_palette_mode) {
+                              console.writeln("AutoRun in narrowband palette batch mode");
+                        } else {
+                              console.writeln("AutoRun");
+                        }
+                        first_step = false;
+                  }
                   try {
                         if (batch_narrowband_palette_mode) {
                             engine.autointegrateNarrowbandPaletteBatch(parent.dialog, false);
@@ -2687,14 +2697,19 @@ function newAutoContinueButton(parent, toolbutton)
 
             util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
-            batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+            if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
+                  var batch_narrowband_palette_mode = true;
+            } else {
+                  var batch_narrowband_palette_mode = false;
+            }
+            
             global.haveIconized = 0;
             global.write_processing_log_file = true;
             try {
                   updateWindowPrefix();
                   global.run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
-                    engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
+                        engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
                   } else {
                         var index = findPrefixIndex(ppar.win_prefix);
                         if (index == -1) {

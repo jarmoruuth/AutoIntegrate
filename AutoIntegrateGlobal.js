@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test10";        // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test11";        // Version, also updated into updates.xri
 this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -599,7 +599,7 @@ this.narrowBandPalettes = [
       { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true }, 
       { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true }, 
       { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true }, 
-      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: true }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false }, 
       { name: "User defined", R: "", G: "", B: "", all: false, checkable: false },
       { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false }
 ];
