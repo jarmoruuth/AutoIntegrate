@@ -4077,13 +4077,15 @@ function AutoIntegrateDialog()
       this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
       this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
       this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
-
+      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to so,mething like 12 or larger if SPCC fails.");
+      this.spccLimitMagnitudeEdit = newTextEdit(this, par.spcc_limit_magnitude, this.spccLimitMagnitudeLabel.toolTip);
 
       this.spccWhiteReferenceLabel = newLabel(this, "White reference", "<p>Select white reference for SPCC.</p>" +
                                                                        "<p>Usually Average Spiral Galaxy is the best choice but for narrowband images Photon Flux should be used.</p>");
       this.spccWhiteReferenceComboBox = newComboBox(this, par.spcc_white_reference, spcc_white_reference_values, this.spccWhiteReferenceLabel.toolTip);
 
       this.spccGroupBoxLabel = newSectionLabel(this, "Spectrophotometric Color Calibration");
+
       this.spccGroupBoxSizer = new HorizontalSizer;
       this.spccGroupBoxSizer.margin = 6;
       this.spccGroupBoxSizer.spacing = 4;
@@ -4093,9 +4095,16 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer.add( this.spccNoiseScalesSpinBox );
       this.spccGroupBoxSizer.add( this.spccMinStructSizeLabel );
       this.spccGroupBoxSizer.add( this.spccMinStructSizeSpinBox );
-      this.spccGroupBoxSizer.add( this.spccWhiteReferenceLabel );
-      this.spccGroupBoxSizer.add( this.spccWhiteReferenceComboBox );
       this.spccGroupBoxSizer.addStretch();
+
+      this.spccGroupBoxSizer1 = new HorizontalSizer;
+      this.spccGroupBoxSizer1.margin = 6;
+      this.spccGroupBoxSizer1.spacing = 4;
+      this.spccGroupBoxSizer1.add( this.spccWhiteReferenceLabel );
+      this.spccGroupBoxSizer1.add( this.spccWhiteReferenceComboBox );
+      this.spccGroupBoxSizer1.add( this.spccLimitMagnitudeLabel );
+      this.spccGroupBoxSizer1.add( this.spccLimitMagnitudeEdit );
+      this.spccGroupBoxSizer1.addStretch();
 
       this.spccNarrowbandCheckBox = newCheckBox(this, "Narrowband mode", par.spcc_narrowband_mode, 
             "Enable SPCC for narrowband images and use narrowband filter values.");
@@ -6199,6 +6208,7 @@ function AutoIntegrateDialog()
               this.colorCalibrationSizer,
               this.spccGroupBoxLabel,
               this.spccGroupBoxSizer,
+              this.spccGroupBoxSizer1,
               this.spccGroupBoxSizer2 ]);
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       this.rightProcessingGroupBox.sizer.addStretch();

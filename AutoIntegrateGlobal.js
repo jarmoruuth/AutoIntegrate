@@ -275,6 +275,7 @@ this.par = {
       spcc_background_neutralization: { val: true, def: true, name : "SPCC background neutralization", type : 'B' },
       spcc_auto_narrowband: { val: true, def: true, name : "SPCC narrowband auto mode", type : 'B' },
       spcc_white_reference: { val: 'Average Spiral Galaxy', def: 'Average Spiral Galaxy', name : "SPCC white reference", type : 'S' },
+      spcc_limit_magnitude: { val: 'Auto', def: 'Auto', name : "SPCC limit magnitude", type : 'S' },
       color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
 
       // Extra processing for narrowband

@@ -6311,8 +6311,18 @@ function runColorCalibration(imgWin, phase)
                   P.broadbandIntegrationStepSize = 0.50;
                   P.narrowbandIntegrationSteps = 10;
                   P.catalogId = "GaiaDR3SP";
-                  P.limitMagnitude = 12.00;
-                  P.autoLimitMagnitude = true;
+                  if (par.spcc_limit_magnitude.val.toUpperCase() == 'AUTO') {
+                        console.writeln("SpectrophotometricColorCalibration using Auto limit magnitude.");
+                        P.limitMagnitude = 12.00;
+                        P.autoLimitMagnitude = true;
+                  } else {
+                        P.autoLimitMagnitude = false;
+                        P.limitMagnitude = parseFloat(par.spcc_limit_magnitude.val);
+                        if (P.limitMagnitude == NaN) {
+                              util.throwFatalError("Invalid limit magnitude " + par.spcc_limit_magnitude.val);
+                        }
+                        console.writeln("SpectrophotometricColorCalibration using limit magnitude " + P.limitMagnitude);
+                  }
                   P.targetSourceCount = 8000;
                   P.psfStructureLayers = par.spcc_detection_scales.val;
                   P.saturationThreshold = 0.75;
