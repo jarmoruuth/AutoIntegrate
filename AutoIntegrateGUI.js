@@ -3954,6 +3954,7 @@ function AutoIntegrateDialog()
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtMedianPSF = newCheckBox(this, "Use median PSF", par.bxt_median_psf, 
             "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
+            "<p>Value is printed to the AutoIntegrate.log file with a name medianFWHM.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectFirst = newCheckBox(this, "Correct first", par.bxt_correct_first, 
             "<p>Set correct first flag for BlurXTerminator.</p>" );
@@ -4746,7 +4747,6 @@ function AutoIntegrateDialog()
       this.localNormalizationGroupBoxSizer.margin = 6;
       this.localNormalizationGroupBoxSizer.spacing = 4;
       this.localNormalizationGroupBoxSizer.toolTip = "Local normalization settings.";
-      this.localNormalizationGroupBoxSizer.add( this.localNormalizationGroupBoxLabel );
       this.localNormalizationGroupBoxSizer.add( this.localNormalizationSizer );
       //this.localNormalizationGroupBoxSizer.addStretch();
 
@@ -5144,6 +5144,20 @@ function AutoIntegrateDialog()
             "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
+
+      this.narrowband_colorized_sho_CheckBox = newCheckBox(this, "Colorized SHO", par.run_colorized_sho, 
+            "<p>Enhance colors for Hubble (SHO) color palette.</p>" +
+            "<p>Number of iterations control how strong the colorization is. Depending on the image values between 1 and 4 can give a good result.</p>" +
+            "<p>Colorizing was explained in Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685).</p>" );
+      this.narrowband_colorized_sho_SpinBox = newSpinBox(this, par.run_colorized_sho_iterations, 1, 10, "Number of iterations for color enhancement");
+      this.narrowband_colorized_sho_Label = newLabel(this, "iterations", this.narrowband_colorized_sho_SpinBox.toolTip);
+      this.narrowband_colorized_sho_sizer = new HorizontalSizer;
+      this.narrowband_colorized_sho_sizer.spacing = 4;
+      this.narrowband_colorized_sho_sizer.add( this.narrowband_colorized_sho_CheckBox );
+      this.narrowband_colorized_sho_sizer.add( this.narrowband_colorized_sho_SpinBox );
+      this.narrowband_colorized_sho_sizer.add( this.narrowband_colorized_sho_Label );
+      this.narrowband_colorized_sho_sizer.addStretch();
+
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
       this.narrowband_leave_some_green_Edit = newNumericEdit(this, "Amount", par.leave_some_green_amount, 0, 1, 
@@ -5164,15 +5178,16 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_colorized_sho_sizer);
       this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.remove_magenta_color_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.fix_narrowband_star_color_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
-      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
+      this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
       this.narrowbandExtraLabel = newSectionLabel(this, "Extra processing for narrowband");
@@ -5180,11 +5195,15 @@ function AutoIntegrateDialog()
             "<p>" +
             "Extra processing options to be applied on narrowband images. "+
             "They are applied before other extra processing options in the following order:" +
-            "</p><p>" +
-            "1. Hue shift for more orange<br>" +
-            "2. Remove green cast and Leave some green<br>" +
-            "3. Fix star colors" +
-            "</p>";
+            "</p>" +
+            "<ol>" +
+            "<li>Hue shift for more orange</li>" +
+            "<li>Hue shift for SHO</li>" +
+            "<li>Colorized SHO</li>" +
+            "<li>Remove green cast/Leave some green</li>" +
+            "<li>Remove magenta color</li>" +
+            "<li>Fix star colors</li>" +
+            "</ol>";
       this.narrowbandExtraOptionsSizer = new HorizontalSizer;
       //this.narrowbandExtraOptionsSizer.margin = 6;
       //this.narrowbandExtraOptionsSizer.spacing = 4;
@@ -6201,6 +6220,7 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and local normalization settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer,
+              this.localNormalizationGroupBoxLabel,
               this.localNormalizationGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
             [ this.StarAlignmentGroupBoxLabel,

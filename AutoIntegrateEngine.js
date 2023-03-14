@@ -1927,7 +1927,7 @@ function getScaledValPos(val, min, max)
 
 function getSubframeSelectorMeasurements(fileNames)
 {
-      console.writeln("run SubframeSelector");
+      console.writeln("run SubframeSelector on " + fileNames.length + " files");
 
       var P = new SubframeSelector;
       P.nonInteractive = true;
@@ -1953,6 +1953,7 @@ function getSubframeSelectorMeasurements(fileNames)
       
       P.executeGlobal();
 
+      console.writeln("SubframeSelector completed");
       checkCancel();
 
       return P.measurements;
@@ -9181,6 +9182,110 @@ function extraSHOHueShift(imgWin)
       guiUpdatePreviewWin(imgWin);
 }
 
+function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
+{
+      console.writeln("extraColorizeChannel: " + imgWin.mainView.id + " channel: " + channel);
+
+      // extract channel data
+      var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
+      var ch_win = util.findWindow(ch_id); 
+      var ch_mask_win = newMaskWindow(ch_win, "auto_tmp_mask_" + channel, true);
+
+      // convert to RGB
+      var P = new ConvertToRGBColor;
+      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(ch_win.mainView);
+      ch_win.mainView.endProcess();
+
+      // run curves transformation with a mask
+      var P = new CurvesTransformation;
+
+      if (curves_R != null) {
+            P.R = curves_R;
+      }
+      if (curves_G != null) {
+            P.G = curves_G;
+      }
+      if (curves_B != null) {
+            P.B = curves_B;
+      }
+
+      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      /* Colorize only light parts of the image. */
+      setMaskChecked(ch_win, ch_mask_win);
+      ch_win.maskInverted = false;
+      
+      for (var i = 0; i < par.run_colorized_sho_iterations.val; i++) {
+            P.executeOn(ch_win.mainView, false);
+      }
+
+      ch_win.removeMask();
+      ch_win.mainView.endProcess();
+
+      util.closeOneWindow(ch_mask_win.mainView.id);
+
+      return ch_win;
+}
+
+function extraColorizedSHO(imgWin)
+{
+      util.addProcessingStepAndStatusInfo("Extra colorized SHO");
+
+      var curves_S_R = [ // x, y
+            [0.00000, 0.00000],
+            [0.39901, 0.63800],
+            [1.00000, 1.00000]
+      ];
+      var curves_S_B = [ // x, y
+            [0.00000, 0.00000],
+            [0.52709, 0.46200],
+            [1.00000, 1.00000]
+      ];
+      var S_id = extraColorizeChannel(imgWin, "R", curves_S_R, null, curves_S_B).mainView.id;
+
+      var curves_H_R = [ // x, y
+            [0.00000, 0.00000],
+            [0.43186, 0.58200],
+            [1.00000, 1.00000]
+      ];
+      var curves_H_G = [ // x, y
+            [0.00000, 0.00000],
+            [0.14614, 0.14600],
+            [0.72578, 0.76000],
+            [1.00000, 1.00000]
+      ];
+      var curves_H_B = [ // x, y
+            [0.00000, 0.00000],
+            [0.54023, 0.45400],
+            [1.00000, 1.00000]
+      ];
+      var H_id = extraColorizeChannel(imgWin, "G", curves_H_R, curves_H_G, curves_H_B).mainView.id;
+
+      var curves_O_R = [ // x, y
+            [0.00000, 0.00000],
+            [0.52874, 0.46400],
+            [1.00000, 1.00000]
+      ];
+      var curves_O_G = [ // x, y
+            [0.00000, 0.00000],
+            [0.51560, 0.47200],
+            [1.00000, 1.00000]
+      ];
+      var curves_O_B = [ // x, y
+            [0.00000, 0.00000],
+            [0.42200, 0.61400],
+            [1.00000, 1.00000]
+      ];
+      var O_id = extraColorizeChannel(imgWin, "B", curves_O_R, curves_O_G, curves_O_B).mainView.id;
+
+      // merge channels
+      runPixelMathRGBMapping(null, imgWin, S_id, H_id, O_id);
+
+      util.closeOneWindow(S_id);
+      util.closeOneWindow(H_id);
+      util.closeOneWindow(O_id);
+}
+
 // Rename and save palette batch image
 function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 {
@@ -9399,6 +9504,9 @@ function extraProcessing(parent, id, apply_directly)
             }
             if (par.run_hue_shift.val) {
                   extraSHOHueShift(extraWin);
+            }
+            if (par.run_colorized_sho.val) {
+                  extraColorizedSHO(extraWin);
             }
             if (par.run_narrowband_SCNR.val || par.leave_some_green.val) {
                   runSCNR(extraWin.mainView, false);

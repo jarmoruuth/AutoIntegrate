@@ -868,6 +868,7 @@ this.updateStatusInfoLabel = function(txt)
 this.addStatusInfo = function(txt)
 {
       console.noteln("------------------------");
+      console.noteln(txt);
       util.updateStatusInfoLabel(txt);
       util.checkEvents();
 }
@@ -923,6 +924,7 @@ this.is_narrowband_option = function()
       return par.fix_narrowband_star_color.val ||
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
+             par.run_colorized_sho.val ||
              par.run_narrowband_SCNR.val ||
              par.leave_some_green.val ||
              par.remove_magenta_color.val;
