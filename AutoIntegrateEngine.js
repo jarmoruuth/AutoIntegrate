@@ -4874,12 +4874,14 @@ function runABEex(win, replaceTarget, postfix)
             var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
             util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
+      console.writeln("ABE using function degree " + par.ABE_degree.val);
 
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = ABE_id;
       P.replaceTarget = replaceTarget;
       P.discardModel = true;
       P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+      P.polyDegree = par.ABE_degree.val;
 
       if (global.ai_debug) {
             console.writeln(P.toSource());

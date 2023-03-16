@@ -4389,7 +4389,7 @@ function AutoIntegrateDialog()
             "<p>In case of narrowband images, note that if luminance image is generated and luminance is used for linear fit then in auto mode the channels will be linked by default.</p>"
       );
 
-      this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit setting");
+      this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
       this.linearFitGroupBoxSizer = new HorizontalSizer;
       this.linearFitGroupBoxSizer.margin = 6;
       this.linearFitGroupBoxSizer.spacing = 4;
@@ -4403,10 +4403,30 @@ function AutoIntegrateDialog()
       this.linearFitSizer.add( this.linearFitGroupBoxSizer );
       this.linearFitSizer.addStretch();
 
+      this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
+
+      this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.");
+      this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
+
+      this.ABEDegreeSizer = new HorizontalSizer;
+      this.ABEDegreeSizer.margin = 6;
+      this.ABEDegreeSizer.spacing = 4;
+      this.ABEDegreeSizer.add( this.ABEDegreeLabel );
+      this.ABEDegreeSizer.add( this.ABEDegreeSpinBox );
+      this.ABEDegreeSizer.addStretch();
+
+      this.ABESizer = new VerticalSizer;
+      this.ABESizer.margin = 6;
+      this.ABESizer.spacing = 4;
+      this.ABESizer.add( this.ABEGroupBoxLabel );
+      this.ABESizer.add( this.ABEDegreeSizer );
+      this.ABESizer.addStretch();
+
       this.linearFitAndLRGBCombinationSizer = new HorizontalSizer;
       this.linearFitAndLRGBCombinationSizer.spacing = 4;
       this.linearFitAndLRGBCombinationSizer.add( this.linearFitSizer );
       this.linearFitAndLRGBCombinationSizer.add( this.LRGBCombinationSizer );
+      this.linearFitAndLRGBCombinationSizer.add( this.ABESizer );
       this.linearFitAndLRGBCombinationSizer.addStretch();
 
       //
@@ -6203,7 +6223,7 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
             [ this.StretchingGroupBoxLabel,
               this.StretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit and LRGB combination settings", "ps_linearfit_combination",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination and ABE settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,

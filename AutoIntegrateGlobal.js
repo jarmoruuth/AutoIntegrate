@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test12";        // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test13";        // Version, also updated into updates.xri
 this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -215,6 +215,7 @@ this.par = {
       outliers_method: { val: 'Two sigma', def: 'Two sigma', name : "Outlier method", type : 'S' },
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
+      ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
