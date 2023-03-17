@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58 test14";        // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.58 test15";        // Version, also updated into updates.xri
 this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -313,10 +313,10 @@ this.par = {
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
       extra_auto_contrast: { val: false, def: false, name : "Extra auto contrast", type : 'B' },
-      extra_auto_contrast_limit: { val: 0.01, def: 0.01, name : "Extra auto contrast limit", type : 'R' },
+      extra_auto_contrast_limit: { val: 0.0001, def: 0.0001, name : "Extra auto contrast limit", type : 'R' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
-      extra_shadowclippingperc: { val: 0.01, def: 0.01, name : "Extra shadow clipping percentage", type : 'R' },
+      extra_shadowclippingperc: { val: 0.0001, def: 0.0001, name : "Extra shadow clipping percentage", type : 'R' },
       extra_smoothbackground: { val: false, def: false, name : "Extra smooth background", type : 'B' },
       extra_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Extra smooth background value", type : 'R' },
       extra_adjust_channels: { val: false, def: false, name : "Extra adjust channels", type : 'B' },

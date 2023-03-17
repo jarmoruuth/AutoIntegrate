@@ -4644,13 +4644,14 @@ function AutoIntegrateDialog()
             "<p>Smoothening can also help ABE to clean up the background better in case of " + 
             "very uneven background.</p>";
 
-      this.smoothBackgroundEdit = newNumericEdit(this, "Smoothen background %", par.smoothbackground, 0, 100, 
+      this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
             "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
             "smoothing. Smoothing is done after image has been stretched to non-linear " + 
             "and before optional Use ABE on stretched image is done.</p>" +
             "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
             "Zero values does not do smoothing.</p>" +
-            smoothBackgroundTooltipGeneric);
+            smoothBackgroundTooltipGeneric,
+            4);
 
       this.smoothBackgroundSizer = new HorizontalSizer;
       this.smoothBackgroundSizer.spacing = 4;
@@ -5447,7 +5448,7 @@ function AutoIntegrateDialog()
 
       var extraAutoContrastTooltip = "<p>Do automatic contrast enhancement. Works best with starless image.</p>";
       this.extraAutoContrastCheckBox = newCheckBox(this, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
-      this.extraAutoContrastEdit = newNumericEdit(this, 'limit', par.extra_auto_contrast_limit, 0, 1, "Upper and lower percentage of clipped pixels.");
+      this.extraAutoContrastEdit = newNumericEditPrecision(this, 'limit', par.extra_auto_contrast_limit, 0, 50, "Upper and lower percentage of clipped pixels.", 4);
       this.extraAutoContrastSizer = new HorizontalSizer;
       this.extraAutoContrastSizer.spacing = 4;
       this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
@@ -5462,7 +5463,7 @@ function AutoIntegrateDialog()
 
       var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
       this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
-      this.extra_shadowclipperc_edit = newNumericEditPrecision(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 3);
+      this.extra_shadowclipperc_edit = newNumericEditPrecision(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
       this.extra_shadowclip_Sizer = new HorizontalSizer;
       this.extra_shadowclip_Sizer.spacing = 4;
       this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
@@ -5492,7 +5493,7 @@ function AutoIntegrateDialog()
             smoothBackgroundTooltipGeneric;
 
       this.extra_smoothBackground_CheckBox = newCheckBox(this, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
-      this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 5);
+      this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 4);
       this.extra_smoothBackground_Sizer = new HorizontalSizer;
       this.extra_smoothBackground_Sizer.spacing = 4;
       this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_CheckBox );
@@ -6255,7 +6256,7 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
             [ this.StretchingGroupBoxLabel,
               this.StretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination and ABE settings", "ps_linearfit_combination",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, ABE and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
