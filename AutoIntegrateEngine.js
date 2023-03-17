@@ -385,7 +385,9 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
             }
             for (var i = 0; i < global.all_windows.length; i++) {
                   // check that we do not close integration windows
-                  if (!util.findFromArray(integration_windows, global.all_windows[i])) {
+                  if (!util.findFromArray(integration_windows, global.all_windows[i]) &&
+                      !util.findFromArray(global.integration_crop_windows, global.all_windows[i]))
+                  {
                         util.closeOneWindow(global.all_windows[i]);
                   }
             }
@@ -4806,9 +4808,21 @@ function runImageIntegrationForCrop(images)
 
       // Depending on integration options, some useless maps may be generated, especially low rejection map,
       // With the current integration parameters, these images are not generated,
-      util.closeOneWindow(P.lowRejectionMapImageId);
-      util.closeOneWindow(P.highRejectionMapImageId);
-      util.closeOneWindow(P.slopeMapImageId);
+      if (global.ai_debug) {
+            util.windowShowif(P.lowRejectionMapImageId);
+      } else {
+            util.closeOneWindow(P.lowRejectionMapImageId);
+      }
+      if (global.ai_debug) {
+            util.windowShowif(P.highRejectionMapImageId);
+      } else {
+            util.closeOneWindow(P.highRejectionMapImageId);
+      }
+      if (global.ai_debug) {
+            util.windowShowif(P.slopeMapImageId);
+      } else {
+            util.closeOneWindow(P.slopeMapImageId);
+      }
       // KEEP (P.integrationImageId);
 
       checkCancel();
@@ -9298,8 +9312,8 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       if (extra) {
             palette_image = palette_image + "_extra";
       }
-      console.writeln("narrowbandPaletteBatchFinalImage:new name " + palette_image);+
-      util.windowRenameKeepif(winId, palette_image, true);
+      palette_image = util.windowRenameKeepifEx(winId, palette_image, true, true);
+      console.writeln("narrowbandPaletteBatchFinalImage:new name " + palette_image);
       // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
       console.writeln("narrowbandPaletteBatchFinalImage:set final image keyword");
       setFinalImageKeyword(ImageWindow.windowById(palette_image));
@@ -9363,7 +9377,7 @@ this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
                   console.writeln("autointegrateNarrowbandPaletteBatch:set auto_continue = true");
                   auto_continue = true;
                   // close all but integrated images
-                  console.writeln("autointegrateNarrowbandPaletteBatch:close all windowsm keep integrated images");
+                  console.writeln("autointegrateNarrowbandPaletteBatch:close all windows, keep integrated images");
                   engine.closeAllWindows(true, true);
             }
       }
@@ -9714,17 +9728,29 @@ function find_up_down(image,col)
 {
       let row_mid = image.height / 2;
       let row_up = 0;
+      let cnt = 0;
       for (let row=row_mid; row>=0; row--) {
             let p = image.sample(col, row);
             if (p==0) {
+                  cnt++;
+            } else {
+                  cnt = 0;
+            }
+            if (cnt > par.crop_tolerance.val) {
                   row_up = row+1;
                   break;
             }
       }
       let row_down = image.height-1;
+      cnt = 0;
       for (let row=row_mid; row<image.height; row++) {
             let p = image.sample(col, row);
             if (p==0) {
+                  cnt++;
+            } else {
+                  cnt = 0;
+            }
+            if (cnt > par.crop_tolerance.val) {
                   row_down = row-1;
                   break;
             }
@@ -9738,9 +9764,15 @@ function find_left_right(image,row)
 {
       let col_mid = image.width / 2;
       let col_left = 0;
+      let cnt = 0;
       for (let col=col_mid; col>=0; col--) {
             let p = image.sample(col, row);
             if (p==0) {
+                  cnt++;
+            } else {
+                  cnt = 0;
+            }
+            if (cnt > par.crop_tolerance.val) {
                   col_left = col+1;
                   break;
             }
@@ -9749,6 +9781,11 @@ function find_left_right(image,row)
       for (let col=col_mid; col<image.width; col++) {
             let p= image.sample(col, row);
             if (p==0) {
+                  cnt++;
+            } else {
+                  cnt = 0;
+            }
+            if (cnt > par.crop_tolerance.val) {
                   col_right = col-1;
                   break;
             }
@@ -9761,6 +9798,9 @@ function findMaximalBoundingBox(lowClipImage)
 {
       let col_mid = lowClipImage.width / 2;
       let row_mid = lowClipImage.height / 2;
+      if (global.ai_debug) {
+            console.writeln("DEBUG findMaximalBoundingBox col_mid=",col_mid,",row_mid=",row_mid);
+      }
       let p = lowClipImage.sample(col_mid, row_mid);
       if (p == 0.0) {
             // TODO - should return an error message and use the uncropped lowClipImage
@@ -9773,8 +9813,7 @@ function findMaximalBoundingBox(lowClipImage)
       let [top,bottom] = find_up_down(lowClipImage,col_mid);
       let [left,right] = find_left_right(lowClipImage,row_mid);
 
-      if (global.ai_debug)
-      {
+      if (global.ai_debug) {
             console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
       }
 

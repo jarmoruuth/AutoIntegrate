@@ -4422,11 +4422,43 @@ function AutoIntegrateDialog()
       this.ABESizer.add( this.ABEDegreeSizer );
       this.ABESizer.addStretch();
 
+      this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
+
+      this.CropToleranceLabel = newLabel(this, "Crop tolerance", "Number of consecutive black pixels allowed before retecting crop edge.");
+      this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
+      this.CropToleranceLabel2 = newLabel(this, "pixels", this.CropToleranceLabel.toolTip);
+
+      this.CropToleranceSizer = new HorizontalSizer;
+      this.CropToleranceSizer.margin = 6;
+      this.CropToleranceSizer.spacing = 4;
+      this.CropToleranceSizer.add( this.CropToleranceLabel );
+      this.CropToleranceSizer.add( this.CropToleranceSpinBox );
+      this.CropToleranceSizer.add( this.CropToleranceLabel2 );
+      this.CropToleranceSizer.addStretch();
+
+      this.CropSizer = new VerticalSizer;
+      this.CropSizer.margin = 6;
+      this.CropSizer.spacing = 4;
+      this.CropSizer.add( this.CropToleranceGroupBoxLabel );
+      this.CropSizer.add( this.CropToleranceSizer );
+      this.CropSizer.addStretch();
+
+      this.linearFitAndLRGBCombinationSizer1 = new VerticalSizer;
+      this.linearFitAndLRGBCombinationSizer1.spacing = 4;
+      this.linearFitAndLRGBCombinationSizer1.add( this.linearFitSizer );
+      this.linearFitAndLRGBCombinationSizer1.add( this.LRGBCombinationSizer );
+      this.linearFitAndLRGBCombinationSizer1.addStretch();
+
+      this.linearFitAndLRGBCombinationSizer2 = new VerticalSizer;
+      this.linearFitAndLRGBCombinationSizer2.spacing = 4;
+      this.linearFitAndLRGBCombinationSizer2.add( this.ABESizer );
+      this.linearFitAndLRGBCombinationSizer2.add( this.CropSizer );
+      this.linearFitAndLRGBCombinationSizer2.addStretch();
+
       this.linearFitAndLRGBCombinationSizer = new HorizontalSizer;
       this.linearFitAndLRGBCombinationSizer.spacing = 4;
-      this.linearFitAndLRGBCombinationSizer.add( this.linearFitSizer );
-      this.linearFitAndLRGBCombinationSizer.add( this.LRGBCombinationSizer );
-      this.linearFitAndLRGBCombinationSizer.add( this.ABESizer );
+      this.linearFitAndLRGBCombinationSizer.add( this.linearFitAndLRGBCombinationSizer1 );
+      this.linearFitAndLRGBCombinationSizer.add( this.linearFitAndLRGBCombinationSizer2 );
       this.linearFitAndLRGBCombinationSizer.addStretch();
 
       //
