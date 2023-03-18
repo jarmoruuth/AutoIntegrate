@@ -12,13 +12,11 @@ Interface objects:
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2022 Jarmo Ruuth.
+Copyright (c) 2018-2023 Jarmo Ruuth.
 
 Window name prefix and icon location code
 
       Copyright (c) 2021 rob pfile.
-
-Copyright (c) 2018-2022 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -3377,7 +3375,7 @@ function AutoIntegrateDialog()
       "This product is based on software from the PixInsight project, developed " +
       "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
       "</p><p>" +
-      "Copyright (c) 2018-2022 Jarmo Ruuth<br>" +
+      "Copyright (c) 2018-2023 Jarmo Ruuth<br>" +
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2013 Andres del Pozo<br>" +
@@ -3636,7 +3634,10 @@ function AutoIntegrateDialog()
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
-            "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" );
+            "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
+            "<p><b>NOTE!</b> You need to start StarXTerminator manually once after PixInsight is started. " +
+            "Just a simple start and close is enough. Othwerwise StarXTerminator will fail with file I/O error and " +
+            "does not remove stars.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 

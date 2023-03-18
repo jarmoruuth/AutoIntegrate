@@ -1,7 +1,7 @@
 /*
         AutoIntegrate utility functions.
 
-Copyright (c) 2018-2022 Jarmo Ruuth.
+Copyright (c) 2018-2023 Jarmo Ruuth.
 
 Crop to common area code
 
