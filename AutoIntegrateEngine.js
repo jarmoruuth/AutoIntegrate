@@ -306,10 +306,10 @@ function guiUpdatePreviewFilename(filename, stf)
 
 function targetTypeSetup()
 {
-      if (par.target_type_galaxy.val) {
+      if (par.target_type.val == 'Galaxy') {
             par.image_stretching.val = 'Masked Stretch';
             console.writeln("Galaxy target using " + par.image_stretching.val);
-      } else if (par.target_type_nebula.val) {
+      } else if (par.target_type.val == 'Nebula') {
             par.image_stretching.val = 'Auto STF';
             console.writeln("Nebula target using " + par.image_stretching.val);
       }
@@ -492,10 +492,6 @@ function checkOptions()
                    boolToInteger(par.remove_stars_stretched.val);
       if (intval > 1) {
             util.throwFatalError("Only one remove stars option can be selected.")
-      }
-      var intval = boolToInteger(par.target_type_galaxy.val) + boolToInteger(par.target_type_nebula.val);
-      if (intval > 1) {
-            util.throwFatalError("Only one target type option can be selected.")
       }
 }
 
@@ -3225,9 +3221,11 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 }
 
 /* Run single expression PixelMath and optionally create new image. */
-function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols, rescale)
+function runPixelMathSingleMappingEx(id, mapping, createNewImage, symbols, rescale, no_status_info)
 {
-      util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
+      if (!no_status_info) {
+            util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
+      }
 
       var idWin = util.findWindow(id);
       if (idWin == null) {
@@ -5261,7 +5259,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS_pro
       return res.win;
 }
 
-function stretchHistogramTransformIterationsChannel(ABE_win, channel)
+function stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, channel)
 {
       var res = { 
             win: ABE_win, 
@@ -5271,9 +5269,9 @@ function stretchHistogramTransformIterationsChannel(ABE_win, channel)
             clipCount: 0
       };
 
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < 100; i++) {
             res.iteration_number = i + 1;
-            var window_updated = stretchHistogramTransform(res, channel);
+            var window_updated = stretchHistogramTransform(res, image_stretching, channel);
             if (window_updated) {
                   guiUpdatePreviewWin(res.win);
             }
@@ -5286,7 +5284,7 @@ function stretchHistogramTransformIterationsChannel(ABE_win, channel)
       return res.win;
 }
 
-function stretchHistogramTransformIterations(ABE_win, iscolor)
+function stretchHistogramTransformIterations(ABE_win, iscolor, image_stretching)
 {
       if (ABE_win.mainView.image.isColor) {
             var rgbLinked = getRgbLinked(iscolor);
@@ -5294,16 +5292,55 @@ function stretchHistogramTransformIterations(ABE_win, iscolor)
             var rgbLinked = true;
       }
 
-      util.addProcessingStepAndStatusInfo("Run histogram stretch on " + ABE_win.mainView.id + " using HistogramTransform iterations");
+      util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + ABE_win.mainView.id + " using iterations");
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(ABE_win);
+            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching);
       } else {
             for (var i = 0; i < 3; i++) {
                   console.writeln("Channel: " + channelText(i));
-                  ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, i);
+                  ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, i);
             }
+            return ABE_win;
+      }
+}
+
+function stretchLogarithmicIterations(ABE_win, iscolor, image_stretching)
+{
+      if (ABE_win.mainView.image.isColor) {
+            var rgbLinked = getRgbLinked(iscolor);
+      } else {
+            var rgbLinked = true;
+      }
+      util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + ABE_win.mainView.id + " using iterations");
+
+      if (rgbLinked) {
+            console.writeln("Channel: " + channelText(3));
+            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching);
+
+      } else {
+            var R_id = extractRGBchannel(ABE_win.mainView.id, 'R');
+            console.writeln("Channel: R");
+            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), image_stretching);
+
+            var G_id = extractRGBchannel(ABE_win.mainView.id, 'G');
+            console.writeln("Channel: G");
+            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), image_stretching);
+
+            var B_id = extractRGBchannel(ABE_win.mainView.id, 'B');
+            console.writeln("Channel: B");
+            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), image_stretching);
+
+            runPixelMathRGBMapping(null, ABE_win, R_id, G_id, B_id);
+
+            util.closeOneWindow(R_id);
+            util.closeOneWindow(G_id);
+            util.closeOneWindow(B_id);
+            util.closeOneWindow(R_win.mainView.id);
+            util.closeOneWindow(G_win.mainView.id);
+            util.closeOneWindow(B_win.mainView.id);
+
             return ABE_win;
       }
 }
@@ -5328,7 +5365,7 @@ function printImageStatistics(win, channel)
  * Works pretty ok on some images with Crop to common area and zero shadow
  * clipping.
  */
-function stretchHistogramTransform(res, channel)
+function stretchHistogramTransform(res, image_stretching, channel)
 {
       if (channel >= 0) {
             var channel_number = channel;
@@ -5348,7 +5385,7 @@ function stretchHistogramTransform(res, channel)
       var target_value = par.histogram_stretch_target.val;
       var use_median = par.histogram_stretch_type.val == 'Median';
 
-      var new_win = util.copyWindowEx(res.win, "temp_stretchHistogramTransform", true);
+      var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
 
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
@@ -5374,70 +5411,109 @@ function stretchHistogramTransform(res, channel)
 
       /* Separate stretch for shadows and midtones.
        */
-      console.writeln("*** HistogramTransformation for midtones, " + channelText(channel));
+      console.writeln("*** stretch for midtones, " + channelText(channel));
 
-      if (1) {
+      if (image_stretching == 'Histogram stretch') {
+            if (1) {
+                  // Using HistogramTransformation
+                  var P = new HistogramTransformation;
+                  P.H = [ // c0, c1, m, r0, r1
+                        [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
+                        [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
+                        [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
+                        [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
+                        [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+                  ];
+                  new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  P.executeOn(new_win.mainView);
+                  new_win.mainView.endProcess();
 
-            // Using HistogramTransformation
-            var P = new HistogramTransformation;
-            P.H = [ // c0, c1, m, r0, r1
-                  [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
-                  [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
-                  [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
-                  [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
-                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
-            ];
-            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(new_win.mainView);
-            new_win.mainView.endProcess();
+                  checkCancel();
 
-            checkCancel();
+            } else {
+                  // Using PixelMath
+                  var expression = "(m - 1)*$T/((2*m - 1)*$T - m)";
+                  var P = new PixelMath;
+                  if (channel >= 0) {
+                        switch (channel) {
+                              case 0:
+                                    P.expression = expression;
+                                    P.expression1 = "$T";
+                                    P.expression2 = "$T";
+                                    P.symbols = "m=" + midtones[0];
+                                    break;
+                              case 1:
+                                    P.expression = "$T";
+                                    P.expression1 = expression;
+                                    P.expression2 = "$T";
+                                    P.symbols = "m=" + midtones[1];
+                                    break;
+                              case 2:
+                                    P.expression = "$T";
+                                    P.expression1 = "$T";
+                                    P.expression2 = expression;
+                                    P.symbols = "m=" + midtones[2];
+                                    break;
+                        }
+                        P.useSingleExpression = false;
+                  } else {
+                        P.expression = expression;
+                        P.symbols = "m=" + midtones[0];
+                        P.useSingleExpression = true;
+                  }
+                  P.createNewImage = false;
+                  P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+                  P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+                  console.writeln("Symbols " + P.symbols);
+                  new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  P.executeOn(new_win.mainView);
+                  new_win.mainView.endProcess();
+                  checkCancel();
+            }
 
-      } else {
-            // Using PixelMath
-            var expression = "(m - 1)*$T/((2*m - 1)*$T - m)";
+      } else if (image_stretching == 'Logarithmic stretch') {
 
+            var mapping = "ln(1+$T)";
+            runPixelMathSingleMappingEx(new_win.mainView.id, mapping, false, null, true, true);
+
+      } else if (image_stretching == 'Logarithmic stretch XXX') {
+
+            var expression = "ln(1+$T)";
             var P = new PixelMath;
             if (channel >= 0) {
                   switch (channel) {
                         case 0:
                               P.expression = expression;
-                              P.expression1 = "$T";
-                              P.expression2 = "$T";
-                              P.symbols = "m=" + midtones[0];
+                              P.expression1 = "1+$T";
+                              P.expression2 = "1+$T";
                               break;
                         case 1:
-                              P.expression = "$T";
+                              P.expression = "1+$T";
                               P.expression1 = expression;
-                              P.expression2 = "$T";
-                              P.symbols = "m=" + midtones[1];
+                              P.expression2 = "1+$T";
                               break;
                         case 2:
-                              P.expression = "$T";
-                              P.expression1 = "$T";
+                              P.expression = "1+$T";
+                              P.expression1 = "1+$T";
                               P.expression2 = expression;
-                              P.symbols = "m=" + midtones[2];
                               break;
                   }
                   P.useSingleExpression = false;
             } else {
                   P.expression = expression;
-                  P.symbols = "m=" + midtones[0];
                   P.useSingleExpression = true;
             }
+            P.rescale = true;
             P.createNewImage = false;
             P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
             P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-      
-            console.writeln("Symbols " + P.symbols);
-      
             new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      
             P.executeOn(new_win.mainView);
-      
             new_win.mainView.endProcess();
-
             checkCancel();
+      
+      } else {
+            util.throwFatalError("Unknown image stretching method: " + image_stretching);
       }
 
       if (use_median) {
@@ -5769,8 +5845,11 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
             ABE_win = runHistogramTransformHyperbolicIterations(ABE_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
-            ABE_win = stretchHistogramTransformIterations(ABE_win, iscolor);
-            
+            ABE_win = stretchHistogramTransformIterations(ABE_win, iscolor, image_stretching);
+
+      } else if (image_stretching == 'Logarithmic stretch') {
+            ABE_win = stretchLogarithmicIterations(ABE_win, iscolor, image_stretching);
+
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
       }

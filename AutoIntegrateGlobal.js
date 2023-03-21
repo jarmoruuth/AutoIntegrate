@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.58";               // Version, also updated into updates.xri
-this.autointegrate_info = "SPCC for narrowband";                  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.59 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Image histogram";                      // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -224,8 +224,7 @@ this.par = {
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
 
-      target_type_galaxy: { val: false, def: false, name : "Target type galaxy", type : 'B' },
-      target_type_nebula: { val: false, def: false, name : "Target type nebula", type : 'B' },
+      target_type: { val: 'Default', def: 'Default', name : "Target type", type : 'S' },
 
       percentile_low: { val: 0.2, def: 0.2, name : "Percentile low", type : 'R' },
       percentile_high: { val: 0.1, def: 0.1, name : "Percentile high", type : 'R' },
@@ -383,8 +382,10 @@ this.ppar = {
             side_preview_visible: false,  // Show image preview on the side of the dialog
             use_large_preview: false,     // Use large preview window
             preview_sizes: [],            // Array of [ screen_size, width, height ]
-            preview_width: 0,             // Current preview width.
-            preview_height: 0             // Current preview height.
+            preview_width: 0,             // Current preview width, default set in getPreviewSize.
+            preview_height: 0,            // Current preview height, default set in getPreviewSize..
+            show_histogram: true,         // Show histogram in preview window
+            histogram_height: 0           // Histogram height in preview window, default set in getPreviewSize.
       },
       use_single_column: false, // show all options in a single column
       use_more_tabs: false     // use more tabs for parameters and settings

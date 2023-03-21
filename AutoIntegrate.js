@@ -190,7 +190,7 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2023 Jarmo Ruuth.
+Copyright (c) 2018-202 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -371,7 +371,14 @@ function readPersistentSettings()
       var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType_String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored previewSettings '" + tempSetting + "' from settings.");
-            ppar.preview = JSON.parse(tempSetting);
+            var preview = JSON.parse(tempSetting);
+            if (preview.show_histogram == undefined) {
+                  preview.show_histogram = ppar.preview.show_histogram;
+            }
+            if (preview.histogram_height == undefined) {
+                  preview.histogram_height = ppar.preview.histogram_height;
+            }
+            ppar.preview = preview;
             global.use_preview = ppar.preview.use_preview;
       } else {
             /* Read old style separate settings. */

@@ -203,6 +203,8 @@ this.__base__();
 var par = global.par;
 var ppar = global.ppar;
 
+var histogramUsePreviewControl = false;
+
 var infoLabel;
 var imageInfoLabel;
 var windowPrefixHelpTips;              // For updating tooTip
@@ -212,6 +214,8 @@ var outputDirEdit;                     // For updating output root directory
 var tabPreviewControl = null;          // For updating preview window
 var tabPreviewInfoLabel = null;        // For updating preview info text
 var sidePreviewControl = null;         // For updating preview window
+var tabHistogramControl = null;        // For updating histogram window
+var sideHistogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 
@@ -244,7 +248,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic'];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic', 'Logarithmic stretch' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -258,6 +262,7 @@ var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
+var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -460,6 +465,9 @@ function update_extra_target_image_window_list(parent, current_item)
       // update dialog
       if (current_item)  {
             parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
+            if (!parent.extraImageComboBox.currentItem) {
+                  parent.extraImageComboBox.currentItem = 0;
+            }
             parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
       }
 }
@@ -505,15 +513,15 @@ function remove_undo_image(id)
 
 function add_undo_image(parent, original_id, undo_id)
 {
-      console.writeln("add_undo_image");
+      //console.writeln("add_undo_image");
       while (undo_images.length > undo_images_pos + 1) {
             var removed = undo_images.pop();
             console.writeln("Remove undo image " + removed);
             util.closeOneWindow(removed);
       }
       undo_images_pos++;
-      console.writeln("undo_images_pos " + undo_images_pos);
-      var new_undo_id = original_id + "_undo" + undo_images_pos;
+      // console.writeln("undo_images_pos " + undo_images_pos);
+      var new_undo_id = original_id + "_undo_" + (undo_images_pos+1);
       util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
       console.writeln("Add undo image " + new_undo_id);
       undo_images[undo_images_pos] = new_undo_id;
@@ -522,7 +530,7 @@ function add_undo_image(parent, original_id, undo_id)
 
 function apply_undo(parent)
 {
-      console.writeln("apply_undo");
+      // console.writeln("apply_undo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -531,7 +539,7 @@ function apply_undo(parent)
             console.noteln("Nothing to undo");
             return;
       }
-      console.noteln("Apply undo on image " + global.extra_target_image);
+      console.noteln("Undo on image " + global.extra_target_image + " (" + undo_images_pos + "/" + undo_images.length + ")");
       var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
             console.criticalln("Failed to find target image " + global.extra_target_image);
@@ -551,13 +559,13 @@ function apply_undo(parent)
       updatePreviewIdReset(global.extra_target_image, true);
       
       undo_images_pos--;
-      console.writeln("undo_images_pos " + undo_images_pos);
+      // console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
 }
 
 function apply_redo(parent)
 {
-      console.writeln("apply_redo");
+      // console.writeln("apply_redo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -566,7 +574,7 @@ function apply_redo(parent)
             console.noteln("Nothing to redo");
             return;
       }
-      console.noteln("Apply redo on image " + global.extra_target_image);
+      console.noteln("Redo on image " + global.extra_target_image + " (" + (undo_images_pos + 2) + "/" + undo_images.length + ")");
       var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
             console.criticalln("Failed to find target image " + global.extra_target_image);
@@ -580,9 +588,13 @@ function apply_redo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
+      
+      forceNewHistogram(target_win);
+      
       updatePreviewIdReset(global.extra_target_image, true);
+      
       undo_images_pos++;
-      console.writeln("undo_images_pos " + undo_images_pos);
+      // console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
 }
 
@@ -774,11 +786,15 @@ function newSectionLabel(parent, text)
       return lbl;
 }
 
-function newLabel(parent, text, tip)
+function newLabel(parent, text, tip, align_left)
 {
       var lbl = new Label( parent );
       lbl.text = text;
-      lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      if (align_left) {
+            lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      } else {
+            lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      }
       lbl.toolTip = tip;
 
       return lbl;
@@ -1158,7 +1174,7 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImageBmp(updPreviewControl, imgWin, bmp)
+function updatePreviewImageBmp(updPreviewControl, imgWin, bmp, histogramControl, histogramInfo)
 {
       if (updPreviewControl == null) {
             return;
@@ -1167,6 +1183,14 @@ function updatePreviewImageBmp(updPreviewControl, imgWin, bmp)
             updPreviewControl.UpdateImage(imgWin, bmp);
       } else {
             updPreviewControl.SetImage(imgWin, bmp);
+      }
+      if (histogramControl != null && histogramInfo != null) {
+            if (histogramUsePreviewControl) {
+                  histogramControl.SetImage(null, histogramInfo.bitmap);
+            } else {
+                  histogramControl.aiInfo = histogramInfo;
+                  histogramControl.repaint();
+            }
       }
 }
 
@@ -1181,6 +1205,91 @@ function updatePreviewTxt(txt)
       }
 }
 
+function setHistogramBitmapBackground(graphics)
+{
+      graphics.antialiasing = true;
+      graphics.pen = new Pen(0xffffffff,1);
+      
+      graphics.fillRect(0, 0, ppar.preview.preview_width, ppar.preview.histogram_height, new Brush(0xff000000));
+
+      graphics.pen = new Pen(0xFF808080,0);
+
+      for (var i = 0.25; i < 1; i += 0.25) {
+            graphics.drawLine(0, ppar.preview.histogram_height*i, ppar.preview.preview_width, ppar.preview.histogram_height*i);
+            graphics.drawLine(ppar.preview.preview_width*i, 0, ppar.preview.preview_width*i, ppar.preview.histogram_height);
+      }
+}
+
+function getHistogramInfo(imgWin)
+{
+      var view = imgWin.mainView;
+	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
+      var values = [];
+      var maxvalue = 0;
+      var maxchannels = histogramMatrix.rows;
+
+      for (var channel = 0; channel < maxchannels; channel++) {
+            values[channel] = [];
+            for (var i = 0; i < ppar.preview.preview_width; i++) {
+                  values[channel][i] = 0;
+            }
+      }
+      for (var channel = 0; channel < maxchannels; channel++) {
+            for (var col = 0; col < histogramMatrix.cols; col++) {
+                  var i = parseInt(col / histogramMatrix.cols * ppar.preview.preview_width);
+                  values[channel][i] += histogramMatrix.at(channel, col);
+                  if (values[channel][i] > maxvalue) {
+                        maxvalue = values[channel][i];
+                  }
+            }
+      }
+      var cumulativeValues = [];
+      for (var i = 0; i < ppar.preview.preview_width; i++) {
+            var channels_values = 0;
+            for (var channel = 0; channel < maxchannels; channel++) {
+                  channels_values += values[channel][i];
+            }
+            if (i == 0) {
+                  cumulativeValues[i] = channels_values;
+            } else {
+                  cumulativeValues[i] = cumulativeValues[i-1] + channels_values;
+            }
+      }
+      var percentageValues = [];
+      for (var i = 0; i < ppar.preview.preview_width; i++) {
+            percentageValues[i] = cumulativeValues[i] / cumulativeValues[ppar.preview.preview_width-1] * 100;
+      }
+
+      var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+      var graphics = new VectorGraphics(bitmap);
+
+      setHistogramBitmapBackground(graphics);
+
+      for (var channel = 0; channel < maxchannels; channel++) {
+            var x1 = 0;
+            var y1 = ppar.preview.histogram_height;
+            if (maxchannels == 1) {
+                  graphics.pen = new Pen(0xFFD3D3D3,0);     // LightGray
+            } else if (channel == 0) {
+                  graphics.pen = new Pen(0xFFFF0000,0);     // Red
+            } else if (channel == 1) {
+                  graphics.pen = new Pen(0xFF008000,0);     // Green
+            } else if (channel == 2) {
+                  graphics.pen = new Pen(0xFF00BFFF,0);     // DeepSkyBlue
+            }
+            for (var i = 0; i < ppar.preview.preview_width; i++) {
+                  var x0 = x1;
+                  var y0 = y1;
+                  x1 = i;
+                  y1 = ppar.preview.histogram_height - (values[channel][i] / maxvalue) * ppar.preview.histogram_height;
+                  graphics.drawLine(x0, y0, x1, y1);
+            }
+      }
+      graphics.end();
+
+      return { bitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues };
+}
+
 function updatePreviewWinTxt(imgWin, txt)
 {
       if (global.use_preview && imgWin != null) {
@@ -1193,11 +1302,16 @@ function updatePreviewWinTxt(imgWin, txt)
                   }
                   preview_size_changed = false;
             }
+            if (tabHistogramControl != null && sideHistogramControl != null) {
+                  var histogramInfo = getHistogramInfo(imgWin);
+            } else {
+                  var histogramInfo = null;
+            }
             var bmp = getWindowBitmap(imgWin);
-            updatePreviewImageBmp(tabPreviewControl, imgWin, bmp);
-            updatePreviewImageBmp(sidePreviewControl, imgWin, bmp);
+            updatePreviewImageBmp(tabPreviewControl, imgWin, bmp, tabHistogramControl, histogramInfo);
+            updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
             updatePreviewTxt(txt);
-            console.noteln("Preview updated");
+            // console.noteln("Preview updated");
             is_some_preview = true;
             current_selected_file_name = null; // reset file name, it is set by caller if needed
       }
@@ -1298,7 +1412,7 @@ function updatePreviewNoImage()
             updatePreviewNoImageInControl(tabPreviewControl);
             updatePreviewNoImageInControl(sidePreviewControl);
             updatePreviewTxt("No preview");
-            util.updateStatusInfoLabel("");
+            util.updateStatusInfoLabel("No preview");
       }
 }
 
@@ -2150,19 +2264,23 @@ function addTargetType(parent)
 {
       var lbl = new Label( parent );
       parent.rootingArr.push(lbl);
-      lbl.text = "Target type";
+      lbl.text = "Target";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
                     "<p>If target type is given then image stretching settings are selected automatically.</p>" +
-                    "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>";
-      var galaxyCheckBox = newCheckBox(parent, "Galaxy", par.target_type_galaxy, "<p>Target is galaxy. Works well when target is a lot brighter than the background.</p>" );
-      var nebulaCheckBox = newCheckBox(parent, "Nebula", par.target_type_nebula, "<p>Target is nebula. Works well when target fills the whole image or is not much brighter than the background.</p>" );
+                    "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>" +
+                    "<p>Galaxy works well when target is a lot brighter than the background.</p>" +
+                    "<p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>";
       
+      var targetTypeComboBox = newComboBox(parent, par.target_type, target_type_values, lbl.toolTip);
+      parent.rootingArr.push(targetTypeComboBox);
+
       var outputdir_Sizer = new HorizontalSizer;
       outputdir_Sizer.spacing = 4;
       outputdir_Sizer.add( lbl );
-      outputdir_Sizer.add( galaxyCheckBox );
-      outputdir_Sizer.add( nebulaCheckBox );
+      outputdir_Sizer.add( targetTypeComboBox );
+      outputdir_Sizer.addStretch();
+      parent.rootingArr.push(outputdir_Sizer);
 
       return outputdir_Sizer;
 }
@@ -2200,7 +2318,7 @@ function addFilesButtons(parent)
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
 
-      if (ppar.use_single_column || ppar.use_more_tabs) {
+      if (ppar.use_single_column) {
             var filesButtons_Sizer = new VerticalSizer;
             parent.rootingArr.push(filesButtons_Sizer);
             filesButtons_Sizer.add( filesButtons_Sizer1 );
@@ -3158,15 +3276,19 @@ function getWindowBitmap(imgWin)
 
 function newPreviewObj(parent)
 {
-      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.preview_height);
+      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.preview_height, false);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
 
-      var newPreviewInfoLabel = new Label( parent );
-      newPreviewInfoLabel.text = "<b>Preview</b> No preview";
-      newPreviewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      newPreviewInfoLabel.useRichText = true;
+      if (0) {
+            var newPreviewInfoLabel = new Label( parent );
+            newPreviewInfoLabel.text = "<b>Preview</b> No preview";
+            newPreviewInfoLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            newPreviewInfoLabel.useRichText = true;
+      } else {
+            var newPreviewInfoLabel = null;
+      }
 
       var newStatusInfoLabel = new Label( parent );
       newStatusInfoLabel.text = "";
@@ -3175,7 +3297,9 @@ function newPreviewObj(parent)
       var previewSizer = new VerticalSizer;
       previewSizer.margin = 6;
       previewSizer.spacing = 10;
-      previewSizer.add(newPreviewInfoLabel);
+      if (newPreviewInfoLabel) {
+            previewSizer.add(newPreviewInfoLabel);
+      }
       previewSizer.add(newStatusInfoLabel);
       previewSizer.add(previewImageSizer);
 
@@ -3183,6 +3307,68 @@ function newPreviewObj(parent)
 
       return { control: newPreviewControl, infolabel: newPreviewInfoLabel, 
                statuslabel: newStatusInfoLabel, sizer: previewSizer };
+}
+
+function newHistogramControl(parent)
+{
+      if (!ppar.preview.show_histogram) {
+            return null;
+      }
+      if (histogramUsePreviewControl) {
+            var histogramViewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.histogram_height, true);
+            var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+            var graphics = new VectorGraphics(bitmap);
+            setHistogramBitmapBackground(graphics);
+            graphics.end();
+            histogramViewControl.SetImage(null, bitmap);
+
+      } else {
+            var histogramViewControl = new Control(parent);
+		histogramViewControl.scaledMinWidth = ppar.preview.preview_width;
+		histogramViewControl.scaledMinHeight = ppar.preview.histogram_height;
+
+            var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+            var graphics = new VectorGraphics(bitmap);
+            setHistogramBitmapBackground(graphics);
+            graphics.end();
+            histogramViewControl.aiInfo = { bitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null };
+            histogramViewControl.onPaint = function(x0, y0, x1, y1) {
+                  var graphics = new VectorGraphics(this);
+		      graphics.antialiasing = true;
+                  graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
+                  graphics.end();
+            };
+            histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
+                  if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
+                        this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
+                        this.aiLabelX.toolTip = "X coordinate value.";
+                        this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.bitmap.height).toFixed(4);
+                        this.aiLabelY.toolTip = "Y coordinate value.";
+                        if (this.aiInfo.cumulativeValues) {
+                              this.aiLabelCnt.text = "Cnt: " + this.aiInfo.cumulativeValues[x];
+                              this.aiLabelCnt.toolTip = "Cumulative number of pixels with values less than or equal to the X coordinate value.";
+                              this.aiLabelPrc.text = "%: " + this.aiInfo.percentageValues[x].toFixed(4);
+                              this.aiLabelPrc.toolTip = "Percentage of pixels with values less than or equal to the X coordinate value.";
+                        }
+                  }
+            };
+
+            histogramViewControl.aiLabelX = newLabel(parent, "x:", "Click on histogram to get values");
+            histogramViewControl.aiLabelY = newLabel(parent, "y:", "Click on histogram to get values");
+            histogramViewControl.aiLabelCnt = newLabel(parent, "Cnt:", "Click on histogram to get values");
+            histogramViewControl.aiLabelPrc = newLabel(parent, "%:", "Click on histogram to get values");
+            histogramViewControl.sizer = new VerticalSizer;
+            histogramViewControl.sizer.margin = 6;
+            histogramViewControl.sizer.spacing = 4;
+            histogramViewControl.sizer.add( histogramViewControl.aiLabelX );
+            histogramViewControl.sizer.add( histogramViewControl.aiLabelY );
+            histogramViewControl.sizer.add( histogramViewControl.aiLabelCnt );
+            histogramViewControl.sizer.add( histogramViewControl.aiLabelPrc );
+            histogramViewControl.sizer.addStretch();
+
+            histogramViewControl.repaint();
+      }
+      return histogramViewControl;
 }
 
 function mainSizerTab(parent, sizer)
@@ -3212,13 +3398,23 @@ function updateSidePreviewState()
             return;
       }
       if (ppar.preview.side_preview_visible) {
-            sidePreviewInfoLabel.show();
+            if (sidePreviewInfoLabel) {
+                  sidePreviewInfoLabel.show();
+            }
             global.sideStatusInfoLabel.show();
             sidePreviewControl.show();
+            if (sideHistogramControl != null) {
+                  sideHistogramControl.show();
+            }
 
-            tabPreviewInfoLabel.hide();
+            if (tabPreviewInfoLabel != null) {
+                  tabPreviewInfoLabel.hide();
+            }
             global.tabStatusInfoLabel.hide();
             tabPreviewControl.hide();
+            if (tabHistogramControl != null) {
+                  tabHistogramControl.hide();
+            }
 
             if (!ppar.use_single_column && mainTabBox != null) {
                   mainTabBox.setPageLabel(tab_preview_index, "Extra processing");
@@ -3226,14 +3422,24 @@ function updateSidePreviewState()
 
             ppar.preview.side_preview_visible = true;
 
-      } else {      
-            sidePreviewInfoLabel.hide();
+      } else {
+            if (sidePreviewInfoLabel) {
+                  sidePreviewInfoLabel.hide();
+            }
             global.sideStatusInfoLabel.hide();
             sidePreviewControl.hide();
+            if (sideHistogramControl != null) {
+                  sideHistogramControl.hide();
+            }
 
-            tabPreviewInfoLabel.show();
+            if (tabPreviewInfoLabel != null) {
+                  tabPreviewInfoLabel.show();
+            }
             global.tabStatusInfoLabel.show();
             tabPreviewControl.show();
+            if (tabHistogramControl != null) {
+                  tabHistogramControl.show();
+            }
 
             if (!ppar.use_single_column && mainTabBox != null) {
                   mainTabBox.setPageLabel(tab_preview_index, "Preview and extra processing");
@@ -3253,7 +3459,7 @@ function toggleSidePreview()
       updateSidePreviewState();
 }
 
-function updatePreviewSize(w, h)
+function updatePreviewSize(w, h, hh)
 {
       preview_size_changed = true;
 
@@ -3262,6 +3468,9 @@ function updatePreviewSize(w, h)
       }
       if (h > 0) {
             ppar.preview.preview_height = h;
+      }
+      if (hh > 0) {
+            ppar.preview.histogram_height = h;
       }
 
       for (var i = 0; i < ppar.preview.preview_sizes.length; i++) {
@@ -3273,19 +3482,23 @@ function updatePreviewSize(w, h)
                   if (h > 0) {
                         ppar.preview.preview_sizes[i][2] = h;
                   }
-                  console.writeln("Update existing preview size for screen size " + screen_size + " to " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2]);
+                  if (hh > 0) {
+                        ppar.preview.preview_sizes[i][3] = hh;
+                  }
+                  console.writeln("Update existing preview size for screen size " + screen_size + " to " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2] + ", " + ppar.preview.preview_sizes[i][3]);
                   return;
             }
       }
       /* Not found, add a new one. */
-      ppar.preview.preview_sizes[ppar.preview.preview_sizes.length] = [ screen_size, ppar.preview.preview_width, ppar.preview.preview_height ];
-      console.writeln("Add a new preview size for screen size " + screen_size + " as " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2]);
+      ppar.preview.preview_sizes[ppar.preview.preview_sizes.length] = [ screen_size, ppar.preview.preview_width, ppar.preview.preview_height, ppar.preview.histogram_height ];
+      console.writeln("Add a new preview size for screen size " + screen_size + " as " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2] + ", " + ppar.preview.preview_sizes[i][3]);
 }
 
 function getPreviewSize(availableScreenRect)
 {
       ppar.preview.preview_width = 0;
       ppar.preview.preview_height = 0;
+      ppar.preview.histogram_height = 0;
 
       if (ppar.preview.preview_sizes == undefined) {
             ppar.preview.preview_sizes = [];
@@ -3296,6 +3509,9 @@ function getPreviewSize(availableScreenRect)
             if (ppar.preview.preview_sizes[i][0] == screen_size) {
                   ppar.preview.preview_width = ppar.preview.preview_sizes[i][1];
                   ppar.preview.preview_height = ppar.preview.preview_sizes[i][2];
+                  if (ppar.preview.preview_sizes[i].length > 3) {
+                        ppar.preview.histogram_height = ppar.preview.preview_sizes[i][3];
+                  }
             }
       }
 
@@ -3305,19 +3521,33 @@ function getPreviewSize(availableScreenRect)
                   /* Calculate preview size from screen size.
                    * Use a small preview size as a default to ensure that it fits on screen. 
                    */
-                  let preview_size = Math.floor(Math.min(availableScreenRect.width * 0.3, availableScreenRect.height * 0.3));
+                  let preview_size = Math.floor(Math.min(availableScreenRect.width * 0.25, availableScreenRect.height * 0.25));
                   preview_size = Math.min(preview_size, 400);
                   ppar.preview.preview_width = preview_size;
                   ppar.preview.preview_height = preview_size;
+                  ppar.preview.histogram_height = Math.floor(availableScreenRect.height * 0.05);
             } else {
-                  /* Use a default size. 
+                  /* Use a fixed default size. 
                    */
                   console.writeln("Could not get screen size, use a default preview size.");
                   ppar.preview.preview_width = 300;
                   ppar.preview.preview_height = 300;
             }
       }
-      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height);
+      if (ppar.preview.histogram_height == 0) {
+            /* Preview size not set for this screen size. */
+            if (availableScreenRect != undefined) {
+                  /* Calculate histogram height from screen size.
+                   * Use a small preview size as a default to ensure that it fits on screen. 
+                   */
+                  ppar.preview.histogram_height = Math.floor(availableScreenRect.height * 0.05);
+            } else {
+                  /* Use a fixed default size. 
+                   */
+                  ppar.preview.histogram_height = 50;
+            }
+      }
+      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height);
 }
 
 /***************************************************************************
@@ -5244,8 +5474,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
       this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
-      this.narrowbandExtraLabel = newSectionLabel(this, "Extra processing for narrowband");
-      this.narrowbandExtraLabel.toolTip = 
+      var narrowbandExtraLabeltoolTip = 
             "<p>" +
             "Extra processing options to be applied on narrowband images. "+
             "They are applied before other extra processing options in the following order:" +
@@ -5263,7 +5492,7 @@ function AutoIntegrateDialog()
       //this.narrowbandExtraOptionsSizer.spacing = 4;
       this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions1_sizer );
       this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions2_sizer );
-      this.narrowbandExtraOptionsSizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.narrowbandExtraOptionsSizer.toolTip = narrowbandExtraLabeltoolTip;
       this.narrowbandExtraOptionsSizer.addStretch();
 
       // Extra processing
@@ -5279,7 +5508,7 @@ function AutoIntegrateDialog()
       this.extraRemoveStars_Sizer.spacing = 4;
       this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
       this.extraRemoveStars_Sizer.add( this.extraUnscreenStars_CheckBox);
-      this.extraRemoveStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraRemoveStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
       this.extraRemoveStars_Sizer.addStretch();
 
       var extraCombineStarsReduce_Tooltip =
@@ -5315,7 +5544,7 @@ function AutoIntegrateDialog()
       this.extraCombineStars_Sizer1.spacing = 4;
       this.extraCombineStars_Sizer1.add( this.extraCombineStars_CheckBox);
       this.extraCombineStars_Sizer1.add( this.extraCombineStars_ComboBox);
-      this.extraCombineStars_Sizer1.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer1.toolTip = narrowbandExtraLabeltoolTip;
       this.extraCombineStars_Sizer1.addStretch();
 
       this.extraCombineStarsReduce_Label = newLabel(this, "Reduce stars", extraCombineStarsReduce_Tooltip);
@@ -5336,7 +5565,7 @@ function AutoIntegrateDialog()
       this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
       this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
       this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
-      this.extraCombineStars_Sizer2.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer2.toolTip = narrowbandExtraLabeltoolTip;
       this.extraCombineStars_Sizer2.addStretch();
 
       this.extraStarsImageLabel = newLabel(this, "Starless image", "Text Auto or empty image uses default starless image.");
@@ -5372,7 +5601,7 @@ function AutoIntegrateDialog()
       this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer1);
       this.extraCombineStars_Sizer.add( this.extraCombineStarsSelect_Sizer );
       this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer2);
-      this.extraCombineStars_Sizer.toolTip = this.narrowbandExtraLabel.toolTip;
+      this.extraCombineStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
       this.extraCombineStars_Sizer.addStretch();
 
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
@@ -5632,7 +5861,7 @@ function AutoIntegrateDialog()
             }
             close_undo_images(this.dialog);
             global.extra_target_image = extra_target_image_window_list[itemIndex];
-            console.writeln("global.extra_target_image " + global.extra_target_image);
+            // console.writeln("global.extra_target_image " + global.extra_target_image);
             if (global.extra_target_image == "Auto") {
                   updatePreviewNoImage();
                   this.dialog.extraSaveButton.enabled = false;
@@ -5682,7 +5911,7 @@ function AutoIntegrateDialog()
                         }
                         let undo_image_id = create_undo_image(global.extra_target_image);
                         add_undo_image(this.dialog, global.extra_target_image, undo_image_id);
-                        console.noteln("Apply completed");
+                        console.noteln("Apply completed (" + undo_images.length + "/" + undo_images.length + ")");
                   } 
                   catch(err) {
                         if (first_undo_image_id != null) {
@@ -5777,8 +6006,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombineStars_Sizer );
 
-      this.extraLabel = newSectionLabel(this, "Generic extra processing");
-      this.extraLabel.toolTip = 
+      var extraLabeltoolTip = 
             "<p>" +
             "In case of Run or AutoContinue " + 
             "extra processing options are always applied to a copy of the final image. " + 
@@ -5828,19 +6056,23 @@ function AutoIntegrateDialog()
       this.extraGroupBoxSizer.add( this.extra2 );
       this.extraGroupBoxSizer.addStretch();
 
-      this.extraControl = new Control( this );
-      // this.extraControl.title = "Extra processing";
-      this.extraControl.sizer = new VerticalSizer;
-      this.extraControl.sizer.margin = 6;
-      this.extraControl.sizer.spacing = 4;
-      this.extraControl.sizer.add( this.narrowbandExtraLabel );
-      this.extraControl.sizer.add( this.narrowbandExtraOptionsSizer );
-      this.extraControl.sizer.add( this.extraLabel );
-      this.extraControl.sizer.add( this.extraGroupBoxSizer );
-      this.extraControl.sizer.add( this.extraImageSizer );
-      this.extraControl.sizer.add( this.extraOptionsSizer );
-      this.extraControl.sizer.addStretch();
-      this.extraControl.visible = false;
+      this.extraControl1 = new Control( this );
+      this.extraControl1.sizer = new VerticalSizer;
+      this.extraControl1.sizer.margin = 6;
+      this.extraControl1.sizer.spacing = 4;
+      this.extraControl1.sizer.add( this.extraGroupBoxSizer );
+      this.extraControl1.sizer.add( this.extraImageSizer );
+      this.extraControl1.sizer.add( this.extraOptionsSizer );
+      this.extraControl1.sizer.addStretch();
+      this.extraControl1.visible = false;
+
+      this.extraControl2 = new Control( this );
+      this.extraControl2.sizer = new VerticalSizer;
+      this.extraControl2.sizer.margin = 6;
+      this.extraControl2.sizer.spacing = 4;
+      this.extraControl2.sizer.add( this.narrowbandExtraOptionsSizer );
+      this.extraControl2.sizer.addStretch();
+      this.extraControl2.visible = false;
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
@@ -6034,6 +6266,10 @@ function AutoIntegrateDialog()
             "<p>Use a large preview window on the side of the main dialog.</p>",
             function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
 
+      this.show_histogram_CheckBox = newGenericCheckBox(this, "Show histogram", ppar, ppar.preview.show_histogram, 
+            "<p>Show image histogram.</p>",
+            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.preview.show_histogram = checked; });
+
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
@@ -6041,6 +6277,7 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.use_single_column_CheckBox );
       this.preview1Sizer.add( this.use_more_tabs_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
+      this.preview1Sizer.add( this.show_histogram_CheckBox );
       this.preview1Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
@@ -6057,6 +6294,13 @@ function AutoIntegrateDialog()
                   updatePreviewSize(0, value); 
             }
       );
+      this.histogram_height_label = newLabel(this, 'Histogram height', "Image histogram height.");
+      this.histogram_height_edit = newGenericSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
+            this.histogram_height_label.toolTip,
+            function(value) { 
+                  updatePreviewSize(0, 0, value);
+            }
+      );
 
       this.preview2Sizer = new HorizontalSizer;
       this.preview2Sizer.margin = 6;
@@ -6065,6 +6309,8 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.preview_width_edit );
       this.preview2Sizer.add( this.preview_height_label );
       this.preview2Sizer.add( this.preview_height_edit );
+      this.preview2Sizer.add( this.histogram_height_label );
+      this.preview2Sizer.add( this.histogram_height_edit );
       this.preview2Sizer.addStretch();
       this.preview2Sizer.add( this.saveInterfaceButton );
 
@@ -6304,19 +6550,22 @@ function AutoIntegrateDialog()
         
       // Extra processing group box
       this.extraGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.extraGroupBox, this.extraControl, "Extra processing", "Extra1");
+      newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Extra processing for narrowband", "Extra2");
+      newSectionBarAdd(this, this.extraGroupBox, this.extraControl1, "Generic extra processing", "Extra1");
       this.extraGroupBox.sizer.addStretch();
 
       if (global.use_preview) {
             /* Create preview objects.
              */
             this.tabPreviewObj = newPreviewObj(this);
+            tabHistogramControl = newHistogramControl(this);
 
             tabPreviewControl = this.tabPreviewObj.control;
             tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
             global.tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
 
             this.sidePreviewObj = newPreviewObj(this);
+            sideHistogramControl = newHistogramControl(this);
 
             sidePreviewControl = this.sidePreviewObj.control;
             sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
@@ -6356,6 +6605,10 @@ function AutoIntegrateDialog()
                   this.mainTabBox.addPage( mainSizerTab(this, this.tabPreviewObj.sizer), "Preview" );
                   tab_preview_index = tab_index;
                   tab_index++;
+                  if (tabHistogramControl != null) {
+                        this.mainTabBox.addPage( mainSizerTab(this, tabHistogramControl), "Histogram" );
+                        tab_index++;
+                  }
             }
       } else if (ppar.use_more_tabs) {
             /* More tabs view. 
@@ -6392,7 +6645,15 @@ function AutoIntegrateDialog()
             this.previewSizer.margin = 6;
             this.previewSizer.spacing = 4;
             if (global.use_preview) {
-                  this.previewSizer.add( this.tabPreviewObj.sizer );
+                  this.previewSizer2 = new VerticalSizer;
+                  this.previewSizer2.margin = 6;
+                  this.previewSizer2.spacing = 4;
+                  this.previewSizer2.add( this.tabPreviewObj.sizer );
+                  if (tabHistogramControl != null) {
+                        this.previewSizer2.add( tabHistogramControl );
+                  }
+                  this.previewSizer2.addStretch();
+                  this.previewSizer.add( this.previewSizer2 );
             }
             this.previewSizer.add( this.extraGroupBox );
             let tabname;
@@ -6439,7 +6700,15 @@ function AutoIntegrateDialog()
             this.previewSizer.margin = 6;
             this.previewSizer.spacing = 4;
             if (global.use_preview) {
-                  this.previewSizer.add( this.tabPreviewObj.sizer );
+                  this.previewSizer2 = new VerticalSizer;
+                  this.previewSizer2.margin = 6;
+                  this.previewSizer2.spacing = 4;
+                  this.previewSizer2.add( this.tabPreviewObj.sizer );
+                  if (tabHistogramControl != null) {
+                        this.previewSizer2.add( tabHistogramControl );
+                  }
+                  this.previewSizer2.addStretch();
+                  this.previewSizer.add( this.previewSizer2 );
             }
             this.previewSizer.add( this.extraGroupBox );
             let tabname;
@@ -6469,7 +6738,15 @@ function AutoIntegrateDialog()
       this.mainSizer.spacing = 4;
 
       if (global.use_preview && !ppar.preview.use_large_preview) {
-            this.mainSizer.add( this.sidePreviewObj.sizer);
+            this.sidePreviewSizer = new VerticalSizer;
+            this.sidePreviewSizer.margin = 6;
+            this.sidePreviewSizer.spacing = 4;
+            this.sidePreviewSizer.add( this.sidePreviewObj.sizer );
+            if (sideHistogramControl != null) {
+                  this.sidePreviewSizer.add( sideHistogramControl );
+            }
+            this.sidePreviewSizer.addStretch();
+            this.mainSizer.add( this.sidePreviewSizer );
       }
       this.mainSizer.add( this.mainTabBox );
       //this.mainSizer.addStretch();
@@ -6486,7 +6763,15 @@ function AutoIntegrateDialog()
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
       if (global.use_preview && ppar.preview.use_large_preview) {
-            this.sizer.add( this.sidePreviewObj.sizer);
+            this.sidePreviewSizer = new VerticalSizer;
+            this.sidePreviewSizer.margin = 6;
+            this.sidePreviewSizer.spacing = 4;
+            this.sidePreviewSizer.add( this.sidePreviewObj.sizer );
+            if (sideHistogramControl != null) {
+                  this.sidePreviewSizer.add( sideHistogramControl );
+            }
+            this.sidePreviewSizer.addStretch();
+            this.sizer.add( this.sidePreviewSizer);
       }
       this.sizer.add( this.baseSizer);
       //this.sizer.addStretch();
@@ -6499,6 +6784,7 @@ function AutoIntegrateDialog()
       //this.files_GroupBox.setFixedHeight();
 
       setWindowPrefixHelpTip(ppar.win_prefix);
+      util.updateStatusInfoLabel(global.autointegrate_version);
 
       console.show();
 

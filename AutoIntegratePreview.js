@@ -9,7 +9,7 @@
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
+function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
@@ -69,11 +69,13 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
              this.zoom = newZoom;
              this.scale = this.zoom;
              this.scaledImage = null;
-             if (this.zoom >= 1) {
-                   this.zoomVal_Label.text = "1:1";
-             } else {
-                   this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
-             }
+             if (!is_histogram) {
+                  if (this.zoom >= 1) {
+                        this.zoomVal_Label.text = "1:1";
+                  } else {
+                        this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
+                  }
+            }
              if (this.image) {
                    if (this.zoom > this.zoomOutLimit) {
                          this.scaledImage = this.image.scaled(this.scale);
@@ -96,50 +98,50 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
              this.scrollbox.viewport.update();
        }
  
-       this.zoomIn_Button = new ToolButton( this );
-       this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
-       this.zoomIn_Button.setScaledFixedSize( 20, 20 );
-       this.zoomIn_Button.toolTip = "Zoom in";
-       this.zoomIn_Button.onMousePress = function()
-       {
-             this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
-       };
- 
-       this.zoomOut_Button = new ToolButton( this );
-       this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
-       this.zoomOut_Button.setScaledFixedSize( 20, 20 );
-       this.zoomOut_Button.toolTip = "Zoom out";
-       this.zoomOut_Button.onMousePress = function()
-       {
-             this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
-       };
- 
- 
-       this.zoom11_Button = new ToolButton( this );
-       this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
-       this.zoom11_Button.setScaledFixedSize( 20, 20 );
-       this.zoom11_Button.toolTip = "Zoom 1:1";
-       this.zoom11_Button.onMousePress = function()
-       {
-             this.parent.UpdateZoom(1);
-       };
- 
-       this.zoomFit_Button = new ToolButton( this );
-       this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
-       this.zoomFit_Button.setScaledFixedSize( 20, 20 );
-       this.zoomFit_Button.toolTip = "Zoom fit";
-       this.zoomFit_Button.onMousePress = function()
-       {
-             this.parent.UpdateZoom(-100);
-       };
- 
-       this.buttons_Sizer = new HorizontalSizer;
-       this.buttons_Sizer.add( this.zoomIn_Button );
-       this.buttons_Sizer.add( this.zoomOut_Button );
-       this.buttons_Sizer.add( this.zoom11_Button );
-       this.buttons_Sizer.add( this.zoomFit_Button );
-       this.buttons_Sizer.addStretch();
- 
+       if (!is_histogram) {
+            this.zoomIn_Button = new ToolButton( this );
+            this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
+            this.zoomIn_Button.setScaledFixedSize( 20, 20 );
+            this.zoomIn_Button.toolTip = "Zoom in";
+            this.zoomIn_Button.onMousePress = function()
+            {
+                  this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
+            };
+      
+            this.zoomOut_Button = new ToolButton( this );
+            this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
+            this.zoomOut_Button.setScaledFixedSize( 20, 20 );
+            this.zoomOut_Button.toolTip = "Zoom out";
+            this.zoomOut_Button.onMousePress = function()
+            {
+                  this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
+            };
+      
+            this.zoom11_Button = new ToolButton( this );
+            this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
+            this.zoom11_Button.setScaledFixedSize( 20, 20 );
+            this.zoom11_Button.toolTip = "Zoom 1:1";
+            this.zoom11_Button.onMousePress = function()
+            {
+                  this.parent.UpdateZoom(1);
+            };
+      
+            this.zoomFit_Button = new ToolButton( this );
+            this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
+            this.zoomFit_Button.setScaledFixedSize( 20, 20 );
+            this.zoomFit_Button.toolTip = "Zoom fit";
+            this.zoomFit_Button.onMousePress = function()
+            {
+                  this.parent.UpdateZoom(-100);
+            };
+      
+            this.buttons_Sizer = new HorizontalSizer;
+            this.buttons_Sizer.add( this.zoomIn_Button );
+            this.buttons_Sizer.add( this.zoomOut_Button );
+            this.buttons_Sizer.add( this.zoom11_Button );
+            this.buttons_Sizer.add( this.zoomFit_Button );
+            this.buttons_Sizer.addStretch();
+       } 
        this.zoom = 1;
        this.scale = 1;
        this.zoomOutLimit = -100;
@@ -201,14 +203,27 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
        {
              var preview = this.parent.parent;
              var p =  preview.transform(x, y, preview);
-             preview.Xval_Label.text = Math.floor(p.x).toString();
-             preview.Yval_Label.text = Math.floor(p.y).toString();
-             try {
-                   var val = preview.imgWin.mainView.image.sample(Math.floor(p.x), Math.floor(p.y));
-                   preview.SampleVal_Label.text = val.toFixed(5);
-             } catch(err) {
-             }
- 
+             if (!is_histogram) {
+                  var val = Math.floor(p.x);
+                  if (val < 0) {
+                        val = 0;
+                  } else if (val >= preview.metadata.width) {
+                        val = preview.metadata.width - 1;
+                  }
+                  preview.Xval_Label.text = val.toString();
+                  var val = Math.floor(p.y);
+                  if (val < 0) {
+                        val = 0;
+                  } else if (val >= preview.metadata.height) {
+                        val = preview.metadata.height - 1;
+                  }
+                  preview.Yval_Label.text = val.toString();
+                  try {
+                        var val = preview.imgWin.mainView.image.sample(Math.floor(p.x), Math.floor(p.y));
+                        preview.SampleVal_Label.text = val.toFixed(5);
+                  } catch(err) {
+                  }
+            }
              if(preview.onCustomMouseMove)
              {
                    preview.onCustomMouseMove.call(this, p.x, p.y, buttonState, modifiers )
@@ -291,92 +306,99 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y)
              var p =  this.transform(x, y, preview);
              return p;
        }
- 
-       this.zoomLabel_Label =new Label(this);
-       this.zoomLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.zoomLabel_Label.text = "Zoom:";
-       this.zoomVal_Label =new Label(this);
-       this.zoomVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.zoomVal_Label.text = "1:1";
- 
-       this.Xlabel_Label = new Label(this);
-       this.Xlabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.Xlabel_Label .text = "X:";
-       this.Xval_Label = new Label(this);
-       this.Xval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.Xval_Label.text = "---";
-       this.Ylabel_Label = new Label(this);
-       this.Ylabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.Ylabel_Label.text = "Y:";
-       this.Yval_Label = new Label(this);
-       this.Yval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.Yval_Label.text = "---";
-       this.SampleLabel_Label = new Label(this);
-       this.SampleLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.SampleLabel_Label.text = "Val:";
-       this.SampleVal_Label = new Label(this);
-       this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.SampleVal_Label.text = "---";
 
-       this.coordinatesLabel = new Label(this);
-       this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-       this.coordinatesLabel.text = "X,Y:";
-       this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-       this.coordinatesEdit = new Edit(this);
-       this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-       
-       this.coordinatesCopyFirstButton = new ToolButton( this );
-       this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
-       this.coordinatesCopyFirstButton.onClick = function () {
-            var preview = this.parent.parent;
-            if (preview.coordinatesEdit.text != "") {
-                  parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
-                  par.comet_first_xy.val = preview.coordinatesEdit.text;
-            }
-       };
-       this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+       if (is_histogram) {
+            this.histLabel =new Label(this);
+            this.histLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.histLabel.text = "Histogram";
+       } else {
+            this.zoomLabel_Label =new Label(this);
+            this.zoomLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.zoomLabel_Label.text = "Zoom:";
+            this.zoomVal_Label =new Label(this);
+            this.zoomVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.zoomVal_Label.text = "1:1";
+      
+            this.Xlabel_Label = new Label(this);
+            this.Xlabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.Xlabel_Label .text = "X:";
+            this.Xval_Label = new Label(this);
+            this.Xval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.Xval_Label.text = "---";
+            this.Ylabel_Label = new Label(this);
+            this.Ylabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.Ylabel_Label.text = "Y:";
+            this.Yval_Label = new Label(this);
+            this.Yval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.Yval_Label.text = "---";
+            this.SampleLabel_Label = new Label(this);
+            this.SampleLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.SampleLabel_Label.text = "Val:";
+            this.SampleVal_Label = new Label(this);
+            this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.SampleVal_Label.text = "---";
 
-       this.coordinatesCopyLastButton = new ToolButton( this );
-       this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
-       this.coordinatesCopyLastButton.onClick = function () {
-            var preview = this.parent.parent;
-            if (preview.coordinatesEdit.text != "") {
-                  parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
-                  par.comet_last_xy.val = preview.coordinatesEdit.text;
-            }
-       };
-       this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
- 
-       this.coords_Frame = new Frame(this);
-       this.coords_Frame.backgroundColor = 0xffffffff;
-       this.coords_Frame.sizer = new HorizontalSizer;
-       this.coords_Frame.sizer.margin = 2;
-       this.coords_Frame.sizer.spacing = 4;
-       this.coords_Frame.sizer.add(this.zoomLabel_Label);
-       this.coords_Frame.sizer.add(this.zoomVal_Label);
-       this.coords_Frame.sizer.addSpacing(6);
-       this.coords_Frame.sizer.add(this.Xlabel_Label);
-       this.coords_Frame.sizer.add(this.Xval_Label);
-       this.coords_Frame.sizer.addSpacing(6);
-       this.coords_Frame.sizer.add(this.Ylabel_Label);
-       this.coords_Frame.sizer.add(this.Yval_Label);
-       this.coords_Frame.sizer.addSpacing(6);
-       this.coords_Frame.sizer.add(this.SampleLabel_Label);
-       this.coords_Frame.sizer.add(this.SampleVal_Label);
+            this.coordinatesLabel = new Label(this);
+            this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.coordinatesLabel.text = "X,Y:";
+            this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            this.coordinatesEdit = new Edit(this);
+            this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            
+            this.coordinatesCopyFirstButton = new ToolButton( this );
+            this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
+            this.coordinatesCopyFirstButton.onClick = function () {
+                  var preview = this.parent.parent;
+                  if (preview.coordinatesEdit.text != "") {
+                        parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
+                        par.comet_first_xy.val = preview.coordinatesEdit.text;
+                  }
+            };
+            this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+
+            this.coordinatesCopyLastButton = new ToolButton( this );
+            this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
+            this.coordinatesCopyLastButton.onClick = function () {
+                  var preview = this.parent.parent;
+                  if (preview.coordinatesEdit.text != "") {
+                        parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
+                        par.comet_last_xy.val = preview.coordinatesEdit.text;
+                  }
+            };
+            this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
+      } 
+      this.coords_Frame = new Frame(this);
+      this.coords_Frame.backgroundColor = 0xffffffff;
+      this.coords_Frame.sizer = new HorizontalSizer;
+      this.coords_Frame.sizer.margin = 2;
+      this.coords_Frame.sizer.spacing = 4;
+      if (is_histogram) {
+            this.coords_Frame.sizer.add(this.histLabel);
+      } else {
+            this.coords_Frame.sizer.add(this.zoomLabel_Label);
+            this.coords_Frame.sizer.add(this.zoomVal_Label);
+            this.coords_Frame.sizer.addSpacing(6);
+            this.coords_Frame.sizer.add(this.Xlabel_Label);
+            this.coords_Frame.sizer.add(this.Xval_Label);
+            this.coords_Frame.sizer.addSpacing(6);
+            this.coords_Frame.sizer.add(this.Ylabel_Label);
+            this.coords_Frame.sizer.add(this.Yval_Label);
+            this.coords_Frame.sizer.addSpacing(6);
+            this.coords_Frame.sizer.add(this.SampleLabel_Label);
+            this.coords_Frame.sizer.add(this.SampleVal_Label);
+            this.coords_Frame.sizer.addStretch();
+            this.coords_Frame.sizer.add(this.coordinatesLabel);
+            this.coords_Frame.sizer.add(this.coordinatesEdit);
+            this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
+            this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
+       }
        this.coords_Frame.sizer.addStretch();
-       this.coords_Frame.sizer.add(this.coordinatesLabel);
-       this.coords_Frame.sizer.add(this.coordinatesEdit);
-       this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
-       this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
- 
-       this.coords_Frame.sizer.addStretch();
- 
        this.sizer = new VerticalSizer;
-       this.sizer.add(this.buttons_Sizer);
+       if (!is_histogram) {
+            this.sizer.add(this.buttons_Sizer);
+       }
        this.sizer.add(this.scroll_Sizer);
        this.sizer.add(this.coords_Frame);
- 
-       this.setScaledMinSize(6, 6);
  
        var width_overhead = this.scrollbox.viewport.width;
        var heigth_overhead = this.scrollbox.viewport.height;
