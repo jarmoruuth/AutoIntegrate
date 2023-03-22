@@ -378,6 +378,15 @@ function readPersistentSettings()
             if (preview.histogram_height == undefined) {
                   preview.histogram_height = ppar.preview.histogram_height;
             }
+            if (preview.side_preview_width == undefined) {
+                  preview.side_preview_width = ppar.preview.side_preview_width;
+            }
+            if (preview.side_preview_height == undefined) {
+                  preview.side_preview_height = ppar.preview.side_preview_height;
+            }
+            if (preview.side_histogram_height == undefined) {
+                  preview.side_histogram_height = ppar.preview.side_histogram_height;
+            }
             ppar.preview = preview;
             global.use_preview = ppar.preview.use_preview;
       } else {

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.59 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.59 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "Image histogram";                      // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -383,12 +383,15 @@ this.ppar = {
             use_large_preview: false,     // Use large preview window
             preview_sizes: [],            // Array of [ screen_size, width, height ]
             preview_width: 0,             // Current preview width, default set in getPreviewSize.
-            preview_height: 0,            // Current preview height, default set in getPreviewSize..
+            preview_height: 0,            // Current preview height, default set in getPreviewSize.
+            side_preview_width: 0,        // Current side preview width, default set in getPreviewSize.
+            side_preview_height: 0,       // Current side preview height, default set in getPreviewSize.
             show_histogram: true,         // Show histogram in preview window
-            histogram_height: 0           // Histogram height in preview window, default set in getPreviewSize.
+            histogram_height: 0,          // Histogram height in preview window, default set in getPreviewSize.
+            side_histogram_height: 0      // Histogram height in side preview window, default set in getPreviewSize.
       },
       use_single_column: false, // show all options in a single column
-      use_more_tabs: false     // use more tabs for parameters and settings
+      use_more_tabs: false      // use more tabs for parameters and settings
 };
 
 // Run results for testing

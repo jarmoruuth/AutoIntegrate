@@ -468,7 +468,9 @@ function update_extra_target_image_window_list(parent, current_item)
             if (!parent.extraImageComboBox.currentItem) {
                   parent.extraImageComboBox.currentItem = 0;
             }
-            parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
+            if (extra_target_image_window_list && extra_target_image_window_list.length > 0) {
+                  parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
+            }
       }
 }
 
@@ -1205,22 +1207,29 @@ function updatePreviewTxt(txt)
       }
 }
 
-function setHistogramBitmapBackground(graphics)
+function setHistogramBitmapBackground(graphics, side_preview)
 {
+      if (side_preview) {
+            var width = ppar.preview.side_preview_width;
+            var height = ppar.preview.side_histogram_height;
+      } else {
+            var width = ppar.preview.preview_width;
+            var height = ppar.preview.histogram_height;
+      }
       graphics.antialiasing = true;
       graphics.pen = new Pen(0xffffffff,1);
       
-      graphics.fillRect(0, 0, ppar.preview.preview_width, ppar.preview.histogram_height, new Brush(0xff000000));
+      graphics.fillRect(0, 0, width, height, new Brush(0xff000000));
 
       graphics.pen = new Pen(0xFF808080,0);
 
       for (var i = 0.25; i < 1; i += 0.25) {
-            graphics.drawLine(0, ppar.preview.histogram_height*i, ppar.preview.preview_width, ppar.preview.histogram_height*i);
-            graphics.drawLine(ppar.preview.preview_width*i, 0, ppar.preview.preview_width*i, ppar.preview.histogram_height);
+            graphics.drawLine(0, height*i, width, height*i);
+            graphics.drawLine(width*i, 0, width*i, height);
       }
 }
 
-function getHistogramInfo(imgWin)
+function getHistogramInfo(imgWin, side_preview)
 {
       var view = imgWin.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
@@ -1228,15 +1237,23 @@ function getHistogramInfo(imgWin)
       var maxvalue = 0;
       var maxchannels = histogramMatrix.rows;
 
+      if (side_preview) {
+            var width = ppar.preview.side_preview_width;
+            var height = ppar.preview.side_histogram_height;
+      } else {
+            var width = ppar.preview.preview_width;
+            var height = ppar.preview.histogram_height;
+      }
+
       for (var channel = 0; channel < maxchannels; channel++) {
             values[channel] = [];
-            for (var i = 0; i < ppar.preview.preview_width; i++) {
+            for (var i = 0; i < width; i++) {
                   values[channel][i] = 0;
             }
       }
       for (var channel = 0; channel < maxchannels; channel++) {
             for (var col = 0; col < histogramMatrix.cols; col++) {
-                  var i = parseInt(col / histogramMatrix.cols * ppar.preview.preview_width);
+                  var i = parseInt(col / histogramMatrix.cols * width);
                   values[channel][i] += histogramMatrix.at(channel, col);
                   if (values[channel][i] > maxvalue) {
                         maxvalue = values[channel][i];
@@ -1244,7 +1261,7 @@ function getHistogramInfo(imgWin)
             }
       }
       var cumulativeValues = [];
-      for (var i = 0; i < ppar.preview.preview_width; i++) {
+      for (var i = 0; i < width; i++) {
             var channels_values = 0;
             for (var channel = 0; channel < maxchannels; channel++) {
                   channels_values += values[channel][i];
@@ -1256,18 +1273,18 @@ function getHistogramInfo(imgWin)
             }
       }
       var percentageValues = [];
-      for (var i = 0; i < ppar.preview.preview_width; i++) {
-            percentageValues[i] = cumulativeValues[i] / cumulativeValues[ppar.preview.preview_width-1] * 100;
+      for (var i = 0; i < width; i++) {
+            percentageValues[i] = cumulativeValues[i] / cumulativeValues[width-1] * 100;
       }
 
-      var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+      var bitmap = new Bitmap(width, height);
       var graphics = new VectorGraphics(bitmap);
 
-      setHistogramBitmapBackground(graphics);
+      setHistogramBitmapBackground(graphics, side_preview);
 
       for (var channel = 0; channel < maxchannels; channel++) {
             var x1 = 0;
-            var y1 = ppar.preview.histogram_height;
+            var y1 = height;
             if (maxchannels == 1) {
                   graphics.pen = new Pen(0xFFD3D3D3,0);     // LightGray
             } else if (channel == 0) {
@@ -1277,11 +1294,11 @@ function getHistogramInfo(imgWin)
             } else if (channel == 2) {
                   graphics.pen = new Pen(0xFF00BFFF,0);     // DeepSkyBlue
             }
-            for (var i = 0; i < ppar.preview.preview_width; i++) {
+            for (var i = 0; i < width; i++) {
                   var x0 = x1;
                   var y0 = y1;
                   x1 = i;
-                  y1 = ppar.preview.histogram_height - (values[channel][i] / maxvalue) * ppar.preview.histogram_height;
+                  y1 = height - (values[channel][i] / maxvalue) * height;
                   graphics.drawLine(x0, y0, x1, y1);
             }
       }
@@ -1298,18 +1315,21 @@ function updatePreviewWinTxt(imgWin, txt)
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
                   }
                   if (sidePreviewControl != null) {
-                        sidePreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
+                        sidePreviewControl.setSize(ppar.side_preview.preview_width, ppar.preview.side_preview_height);
                   }
                   preview_size_changed = false;
             }
             if (tabHistogramControl != null && sideHistogramControl != null) {
-                  var histogramInfo = getHistogramInfo(imgWin);
+                  var histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
             } else {
                   var histogramInfo = null;
             }
             var bmp = getWindowBitmap(imgWin);
-            updatePreviewImageBmp(tabPreviewControl, imgWin, bmp, tabHistogramControl, histogramInfo);
-            updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
+            if (ppar.preview.side_preview_visible) {
+                  updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
+            } else {
+                  updatePreviewImageBmp(tabPreviewControl, imgWin, bmp, tabHistogramControl, histogramInfo);
+            }
             updatePreviewTxt(txt);
             // console.noteln("Preview updated");
             is_some_preview = true;
@@ -1374,7 +1394,11 @@ function updatePreviewIdReset(id, keep_zoom)
 
 function updatePreviewNoImageInControl(control)
 {
-      var bitmap = new Bitmap(ppar.preview.preview_width - ppar.preview.preview_width/10, ppar.preview.preview_height - ppar.preview.preview_height/10);
+      if (ppar.preview.side_preview_visible) {
+            var bitmap = new Bitmap(ppar.preview.side_preview_width - ppar.preview.side_preview_width/10, ppar.preview.side_preview_height - ppar.preview.side_preview_height/10);
+      } else {
+            var bitmap = new Bitmap(ppar.preview.preview_width - ppar.preview.preview_width/10, ppar.preview.preview_height - ppar.preview.preview_height/10);
+      }
       bitmap.fill(0xff808080);
 
       var graphics = new Graphics(bitmap);
@@ -2318,7 +2342,7 @@ function addFilesButtons(parent)
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
 
-      if (ppar.use_single_column) {
+      if (ppar.use_single_column || ppar.use_more_tabs) {
             var filesButtons_Sizer = new VerticalSizer;
             parent.rootingArr.push(filesButtons_Sizer);
             filesButtons_Sizer.add( filesButtons_Sizer1 );
@@ -2586,9 +2610,11 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       filesControl.sizer = new VerticalSizer;
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
-      let obj = newPageButtonsSizer(parent);
-      parent.rootingArr.push(obj);
-      filesControl.sizer.add(obj);
+      if (0) {
+            let obj = newPageButtonsSizer(parent);
+            parent.rootingArr.push(obj);
+            filesControl.sizer.add(obj);
+      }
       if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS) {
             let obj = addFileFilterButtonSectionBar(parent, pageIndex);
             parent.rootingArr.push(obj);
@@ -3161,13 +3187,13 @@ function newPageButtonsSizer(parent)
             buttonsSizer.add( blinkUp );
             buttonsSizer.add( blinkDown );
       }
-      buttonsSizer.addSpacing( 20 );
+      buttonsSizer.addSpacing( 12 );
       buttonsSizer.add( jsonLabel );
       buttonsSizer.add( jsonLoadButton );
       buttonsSizer.add( jsonSaveButton );
       buttonsSizer.add( jsonSaveWithSewttingsButton );
 
-      buttonsSizer.addSpacing( 20 );
+      buttonsSizer.addSpacing( 12 );
       buttonsSizer.add( currentPageLabel );
       buttonsSizer.add( currentPageCheckButton );
       buttonsSizer.add( currentPageClearButton );
@@ -3175,7 +3201,7 @@ function newPageButtonsSizer(parent)
       buttonsSizer.add( currentPageExpandButton );
       buttonsSizer.add( currentPageFilterButton );
 
-      buttonsSizer.addSpacing( 20 );
+      buttonsSizer.addSpacing( 12 );
       buttonsSizer.add( bestImageLabel );
       buttonsSizer.add( setBestImageButton );
       buttonsSizer.add( setReferenceImageButton );
@@ -3274,9 +3300,13 @@ function getWindowBitmap(imgWin)
       return bmp;
 }
 
-function newPreviewObj(parent)
+function newPreviewObj(parent, side_preview)
 {
-      var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.preview_height, false);
+      if (side_preview) {
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.side_preview_width, ppar.preview.side_preview_height, false);
+      } else {
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.preview_height, false);
+      }
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -3309,27 +3339,34 @@ function newPreviewObj(parent)
                statuslabel: newStatusInfoLabel, sizer: previewSizer };
 }
 
-function newHistogramControl(parent)
+function newHistogramControl(parent, side_preview)
 {
       if (!ppar.preview.show_histogram) {
             return null;
       }
+      if (side_preview) {
+            var width = ppar.preview.side_preview_width;
+            var height = ppar.preview.side_histogram_height;
+      } else {
+            var width = ppar.preview.preview_width;
+            var height = ppar.preview.histogram_height;
+      }
       if (histogramUsePreviewControl) {
-            var histogramViewControl = new AutoIntegratePreviewControl(parent, par, ppar.preview.preview_width, ppar.preview.histogram_height, true);
-            var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+            var histogramViewControl = new AutoIntegratePreviewControl(parent, par, width, height, true);
+            var bitmap = new Bitmap(width, height);
             var graphics = new VectorGraphics(bitmap);
-            setHistogramBitmapBackground(graphics);
+            setHistogramBitmapBackground(graphics, side_preview);
             graphics.end();
             histogramViewControl.SetImage(null, bitmap);
 
       } else {
             var histogramViewControl = new Control(parent);
-		histogramViewControl.scaledMinWidth = ppar.preview.preview_width;
-		histogramViewControl.scaledMinHeight = ppar.preview.histogram_height;
+		histogramViewControl.scaledMinWidth = width;
+		histogramViewControl.scaledMinHeight = height;
 
-            var bitmap = new Bitmap(ppar.preview.preview_width, ppar.preview.histogram_height);
+            var bitmap = new Bitmap(width, height);
             var graphics = new VectorGraphics(bitmap);
-            setHistogramBitmapBackground(graphics);
+            setHistogramBitmapBackground(graphics, side_preview);
             graphics.end();
             histogramViewControl.aiInfo = { bitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null };
             histogramViewControl.onPaint = function(x0, y0, x1, y1) {
@@ -3459,7 +3496,7 @@ function toggleSidePreview()
       updateSidePreviewState();
 }
 
-function updatePreviewSize(w, h, hh)
+function updatePreviewSize(w, h, hh, sw, sh, shh)
 {
       preview_size_changed = true;
 
@@ -3470,7 +3507,16 @@ function updatePreviewSize(w, h, hh)
             ppar.preview.preview_height = h;
       }
       if (hh > 0) {
-            ppar.preview.histogram_height = h;
+            ppar.preview.histogram_height = hh;
+      }
+      if (sw > 0) {
+            ppar.preview.side_preview_width = sw;
+      }
+      if (sh > 0) {
+            ppar.preview.side_preview_height = sh;
+      }
+      if (shh > 0) {
+            ppar.preview.side_histogram_height = shh;
       }
 
       for (var i = 0; i < ppar.preview.preview_sizes.length; i++) {
@@ -3484,14 +3530,34 @@ function updatePreviewSize(w, h, hh)
                   }
                   if (hh > 0) {
                         ppar.preview.preview_sizes[i][3] = hh;
+                  } else {
+                        ppar.preview.preview_sizes[i][3] = ppar.preview.histogram_height;
                   }
+                  if (sw > 0) {
+                        ppar.preview.preview_sizes[i][4] = sw;
+                  } else {
+                        ppar.preview.preview_sizes[i][4] = ppar.preview.side_preview_width;
+                  }
+                  if (sh > 0) {
+                        ppar.preview.preview_sizes[i][5] = sh;
+                  } else {
+                        ppar.preview.preview_sizes[i][5] = ppar.preview.side_preview_height;
+                  }
+                  if (shh > 0) {
+                        ppar.preview.preview_sizes[i][6] = shh;
+                  } else {
+                        ppar.preview.preview_sizes[i][6] = ppar.preview.side_histogram_height;
+                  }
+
                   console.writeln("Update existing preview size for screen size " + screen_size + " to " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2] + ", " + ppar.preview.preview_sizes[i][3]);
                   return;
             }
       }
       /* Not found, add a new one. */
-      ppar.preview.preview_sizes[ppar.preview.preview_sizes.length] = [ screen_size, ppar.preview.preview_width, ppar.preview.preview_height, ppar.preview.histogram_height ];
-      console.writeln("Add a new preview size for screen size " + screen_size + " as " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2] + ", " + ppar.preview.preview_sizes[i][3]);
+      ppar.preview.preview_sizes[ppar.preview.preview_sizes.length] = [ screen_size, ppar.preview.preview_width, ppar.preview.preview_height, ppar.preview.histogram_height,  
+                                                                        ppar.preview.side_preview_width, ppar.preview.side_preview_height, ppar.preview.side_histogram_height];
+      console.writeln("Add a new preview size for screen size " + screen_size + " as " + ppar.preview.preview_sizes[i][1] + ", " + ppar.preview.preview_sizes[i][2] + ", " + ppar.preview.preview_sizes[i][3] + ", " + 
+                        ppar.preview.preview_sizes[i][4] + ", " + ppar.preview.preview_sizes[i][5] + ", " + ppar.preview.preview_sizes[i][6]);
 }
 
 function getPreviewSize(availableScreenRect)
@@ -3511,6 +3577,11 @@ function getPreviewSize(availableScreenRect)
                   ppar.preview.preview_height = ppar.preview.preview_sizes[i][2];
                   if (ppar.preview.preview_sizes[i].length > 3) {
                         ppar.preview.histogram_height = ppar.preview.preview_sizes[i][3];
+                  }
+                  if (ppar.preview.preview_sizes[i].length > 4) {
+                        ppar.preview.side_preview_width = ppar.preview.preview_sizes[i][4];
+                        ppar.preview.side_preview_height = ppar.preview.preview_sizes[i][5];
+                        ppar.preview.side_histogram_height = ppar.preview.preview_sizes[i][6];
                   }
             }
       }
@@ -3547,7 +3618,13 @@ function getPreviewSize(availableScreenRect)
                   ppar.preview.histogram_height = 50;
             }
       }
-      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height);
+      if (ppar.preview.side_preview_width == 0) {
+            ppar.preview.side_preview_width = ppar.preview.preview_width;
+            ppar.preview.side_preview_height = ppar.preview.preview_height;
+            ppar.preview.side_histogram_height = ppar.preview.histogram_height;
+      }
+      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height + 
+                        ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + ", side histogram height " + ppar.preview.side_histogram_height);
 }
 
 /***************************************************************************
@@ -6284,21 +6361,29 @@ function AutoIntegrateDialog()
       this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
-                  updatePreviewSize(value, 0); 
+                  updatePreviewSize(value, 0, 0, 0, 0); 
             }
       );
       this.preview_height_label = newLabel(this, 'height', "Preview image height.");
       this.preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
-                  updatePreviewSize(0, value); 
+                  updatePreviewSize(0, value, 0, 0, 0); 
             }
       );
-      this.histogram_height_label = newLabel(this, 'Histogram height', "Image histogram height.");
-      this.histogram_height_edit = newGenericSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
-            this.histogram_height_label.toolTip,
+
+      this.side_preview_width_label = newLabel(this, 'Side preview width', "Side preview image width.");
+      this.side_preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
+            "Side preview image width.",
             function(value) { 
-                  updatePreviewSize(0, 0, value);
+                  updatePreviewSize(0, 0, 0, value, 0); 
+            }
+      );
+      this.side_preview_height_label = newLabel(this, 'height', "Side preview image height.");
+      this.side_preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview.side_preview_height, 100, 4000, 
+            "Side preview image height.",
+            function(value) { 
+                  updatePreviewSize(0, 0, 0, 0, value); 
             }
       );
 
@@ -6309,10 +6394,38 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.preview_width_edit );
       this.preview2Sizer.add( this.preview_height_label );
       this.preview2Sizer.add( this.preview_height_edit );
-      this.preview2Sizer.add( this.histogram_height_label );
-      this.preview2Sizer.add( this.histogram_height_edit );
+      this.preview2Sizer.add( this.side_preview_width_label );
+      this.preview2Sizer.add( this.side_preview_width_edit );
+      this.preview2Sizer.add( this.side_preview_height_label );
+      this.preview2Sizer.add( this.side_preview_height_edit );
       this.preview2Sizer.addStretch();
       this.preview2Sizer.add( this.saveInterfaceButton );
+
+      this.histogram_height_label = newLabel(this, 'Histogram height', "Image histogram height.");
+      this.histogram_height_edit = newGenericSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
+            this.histogram_height_label.toolTip,
+            function(value) { 
+                  updatePreviewSize(0, 0, value, 0, 0);
+            }
+      );
+
+      this.side_histogram_height_label = newLabel(this, 'Side preview histogram height', "Image histogram height in side preview.");
+      this.side_histogram_height_edit = newGenericSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
+            this.side_histogram_height_label.toolTip,
+            function(value) { 
+                  updatePreviewSize(0, 0, 0, 0, 0, value);
+            }
+      );
+
+      this.preview3Sizer = new HorizontalSizer;
+      this.preview3Sizer.margin = 6;
+      this.preview3Sizer.spacing = 4;
+      this.preview3Sizer.add( this.histogram_height_label );
+      this.preview3Sizer.add( this.histogram_height_edit );
+      this.preview3Sizer.add( this.side_histogram_height_label );
+      this.preview3Sizer.add( this.side_histogram_height_edit );
+      this.preview3Sizer.addStretch();
+      this.preview3Sizer.add( this.saveInterfaceButton );
 
       this.processConsole_label = newLabel(this, 'Process console', "Show or hide process console.");
 
@@ -6378,6 +6491,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.add( this.preview0Sizer );
       this.interfaceControl.sizer.add( this.preview1Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
+      this.interfaceControl.sizer.add( this.preview3Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
       if (par.use_manual_icon_column.val) {
             this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
@@ -6468,8 +6582,10 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.adjusttocontent_Button );
-      this.buttons_Sizer.addSpacing( 6 );
-      this.buttons_Sizer.add( this.info_Sizer );
+      if (0) {
+            this.buttons_Sizer.addSpacing( 6 );
+            this.buttons_Sizer.add( this.info_Sizer );
+      }
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
@@ -6557,15 +6673,15 @@ function AutoIntegrateDialog()
       if (global.use_preview) {
             /* Create preview objects.
              */
-            this.tabPreviewObj = newPreviewObj(this);
-            tabHistogramControl = newHistogramControl(this);
+            this.tabPreviewObj = newPreviewObj(this, false);
+            tabHistogramControl = newHistogramControl(this, false);
 
             tabPreviewControl = this.tabPreviewObj.control;
             tabPreviewInfoLabel = this.tabPreviewObj.infolabel;
             global.tabStatusInfoLabel = this.tabPreviewObj.statuslabel;
 
-            this.sidePreviewObj = newPreviewObj(this);
-            sideHistogramControl = newHistogramControl(this);
+            this.sidePreviewObj = newPreviewObj(this, true);
+            sideHistogramControl = newHistogramControl(this, true);
 
             sidePreviewControl = this.sidePreviewObj.control;
             sidePreviewInfoLabel = this.sidePreviewObj.infolabel;
@@ -6755,8 +6871,11 @@ function AutoIntegrateDialog()
       this.baseSizer.margin = 6;
       this.baseSizer.spacing = 4;
       this.baseSizer.add( this.tabBox);             // Files tabs
+      this.pageButtonsSizer = newPageButtonsSizer(this);
+      this.baseSizer.add( this.pageButtonsSizer);
       this.baseSizer.add( this.filesButtonsSizer);  // Buttons row below files
       this.baseSizer.add( this.mainSizer );         // Main view with tabbs
+      this.baseSizer.add( this.info_Sizer );
       this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom
 
       this.sizer = new HorizontalSizer;

@@ -24,6 +24,9 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
              this.scaledImage = null;
              this.SetZoomOutLimit();
              this.UpdateZoom(-100);
+             if (imgWin != null) {
+                   this.image_name_Label.text = imgWin.mainView.fullId;
+             }
        }
  
        // Update image window and bitmap
@@ -39,7 +42,10 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                    this.scaledImage = null;
                    this.SetZoomOutLimit();
                    this.UpdateZoom(this.zoom);
-             }
+                   if (imgWin != null) {
+                        this.image_name_Label.text = imgWin.mainView.fullId;
+                  }
+            }
        }
  
        this.UpdateZoom = function (newZoom, refPoint)
@@ -134,13 +140,19 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             {
                   this.parent.UpdateZoom(-100);
             };
-      
+
+            this.image_name_Label = new Label( this );
+            this.image_name_Label.text = "";
+            this.image_name_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
             this.buttons_Sizer = new HorizontalSizer;
             this.buttons_Sizer.add( this.zoomIn_Button );
             this.buttons_Sizer.add( this.zoomOut_Button );
             this.buttons_Sizer.add( this.zoom11_Button );
             this.buttons_Sizer.add( this.zoomFit_Button );
             this.buttons_Sizer.addStretch();
+            this.buttons_Sizer.addSpacing( 12 );
+            this.buttons_Sizer.add( this.image_name_Label );
        } 
        this.zoom = 1;
        this.scale = 1;
