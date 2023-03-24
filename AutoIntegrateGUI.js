@@ -248,7 +248,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic', 'Logarithmic stretch' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic', 'Logarithmic stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -2902,7 +2902,11 @@ function newAutoContinueButton(parent, toolbutton)
             "<ol>" +
             "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
             "<li>L_HT + RGB_HT - Manually stretched L and RGB images</li>" +
+            "<li>Integration_L_noABE_HT + Integration_RGB_noABE_HT - Manually stretched the automatically created files</li>" +
+            "<li>Integration_L_ABE_HT + Integration_RGB_ABE_HT - Manually stretched the automatically created files</li>" +
             "<li>RGB_HT - Manually stretched RGB image</li>" +
+            "<li>Integration_RGB_noABE_HT - Manually stretched the automatically created file</li>" +
+            "<li>Integration_RGB_ABE_HT - Manually stretched the automatically created file</li>" +
             "<li>Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images</li>" +
             "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
             "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
@@ -3806,7 +3810,7 @@ function AutoIntegrateDialog()
       this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
             "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p>" +
             "<p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file " +
-            "that can be used to crop files to common are during AutoContinue.</p>" );
+            "that can be used to crop files to common area during AutoContinue.</p>" );
       this.imageWeightTestingCheckBox = newCheckBox(this, "Image weight testing ", par.image_weight_testing, 
             "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log AutoWeights.json. " +
             "Json file can be loaded as input file list.</p>" +
@@ -4791,6 +4795,7 @@ function AutoIntegrateDialog()
             "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful also when stretching stars to keep good star color.</p></li>" +
             "<li>Histogram stretch - " + histogramStretchToolTip + "</li>" +
             "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process. " + Hyperbolic_tips + "</li>" +
+            "<li>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</li>" +
             "</ul>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");

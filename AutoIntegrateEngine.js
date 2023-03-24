@@ -839,8 +839,10 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 
       if (!par.skip_mask_contrast.val) {
             //clipShadows(targetWindow, 1.0);   Not sure if this actually helps
-            extraContrast(targetWindow);
+            extraAutoContrast(targetWindow, 0.1);
       }
+
+      runMultiscaleLinearTransformReduceNoise(targetWindow, null, 3);
 
       return targetWindow;
 }
@@ -4847,6 +4849,8 @@ function runImageIntegrationForCrop(images)
             checkCancel();
       }
 
+      runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(new_name), null, 4);
+
       return new_name
       
 }
@@ -5476,42 +5480,6 @@ function stretchHistogramTransform(res, image_stretching, channel)
             var mapping = "ln(1+$T)";
             runPixelMathSingleMappingEx(new_win.mainView.id, mapping, false, null, true, true);
 
-      } else if (image_stretching == 'Logarithmic stretch XXX') {
-
-            var expression = "ln(1+$T)";
-            var P = new PixelMath;
-            if (channel >= 0) {
-                  switch (channel) {
-                        case 0:
-                              P.expression = expression;
-                              P.expression1 = "1+$T";
-                              P.expression2 = "1+$T";
-                              break;
-                        case 1:
-                              P.expression = "1+$T";
-                              P.expression1 = expression;
-                              P.expression2 = "1+$T";
-                              break;
-                        case 2:
-                              P.expression = "1+$T";
-                              P.expression1 = "1+$T";
-                              P.expression2 = expression;
-                              break;
-                  }
-                  P.useSingleExpression = false;
-            } else {
-                  P.expression = expression;
-                  P.useSingleExpression = true;
-            }
-            P.rescale = true;
-            P.createNewImage = false;
-            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(new_win.mainView);
-            new_win.mainView.endProcess();
-            checkCancel();
-      
       } else {
             util.throwFatalError("Unknown image stretching method: " + image_stretching);
       }
@@ -5820,6 +5788,13 @@ function runHistogramTransform(ABE_win, stf_to_use, iscolor, type)
       } else {
             var image_stretching = par.image_stretching.val;
       }
+      if (image_stretching == 'None') {
+            if (type == 'mask') {
+                  image_stretching = 'Auto STF';
+            } else {
+                  return { win: ABE_win, stf: null };
+            }
+      }
       console.writeln("runHistogramTransform using " + image_stretching);
       var stf = null;
       var targetBackground; // to be compatible with 'use strict';
@@ -5982,7 +5957,11 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
             return;
       }
 
-      console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
+      if (maskWin != null) {
+            console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength);
+      } else {
+            console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + ", strength " + strength);
+      }
 
       switch (strength) {
             case 1:
@@ -7101,11 +7080,31 @@ function findStartWindowCheckBaseNameIf(id, check_base_name)
       return win;
 }
 
+function findStartWindowCheckBaseNameArrayIf(idarray, check_base_name)
+{
+      for (var i = 0; i < idarray.length; i++) {
+            var win = findWindowCheckBaseNameIf(idarray[i], check_base_name);
+            if (win) {
+                  console.writeln("findStartWindowCheckBaseNameArrayIf: found " + win.mainView.id);
+                  return win;
+            }
+      }
+      return null;
+}
+
 function findStartImages(auto_continue, check_base_name, can_update_preview)
 {
       /* Check if we have manually done histogram transformation. */
       L_HT_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
+      if (L_HT_win == null) {
+            // Check also the automatically generated names but only with possible prefix.
+            L_HT_win = findStartWindowCheckBaseNameArrayIf(["Integration_L_noABE_HT", "Integration_L_ABE_HT"], false);
+      }
       RGB_HT_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
+      if (RGB_HT_win == null) {
+            // Check also the automatically generated names but only with possible prefix.
+            RGB_HT_win = findStartWindowCheckBaseNameArrayIf(["Integration_RGB_noABE_HT", "Integration_RGB_ABE_HT"], false);
+      }
 
       /* Check if we have manual background extracted files. */
       L_BE_win = findStartWindowCheckBaseNameIf("Integration_L_DBE", check_base_name);
@@ -9120,12 +9119,12 @@ function extraEnhanceHighlights(win)
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
 }
 
-function extraAutoContrast(win)
+function extraAutoContrast(win, contrast_limit)
 {
-      util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + par.extra_auto_contrast_limit.val);
+      util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + contrast_limit);
 
-      var low_clip = getClipShadowsValue(win, par.extra_auto_contrast_limit.val);
-      var high_clip = getClipShadowsValue(win, 100 - par.extra_auto_contrast_limit.val);
+      var low_clip = getClipShadowsValue(win, contrast_limit);
+      var high_clip = getClipShadowsValue(win, 100 - contrast_limit);
 
       var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
 
@@ -9291,6 +9290,8 @@ function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
       ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(ch_win.mainView);
       ch_win.mainView.endProcess();
+
+      runNoiseReductionEx(ch_win, ch_mask_win, 3, false);
 
       // run curves transformation with a mask
       var P = new CurvesTransformation;
@@ -9675,7 +9676,7 @@ function extraProcessing(parent, id, apply_directly)
             }
       }
       if (par.extra_auto_contrast.val) {
-            extraAutoContrast(extraWin);
+            extraAutoContrast(extraWin, par.extra_auto_contrast_limit.val);
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
