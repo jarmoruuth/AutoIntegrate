@@ -5270,7 +5270,8 @@ function stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, c
             iteration_number: 0, 
             completed: false, 
             skipped: 0,
-            clipCount: 0
+            clipCount: 0,
+            forward: true
       };
 
       for (var i = 0; i < 100; i++) {
@@ -5403,10 +5404,14 @@ function stretchHistogramTransform(res, image_stretching, channel)
 
       console.writeln("*** current value " + current_value);
 
-      // Iterative method gives maybe a bit better shadows
-      if (0 && res.iteration_number == 1) {
+      if (current_value > target_value && res.iteration_number == 1) {
+            res.forward = false;
+      }
+
+      if (!res.forward) {
             midtones[channel_number] = Math.mtf(target_value, current_value);
       } else {
+            // Iterative method gives maybe a bit better shadows
             var adjust = target_value - current_value;
             midtones[channel_number] = 0.50 - adjust;
       }
@@ -5477,7 +5482,11 @@ function stretchHistogramTransform(res, image_stretching, channel)
 
       } else if (image_stretching == 'Logarithmic stretch') {
 
-            var mapping = "ln(1+$T)";
+            if (res.forward) {
+                  var mapping = "ln(1+$T)";
+            } else {
+                  var mapping = "exp($T)";
+            }
             runPixelMathSingleMappingEx(new_win.mainView.id, mapping, false, null, true, true);
 
       } else {
@@ -5552,8 +5561,8 @@ function stretchHistogramTransform(res, image_stretching, channel)
       }
       var window_updated = false;
 
-      if (current_value > target_value + 0.1 * target_value) {
-            // We are past the target value, ignore this iteration
+      if (res.forward && current_value > target_value + 0.1 * target_value) {
+            // We are above the target value, ignore this iteration
             res.skipped++;
             util.forceCloseOneWindow(new_win);
             if (res.skipped > 3) {
@@ -5562,6 +5571,12 @@ function stretchHistogramTransform(res, image_stretching, channel)
             } else {
                   console.writeln("*** Skip, we are past the target, skip this iteration, skipped + " + res.skipped + ", current value " + current_value + ", target value " + target_value);
             }
+      } else if (!res.forward && current_value < target_value + 0.1 * target_value) {
+                  // We are below the target value, ignore this iteration
+                  res.skipped++;
+                  util.forceCloseOneWindow(new_win);
+                  console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+                  res.completed = true;
       } else {
             window_updated = true;
             if (current_value < target_value - 0.1 * target_value) {

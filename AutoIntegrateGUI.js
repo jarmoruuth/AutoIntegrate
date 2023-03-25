@@ -752,6 +752,8 @@ function Autorun(parent)
                               console.writeln("AutoRun");
                         }
                         first_step = false;
+                  } else {
+                        global.user_selected_reference_image = [];
                   }
                   try {
                         if (batch_narrowband_palette_mode) {
