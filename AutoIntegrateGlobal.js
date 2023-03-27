@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.59 test4";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.59 test5";         // Version, also updated into updates.xri
 this.autointegrate_info = "Image histogram";                      // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -280,6 +280,7 @@ this.par = {
       color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
 
       // Extra processing for narrowband
+      run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
       run_colorized_sho: { val: false, def: false, name : "Extra colorized SHO", type : 'B' },

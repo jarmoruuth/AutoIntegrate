@@ -922,6 +922,7 @@ this.is_extra_option = function()
 this.is_narrowband_option = function()
 {
       return par.fix_narrowband_star_color.val ||
+             par.run_less_green_hue_shift.val ||
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_colorized_sho.val ||

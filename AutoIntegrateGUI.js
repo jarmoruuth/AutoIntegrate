@@ -5508,6 +5508,8 @@ function AutoIntegrateDialog()
       // Narrowband extra processing
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
+      this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(this, "Hue shift for less green", par.run_less_green_hue_shift, 
+            "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
       this.narrowband_orange_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_orange_hue_shift, 
             "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
@@ -5545,6 +5547,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer = new VerticalSizer;
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
+      this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_colorized_sho_sizer);
@@ -5564,6 +5567,7 @@ function AutoIntegrateDialog()
             "They are applied before other extra processing options in the following order:" +
             "</p>" +
             "<ol>" +
+            "<li>Hue shift for less green</li>" +
             "<li>Hue shift for more orange</li>" +
             "<li>Hue shift for SHO</li>" +
             "<li>Colorized SHO</li>" +

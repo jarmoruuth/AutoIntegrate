@@ -6633,7 +6633,7 @@ function runSCNR(RGBimgView, fixing_stars)
 // Run hue shift on narrowband image to enhance orange.
 function narrowbandOrangeHueShift(imgView)
 {
-      util.addProcessingStepAndStatusInfo("Hue shift on " + imgView.id);
+      util.addProcessingStepAndStatusInfo("Orange hue shift on " + imgView.id);
       
       var P = new CurvesTransformation;
       P.H = [ // x, y
@@ -6643,6 +6643,31 @@ function narrowbandOrangeHueShift(imgView)
          [1.00000, 1.00000]
       ];
       
+      imgView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgView, false);
+
+      imgView.endProcess();
+
+      checkCancel();
+
+      guiUpdatePreviewId(imgView.id);
+}
+
+// Run hue shift on narrowband image to shift green more to yellow.
+function narrowbandGreenHueShift(imgView)
+{
+      util.addProcessingStepAndStatusInfo("Green hue shift on " + imgView.id);
+      
+      var P = new CurvesTransformation;
+      P.H = [ // x, y
+            [0.00000, 0.00000],
+            [0.22167, 0.10400],
+            [0.35140, 0.16000],
+            [0.42365, 0.45000],
+            [0.66831, 0.69600],
+            [1.00000, 1.00000]
+      ];
       imgView.beginProcess(UndoFlag_NoSwapFile);
 
       P.executeOn(imgView, false);
@@ -9610,6 +9635,9 @@ function extraProcessing(parent, id, apply_directly)
             extraWin = extraStretch(extraWin);
       }
       if (process_narrowband) {
+            if (par.run_less_green_hue_shift.val) {
+                  narrowbandGreenHueShift(extraWin.mainView);
+            }
             if (par.run_orange_hue_shift.val) {
                   narrowbandOrangeHueShift(extraWin.mainView);
             }
