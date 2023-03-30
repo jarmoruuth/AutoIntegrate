@@ -219,6 +219,8 @@ var sideHistogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 
+var current_histogramInfo = null;
+
 var tab_preview_index = 1;
 var is_some_preview = false;
 var preview_size_changed = false;
@@ -513,7 +515,7 @@ function remove_undo_image(id)
       util.closeOneWindow(id);
 }
 
-function add_undo_image(parent, original_id, undo_id)
+function add_undo_image(parent, original_id, undo_id, histogramInfo)
 {
       //console.writeln("add_undo_image");
       while (undo_images.length > undo_images_pos + 1) {
@@ -526,7 +528,7 @@ function add_undo_image(parent, original_id, undo_id)
       var new_undo_id = original_id + "_undo_" + (undo_images_pos+1);
       util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
       console.writeln("Add undo image " + new_undo_id);
-      undo_images[undo_images_pos] = new_undo_id;
+      undo_images[undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo };
       update_undo_buttons(parent);
 }
 
@@ -547,18 +549,17 @@ function apply_undo(parent)
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(undo_images[undo_images_pos - 1]);
+      var source_win = ImageWindow.windowById(undo_images[undo_images_pos - 1].id);
       if (source_win == null) {
-            console.criticalln("Failed to find undo image " + undo_images[undo_images_pos - 1]);
+            console.criticalln("Failed to find undo image " + undo_images[undo_images_pos - 1].id);
             return;
       }
+      var source_histogramInfo = undo_images[undo_images_pos - 1].histogramInfo;
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
 
-      forceNewHistogram(target_win);
-      
-      updatePreviewIdReset(global.extra_target_image, true);
+      updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       undo_images_pos--;
       // console.writeln("undo_images_pos " + undo_images_pos);
@@ -582,9 +583,9 @@ function apply_redo(parent)
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(undo_images[undo_images_pos + 1]);
+      var source_win = ImageWindow.windowById(undo_images[undo_images_pos + 1].id);
       if (source_win == null) {
-            console.criticalln("Failed to find redo image " + undo_images[undo_images_pos + 1]);
+            console.criticalln("Failed to find redo image " + undo_images[undo_images_pos + 1].id);
             return;
       }
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -652,7 +653,7 @@ function close_undo_images(parent)
       if (undo_images.length > 0) {
             console.writeln("Close undo images");
             for (var i = 0; i < undo_images.length; i++) {
-                  util.closeOneWindow(undo_images[i]);
+                  util.closeOneWindow(undo_images[i].id);
             }
             undo_images = [];
             undo_images_pos = -1;
@@ -1309,7 +1310,7 @@ function getHistogramInfo(imgWin, side_preview)
       return { bitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues };
 }
 
-function updatePreviewWinTxt(imgWin, txt)
+function updatePreviewWinTxt(imgWin, txt, histogramInfo)
 {
       if (global.use_preview && imgWin != null) {
             if (preview_size_changed) {
@@ -1321,11 +1322,14 @@ function updatePreviewWinTxt(imgWin, txt)
                   }
                   preview_size_changed = false;
             }
-            if (tabHistogramControl != null && sideHistogramControl != null) {
-                  var histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
-            } else {
-                  var histogramInfo = null;
+            if (!histogramInfo) {
+                  if (tabHistogramControl != null && sideHistogramControl != null) {
+                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
+                  } else {
+                        histogramInfo = null;
+                  }
             }
+            current_histogramInfo = histogramInfo;
             var bmp = getWindowBitmap(imgWin);
             if (ppar.preview.side_preview_visible) {
                   updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
@@ -1382,12 +1386,12 @@ function updatePreviewId(id)
       }
 }
 
-function updatePreviewIdReset(id, keep_zoom)
+function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 {
       if (global.use_preview) {
             preview_keep_zoom = keep_zoom;
             var win = ImageWindow.windowById(id);
-            updatePreviewWinTxt(win, id);
+            updatePreviewWinTxt(win, id, histogramInfo);
             util.updateStatusInfoLabel("Size: " + win.mainView.image.width + "x" + win.mainView.image.height);
             is_some_preview = false;
             global.is_processing = false;
@@ -5985,6 +5989,7 @@ function AutoIntegrateDialog()
                               global.extra_target_image = copy_undo_edit_image(global.extra_target_image);
                         }
                         var first_undo_image_id = create_undo_image(global.extra_target_image);
+                        var first_undo_image_id_histogramInfo = current_histogramInfo;
                   } else {
                         var first_undo_image_id = null;
                   }
@@ -5993,12 +5998,12 @@ function AutoIntegrateDialog()
                         engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (undo_images.length == 0) {
                               // add first/original undo image
-                              add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id);
+                              add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
                               // save copy of original image to the window list and make is current
                               update_extra_target_image_window_list(this.dialog, global.extra_target_image);
                         }
                         let undo_image_id = create_undo_image(global.extra_target_image);
-                        add_undo_image(this.dialog, global.extra_target_image, undo_image_id);
+                        add_undo_image(this.dialog, global.extra_target_image, undo_image_id, current_histogramInfo);
                         console.noteln("Apply completed (" + undo_images.length + "/" + undo_images.length + ")");
                   } 
                   catch(err) {
