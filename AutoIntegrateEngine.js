@@ -9159,16 +9159,42 @@ function extraEnhanceHighlights(win)
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
 }
 
-function extraAutoContrast(win, contrast_limit)
+function extraAutoContrastChannel(imgWin, channel)
 {
-      util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + contrast_limit);
+      util.addProcessingStepAndStatusInfo("Extra auto contrast on " + channel);
 
-      var low_clip = getClipShadowsValue(win, contrast_limit);
-      var high_clip = getClipShadowsValue(win, 100 - contrast_limit);
+      // extract channel data
+      var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
+      var ch_win = util.findWindow(ch_id);
 
-      var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
+      extraAutoContrast(ch_win, par.extra_auto_contrast_limit.val);
 
-      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+      return ch_id;
+}
+
+function extraAutoContrast(win, contrast_limit, channels)
+{
+      if (channels) {
+            var R_id = extraAutoContrastChannel(win, 'R'); 
+            var G_id = extraAutoContrastChannel(win, 'G');
+            var B_id = extraAutoContrastChannel(win, 'B');
+
+            runPixelMathRGBMapping(null, win, R_id, G_id, B_id);
+
+            util.closeOneWindow(R_id);
+            util.closeOneWindow(G_id);
+            util.closeOneWindow(B_id);
+
+      } else {
+            util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + contrast_limit);
+
+            var low_clip = getClipShadowsValue(win, contrast_limit);
+            var high_clip = getClipShadowsValue(win, 100 - contrast_limit);
+
+            var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
+
+            runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+      }
 }
 
 function extraNoiseReduction(win, mask_win)
@@ -9331,7 +9357,7 @@ function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
       P.executeOn(ch_win.mainView);
       ch_win.mainView.endProcess();
 
-      runNoiseReductionEx(ch_win, ch_mask_win, 3, false);
+      runNoiseReductionEx(ch_win, ch_mask_win, 4, false);
 
       // run curves transformation with a mask
       var P = new CurvesTransformation;
@@ -9357,6 +9383,8 @@ function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
 
       ch_win.removeMask();
       ch_win.mainView.endProcess();
+
+      guiUpdatePreviewWin(ch_win);
 
       util.closeOneWindow(ch_mask_win.mainView.id);
 
@@ -9719,7 +9747,7 @@ function extraProcessing(parent, id, apply_directly)
             }
       }
       if (par.extra_auto_contrast.val) {
-            extraAutoContrast(extraWin, par.extra_auto_contrast_limit.val);
+            extraAutoContrast(extraWin, par.extra_auto_contrast_limit.val, par.extra_auto_contrast_channels.val);
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);
