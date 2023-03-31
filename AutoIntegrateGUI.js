@@ -521,7 +521,7 @@ function add_undo_image(parent, original_id, undo_id, histogramInfo)
       while (undo_images.length > undo_images_pos + 1) {
             var removed = undo_images.pop();
             console.writeln("Remove undo image " + removed);
-            util.closeOneWindow(removed);
+            util.closeOneWindow(removed.id);
       }
       undo_images_pos++;
       // console.writeln("undo_images_pos " + undo_images_pos);
