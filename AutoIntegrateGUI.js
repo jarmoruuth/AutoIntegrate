@@ -588,13 +588,12 @@ function apply_redo(parent)
             console.criticalln("Failed to find redo image " + undo_images[undo_images_pos + 1].id);
             return;
       }
+      var source_histogramInfo = undo_images[undo_images_pos + 1].histogramInfo;
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
       
-      forceNewHistogram(target_win);
-      
-      updatePreviewIdReset(global.extra_target_image, true);
+      updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       undo_images_pos++;
       // console.writeln("undo_images_pos " + undo_images_pos);
@@ -1322,14 +1321,20 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   preview_size_changed = false;
             }
-            if (!histogramInfo) {
+            if (histogramInfo) {
+                  // console.writeln("updatePreviewWinTxt:use exiting histogramInfo");
+                  current_histogramInfo = histogramInfo;
+            } else {
                   if (tabHistogramControl != null && sideHistogramControl != null) {
+                        // console.writeln("updatePreviewWinTxt:get new histogramInfo");
+                        forceNewHistogram(imgWin);
                         histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
                   } else {
+                        // console.writeln("updatePreviewWinTxt:no histogram");
                         histogramInfo = null;
                   }
+                  current_histogramInfo = histogramInfo;
             }
-            current_histogramInfo = histogramInfo;
             var bmp = getWindowBitmap(imgWin);
             if (ppar.preview.side_preview_visible) {
                   updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
@@ -2908,11 +2913,7 @@ function newAutoContinueButton(parent, toolbutton)
             "<ol>" +
             "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
             "<li>L_HT + RGB_HT - Manually stretched L and RGB images</li>" +
-            "<li>Integration_L_noABE_HT + Integration_RGB_noABE_HT - Manually stretched the automatically created files</li>" +
-            "<li>Integration_L_ABE_HT + Integration_RGB_ABE_HT - Manually stretched the automatically created files</li>" +
             "<li>RGB_HT - Manually stretched RGB image</li>" +
-            "<li>Integration_RGB_noABE_HT - Manually stretched the automatically created file</li>" +
-            "<li>Integration_RGB_ABE_HT - Manually stretched the automatically created file</li>" +
             "<li>Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images</li>" +
             "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
             "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
@@ -4971,10 +4972,14 @@ function AutoIntegrateDialog()
             "Zero values does not do smoothing.</p>" +
             smoothBackgroundTooltipGeneric,
             4);
+      this.logarithmicTargetValue_Control = newNumericEdit(this, "Logarithmic target value", par.logarithmic_stretch_target, 0, 1, 
+            "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
 
       this.smoothBackgroundSizer = new HorizontalSizer;
       this.smoothBackgroundSizer.spacing = 4;
       this.smoothBackgroundSizer.margin = 2;
+      this.smoothBackgroundSizer.add( this.logarithmicTargetValue_Control );
       this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
       this.smoothBackgroundSizer.addStretch();
 

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.59 test7";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.59 test8";         // Version, also updated into updates.xri
 this.autointegrate_info = "Image histogram";                      // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -258,6 +258,7 @@ this.par = {
       histogram_shadow_clip: { val: 0.00, def: 0.00, name : "Histogram shadow clip", type : 'I' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
       histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
+      logarithmic_stretch_target: { val: 0.25, def: 0.25, name : "Logarithmic stretch target", type : 'I' }, 
       smoothbackground: { val: 0, def: 0, name : "Smooth background", type : 'R' },
       target_name: { val: '', def: '', name : "Target name", type : 'S' }, 
       target_radec: { val: '', def: '', name : "Target RA/DEC", type : 'S' }, 

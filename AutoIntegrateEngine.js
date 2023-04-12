@@ -5263,7 +5263,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS_pro
       return res.win;
 }
 
-function stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, channel)
+function stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, target_value, channel)
 {
       var res = { 
             win: ABE_win, 
@@ -5271,6 +5271,7 @@ function stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, c
             completed: false, 
             skipped: 0,
             clipCount: 0,
+            target_value: target_value,
             forward: true
       };
 
@@ -5301,11 +5302,11 @@ function stretchHistogramTransformIterations(ABE_win, iscolor, image_stretching)
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching);
+            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, par.histogram_stretch_target.val);
       } else {
             for (var i = 0; i < 3; i++) {
                   console.writeln("Channel: " + channelText(i));
-                  ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, i);
+                  ABE_win = stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, par.histogram_stretch_target.val, i);
             }
             return ABE_win;
       }
@@ -5322,20 +5323,20 @@ function stretchLogarithmicIterations(ABE_win, iscolor, image_stretching)
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching);
+            return stretchHistogramTransformIterationsChannel(ABE_win, image_stretching, par.logarithmic_stretch_target.val);
 
       } else {
             var R_id = extractRGBchannel(ABE_win.mainView.id, 'R');
             console.writeln("Channel: R");
-            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), image_stretching);
+            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), image_stretching, par.logarithmic_stretch_target.val);
 
             var G_id = extractRGBchannel(ABE_win.mainView.id, 'G');
             console.writeln("Channel: G");
-            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), image_stretching);
+            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), image_stretching, par.logarithmic_stretch_target.val);
 
             var B_id = extractRGBchannel(ABE_win.mainView.id, 'B');
             console.writeln("Channel: B");
-            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), image_stretching);
+            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), image_stretching, par.logarithmic_stretch_target.val);
 
             runPixelMathRGBMapping(null, ABE_win, R_id, G_id, B_id);
 
@@ -5387,7 +5388,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             printImageStatistics(res.win, channel);
       }
 
-      var target_value = par.histogram_stretch_target.val;
+      var target_value = res.target_value;
       var use_median = par.histogram_stretch_type.val == 'Median';
 
       var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
@@ -7136,15 +7137,7 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
 {
       /* Check if we have manually done histogram transformation. */
       L_HT_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
-      if (L_HT_win == null) {
-            // Check also the automatically generated names but only with possible prefix.
-            L_HT_win = findStartWindowCheckBaseNameArrayIf(["Integration_L_noABE_HT", "Integration_L_ABE_HT"], false);
-      }
       RGB_HT_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
-      if (RGB_HT_win == null) {
-            // Check also the automatically generated names but only with possible prefix.
-            RGB_HT_win = findStartWindowCheckBaseNameArrayIf(["Integration_RGB_noABE_HT", "Integration_RGB_ABE_HT"], false);
-      }
 
       /* Check if we have manual background extracted files. */
       L_BE_win = findStartWindowCheckBaseNameIf("Integration_L_DBE", check_base_name);
@@ -8713,7 +8706,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       util.addProcessingStep("Starless image " + copywin.mainView.id);
       copywin.show();
 
-      guiUpdatePreviewWin(copywin);
+      // guiUpdatePreviewWin(copywin);
 
       if (gui) {
             gui.update_extra_target_image_window_list(parent, null);
@@ -8748,7 +8741,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
       checkCancel();
 
-      guiUpdatePreviewWin(imgWin);
+      // guiUpdatePreviewWin(imgWin);
 }
 
 function extraAdjustChannels(imgWin)
@@ -8830,7 +8823,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   win.mainView.endProcess();
                   checkCancel();
             }
-            guiUpdatePreviewWin(imgWin);
+            // guiUpdatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
             console.criticalln(err);
@@ -8870,7 +8863,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       checkCancel();
 
-      guiUpdatePreviewWin(imgWin);
+      // guiUpdatePreviewWin(imgWin);
 }
 
 function extraExponentialTransformation(imgWin, maskWin)
@@ -8897,7 +8890,7 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       checkCancel();
 
-      guiUpdatePreviewWin(imgWin);
+      // guiUpdatePreviewWin(imgWin);
 }
 
 function createNewStarMaskWin(imgWin)
@@ -9082,7 +9075,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
       checkCancel();
 
-      guiUpdatePreviewWin(targetWin);
+      // guiUpdatePreviewWin(targetWin);
 }
 
 function extraContrast(imgWin)
@@ -9105,7 +9098,7 @@ function extraContrast(imgWin)
 
       checkCancel();
 
-      guiUpdatePreviewWin(imgWin);
+      // guiUpdatePreviewWin(imgWin);
 }
 
 function extraStretch(win)
@@ -9122,7 +9115,7 @@ function extraShadowClipping(win, perc)
 
       clipShadows(win, perc);
 
-      guiUpdatePreviewWin(win);
+      // guiUpdatePreviewWin(win);
 }
 
 function smoothBackground(win, val)
@@ -9138,7 +9131,7 @@ function extraSmoothBackground(win, val)
 
       smoothBackground(win, val);
 
-      guiUpdatePreviewWin(win);
+      // guiUpdatePreviewWin(win);
 }
 
 function extraEnhanceShadows(win)
@@ -9210,7 +9203,7 @@ function extraNoiseReduction(win, mask_win)
             par.extra_noise_reduction_strength.val,
             false);
 
-      guiUpdatePreviewWin(win);
+      // guiUpdatePreviewWin(win);
 }
 
 function extraACDNR(extraWin, mask_win)
@@ -9223,7 +9216,7 @@ function extraACDNR(extraWin, mask_win)
 
       runACDNRReduceNoise(extraWin, mask_win);
 
-      guiUpdatePreviewWin(extraWin);
+      // guiUpdatePreviewWin(extraWin);
 }
 
 function extraColorNoise(extraWin)
@@ -9256,7 +9249,7 @@ function extraUnsharpMask(extraWin, mask_win)
             extraWin.removeMask();
       }
 
-      guiUpdatePreviewWin(extraWin);
+      // guiUpdatePreviewWin(extraWin);
 }
 
 function extraSharpen(extraWin, mask_win)
@@ -9270,7 +9263,7 @@ function extraSharpen(extraWin, mask_win)
                   runMultiscaleLinearTransformSharpen(extraWin, mask_win);
             }
       }
-      guiUpdatePreviewWin(extraWin);
+      // guiUpdatePreviewWin(extraWin);
 }
 
 function extraSaturation(extraWin, mask_win)
@@ -9280,14 +9273,14 @@ function extraSaturation(extraWin, mask_win)
       for (var i = 0; i < par.extra_saturation_iterations.val; i++) {
             increaseSaturation(extraWin, mask_win);
       }
-      guiUpdatePreviewWin(extraWin);
+      // guiUpdatePreviewWin(extraWin);
 }
 
 function extraABE(extraWin)
 {
       util.addProcessingStepAndStatusInfo("Extra ABE");
       runABE(extraWin, true);
-      guiUpdatePreviewWin(extraWin);
+      // guiUpdatePreviewWin(extraWin);
 }
 
 function extraSHOHueShift(imgWin)
@@ -9339,7 +9332,7 @@ function extraSHOHueShift(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
       checkCancel();
-      guiUpdatePreviewWin(imgWin);
+      // guiUpdatePreviewWin(imgWin);
 }
 
 function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
