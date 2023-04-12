@@ -9871,17 +9871,23 @@ function make_full_image_list()
 function find_up_down(image,col)
 {
       let row_mid = image.height / 2;
+      if (global.ai_debug) console.writeln("DEBUG find_up_down: row_mid ", row_mid);
       let row_up = 0;
       let cnt = 0;
       for (let row=row_mid; row>=0; row--) {
             let p = image.sample(col, row);
+            if (global.ai_debug && row < 5) {
+                  console.writeln("DEBUG find up: pixel at col ", col, " row ", row, " p ", p);
+            }
             if (p==0) {
                   cnt++;
+                  console.writeln("find up: zero pixel at col ", col, " row ", row, " cnt ", cnt);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   row_up = row+1;
+                  console.writeln("find up: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_up);
                   break;
             }
       }
@@ -9889,13 +9895,18 @@ function find_up_down(image,col)
       cnt = 0;
       for (let row=row_mid; row<image.height; row++) {
             let p = image.sample(col, row);
+            if (global.ai_debug && row > image.height - 5) {
+                  console.writeln("DEBUG find down: pixel at col ", col, " row ", row, " p ", p);
+            }
             if (p==0) {
                   cnt++;
+                  console.writeln("find down: zero pixel at col ", col, " row ", row, " cnt ", cnt);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   row_down = row-1;
+                  console.writeln("find down: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_down);
                   break;
             }
       }
@@ -9911,12 +9922,17 @@ function find_left_right(image,row)
       let cnt = 0;
       for (let col=col_mid; col>=0; col--) {
             let p = image.sample(col, row);
+            if (global.ai_debug && col < 5) {
+                  console.writeln("DEBUG find left: pixel at col ", col, " row ", row, " p ", p);
+            }
             if (p==0) {
                   cnt++;
+                  console.writeln("find left: zero pixel at col ", col, " row ", row, " cnt ", cnt);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
+                  console.writeln("find left: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_left);
                   col_left = col+1;
                   break;
             }
@@ -9924,13 +9940,18 @@ function find_left_right(image,row)
       let col_right = image.width-1;
       for (let col=col_mid; col<image.width; col++) {
             let p= image.sample(col, row);
+            if (global.ai_debug && col > image.width - 5) {
+                  console.writeln("DEBUG find right: pixel at col ", col, " row ", row, " p ", p);
+            }
             if (p==0) {
                   cnt++;
+                  console.writeln("find right: zero pixel at col ", col, " row ", row, " cnt ", cnt);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   col_right = col-1;
+                  console.writeln("find right: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_right);
                   break;
             }
       }
@@ -10124,7 +10145,7 @@ function findBounding_box(lowClipImageWindow)
       // recalculated.
       if (global.ai_debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
 
-      // Check that the whiole line at the border is valid, in case the border is wiggly
+      // Check that the while line at the border is valid, in case the border is wiggly
       let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];
 
       let number_cycle = 0;

@@ -4743,7 +4743,7 @@ function AutoIntegrateDialog()
 
       this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
 
-      this.CropToleranceLabel = newLabel(this, "Crop tolerance", "Number of consecutive black pixels allowed before retecting crop edge.");
+      this.CropToleranceLabel = newLabel(this, "Crop tolerance", "Number of consecutive black pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.CropToleranceLabel2 = newLabel(this, "pixels", this.CropToleranceLabel.toolTip);
 
