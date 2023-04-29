@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.59";               // Version, also updated into updates.xri
-this.autointegrate_info = "Image histogram";                      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.60 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Binning for image solving";            // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -264,6 +264,7 @@ this.par = {
       target_radec: { val: '', def: '', name : "Target RA/DEC", type : 'S' }, 
       target_focal: { val: '', def: '', name : "Target focal length", type : 'S' }, 
       target_pixel_size: { val: '', def: '', name : "Target pixel size", type : 'S' }, 
+      target_binning: { val: 'Auto', def: 'Auto', name : "Target binning", type : 'S' }, 
       spcc_detection_scales: { val: 5, def: 5, name : "SPCC detection scales", type : 'I' }, 
       spcc_noise_scales: { val: 1, def: 1, name : "SPCC noise scales", type : 'I' }, 
       spcc_min_struct_size: { val: 0, def: 0, name : "SPCC min struct size", type : 'I' }, 

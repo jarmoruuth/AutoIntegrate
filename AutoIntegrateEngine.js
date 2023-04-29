@@ -6246,6 +6246,21 @@ function findCurrentTelescope(imgWin)
       }
 }
 
+function findBinning(imgWin)
+{
+      for (var i = 0; i < imgWin.keywords.length; i++) {
+            switch (imgWin.keywords[i].name) {
+                  case "XBINNING":
+                        var value = imgWin.keywords[i].strippedValue.trim();
+                        console.writeln("XBINNING=" + value);
+                        return parseInt(value);
+                  default:
+                        break;
+            }
+      }
+      return 1;
+}
+
 function runImageSolver(id)
 {
       console.writeln("runImageSolver: image " + id);
@@ -6310,6 +6325,17 @@ function runImageSolver(id)
             }
             if (pixel_size != 0) {
                   console.writeln("Using user pixel size: " + pixel_size);
+                  if (par.target_binning.val != 'None') {
+                        if (par.target_binning.val == 'Auto') {
+                              var binning = findBinning(imgWin);
+                              pixel_size = binning * pixel_size;
+                              console.writeln("Using auto binning " + binning + ", adjusted pixel size: " + pixel_size);
+                        } else {
+                              var binning = parseInt(par.target_binning.val);
+                              pixel_size = binning * pixel_size;
+                              console.writeln("Using user given binning " + par.target_binning.val + ", adjusted pixel size: " + pixel_size);
+                        }
+                  }
                   solver.metadata.xpixsz = pixel_size;
             } else {
                   console.writeln("Using image metadata pixel size: " + solver.metadata.xpixsz);

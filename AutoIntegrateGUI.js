@@ -264,6 +264,7 @@ var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
+var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
@@ -4374,6 +4375,13 @@ function AutoIntegrateDialog()
       this.targetFocalEdit = newTextEdit(this, par.target_focal, this.targetFocalLabel.toolTip);
       this.targetPixelSizeLabel = newLabel(this, "Pixel size μm", "Pixel size in μm. Empty value uses image metadata.");
       this.targetPixelSizeEdit = newTextEdit(this, par.target_pixel_size, this.targetPixelSizeLabel.toolTip);
+      this.targetBinningLabel = newLabel(this, "Binning", "<p>Target binning. Binning multiplies the pixel size by the binning value.</p>" + 
+                                                            "<ul>" +
+                                                            "<li>Auto uses image metadata XBINNING value when available.</li>" +
+                                                            "<li>None does not modify pixel size.</li>" +
+                                                            "<li>Values 2 and 4 multiply the pizel size by those values.</li>" +
+                                                            "</ul>");
+      this.targetBinningComboBox = newComboBox(this, par.target_binning, target_binning_values, this.targetBinningLabel.toolTip);
 
       this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
       this.imageSolvingGroupBoxSizer = new HorizontalSizer;
@@ -4393,6 +4401,8 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer2.add( this.targetFocalEdit );
       this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeLabel );
       this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeEdit );
+      this.imageSolvingGroupBoxSizer2.add( this.targetBinningLabel );
+      this.imageSolvingGroupBoxSizer2.add( this.targetBinningComboBox );
       this.imageSolvingGroupBoxSizer2.addStretch();
 
       this.colorCalibrationGroupBoxLabel = newSectionLabel(this, "Color Calibration");
@@ -4412,7 +4422,7 @@ function AutoIntegrateDialog()
       this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
       this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
       this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
-      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to so,mething like 12 or larger if SPCC fails.");
+      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 12 or larger if SPCC fails.");
       this.spccLimitMagnitudeEdit = newTextEdit(this, par.spcc_limit_magnitude, this.spccLimitMagnitudeLabel.toolTip);
 
       this.spccWhiteReferenceLabel = newLabel(this, "White reference", "<p>Select white reference for SPCC.</p>" +
