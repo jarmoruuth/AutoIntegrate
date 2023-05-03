@@ -4890,13 +4890,19 @@ function runABEex(win, replaceTarget, postfix)
             var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
             util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
-      console.writeln("ABE using function degree " + par.ABE_degree.val);
+      console.writeln("ABE using function degree " + par.ABE_degree.val + ' and correction' + par.ABE_correction.val);
 
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = ABE_id;
       P.replaceTarget = replaceTarget;
       P.discardModel = true;
-      P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+      if (par.ABE_correction.val == 'Subtraction') {
+            P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+      } else if (par.ABE_correction.val == 'Division') {
+            P.targetCorrection = AutomaticBackgroundExtractor.prototype.Divide;
+      } else {
+            util.throwFatalError("Unknown ABE correction " + par.ABE_correction.val);
+      }
       P.polyDegree = par.ABE_degree.val;
 
       if (global.ai_debug) {
@@ -6373,6 +6379,31 @@ function runImageSolver(id)
       }
 }
 
+function runColorCalibrationProcess(imgWin)
+{
+      try {
+            util.addProcessingStepAndStatusInfo("Color calibration on " + imgWin.mainView.id + " using ColorCalibration process");
+
+            var P = new ColorCalibration;
+
+            imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+            P.executeOn(imgWin.mainView, false);
+
+            imgWin.mainView.endProcess();
+
+            checkCancel();
+
+            guiUpdatePreviewId(imgWin.mainView.id);
+
+      } catch(err) {
+            console.criticalln("Color calibration failed");
+            console.criticalln(err);
+            util.criticalln("Maybe filter files or file format were not recognized correctly");
+            util.throwFatalError("Color calibration failed");
+      }
+}
+
 function runColorCalibration(imgWin, phase)
 {
       if (process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
@@ -6442,14 +6473,14 @@ function runColorCalibration(imgWin, phase)
                   }
                   P.targetSourceCount = 8000;
                   P.psfStructureLayers = par.spcc_detection_scales.val;
-                  P.saturationThreshold = 0.75;
+                  P.saturationThreshold = par.spcc_saturation_threshold.val;
                   P.saturationRelative = true;
                   P.saturationShrinkFactor = 0.10;
                   P.psfNoiseLayers = par.spcc_noise_scales.val;
                   P.psfHotPixelFilterRadius = 1;
                   P.psfNoiseReductionFilterRadius = 0;
                   P.psfMinStructureSize = par.spcc_min_struct_size.val;
-                  P.psfMinSNR = 40.00;
+                  P.psfMinSNR = par.spcc_min_SNR.val;
                   P.psfAllowClusteredSources = true;
                   P.psfType = SpectrophotometricColorCalibration.prototype.PSFType_Auto;
                   P.psfGrowth = 1.25;
@@ -6491,27 +6522,7 @@ function runColorCalibration(imgWin, phase)
       } else {
             /* Use ColorCalibration.
              */
-            try {
-                  util.addProcessingStepAndStatusInfo("Color calibration on " + imgWin.mainView.id + " using ColorCalibration process");
-
-                  var P = new ColorCalibration;
-
-                  imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-                  P.executeOn(imgWin.mainView, false);
-
-                  imgWin.mainView.endProcess();
-
-                  checkCancel();
-
-                  guiUpdatePreviewId(imgWin.mainView.id);
-
-            } catch(err) {
-                  console.criticalln("Color calibration failed");
-                  console.criticalln(err);
-                  util.criticalln("Maybe filter files or file format were not recognized correctly");
-                  util.throwFatalError("Color calibration failed");
-            }
+            runColorCalibrationProcess(imgWin);
       }
 }
 
@@ -9815,6 +9826,9 @@ function extraProcessing(parent, id, apply_directly)
             extraWin = ImageWindow.windowById(new_name);
             extraWin.show();
       }
+      if (par.extra_color_calibration.val) {
+            runColorCalibrationProcess(extraWin);
+      }
       extra_id = extraWin.mainView.id;
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
@@ -9896,7 +9910,7 @@ function make_full_image_list()
 // Find borders starting from a mid point and going up/down
 function find_up_down(image,col)
 {
-      let row_mid = image.height / 2;
+      let row_mid = Math.floor(image.height / 2);
       if (global.ai_debug) console.writeln("DEBUG find_up_down: row_mid ", row_mid);
       let row_up = 0;
       let cnt = 0;
@@ -9943,7 +9957,7 @@ function find_up_down(image,col)
 // Find borders starting from a mid point and going left/right
 function find_left_right(image,row)
 {
-      let col_mid = image.width / 2;
+      let col_mid = Math.floor(image.width / 2);
       let col_left = 0;
       let cnt = 0;
       for (let col=col_mid; col>=0; col--) {
@@ -9987,8 +10001,8 @@ function find_left_right(image,row)
 
 function findMaximalBoundingBox(lowClipImage)
 {
-      let col_mid = lowClipImage.width / 2;
-      let row_mid = lowClipImage.height / 2;
+      let col_mid = Math.floor(lowClipImage.width / 2);
+      let row_mid = Math.floor(lowClipImage.height / 2);
       if (global.ai_debug) {
             console.writeln("DEBUG findMaximalBoundingBox col_mid=",col_mid,",row_mid=",row_mid);
       }

@@ -266,6 +266,7 @@ var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
+var ABE_correction_values = [ 'Subtraction', 'Division' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -4418,12 +4419,16 @@ function AutoIntegrateDialog()
 
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
-      this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. Can be increased to avoid detecting image artifacts as real stars.");
+      this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. If SPCC fails you can try increasing the value.");
       this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
       this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
       this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
-      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 12 or larger if SPCC fails.");
+      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 17 or larger if SPCC fails.");
       this.spccLimitMagnitudeEdit = newTextEdit(this, par.spcc_limit_magnitude, this.spccLimitMagnitudeLabel.toolTip);
+      this.spccSaturationThresholdEdit = newNumericEdit(this, "Saturation threshold", par.spcc_saturation_threshold, 0, 1, 
+                                                      "If SPCC fails you can try increasing this to for example 0.90.");
+      this.spccMinSNREdit = newNumericEdit(this, "Min SNR", par.spcc_min_SNR, 0, 1000, 
+                                                      "If SPCC fails you can try decreasing this value.");
 
       this.spccWhiteReferenceLabel = newLabel(this, "White reference", "<p>Select white reference for SPCC.</p>" +
                                                                        "<p>Usually Average Spiral Galaxy is the best choice but for narrowband images Photon Flux should be used.</p>");
@@ -4450,6 +4455,13 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer1.add( this.spccLimitMagnitudeLabel );
       this.spccGroupBoxSizer1.add( this.spccLimitMagnitudeEdit );
       this.spccGroupBoxSizer1.addStretch();
+
+      this.spccGroupBoxSizer11 = new HorizontalSizer;
+      this.spccGroupBoxSizer11.margin = 6;
+      this.spccGroupBoxSizer11.spacing = 4;
+      this.spccGroupBoxSizer11.add( this.spccSaturationThresholdEdit );
+      this.spccGroupBoxSizer11.add( this.spccMinSNREdit );
+      this.spccGroupBoxSizer11.addStretch();
 
       this.spccNarrowbandCheckBox = newCheckBox(this, "Narrowband mode", par.spcc_narrowband_mode, 
             "Enable SPCC for narrowband images and use narrowband filter values.");
@@ -4736,12 +4748,16 @@ function AutoIntegrateDialog()
 
       this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.");
       this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
+      this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.");
+      this.ABECorrectionComboBox = newComboBox(this, par.ABE_correction, ABE_correction_values, this.ABECorrectionLabel.toolTip);
 
       this.ABEDegreeSizer = new HorizontalSizer;
       this.ABEDegreeSizer.margin = 6;
       this.ABEDegreeSizer.spacing = 4;
       this.ABEDegreeSizer.add( this.ABEDegreeLabel );
       this.ABEDegreeSizer.add( this.ABEDegreeSpinBox );
+      this.ABEDegreeSizer.add( this.ABECorrectionLabel );
+      this.ABEDegreeSizer.add( this.ABECorrectionComboBox );
       this.ABEDegreeSizer.addStretch();
 
       this.ABESizer = new VerticalSizer;
@@ -5910,6 +5926,8 @@ function AutoIntegrateDialog()
             "<p>Run color noise reduction on image.</p>" );
       this.extra_star_noise_reduction_CheckBox = newCheckBox(this, "Star noise reduction", par.extra_star_noise_reduction, 
             "<p>Run star noise reduction on star image.</p>" );
+      this.extra_color_calibration_CheckBox = newCheckBox(this, "Color calibration", par.extra_color_calibration, 
+            "<p>Run ColorCalibration on image.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
@@ -6115,6 +6133,8 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraSaturationIterationsSizer );
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombineStars_Sizer );
+      this.extra2.add( this.extra_color_calibration_CheckBox );
+      this.extra2.addStretch();
 
       var extraLabeltoolTip = 
             "<p>" +
@@ -6693,6 +6713,7 @@ function AutoIntegrateDialog()
               this.spccGroupBoxLabel,
               this.spccGroupBoxSizer,
               this.spccGroupBoxSizer1,
+              this.spccGroupBoxSizer11,
               this.spccGroupBoxSizer2 ]);
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       this.rightProcessingGroupBox.sizer.addStretch();

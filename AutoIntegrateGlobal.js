@@ -216,6 +216,7 @@ this.par = {
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
+      ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
@@ -279,6 +280,8 @@ this.par = {
       spcc_auto_narrowband: { val: true, def: true, name : "SPCC narrowband auto mode", type : 'B' },
       spcc_white_reference: { val: 'Average Spiral Galaxy', def: 'Average Spiral Galaxy', name : "SPCC white reference", type : 'S' },
       spcc_limit_magnitude: { val: 'Auto', def: 'Auto', name : "SPCC limit magnitude", type : 'S' },
+      spcc_saturation_threshold: { val: 0.75, def: 0.75, name : "SPCC saturation threshold", type : 'R' },
+      spcc_min_SNR: { val: 40, def: 40, name : "SPCC min SNR", type : 'R' },
       color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
 
       // Extra processing for narrowband
@@ -344,6 +347,7 @@ this.par = {
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
+      extra_color_calibration: { val: false, def: false, name : "Extra color calicration", type : 'B' },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
