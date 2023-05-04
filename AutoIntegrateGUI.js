@@ -3914,8 +3914,16 @@ function AutoIntegrateDialog()
                         util.setDefaultDirs();
                   }
             });
-      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle", par.use_drizzle, 
+      this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle, scale", par.use_drizzle, 
             "<p>Use Drizzle integration</p>" );
+      this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 2, this.use_drizzle_CheckBox.toolTip);
+
+      this.drizzleSizer = new HorizontalSizer;
+      this.drizzleSizer.spacing = 2;
+      this.drizzleSizer.add( this.use_drizzle_CheckBox );
+      this.drizzleSizer.add( this.drizzle_scale_SpinBox );
+      this.drizzleSizer.addStretch();
+
       this.imageintegration_ssweight_CheckBox = newCheckBox(this, "ImageIntegration use ssweight", par.use_imageintegration_ssweight, 
             "<p>Use SSWEIGHT weight keyword during ImageIntegration.</p>" );
       this.imageintegration_clipping_CheckBox = newCheckBox(this, "No ImageIntegration clipping", par.skip_imageintegration_clipping, 
@@ -4055,7 +4063,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_stretched_CheckBox );
-      this.imageParamsSet2.add( this.use_drizzle_CheckBox );
+      this.imageParamsSet2.add( this.drizzleSizer );
 
       // Image group par.
       this.imageParamsControl = new Control( this );

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.60 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.60 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "Binning for image solving";            // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -127,6 +127,7 @@ this.par = {
       save_processed_channel_images: { val: false, def: false, name : "Save processed channel images", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
+      drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       reset_on_setup_load: { val: false, def: false, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },

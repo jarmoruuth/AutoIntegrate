@@ -1027,6 +1027,18 @@ function setTargetFITSKeywordsForPixelmath(imageWindow, keywords)
       imageWindow.keywords = keywords;
 }
 
+function copySelectedFITSKeywords(sourceWindow, targetWindow)
+{
+      var keywords = sourceWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == 'AutoIntegrateDrizzle') {
+                  // copy keyword
+                  targetWindow.keywords = targetWindow.keywords.concat([keyword]);
+            }
+      }
+}
+
 function setSSWEIGHTkeyword(imageWindow, SSWEIGHT) 
 {
       var oldKeywords = util.filterKeywords(imageWindow, "SSWEIGHT");
@@ -1048,6 +1060,16 @@ function setFinalImageKeyword(imageWindow)
             "AutoIntegrate",
             "finalimage",
             "AutoIntegrate processed final image");
+}
+
+function setDrizzleKeyword(imageWindow, val) 
+{
+      console.writeln("setDrizzleKeyword to " + val);
+      util.setFITSKeyword(
+            imageWindow,
+            "AutoIntegrateDrizzle",
+            val.toString(),
+            "AutoIntegrate drizzle scale");
 }
 
 function setImagetypKeyword(imageWindow, imagetype) 
@@ -4476,6 +4498,7 @@ function runDrizzleIntegration(images, name, local_normalization)
       var P = new DrizzleIntegration;
       P.inputData = drizzleImages; // [ enabled, path, localNormalizationDataPath ]
       P.enableLocalNormalization = local_normalization;
+      P.scale = par.drizzle_scale.val;
 
       P.executeGlobal();
 
@@ -4484,6 +4507,9 @@ function runDrizzleIntegration(images, name, local_normalization)
       util.closeOneWindow(P.weightImageId);
 
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+
+      setDrizzleKeyword(ImageWindow.windowById(new_name), par.drizzle_scale.val);
+
       guiUpdatePreviewId(new_name);
       //util.addScriptWindow(new_name);
       return new_name;
@@ -4837,11 +4863,11 @@ function runImageIntegrationForCrop(images)
       //console.writeln("Rename '",P.integrationImageId,"' to ",ppar.win_prefix + "LowRejectionMap_ALL")
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "LowRejectionMap_ALL");
 
-      if (par.use_drizzle.val) {
-            console.writeln("Drizzle is used, expand the image by 2x");
+      if (par.use_drizzle.val && par.drizzle_scale.val > 1) {
+            console.writeln("Drizzle is used, expand the image by " + par.drizzle_scale.val + "x for Crop");
             var win = ImageWindow.windowById(new_name);
             var P = new IntegerResample;
-            P.zoomFactor = 2;
+            P.zoomFactor = par.drizzle_scale.val;
             P.noGUIMessages = true;
             win.mainView.beginProcess(UndoFlag_NoSwapFile);
             P.executeOn(win.mainView, false);
@@ -6254,17 +6280,30 @@ function findCurrentTelescope(imgWin)
 
 function findBinning(imgWin)
 {
+      var binning = 1;
+      var drizzle = 1;
+
       for (var i = 0; i < imgWin.keywords.length; i++) {
             switch (imgWin.keywords[i].name) {
                   case "XBINNING":
                         var value = imgWin.keywords[i].strippedValue.trim();
                         console.writeln("XBINNING=" + value);
-                        return parseInt(value);
+                        binning = parseInt(value);
+                        break;
+                  case "AutoIntegrateDrizzle":
+                        var value = imgWin.keywords[i].strippedValue.trim();
+                        console.writeln("AutoIntegrateDrizzle=" + value);
+                        drizzle = parseInt(value);
+                        break
                   default:
                         break;
             }
       }
-      return 1;
+      if (binning > 1 && drizzle > 1) {
+            binning = binning / drizzle;
+            console.writeln("Drizzle is used, adjusted binning is " + binning);
+      }
+      return binning;
 }
 
 function runImageSolver(id)
@@ -8218,6 +8257,8 @@ function CombineRGBimageEx(target_name, images)
       if (win.mainView.id != rgb_name) {
             util.fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
       }
+
+      copySelectedFITSKeywords(model_win, win);
                   
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(win.mainView);
