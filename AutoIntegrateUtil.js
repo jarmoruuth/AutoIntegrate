@@ -892,6 +892,7 @@ function is_non_starless_option()
 {
       return par.extra_ABE.val || 
              par.extra_darker_background.val || 
+             par.extra_darker_hightlights.val ||
              par.extra_ET.val || 
              par.extra_HDRMLT.val || 
              par.extra_LHE.val || 

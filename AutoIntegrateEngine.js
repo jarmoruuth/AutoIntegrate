@@ -8822,6 +8822,36 @@ function extraDarkerBackground(imgWin, maskWin)
       // guiUpdatePreviewWin(imgWin);
 }
 
+function extraDarkerHighlights(imgWin, maskWin)
+{
+      util.addProcessingStepAndStatusInfo("Extra darker highlights on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+
+      var P = new CurvesTransformation;
+      P.K = [ // x, y
+            [0.00000, 0.00000],
+            [0.53366, 0.44200],
+            [0.80952, 0.69400],
+            [1.00000, 1.00000]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      /* Darken only bright parts of the image. */
+      setMaskChecked(imgWin, maskWin);
+      imgWin.maskInverted = false;
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.removeMask();
+
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+
+      // guiUpdatePreviewWin(imgWin);
+}
+
+
 function extraAdjustChannels(imgWin)
 {
       util.addProcessingStepAndStatusInfo("Extra adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
@@ -9707,6 +9737,7 @@ function extraProcessing(parent, id, apply_directly)
       var extra_stars_id = null;
       var extra_starless_id = null;
       var need_L_mask = par.extra_darker_background.val || 
+                        par.extra_darker_hightlights.val ||
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
@@ -9793,6 +9824,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_darker_background.val) {
             extraDarkerBackground(extraWin, mask_win);
+      }
+      if (par.extra_darker_hightlights.val) {
+            extraDarkerHighlights(extraWin, mask_win);
       }
       if (par.extra_shadow_enhance.val) {
             extraEnhanceShadows(extraWin);

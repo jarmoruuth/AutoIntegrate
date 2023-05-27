@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.60";                     // Version, also updated into updates.xri
-this.autointegrate_info = "Small updates: binning, ABE, CC, drizzle";   // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.61 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "";                                     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -309,6 +309,7 @@ this.par = {
       extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
       extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
+      extra_darker_hightlights: { val: false, def: false, name : "Extra Darker highlights", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
       extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },

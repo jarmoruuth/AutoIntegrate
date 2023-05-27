@@ -5737,6 +5737,8 @@ function AutoIntegrateDialog()
 
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker.</p>" );
+      this.extraDarkerHighlights_CheckBox = newCheckBox(this, "Darker highlights", par.extra_darker_hightlights, 
+            "<p>Make image highlights darker.</p>" );
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
             "<p>Run AutomaticBackgroundExtractor.</p>" );
 
@@ -6120,6 +6122,7 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extraDarkerHighlights_CheckBox );
       this.extra1.add( this.extraEnhanceShadowsSizer );
       this.extra1.add( this.extraEnhanceHightlightsSizer );
       this.extra1.add( this.extraAdjustChannelsSizer );
