@@ -2756,7 +2756,11 @@ function newRunButton(parent, toolbutton)
             if (global.ai_get_process_defaults) {
                   engine.getProcessDefaultValues();
                   return;
-            }     
+            }
+            if (par.integrated_lights.val) {
+                  console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
+                  return;
+            }
             updateWindowPrefix();
             getFilesFromTreebox(parent.dialog);
             global.haveIconized = 0;
