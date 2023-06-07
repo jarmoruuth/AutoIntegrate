@@ -4545,12 +4545,9 @@ function getRejectionAlgorithm(numimages)
             if (numimages < 8) {
                   util.addProcessingStep("Auto2 using Percentile clip for rejection");
                   return ImageIntegration.prototype.PercentileClip;
-            } else if (numimages <= 10) {
+            } else if (numimages < 20) {
                   util.addProcessingStep("Auto2 using Sigma clip for rejection");
                   return ImageIntegration.prototype.SigmaClip;
-            } else if (numimages < 20) {
-                  util.addProcessingStep("Auto2 using Winsorised sigma clip for rejection");
-                  return ImageIntegration.prototype.WinsorizedSigmaClip;
             } else if (numimages < 25 || ImageIntegration.prototype.Rejection_ESD === undefined) {
                   util.addProcessingStep("Auto2 using Linear fit clip for rejection");
                   return ImageIntegration.prototype.LinearFit;

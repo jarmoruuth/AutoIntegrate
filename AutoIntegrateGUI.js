@@ -5070,8 +5070,7 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "<b>Auto2</b><br>" + 
             "- Percentile clipping for 1-7 images<br>" +
-            "- Sigma clipping for 8 - 10 images<br>" +
-            "- Winsorised sigma clipping for 11 - 19 images<br>" +
+            "- Sigma clipping for 8 - 19 images<br>" +
             "- Linear fit clipping for 20 - 24 images<br>" +
             "- ESD clipping for more than 25 images" +
             "</p><p>" +
