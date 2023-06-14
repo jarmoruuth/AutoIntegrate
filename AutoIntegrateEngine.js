@@ -4612,6 +4612,7 @@ function runImageIntegrationEx(images, name, local_normalization)
             P.weightMode = ImageIntegration.prototype.KeywordWeight;
             P.weightKeyword = "SSWEIGHT";
       }
+      P.minWeight = par.ssweight_limit.val;     /* Default: 0.005, we use the value from the script parameter */
       if (local_normalization) {
             util.addProcessingStep("Using LocalNormalization for ImageIntegration normalization");
             P.normalization = ImageIntegration.prototype.LocalNormalization;
@@ -4779,6 +4780,7 @@ function runImageIntegrationForCrop(images)
       // P.csvWeights = "";
       // P.adaptiveGridSize = 16;
       // P.adaptiveNoScale = false;
+      P.minWeight = par.ssweight_limit.val;     /* Default: 0.005, we use the value from the script parameter */
       P.ignoreNoiseKeywords = true; // We do not use noise information anyhow
       P.normalization = ImageIntegration.prototype.NoNormalization; // Gain time, useless for our  need
       P.rejection = ImageIntegration.prototype.NoRejection; // Default, but essential for our needs
