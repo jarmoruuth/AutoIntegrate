@@ -1981,6 +1981,29 @@ function getSubframeSelectorMeasurements(fileNames)
       return P.measurements;
 }
 
+function filterBadPSFImages(fileNames)
+{
+      var newFileNames = [];
+      var indexPSFSignal = 7;
+
+      util.addProcessingStep("Filter bad PSF images");
+      console.writeln("fileNames[0]=" + fileNames[0]);
+
+      var measurements = getSubframeSelectorMeasurements(fileNames);
+
+      for (var i = 0; i < measurements.length; i++) {
+            if (measurements[i][indexPSFSignal] >= par.ssweight_limit.val) {
+                  newFileNames[newFileNames.length] = fileNames[i];
+            } else {
+                  console.noteln("Skipped bad PSF " + measurements[i][indexPSFSignal] +  " in image " + fileNames[i]);
+            }
+      }
+
+      console.noteln("Accepted " + newFileNames.length + "/" + fileNames.length + " images");
+
+      return newFileNames;
+}
+
 function getImagePSF(imgWin)
 {
       var indexFWHM = 5;
@@ -2154,7 +2177,7 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
                         if (global.pixinsight_version_num < 1080810) {
                               util.throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
                         }
-                        SSWEIGHT = measurements[i][indexPSFSignal] + 1; // Add one to avoid zero value
+                        SSWEIGHT = measurements[i][indexPSFSignal];
                         break;
                   case 'PSF Signal scaled':
                         if (global.pixinsight_version_num < 1080810) {
@@ -2433,10 +2456,7 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
               }
               if (ssweight_found) {
                   ssweight_set = true;
-                  if (ssweight < par.ssweight_limit.val) {
-                        console.writeln("below ssweight limit " + par.ssweight_limit.val + ", skip image");
-                        accept_file = false;
-                  } else {
+                  if (ssweight >= par.ssweight_limit.val) {
                         if (!first_image && naxis1 > best_ssweight_naxis) {
                               util.addProcessingStep("Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
                         }
@@ -2456,6 +2476,9 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
                               best_ssweight_naxis = naxis1;
                               first_image = false;
                         }
+                  } else {
+                        console.writeln("below ssweight limit " + par.ssweight_limit.val + ", skip image");
+                        accept_file = false;
                   }
                   if (gui) {
                         guiSetTreeBoxNodeSsweight(parent.treeBox[global.pages.LIGHTS], filePath, ssweight, filename_postfix);
@@ -7532,6 +7555,15 @@ function CreateChannelImages(parent, auto_continue)
             util.ensureDir(global.outputRootDir);
             util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
             util.ensureDir(util.combinePath(global.outputRootDir, global.AutoProcessedDir));
+
+            if (!par.image_weight_testing.val && par.early_PSF_check.val) {
+                  /* Remove bad files. */
+                  global.lightFileNames = filterBadPSFImages(global.lightFileNames);
+                  if (global.lightFileNames.length == 0) {
+                        console.criticalln("No files to process after filtering bad PSF images");
+                        return retval.ERROR;
+                  }
+            }
 
             var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
             if (isCustomMapping(filtered_lights.narrowband)

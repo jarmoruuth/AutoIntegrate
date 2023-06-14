@@ -3828,6 +3828,9 @@ function AutoIntegrateDialog()
             "<p>Run only SubframeSelector to output image weight information and outlier filtering into AutoIntegrate.log AutoWeights.json. " +
             "Json file can be loaded as input file list.</p>" +
             "<p>With this option no output image files are written.</p>" );
+      this.earlyPSFCheckCheckBox = newCheckBox(this, "Early PSF check", par.early_PSF_check, 
+            "<p>Checking this box will enable early PSF signal test. Then light files are filtered for PSF signal values below weight limit before any processing.</p>" +
+            "<p>Weight limit is set in <i>filtering</i> section in <i>Processing</i> tab.</p>" );
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
       /* this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
@@ -4542,6 +4545,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
       this.otherParamsSet1.add( this.CropInfoOnlyCheckBox );
       this.otherParamsSet1.add( this.imageWeightTestingCheckBox );
+      this.otherParamsSet1.add( this.earlyPSFCheckCheckBox );
       this.otherParamsSet1.add( this.start_from_imageintegration_CheckBox );
       this.otherParamsSet1.add( this.RRGB_image_CheckBox );
       this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );

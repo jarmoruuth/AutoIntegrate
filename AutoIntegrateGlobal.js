@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.61 test3";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.61 test4";         // Version, also updated into updates.xri
 this.autointegrate_info = "";                                     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -112,6 +112,7 @@ this.par = {
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },
       image_weight_testing: { val: false, def: false, name : "Image weight testing", type : 'B' },
+      early_PSF_check: { val: false, def: false, name : "Early PSF check", type : 'B' },
       debayer_only: { val: false, def: false, name : "Debayer only", type : 'B' },
       binning_only: { val: false, def: false, name : "Binning only", type : 'B' },
       extract_channels_only: { val: false, def: false, name : "Extract channels only", type : 'B' },
