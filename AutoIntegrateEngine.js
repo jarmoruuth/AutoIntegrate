@@ -969,6 +969,7 @@ this.openDirectoryFiles = function(filetype, file_filter)
             console.writeln("No directory selected");
             return null;
       }
+      console.writeln("openDirectoryFiles: directory=" + gdd.directory);
 
       if (file_filter.trim() < 1 ) {
             console.writeln("Empty filter");
@@ -983,8 +984,8 @@ this.openDirectoryFiles = function(filetype, file_filter)
       var fileNames = [];
       for (var i = 0; i < file_filter_array.length; i++) {
             console.writeln("openDirectoryFiles: file_filter_array[" + i + "]=" + file_filter_array[i]);
-            var filelist = new FileList(gdd.directory, [ "Files", file_filter_array[i] ], false /*verbose*/ );
-            fileNames = fileNames.concat(filelist.files);
+            var filelist = searchDirectory(gdd.directory + "/" + file_filter_array[i], false /*recursive*/ );
+            fileNames = fileNames.concat(filelist);
       }
       if (fileNames.length < 1) {
             console.writeln("No '" + file_filter + "' files found in directory " + gdd.directory);
