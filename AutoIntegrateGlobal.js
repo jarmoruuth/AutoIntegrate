@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.61 test5";         // Version, also updated into updates.xri
-this.autointegrate_info = "";                                     // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.61 test6";         // Version, also updated into updates.xri
+this.autointegrate_info = "File handling and filtering";          // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -157,6 +157,9 @@ this.par = {
       autosave_setup: { val: false, def: false, name: "Autosave setup", type: 'B' },
       use_processed_files: { val: false, def: false, name: "Use processed files", type: 'B' },
       save_cropped_images: { val: false, def: false, name: "Save cropped images", type: 'B' },
+
+      open_directory: { val: false, def: false, name: "Open directory", type: 'B' },
+      directory_files: { val: "*.fits *.fit", def: "*.fits *.fit", name : "Directory files", type : 'S' },
 
       // Narrowband processing
       narrowband_mapping: { val: 'SHO', def: 'SHO', name : "Narrowband mapping", type : 'S' },

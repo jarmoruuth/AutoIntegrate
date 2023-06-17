@@ -10,6 +10,7 @@ Interface functions:
       autointegrateNarrowbandPaletteBatch
       openImageWindowFromFile
       openImageFiles
+      openDirectoryFiles
       getImagetypFiles
       getFilterFiles
       subframeSelectorMeasure
@@ -953,6 +954,47 @@ this.openImageFiles = function(filetype, lights_only, json_only)
             // return a simple file array
             return ofd.fileNames;
       }
+}
+
+this.openDirectoryFiles = function(filetype, file_filter)
+{
+      console.writeln("openDirectoryFiles: " + filetype + " " + file_filter);
+
+      var gdd = new GetDirectoryDialog;
+
+      gdd.initialPath = ppar.lastDir;
+      gdd.caption = "Select Files Directory";
+      
+      if (!gdd.execute()) {
+            console.writeln("No directory selected");
+            return null;
+      }
+
+      if (file_filter.trim() < 1 ) {
+            console.writeln("Empty filter");
+            return null;
+      }
+      var file_filter_array = file_filter.split(" ");
+      if (file_filter_array.length < 1) {
+            console.writeln("No file filter given");
+            return null;
+      }
+
+      var fileNames = [];
+      for (var i = 0; i < file_filter_array.length; i++) {
+            console.writeln("openDirectoryFiles: file_filter_array[" + i + "]=" + file_filter_array[i]);
+            var filelist = new FileList(gdd.directory, [ "Files", file_filter_array[i] ], false /*verbose*/ );
+            fileNames = fileNames.concat(filelist.files);
+      }
+      if (fileNames.length < 1) {
+            console.writeln("No '" + file_filter + "' files found in directory " + gdd.directory);
+            return null;
+      }
+      console.writeln("openDirectoryFiles: fileNames[0]=" + fileNames[0]);
+
+      util.saveLastDir(gdd.directory);
+
+      return [ fileNames ];
 }
 
 function findMin(arr, idx)

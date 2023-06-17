@@ -2266,7 +2266,11 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       filesAdd_Button.toolTip = toolTip;
       filesAdd_Button.onClick = function()
       {
-            var pagearray = engine.openImageFiles(filetype, false, false);
+            if (par.open_directory.val) {
+                  var pagearray = engine.openDirectoryFiles(filetype, par.directory_files.val);
+            } else {
+                  var pagearray = engine.openImageFiles(filetype, false, false);
+            }
             if (pagearray == null) {
                   return;
             }
@@ -2331,6 +2335,13 @@ function addFilesButtons(parent)
       var addFlatsButton = addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]);
       var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS]);
 
+      var directoryCheckBox = newCheckBox(parent, "Directory", par.open_directory, 
+                  "<p>Open directory dialog instead of files dialog.</p>" + 
+                  "<p>All files that match the file pattern will be added as image files.</p>" +
+                  "<p>File pattern can have multiple file types separated by space.</p>");
+      var directoryFilesEdit = newTextEdit(parent, par.directory_files, directoryCheckBox.toolTip);
+      directoryFilesEdit.setFixedWidth(8 * parent.font.width( 'M' ));
+
       var target_type_sizer = addTargetType(parent);
 
       var winprefix_sizer = addWinPrefix(parent);
@@ -2344,6 +2355,9 @@ function addFilesButtons(parent)
       filesButtons_Sizer1.add( addDarksButton );
       filesButtons_Sizer1.add( addFlatsButton );
       filesButtons_Sizer1.add( addFlatDarksButton );
+      filesButtons_Sizer1.addSpacing( 4 );
+      filesButtons_Sizer1.add( directoryCheckBox );
+      filesButtons_Sizer1.add( directoryFilesEdit );
 
       var filesButtons_Sizer2 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer2);
