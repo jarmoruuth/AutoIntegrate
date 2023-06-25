@@ -5757,9 +5757,9 @@ function AutoIntegrateDialog()
       this.extraCombineStars_Sizer.addStretch();
 
       this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
-            "<p>Make image background darker.</p>" );
+            "<p>Make image background darker using a lightness mask.</p>" );
       this.extraDarkerHighlights_CheckBox = newCheckBox(this, "Darker highlights", par.extra_darker_hightlights, 
-            "<p>Make image highlights darker.</p>" );
+            "<p>Make image highlights darker using a lightness mask.</p>" );
       this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
             "<p>Run AutomaticBackgroundExtractor.</p>" );
 
@@ -5865,13 +5865,13 @@ function AutoIntegrateDialog()
       this.extraEnhanceShadowsSizer.toolTip = shadowclipTooltip;
       this.extraEnhanceShadowsSizer.addStretch();
 
-      var extraEnhanceHightlightsTooltip = "<p>Enhance highlights by using exp function on each pixel.</p>";
-      this.extraEnhanceHightlightsCheckBox = newCheckBox(this, "Enhance hightlights", par.extra_highlight_enhance, extraEnhanceHightlightsTooltip);
-      this.extraEnhanceHightlightsSizer = new HorizontalSizer;
-      this.extraEnhanceHightlightsSizer.spacing = 4;
-      this.extraEnhanceHightlightsSizer.add( this.extraEnhanceHightlightsCheckBox );
-      this.extraEnhanceHightlightsSizer.toolTip = shadowclipTooltip;
-      this.extraEnhanceHightlightsSizer.addStretch();
+      var extraEnhanceHighlightsTooltip = "<p>Enhance highlights by using exp function on each pixel.</p>";
+      this.extraEnhanceHighlightsCheckBox = newCheckBox(this, "Enhance highlights", par.extra_highlight_enhance, extraEnhanceHighlightsTooltip);
+      this.extraEnhanceHighlightsSizer = new HorizontalSizer;
+      this.extraEnhanceHighlightsSizer.spacing = 4;
+      this.extraEnhanceHighlightsSizer.add( this.extraEnhanceHighlightsCheckBox );
+      this.extraEnhanceHighlightsSizer.toolTip = shadowclipTooltip;
+      this.extraEnhanceHighlightsSizer.addStretch();
 
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
@@ -6145,7 +6145,7 @@ function AutoIntegrateDialog()
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extraDarkerHighlights_CheckBox );
       this.extra1.add( this.extraEnhanceShadowsSizer );
-      this.extra1.add( this.extraEnhanceHightlightsSizer );
+      this.extra1.add( this.extraEnhanceHighlightsSizer );
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
