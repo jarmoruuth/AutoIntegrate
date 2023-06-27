@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.62 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.62 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "";                                     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -354,7 +354,8 @@ this.par = {
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
-      extra_color_calibration: { val: false, def: false, name : "Extra color calicration", type : 'B' },
+      extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
+      extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },

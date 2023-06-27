@@ -5779,9 +5779,13 @@ function AutoIntegrateDialog()
       this.extra_ET_Sizer.addStretch();
 
       var extra_HDRMLT_tooltip = "<p>Run HDRMultiscaleTransform on image using a mask.</p>" +
-                                 "<p>Color option is used select different methods to keep hue and saturation. " + 
-                                 "Option 'Preserve hue' uses HDRMLT preserve  hue option. " + 
-                                 "Option 'Color corrected' uses a method described by Russell Croman</p>" + 
+                                 "<p>Color option is used to select different methods to keep hue and saturation.</p> " + 
+                                 "<ul>" +
+                                 "<li>Option 'None' uses HDRMLT To lightness option.</li>" + 
+                                 "<li>Option 'Preserve hue' uses HDRMLT preserve hue option.</li>" + 
+                                 "<li>Option 'Color corrected' uses To Intensity instead of To lightness. It applies HSI transformation to the intensity component. " + 
+                                 "In PixInsight 1.8.9-1 or older it uses a method described by Russell Croman</li>" + 
+                                 "</ul>" +
                                  "<p>Layers selection specifies the layers value for HDRMLT.</p>";
       this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, extra_HDRMLT_tooltip);
 
@@ -5964,6 +5968,9 @@ function AutoIntegrateDialog()
             "<p>Run star noise reduction on star image.</p>" );
       this.extra_color_calibration_CheckBox = newCheckBox(this, "Color calibration", par.extra_color_calibration, 
             "<p>Run ColorCalibration on image.</p>" );
+      this.extra_annotate_image_CheckBox = newCheckBox(this, "Annotate image", par.extra_annotate_image, 
+            "<p>Use AnnotateImage script to annotate image.</p>" + 
+            "<p>When used with Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
@@ -6171,6 +6178,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombineStars_Sizer );
       this.extra2.add( this.extra_color_calibration_CheckBox );
+      this.extra2.add( this.extra_annotate_image_CheckBox );
       this.extra2.addStretch();
 
       var extraLabeltoolTip = 
@@ -7023,6 +7031,7 @@ this.updateOutputDirEdit = updateOutputDirEdit;
 this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
+this.getWindowBitmap = getWindowBitmap;
 
 /* Exported data for testing.
  */

@@ -91,6 +91,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef NO_SOLVER_LIBRARY
 /* Settings to ImageSolver scipt. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
+#define USE_ANNOTATE_LIBRARY true
 #define SETTINGS_MODULE "AutoIntegrate"
 #define STAR_CSV_FILE   File.systemTempDirectory + "/stars.csv"
 #include "../AdP/CommonUIControls.js"
@@ -98,6 +99,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/WCSmetadata.jsh"
 #include "../AdP/ImageSolver.js"
 #include "../AdP/SearchCoordinatesDialog.js"
+#include "../AdP/AnnotateImage.js"
 #endif
 
 function AutoIntegrateEngine(global, util)
@@ -9056,7 +9058,12 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             }
 
             if (par.extra_HDRMLT_color.val == 'Color corrected') {
-                  hsChannels = extractHSchannels(imgWin);
+                  if (global.pixinsight_version_num < 1080812) {
+                        hsChannels = extractHSchannels(imgWin);
+                  } else {
+                        P.toIntensity = true;
+                        P.toLightness = false;
+                  }
             }
 
             imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -9073,7 +9080,9 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
             checkCancel();
 
-            if (par.extra_HDRMLT_color.val == 'Color corrected') {
+            if (par.extra_HDRMLT_color.val == 'Color corrected'
+                && global.pixinsight_version_num < 1080812) 
+            {
                   iChannel = extractIchannel(imgWin);
 
                   var P = new ChannelCombination;
@@ -9889,6 +9898,31 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
       return new_id;
 }
 
+function annotateImage(extraWin, apply_directly)
+{
+      let engine = new AnnotationEngine;
+      engine.Init(extraWin);
+      if (apply_directly) {
+            engine.outputMode = Output_Overlay;
+      }
+      try {
+            engine.Render();
+      } catch (ex) {
+            util.throwFatalError( "*** Annotate image error: " + ex.toString() );
+      }
+
+      var annotatedImgWin = util.findWindow(extraWin.mainView.id + "_Annotated");
+      
+      if (apply_directly) {
+            extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+            extraWin.mainView.image.blend(gui.getWindowBitmap(annotatedImgWin));
+            extraWin.mainView.endProcess();
+            util.forceCloseOneWindow(annotatedImgWin);
+      }
+
+      return annotatedImgWin;
+}
+
 function extraProcessing(parent, id, apply_directly)
 {
       console.noteln("Extra processing");
@@ -10063,6 +10097,13 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_color_calibration.val) {
             runColorCalibrationProcess(extraWin);
+      }
+      if (par.extra_annotate_image.val) {
+            let annotatedImgWin = annotateImage(extraWin, apply_directly);
+            if (!apply_directly) {
+                  // There is a new window with the annotated image
+                  extraWin = annotatedImgWin;
+            }
       }
       extra_id = extraWin.mainView.id;
       if (apply_directly) {
