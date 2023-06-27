@@ -826,6 +826,9 @@ this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
       targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
       targetWindow.mainView.image.assign(sourceWindow.mainView.image);
       targetWindow.keywords = sourceWindow.keywords;
+      if (global.pixinsight_version_num >= 1080902) {
+            targetWindow.copyAstrometricSolution(sourceWindow);
+      }
       targetWindow.mainView.endProcess();
 
       targetWindow.show();

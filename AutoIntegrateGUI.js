@@ -31,7 +31,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef NO_SOLVER_LIBRARY
 #include "../AdP/SearchCoordinatesDialog.js"
+#endif
 
 function AutoIntegrateSelectStarsImageDialog( util )
 {
@@ -3822,6 +3824,8 @@ function AutoIntegrateDialog()
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
             "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing</i> tab.</p>" +
             comet_alignment_toolTip);
+      this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.fast_integration, 
+            "<p>If checked, use FastIntegration process instead of ImageIntegration process when integratating light images.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
@@ -4054,6 +4058,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
       this.imageParamsSet1.add( this.CometAlignCheckBox );
+      this.imageParamsSet1.add( this.fastIntegrationCheckBox );
       /* this.imageParamsSet1.add( this.relaxedStartAlignCheckBox); */
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );

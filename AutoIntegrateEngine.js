@@ -88,6 +88,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef NO_SOLVER_LIBRARY
 /* Settings to ImageSolver scipt. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
 #define SETTINGS_MODULE "AutoIntegrate"
@@ -97,6 +98,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/WCSmetadata.jsh"
 #include "../AdP/ImageSolver.js"
 #include "../AdP/SearchCoordinatesDialog.js"
+#endif
 
 function AutoIntegrateEngine(global, util)
 {
@@ -4234,7 +4236,7 @@ function runStarAlignment(imagetable, refImage)
       var targets = [];
 
       for (var i = 0; i < imagetable.length; i++) {
-            targets[targets.length] = [ true, true, imagetable[i] ];
+            targets[targets.length] = [ true, true, imagetable[i] ];    // enabled, isFile, image
       }
 
       var P = new StarAlignment;
@@ -4252,7 +4254,12 @@ function runStarAlignment(imagetable, refImage)
       P.referenceIsFile = true;
       P.targets = targets;
       P.overwriteExistingFiles = true;
-
+      /*
+       * Read-only properties
+       *
+       P.outputData = [ // outputImage, outputMask, totalPairMatches, inliers, overlapping, regularity, quality, rmsError, rmsErrorDev, peakErrorX, peakErrorY, H11, H12, H13, H21, H22, H23, H31, H32, H33, frameAdaptationBiasRK, frameAdaptationBiasG, frameAdaptationBiasB, frameAdaptationSlopeRK, frameAdaptationSlopeG, frameAdaptationSlopeB, frameAdaptationAvgDevRK, frameAdaptationAvgDevG, frameAdaptationAvgDevB, referenceStarX, referenceStarY, targetStarX, targetStarY, outputDistortionMap
+       ];
+       */
       P.executeGlobal();
 
       checkCancel();
@@ -4645,6 +4652,50 @@ function ensureThreeImages(images)
       }
 }
 
+function runFastIntegration(integration_images, name, refImage)
+{
+      if (global.pixinsight_version_num < 1080902) {
+            util.throwFatalError("FastIntegration requires PixInsight 1.8.9-2 or later");
+      }
+      util.addProcessingStepAndStatusInfo("FastIntegration reference image " + refImage);
+      console.writeln("runFastIntegration input[0] " + integration_images[0][0]);
+
+      var targets = [];
+      for (var i = 0; i < integration_images.length; i++) {
+            targets[targets.length] = [ true, integration_images[i][1] ];    // enabled, image
+      }
+
+      var P = new FastIntegration;
+      P.referenceImage = refImage;
+      P.targets = targets;
+      if (par.use_drizzle.val) {
+            P.generateDrizzleData = true; /* Generate .xdrz files. */
+      } else {
+            P.generateDrizzleData = false;
+      }
+      P.generateRejectionMaps = false;
+      P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
+      P.outputPostfix = "_r";
+      P.overwriteExistingFiles = true;
+      /*
+       * Read-only properties
+       *
+       P.outputData = [ // outputImage, outputMask, totalPairMatches, inliers, overlapping, regularity, quality, rmsError, rmsErrorDev, peakErrorX, peakErrorY, H11, H12, H13, H21, H22, H23, H31, H32, H33, referenceStarX, referenceStarY, targetStarX, targetStarY
+       ];
+       */
+
+      P.executeGlobal();
+
+      checkCancel();
+
+      var new_name = util.windowRename("FastIntegrationMaster", ppar.win_prefix + "Integration_" + name);
+
+      util.addProcessingStep("runFastIntegration, " + targets.length + " files");
+      console.writeln("output " + new_name);
+
+      return new_name;
+}
+
 function runImageIntegrationEx(images, name, local_normalization)
 {
       var P = new ImageIntegration;
@@ -4793,7 +4844,11 @@ function runImageIntegration(channel_images, name, save_to_file)
                   var integration_images = images;
             }
 
-            var image_id = runImageIntegrationEx(integration_images, name, false);
+            if (par.fast_integration.val) {
+                  var image_id = runFastIntegration(integration_images, name, global.best_image);
+            } else {
+                  var image_id = runImageIntegrationEx(integration_images, name, false);
+            }
 
       } else {
             var image_id = runImageIntegrationNormalized(images, channel_images.best_image, name);
@@ -6381,7 +6436,11 @@ function runImageSolver(id)
       metadata.ExtractMetadata(imgWin);
       if (metadata.projection && metadata.ref_I_G_linear) {
             util.addProcessingStep("Image " + id + " was already plate solved.");
-            metadata.Print();
+            if (global.pixinsight_version_num < 1080902) {
+                  solver.metadata.Print();
+            } else {
+                  console.writeln(imgWin.astrometricSolutionSummary());
+            }
             console.writeln("runImageSolver: image " + id + " already has been plate solved.");
             return;
       }
@@ -6398,6 +6457,17 @@ function runImageSolver(id)
             if (!current_telescope_name || current_telescope_name == "") {
                   findCurrentTelescope(imgWin);
             }
+
+            /* 
+             * Initialize solver.metadat values with the current image metadata.
+             *
+             * The following fields are set:
+             *    solver.metadata.ra
+             *    solver.metadata.dec 
+             *    solver.metadata.focal
+             *    solver.metadata.xpixsz
+             *    solver.metadata.resolution
+             */
 
             console.writeln("Telescope: " + current_telescope_name);
             console.writeln("Image metadata");
@@ -6457,13 +6527,21 @@ function runImageSolver(id)
                   console.writeln("Using metadata resolution: " + solver.metadata.resolution);
             }
 
+            /*
+             * Solve image
+             */
+
             console.writeln("runImageSolver: call SolveImage");
             if (!solver.SolveImage(imgWin)) {
                   console.writeln("runImageSolver: SolveImage failed");
                   succ = false;
             } else {
                   succ = true;
-                  solver.metadata.Print();
+                  if (global.pixinsight_version_num < 1080902) {
+                        solver.metadata.Print();
+                  } else {
+                        console.writeln(imgWin.astrometricSolutionSummary());
+                  }
                   solver.solverCfg.SaveSettings();
                   solver.solverCfg.SaveParameters();
                   solver.metadata.SaveSettings();
@@ -6528,6 +6606,13 @@ function runColorCalibration(imgWin, phase)
             }
             try {
                   util.addProcessingStepAndStatusInfo("Color calibration on " + imgWin.mainView.id + " using SpectrophotometricColorCalibration process");
+
+                  console.writeln("Image metadata:");
+                  if (global.pixinsight_version_num < 1080902) {
+                        solver.metadata.Print();
+                  } else {
+                        console.writeln(imgWin.astrometricSolutionSummary());
+                  }
 
                   var P = new SpectrophotometricColorCalibration;
 
@@ -7845,7 +7930,8 @@ function CreateChannelImages(parent, auto_continue)
             */
             if (!par.start_from_imageintegration.val
                 && !par.cropinfo_only.val
-                && !par.comet_align.val) 
+                && !par.comet_align.val
+                && !par.fast_integration.val) 
             {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_r');
                   if (fileProcessedStatus.unprocessed.length == 0) {

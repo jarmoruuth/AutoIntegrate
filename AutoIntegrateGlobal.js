@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.61";               // Version, also updated into updates.xri
-this.autointegrate_info = "File handling and filtering";          // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.62 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "";                                     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -98,6 +98,7 @@ this.par = {
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
+      fast_integration: { val: false, def: false, name : "Use FastIntegration", type : 'B' },
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_star_noise_reduction: { val: false, def: false, name : "No star noise reduction", type : 'B' },
