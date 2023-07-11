@@ -3723,7 +3723,7 @@ function createNewStarNet2(star_mask)
 {
       try {
             var P = new StarNet2;
-            P.stride = StarNet2.prototype.itemOne;
+            P.stride = StarNet2.prototype.defStride;
             P.mask = star_mask;
       } catch(err) {
             console.criticalln("StarNet2 failed");
@@ -3772,11 +3772,11 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       if (par.use_starxterminator.val) {
             util.addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(create_star_mask, linear_data);
-      } else if (linear_data) {
-            util.throwFatalError("StarNet/StarNet2 cannot be used to remove stars while image is still in linear stage.");
       } else if (par.use_starnet2.val) {
             util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
             var P = createNewStarNet2(create_star_mask);
+      } else if (linear_data) {
+            util.throwFatalError("StarNet cannot be used to remove stars while image is still in linear stage.");
       } else {
             util.addProcessingStep("Run StarNet on " + imgWin.mainView.id);
             var P = createNewStarNet(create_star_mask);
