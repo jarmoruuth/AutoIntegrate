@@ -5199,7 +5199,8 @@ function AutoIntegrateDialog()
       "<p>" +
       "Color palette used to map SII, Ha and OIII to R, G and B" +
       "</p><p>" +
-      "There is a list of predefined mapping that can be used, some examples are below." +
+      "There is a list of predefined mapping that can be used, some examples are below. For more details " +
+      "see the tooltip for palette combo box." +
       "</p><p>" +
       "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
       "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
@@ -5230,7 +5231,11 @@ function AutoIntegrateDialog()
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/<br>" +
+            "Foraxx and Dynamic palettes are identical, just the name is different. It is recommended to use non-linear " + 
+            "images when using these palettes by checking the option <i>Narrowband mapping using non-linear data</i>." +
+            "</p><p>" +
+            "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/" +
+            "</p><p>" +
             "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for L-eXtreme filter." +
             "</p>" +
             narrowbandToolTip;
