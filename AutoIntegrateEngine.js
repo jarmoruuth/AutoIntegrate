@@ -3199,10 +3199,10 @@ function ensureLightImages(ch, check_allfilesarr)
       }
 }
 
-/* Replace tag "from" with real image name "to" with _map added to the end (H -> Integration_H_map) . 
+/* Replace tag "from" with real image name "to" with "ext" added to the end (H -> Integration_H_map) . 
  * Images names listed in the mapping are put into images array without _map added (Integration_H).
  */
-function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
+function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfilesarr)
 {
       //console.writeln("replaceMappingImageNames in " + mapping + " from " + from + " to " + to);
       mapping = mapping.trim();
@@ -3217,14 +3217,14 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
             //console.writeln("replaceMappingImageNames only one char")
             if (check_allfilesarr != null) {
                   ensureLightImages(from, check_allfilesarr);
-            } else {
+            } else if (images != null) {
                   if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                         add_missing_image(images, to + "_processed");
                   } else {
                         add_missing_image(images, to);
                   }
             }
-            return to + "_map";
+            return to + ext;
       }
       // loop until all occurrences are replaced
       console.writeln("replaceMappingImageNames scan " + mapping);
@@ -3245,7 +3245,7 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
                         if (replace) {
                               if (check_allfilesarr != null) {
                                     ensureLightImages(from, check_allfilesarr);
-                              } else {
+                              } else if (images != null) {
                                     if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                                           var to_id = to + "_processed";
                                     } else {
@@ -3256,7 +3256,7 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
                                     }
                                     add_missing_image(images, to_id);
                               }
-                              mapping = mapping.substring(0, n) + to + "_map" + mapping.substring(n+1);
+                              mapping = mapping.substring(0, n) + to + ext + mapping.substring(n+1);
                               //console.writeln("replaceMappingImageNames mapped to " + mapping);
                               break;
                         }
@@ -3270,6 +3270,14 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
       }
       console.writeln("replaceMappingImageNames, too many loop iterations, mapped to " + mapping);
       return mapping;
+}
+
+/* Replace tag "from" with real image name "to" with _map added to the end (H -> Integration_H_map) . 
+ * Images names listed in the mapping are put into images array without _map added (Integration_H).
+ */
+function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
+{
+      return replaceMappingImageNamesExt(mapping, from, to, "_map", images, check_allfilesarr);
 }
 
 /* Get custom channel mapping and replace target images with real names.
@@ -3372,6 +3380,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       var reference_images = [ "Integration_H", "Integration_S", "Integration_O" ];
 
       for (var i = 0; i < reference_images.length && idWin == null; i++) {
+            // Try to find idWin from reference images
             var refId = reference_images[i];
             if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
                   refId = refId + "_processed";
@@ -9720,6 +9729,61 @@ function extraColorizedSHO(imgWin)
       util.closeOneWindow(O_id);
 }
 
+function findNarrowBandPalette(name)
+{
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            if (global.narrowBandPalettes[i].name == name) {
+                  return global.narrowBandPalettes[i];
+            }
+      }
+      throwFatalError("Could not find narrowband palette " + name);
+      return null;
+}
+
+function extraForaxx(imgWin, palette)
+{
+      util.addProcessingStepAndStatusInfo("Extra Foraxx using " + palette + " palette");
+
+      switch (palette) {
+            case 'HOO':
+                  var dynamic_palette = findNarrowBandPalette("Dynamic HOO");
+                  var mappings = [
+                        [ 'H', extractRGBchannel(imgWin.mainView.id, 'R') ], 
+                        [ 'O', extractRGBchannel(imgWin.mainView.id, 'G') ]
+                  ];
+                  break;
+            case 'SHO':
+                  var dynamic_palette = findNarrowBandPalette("Dynamic SHO");
+                  var mappings = [
+                        [ 'S', extractRGBchannel(imgWin.mainView.id, 'R') ], 
+                        [ 'H', extractRGBchannel(imgWin.mainView.id, 'G') ], 
+                        [ 'O', extractRGBchannel(imgWin.mainView.id, 'B') ]
+                  ];
+                  break;
+            default:
+                  util.throwFatalError("Invalid palette " + palette);
+      }
+
+      var R_mapping = dynamic_palette.R;
+      for (var i = 0; i < mappings.length; i++) {
+            R_mapping = replaceMappingImageNamesExt(R_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+      var G_mapping = dynamic_palette.G;
+      for (var i = 0; i < mappings.length; i++) {
+            G_mapping = replaceMappingImageNamesExt(G_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+      var B_mapping = dynamic_palette.B;
+      for (var i = 0; i < mappings.length; i++) {
+            B_mapping = replaceMappingImageNamesExt(B_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+
+      runPixelMathRGBMapping(null, imgWin, R_mapping, G_mapping, B_mapping);
+
+      for (var i = 0; i < mappings.length; i++) {
+            util.closeOneWindow(mappings[i][1]);
+      }
+}
+
 // Rename and save palette batch image
 function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 {
@@ -9959,8 +10023,8 @@ function extraProcessing(parent, id, apply_directly)
             extraWin = extraStretch(extraWin);
       }
       if (process_narrowband) {
-            if (par.run_less_green_hue_shift.val) {
-                  narrowbandGreenHueShift(extraWin.mainView);
+            if (par.run_foraxx_mapping.val) {
+                  extraForaxx(extraWin, par.foraxx_palette.val);
             }
             if (par.run_orange_hue_shift.val) {
                   narrowbandOrangeHueShift(extraWin.mainView);

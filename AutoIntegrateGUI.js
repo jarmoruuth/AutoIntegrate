@@ -269,6 +269,7 @@ var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
+var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -5227,14 +5228,16 @@ function AutoIntegrateDialog()
                   this.narrowbandCustomPalette_ComboBox.currentItem = i;
             }
       }
+      var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Foraxx and Dynamic palettes are identical, just the name is different. It is recommended to use non-linear " + 
-            "images when using these palettes by checking the option <i>Narrowband mapping using non-linear data</i>." +
+            "Dynamic palettes are the same as Foraxx options in Extra processing section. Usually it is better to use " + 
+            "Foraxx options since they are run after other processing is completed. With Dynamic palettes it is recommended to use non-linear " + 
+            "images by checking the option <i>Narrowband mapping using non-linear data</i>." +
             "</p><p>" +
-            "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/" +
+            Foraxx_credit + 
             "</p><p>" +
             "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for L-eXtreme filter." +
             "</p>" +
@@ -5580,6 +5583,17 @@ function AutoIntegrateDialog()
       this.narrowbandRGBmappingControl.visible = false;
 
       // Narrowband extra processing
+      this.narrowband_Foraxx_CheckBox = newCheckBox(this, "Foraxx mapping", par.run_foraxx_mapping, 
+            "<p>Use dynamic Foraxx palette.</p>" +
+            "<p>" + Foraxx_credit + "</p>" );
+      this.narrowband_Foraxx_palette_ComboBox = newComboBox(this, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
+
+      this.ForaxxSizer = new HorizontalSizer;
+      this.ForaxxSizer.spacing = 4;
+      this.ForaxxSizer.add( this.narrowband_Foraxx_CheckBox );
+      this.ForaxxSizer.add( this.narrowband_Foraxx_palette_ComboBox );
+      this.ForaxxSizer.addStretch();
+
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
       this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(this, "Hue shift for less green", par.run_less_green_hue_shift, 
@@ -5621,15 +5635,16 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer = new VerticalSizer;
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
+      this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
       this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_colorized_sho_sizer);
-      this.narrowbandOptions1_sizer.add( this.run_narrowband_SCNR_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
+      this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
       this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
       this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
       this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );

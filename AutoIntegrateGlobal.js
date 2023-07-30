@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.62 test4";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.62 test5";         // Version, also updated into updates.xri
 this.autointegrate_info = "";                                     // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -291,6 +291,8 @@ this.par = {
       color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
 
       // Extra processing for narrowband
+      run_foraxx_mapping: { val: false, def: false, name : "Extra Foraxx mapping", type : 'B' },
+      foraxx_palette: { val: "SHO", def: "SHO", name : "Extra Foraxx palette", type : 'S' },
       run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
@@ -613,10 +615,8 @@ this.narrowBandPalettes = [
       { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true }, 
       { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
       { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
-      { name: "Foraxx SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
-      { name: "Foraxx HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: false, checkable: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: false, checkable: true }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
       { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true }, 
       { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true }, 
       { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true }, 
