@@ -5584,7 +5584,7 @@ function AutoIntegrateDialog()
 
       // Narrowband extra processing
       this.narrowband_Foraxx_CheckBox = newCheckBox(this, "Foraxx mapping", par.run_foraxx_mapping, 
-            "<p>Use dynamic Foraxx palette.</p>" +
+            "<p>Use dynamic Foraxx palette on image.</p>" +
             "<p>" + Foraxx_credit + "</p>" );
       this.narrowband_Foraxx_palette_ComboBox = newComboBox(this, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
 
@@ -5593,6 +5593,9 @@ function AutoIntegrateDialog()
       this.ForaxxSizer.add( this.narrowband_Foraxx_CheckBox );
       this.ForaxxSizer.add( this.narrowband_Foraxx_palette_ComboBox );
       this.ForaxxSizer.addStretch();
+
+      this.narrowband_orangeblue_colors_CheckBox = newCheckBox(this, "Orange/blue colors", par.run_orangeblue_colors, 
+            "<p>Enhance image by shifting red colors more to  orange and enhancing blues. Useful for example with Foraxx palette.</p>");
 
       this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
@@ -5636,6 +5639,7 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
       this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
+      this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );

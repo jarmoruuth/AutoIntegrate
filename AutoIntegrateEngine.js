@@ -6892,31 +6892,6 @@ function narrowbandOrangeHueShift(imgView)
       guiUpdatePreviewId(imgView.id);
 }
 
-// Run hue shift on narrowband image to shift green more to yellow.
-function narrowbandGreenHueShift(imgView)
-{
-      util.addProcessingStepAndStatusInfo("Green hue shift on " + imgView.id);
-      
-      var P = new CurvesTransformation;
-      P.H = [ // x, y
-            [0.00000, 0.00000],
-            [0.22167, 0.10400],
-            [0.35140, 0.16000],
-            [0.42365, 0.45000],
-            [0.66831, 0.69600],
-            [1.00000, 1.00000]
-      ];
-      imgView.beginProcess(UndoFlag_NoSwapFile);
-
-      P.executeOn(imgView, false);
-
-      imgView.endProcess();
-
-      checkCancel();
-
-      guiUpdatePreviewId(imgView.id);
-}
-
 function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 {
       if (maskWin != null) {
@@ -9740,6 +9715,60 @@ function findNarrowBandPalette(name)
       return null;
 }
 
+// Run hue shift on narrowband image to shift red more to yellow/orange.
+function narrowbandRedToOrangeHueShift(imgWin)
+{
+      util.addProcessingStepAndStatusInfo("Red hue shift to orange on " + imgWin.mainView.id);
+      
+      var P = new CurvesTransformation;
+      P.H = [ // x, y
+            [0.00000, 0.00000],
+            [0.14614, 0.17400],
+            [0.33990, 0.33400],
+            [0.50082, 0.49800],
+            [0.74713, 0.75000],
+            [1.00000, 1.00000]
+      ];
+      
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
+// increase saturation on yellow/orange and blue
+function narrowbandOrangeBlueSaturation(imgWin)
+{
+      util.addProcessingStepAndStatusInfo("Orange and blue color saturation on " + imgWin.mainView.id);
+
+      var P = new ColorSaturation;
+      P.HS = [ // x, y
+            [0.00000, 0.00000],
+            [0.19444, 0.51542],
+            [0.32639, -0.01322],
+            [0.69097, 0.77974],
+            [0.88194, 0.01322],
+            [1.00000, 0.00000]
+      ];
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
+function extraOrangeBlueColors(imgWin)
+{
+      narrowbandRedToOrangeHueShift(imgWin);
+      narrowbandOrangeBlueSaturation(imgWin);
+}
+
 function extraForaxx(imgWin, palette)
 {
       util.addProcessingStepAndStatusInfo("Extra Foraxx using " + palette + " palette");
@@ -10025,6 +10054,9 @@ function extraProcessing(parent, id, apply_directly)
       if (process_narrowband) {
             if (par.run_foraxx_mapping.val) {
                   extraForaxx(extraWin, par.foraxx_palette.val);
+            }
+            if (par.run_orangeblue_colors.val) {
+                  extraOrangeBlueColors(extraWin);
             }
             if (par.run_orange_hue_shift.val) {
                   narrowbandOrangeHueShift(extraWin.mainView);
