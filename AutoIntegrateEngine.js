@@ -1,6 +1,8 @@
 /*
       AutoIntegrate Engine.
 
+      mtf(med($T)-(med($T)+-2.8*1.4826*mdev($T)), 0.2*$T)
+
 Processing this.
 
 Interface functions:
@@ -3732,7 +3734,6 @@ function createNewStarNet2(star_mask)
 {
       try {
             var P = new StarNet2;
-            P.stride = StarNet2.prototype.defStride;
             P.mask = star_mask;
       } catch(err) {
             console.criticalln("StarNet2 failed");
@@ -3766,7 +3767,11 @@ function getStarMaskWin(imgWin, name)
 // for star image.
 function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_unscreen)
 {
-      util.addProcessingStepAndStatusInfo("Remove stars");
+      if (linear_data) {
+            util.addProcessingStepAndStatusInfo("Remove stars from linear image " + imgWin.mainView.id);
+      } else {
+            util.addProcessingStepAndStatusInfo("Remove stars from non-linear image " + imgWin.mainView.id);
+      }
 
       if (linear_data && use_unscreen) {
             console.writeln("Not using unscreen for linear data");
@@ -3791,6 +3796,12 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             var P = createNewStarNet(create_star_mask);
       }
 
+      if (par.use_starnet2.val && linear_data) {
+            var median = imgWin.mainView.computeOrFetchProperty("Median");
+            console.writeln("removeStars with StarNet2, median " + median);
+            runPixelMathSingleMappingEx(imgWin.mainView.id, "mtf(" + median.at(0) + ", $T)", false, null, false, true);
+      }
+
       /* Execute on image.
        */
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
@@ -3798,6 +3809,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       var succp = P.executeOn(imgWin.mainView, false);
       
       imgWin.mainView.endProcess();
+
+      if (par.use_starnet2.val && linear_data) {
+            runPixelMathSingleMappingEx(imgWin.mainView.id, "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
+      }
 
       checkCancel();
 
@@ -11490,6 +11505,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        
                    saveProcessedWindow(global.outputRootDir, stars_id);
                    saveProcessedWindow(global.outputRootDir, starless_id);
+
+                   guiUpdatePreviewId(LRGB_ABE_HT_id);
              }
        }
  

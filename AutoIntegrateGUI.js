@@ -137,7 +137,7 @@ function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
 
             var cb = new CheckBox( this );
             cb.text = global.narrowBandPalettes[i].name;
-            cb.toolTip = "R: " + global.narrowBandPalettes[i].R + ", G: " + global.narrowBandPalettes[i].G + ", B: " + global.narrowBandPalettes[i].B;
+            cb.toolTip = "<p>R: " + global.narrowBandPalettes[i].R + ", G: " + global.narrowBandPalettes[i].G + ", B: " + global.narrowBandPalettes[i].B + "</p>";
             cb.checked = checked;
             cb.index = i;
             cb.onClick = function(checked) { 
@@ -684,7 +684,7 @@ function close_undo_images(parent)
              }
        }
        if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
-             cb.toolTip = toolTip; 
+             cb.toolTip = util.formatToolTip(toolTip);
        }
  
        cb.aiParam.reset = function() {
@@ -705,7 +705,7 @@ function close_undo_images(parent)
        cb.text = checkboxText;
        cb.checked = val;
        cb.onClick = onClick;
-       cb.toolTip = toolTip; 
+       cb.toolTip = util.formatToolTip(toolTip);
  
        return cb;
  }
@@ -717,7 +717,7 @@ function newGroupBox( parent, title, toolTip )
             gb.title = title; 
       }
       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
-            gb.toolTip = toolTip; 
+            gb.toolTip = util.formatToolTip(toolTip);
       }
 
       return gb;
@@ -804,7 +804,7 @@ function newLabel(parent, text, tip, align_left)
       } else {
             lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       }
-      lbl.toolTip = tip;
+      lbl.toolTip = util.formatToolTip(tip);
 
       return lbl;
 }
@@ -817,7 +817,7 @@ function newTextEdit(parent, param, tooltip)
             edt.aiParam.val = value; 
       };
       edt.text = edt.aiParam.val;
-      edt.toolTip = tooltip;
+      edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.text = edt.aiParam.val;
       };
@@ -837,7 +837,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
       edt.setPrecision( precision );
       edt.setRange(min, max);
       edt.setValue(edt.aiParam.val);
-      edt.toolTip = tooltip;
+      edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
       };
@@ -865,7 +865,7 @@ function newNumericControl(parent, txt, param, min, max, tooltip)
       edt.onValueUpdated = function(value) { 
             edt.aiParam.val = value; 
       };
-      edt.toolTip = tooltip;
+      edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
       };
@@ -879,7 +879,7 @@ function newSpinBox(parent, param, min, max, tooltip)
       edt.maxValue = max;
       edt.aiParam = param;
       edt.value = edt.aiParam.val;
-      edt.toolTip = tooltip;
+      edt.toolTip = util.formatToolTip(tooltip);
       edt.onValueUpdated = function( value )
       {
             edt.aiParam.val = value;
@@ -899,7 +899,7 @@ function newGenericSpinBox(parent, param, val, min, max, tooltip, onValueUpdated
       edt.maxValue = max;
       edt.aiParam = param;
       edt.value = val;
-      edt.toolTip = tooltip;
+      edt.toolTip = util.formatToolTip(tooltip);
       edt.onValueUpdated = onValueUpdated;
 
       return edt;
@@ -915,7 +915,7 @@ function addArrayToComboBox(cb, arr)
 function newComboBox(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
-      cb.toolTip = tooltip;
+      cb.toolTip = util.formatToolTip(tooltip);
       addArrayToComboBox(cb, valarray);
       cb.aiParam = param;
       cb.aiValarray = valarray;
@@ -934,7 +934,7 @@ function newComboBox(parent, param, valarray, tooltip)
 function newComboBoxIndex(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
-      cb.toolTip = tooltip;
+      cb.toolTip = util.formatToolTip(tooltip);
       cb.aiParam = param;
       cb.aiValarray = valarray;
       addArrayToComboBox(cb, cb.aiValarray);
@@ -953,7 +953,7 @@ function newComboBoxIndex(parent, param, valarray, tooltip)
 function newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
 {
       var cb = new ComboBox( parent );
-      cb.toolTip = tooltip;
+      cb.toolTip = util.formatToolTip(tooltip);
       cb.aiParam = param;
       cb.aiValarray = valarray;
       addArrayToComboBox(cb, cb.aiValarray);
@@ -977,7 +977,7 @@ function newComboBoxpalette(parent, param, valarray, tooltip)
       cb.aiParam = param;
       cb.aiValarray = valarray;
       addArrayToComboBox(cb, cb.aiValarray);
-      cb.toolTip = tooltip;
+      cb.toolTip = util.formatToolTip(tooltip);
       cb.onEditTextUpdated = function() { 
             cb.aiParam.val = cb.editText.trim(); 
       };
@@ -991,7 +991,7 @@ function filesOptionsSizer(parent, name, toolTip)
 {
       var label = newSectionLabel(parent, name);
       parent.rootingArr.push(label);
-      label.toolTip = toolTip;
+      label.toolTip = util.formatToolTip(toolTip);
       var labelempty = new Label( parent );
       labelempty.text = " ";
       parent.rootingArr.push(labelempty);
@@ -1578,7 +1578,7 @@ function addWinPrefix(parent)
       windowPrefixHelpTips = new ToolButton( parent );
       windowPrefixHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       windowPrefixHelpTips.setScaledFixedSize( 20, 20 );
-      windowPrefixHelpTips.toolTip = "Current Window Prefixes:";
+      windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
 
       var winprefix_Sizer = new HorizontalSizer;
       winprefix_Sizer.spacing = 4;
@@ -2266,7 +2266,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       parent.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
-      filesAdd_Button.toolTip = toolTip;
+      filesAdd_Button.toolTip = util.formatToolTip(toolTip);
       filesAdd_Button.onClick = function()
       {
             if (par.open_directory.val) {
@@ -2395,9 +2395,9 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       if (filetype == 'C') {
-            filesAdd_Button.toolTip = "Add color/OSC/DSLR files";
+            filesAdd_Button.toolTip = "<p>Add color/OSC/DSLR files</p>";
       } else {
-            filesAdd_Button.toolTip = "Add " + filetype + " files";
+            filesAdd_Button.toolTip = "<p>Add " + filetype + " files</p>";
       }
       filesAdd_Button.onClick = function() {
             var imageFileNames = engine.openImageFiles(filetype, true, false);
@@ -2454,7 +2454,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       parent.rootingArr.push(sb);
       sb.setSection(control);
       sb.hide();
-      sb.toolTip = "Select manually files for each filter. Useful if filters are not recognized automatically.";
+      sb.toolTip = "<p>Select manually files for each filter. Useful if filters are not recognized automatically.</p>";
       sb.onToggleSection = function(bar, beginToggle){
             parent.adjustToContents();
       };
@@ -2760,7 +2760,7 @@ function newPushorToolButton(parent, icon, txt, tooltip, action, toolbutton)
       if (icon) {
             button.icon = parent.scaledResource( icon );
       }
-      button.toolTip = tooltip;
+      button.toolTip = util.formatToolTip(tooltip);
 
       return button;
 }
@@ -2966,7 +2966,7 @@ function newAdjustToContentButton(parent)
 {
       var button = new ToolButton(parent);
       button.icon = new Bitmap( ":/toolbar/preview-reset.png" );
-      button.toolTip = "Adjust script window to content.";
+      button.toolTip = "<p>Adjust script window to content.</p>";
       button.onMousePress = function()
       {
             parent.adjustToContents();
@@ -2979,7 +2979,7 @@ function blinkArrowButton(parent, icon, x, y)
       var blinkArrowButton = new ToolButton( parent );
       parent.rootingArr.push(blinkArrowButton);
       blinkArrowButton.icon = parent.scaledResource(icon);
-      blinkArrowButton.toolTip = "Blink window move zoomed area";
+      blinkArrowButton.toolTip = "<p>Blink window move zoomed area</p>";
       blinkArrowButton.setScaledFixedSize( 20, 20 );
       blinkArrowButton.onClick = function()
       {
@@ -3007,7 +3007,7 @@ function newPageButtonsSizer(parent)
             var blinkFitButton = new ToolButton( parent );
             parent.rootingArr.push(blinkFitButton);
             blinkFitButton.icon = parent.scaledResource(":/toolbar/view-zoom-optimal-fit.png");
-            blinkFitButton.toolTip = "Blink window zoom to optimal fit";
+            blinkFitButton.toolTip = "<p>Blink window zoom to optimal fit</p>";
             blinkFitButton.setScaledFixedSize( 20, 20 );
             blinkFitButton.onClick = function()
             {
@@ -3022,7 +3022,7 @@ function newPageButtonsSizer(parent)
             var blinkZoomButton = new ToolButton( parent );
             parent.rootingArr.push(blinkZoomButton);
             blinkZoomButton.icon = parent.scaledResource(":/icons/zoom-1-1.png");
-            blinkZoomButton.toolTip = "Blink window zoom to 1:1";
+            blinkZoomButton.toolTip = "<p>Blink window zoom to 1:1</p>";
             blinkZoomButton.setScaledFixedSize( 20, 20 );
             blinkZoomButton.onClick = function()
             {
@@ -3045,13 +3045,13 @@ function newPageButtonsSizer(parent)
       var jsonLabel = new Label( parent );
       parent.rootingArr.push(jsonLabel);
       jsonLabel.text = "Setup file";
-      jsonLabel.toolTip = "Restoring script setup from a file, saving script setup to a file.";
+      jsonLabel.toolTip = "<p>Restoring script setup from a file, saving script setup to a file.</p>";
       jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       
       var jsonLoadButton = new ToolButton( parent );
       parent.rootingArr.push(jsonLoadButton);
       jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
-      jsonLoadButton.toolTip = "Restore script setup from a Json file.";
+      jsonLoadButton.toolTip = "<p>Restore script setup from a Json file.</p>";
       jsonLoadButton.setScaledFixedSize( 20, 20 );
       jsonLoadButton.onClick = function()
       {
@@ -3081,13 +3081,13 @@ function newPageButtonsSizer(parent)
       var currentPageLabel = new Label( parent );
       parent.rootingArr.push(currentPageLabel);
       currentPageLabel.text = "Current page";
-      currentPageLabel.toolTip = "Operations on the current page.";
+      currentPageLabel.toolTip = "<p>Operations on the current page.</p>";
       currentPageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
       var currentPageCheckButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageCheckButton);
       currentPageCheckButton.icon = parent.scaledResource(":/icons/check.png");
-      currentPageCheckButton.toolTip = "Mark all files in the current page as checked.";
+      currentPageCheckButton.toolTip = "<p>Mark all files in the current page as checked.</p>";
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
       currentPageCheckButton.onClick = function()
       {
@@ -3096,7 +3096,7 @@ function newPageButtonsSizer(parent)
       var currentPageClearButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageClearButton);
       currentPageClearButton.icon = parent.scaledResource(":/icons/clear.png");
-      currentPageClearButton.toolTip = "Clear the list of input images in the current page.";
+      currentPageClearButton.toolTip = "<p>Clear the list of input images in the current page.</p>";
       currentPageClearButton.setScaledFixedSize( 20, 20 );
       currentPageClearButton.onClick = function()
       {
@@ -3112,7 +3112,7 @@ function newPageButtonsSizer(parent)
       var currentPageCollapseButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageCollapseButton);
       currentPageCollapseButton.icon = parent.scaledResource(":/browser/collapse.png");
-      currentPageCollapseButton.toolTip = "Collapse all sections in the current page.";
+      currentPageCollapseButton.toolTip = "<p>Collapse all sections in the current page.</p>";
       currentPageCollapseButton.setScaledFixedSize( 20, 20 );
       currentPageCollapseButton.onClick = function()
       {
@@ -3121,7 +3121,7 @@ function newPageButtonsSizer(parent)
       var currentPageExpandButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageExpandButton);
       currentPageExpandButton.icon = parent.scaledResource(":/browser/expand.png");
-      currentPageExpandButton.toolTip = "Expand all sections in the current page.";
+      currentPageExpandButton.toolTip = "<p>Expand all sections in the current page.</p>";
       currentPageExpandButton.setScaledFixedSize( 20, 20 );
       currentPageExpandButton.onClick = function()
       {
@@ -3130,8 +3130,8 @@ function newPageButtonsSizer(parent)
       var currentPageFilterButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageFilterButton);
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
-      currentPageFilterButton.toolTip = "Filter and sort files based on current weighting and filtering settings. Only checked files are used. " +
-                                        "Without any filtering rules files are just sorted by weighting setting.";
+      currentPageFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings. Only checked files are used. " +
+                                        "Without any filtering rules files are just sorted by weighting setting.</p>";
       currentPageFilterButton.setScaledFixedSize( 20, 20 );
       currentPageFilterButton.onClick = function()
       {
@@ -3143,7 +3143,7 @@ function newPageButtonsSizer(parent)
       var setBestImageButton = new ToolButton( parent );
       parent.rootingArr.push(setBestImageButton);
       setBestImageButton.icon = parent.scaledResource(":/icons/ok-button.png");
-      setBestImageButton.toolTip = "Set current preview/selected image as the reference image for star alignment.";
+      setBestImageButton.toolTip = "<p>Set current preview/selected image as the reference image for star alignment.</p>";
       setBestImageButton.setScaledFixedSize( 20, 20 );
       setBestImageButton.onClick = function()
       {
@@ -3155,7 +3155,7 @@ function newPageButtonsSizer(parent)
       var setReferenceImageButton = new ToolButton( parent );
       parent.rootingArr.push(setReferenceImageButton);
       setReferenceImageButton.icon = parent.scaledResource(":/icons/item.png");
-      setReferenceImageButton.toolTip = "Set current preview/selected image as the reference image for current filter for image integration and local normalization.";
+      setReferenceImageButton.toolTip = "<p>Set current preview/selected image as the reference image for current filter for image integration and local normalization.</p>";
       setReferenceImageButton.setScaledFixedSize( 20, 20 );
       setReferenceImageButton.onClick = function()
       {
@@ -3167,7 +3167,7 @@ function newPageButtonsSizer(parent)
       var clearBestImageButton = new ToolButton( parent );
       parent.rootingArr.push(clearBestImageButton);
       clearBestImageButton.icon = parent.scaledResource(":/browser/disable.png");
-      clearBestImageButton.toolTip = "Clear all reference image settings.";
+      clearBestImageButton.toolTip = "<p>Clear all reference image settings.</p>";
       clearBestImageButton.setScaledFixedSize( 20, 20 );
       clearBestImageButton.onClick = function()
       {
@@ -3412,14 +3412,14 @@ function newHistogramControl(parent, side_preview)
             histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
                   if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
                         this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
-                        this.aiLabelX.toolTip = "X coordinate value.";
+                        this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
                         this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.bitmap.height).toFixed(4);
-                        this.aiLabelY.toolTip = "Y coordinate value.";
+                        this.aiLabelY.toolTip = "<p>Y coordinate value.</p>";
                         if (this.aiInfo.cumulativeValues) {
                               this.aiLabelCnt.text = "Cnt: " + this.aiInfo.cumulativeValues[x];
-                              this.aiLabelCnt.toolTip = "Cumulative number of pixels with values less than or equal to the X coordinate value.";
+                              this.aiLabelCnt.toolTip = "<p>Cumulative number of pixels with values less than or equal to the X coordinate value.</p>";
                               this.aiLabelPrc.text = "%: " + this.aiInfo.percentageValues[x].toFixed(4);
-                              this.aiLabelPrc.toolTip = "Percentage of pixels with values less than or equal to the X coordinate value.";
+                              this.aiLabelPrc.toolTip = "<p>Percentage of pixels with values less than or equal to the X coordinate value.</p>";
                         }
                   }
             };
@@ -4111,8 +4111,8 @@ function AutoIntegrateDialog()
 
       this.LRGBCombinationGroupBoxLabel = newSectionLabel(this, "LRGBCombination settings");
       this.LRGBCombinationGroupBoxLabel.toolTip = 
-            "LRGBCombination settings can be used to fine tune image. For relatively small " +
-            "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.";
+            "<p>LRGBCombination settings can be used to fine tune image. For relatively small " +
+            "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.</p>";
       this.LRGBCombinationGroupBoxSizer = new HorizontalSizer;
       this.LRGBCombinationGroupBoxSizer.margin = 6;
       this.LRGBCombinationGroupBoxSizer.spacing = 4;
@@ -4734,7 +4734,7 @@ function AutoIntegrateDialog()
       //
       this.cosmeticCorrectionSigmaGroupBoxLabel = newSectionLabel(this, "CosmeticCorrection Sigma values");
       
-      var cosmeticCorrectionSigmaGroupBoxLabeltoolTip = "Hot Sigma and Cold Sigma values for CosmeticCorrection";
+      var cosmeticCorrectionSigmaGroupBoxLabeltoolTip = "<p>Hot Sigma and Cold Sigma values for CosmeticCorrection</p>";
 
       this.cosmeticCorrectionHotSigmaGroupBoxLabel = newLabel(this, "Hot Sigma", cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
       this.cosmeticCorrectionHotSigmaSpinBox = newSpinBox(this, par.cosmetic_correction_hot_sigma, 0, 10, cosmeticCorrectionSigmaGroupBoxLabeltoolTip);
@@ -5056,7 +5056,7 @@ function AutoIntegrateDialog()
       this.StretchingOptionsSizer.addStretch();
 
       this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
-      this.StretchingGroupBoxLabel.toolTip = "Settings for stretching linear image image to non-linear.";
+      this.StretchingGroupBoxLabel.toolTip = "<p>Settings for stretching linear image image to non-linear.</p>";
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
       this.StretchingGroupBoxSizer.spacing = 4;
@@ -5073,7 +5073,7 @@ function AutoIntegrateDialog()
       // normalization
       this.ImageIntegrationNormalizationLabel = new Label( this );
       this.ImageIntegrationNormalizationLabel.text = "Normalization";
-      this.ImageIntegrationNormalizationLabel.toolTip = "Rejection normalization. This is value is ignored if local normalization is used.";
+      this.ImageIntegrationNormalizationLabel.toolTip = "<p>Rejection normalization. This is value is ignored if local normalization is used.</p>";
       this.ImageIntegrationNormalizationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.ImageIntegrationNormalizationComboBox = newComboBox(this, par.imageintegration_normalization, imageintegration_normalization_values, this.ImageIntegrationNormalizationLabel.toolTip);
    
@@ -5184,17 +5184,11 @@ function AutoIntegrateDialog()
       this.localNormalizationGroupBoxSizer = new VerticalSizer;
       this.localNormalizationGroupBoxSizer.margin = 6;
       this.localNormalizationGroupBoxSizer.spacing = 4;
-      this.localNormalizationGroupBoxSizer.toolTip = "Local normalization settings.";
+      this.localNormalizationGroupBoxSizer.toolTip = "<p>Local normalization settings.</p>";
       this.localNormalizationGroupBoxSizer.add( this.localNormalizationSizer );
       //this.localNormalizationGroupBoxSizer.addStretch();
 
       // Narrowband palette
-
-      var narrowbandAllTip = 
-            "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
-            "extra options, then also images with name Auto_+palette-name+_extra are created. Images are saved as .xisf files. " +
-            "Use Save batch result files buttons to save them all in a different format. " + 
-            "To use All option all HSO filters must be available.";
 
       var narrowbandToolTip = 
       "<p>" +
@@ -5213,7 +5207,10 @@ function AutoIntegrateDialog()
       "with corresponding channel image names. Otherwise these formulas " +
       "are passed directly to PixelMath process." +
       "</p><p>" +
-      narrowbandAllTip + 
+      "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
+      "extra options, then also images with name Auto_+palette-name+_extra are created. Images are saved as .xisf files. " +
+      "Use Save batch result files buttons to save them all in a different format. " + 
+      "To use All option all HSO filters must be available." +
       "</p>";
 
       this.narrowbandColorPaletteLabel = newSectionLabel(this, "Color palette");
@@ -5386,7 +5383,7 @@ function AutoIntegrateDialog()
       this.narrowbandSelectMultipleButton = new PushButton(this);
       this.narrowbandSelectMultipleButton.text = "Select";
       this.narrowbandSelectMultipleButton.icon = this.scaledResource(":/icons/find.png");
-      this.narrowbandSelectMultipleButton.toolTip = "Select narrowband mappings.";
+      this.narrowbandSelectMultipleButton.toolTip = "<p>Select narrowband mappings.</p>";
       this.narrowbandSelectMultipleButton.onClick = function()
       {
             let narrowbandSelectMultiple = new AutoIntegrateNarrowbandSelectMultipleDialog(global, par.narrowband_multiple_mappings_list.val);
@@ -6308,7 +6305,7 @@ function AutoIntegrateDialog()
       closeAllPrefixButton = new PushButton( this );
       closeAllPrefixButton.text = "Close all prefixes";
       closeAllPrefixButton.icon = this.scaledResource( ":/icons/window-close-all.png" );
-      closeAllPrefixButton.toolTip = "!!! See setWindowPrefixHelpTip !!!";
+      closeAllPrefixButton.toolTip = "<p>!!! See setWindowPrefixHelpTip !!!</p>";
       closeAllPrefixButton.onClick = function()
       {
             console.noteln("Close all prefixes");
@@ -6625,7 +6622,7 @@ function AutoIntegrateDialog()
 
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
-      this.newInstance_Button.toolTip = "New Instance";
+      this.newInstance_Button.toolTip = "<p>New Instance</p>";
       this.newInstance_Button.onMousePress = function()
       {
          this.hasFocus = true;
@@ -6646,14 +6643,14 @@ function AutoIntegrateDialog()
       };
       this.reset_Button = new ToolButton(this);
       this.reset_Button.icon = new Bitmap( ":/images/icons/reset.png" );
-      this.reset_Button.toolTip = "Set default values for all parameters.";
+      this.reset_Button.toolTip = "<p>Set default values for all parameters.</p>";
       this.reset_Button.onMousePress = function()
       {
             util.setParameterDefaults();
       };
       this.website_Button = new ToolButton(this);
       this.website_Button.icon = new Bitmap( ":/icons/internet.png" );
-      this.website_Button.toolTip = "Browse documentation on AutoIntegrate web site.";
+      this.website_Button.toolTip = "<p>Browse documentation on AutoIntegrate web site.</p>";
       this.website_Button.onMousePress = function()
       {
             Dialog.openBrowser("https://ruuth.xyz/AutoIntegrateInfo.html");

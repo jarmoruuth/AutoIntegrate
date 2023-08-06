@@ -1456,6 +1456,15 @@ this.saveJsonFile = function(parent, save_settings)
       util.saveJsonFileEx(parent, save_settings, null);
 }
 
+this.formatToolTip = function(txt)
+{
+      if (txt.substr(0, 1) == "<") {
+            return txt;
+      } else {
+            return "<p>" + txt + "</p>";
+      }
+}
+
 }  /* AutoIntegrateUtil */
 
 AutoIntegrateUtil.prototype = new Object;
