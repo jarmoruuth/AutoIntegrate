@@ -3989,7 +3989,7 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
-            "<p><b>NOTE!</b> You need to start StarXTerminator manually once after PixInsight is started. " +
+            "<p><b>NOTE!</b>If you are using an old version of StarXTerminator you need to start StarXTerminator manually once after PixInsight is started. " +
             "Just a simple start and close is enough. Othwerwise StarXTerminator will fail with file I/O error and " +
             "does not remove stars.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 

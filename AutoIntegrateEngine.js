@@ -5091,6 +5091,15 @@ function runABEex(win, replaceTarget, postfix)
 
       util.addScriptWindow(ABE_id);
 
+      if (!replaceTarget) {
+            if (global.pixinsight_version_num >= 1080902) {
+                  var targetWindow = util.findWindow(ABE_id);
+                  if (targetWindow != null) {
+                        targetWindow.copyAstrometricSolution(win);
+                  }
+            }
+      }
+
       return ABE_id;
 }
 
