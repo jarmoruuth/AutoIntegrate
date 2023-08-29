@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.63 test1";               // Version, also updated into updates.xri
-this.autointegrate_info = "ABE and astrometric solution";               // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.63 test2";         // Version, also updated into updates.xri
+this.autointegrate_info = "Extra narrowband mapping";             // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -293,6 +293,8 @@ this.par = {
       // Extra processing for narrowband
       run_foraxx_mapping: { val: false, def: false, name : "Extra Foraxx mapping", type : 'B' },
       foraxx_palette: { val: "SHO", def: "SHO", name : "Extra Foraxx palette", type : 'S' },
+      run_extra_sho_mapping: { val: false, def: false, name : "Extra SHO mapping", type : 'B' },
+      extra_sho_mapping_palette: { val: "HOS", def: "HOS", name : "Extra SHO mapping palette", type : 'S' },
       run_orangeblue_colors: { val: false, def: false, name : "Extra orangeblue colors", type : 'B' },
       run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
@@ -608,27 +610,27 @@ this.final_windows = [
 ];
 
 this.narrowBandPalettes = [
-      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true }, 
-      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true }, 
-      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true }, 
-      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true }, 
-      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true }, 
-      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true }, 
-      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
-      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true }, 
-      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true }, 
-      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true }, 
-      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true }, 
-      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true }, 
-      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true }, 
-      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true }, 
-      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true }, 
-      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true }, 
-      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false }, 
-      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false },
-      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false }
+      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false },
+      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true }, 
+      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false }, 
+      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false }, 
+      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true, sho_mappable: true }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false }, 
+      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false },
+      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false }
 ];
 
 this.directoryInfo = "<p>AutoIntegrate output files go to the following subdirectories:</p>" +

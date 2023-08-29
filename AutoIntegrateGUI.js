@@ -5580,8 +5580,14 @@ function AutoIntegrateDialog()
       this.narrowbandRGBmappingControl.visible = false;
 
       // Narrowband extra processing
+
+      // Foraxx mapping
       this.narrowband_Foraxx_CheckBox = newCheckBox(this, "Foraxx mapping", par.run_foraxx_mapping, 
             "<p>Use dynamic Foraxx palette on image.</p>" +
+            "<p>Foraxx mapping can be done on SHO or HOO image. Channels are extracted from the SHO or HOO " + 
+            "image and mapped again to create a dynamic Foraxx palette imege.</p>" +
+            "<p>After Foraxx SHO mapping <i>Remove green cast</i> and <i>Orange/blue colors</i> are run for the image.</p>" +
+            "<p>To run basic Foraxx SHO mapping use <i>SHO mapping</i> and select <i>Dynamic SHO</i>.</p>" +
             "<p>" + Foraxx_credit + "</p>" );
       this.narrowband_Foraxx_palette_ComboBox = newComboBox(this, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
 
@@ -5590,6 +5596,25 @@ function AutoIntegrateDialog()
       this.ForaxxSizer.add( this.narrowband_Foraxx_CheckBox );
       this.ForaxxSizer.add( this.narrowband_Foraxx_palette_ComboBox );
       this.ForaxxSizer.addStretch();
+
+      // SHO mapping
+      this.extra_SHO_mapping_values = [];
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            if (global.narrowBandPalettes[i].sho_mappable) {
+                  this.extra_SHO_mapping_values.push(global.narrowBandPalettes[i].name);
+            }
+      }
+      this.narrowband_SHO_mapping_CheckBox = newCheckBox(this, "SHO mapping", par.run_extra_sho_mapping, 
+            "<p>Map source SHO image to a new narrowband palette.</p>" +
+            "<p>Mapping can be done only on SHO image. Channels are extracted from the SHO " + 
+            "image and mapped again to create a new palette imege.</p>");
+      this.narrowband_SHO_mapping_ComboBox = newComboBox(this, par.extra_sho_mapping_palette, this.extra_SHO_mapping_values, this.narrowband_SHO_mapping_CheckBox.toolTip);
+
+      this.extraSHOMappingSizer = new HorizontalSizer;
+      this.extraSHOMappingSizer.spacing = 4;
+      this.extraSHOMappingSizer.add( this.narrowband_SHO_mapping_CheckBox );
+      this.extraSHOMappingSizer.add( this.narrowband_SHO_mapping_ComboBox );
+      this.extraSHOMappingSizer.addStretch();
 
       this.narrowband_orangeblue_colors_CheckBox = newCheckBox(this, "Orange/blue colors", par.run_orangeblue_colors, 
             "<p>Enhance image by shifting red colors more to  orange and enhancing blues. Useful for example with Foraxx palette.</p>");
@@ -5636,15 +5661,16 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer.margin = 6;
       this.narrowbandOptions1_sizer.spacing = 4;
       this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
+      this.narrowbandOptions1_sizer.add( this.extraSHOMappingSizer );
       this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_colorized_sho_sizer);
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
+      this.narrowbandOptions2_sizer.add( this.narrowband_colorized_sho_sizer);
       this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
       this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
       this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );

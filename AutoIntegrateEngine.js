@@ -9793,20 +9793,18 @@ function extraOrangeBlueColors(imgWin)
       narrowbandOrangeBlueSaturation(imgWin);
 }
 
-function extraForaxx(imgWin, palette)
+function extraNarrowbandMapping(imgWin, source_palette, target_palette)
 {
-      util.addProcessingStepAndStatusInfo("Extra Foraxx using " + palette + " palette");
+      util.addProcessingStepAndStatusInfo("extraNarrowbandMapping, source_palette " + source_palette);
 
-      switch (palette) {
+      switch (source_palette) {
             case 'HOO':
-                  var dynamic_palette = findNarrowBandPalette("Dynamic HOO");
                   var mappings = [
                         [ 'H', extractRGBchannel(imgWin.mainView.id, 'R') ], 
                         [ 'O', extractRGBchannel(imgWin.mainView.id, 'G') ]
                   ];
                   break;
             case 'SHO':
-                  var dynamic_palette = findNarrowBandPalette("Dynamic SHO");
                   var mappings = [
                         [ 'S', extractRGBchannel(imgWin.mainView.id, 'R') ], 
                         [ 'H', extractRGBchannel(imgWin.mainView.id, 'G') ], 
@@ -9814,18 +9812,18 @@ function extraForaxx(imgWin, palette)
                   ];
                   break;
             default:
-                  util.throwFatalError("Invalid palette " + palette);
+                  util.throwFatalError("Invalid source palette " + source_palette);
       }
 
-      var R_mapping = dynamic_palette.R;
+      var R_mapping = target_palette.R;
       for (var i = 0; i < mappings.length; i++) {
             R_mapping = replaceMappingImageNamesExt(R_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
-      var G_mapping = dynamic_palette.G;
+      var G_mapping = target_palette.G;
       for (var i = 0; i < mappings.length; i++) {
             G_mapping = replaceMappingImageNamesExt(G_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
-      var B_mapping = dynamic_palette.B;
+      var B_mapping = target_palette.B;
       for (var i = 0; i < mappings.length; i++) {
             B_mapping = replaceMappingImageNamesExt(B_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
@@ -9835,6 +9833,39 @@ function extraForaxx(imgWin, palette)
       for (var i = 0; i < mappings.length; i++) {
             util.closeOneWindow(mappings[i][1]);
       }
+      util.addProcessingStepAndStatusInfo("extraNarrowbandMapping, mapping complete");
+}
+
+function extraForaxx(imgWin, palette)
+{
+      util.addProcessingStepAndStatusInfo("Extra Foraxx mapping using " + palette + " palette");
+
+      switch (palette) {
+            case 'HOO':
+                  var dynamic_palette = findNarrowBandPalette("Dynamic HOO");
+                  break;
+            case 'SHO':
+                  var dynamic_palette = findNarrowBandPalette("Dynamic SHO");
+                  break;
+            default:
+                  util.throwFatalError("Invalid Foraxx palette " + palette);
+      }
+
+      extraNarrowbandMapping(imgWin, palette, dynamic_palette);
+
+      if (palette == 'SHO') {
+            runSCNR(imgWin.mainView, false);
+            extraOrangeBlueColors(imgWin);
+      }
+}
+
+function extraSHOmapping(imgWin, palette)
+{
+      util.addProcessingStepAndStatusInfo("Extra narrowband mapping using " + palette + " palette");
+
+      var target_palette = findNarrowBandPalette(palette);
+
+      extraNarrowbandMapping(imgWin, 'SHO', target_palette);
 }
 
 // Rename and save palette batch image
@@ -10078,6 +10109,9 @@ function extraProcessing(parent, id, apply_directly)
       if (process_narrowband) {
             if (par.run_foraxx_mapping.val) {
                   extraForaxx(extraWin, par.foraxx_palette.val);
+            }
+            if (par.run_extra_sho_mapping.val) {
+                  extraSHOmapping(extraWin, par.extra_sho_mapping_palette.val);
             }
             if (par.run_orangeblue_colors.val) {
                   extraOrangeBlueColors(extraWin);
