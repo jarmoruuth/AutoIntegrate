@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.63 test2";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.63 test3";         // Version, also updated into updates.xri
 this.autointegrate_info = "Extra narrowband mapping";             // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -293,8 +293,9 @@ this.par = {
       // Extra processing for narrowband
       run_foraxx_mapping: { val: false, def: false, name : "Extra Foraxx mapping", type : 'B' },
       foraxx_palette: { val: "SHO", def: "SHO", name : "Extra Foraxx palette", type : 'S' },
-      run_extra_sho_mapping: { val: false, def: false, name : "Extra SHO mapping", type : 'B' },
-      extra_sho_mapping_palette: { val: "HOS", def: "HOS", name : "Extra SHO mapping palette", type : 'S' },
+      run_extra_narrowband_mapping: { val: false, def: false, name : "Extra narrowband mapping", type : 'B' },
+      extra_narrowband_mapping_source_palette: { val: "SHO", def: "SHO", name : "Extra narrowband mapping source palette", type : 'S' },
+      extra_narrowband_mapping_target_palette: { val: "HOS", def: "HOS", name : "Extra narrowband mapping target palette", type : 'S' },
       run_orangeblue_colors: { val: false, def: false, name : "Extra orangeblue colors", type : 'B' },
       run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },

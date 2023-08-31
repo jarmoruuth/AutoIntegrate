@@ -9793,11 +9793,11 @@ function extraOrangeBlueColors(imgWin)
       narrowbandOrangeBlueSaturation(imgWin);
 }
 
-function extraNarrowbandMapping(imgWin, source_palette, target_palette)
+function runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette)
 {
-      util.addProcessingStepAndStatusInfo("extraNarrowbandMapping, source_palette " + source_palette);
+      util.addProcessingStepAndStatusInfo("runExtraNarrowbandMapping, source_palette_name " + source_palette_name);
 
-      switch (source_palette) {
+      switch (source_palette_name) {
             case 'HOO':
                   var mappings = [
                         [ 'H', extractRGBchannel(imgWin.mainView.id, 'R') ], 
@@ -9812,7 +9812,7 @@ function extraNarrowbandMapping(imgWin, source_palette, target_palette)
                   ];
                   break;
             default:
-                  util.throwFatalError("Invalid source palette " + source_palette);
+                  util.throwFatalError("Invalid source palette " + source_palette_name);
       }
 
       var R_mapping = target_palette.R;
@@ -9833,14 +9833,14 @@ function extraNarrowbandMapping(imgWin, source_palette, target_palette)
       for (var i = 0; i < mappings.length; i++) {
             util.closeOneWindow(mappings[i][1]);
       }
-      util.addProcessingStepAndStatusInfo("extraNarrowbandMapping, mapping complete");
+      util.addProcessingStepAndStatusInfo("runExtraNarrowbandMapping, mapping complete");
 }
 
-function extraForaxx(imgWin, palette)
+function extraForaxx(imgWin, source_palette_name)
 {
-      util.addProcessingStepAndStatusInfo("Extra Foraxx mapping using " + palette + " palette");
+      util.addProcessingStepAndStatusInfo("Extra Foraxx mapping using " + source_palette_name + " palette");
 
-      switch (palette) {
+      switch (source_palette_name) {
             case 'HOO':
                   var dynamic_palette = findNarrowBandPalette("Dynamic HOO");
                   break;
@@ -9848,24 +9848,24 @@ function extraForaxx(imgWin, palette)
                   var dynamic_palette = findNarrowBandPalette("Dynamic SHO");
                   break;
             default:
-                  util.throwFatalError("Invalid Foraxx palette " + palette);
+                  util.throwFatalError("Invalid Foraxx palette " + source_palette_name);
       }
 
-      extraNarrowbandMapping(imgWin, palette, dynamic_palette);
+      runExtraNarrowbandMapping(imgWin, source_palette_name, dynamic_palette);
 
-      if (palette == 'SHO') {
+      if (source_palette_name == 'SHO') {
             runSCNR(imgWin.mainView, false);
             extraOrangeBlueColors(imgWin);
       }
 }
 
-function extraSHOmapping(imgWin, palette)
+function extraNarrowbandMapping(imgWin, source_palette_name, target_palette_name)
 {
-      util.addProcessingStepAndStatusInfo("Extra narrowband mapping using " + palette + " palette");
+      util.addProcessingStepAndStatusInfo("Extra narrowband mapping from " + source_palette_name + " to " + target_palette_name);
 
-      var target_palette = findNarrowBandPalette(palette);
+      var target_palette = findNarrowBandPalette(target_palette_name);
 
-      extraNarrowbandMapping(imgWin, 'SHO', target_palette);
+      runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette);
 }
 
 // Rename and save palette batch image
@@ -10110,8 +10110,8 @@ function extraProcessing(parent, id, apply_directly)
             if (par.run_foraxx_mapping.val) {
                   extraForaxx(extraWin, par.foraxx_palette.val);
             }
-            if (par.run_extra_sho_mapping.val) {
-                  extraSHOmapping(extraWin, par.extra_sho_mapping_palette.val);
+            if (par.run_extra_narrowband_mapping.val) {
+                  extraNarrowbandMapping(extraWin, par.extra_narrowband_mapping_source_palette.val, par.extra_narrowband_mapping_target_palette.val);
             }
             if (par.run_orangeblue_colors.val) {
                   extraOrangeBlueColors(extraWin);

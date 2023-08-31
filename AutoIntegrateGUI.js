@@ -624,32 +624,42 @@ function save_as_undo(parent)
             path = util.ensurePathEndSlash(path);
       }
 
-      saveFileDialog.initialPath = path + global.extra_target_image + ".xisf";
+      saveFileDialog.initialPath = path + global.extra_target_image + ".tif";
       if (!saveFileDialog.execute()) {
             console.noteln("Image " + global.extra_target_image + " not saved");
             return;
       }
-      var copy_id = File.extractName(saveFileDialog.fileName);
+      var save_dir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
+      var save_id = File.extractName(saveFileDialog.fileName);
       var save_win = ImageWindow.windowById(global.extra_target_image);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
       var filename = saveFileDialog.fileName;
       if (File.extractExtension(filename) == "") {
-            filename = filename + ".xisf";
+            filename = filename + ".tif";
+      }
+      var copy_win = util.copyWindow(save_win, util.ensure_win_prefix(save_win.mainView.id + "_savetmp"));
+      if (File.extractExtension(filename) == ".tif") {
+            if (copy_win.bitsPerSample != 16) {
+                  console.writeln("saveFinalImageWindow:set bits to 16");
+                  copy_win.setSampleFormat(16, false);
+            }
       }
       console.noteln("Save " + global.extra_target_image + " as " + filename);
-      if (!save_win.saveAs(filename, false, false, false, false)) {
+      if (!copy_win.saveAs(filename, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + filename);
       }
+      util.saveLastDir(save_dir);
       update_undo_buttons(parent);
-      if (copy_id != global.extra_target_image) {
+      if (save_id != global.extra_target_image) {
             // Rename old image
-            save_win.mainView.id = copy_id;
+            save_win.mainView.id = save_id;
             // Update preview name
-            updatePreviewTxt(copy_id);
+            updatePreviewTxt(save_win);
             // Update target list
-            update_extra_target_image_window_list(parent, copy_id);
+            update_extra_target_image_window_list(parent, save_id);
       }
+      util.forceCloseOneWindow(copy_win);
 }
 
 function close_undo_images(parent)
@@ -5604,16 +5614,20 @@ function AutoIntegrateDialog()
                   this.extra_SHO_mapping_values.push(global.narrowBandPalettes[i].name);
             }
       }
-      this.narrowband_SHO_mapping_CheckBox = newCheckBox(this, "SHO mapping", par.run_extra_sho_mapping, 
-            "<p>Map source SHO image to a new narrowband palette.</p>" +
-            "<p>Mapping can be done only on SHO image. Channels are extracted from the SHO " + 
+      this.extra_narrowband_mapping_CheckBox = newCheckBox(this, "Narrow mapping from", par.run_extra_narrowband_mapping, 
+            "<p>Map source narrowband image to a new narrowband palette.</p>" +
+            "<p>Mapping can be done only on SHO or HOO images. Channels are extracted from the SHO or HOO " + 
             "image and mapped again to create a new palette imege.</p>");
-      this.narrowband_SHO_mapping_ComboBox = newComboBox(this, par.extra_sho_mapping_palette, this.extra_SHO_mapping_values, this.narrowband_SHO_mapping_CheckBox.toolTip);
+      this.extra_narrowband_source_palette_ComboBox = newComboBox(this, par.extra_narrowband_mapping_source_palette, Foraxx_palette_values, this.extra_narrowband_mapping_CheckBox.toolTip);
+      this.extra_narrowband_target_mapping_Label = newLabel(this, "to", this.extra_narrowband_mapping_CheckBox.toolTip);
+      this.extra_narrowband_target_palette_ComboBox = newComboBox(this, par.extra_narrowband_mapping_target_palette, this.extra_SHO_mapping_values, this.extra_narrowband_mapping_CheckBox.toolTip);
 
       this.extraSHOMappingSizer = new HorizontalSizer;
       this.extraSHOMappingSizer.spacing = 4;
-      this.extraSHOMappingSizer.add( this.narrowband_SHO_mapping_CheckBox );
-      this.extraSHOMappingSizer.add( this.narrowband_SHO_mapping_ComboBox );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_mapping_CheckBox );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_source_palette_ComboBox );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_target_mapping_Label );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_target_palette_ComboBox );
       this.extraSHOMappingSizer.addStretch();
 
       this.narrowband_orangeblue_colors_CheckBox = newCheckBox(this, "Orange/blue colors", par.run_orangeblue_colors, 
@@ -6165,7 +6179,7 @@ function AutoIntegrateDialog()
       this.extraSaveButton = new ToolButton( this );
       this.extraSaveButton.icon = new Bitmap( ":/icons/save-as.png" );
       this.extraSaveButton.toolTip = 
-            "<p>Save current edited image to disk.</p>" + notetsaved_note;
+            "<p>Save current edited image to disk as a 16-bit TIFF image.</p>" + notetsaved_note;
       this.extraSaveButton.enabled = false;
       this.extraSaveButton.onMousePress = function()
       {

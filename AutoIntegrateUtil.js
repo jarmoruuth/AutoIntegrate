@@ -932,7 +932,7 @@ this.is_narrowband_option = function()
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_foraxx_mapping.val ||
-             par.run_extra_sho_mapping.val ||
+             par.run_extra_narrowband_mapping.val ||
              par.run_orangeblue_colors.val ||
              par.run_colorized_sho.val ||
              par.run_narrowband_SCNR.val ||
