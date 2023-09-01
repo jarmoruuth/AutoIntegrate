@@ -2126,14 +2126,18 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
             for (var i = 0; i < fileNames.length; i++) {
                   var found = false;
                   for (var j = 0; j < global.saved_measurements.length; j++) {
-                        if (global.saved_measurements[j][indexPath] == fileNames[i]) {
+                        var saved_name = File.extractName(global.saved_measurements[j][indexPath]);
+                        var new_name = File.extractName(fileNames[i]);
+                        if (saved_name.startsWith(new_name)) {
                               measurements[measurements.length] = global.saved_measurements[j];
+                              measurements[measurements.length-1][indexPath] = fileNames[i];
                               found = true;
                               break;
                         }
                   }
                   if (!found) {
                         // something went wrong, list are not compatible, generate new ones
+                        console.writeln("subframeSelectorMeasure, global.saved_measurements[0][indexPath] " + global.saved_measurements[0][indexPath]);
                         console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
                         measurements = null;
                         break;

@@ -1081,6 +1081,10 @@ this.readJsonFile = function(fname, lights_only)
             console.writeln("Restored defect info");
             global.LDDDefectInfo = saveInfo.defectInfo;
       }
+      if (saveInfo.saved_measurements != null && saveInfo.saved_measurements != undefined) {
+            console.writeln("Restored subframe selector measurements");
+            global.saved_measurements = saveInfo.saved_measurements;
+      }
 
       var pagearray = [];
       for (var i = 0; i < global.pages.END; i++) {
@@ -1219,6 +1223,9 @@ this.initJsonSaveInfo = function(fileInfoList, save_settings, saveDir)
             }
             if (global.LDDDefectInfo.length > 0) {
                   saveInfo.defectInfo = global.LDDDefectInfo;
+            }
+            if (global.saved_measurements != null) {
+                  saveInfo.saved_measurements = global.saved_measurements;
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };

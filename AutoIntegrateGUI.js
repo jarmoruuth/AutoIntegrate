@@ -1193,15 +1193,15 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImageBmp(updPreviewControl, imgWin, bmp, histogramControl, histogramInfo)
+function updatePreviewImageBmp(updPreviewControl, imgWin, txt, bmp, histogramControl, histogramInfo)
 {
       if (updPreviewControl == null) {
             return;
       }
       if ((is_some_preview && !global.is_processing) || preview_keep_zoom) {
-            updPreviewControl.UpdateImage(imgWin, bmp);
+            updPreviewControl.UpdateImage(imgWin, bmp, txt);
       } else {
-            updPreviewControl.SetImage(imgWin, bmp);
+            updPreviewControl.SetImage(imgWin, bmp, txt);
       }
       if (histogramControl != null && histogramInfo != null) {
             if (histogramUsePreviewControl) {
@@ -1215,13 +1215,14 @@ function updatePreviewImageBmp(updPreviewControl, imgWin, bmp, histogramControl,
 
 function updatePreviewTxt(txt)
 {
-      txt = "<b>Preview</b> " + txt;
+      txt = "Preview: " + txt;
       if (tabPreviewInfoLabel != null) {
             tabPreviewInfoLabel.text = txt;
       }
       if (sidePreviewInfoLabel != null) {
             sidePreviewInfoLabel.text = txt;
       }
+      console.writeln(txt);
 }
 
 function setHistogramBitmapBackground(graphics, side_preview)
@@ -1352,9 +1353,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
             }
             var bmp = getWindowBitmap(imgWin);
             if (ppar.preview.side_preview_visible) {
-                  updatePreviewImageBmp(sidePreviewControl, imgWin, bmp, sideHistogramControl, histogramInfo);
+                  updatePreviewImageBmp(sidePreviewControl, imgWin, txt, bmp, sideHistogramControl, histogramInfo);
             } else {
-                  updatePreviewImageBmp(tabPreviewControl, imgWin, bmp, tabHistogramControl, histogramInfo);
+                  updatePreviewImageBmp(tabPreviewControl, imgWin, txt, bmp, tabHistogramControl, histogramInfo);
             }
             updatePreviewTxt(txt);
             // console.noteln("Preview updated");
@@ -1370,6 +1371,8 @@ function updatePreviewWin(imgWin)
 
 function updatePreviewFilenameAndInfo(filename, stf, update_info)
 {
+      console.writeln("updatePreviewFilenameAndInfo ", filename);
+
       if (!global.use_preview) {
             return;
       }
@@ -2590,6 +2593,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               updatePreviewTxt("Processing...");
                         }
+                        console.writeln("files_TreeBox.onCurrentNodeUpdated " + files_TreeBox.currentNode.filename);
                         var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
                         if (imageWindows == null || imageWindows.length == 0) {
                               return;
@@ -2606,13 +2610,13 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               if (files_TreeBox.currentNode.ssweight == 0) {
                                     var ssweighttxt = "";
                               } else {
-                                    var ssweighttxt = " ssweight: " + files_TreeBox.currentNode.ssweight.toFixed(5);
+                                    var ssweighttxt = ", ssweight: " + files_TreeBox.currentNode.ssweight.toFixed(5);
                               }
                         } else {
                               var ssweighttxt = "";
                         }
                         if (files_TreeBox.currentNode.hasOwnProperty("exptime")) {
-                              var exptimetxt = " exptime: " + files_TreeBox.currentNode.exptime;
+                              var exptimetxt = ", exptime: " + files_TreeBox.currentNode.exptime;
                         } else {
                               var exptimetxt = "";
                         }
@@ -2630,7 +2634,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               }
                               blink_window = imageWindow;
                         } else {
-                              updatePreviewWin(imageWindow);
+                              updatePreviewWinTxt(
+                                    imageWindow, 
+                                    File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename));
                               util.updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
                               switchtoPreviewTab();
@@ -2685,8 +2691,6 @@ function appendInfoTxt(txt, cnt, type)
 
 function updateInfoLabel(parent)
 {
-      global.saved_measurements = null;    // files changed, we need to make new measurements
-
       var txt = "";
       txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.LIGHTS]), "light");
       txt = appendInfoTxt(txt, getTreeBoxFileCount(parent.treeBox[global.pages.BIAS]), "bias");
@@ -3055,13 +3059,13 @@ function newPageButtonsSizer(parent)
       var jsonLabel = new Label( parent );
       parent.rootingArr.push(jsonLabel);
       jsonLabel.text = "Setup file";
-      jsonLabel.toolTip = "<p>Restoring script setup from a file, saving script setup to a file.</p>";
+      jsonLabel.toolTip = "<p>Reading script setup from a file, saving script setup to a file.</p>";
       jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       
       var jsonLoadButton = new ToolButton( parent );
       parent.rootingArr.push(jsonLoadButton);
       jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
-      jsonLoadButton.toolTip = "<p>Restore script setup from a Json file.</p>";
+      jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
       jsonLoadButton.setScaledFixedSize( 20, 20 );
       jsonLoadButton.onClick = function()
       {

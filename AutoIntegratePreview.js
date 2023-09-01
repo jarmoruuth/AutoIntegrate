@@ -15,7 +15,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
        this.__base__(parentDialog);
 
        // Set image window and bitmap
-       this.SetImage = function(imgWin, image)
+       this.SetImage = function(imgWin, image, txt)
        {
              //console.writeln("SetImage");
              this.image = image;
@@ -24,17 +24,21 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
              this.scaledImage = null;
              this.SetZoomOutLimit();
              this.UpdateZoom(-100);
-             if (imgWin != null) {
-                   this.image_name_Label.text = imgWin.mainView.fullId;
-             }
-       }
+             if (txt) {
+                  this.image_name_Label.text = txt;
+             } else if (imgWin != null) {
+                  this.image_name_Label.text = imgWin.mainView.fullId;
+            } else {
+                  this.image_name_Label.text = "";
+            }
+ }
  
        // Update image window and bitmap
-       this.UpdateImage = function(imgWin, image)
+       this.UpdateImage = function(imgWin, image, txt)
        {
              //console.writeln("UpdateImage");
              if (this.zoom == this.zoomOutLimit) {
-                   this.SetImage(imgWin, image);
+                   this.SetImage(imgWin, image, txt);
              } else {
                    this.image = image;
                    this.imgWin = imgWin;
@@ -42,8 +46,12 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                    this.scaledImage = null;
                    this.SetZoomOutLimit();
                    this.UpdateZoom(this.zoom);
-                   if (imgWin != null) {
+                   if (txt) {
+                        this.image_name_Label.text = txt;
+                   } else if (imgWin != null) {
                         this.image_name_Label.text = imgWin.mainView.fullId;
+                  } else {
+                        this.image_name_Label.text = "";
                   }
             }
        }
