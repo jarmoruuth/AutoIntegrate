@@ -608,7 +608,7 @@ function apply_redo(parent)
 function save_as_undo(parent)
 {
       console.writeln("save_as_undo");
-      if (global.extra_target_image == null || global.extra_target_image == "Auto" || undo_images.length == 0) {
+      if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
       }
