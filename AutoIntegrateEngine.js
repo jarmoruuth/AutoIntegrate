@@ -10054,6 +10054,7 @@ function annotateImage(extraWin, apply_directly)
 {
       let engine = new AnnotationEngine;
       engine.Init(extraWin);
+      engine.graphicsScale = 2.0;
       if (apply_directly) {
             engine.outputMode = Output_Overlay;
       }

@@ -5618,7 +5618,7 @@ function AutoIntegrateDialog()
                   this.extra_SHO_mapping_values.push(global.narrowBandPalettes[i].name);
             }
       }
-      this.extra_narrowband_mapping_CheckBox = newCheckBox(this, "Narrow mapping from", par.run_extra_narrowband_mapping, 
+      this.extra_narrowband_mapping_CheckBox = newCheckBox(this, "Narrowband mapping", par.run_extra_narrowband_mapping, 
             "<p>Map source narrowband image to a new narrowband palette.</p>" +
             "<p>Mapping can be done only on SHO or HOO images. Channels are extracted from the SHO or HOO " + 
             "image and mapped again to create a new palette imege.</p>");
@@ -6035,6 +6035,8 @@ function AutoIntegrateDialog()
             "<p>Run ColorCalibration on image.</p>" );
       this.extra_annotate_image_CheckBox = newCheckBox(this, "Annotate image", par.extra_annotate_image, 
             "<p>Use AnnotateImage script to annotate image.</p>" + 
+            "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
+            "When using SPCC color calibration astrometric solution is automatically added.</p>" +
             "<p>When used with Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
