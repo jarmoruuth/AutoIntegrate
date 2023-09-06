@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.63 test4";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.63 test5";         // Version, also updated into updates.xri
 this.autointegrate_info = "Extra narrowband mapping";             // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -97,6 +97,7 @@ this.par = {
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
+      solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
       fast_integration: { val: false, def: false, name : "Use FastIntegration", type : 'B' },
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
@@ -361,6 +362,7 @@ this.par = {
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
       extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
+      extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
       extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
 
       // Calibration settings

@@ -8664,7 +8664,7 @@ function ProcessRGBimage(RGBmapping)
                   /* We already have background extracted. */
                   RGB_ABE_id = RGB_BE_win.mainView.id;
                   util.addProcessingStep("Start from image " + RGB_ABE_id);
-                  if (par.use_spcc.val) {
+                  if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_ABE_id);
                   }
             } else {
@@ -8673,7 +8673,7 @@ function ProcessRGBimage(RGBmapping)
                   {
                         RGB_win = util.copyWindow(RGB_start_win, "Integration_RGB");
                   }
-                  if (par.use_spcc.val) {
+                  if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_win.mainView.id);
                   }
                   if (par.color_calibration_before_ABE.val) {
@@ -10052,6 +10052,8 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
 
 function annotateImage(extraWin, apply_directly)
 {
+      util.addProcessingStepAndStatusInfo("Annotate image " + extraWin.mainView.id);
+
       let engine = new AnnotationEngine;
       engine.Init(extraWin);
       engine.graphicsScale = 2.0;
@@ -10256,6 +10258,9 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_color_calibration.val) {
             runColorCalibrationProcess(extraWin);
+      }
+      if (par.extra_solve_image.val) {
+            runImageSolver(extraWin.mainView.id);
       }
       if (par.extra_annotate_image.val) {
             let annotatedImgWin = annotateImage(extraWin, apply_directly);

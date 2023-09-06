@@ -3911,6 +3911,10 @@ function AutoIntegrateDialog()
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
+      this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
+            "<p>Solve image by running ImageSolver script.</p>" +
+            "<p>Note that if <i>Color calibration using SPCC</i> ios selected image is solved automatically with chjecking this box.</p>" +
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
             "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
             "<p>Run color calibration using SpectrophotometricColorCalibration (SPCC). This requires image solving which is done automatically on " + 
@@ -4099,6 +4103,7 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
+      this.imageParamsSet2.add( this.solve_image_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
       this.imageParamsSet2.add( this.ABE_on_lights_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
@@ -6033,11 +6038,14 @@ function AutoIntegrateDialog()
             "<p>Run star noise reduction on star image.</p>" );
       this.extra_color_calibration_CheckBox = newCheckBox(this, "Color calibration", par.extra_color_calibration, 
             "<p>Run ColorCalibration on image.</p>" );
+      this.extra_solve_image_CheckBox = newCheckBox(this, "Solve image", par.extra_solve_image, 
+            "<p>Solve image by running ImageSolver script.</p>" + 
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
       this.extra_annotate_image_CheckBox = newCheckBox(this, "Annotate image", par.extra_annotate_image, 
             "<p>Use AnnotateImage script to annotate image.</p>" + 
             "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
             "When using SPCC color calibration astrometric solution is automatically added.</p>" +
-            "<p>When used with Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
+            "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
@@ -6245,6 +6253,7 @@ function AutoIntegrateDialog()
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombineStars_Sizer );
       this.extra2.add( this.extra_color_calibration_CheckBox );
+      this.extra2.add( this.extra_solve_image_CheckBox );
       this.extra2.add( this.extra_annotate_image_CheckBox );
       this.extra2.addStretch();
 
