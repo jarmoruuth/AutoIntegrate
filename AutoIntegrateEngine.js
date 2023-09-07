@@ -9060,6 +9060,8 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             var P = new HDRMultiscaleTransform;
             P.numberOfLayers = par.extra_HDRMLT_layers.val;
             P.medianTransform = true;
+            P.numberOfIterations = par.extra_HDRMLT_iterations.val;
+            P.overdrive = par.extra_HDRMLT_overdrive.val;
             P.deringing = false;
             P.toLightness = true;
             P.luminanceMask = true;

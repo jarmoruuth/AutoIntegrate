@@ -5864,6 +5864,9 @@ function AutoIntegrateDialog()
       this.extra_HDRMLT_Layers_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.extra_HDRMLT_Layers_Label.toolTip = extra_HDRMLT_tooltip;
       this.extra_HDRMLT_Layers_SpinBox = newSpinBox(this, par.extra_HDRMLT_layers, 2, 10, extra_HDRMLT_tooltip);
+      this.extra_HDRMLT_Overdrive_Edit = newNumericEditPrecision(this, "Overdrive", par.extra_HDRMLT_overdrive, 0, 1, extra_HDRMLT_tooltip, 3);
+      this.extra_HDRMLT_Iterations_Label = newLabel(this, "Iterations", extra_HDRMLT_tooltip);
+      this.extra_HDRMLT_Iterations_SpinBox = newSpinBox(this, par.extra_HDRMLT_iterations, 1, 16, extra_HDRMLT_tooltip);
 
       this.extra_HDRMLT_Color_Label = new Label( this );
       this.extra_HDRMLT_Color_Label.text = "Color";
@@ -5874,15 +5877,25 @@ function AutoIntegrateDialog()
       this.extra_HDRMLT_Options_Sizer = new HorizontalSizer;
       this.extra_HDRMLT_Options_Sizer.spacing = 4;
       this.extra_HDRMLT_Options_Sizer.addSpacing(20);
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Color_Label );
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_color_ComboBox );
       this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_Label );
       this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_SpinBox );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_Label );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_SpinBox );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Overdrive_Edit );
       this.extra_HDRMLT_Options_Sizer.addStretch();
+
+      this.extra_HDRMLT_Options_Sizer2 = new HorizontalSizer;
+      this.extra_HDRMLT_Options_Sizer2.spacing = 4;
+      this.extra_HDRMLT_Options_Sizer2.addSpacing(20);
+      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_Color_Label );
+      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_color_ComboBox );
+      this.extra_HDRMLT_Options_Sizer2.addStretch();
+
       this.extra_HDRMLT_Sizer = new VerticalSizer;
       this.extra_HDRMLT_Sizer.spacing = 4;
       this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_CheckBox );
       this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer );
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer2 );
             
       var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
       this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);

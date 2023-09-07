@@ -326,6 +326,8 @@ this.par = {
       extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
       extra_HDRMLT_layers: { val: 6, def: 6, name : "Extra HDRMLT layers", type : 'I' },
+      extra_HDRMLT_overdrive: { val: 0, def: 0, name : "Extra HDRMLT overdrive", type : 'R' },
+      extra_HDRMLT_iterations: { val: 1, def: 1, name : "Extra HDRMLT iterations", type : 'I' },
       extra_HDRMLT_color: { val: 'None', def: 'None', name : "Extra HDRMLT hue", type : 'S' },
       extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
       extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
