@@ -556,7 +556,7 @@ function add_undo_image(parent, original_id, undo_id, histogramInfo)
       var new_undo_id = original_id + "_undo_" + (undo_images_pos+1);
       util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
       console.writeln("Add undo image " + new_undo_id);
-      undo_images[undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo };
+      undo_images[undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo, extra_processing_info: global.extra_processing_info };
       update_undo_buttons(parent);
 }
 
@@ -586,6 +586,9 @@ function apply_undo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
+
+      target_win.keywords = source_win.keywords;
+      global.extra_processing_info = undo_images[undo_images_pos - 1].extra_processing_info;
 
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
@@ -6172,6 +6175,7 @@ function AutoIntegrateDialog()
                   console.criticalln("Could not find target image " + global.extra_target_image);
             } else {
                   if (undo_images.length == 0) {
+                        global.extra_processing_info = [];   // First image, clear extra processing info
                         var saved_extra_target_image = global.extra_target_image;
                         if (!par.extra_apply_no_copy_image.val) {
                               // make copy of the original image
@@ -6884,9 +6888,9 @@ function AutoIntegrateDialog()
         
       // Extra processing group box
       this.extraGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Narrowband extra processing", "Extra2");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl1, "Generic extra processing", "Extra1");
+      newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
       this.extraGroupBox.sizer.addStretch();
 
       if (global.use_preview) {
