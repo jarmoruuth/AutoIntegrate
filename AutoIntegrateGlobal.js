@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.63 test5";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.63 test6";         // Version, also updated into updates.xri
 this.autointegrate_info = "Extra narrowband mapping";             // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -457,6 +457,7 @@ this.processed_channel_images = [];
 this.extra_target_image = null;
 
 this.processing_steps = "";
+this.extra_processing_info = [];
 this.all_windows = [];
 this.iconPoint = null;
 this.iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position

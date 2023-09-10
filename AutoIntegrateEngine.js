@@ -1,9 +1,7 @@
 /*
       AutoIntegrate Engine.
 
-      mtf(med($T)-(med($T)+-2.8*1.4826*mdev($T)), 0.2*$T)
-
-Processing this.
+This is the main engine for AutoIntegrate script.
 
 Interface functions:
 
@@ -1109,6 +1107,62 @@ function setFinalImageKeyword(imageWindow)
             "AutoIntegrate",
             "finalimage",
             "AutoIntegrate processed final image");
+}
+
+function getProcessingInfo()
+{
+      var info = [];
+
+      info.push("PixInsight version " + global.pixinsight_version_str);
+      info.push(global.autointegrate_version);
+      var d = new Date();
+      info.push("Processing date " + d.toString());
+      var processingOptions = getProcessingOptions();
+      if (processingOptions.length > 0) {
+            info.push("Processing options:");
+            for (var i = 0; i < processingOptions.length; i++) {
+                  info.push(processingOptions[i][0] + ": " + processingOptions[i][1]);
+            }
+      } else {
+            info.push("Using default processing options");
+      }
+      return info;
+}
+
+function saveProcessingInfoToImage(imageWindow) 
+{
+      console.writeln("saveProcessingInfoToImage to " + imageWindow.mainView.id);
+      var processing_info = getProcessingInfo();
+      for (var i = 0; i < processing_info.length; i++) {
+            util.setFITSKeyword(
+                  imageWindow,
+                  "AutoIntegrateInfo_" + (i + 1),
+                  processing_info[i],
+                  "AutoIntegrate processing info");
+      }
+}
+
+function saveExtraProcessingInfoToImage(imageWindow) 
+{
+      console.writeln("saveExtraProcessingInfoToImage to " + imageWindow.mainView.id);
+      var extracount = util.getKeywordValue(imageWindow, "AutoIntegrateExtraCount");
+      if (extracount == null) {
+            extracount = 0;
+      } else {
+            extracount = parseInt(extracount);
+      }
+      for (var i = 0; i < global.extra_processing_info.length; i++) {
+            util.setFITSKeyword(
+                  imageWindow,
+                  "AutoIntegrateExtra_" + (extracount + i + 1),
+                  global.extra_processing_info[i],
+                  "AutoIntegrate extra processing info");
+      }
+      util.setFITSKeyword(
+            imageWindow, 
+            "AutoIntegrateExtraCount", 
+            (extracount + global.extra_processing_info.length).toString(), 
+            "AutoIntegrate extra processing step count");
 }
 
 function setDrizzleKeyword(imageWindow, val) 
@@ -6897,9 +6951,9 @@ function runSCNR(RGBimgView, fixing_stars)
 }
 
 // Run hue shift on narrowband image to enhance orange.
-function narrowbandOrangeHueShift(imgView)
+function extraNarrowbandOrangeHueShift(imgView)
 {
-      util.addProcessingStepAndStatusInfo("Orange hue shift on " + imgView.id);
+      addExtraProcessingStep("Orange hue shift");
       
       var P = new CurvesTransformation;
       P.H = [ // x, y
@@ -8856,9 +8910,9 @@ function createStarFixMask(imgView)
       util.addProcessingStep("Created star fix mask " + star_fix_mask_win.mainView.id);
 }
 
-function removeMagentaColor(targetWin)
+function extraRemoveMagentaColor(targetWin)
 {
-      util.addProcessingStepAndStatusInfo("Remove magenta color");
+      addExtraProcessingStep("Remove magenta color");
 
       invertImage(targetWin.mainView);
       runSCNR(targetWin.mainView, true);
@@ -8872,7 +8926,7 @@ function removeMagentaColor(targetWin)
  * If we are not removing all green case we use mask to protect
  * other areas than stars.
  */
-function fixNarrowbandStarColor(targetWin)
+function extraFixNarrowbandStarColor(targetWin)
 {
       var use_mask;
 
@@ -8887,7 +8941,7 @@ function fixNarrowbandStarColor(targetWin)
             use_mask = false;
       }
 
-      util.addProcessingStepAndStatusInfo("Fix narrowband star color");
+      addExtraProcessingStep("Fix narrowband star color");
 
       if (use_mask) {
             createStarFixMask(targetWin.mainView);
@@ -8913,6 +8967,12 @@ function fixNarrowbandStarColor(targetWin)
       guiUpdatePreviewWin(targetWin);
 }
 
+function addExtraProcessingStep(txt)
+{
+      global.extra_processing_info.push(txt);
+      util.addProcessingStepAndStatusInfo(txt);
+}
+
 // When start removal is run we do some things differently
 // - We make a copy of the starless image
 // - We make a copy of the stars image
@@ -8921,6 +8981,8 @@ function fixNarrowbandStarColor(targetWin)
 // - Optionally in the end starless and stars images are combined together
 function extraRemoveStars(parent, imgWin, apply_directly)
 {
+      addExtraProcessingStep("Remove stars, unscreen " + par.extra_unscreen_stars.val);
+
       /* Close old star mask. If needed we create a new one from
        * the stars image.
        */
@@ -8970,7 +9032,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
 
 function extraDarkerBackground(imgWin, maskWin)
 {
-      util.addProcessingStepAndStatusInfo("Extra darker background on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addExtraProcessingStep("Darker background");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -8998,7 +9060,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
 function extraDarkerHighlights(imgWin, maskWin)
 {
-      util.addProcessingStepAndStatusInfo("Extra darker highlights on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addExtraProcessingStep("Darker highlights");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -9028,7 +9090,7 @@ function extraDarkerHighlights(imgWin, maskWin)
 
 function extraAdjustChannels(imgWin)
 {
-      util.addProcessingStepAndStatusInfo("Extra adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
+      addExtraProcessingStep("Adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
 
       var P = new PixelMath;
 
@@ -9050,7 +9112,7 @@ function extraAdjustChannels(imgWin)
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
 {
-      util.addProcessingStepAndStatusInfo("HDRMultiscaleTransform on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addExtraProcessingStep("HDRMultiscaleTransform, color " + par.extra_HDRMLT_color.val + ", layers " + par.extra_HDRMLT_layers.val + ", iterations " + par.extra_HDRMLT_iterations.val + ", overdrive " + par.extra_HDRMLT_overdrive.val);
 
       var failed = false;
       var hsChannels = null;
@@ -9133,7 +9195,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
 function extraLocalHistogramEqualization(imgWin, maskWin)
 {
-      util.addProcessingStepAndStatusInfo("LocalHistogramEqualization on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addExtraProcessingStep("LocalHistogramEqualization, radius " + par.extra_LHE_kernelradius.val);
 
       var P = new LocalHistogramEqualization;
       P.radius = par.extra_LHE_kernelradius.val;
@@ -9159,7 +9221,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
 function extraExponentialTransformation(imgWin, maskWin)
 {
-      util.addProcessingStepAndStatusInfo("ExponentialTransformation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      addExtraProcessingStep("ExponentialTransformation, order " + par.extra_ET_order.val);
 
       var P = new ExponentialTransformation;
       P.functionType = ExponentialTransformation.prototype.PIP;
@@ -9305,13 +9367,7 @@ function extraSmallerStars(imgWin, is_star_image)
             createStarMaskIf(imgWin);
       }
 
-      if (is_star_image) {
-            util.addProcessingStepAndStatusInfo("Smaller stars on stars image " + imgWin.mainView.id + 
-                        " using " + par.extra_smaller_stars_iterations.val + " iterations");
-      } else {
-            util.addProcessingStepAndStatusInfo("Smaller stars on " + imgWin.mainView.id + " using mask " + star_mask_win.mainView.id + 
-                        " and " + par.extra_smaller_stars_iterations.val + " iterations");
-      }
+      addExtraProcessingStep("Smaller stars on stars image using " + par.extra_smaller_stars_iterations.val + " iterations");
 
       if (par.extra_smaller_stars_iterations.val == 0) {
             var P = new MorphologicalTransformation;
@@ -9371,7 +9427,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
 function extraContrast(imgWin)
 {
-      util.addProcessingStepAndStatusInfo("Increase contrast on " + imgWin.mainView.id);
+      console.writeln("Increase contrast");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -9394,7 +9450,7 @@ function extraContrast(imgWin)
 
 function extraStretch(win)
 {
-      util.addProcessingStepAndStatusInfo("Extra stretch on " + win.mainView.id);
+      addExtraProcessingStep("Stretch image using " + par.image_stretching.val);
 
       win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
       return win;
@@ -9402,7 +9458,7 @@ function extraStretch(win)
 
 function extraShadowClipping(win, perc)
 {
-      util.addProcessingStepAndStatusInfo("Extra shadow clipping of " + perc + "% on " + win.mainView.id);
+      addExtraProcessingStep("Shadow clipping of " + perc + "%");
 
       clipShadows(win, perc);
 
@@ -9418,7 +9474,7 @@ function smoothBackground(win, val)
 
 function extraSmoothBackground(win, val)
 {
-      util.addProcessingStepAndStatusInfo("Extra background smoothing with value " + val);
+      addExtraProcessingStep("Background smoothing with value " + val);
 
       smoothBackground(win, val);
 
@@ -9427,7 +9483,7 @@ function extraSmoothBackground(win, val)
 
 function extraEnhanceShadows(win)
 {
-      util.addProcessingStepAndStatusInfo("Extra enhance shadows");
+      addExtraProcessingStep("Extra enhance shadows");
 
       var mapping = "ln(1+$T)";
 
@@ -9436,7 +9492,7 @@ function extraEnhanceShadows(win)
 
 function extraEnhanceHighlights(win)
 {
-      util.addProcessingStepAndStatusInfo("Extra enhance highlights");
+      addExtraProcessingStep("Enhance highlights");
 
       var mapping = "exp($T)";
 
@@ -9445,7 +9501,7 @@ function extraEnhanceHighlights(win)
 
 function extraAutoContrastChannel(imgWin, channel)
 {
-      util.addProcessingStepAndStatusInfo("Extra auto contrast on " + channel);
+      addExtraProcessingStep("Auto contrast on channel " + channel + ", limit " + par.extra_auto_contrast_limit.val);
 
       // extract channel data
       var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
@@ -9470,7 +9526,7 @@ function extraAutoContrast(win, contrast_limit, channels)
             util.closeOneWindow(B_id);
 
       } else {
-            util.addProcessingStepAndStatusInfo("Extra auto contrast with limit " + contrast_limit);
+            addExtraProcessingStep("Auto contrast with limit " + contrast_limit);
 
             var low_clip = getClipShadowsValue(win, contrast_limit);
             var high_clip = getClipShadowsValue(win, 100 - contrast_limit);
@@ -9486,7 +9542,7 @@ function extraNoiseReduction(win, mask_win)
       if (par.extra_noise_reduction_strength.val == 0) {
             return;
       }
-      util.addProcessingStepAndStatusInfo("Extra noise reduction on " + win.mainView.id);
+      addExtraProcessingStep("Noise reduction");
 
       runNoiseReductionEx(
             win, 
@@ -9499,7 +9555,7 @@ function extraNoiseReduction(win, mask_win)
 
 function extraACDNR(extraWin, mask_win)
 {
-      util.addProcessingStepAndStatusInfo("Extra ACDNR");
+      addExtraProcessingStep("ACDNR noise reduction");
       if (par.ACDNR_noise_reduction.val == 0.0) {
             util.addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
             return;
@@ -9512,12 +9568,13 @@ function extraACDNR(extraWin, mask_win)
 
 function extraColorNoise(extraWin)
 {
+      addExtraProcessingStep("Color noise reduction");
       runColorReduceNoise(extraWin);
 }
 
 function extraUnsharpMask(extraWin, mask_win)
 {
-      util.addProcessingStepAndStatusInfo("Extra UnsharpMask on " + extraWin.mainView.id + " using StdDev " + par.extra_unsharpmask_stddev.val);
+      addExtraProcessingStep("UnsharpMask using StdDev " + par.extra_unsharpmask_stddev.val);
 
       var P = new UnsharpMask;
       P.sigma = par.extra_unsharpmask_stddev.val;
@@ -9546,10 +9603,10 @@ function extraUnsharpMask(extraWin, mask_win)
 function extraSharpen(extraWin, mask_win)
 {
       if (par.use_blurxterminator.val) {
-            util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using BlurXTerminator");
+            addExtraProcessingStep("Sharpening using BlurXTerminator");
             runBlurXTerminator(extraWin);
       } else {
-            util.addProcessingStepAndStatusInfo("Extra sharpening on " + extraWin.mainView.id + " using " + par.extra_sharpen_iterations.val + " iterations");
+            addExtraProcessingStep("Sharpening using MLT with " + par.extra_sharpen_iterations.val + " iterations");
             for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
                   runMultiscaleLinearTransformSharpen(extraWin, mask_win);
             }
@@ -9559,7 +9616,7 @@ function extraSharpen(extraWin, mask_win)
 
 function extraSaturation(extraWin, mask_win)
 {
-      util.addProcessingStepAndStatusInfo("Extra saturation on " + extraWin.mainView.id + " using " + par.extra_saturation_iterations.val + " iterations");
+      addExtraProcessingStep("Saturation using " + par.extra_saturation_iterations.val + " iterations");
 
       for (var i = 0; i < par.extra_saturation_iterations.val; i++) {
             increaseSaturation(extraWin, mask_win);
@@ -9569,13 +9626,15 @@ function extraSaturation(extraWin, mask_win)
 
 function extraABE(extraWin)
 {
-      util.addProcessingStepAndStatusInfo("Extra ABE");
+      addExtraProcessingStep("ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
       runABE(extraWin, true);
       // guiUpdatePreviewWin(extraWin);
 }
 
 function extraSHOHueShift(imgWin)
 {
+      addExtraProcessingStep("SHO hue shift");
+
       // Hue 1
       var P = new CurvesTransformation;
       P.ct = CurvesTransformation.prototype.AkimaSubsplines;
@@ -9677,7 +9736,7 @@ function extraColorizeChannel(imgWin, channel, curves_R, curves_G, curves_B)
 
 function extraColorizedSHO(imgWin)
 {
-      util.addProcessingStepAndStatusInfo("Extra colorized SHO");
+      addExtraProcessingStep("Colorized SHO using " + par.run_colorized_sho_iterations.val + " iterations");
 
       var curves_S_R = [ // x, y
             [0.00000, 0.00000],
@@ -9795,13 +9854,14 @@ function narrowbandOrangeBlueSaturation(imgWin)
 
 function extraOrangeBlueColors(imgWin)
 {
+      addExtraProcessingStep("Orange/blue colors");
       narrowbandRedToOrangeHueShift(imgWin);
       narrowbandOrangeBlueSaturation(imgWin);
 }
 
 function runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette)
 {
-      util.addProcessingStepAndStatusInfo("runExtraNarrowbandMapping, source_palette_name " + source_palette_name);
+      console.writeln("runExtraNarrowbandMapping, from " + source_palette_name + " to " + target_palette.name);
 
       switch (source_palette_name) {
             case 'HOO':
@@ -9844,7 +9904,7 @@ function runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette)
 
 function extraForaxx(imgWin, source_palette_name)
 {
-      util.addProcessingStepAndStatusInfo("Extra Foraxx mapping using " + source_palette_name + " palette");
+      addExtraProcessingStep("Foraxx mapping using " + source_palette_name + " palette");
 
       switch (source_palette_name) {
             case 'HOO':
@@ -9867,7 +9927,7 @@ function extraForaxx(imgWin, source_palette_name)
 
 function extraNarrowbandMapping(imgWin, source_palette_name, target_palette_name)
 {
-      util.addProcessingStepAndStatusInfo("Extra narrowband mapping from " + source_palette_name + " to " + target_palette_name);
+      addExtraProcessingStep("Narrowband mapping from " + source_palette_name + " to " + target_palette_name);
 
       var target_palette = findNarrowBandPalette(target_palette_name);
 
@@ -10084,6 +10144,8 @@ function extraProcessing(parent, id, apply_directly)
 {
       console.noteln("Extra processing");
 
+      global.extra_processing_info = [];
+
       var extra_id = id;
       var extra_stars_id = null;
       var extra_starless_id = null;
@@ -10126,7 +10188,7 @@ function extraProcessing(parent, id, apply_directly)
                   extraOrangeBlueColors(extraWin);
             }
             if (par.run_orange_hue_shift.val) {
-                  narrowbandOrangeHueShift(extraWin.mainView);
+                  extraNarrowbandOrangeHueShift(extraWin.mainView);
             }
             if (par.run_hue_shift.val) {
                   extraSHOHueShift(extraWin);
@@ -10134,14 +10196,18 @@ function extraProcessing(parent, id, apply_directly)
             if (par.run_colorized_sho.val) {
                   extraColorizedSHO(extraWin);
             }
-            if (par.run_narrowband_SCNR.val || par.leave_some_green.val) {
+            if (par.leave_some_green.val) {
+                  addExtraProcessingStep("Leave some green, amount " + par.leave_some_green_amount.val);
+                  runSCNR(extraWin.mainView, false);
+            } else if (par.run_narrowband_SCNR.val) {
+                  addExtraProcessingStep("Remove green cast");
                   runSCNR(extraWin.mainView, false);
             }
             if (par.remove_magenta_color.val) {
-                  removeMagentaColor(extraWin);
+                  extraRemoveMagentaColor(extraWin);
             }
             if (par.fix_narrowband_star_color.val) {
-                  fixNarrowbandStarColor(extraWin);
+                  extraFixNarrowbandStarColor(extraWin);
             }
       }
       if (par.extra_remove_stars.val) {
@@ -10204,6 +10270,7 @@ function extraProcessing(parent, id, apply_directly)
             extraLocalHistogramEqualization(extraWin, mask_win);
       }
       if (par.extra_contrast.val) {
+            addExtraProcessingStep("Increase contrast, iterations " + par.extra_contrast_iterations.val);
             for (var i = 0; i < par.extra_contrast_iterations.val; i++) {
                   extraContrast(extraWin);
             }
@@ -10237,6 +10304,7 @@ function extraProcessing(parent, id, apply_directly)
             }
       }
       if (par.extra_star_noise_reduction.val) {
+            addExtraProcessingStep("Star noise reduction");
             if (par.extra_remove_stars.val) {
                   starReduceNoise(ImageWindow.windowById(extra_stars_id));
             } else {
@@ -10245,6 +10313,7 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_combine_stars.val) {
             /* Restore stars by combining starless image and stars. */
+            addExtraProcessingStep("Combine stars and a´starless images using " + par.extra_combine_stars_mode.val + ", reduce stars by " + par.extra_combine_stars_reduce.val);
             var new_image_id = combineStarsAndStarless(
                                     par.extra_combine_stars_mode.val,
                                     extraWin.mainView.id, // starless
@@ -10259,12 +10328,15 @@ function extraProcessing(parent, id, apply_directly)
             extraWin.show();
       }
       if (par.extra_color_calibration.val) {
+            addExtraProcessingStep("Color calibration");
             runColorCalibrationProcess(extraWin);
       }
       if (par.extra_solve_image.val) {
+            addExtraProcessingStep("Image solver");
             runImageSolver(extraWin.mainView.id);
       }
       if (par.extra_annotate_image.val) {
+            addExtraProcessingStep("Annotate image");
             let annotatedImgWin = annotateImage(extraWin, apply_directly);
             if (!apply_directly) {
                   // There is a new window with the annotated image
@@ -10275,10 +10347,12 @@ function extraProcessing(parent, id, apply_directly)
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
             guiUpdatePreviewWin(final_win);
+            saveExtraProcessingInfoToImage(final_win);
             setFinalImageKeyword(final_win);
       } else {
             var final_win = ImageWindow.windowById(extra_id);
             guiUpdatePreviewWin(final_win);
+            saveExtraProcessingInfoToImage(final_win);
             setFinalImageKeyword(final_win);
             saveProcessedWindow(global.outputRootDir, extra_id); /* Extra window */
             if (par.extra_remove_stars.val) {
@@ -11300,16 +11374,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        }
  
        console.noteln("--------------------------------------");
-       util.addProcessingStep("PixInsight version " + global.pixinsight_version_str);
-       util.addProcessingStep(global.autointegrate_version);
-       var processingOptions = getProcessingOptions();
-       if (processingOptions.length > 0) {
-             util.addProcessingStep("Processing options:");
-             for (var i = 0; i < processingOptions.length; i++) {
-                   util.addProcessingStep(processingOptions[i][0] + " " + processingOptions[i][1]);
-             }
-       } else {
-             util.addProcessingStep("Using default processing options");
+       var processing_info = getProcessingInfo();
+       for (var i = 0; i < processing_info.length; i++) {
+            util.addProcessingStep(processing_info[i]);
        }
        if (global.user_selected_best_image != null) {
              util.addProcessingStep("User selected best image: " + global.user_selected_best_image);
@@ -11600,6 +11667,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              console.writeln("Save final image");
              // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
              setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
+             // save processing options
+             saveProcessingInfoToImage(ImageWindow.windowById(LRGB_ABE_HT_id));
              // We have generated final image, save it
              global.run_results.final_image_file = saveProcessedWindow(global.outputRootDir, LRGB_ABE_HT_id);  /* Final image. */
        }

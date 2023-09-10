@@ -498,11 +498,34 @@ function update_undo_buttons(parent)
       parent.extraRedoButton.enabled = undo_images.length > 0 && undo_images_pos < undo_images.length - 1;
 }
 
-function copy_undo_edit_image(id)
+function copy_new_edit_image(id)
 {
-      var copy_id = id + "_edit";
-      var copy_win = util.copyWindowEx(ImageWindow.windowById(id), copy_id, true);
+      var win = ImageWindow.windowById(id);
+      var editcount = util.getKeywordValue(win, "AutoIntegrateEditCount");
+      if (editcount == null) {
+            editcount = 0;
+            var copy_id = id + "_edit";
+      } else {
+            editcount = parseInt(editcount);
+            if (editcount == 1) {
+                  var endstr = "_edit";
+            } else {
+                  var endstr = "_edit_" + editcount.toString();
+            }
+            console.writeln("id " + id +  " endstr " + endstr);
+            if (id.endsWith(endstr)) {
+                  // Remove old edit count
+                  id = id.substring(0, id.length - endstr.length);
+            }
+            var copy_id = id + "_edit_" + (editcount + 1).toString();
+      }
+      var copy_win = util.copyWindowEx(win, copy_id, true);
       console.writeln("Copy image " + copy_win.mainView.id);
+      util.setFITSKeyword(
+            copy_win, 
+            "AutoIntegrateEditCount", 
+            (editcount + 1).toString(), 
+            "AutoIntegrate image edit count");
       return copy_win.mainView.id;
 }
 
@@ -6152,7 +6175,7 @@ function AutoIntegrateDialog()
                         var saved_extra_target_image = global.extra_target_image;
                         if (!par.extra_apply_no_copy_image.val) {
                               // make copy of the original image
-                              global.extra_target_image = copy_undo_edit_image(global.extra_target_image);
+                              global.extra_target_image = copy_new_edit_image(global.extra_target_image);
                         }
                         var first_undo_image_id = create_undo_image(global.extra_target_image);
                         var first_undo_image_id_histogramInfo = current_histogramInfo;
@@ -6214,7 +6237,7 @@ function AutoIntegrateDialog()
       };
 
       this.extraImageSizer = new HorizontalSizer;
-      this.extraImageSizer.margin = 6;
+      // this.extraImageSizer.margin = 6;
       this.extraImageSizer.spacing = 4;
       this.extraImageSizer.add( this.extraImageLabel );
       this.extraImageSizer.add( this.extraImageComboBox );
@@ -6227,13 +6250,13 @@ function AutoIntegrateDialog()
       this.extra_image_no_copy_CheckBox = newCheckBox(this, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
 
-      this.extraOptionsSizer = new HorizontalSizer;
-      this.extraOptionsSizer.margin = 6;
-      this.extraOptionsSizer.spacing = 4;
-      this.extraOptionsSizer.add( this.extra_image_no_copy_CheckBox );
-      this.extraOptionsSizer.add( this.extra_stretch_CheckBox );
-      this.extraOptionsSizer.add( this.extra_force_new_mask_CheckBox );
-      this.extraOptionsSizer.addStretch();
+      this.extraImageOptionsSizer = new HorizontalSizer;
+      this.extraImageOptionsSizer.margin = 6;
+      this.extraImageOptionsSizer.spacing = 4;
+      this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
+      this.extraImageOptionsSizer.addStretch();
 
       this.extra1 = new VerticalSizer;
       this.extra1.margin = 6;
@@ -6320,13 +6343,20 @@ function AutoIntegrateDialog()
       this.extraGroupBoxSizer.add( this.extra2 );
       this.extraGroupBoxSizer.addStretch();
 
+      this.extraImageControl = new Control( this );
+      this.extraImageControl.sizer = new VerticalSizer;
+      this.extraImageControl.sizer.margin = 6;
+      this.extraImageControl.sizer.spacing = 4;
+      this.extraImageControl.sizer.add( this.extraImageSizer );
+      this.extraImageControl.sizer.add( this.extraImageOptionsSizer );
+      this.extraImageControl.sizer.addStretch();
+      this.extraImageControl.visible = false;
+
       this.extraControl1 = new Control( this );
       this.extraControl1.sizer = new VerticalSizer;
       this.extraControl1.sizer.margin = 6;
       this.extraControl1.sizer.spacing = 4;
       this.extraControl1.sizer.add( this.extraGroupBoxSizer );
-      this.extraControl1.sizer.add( this.extraImageSizer );
-      this.extraControl1.sizer.add( this.extraOptionsSizer );
       this.extraControl1.sizer.addStretch();
       this.extraControl1.visible = false;
 
@@ -6854,7 +6884,8 @@ function AutoIntegrateDialog()
         
       // Extra processing group box
       this.extraGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Extra processing for narrowband", "Extra2");
+      newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
+      newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Narrowband extra processing", "Extra2");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl1, "Generic extra processing", "Extra1");
       this.extraGroupBox.sizer.addStretch();
 

@@ -398,7 +398,19 @@ this.setFITSKeyword = function(imageWindow, name, value, comment)
       ]);
 }
 
-function findKeywords(imageWindow, keywordname) 
+this.getKeywordValue = function(imageWindow, keywordname) 
+{
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == keywordname) {
+                  return keyword.strippedValue.trim();
+            }
+      }
+      return null;
+}
+
+function findKeywordName(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       for (var i = 0; i < keywords.length; i++) {
@@ -410,9 +422,9 @@ function findKeywords(imageWindow, keywordname)
       return false;
 }
 
-function setFITSKeywordNoOverwrite(imageWindow, name, value, comment) 
+this.setFITSKeywordNoOverwrite = function(imageWindow, name, value, comment)
 {
-      if (findKeywords(imageWindow, name)) {
+      if (findKeywordName(imageWindow, name)) {
             console.writeln("keyword already set");
             return;
       }
@@ -422,7 +434,7 @@ function setFITSKeywordNoOverwrite(imageWindow, name, value, comment)
 function setProcessedImageKeyword(imageWindow) 
 {
       console.writeln("setProcessedImageKeyword to " + imageWindow.mainView.id);
-      setFITSKeywordNoOverwrite(
+      util.setFITSKeywordNoOverwrite(
             imageWindow,
             "AutoIntegrate",
             "processedimage",
