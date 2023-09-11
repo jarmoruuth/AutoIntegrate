@@ -506,18 +506,31 @@ function copy_new_edit_image(id)
             editcount = 0;
             var copy_id = id + "_edit";
       } else {
-            editcount = parseInt(editcount);
-            if (editcount == 1) {
-                  var endstr = "_edit";
-            } else {
-                  var endstr = "_edit_" + editcount.toString();
+            for (var x = 0; ; x++) {
+                  editcount = parseInt(editcount);
+                  if (editcount == 1) {
+                        var endstr = "_edit";
+                  } else {
+                        var endstr = "_edit_" + editcount.toString();
+                  }
+                  console.writeln("id " + id +  " endstr " + endstr);
+                  if (id.endsWith(endstr)) {
+                        // Remove old edit count
+                        var base_id = id.substring(0, id.length - endstr.length);
+                  } else {
+                        var base_id = id;
+                  }
+                  if (x == 0) {
+                        var copy_id = base_id + "_edit_" + (editcount + 1).toString();
+                  } else {
+                        var copy_id = base_id +  "_" + x.toString() + "_edit_" + (editcount + 1).toString();
+                  }
+                  console.writeln("base_id " + base_id + " copy_id " + copy_id);
+                  if (util.findWindow(copy_id) == null) {
+                        break;
+                  }
+                  console.writeln("found copy_id, retry");
             }
-            console.writeln("id " + id +  " endstr " + endstr);
-            if (id.endsWith(endstr)) {
-                  // Remove old edit count
-                  id = id.substring(0, id.length - endstr.length);
-            }
-            var copy_id = id + "_edit_" + (editcount + 1).toString();
       }
       var copy_win = util.copyWindowEx(win, copy_id, true);
       console.writeln("Copy image " + copy_win.mainView.id);
