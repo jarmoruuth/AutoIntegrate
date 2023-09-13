@@ -17,7 +17,7 @@ the PixInsight update repository. Whenever PixInsight is started it will then ch
 updates to AutoIntegrate. To enable automatic updates you need to add the following Url 
 to the PixInsight Resources/Updates/Manage Repositories.
 
-https://ruuth.xyz/autointegrate
+https://ruuth.xyz/autointegrate/
 
 Alternatively the script can be run from the PixInsight Script Editor.
 
