@@ -4432,7 +4432,8 @@ function AutoIntegrateDialog()
 
       // Banding
       this.bandingCheckBox = newCheckBox(this, "Banding reduction", par.banding_reduction, 
-            "Do Canon banding reduction using the method in CanonBandingReduction script.");
+            "<p>Do Canon banding reduction using the method in CanonBandingReduction script.</p>" +
+            "<p>Banding reduction is run for each light file separately after cosmetic correction and possible debayering.</p>");
       this.bandingHighlightCheckBox = newCheckBox(this, "Protect highlights", par.banding_reduction_protect_highlights, 
             "Protection for highlights.");
       this.bandingAmountControl = newNumericEdit(this, "Amount", par.banding_reduction_amount, 0, 4, 

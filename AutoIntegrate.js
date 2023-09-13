@@ -654,7 +654,7 @@ this.autointerate_main = function()
             console.noteln("======================================================");
             console.noteln("To enable automatic updates add the following link to ");
             console.noteln("the PixInsight update repository: ");
-            console.noteln("https://ruuth.xyz/autointegrate ");
+            console.noteln("https://ruuth.xyz/autointegrate/ ");
             console.noteln("======================================================");
             console.noteln("For more information visit the following links:");
             console.noteln("Web site: https://ruuth.xyz/AutoIntegrateInfo.html");
