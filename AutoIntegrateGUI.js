@@ -504,7 +504,17 @@ function copy_new_edit_image(id)
       var editcount = util.getKeywordValue(win, "AutoIntegrateEditCount");
       if (editcount == null) {
             editcount = 0;
-            var copy_id = id + "_edit";
+            for (var x = 0; ; x++) {
+                  if (x == 0) {
+                        var copy_id = id + "_edit";
+                  } else {
+                        var copy_id = id +  "_" + x.toString() + "_edit";
+                  }
+                  if (util.findWindow(copy_id) == null) {
+                        break;
+                  }
+                  console.writeln("found copy_id, retry");
+            }
       } else {
             for (var x = 0; ; x++) {
                   editcount = parseInt(editcount);
@@ -653,7 +663,7 @@ function save_as_undo(parent)
       }
 
       let saveFileDialog = new SaveFileDialog();
-      saveFileDialog.caption = "Save As";
+      saveFileDialog.caption = "Save As XISF and TIFF";
       if (global.outputRootDir == "") {
             var path = ppar.lastDir;
       } else {
@@ -663,7 +673,7 @@ function save_as_undo(parent)
             path = util.ensurePathEndSlash(path);
       }
 
-      saveFileDialog.initialPath = path + global.extra_target_image + ".tif";
+      saveFileDialog.initialPath = path + global.extra_target_image + ".xisf";
       if (!saveFileDialog.execute()) {
             console.noteln("Image " + global.extra_target_image + " not saved");
             return;
@@ -671,25 +681,38 @@ function save_as_undo(parent)
       var save_dir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
       var save_id = File.extractName(saveFileDialog.fileName);
       var save_win = ImageWindow.windowById(global.extra_target_image);
+
+      /* Save as 16 bit TIFF.
+       */
+      var copy_win = util.copyWindow(save_win, util.ensure_win_prefix(save_win.mainView.id + "_savetmp"));
+      if (copy_win.bitsPerSample != 16) {
+            console.writeln("saveFinalImageWindow:set bits to 16");
+            copy_win.setSampleFormat(16, false);
+      }
+      var filename = util.ensurePathEndSlash(save_dir) + save_id + ".tif";
+      console.noteln("Save " + global.extra_target_image + " as " + filename);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
-      var filename = saveFileDialog.fileName;
-      if (File.extractExtension(filename) == "") {
-            filename = filename + ".tif";
-      }
-      var copy_win = util.copyWindow(save_win, util.ensure_win_prefix(save_win.mainView.id + "_savetmp"));
-      if (File.extractExtension(filename) == ".tif") {
-            if (copy_win.bitsPerSample != 16) {
-                  console.writeln("saveFinalImageWindow:set bits to 16");
-                  copy_win.setSampleFormat(16, false);
-            }
-      }
-      console.noteln("Save " + global.extra_target_image + " as " + filename);
       if (!copy_win.saveAs(filename, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + filename);
       }
+      util.forceCloseOneWindow(copy_win);
+
+      /* Save as XISF.
+       */
+      var copy_win = util.copyWindow(save_win, util.ensure_win_prefix(save_win.mainView.id + "_savetmp"));
+      var filename = util.ensurePathEndSlash(save_dir) + save_id + ".xisf";
+      console.noteln("Save " + global.extra_target_image + " as " + filename);
+      // Save image. No format options, no warning messages,
+      // no strict mode, no overwrite checks.
+      if (!copy_win.saveAs(filename, false, false, false, false)) {
+            util.throwFatalError("Failed to save image: " + filename);
+      }
+      util.forceCloseOneWindow(copy_win);
+
       util.saveLastDir(save_dir);
       update_undo_buttons(parent);
+
       if (save_id != global.extra_target_image) {
             // Rename old image
             save_win.mainView.id = save_id;
@@ -698,7 +721,6 @@ function save_as_undo(parent)
             // Update target list
             update_extra_target_image_window_list(parent, save_id);
       }
-      util.forceCloseOneWindow(copy_win);
 }
 
 function close_undo_images(parent)
@@ -6246,7 +6268,7 @@ function AutoIntegrateDialog()
       this.extraSaveButton = new ToolButton( this );
       this.extraSaveButton.icon = new Bitmap( ":/icons/save-as.png" );
       this.extraSaveButton.toolTip = 
-            "<p>Save current edited image to disk as a 16-bit TIFF image.</p>" + notetsaved_note;
+            "<p>Save current edited image to disk as a XISF image and as a 16-bit TIFF image.</p>" + notetsaved_note;
       this.extraSaveButton.enabled = false;
       this.extraSaveButton.onMousePress = function()
       {
