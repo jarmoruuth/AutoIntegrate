@@ -1111,40 +1111,48 @@ function setFinalImageKeyword(imageWindow)
 
 function getProcessingInfo()
 {
-      var info = [];
+      var header = [];
+      var options = [];
 
-      info.push("PixInsight version " + global.pixinsight_version_str);
-      info.push(global.autointegrate_version);
+      header.push("PixInsight version " + global.pixinsight_version_str);
+      header.push(global.autointegrate_version);
       var d = new Date();
-      info.push("Processing date " + d.toString());
+      header.push("Processing date " + d.toString());
       var processingOptions = getProcessingOptions();
       if (processingOptions.length > 0) {
-            info.push("Processing options:");
+            header.push("Processing options:");
             for (var i = 0; i < processingOptions.length; i++) {
-                  info.push(processingOptions[i][0] + ": " + processingOptions[i][1]);
+                  options.push(processingOptions[i][0] + ": " + processingOptions[i][1]);
             }
       } else {
-            info.push("Using default processing options");
+            header.push("Using default processing options");
       }
-      return info;
+      return { header : header, options : options };
 }
 
-function saveProcessingInfoToImage(imageWindow) 
+function saveProcessingHistoryToImage(imageWindow) 
 {
-      console.writeln("saveProcessingInfoToImage to " + imageWindow.mainView.id);
+      console.writeln("saveProcessingHistoryToImage to " + imageWindow.mainView.id);
       var processing_info = getProcessingInfo();
-      for (var i = 0; i < processing_info.length; i++) {
-            util.setFITSKeyword(
+      for (var i = 0; i < processing_info.header.length; i++) {
+            util.appenFITSKeyword(
                   imageWindow,
-                  "AutoIntegrateInfo_" + (i + 1),
-                  processing_info[i],
+                  "HISTORY",
+                  processing_info.header[i],
                   "AutoIntegrate processing info");
       }
+      for (var i = 0; i < processing_info.options.length; i++) {
+            util.appenFITSKeyword(
+                  imageWindow,
+                  "HISTORY",
+                  processing_info.options[i],
+                  "AutoIntegrate processing option " + (i + 1));
+      }
 }
 
-function saveExtraProcessingInfoToImage(imageWindow) 
+function saveExtraProcessingHistoryToImage(imageWindow) 
 {
-      console.writeln("saveExtraProcessingInfoToImage to " + imageWindow.mainView.id);
+      console.writeln("saveExtraProcessingHistoryToImage to " + imageWindow.mainView.id);
       var extracount = util.getKeywordValue(imageWindow, "AutoIntegrateExtraCount");
       if (extracount == null) {
             extracount = 0;
@@ -1152,11 +1160,11 @@ function saveExtraProcessingInfoToImage(imageWindow)
             extracount = parseInt(extracount);
       }
       for (var i = 0; i < global.extra_processing_info.length; i++) {
-            util.setFITSKeyword(
+            util.appenFITSKeyword(
                   imageWindow,
-                  "AutoIntegrateExtra_" + (extracount + i + 1),
+                  "HISTORY",
                   global.extra_processing_info[i],
-                  "AutoIntegrate extra processing info");
+                  "AutoIntegrate extra processing option " + (extracount + i + 1));
       }
       util.setFITSKeyword(
             imageWindow, 
@@ -10347,12 +10355,12 @@ function extraProcessing(parent, id, apply_directly)
       if (apply_directly) {
             var final_win = ImageWindow.windowById(extraWin.mainView.id);
             guiUpdatePreviewWin(final_win);
-            saveExtraProcessingInfoToImage(final_win);
+            saveExtraProcessingHistoryToImage(final_win);
             setFinalImageKeyword(final_win);
       } else {
             var final_win = ImageWindow.windowById(extra_id);
             guiUpdatePreviewWin(final_win);
-            saveExtraProcessingInfoToImage(final_win);
+            saveExtraProcessingHistoryToImage(final_win);
             setFinalImageKeyword(final_win);
             saveProcessedWindow(global.outputRootDir, extra_id); /* Extra window */
             if (par.extra_remove_stars.val) {
@@ -11375,8 +11383,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        console.noteln("--------------------------------------");
        var processing_info = getProcessingInfo();
-       for (var i = 0; i < processing_info.length; i++) {
-            util.addProcessingStep(processing_info[i]);
+       for (var i = 0; i < processing_info.header.length; i++) {
+            util.addProcessingStep(processing_info.header[i]);
+       }
+       for (var i = 0; i < processing_info.options.length; i++) {
+            util.addProcessingStep(processing_info.options[i]);
        }
        if (global.user_selected_best_image != null) {
              util.addProcessingStep("User selected best image: " + global.user_selected_best_image);
@@ -11668,7 +11679,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
              setFinalImageKeyword(ImageWindow.windowById(LRGB_ABE_HT_id));
              // save processing options
-             saveProcessingInfoToImage(ImageWindow.windowById(LRGB_ABE_HT_id));
+             saveProcessingHistoryToImage(ImageWindow.windowById(LRGB_ABE_HT_id));
              // We have generated final image, save it
              global.run_results.final_image_file = saveProcessedWindow(global.outputRootDir, LRGB_ABE_HT_id);  /* Final image. */
        }

@@ -386,10 +386,23 @@ this.filterKeywords = function(imageWindow, keywordname)
       return oldKeywords;
 }
 
+// Overwrite an old keyword or add a new one
 this.setFITSKeyword = function(imageWindow, name, value, comment) 
 {
       var oldKeywords = util.filterKeywords(imageWindow, name);
       imageWindow.keywords = oldKeywords.concat([
+         new FITSKeyword(
+            name,
+            value,
+            comment
+         )
+      ]);
+}
+
+// Append a new keyword, allows multiple keywords with same name
+this.appenFITSKeyword = function(imageWindow, name, value, comment) 
+{
+      imageWindow.keywords = imageWindow.keywords.concat([
          new FITSKeyword(
             name,
             value,
