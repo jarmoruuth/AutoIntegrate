@@ -9509,18 +9509,18 @@ function extraEnhanceHighlights(win)
 
 function extraAutoContrastChannel(imgWin, channel)
 {
-      addExtraProcessingStep("Auto contrast on channel " + channel + ", limit " + par.extra_auto_contrast_limit.val);
+      addExtraProcessingStep("Auto contrast on channel " + channel + ", low limit " + par.extra_auto_contrast_limit_low.val + ", high limit " + par.extra_auto_contrast_limit_high.val);
 
       // extract channel data
       var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
       var ch_win = util.findWindow(ch_id);
 
-      extraAutoContrast(ch_win, par.extra_auto_contrast_limit.val);
+      extraAutoContrast(ch_win, par.extra_auto_contrast_limit_low.val, par.extra_auto_contrast_limit_high.val);
 
       return ch_id;
 }
 
-function extraAutoContrast(win, contrast_limit, channels)
+function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channels)
 {
       if (channels) {
             var R_id = extraAutoContrastChannel(win, 'R'); 
@@ -9534,10 +9534,10 @@ function extraAutoContrast(win, contrast_limit, channels)
             util.closeOneWindow(B_id);
 
       } else {
-            addExtraProcessingStep("Auto contrast with limit " + contrast_limit);
+            addExtraProcessingStep("Auto contrast with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
-            var low_clip = getClipShadowsValue(win, contrast_limit);
-            var high_clip = getClipShadowsValue(win, 100 - contrast_limit);
+            var low_clip = getClipShadowsValue(win, contrast_limit_low);
+            var high_clip = getClipShadowsValue(win, contrast_limit_high);
 
             var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
 
@@ -10284,7 +10284,7 @@ function extraProcessing(parent, id, apply_directly)
             }
       }
       if (par.extra_auto_contrast.val) {
-            extraAutoContrast(extraWin, par.extra_auto_contrast_limit.val, par.extra_auto_contrast_channels.val);
+            extraAutoContrast(extraWin, par.extra_auto_contrast_limit_low.val, par.extra_auto_contrast_limit_high.val, par.extra_auto_contrast_channels.val);
       }
       if (par.extra_noise_reduction.val) {
             extraNoiseReduction(extraWin, mask_win);

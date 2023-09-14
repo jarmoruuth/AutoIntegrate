@@ -5986,12 +5986,14 @@ function AutoIntegrateDialog()
 
       var extraAutoContrastTooltip = "<p>Do automatic contrast enhancement. Works best with starless image.</p>";
       this.extraAutoContrastCheckBox = newCheckBox(this, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
-      this.extraAutoContrastEdit = newNumericEditPrecision(this, 'limit', par.extra_auto_contrast_limit, 0, 50, "Upper and lower percentage of clipped pixels.", 4);
+      this.extraAutoContrastEditLow = newNumericEditPrecision(this, 'low', par.extra_auto_contrast_limit_low, 0, 100, "Percentage of clipped low pixels.", 4);
+      this.extraAutoContrastEditHigh = newNumericEditPrecision(this, 'high', par.extra_auto_contrast_limit_high, 0, 100, "Percentage of preserved high pixels.", 4);
       this.extraAutoContrastChannelsCheckBox = newCheckBox(this, "channels,", par.extra_auto_contrast_channels, "Apply auto contrast separately for each channel.");
       this.extraAutoContrastSizer = new HorizontalSizer;
       this.extraAutoContrastSizer.spacing = 4;
       this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
-      this.extraAutoContrastSizer.add( this.extraAutoContrastEdit );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastEditLow );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastEditHigh );
       this.extraAutoContrastSizer.add( this.extraAutoContrastChannelsCheckBox );
       this.extraAutoContrastSizer.toolTip = extraAutoContrastTooltip;
       this.extraAutoContrastSizer.addStretch();
