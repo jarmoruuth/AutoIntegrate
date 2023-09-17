@@ -251,7 +251,7 @@ var telescope_info = [
       [ 'SPA-1-CMOS', 382, 3.76 ],
       [ 'SPA-2-CMOS', 5600, 3.76 ],
       [ 'SPA-3-CMOS', 382, 3.76 ],
-      [ 'CHI-1-CMOS', 3991, 3.76 ],
+      [ 'CHI-1-CMOS', 3962, 3.76 ],
       [ 'CHI-2-CMOS', 1900, 3.76 ],
       [ 'CHI-3-CMOS', 6800, 3.76 ],
       [ 'CHI-4-CMOS', 1900, 3.76 ],
@@ -264,6 +264,7 @@ function find_focal_length()
 {
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
+                  console.writeln("Telescope " + telescope_info[i][0] + " focal length " + telescope_info[i][1]);
                   return telescope_info[i][1];
             }
       }
@@ -275,6 +276,7 @@ function find_pixel_size()
 {
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
+                  console.writeln("Telescope " + telescope_info[i][0] + " pixel size " + telescope_info[i][2]);
                   return telescope_info[i][2];
             }
       }
@@ -6527,7 +6529,7 @@ function findBinning(imgWin)
       return binning;
 }
 
-function runImageSolver(id)
+function runImageSolverEx(id)
 {
       console.writeln("runImageSolver: image " + id);
 
@@ -6543,10 +6545,10 @@ function runImageSolver(id)
                   console.writeln(imgWin.astrometricSolutionSummary());
             }
             console.writeln("runImageSolver: image " + id + " already has been plate solved.");
-            return;
+            return true;
       }
 
-      util.addProcessingStepAndStatusInfo("ImageSolver on image " + id);
+      util.addProcessingStepAndStatusInfo("ImageSolver on image " + imgWin.mainView.id);
 
       var succ = false;
 
@@ -6557,6 +6559,8 @@ function runImageSolver(id)
 
             if (!current_telescope_name || current_telescope_name == "") {
                   findCurrentTelescope(imgWin);
+            } else {
+                  console.writeln("Using current telescope " + current_telescope_name);
             }
 
             /* 
@@ -6584,28 +6588,36 @@ function runImageSolver(id)
                   }
                   solver.metadata.ra = parseFloat(radec[0]) * 15;
                   solver.metadata.dec = parseFloat(radec[1]);
-                  console.writeln("Using user coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+                  console.writeln("Using user given coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
             } else {
                   console.writeln("Using image metadata coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
             }
             if (par.target_focal.val != '') {
                   var focal_len = parseFloat(par.target_focal.val);
+                  if (focal_len != 0) {
+                        console.writeln("Using user given focal length: " + focal_len);
+                        solver.metadata.focal = focal_len;
+                  }
             } else {
                   var focal_len = find_focal_length();
+                  if (focal_len != 0) {
+                        console.writeln("Using telescope name based focal length: " + focal_len);
+                        solver.metadata.focal = focal_len;
+                  }
             }
-            if (focal_len != 0) {
-                  solver.metadata.focal = focal_len;
-                  console.writeln("Using user focal length: " + focal_len);
-            } else {
+            if (focal_len == 0) {
                   console.writeln("Using image metadata focal length: " + solver.metadata.focal);
             }
             if (par.target_pixel_size.val != '') {
                   var pixel_size = parseFloat(par.target_pixel_size.val);
+                  if (pixel_size != 0) {
+                        console.writeln("Using user given pixel size: " + pixel_size);
+                  }
             } else {
                   var pixel_size = find_pixel_size();
+                  console.writeln("Using telescope name based pixel size: " + pixel_size);
             }
             if (pixel_size != 0) {
-                  console.writeln("Using user pixel size: " + pixel_size);
                   if (par.target_binning.val != 'None') {
                         if (par.target_binning.val == 'Auto') {
                               var binning = findBinning(imgWin);
@@ -6627,6 +6639,12 @@ function runImageSolver(id)
             } else {
                   console.writeln("Using metadata resolution: " + solver.metadata.resolution);
             }
+
+            console.writeln("Image metadata for SolveImage:");
+            console.writeln("  coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
+            console.writeln("  focal length: " + solver.metadata.focal);
+            console.writeln("  resolution: " + solver.metadata.resolution);
+            console.writeln("  xpixsz: " + solver.metadata.xpixsz);
 
             /*
              * Solve image
@@ -6652,13 +6670,49 @@ function runImageSolver(id)
             }
       } catch (err) {
             console.criticalln(err);
-            util.throwFatalError("ImageSolver failed");
-
       }
+
       if (!succ) {
             console.writeln("Focal length: " + solver.metadata.focal);
             console.writeln("Resolution: " + solver.metadata.resolution*3600);
-            util.throwFatalError("ImageSolver failed");
+            console.writeln("ImageSolver failed");
+            return false
+      } else {
+            return true;
+      }
+}
+
+function runImageSolver(id, image_is_linear)
+{
+      var solved = runImageSolverEx(id);
+      if (!solved) {
+            if (image_is_linear) {
+                  /* For linear image, try again with a stretched image
+                   */
+                  console.writeln("runImageSolver:try again using a stretched image");
+
+                  /* Make a copy of the image to run ImageSolver on. 
+                   */
+                  var imgWin = ImageWindow.windowById(id);
+                  var copyWin = util.copyWindowEx(imgWin, id + "_solvercopy", true);
+                  console.writeln("runImageSolver: using a copied image " + copyWin.mainView.id);
+
+                  /* Apply autostretch on image, maybe it helps imagesolver to find stars. */
+                  console.writeln("runImageSolver: stretch image " + copyWin.mainView.id);
+                  engine.runHistogramTransformSTFex(copyWin, null, copyWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
+
+                  if (!runImageSolverEx(copyWin.mainView.id)) {
+                        util.throwFatalError("ImageSolver retry with stretched image failed");
+                  }
+
+                  /* Copy astrometric solution generated on copyWin to the imgWin.
+                   */
+                  imgWin.copyAstrometricSolution(copyWin);
+
+                  util.forceCloseOneWindow(copyWin);
+            } else {
+                  util.throwFatalError("ImageSolver failed");
+            }
       }
 }
 
@@ -8727,7 +8781,7 @@ function ProcessRGBimage(RGBmapping)
                   RGB_ABE_id = RGB_BE_win.mainView.id;
                   util.addProcessingStep("Start from image " + RGB_ABE_id);
                   if (par.solve_image.val || par.use_spcc.val) {
-                        runImageSolver(RGB_ABE_id);
+                        runImageSolver(RGB_ABE_id, true);
                   }
             } else {
                   if (preprocessed_images == global.start_images.RGB ||
@@ -8736,7 +8790,7 @@ function ProcessRGBimage(RGBmapping)
                         RGB_win = util.copyWindow(RGB_start_win, "Integration_RGB");
                   }
                   if (par.solve_image.val || par.use_spcc.val) {
-                        runImageSolver(RGB_win.mainView.id);
+                        runImageSolver(RGB_win.mainView.id, true);
                   }
                   if (par.color_calibration_before_ABE.val) {
                         if (par.use_background_neutralization.val) {
@@ -10341,7 +10395,7 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_solve_image.val) {
             addExtraProcessingStep("Image solver");
-            runImageSolver(extraWin.mainView.id);
+            runImageSolver(extraWin.mainView.id, false);
       }
       if (par.extra_annotate_image.val) {
             addExtraProcessingStep("Annotate image");
