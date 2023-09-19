@@ -846,7 +846,7 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 
       if (!par.skip_mask_contrast.val) {
             //clipShadows(targetWindow, 1.0);   Not sure if this actually helps
-            extraAutoContrast(targetWindow, 0.1);
+            autoContrast(targetWindow, 0.1, 100);
       }
 
       runMultiscaleLinearTransformReduceNoise(targetWindow, null, 3);
@@ -885,12 +885,16 @@ function treeboxfilesToFilenames(treeboxfiles)
 Function to open image files, or Json file.      
 
 */
-this.openImageFiles = function(filetype, lights_only, json_only)
+this.openImageFiles = function(filetype, lights_only, json_only, filetype_is_full_caption)
 {
       var ofd = new OpenFileDialog;
 
       ofd.multipleSelections = true;
-      if (json_only) {
+      if (filetype_is_full_caption) {
+            ofd.caption = filetype;
+      } else if (lights_only) {
+            ofd.caption = "Select " + filetype + " files";
+      } else if (json_only) {
             ofd.caption = "Select " + filetype + " File";
       } else {
             ofd.caption = "Select " + filetype + " Images, or Json File";
@@ -962,14 +966,18 @@ this.openImageFiles = function(filetype, lights_only, json_only)
       }
 }
 
-this.openDirectoryFiles = function(filetype, file_filter)
+this.openDirectoryFiles = function(filetype, file_filter, lights_only, filetype_is_full_caption)
 {
       console.writeln("openDirectoryFiles: " + filetype + " " + file_filter);
 
       var gdd = new GetDirectoryDialog;
 
       gdd.initialPath = ppar.lastDir;
-      gdd.caption = "Select Files Directory";
+      if (filetype_is_full_caption) {
+            gdd.caption = filetype;
+      } else {
+            gdd.caption = "Select " + filetype + " files directory";
+      }
       
       if (!gdd.execute()) {
             console.writeln("No directory selected");
@@ -1001,7 +1009,11 @@ this.openDirectoryFiles = function(filetype, file_filter)
 
       util.saveLastDir(gdd.directory);
 
-      return [ fileNames ];
+      if (lights_only) {
+            return fileNames;
+      } else {
+            return [ fileNames ];
+      }
 }
 
 function findMin(arr, idx)
@@ -7790,7 +7802,7 @@ function CreateChannelImages(parent, auto_continue)
              */
             var fileNames;
             if (global.lightFileNames == null) {
-                  global.lightFileNames = engine.openImageFiles("Light", true, false);
+                  global.lightFileNames = engine.openImageFiles("Lights", true, false, false);
                   util.addProcessingStep("Get files from dialog");
             }
             if (global.lightFileNames == null) {
@@ -9561,15 +9573,27 @@ function extraEnhanceHighlights(win)
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
 }
 
-function extraAutoContrastChannel(imgWin, channel)
+function autoContrast(win, contrast_limit_low, contrast_limit_high)
 {
-      addExtraProcessingStep("Auto contrast on channel " + channel + ", low limit " + par.extra_auto_contrast_limit_low.val + ", high limit " + par.extra_auto_contrast_limit_high.val);
+      console.writeln("autoContrast: image " + win.mainView.id + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
+
+      var low_clip = getClipShadowsValue(win, contrast_limit_low);
+      var high_clip = getClipShadowsValue(win, contrast_limit_high);
+
+      var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+}
+
+function extraAutoContrastChannel(imgWin, channel, contrast_limit_low, contrast_limit_high)
+{
+      addExtraProcessingStep("Auto contrast on channel " + channel + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
       // extract channel data
       var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
       var ch_win = util.findWindow(ch_id);
 
-      extraAutoContrast(ch_win, par.extra_auto_contrast_limit_low.val, par.extra_auto_contrast_limit_high.val);
+      autoContrast(ch_win, contrast_limit_low, contrast_limit_high);
 
       return ch_id;
 }
@@ -9577,9 +9601,9 @@ function extraAutoContrastChannel(imgWin, channel)
 function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channels)
 {
       if (channels) {
-            var R_id = extraAutoContrastChannel(win, 'R'); 
-            var G_id = extraAutoContrastChannel(win, 'G');
-            var B_id = extraAutoContrastChannel(win, 'B');
+            var R_id = extraAutoContrastChannel(win, 'R', contrast_limit_low, contrast_limit_high);
+            var G_id = extraAutoContrastChannel(win, 'G', contrast_limit_low, contrast_limit_high);
+            var B_id = extraAutoContrastChannel(win, 'B', contrast_limit_low, contrast_limit_high);
 
             runPixelMathRGBMapping(null, win, R_id, G_id, B_id);
 
@@ -9590,12 +9614,7 @@ function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channel
       } else {
             addExtraProcessingStep("Auto contrast with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
-            var low_clip = getClipShadowsValue(win, contrast_limit_low);
-            var high_clip = getClipShadowsValue(win, contrast_limit_high);
-
-            var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
-
-            runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null);
+            autoContrast(win, contrast_limit_low, contrast_limit_high);
       }
 }
 
@@ -10073,6 +10092,10 @@ this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
                   // close all but integrated images
                   console.writeln("autointegrateNarrowbandPaletteBatch:close all windows, keep integrated images");
                   engine.closeAllWindows(true, true);
+            }
+            if (global.cancel_processing) {
+                  console.writeln("Processing cancelled!");
+                  break;
             }
       }
       util.addProcessingStep("Narrowband palette batch completed");

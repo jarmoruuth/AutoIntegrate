@@ -800,12 +800,45 @@ function Autorun(parent)
       var first_step = true;
       var savedOutputRootDir = global.outputRootDir;
       var batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
+      var batch_files = [];
       if (par.batch_mode.val) {
             stopped = false;
+            // Ask files before processing
+            for (var i = 0; ; i++) {
+                  console.writeln("AutoRun in batch mode, ask file names for batch " + (i + 1));
+                  console.noteln("Click Cancel to end the batch.");
+                  var caption = "Select files for batch " + (i + 1) + ", Cancel ends the batch";
+                  if (par.open_directory.val) {
+                        var lights = engine.openDirectoryFiles(caption, par.directory_files.val, true, true);
+                  } else {
+                        var lights = engine.openImageFiles(caption, true, false, true);
+                  }
+                  if (lights == null || lights.length == 0) {
+                        break;
+                  }
+                  batch_files[batch_files.length] = lights;
+            }
+            if (batch_files.length == 0) {
+                  console.writeln("No files selected for a batch. Stopped.");
+                  return;
+            }
+            var txt = "Batch processing " + batch_files.length + " panels. Do you want to proceed?";
+            var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
+            if (response != StdButton_Yes) {
+                  console.writeln("Batch processing not started.");
+                  return;
+            }
+            global.lightFileNames = null; // Use files given here
       }
-      do {
+      do {  
             if (global.lightFileNames == null) {
-                  global.lightFileNames = engine.openImageFiles("Light files", true, false);
+                  if (par.batch_mode.val) {
+                        global.lightFileNames = batch_files.shift();
+                  } else if (par.open_directory.val) {
+                        global.lightFileNames = engine.openDirectoryFiles("Lights", par.directory_files.val, true, false);
+                  } else {
+                        global.lightFileNames = engine.openImageFiles("Lights", true, false, false);
+                  }
                   if (global.lightFileNames != null) {
                         parent.dialog.treeBox[global.pages.LIGHTS].clear();
                         addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
@@ -852,6 +885,10 @@ function Autorun(parent)
                   }
             } else {
                   stopped = true;
+            }
+            if (global.cancel_processing) {
+                  stopped = true;
+                  console.writeln("Processing cancelled!");
             }
       } while (!stopped);
       global.outputRootDir = savedOutputRootDir;
@@ -2321,7 +2358,7 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames)
 function loadJsonFile(parent)
 {
       console.writeln("loadJsonFile");
-      var pagearray = engine.openImageFiles("Json", false, true);
+      var pagearray = engine.openImageFiles("Json", false, true, false);
       if (pagearray == null) {
             return;
       }
@@ -2344,9 +2381,9 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       filesAdd_Button.onClick = function()
       {
             if (par.open_directory.val) {
-                  var pagearray = engine.openDirectoryFiles(filetype, par.directory_files.val);
+                  var pagearray = engine.openDirectoryFiles(filetype, par.directory_files.val, false, false);
             } else {
-                  var pagearray = engine.openImageFiles(filetype, false, false);
+                  var pagearray = engine.openImageFiles(filetype, false, false, false);
             }
             if (pagearray == null) {
                   return;
@@ -2474,7 +2511,7 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
             filesAdd_Button.toolTip = "<p>Add " + filetype + " files</p>";
       }
       filesAdd_Button.onClick = function() {
-            var imageFileNames = engine.openImageFiles(filetype, true, false);
+            var imageFileNames = engine.openImageFiles(filetype, true, false, false);
             if (imageFileNames != null) {
                   var filterSet;
                   switch (pageIndex) {
@@ -3985,12 +4022,13 @@ function AutoIntegrateDialog()
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
       this.batch_mode_CheckBox = newCheckBox(this, "Batch/mosaic mode", par.batch_mode, 
-            "<p>Run in batch mode, continue until no files are given.</p>" +
-            "<p>Batch mode is intended for processing mosaic panels. When one set of files " + 
-            "is processed, batch mode will automatically ask for the next set of files. " + 
-            "In batch mode only final image windows are left visible. </p>" +
+            "<p>Run in batch mode, continue until all selected files are processed.</p>" +
+            "<p>In batch mode, just click the Run button and the script will ask for files to process before starting.</p>" +
+            "<p>Batch mode is intended for processing mosaic panels. " + 
+            "When batch mode completes only final image windows are left visible.</p>" +
             "<p>Final images are renamed using the subdirectory name. It is " + 
-            "recommended that each part of the batch is stored in a separate directory. </p>");
+            "recommended that each part of the batch is stored in a separate directory (like for example P1, P2, etc.).</p>" +
+            "<p>Batch mode works only with calibrated light images.</p>");
       this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", par.skip_autodetect_imagetyp, 
             "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
       this.autodetect_filter_CheckBox = newCheckBoxEx(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
