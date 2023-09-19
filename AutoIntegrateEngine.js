@@ -5518,7 +5518,7 @@ function runHistogramTransformHyperbolicIterations(ABE_win, iscolor, use_GHS_pro
 
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
-            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS_process);
+            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, par.Hyperbolic_iterations.val);
             if (window_updated) {
                   guiUpdatePreviewWin(res.win);
             }
@@ -5875,7 +5875,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
       return window_updated;
 }
 
-function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process)
+function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iterations)
 {
       var iteration_number = res.iteration_number;
       var image_id = res.win.mainView.id;
@@ -6027,8 +6027,12 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process)
       console.writeln("peak_val " + peak_val + ", median "+ median);
 
       var window_updated = false;
+      var keep_image = false;
 
-      if (median >= 0.5) {
+      if (max_iterations == 1) {
+            console.writeln("Stretch completed, single iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
+            keep_image = true;
+      } else if (median >= 0.5 && max_iterations) {
             // We are past the median limit value, ignore this iteration and keep old image
             console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
             util.closeOneWindow(new_win.mainView.id);
@@ -6045,6 +6049,9 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process)
       } else {
             // we are close enough, we are done
             console.writeln("Stretch completed, we are close enough, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
+            keep_image = true;
+      }
+      if (keep_image) {
             res.completed = true;
             window_updated = true;
             // find new window and copy keywords

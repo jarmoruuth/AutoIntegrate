@@ -258,7 +258,7 @@ this.par = {
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
       Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
-      Hyperbolic_b: { val: 8, def: 8, name : "Hyperbolic Stretch b value", type : 'I' }, 
+      Hyperbolic_b: { val: 3, def: 3, name : "Hyperbolic Stretch b value", type : 'I' }, 
       Hyperbolic_SP: { val: 10, def: 10, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
       Hyperbolic_target: { val: 0.25, def: 0.25, name : "Hyperbolic Stretch target", type : 'I' }, 
       Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
@@ -640,13 +640,20 @@ this.narrowBandPalettes = [
       { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false }
 ];
 
-this.directoryInfo = "<p>AutoIntegrate output files go to the following subdirectories:</p>" +
-                    "<ul>" +
-                    "<li>AutoOutput contains intermediate files generated during processing</li>" +
-                    "<li>AutoMaster contains generated master calibration files</li>" +
-                    "<li>AutoCalibrated contains calibrated light files</li>" +
-                    "<li>AutoProcessed contains processed final images. Also integrated images and log output is here.</li>" +
-                    "<ul>";
+this.getDirectoryInfo = function(simple_text) {
+      var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
+      var info = [
+            "AutoOutput contains intermediate files generated during processing",
+            "AutoMaster contains generated master calibration files",
+            "AutoCalibrated contains calibrated light files",
+            "AutoProcessed contains processed final images. Also integrated images and log output is here."
+      ];
+      if (simple_text) {
+            return header + "\n" + info.join('\n');
+      } else {
+            return "<p>" + header + "</p>" + "<ul><li>" + info.join('</li><li>') + "</li></ul>";
+      }
+}
 
 // variables for temporary debugging and testing
 this.ai_debug = false;                          // temp setting for debugging

@@ -642,11 +642,11 @@ this.getOutputDir = function(filePath)
       return outputDir;
 }
 
-
+// Write something to a directory to test if it is writeable
 this.testDirectoryIsWriteable = function(dir)
 {
       var fname = util.ensurePathEndSlash(dir) + "info.txt";
-      var info = global.directoryInfo.replace(/<br>/g, "\n");
+      var info = global.getDirectoryInfo(true);
       try {
             let file = new File();
             file.createForWriting(fname);

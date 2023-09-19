@@ -804,8 +804,9 @@ function Autorun(parent)
       if (par.batch_mode.val) {
             stopped = false;
             // Ask files before processing
+            console.writeln("AutoRun in batch mode");
             for (var i = 0; ; i++) {
-                  console.writeln("AutoRun in batch mode, ask file names for batch " + (i + 1));
+                  console.writeln("File names for batch " + (i + 1));
                   console.noteln("Click Cancel to end the batch.");
                   var caption = "Select files for batch " + (i + 1) + ", Cancel ends the batch";
                   if (par.open_directory.val) {
@@ -3805,7 +3806,7 @@ function AutoIntegrateDialog()
       "Most often you get the best results by running the script with default " +
       "settings and then continue processing in PixInsight." +
       "</p><p>"+
-      global.directoryInfo +
+      global.getDirectoryInfo(false) +
       "</p><p>" +
       "User can give output root directory which can be relative or absolute path." +
       "</p><p>"+
