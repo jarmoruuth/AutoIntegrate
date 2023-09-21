@@ -4969,6 +4969,7 @@ function runImageIntegration(channel_images, name, save_to_file)
 function runImageIntegrationForCrop(images)
 {
       console.noteln("ImageIntegration to find area common to all images");
+      console.writeln("images[0]=" + images[0][1]);
 
       var P = new ImageIntegration;
 
@@ -5101,8 +5102,12 @@ function runImageIntegrationForCrop(images)
             checkCancel();
       }
 
-      runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(new_name), null, 4);
-
+      // Noise reduction did help sometimes with very bad images but mostly not, so 
+      // we do not use it by default
+      if (par.crop_noise_reduction.val) {
+            console.writeln("Noise reduction for cropped image");
+            runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(new_name), null, 4);
+      }
       return new_name
       
 }
@@ -5158,6 +5163,7 @@ function runABEex(win, replaceTarget, postfix)
       P.polyDegree = par.ABE_degree.val;
 
       if (global.ai_debug) {
+            console.writeln("DEBUG: ABE parameters:");
             console.writeln(P.toSource());
       }
 
@@ -10519,12 +10525,12 @@ function make_full_image_list()
 function find_up_down(image,col)
 {
       let row_mid = Math.floor(image.height / 2);
-      if (global.ai_debug) console.writeln("DEBUG find_up_down: row_mid ", row_mid);
+      if (par.debug.val) console.writeln("DEBUG find_up_down: row_mid ", row_mid);
       let row_up = 0;
       let cnt = 0;
       for (let row=row_mid; row>=0; row--) {
             let p = image.sample(col, row);
-            if (global.ai_debug && row < 5) {
+            if (par.debug.val && row < 5) {
                   console.writeln("DEBUG find up: pixel at col ", col, " row ", row, " p ", p);
             }
             if (p==0) {
@@ -10543,7 +10549,7 @@ function find_up_down(image,col)
       cnt = 0;
       for (let row=row_mid; row<image.height; row++) {
             let p = image.sample(col, row);
-            if (global.ai_debug && row > image.height - 5) {
+            if (par.debug.val && row > image.height - 5) {
                   console.writeln("DEBUG find down: pixel at col ", col, " row ", row, " p ", p);
             }
             if (p==0) {
@@ -10558,7 +10564,7 @@ function find_up_down(image,col)
                   break;
             }
       }
-      if (global.ai_debug) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
+      if (par.debug.val) console.writeln("DEBUG find_up_down: at col ", col," extent up=", row_up, ", down=", row_down);
       return [row_up, row_down];
 }
 
@@ -10570,7 +10576,7 @@ function find_left_right(image,row)
       let cnt = 0;
       for (let col=col_mid; col>=0; col--) {
             let p = image.sample(col, row);
-            if (global.ai_debug && col < 5) {
+            if (par.debug.val && col < 5) {
                   console.writeln("DEBUG find left: pixel at col ", col, " row ", row, " p ", p);
             }
             if (p==0) {
@@ -10588,7 +10594,7 @@ function find_left_right(image,row)
       let col_right = image.width-1;
       for (let col=col_mid; col<image.width; col++) {
             let p= image.sample(col, row);
-            if (global.ai_debug && col > image.width - 5) {
+            if (par.debug.val && col > image.width - 5) {
                   console.writeln("DEBUG find right: pixel at col ", col, " row ", row, " p ", p);
             }
             if (p==0) {
@@ -10603,7 +10609,7 @@ function find_left_right(image,row)
                   break;
             }
       }
-      if (global.ai_debug) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
+      if (par.debug.val) console.writeln("DEBUG find_left_right: at row ", row," extent left=", col_left, ", right=", col_right);
       return [col_left, col_right];
 }
 
@@ -10611,7 +10617,7 @@ function findMaximalBoundingBox(lowClipImage)
 {
       let col_mid = Math.floor(lowClipImage.width / 2);
       let row_mid = Math.floor(lowClipImage.height / 2);
-      if (global.ai_debug) {
+      if (par.debug.val) {
             console.writeln("DEBUG findMaximalBoundingBox col_mid=",col_mid,",row_mid=",row_mid);
       }
       let p = lowClipImage.sample(col_mid, row_mid);
@@ -10626,7 +10632,7 @@ function findMaximalBoundingBox(lowClipImage)
       let [top,bottom] = find_up_down(lowClipImage,col_mid);
       let [left,right] = find_left_right(lowClipImage,row_mid);
 
-      if (global.ai_debug) {
+      if (par.debug.val) {
             console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
       }
 
@@ -10789,9 +10795,9 @@ function findBounding_box(lowClipImageWindow)
 
       } // for
 
-      // Show the valid points for global.ai_debug - NOTE: The borders may be smaller as once a point is found as valid, it is not
+      // Show the valid points for par.debug.val - NOTE: The borders may be smaller as once a point is found as valid, it is not
       // recalculated.
-      if (global.ai_debug) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
+      if (par.debug.val) console.writeln("DEBUG findBounding_box - valid points LT=",left_top,",RT=",right_top,",LB=",left_bottom,",RB=",right_bottom)
 
       // Check that the while line at the border is valid, in case the border is wiggly
       let [original_left_col, original_right_col, original_top_row, original_bottom_row] = [left_col, right_col, top_row, bottom_row];

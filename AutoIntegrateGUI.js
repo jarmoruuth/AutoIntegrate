@@ -807,8 +807,8 @@ function Autorun(parent)
             console.writeln("AutoRun in batch mode");
             for (var i = 0; ; i++) {
                   console.writeln("File names for batch " + (i + 1));
-                  console.noteln("Click Cancel to end the batch.");
-                  var caption = "Select files for batch " + (i + 1) + ", Cancel ends the batch";
+                  console.noteln("Click Cancel when all files are selected.");
+                  var caption = "Select files for batch " + (i + 1) + ", Cancel ends the batch files";
                   if (par.open_directory.val) {
                         var lights = engine.openDirectoryFiles(caption, par.directory_files.val, true, true);
                   } else {
@@ -3974,6 +3974,8 @@ function AutoIntegrateDialog()
             "and user saved default parameters are not set.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
+      this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
+            "<p>Print some additionalö debug information to the log output files.</p>" );
       this.ABE_before_channel_combination_CheckBox = newCheckBox(this, "Use ABE on channel images", par.ABE_before_channel_combination, 
             "<p>Use AutomaticBackgroundExtractor on L, R, G and B images separately before channels are combined.</p>" );
       this.ABE_on_lights_CheckBox = newCheckBox(this, "Use ABE on light images", par.ABE_on_lights, 
@@ -4702,6 +4704,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet2.spacing = 4;
       this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
       this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
+      this.otherParamsSet2.add( this.debugCheckBox );
       this.otherParamsSet2.add( this.save_processed_channel_images_CheckBox );
       this.otherParamsSet2.add( this.save_all_files_CheckBox );
       this.otherParamsSet2.add( this.select_all_files_CheckBox );
@@ -4928,6 +4931,7 @@ function AutoIntegrateDialog()
       this.CropToleranceLabel = newLabel(this, "Crop tolerance", "Number of consecutive black pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.CropToleranceLabel2 = newLabel(this, "pixels", this.CropToleranceLabel.toolTip);
+      this.cropNoiseReductionCheckBox = newCheckBox(this, "Noise reduction", par.crop_noise_reduction, "Do noise reduction before finding the crop area. May be useful for very bad images.");
 
       this.CropToleranceSizer = new HorizontalSizer;
       this.CropToleranceSizer.margin = 6;
@@ -4935,6 +4939,7 @@ function AutoIntegrateDialog()
       this.CropToleranceSizer.add( this.CropToleranceLabel );
       this.CropToleranceSizer.add( this.CropToleranceSpinBox );
       this.CropToleranceSizer.add( this.CropToleranceLabel2 );
+      this.CropToleranceSizer.add( this.cropNoiseReductionCheckBox );
       this.CropToleranceSizer.addStretch();
 
       this.CropSizer = new VerticalSizer;
