@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.63";                     // Version, also updated into updates.xri
-this.autointegrate_info = "Narrowband mapping, processing history";     // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.64 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Narrowband colorization";              // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -303,8 +303,13 @@ this.par = {
       run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
-      run_colorized_sho: { val: false, def: false, name : "Extra colorized SHO", type : 'B' },
-      run_colorized_sho_iterations: { val: 2, def: 2, name : "Extra colorized SHO iterations", type : 'I' },
+      run_colorized_narrowband: { val: false, def: false, name : "Extra colorized narrowband", type : 'B' },
+      narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Extra colorized narrowband R hue", type : 'R' },
+      narrowband_colorized_R_sat: { val: 0.4, def: 0.4, name : "Extra colorized narrowband R sat", type : 'R' },
+      narrowband_colorized_G_hue: { val: 0.33, def: 0.33, name : "Extra colorized narrowband G hue", type : 'R' },
+      narrowband_colorized_G_sat: { val: 0.4, def: 0.4, name : "Extra colorized narrowband G sat", type : 'R' },
+      narrowband_colorized_B_hue: { val: 0.67, def: 0.67, name : "Extra colorized narrowband B hue", type : 'R' },
+      narrowband_colorized_B_sat: { val: 0.4, def: 0.4, name : "Extra colorized narrowband B sat", type : 'R' },
       leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
       leave_some_green_amount: { val: 0.50, def: 0.50, name : "Extra narrowband leave some green amount", type : 'R' },
       run_narrowband_SCNR: { val: false, def: false, name : "Extra narrowband remove green", type : 'B' },
