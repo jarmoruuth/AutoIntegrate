@@ -102,20 +102,37 @@ function AutoIntegrateSelectStarsImageDialog( util )
 
 AutoIntegrateSelectStarsImageDialog.prototype = new Dialog;
 
-function AutoIntegrateHueColors()
+function AutoIntegrateHueColors(par)
 {
       this.__base__ = Frame;
       this.__base__();
    
-      this.hue_bmp = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
+      this.hueColorsBitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
+
+      function drawHueLine(g, bmp_startpos, bmp_width, bmp_height, hue)
+      {
+            // console.writeln("drawHueLine " + hue + " " + bmp_startpos + " " + bmp_width + " " + bmp_height);
+            var line_x = bmp_startpos + hue * bmp_width;
+            g.drawLine(line_x, 0, line_x, bmp_height);
+      }
 
       this.onPaint = function(x0, y0, x1, y1) {
-            var pos = 25;
-            var g = new Graphics(this);
-            //var bmp = this.hue_bmp.scaledTo(this.width, this.height)
-            var bmp = this.hue_bmp.scaledTo((100 - pos) * this.width / 100, this.height)
-            g.drawBitmap(pos * this.width / 100, 0, bmp);
-            g.end();
+            console.writeln("AutoIntegrateHueColors onPaint");
+            var width = this.width;
+            var height = this.height;
+            var pos = 23;
+            var bmp_width = (100 - pos) * width / 100;
+            var bmp_startpos = pos * width / 100;
+
+            var bmp = this.hueColorsBitmap.scaledTo(bmp_width, height);
+
+            var graphics = new Graphics(this);
+            graphics.drawBitmap(bmp_startpos, 0, bmp);
+            graphics.pen = new Pen(0xFFFFFFFF,0);      // white
+            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_R_hue.val);
+            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_G_hue.val);
+            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_B_hue.val);
+            graphics.end();
       }
 }
 
@@ -289,6 +306,7 @@ var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
+var colorized_narrowband_preset_values = [ 'Default', 'Hubble' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -982,7 +1000,7 @@ function newRGBNBNumericEdit(parent, txt, param, tooltip)
       return newNumericEdit(parent, txt, param, 0.1, 999, tooltip);
 }
 
-function newNumericControl(parent, txt, param, min, max, tooltip)
+function newNumericControl(parent, txt, param, min, max, tooltip, updatedCallback)
 {
       var edt = new NumericControl( parent );
       edt.label.text = txt;
@@ -992,11 +1010,19 @@ function newNumericControl(parent, txt, param, min, max, tooltip)
       edt.aiParam = param;
       edt.setValue(edt.aiParam.val);
       edt.onValueUpdated = function(value) { 
-            edt.aiParam.val = value; 
+            edt.aiParam.val = value;
+            // console.writeln("NumericControl " + txt + " " + value);
+            if (updatedCallback != null) {
+                  // console.writeln("NumericControl " + txt + " callback");
+                  updatedCallback();
+            }
       };
       edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
+            if (updatedCallback != null) {
+                  updatedCallback();
+            }
       };
       return edt;
 }
@@ -5777,87 +5803,111 @@ function AutoIntegrateDialog()
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
 
-      this.narrowband_colorized_CheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
+      this.narrowbandColorizedCheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
             "<p>Enhance colors for narrowband.</p>" +
             "<p>Colorizing is insipred by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685) " + 
             "and by NBColourMapper script from Mike Cranfield and Adam Block.</p>" );
 
-      this.narrowband_colorized_defaults_Button = new ToolButton(this);
-      this.narrowband_colorized_defaults_Button.icon = new Bitmap( ":/images/icons/reset.png" );
-      this.narrowband_colorized_defaults_Button.toolTip = 
-            "<p>Reset channel adjust values to defaults.</p>";
-      this.narrowband_colorized_defaults_Button.onMousePress = function()
-      {
-            par.narrowband_colorized_R_hue.val = par.narrowband_colorized_R_hue.def;
-            par.narrowband_colorized_G_hue.val = par.narrowband_colorized_G_hue.def;
-            par.narrowband_colorized_B_hue.val = par.narrowband_colorized_B_hue.def;
-
-            this.dialog.narrowband_colorized_R_hue_Control.setValue(par.narrowband_colorized_R_hue.val);
-            this.dialog.narrowband_colorized_G_hue_Control.setValue(par.narrowband_colorized_G_hue.val);
-            this.dialog.narrowband_colorized_B_hue_Control.setValue(par.narrowband_colorized_B_hue.val);
-
-            par.narrowband_colorized_R_sat.val = par.narrowband_colorized_R_sat.def;
-            par.narrowband_colorized_G_sat.val = par.narrowband_colorized_G_sat.def;
-            par.narrowband_colorized_B_sat.val = par.narrowband_colorized_B_sat.def;
-
-            this.dialog.narrowband_colorized_R_sat_Control.setValue(par.narrowband_colorized_R_sat.val);
-            this.dialog.narrowband_colorized_G_sat_Control.setValue(par.narrowband_colorized_G_sat.val);
-            this.dialog.narrowband_colorized_B_sat_Control.setValue(par.narrowband_colorized_B_sat.val);
-      };
-
-      var hue_width = 350
+      var hue_width = 400;
       var sat_width = 200;
 
-      this.hue_colors = new AutoIntegrateHueColors();
-      this.hue_colors.setScaledFixedSize(hue_width,20);
+      this.hueColors = new AutoIntegrateHueColors(par);
+      this.hueColors.setScaledFixedSize(hue_width,20);
 
-      this.narrowband_colorized_R_hue_Control = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_R_hue_Control.setScaledFixedWidth(hue_width);
-      this.narrowband_colorized_R_sat_Control = newNumericControl(this, "saturation", par.narrowband_colorized_R_sat, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_R_sat_Control.setScaledFixedWidth(sat_width);
+      var hueColors = this.hueColors;
+
+      function updateHueColors()
+      {
+            console.writeln("updateHueColors");
+            hueColors.repaint();
+      }
       
-      this.narrowband_colorized_G_hue_Control = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_G_hue_Control.setScaledFixedWidth(hue_width);
-      this.narrowband_colorized_G_sat_Control = newNumericControl(this, "saturation", par.narrowband_colorized_G_sat, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_G_sat_Control.setScaledFixedWidth(sat_width);
+      this.narrowbandColorizedPresetLabel = newLabel(this, "Presets", this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedPresetComboBox = newComboBox(this, par.colorized_narrowband_preset, colorized_narrowband_preset_values, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedPresetComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (colorized_narrowband_preset_values[itemIndex]) {
+                  case 'Default':
+                        var hue = [ par.narrowband_colorized_R_hue.def, par.narrowband_colorized_G_hue.def, par.narrowband_colorized_B_hue.def ];
+                        var sat = [ par.narrowband_colorized_R_sat.def, par.narrowband_colorized_G_sat.def, par.narrowband_colorized_B_sat.def ];
+                        break;
+                  case 'Hubble':
+                        var hue = [ 0.04, 0.104, 0.6 ];
+                        var sat = [ 0.566, 0.553, 0.4 ];
+                        break;
+                  default:
+                        throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
+                        break;
+            }
+
+            par.narrowband_colorized_R_hue.val = hue[0];
+            par.narrowband_colorized_G_hue.val = hue[1];
+            par.narrowband_colorized_B_hue.val = hue[2];
+
+            par.narrowband_colorized_R_sat.val = sat[0];
+            par.narrowband_colorized_G_sat.val = sat[1];
+            par.narrowband_colorized_B_sat.val = sat[2];
+
+            this.dialog.narrowbandColorized_R_HueControl.setValue(hue[0]);
+            this.dialog.narrowbandColorized_G_HueControl.setValue(hue[1]);
+            this.dialog.narrowbandColorized_B_HueControl.setValue(hue[2]);
+
+            this.dialog.narrowbandColorized_R_SatControl.setValue(sat[0]);
+            this.dialog.narrowbandColorized_G_SatControl.setValue(sat[1]);
+            this.dialog.narrowbandColorized_B_SatControl.setValue(sat[2]);
+
+            updateHueColors();
+      };
+
+      this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
+      this.narrowbandColorized_R_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_R_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_R_SatControl.setScaledFixedWidth(sat_width);
       
-      this.narrowband_colorized_B_hue_Control = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_B_hue_Control.setScaledFixedWidth(hue_width);
-      this.narrowband_colorized_B_sat_Control = newNumericControl(this, "saturation", par.narrowband_colorized_B_sat, 0, 1, this.narrowband_colorized_CheckBox.toolTip);
-      this.narrowband_colorized_B_sat_Control.setScaledFixedWidth(sat_width);
+      this.narrowbandColorized_G_HueControl = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_G_HueControl.setScaledFixedWidth(hue_width);
+      this.narrowbandColorized_G_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_G_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_G_SatControl.setScaledFixedWidth(sat_width);
+      
+      this.narrowbandColorized_B_HueControl = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_B_HueControl.setScaledFixedWidth(hue_width);
+      this.narrowbandColorized_B_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_B_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_B_SatControl.setScaledFixedWidth(sat_width);
 
-      this.narrowband_colorized_R_hue_sizer = new HorizontalSizer;
-      this.narrowband_colorized_R_hue_sizer.spacing = 8;
-      this.narrowband_colorized_R_hue_sizer.add( this.narrowband_colorized_R_hue_Control );
-      this.narrowband_colorized_R_hue_sizer.add( this.narrowband_colorized_R_sat_Control );
-      this.narrowband_colorized_R_hue_sizer.addStretch();
+      this.narrowbandColorized_R_hue_sizer = new HorizontalSizer;
+      this.narrowbandColorized_R_hue_sizer.spacing = 8;
+      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_HueControl );
+      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_SatControl );
+      this.narrowbandColorized_R_hue_sizer.addStretch();
 
-      this.narrowband_colorized_G_hue_sizer = new HorizontalSizer;
-      this.narrowband_colorized_G_hue_sizer.spacing = 8;
-      this.narrowband_colorized_G_hue_sizer.add( this.narrowband_colorized_G_hue_Control );
-      this.narrowband_colorized_G_hue_sizer.add( this.narrowband_colorized_G_sat_Control );
-      this.narrowband_colorized_G_hue_sizer.addStretch();
+      this.narrowbandColorized_G_hue_sizer = new HorizontalSizer;
+      this.narrowbandColorized_G_hue_sizer.spacing = 8;
+      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_HueControl );
+      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_SatControl );
+      this.narrowbandColorized_G_hue_sizer.addStretch();
 
-      this.narrowband_colorized_B_hue_sizer = new HorizontalSizer;
-      this.narrowband_colorized_B_hue_sizer.spacing = 8;
-      this.narrowband_colorized_B_hue_sizer.add( this.narrowband_colorized_B_hue_Control );
-      this.narrowband_colorized_B_hue_sizer.add( this.narrowband_colorized_B_sat_Control );
-      this.narrowband_colorized_B_hue_sizer.addStretch();
+      this.narrowbandColorized_B_hue_sizer = new HorizontalSizer;
+      this.narrowbandColorized_B_hue_sizer.spacing = 8;
+      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_HueControl );
+      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_SatControl );
+      this.narrowbandColorized_B_hue_sizer.addStretch();
 
-      this.narrowband_colorized_sizer1 = new HorizontalSizer;
-      this.narrowband_colorized_sizer1.spacing = 4;
-      this.narrowband_colorized_sizer1.add( this.narrowband_colorized_CheckBox );
-      this.narrowband_colorized_sizer1.add( this.narrowband_colorized_defaults_Button );
-      this.narrowband_colorized_sizer1.addStretch();
+      this.narrowbandColorized_sizer1 = new HorizontalSizer;
+      this.narrowbandColorized_sizer1.spacing = 4;
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedCheckBox );
+      this.narrowbandColorized_sizer1.addSpacing( 12 );
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetLabel );
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetComboBox );
+      this.narrowbandColorized_sizer1.addStretch();
 
-      this.narrowband_colorized_sizer = new VerticalSizer;
-      this.narrowband_colorized_sizer.spacing = 4;
-      this.narrowband_colorized_sizer.add( this.narrowband_colorized_sizer1 );
-      this.narrowband_colorized_sizer.add( this.hue_colors );
-      this.narrowband_colorized_sizer.add( this.narrowband_colorized_R_hue_sizer );
-      this.narrowband_colorized_sizer.add( this.narrowband_colorized_G_hue_sizer );
-      this.narrowband_colorized_sizer.add( this.narrowband_colorized_B_hue_sizer );
-      //this.narrowband_colorized_sizer.addStretch();
+      this.narrowbandColorized_sizer = new VerticalSizer;
+      this.narrowbandColorized_sizer.spacing = 4;
+      this.narrowbandColorized_sizer.add( this.narrowbandColorized_sizer1 );
+      this.narrowbandColorized_sizer.add( this.hueColors );
+      this.narrowbandColorized_sizer.add( this.narrowbandColorized_R_hue_sizer );
+      this.narrowbandColorized_sizer.add( this.narrowbandColorized_G_hue_sizer );
+      this.narrowbandColorized_sizer.add( this.narrowbandColorized_B_hue_sizer );
+      //this.narrowbandColorized_sizer.addStretch();
 
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
@@ -5883,11 +5933,11 @@ function AutoIntegrateDialog()
       this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
+      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
       this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
       this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
@@ -6546,7 +6596,7 @@ function AutoIntegrateDialog()
       this.extraControl3.sizer = new VerticalSizer;
       this.extraControl3.sizer.margin = 6;
       this.extraControl3.sizer.spacing = 4;
-      this.extraControl3.sizer.add( this.narrowband_colorized_sizer );
+      this.extraControl3.sizer.add( this.narrowbandColorized_sizer );
       this.extraControl3.sizer.addStretch();
       this.extraControl3.visible = false;
 

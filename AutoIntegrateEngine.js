@@ -9824,7 +9824,7 @@ function extraColorizeChannel(imgWin, channel)
 
 function extraColorizedNarrowband(imgWin)
 {
-      addExtraProcessingStep("Colorized narrowband, R " + par.narrowband_colorized_R_hue.val + ", " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_hue.val + ", " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_hue.val + ", " + par.narrowband_colorized_B_sat.val);
+      addExtraProcessingStep("Colorized, R " + par.narrowband_colorized_R_hue.val + ", " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_hue.val + ", " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_hue.val + ", " + par.narrowband_colorized_B_sat.val);
 
       var R_id = extraColorizeChannel(imgWin, "R").mainView.id;
       var G_id = extraColorizeChannel(imgWin, "G").mainView.id;

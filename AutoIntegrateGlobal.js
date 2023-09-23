@@ -304,6 +304,7 @@ this.par = {
       run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
       run_colorized_narrowband: { val: false, def: false, name : "Extra colorized narrowband", type : 'B' },
+      colorized_narrowband_preset: { val: "Default", def: "Default", name : "Extra colorized narrowband preset", type : 'S' },
       narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Extra colorized narrowband R hue", type : 'R' },
       narrowband_colorized_R_sat: { val: 0.4, def: 0.4, name : "Extra colorized narrowband R sat", type : 'R' },
       narrowband_colorized_G_hue: { val: 0.33, def: 0.33, name : "Extra colorized narrowband G hue", type : 'R' },
