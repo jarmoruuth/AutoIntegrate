@@ -117,7 +117,7 @@ function AutoIntegrateHueColors(par)
       }
 
       this.onPaint = function(x0, y0, x1, y1) {
-            console.writeln("AutoIntegrateHueColors onPaint");
+            // console.writeln("AutoIntegrateHueColors onPaint");
             var width = this.width;
             var height = this.height;
             var pos = 23;
@@ -5818,7 +5818,7 @@ function AutoIntegrateDialog()
 
       function updateHueColors()
       {
-            console.writeln("updateHueColors");
+            // console.writeln("updateHueColors");
             hueColors.repaint();
       }
       
