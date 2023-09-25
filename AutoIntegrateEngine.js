@@ -9833,15 +9833,6 @@ this.extraColorizedNarrowbandImages = function(imgWin)
       var G_id = G_win.mainView.id;
       var B_id = B_win.mainView.id;
 
-      // Screen: 1-(1-AutoRGB_NBCpreview_R)*(1-AutoRGB_NBCpreview_G)*(1-AutoRGB_NBCpreview_B)
-      // Normalize channels: $T[1]-med($T[1]))+med($T[0]), $T[2]-med($T[2]))+med($T[0])
-      if (0) {
-            // Normalize channels
-            var median = R_win.mainView.computeOrFetchProperty("Median");
-
-            runPixelMathSingleMappingEx(G_id, "($T-med($T))+" + median, false, null, true, true);
-            runPixelMathSingleMappingEx(B_id, "($T-med($T))+" + median, false, null, true, true);
-      }
       // merge as RGB channels
       runPixelMathRGBMapping(null, imgWin, R_id, G_id, B_id);
 
@@ -11977,6 +11968,7 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
       printProcessDefaultValues("new BlurXTerminator", new BlurXTerminator);
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
+      printProcessDefaultValues("new Colourise", new Colourise);
 
       engine.writeProcessingSteps(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str);
 }

@@ -433,6 +433,11 @@ function readPersistentSettings()
       if (ppar.use_single_column) {
             ppar.use_more_tabs = false;
       }
+      var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored filesInTab'" + tempSetting + "' from settings.");
+            ppar.files_in_tab = tempSetting;
+      }
 }
 
 // Read default parameters from process icon

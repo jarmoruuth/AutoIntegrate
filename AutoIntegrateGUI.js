@@ -485,6 +485,7 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/previewSettings", DataType_String, JSON.stringify(ppar.preview));
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
             Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
+            Settings.write (SETTINGSKEY + "/filesInTab", DataType_Boolean, ppar.files_in_tab);
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -2528,8 +2529,27 @@ function addTargetType(parent)
       return outputdir_Sizer;
 }
 
+function newTargetSizer(parent)
+{
+      var target_type_sizer = addTargetType(parent);
 
-function addFilesButtons(parent)
+      var winprefix_sizer = addWinPrefix(parent);
+      var outputdir_sizer = addOutputDir(parent);
+
+      var filesButtons_Sizer2 = new HorizontalSizer;
+      parent.rootingArr.push(filesButtons_Sizer2);
+
+      filesButtons_Sizer2.spacing = 4;
+      filesButtons_Sizer2.add( target_type_sizer );
+      filesButtons_Sizer2.addStretch();
+      filesButtons_Sizer2.addSpacing( 12 );
+      filesButtons_Sizer2.add( winprefix_sizer );
+      filesButtons_Sizer2.add( outputdir_sizer );
+
+      return filesButtons_Sizer2;
+}
+
+function addFilesButtons(parent, targetSizer)
 {
       var addLightsButton = addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]);
       var addBiasButton = addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]);
@@ -2544,11 +2564,6 @@ function addFilesButtons(parent)
       var directoryFilesEdit = newTextEdit(parent, par.directory_files, directoryCheckBox.toolTip);
       directoryFilesEdit.setFixedWidth(8 * parent.font.width( 'M' ));
 
-      var target_type_sizer = addTargetType(parent);
-
-      var winprefix_sizer = addWinPrefix(parent);
-      var outputdir_sizer = addOutputDir(parent);
-
       var filesButtons_Sizer1 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer1);
       filesButtons_Sizer1.spacing = 4;
@@ -2561,28 +2576,22 @@ function addFilesButtons(parent)
       filesButtons_Sizer1.add( directoryCheckBox );
       filesButtons_Sizer1.add( directoryFilesEdit );
 
-      var filesButtons_Sizer2 = new HorizontalSizer;
-      parent.rootingArr.push(filesButtons_Sizer2);
-      filesButtons_Sizer1.spacing = 4;
-      filesButtons_Sizer1.margin = 4;
-      filesButtons_Sizer2.add( target_type_sizer );
-      filesButtons_Sizer2.addStretch();
-      filesButtons_Sizer2.addSpacing( 12 );
-      filesButtons_Sizer2.add( winprefix_sizer );
-      filesButtons_Sizer2.add( outputdir_sizer );
-
       if (ppar.use_single_column || ppar.use_more_tabs) {
             var filesButtons_Sizer = new VerticalSizer;
             parent.rootingArr.push(filesButtons_Sizer);
             filesButtons_Sizer.add( filesButtons_Sizer1 );
-            filesButtons_Sizer.add( filesButtons_Sizer2 );
+            if ( !ppar.files_in_tab) {
+                  filesButtons_Sizer.add( targetSizer );
+            }
             filesButtons_Sizer1.addStretch();
       } else {
             var filesButtons_Sizer = new HorizontalSizer;
             parent.rootingArr.push(filesButtons_Sizer);
             filesButtons_Sizer.add( filesButtons_Sizer1 );
-            filesButtons_Sizer.addSpacing( 12 );
-            filesButtons_Sizer.add( filesButtons_Sizer2 );
+            if ( !ppar.files_in_tab) {
+                  filesButtons_Sizer.addSpacing( 12 );
+                  filesButtons_Sizer.add( newTargetSizer(parent) );
+            }
       }
       return filesButtons_Sizer;
 }
@@ -2842,11 +2851,6 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       filesControl.sizer = new VerticalSizer;
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
-      if (0) {
-            let obj = newPageButtonsSizer(parent);
-            parent.rootingArr.push(obj);
-            filesControl.sizer.add(obj);
-      }
       if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS) {
             let obj = addFileFilterButtonSectionBar(parent, pageIndex);
             parent.rootingArr.push(obj);
@@ -3194,7 +3198,92 @@ function blinkArrowButton(parent, icon, x, y)
       return blinkArrowButton;
 }
 
-function newPageButtonsSizer(parent)
+function newJsonSizer(parent)
+{
+      // Load and save
+      var jsonLabel = new Label( parent );
+      parent.rootingArr.push(jsonLabel);
+      jsonLabel.text = "Setup file";
+      jsonLabel.toolTip = "<p>Reading script setup from a file, saving script setup to a file.</p>";
+      jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      
+      var jsonLoadButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonLoadButton);
+      jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
+      jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
+      jsonLoadButton.setScaledFixedSize( 20, 20 );
+      jsonLoadButton.onClick = function()
+      {
+            loadJsonFile(parent.dialog);
+      };
+      var jsonSaveButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonSaveButton);
+      jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
+      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
+      jsonSaveButton.setScaledFixedSize( 20, 20 );
+      jsonSaveButton.onClick = function()
+      {
+            util.saveJsonFile(parent.dialog, false);
+      };
+      var jsonSaveWithSewttingsButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonSaveWithSewttingsButton);
+      jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
+      jsonSaveWithSewttingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
+                                            "Current window prefix and output directory is also saved.</p>" + 
+                                            "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
+      jsonSaveWithSewttingsButton.setScaledFixedSize( 20, 20 );
+      jsonSaveWithSewttingsButton.onClick = function()
+      {
+            util.saveJsonFile(parent.dialog, true);
+      };
+
+      var jsonSizer = new HorizontalSizer;
+      parent.rootingArr.push(jsonSizer);
+      jsonSizer.add( jsonLabel );
+      jsonSizer.add( jsonLoadButton );
+      jsonSizer.add( jsonSaveButton );
+      jsonSizer.add( jsonSaveWithSewttingsButton );
+
+      return jsonSizer;
+}
+
+function newActionSizer(parent)
+{
+      var actionsSizer = new HorizontalSizer;
+      parent.rootingArr.push(actionsSizer);
+
+      let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
+
+      obj = newCancelButton(parent, true);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
+
+      obj = newAutoContinueButton(parent, true);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
+
+      obj = newRunButton(parent, true);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+
+      obj = newExitButton(parent, true);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
+
+      obj = newAdjustToContentButton(parent);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+
+      return actionsSizer;
+}
+
+function newPageButtonsSizer(parent, jsonSizer, actionSizer)
 {
       if (!global.use_preview) {
             // Blink
@@ -3241,43 +3330,6 @@ function newPageButtonsSizer(parent)
             var blinkUp = blinkArrowButton(parent, ":/icons/arrow-up.png", 0, -1);
             var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
       }
-      // Load and save
-      var jsonLabel = new Label( parent );
-      parent.rootingArr.push(jsonLabel);
-      jsonLabel.text = "Setup file";
-      jsonLabel.toolTip = "<p>Reading script setup from a file, saving script setup to a file.</p>";
-      jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      
-      var jsonLoadButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonLoadButton);
-      jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
-      jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
-      jsonLoadButton.setScaledFixedSize( 20, 20 );
-      jsonLoadButton.onClick = function()
-      {
-            loadJsonFile(parent.dialog);
-      };
-      var jsonSaveButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonSaveButton);
-      jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
-      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
-      jsonSaveButton.setScaledFixedSize( 20, 20 );
-      jsonSaveButton.onClick = function()
-      {
-            util.saveJsonFile(parent.dialog, false);
-      };
-      var jsonSaveWithSewttingsButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonSaveWithSewttingsButton);
-      jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
-      jsonSaveWithSewttingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
-                                            "Current window prefix and output directory is also saved.</p>" + 
-                                            "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
-      jsonSaveWithSewttingsButton.setScaledFixedSize( 20, 20 );
-      jsonSaveWithSewttingsButton.onClick = function()
-      {
-            util.saveJsonFile(parent.dialog, true);
-      };
-      
       var currentPageLabel = new Label( parent );
       parent.rootingArr.push(currentPageLabel);
       currentPageLabel.text = "Current page";
@@ -3420,14 +3472,14 @@ function newPageButtonsSizer(parent)
             buttonsSizer.add( blinkRight );
             buttonsSizer.add( blinkUp );
             buttonsSizer.add( blinkDown );
+            buttonsSizer.addSpacing( 12 );
       }
-      buttonsSizer.addSpacing( 12 );
-      buttonsSizer.add( jsonLabel );
-      buttonsSizer.add( jsonLoadButton );
-      buttonsSizer.add( jsonSaveButton );
-      buttonsSizer.add( jsonSaveWithSewttingsButton );
 
-      buttonsSizer.addSpacing( 12 );
+      if (!ppar.files_in_tab) {
+            buttonsSizer.add( jsonSizer );
+            buttonsSizer.addSpacing( 12 );
+      }
+
       buttonsSizer.add( currentPageLabel );
       buttonsSizer.add( currentPageCheckButton );
       buttonsSizer.add( currentPageClearButton );
@@ -3443,29 +3495,9 @@ function newPageButtonsSizer(parent)
       buttonsSizer.add( findBestImageButton );
 
       buttonsSizer.addStretch();
-      let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
-      buttonsSizer.addSpacing( 6 );
-      obj = newCancelButton(parent, true);
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
-      buttonsSizer.addSpacing( 6 );
-      obj = newAutoContinueButton(parent, true);
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
-      buttonsSizer.addSpacing( 6 );
-      obj = newRunButton(parent, true);
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
-      obj = newExitButton(parent, true);
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
-
-      buttonsSizer.addSpacing( 6 );
-      obj = newAdjustToContentButton(parent);
-      parent.rootingArr.push(obj);
-      buttonsSizer.add( obj );
+      if (!ppar.files_in_tab) {
+            buttonsSizer.add( actionSizer );
+      }
 
       return buttonsSizer;
 }
@@ -3985,7 +4017,8 @@ function AutoIntegrateDialog()
 
       this.treeBox = [];
       this.treeBoxRootingArr = [];
-      this.filesButtonsSizer = addFilesButtons(this);
+      this.targetSizer = newTargetSizer(this);
+      this.filesButtonsSizer = addFilesButtons(this, this.targetSizer);
 
       this.tabBox = new TabBox( this );
 
@@ -6871,12 +6904,17 @@ function AutoIntegrateDialog()
             "<p>Show image histogram.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.preview.show_histogram = checked; });
 
+      this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
+            "<p>File listing is in a separate tab instead of on top of the window.</p>",
+            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.files_in_tab = checked; });
+
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
       this.preview1Sizer.add( this.show_preview_CheckBox );
       this.preview1Sizer.add( this.use_single_column_CheckBox );
       this.preview1Sizer.add( this.use_more_tabs_CheckBox );
+      this.preview1Sizer.add( this.files_in_tab_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
       this.preview1Sizer.addStretch();
@@ -7229,6 +7267,20 @@ function AutoIntegrateDialog()
       mainTabBox = this.mainTabBox;
       let tab_index = 0;
 
+      if (ppar.files_in_tab) {
+            // Files in a tab
+            this.pageButtonsSizer = newPageButtonsSizer(this);
+            this.filesTabSizer = new VerticalSizer;
+            this.filesTabSizer.margin = 6;
+            this.filesTabSizer.spacing = 4;
+            this.filesTabSizer.add( this.tabBox );
+            this.filesTabSizer.add( this.filesButtonsSizer );
+            this.filesTabSizer.add( this.pageButtonsSizer );
+            this.mainTabBox.addPage( mainSizerTab(this, this.filesTabSizer), "Files" );
+            files_tab_index = tab_index;
+            tab_index++;
+      }
+
       if (ppar.use_single_column) {
             /* Collect all into a single sizer.
              */
@@ -7376,9 +7428,9 @@ function AutoIntegrateDialog()
             tab_index++;
       }
 
-      this.mainSizer = new HorizontalSizer;
-      this.mainSizer.margin = 6;
-      this.mainSizer.spacing = 4;
+      this.mainTabsSizer = new HorizontalSizer;
+      this.mainTabsSizer.margin = 6;
+      this.mainTabsSizer.spacing = 4;
 
       if (global.use_preview && !ppar.preview.use_large_preview) {
             this.sidePreviewSizer = new VerticalSizer;
@@ -7389,19 +7441,41 @@ function AutoIntegrateDialog()
                   this.sidePreviewSizer.add( sideHistogramControl );
             }
             this.sidePreviewSizer.addStretch();
-            this.mainSizer.add( this.sidePreviewSizer );
+            this.mainTabsSizer.add( this.sidePreviewSizer );
       }
-      this.mainSizer.add( this.mainTabBox );
-      //this.mainSizer.addStretch();
+      this.mainTabsSizer.add( this.mainTabBox );
+      //this.mainTabsSizer.addStretch();
 
       this.baseSizer = new VerticalSizer;
       this.baseSizer.margin = 6;
       this.baseSizer.spacing = 4;
-      this.baseSizer.add( this.tabBox);             // Files tabs
-      this.pageButtonsSizer = newPageButtonsSizer(this);
-      this.baseSizer.add( this.pageButtonsSizer);
-      this.baseSizer.add( this.filesButtonsSizer);  // Buttons row below files
-      this.baseSizer.add( this.mainSizer );         // Main view with tabbs
+      if (!ppar.files_in_tab) {
+            this.baseSizer.add( this.tabBox);             // Files tabs
+      }
+
+      this.actionSizer = newActionSizer(this);
+      this.jsonSizer = newJsonSizer(this);
+
+      if (ppar.files_in_tab) {
+            this.topButtonsSizer = new HorizontalSizer;
+            this.topButtonsSizer.spacing = 4;
+            this.topButtonsSizer.add( this.actionSizer );
+            this.baseSizer.add( this.topButtonsSizer );
+
+            this.topButtonsSizer2 = new HorizontalSizer;
+            this.topButtonsSizer2.spacing = 4;
+            this.topButtonsSizer2.add( this.jsonSizer );
+            this.topButtonsSizer2.addSpacing( 12 );
+            this.topButtonsSizer2.add( this.targetSizer );
+            this.baseSizer.add( this.topButtonsSizer2 );
+      } else {
+            this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
+            this.baseSizer.add( this.pageButtonsSizer );
+      }
+      if (!ppar.files_in_tab) {
+            this.baseSizer.add( this.filesButtonsSizer);  // Buttons row below files
+      }
+      this.baseSizer.add( this.mainTabsSizer );     // Main view with tabs
       this.baseSizer.add( this.info_Sizer );
       this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom
 

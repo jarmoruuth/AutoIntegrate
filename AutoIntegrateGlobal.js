@@ -415,7 +415,7 @@ this.ppar = {
       preview: {
             use_preview: true,            // Show image preview on dialog preview window
             side_preview_visible: false,  // Show image preview on the side of the dialog
-            use_large_preview: false,     // Use large preview window
+            use_large_preview: true,      // Use large preview window
             preview_sizes: [],            // Array of [ screen_size, width, height ]
             preview_width: 0,             // Current preview width, default set in getPreviewSize.
             preview_height: 0,            // Current preview height, default set in getPreviewSize.
@@ -426,7 +426,8 @@ this.ppar = {
             side_histogram_height: 0      // Histogram height in side preview window, default set in getPreviewSize.
       },
       use_single_column: false, // show all options in a single column
-      use_more_tabs: false      // use more tabs for parameters and settings
+      use_more_tabs: false,     // use more tabs for parameters and settings
+      files_in_tab: true        // show files in a tab
 };
 
 // Run results for testing
