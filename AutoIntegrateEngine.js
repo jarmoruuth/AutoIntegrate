@@ -9784,6 +9784,7 @@ function extraColorizeChannel(imgWin, channel)
       // extract channel data
       var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
       var ch_win = util.findWindow(ch_id); 
+      var midtones = 0.5;
 
       switch (channel) {
             case 'R':
@@ -9792,7 +9793,7 @@ function extraColorizeChannel(imgWin, channel)
                   P.hue = par.narrowband_colorized_R_hue.val;
                   P.saturation = par.narrowband_colorized_R_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = 0.500;
+                  P.midtones = midtones;
                   break;
             case 'G':
                   console.writeln("Colorize channel G, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
@@ -9800,7 +9801,7 @@ function extraColorizeChannel(imgWin, channel)
                   P.hue = par.narrowband_colorized_G_hue.val;
                   P.saturation = par.narrowband_colorized_G_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = 0.500;
+                  P.midtones = midtones;
                   break;
             case 'B':
                   console.writeln("Colorize channel B, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
@@ -9808,7 +9809,7 @@ function extraColorizeChannel(imgWin, channel)
                   P.hue = par.narrowband_colorized_B_hue.val;
                   P.saturation = par.narrowband_colorized_B_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = 0.500;
+                  P.midtones = midtones;
                   break;
             default:
                   util.throwFatalError("Invalid channel " + channel);
@@ -9822,20 +9823,41 @@ function extraColorizeChannel(imgWin, channel)
       return ch_win;
 }
 
+this.extraColorizedNarrowbandImages = function(imgWin)
+{
+      var R_win = extraColorizeChannel(imgWin, "R");
+      var G_win = extraColorizeChannel(imgWin, "G");
+      var B_win = extraColorizeChannel(imgWin, "B");
+
+      var R_id = R_win.mainView.id;
+      var G_id = G_win.mainView.id;
+      var B_id = B_win.mainView.id;
+
+      // Screen: 1-(1-AutoRGB_NBCpreview_R)*(1-AutoRGB_NBCpreview_G)*(1-AutoRGB_NBCpreview_B)
+      // Normalize channels: $T[1]-med($T[1]))+med($T[0]), $T[2]-med($T[2]))+med($T[0])
+      if (0) {
+            // Normalize channels
+            var median = R_win.mainView.computeOrFetchProperty("Median");
+
+            runPixelMathSingleMappingEx(G_id, "($T-med($T))+" + median, false, null, true, true);
+            runPixelMathSingleMappingEx(B_id, "($T-med($T))+" + median, false, null, true, true);
+      }
+      // merge as RGB channels
+      runPixelMathRGBMapping(null, imgWin, R_id, G_id, B_id);
+
+      return [ R_win, G_win, B_win ];
+}
+
 function extraColorizedNarrowband(imgWin)
 {
       addExtraProcessingStep("Colorized, R " + par.narrowband_colorized_R_hue.val + ", " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_hue.val + ", " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_hue.val + ", " + par.narrowband_colorized_B_sat.val);
 
-      var R_id = extraColorizeChannel(imgWin, "R").mainView.id;
-      var G_id = extraColorizeChannel(imgWin, "G").mainView.id;
-      var B_id = extraColorizeChannel(imgWin, "B").mainView.id;
+      var channel_images = engine.extraColorizedNarrowbandImages(imgWin);
 
-      // merge channels
-      runPixelMathRGBMapping(null, imgWin, R_id, G_id, B_id);
-
-      util.closeOneWindow(R_id);
-      util.closeOneWindow(G_id);
-      util.closeOneWindow(B_id);
+      // close channel images
+      util.forceCloseOneWindow(channel_images[0]);
+      util.forceCloseOneWindow(channel_images[1]);
+      util.forceCloseOneWindow(channel_images[2]);
 }
 
 function findNarrowBandPalette(name)

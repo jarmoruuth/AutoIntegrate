@@ -306,7 +306,7 @@ var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
-var colorized_narrowband_preset_values = [ 'Default', 'Hubble' ];
+var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Helix' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -1612,6 +1612,47 @@ function updatePreviewNoImage()
             updatePreviewTxt("No preview");
             util.updateStatusInfoLabel("No preview");
       }
+}
+
+// Create a combined mosaic image from a list of image windows.
+function createCombinedMosaicPreviewWin(imgWinArr)
+{
+      console.writeln("createCombinedMosaicPreviewWin");
+
+      if (imgWinArr.length == 0) {
+            return null;
+      }
+      var width = imgWinArr[0].mainView.image.width;
+      var height = imgWinArr[0].mainView.image.height;
+      var channels = imgWinArr[0].mainView.image.numberOfChannels;
+
+      var combinedWindow = util.copyWindow(imgWinArr[0], "AutoIntegrate_combined_preview");
+
+      var bitmap = new Bitmap(width, height);
+      var graphics = new Graphics(bitmap);
+      graphics.transparentBackground = true;
+
+      for (var i = 0, x = 0, y = 0; i < imgWinArr.length; i++) {
+            // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x + " y " + y);
+            var imgWin = imgWinArr[i];
+            var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+            graphics.drawBitmap(x, y, bmp);
+            if (x == 0) {
+                  x = width / 2;
+            } else {
+                  x = 0;
+            }
+            if (i >= 1) {
+                  y = height / 2;
+            }
+      }
+      graphics.end();
+      
+      combinedWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      combinedWindow.mainView.image.blend(bitmap);
+      combinedWindow.mainView.endProcess();
+
+      return combinedWindow;
 }
 
 function updateOutputDirEdit(path)
@@ -5831,11 +5872,15 @@ function AutoIntegrateDialog()
                         var hue = [ par.narrowband_colorized_R_hue.def, par.narrowband_colorized_G_hue.def, par.narrowband_colorized_B_hue.def ];
                         var sat = [ par.narrowband_colorized_R_sat.def, par.narrowband_colorized_G_sat.def, par.narrowband_colorized_B_sat.def ];
                         break;
-                  case 'Hubble':
+                  case 'North America':
                         var hue = [ 0.04, 0.104, 0.6 ];
                         var sat = [ 0.566, 0.553, 0.4 ];
                         break;
-                  default:
+                  case 'Helix':
+                        var hue = [ 0.1, 0.6, 0.2 ];
+                        var sat = [ 0.5, 0.5, 0.5 ];
+                        break;
+                        default:
                         throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
                         break;
             }
@@ -5857,6 +5902,35 @@ function AutoIntegrateDialog()
             this.dialog.narrowbandColorized_B_SatControl.setValue(sat[2]);
 
             updateHueColors();
+      };
+
+      this.narrowbandColorizedPreviewButton = new PushButton( this );
+      this.narrowbandColorizedPreviewButton.text = "Preview";
+      this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
+                                                      this.narrowbandColorizedCheckBox.toolTip;
+      this.narrowbandColorizedPreviewButton.onClick = function() 
+      {
+            console.writeln("Preview narrowband colorized image");
+
+            // make a copy if the current image
+            var extraWin = ImageWindow.windowById(global.extra_target_image);
+            var copyWin = util.copyWindow(extraWin, global.extra_target_image + "_NBCpreview");
+
+            // Process the copy and get channel images
+            var channel_images = engine.extraColorizedNarrowbandImages(copyWin);
+
+            // Create a preview window
+            var previewWin = createCombinedMosaicPreviewWin([ channel_images[0], channel_images[1], channel_images[2], copyWin ]);
+
+            // Show the preview window
+            updatePreviewWin(previewWin);
+
+            // Close windows
+            util.forceCloseOneWindow(copyWin);
+            util.forceCloseOneWindow(previewWin);
+            //util.forceCloseOneWindow(channel_images[0]);
+            //util.forceCloseOneWindow(channel_images[1]);
+            //util.forceCloseOneWindow(channel_images[2]);
       };
 
       this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
@@ -5898,6 +5972,7 @@ function AutoIntegrateDialog()
       this.narrowbandColorized_sizer1.addSpacing( 12 );
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetLabel );
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetComboBox );
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewButton );
       this.narrowbandColorized_sizer1.addStretch();
 
       this.narrowbandColorized_sizer = new VerticalSizer;
@@ -7116,10 +7191,10 @@ function AutoIntegrateDialog()
         
       // Extra processing group box
       this.extraGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Narrowband extra processing", "Extra2");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl3, "Narrowband colorization", "Extra3");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl1, "Generic extra processing", "Extra1");
-      newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
       this.extraGroupBox.sizer.addStretch();
 
       if (global.use_preview) {
