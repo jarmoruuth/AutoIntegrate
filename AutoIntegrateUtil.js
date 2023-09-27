@@ -926,6 +926,7 @@ function is_non_starless_option()
              par.extra_LHE.val || 
              par.extra_contrast.val ||
              par.extra_stretch.val ||
+             par.extra_autostf.val ||
              par.extra_shadowclipping.val ||
              par.extra_smoothbackground.val ||
              par.extra_noise_reduction.val ||

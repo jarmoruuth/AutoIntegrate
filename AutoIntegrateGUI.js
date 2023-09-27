@@ -307,6 +307,9 @@ var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Helix' ];
+var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
+var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
+var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 
@@ -1532,7 +1535,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
       }
 
       if (stf) {
-            engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false);
+            engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false, null);
       }
 
       updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
@@ -1715,13 +1718,22 @@ function addOutputDir(parent)
       return outputdir_Sizer;
 }
 
-function validateWindowPrefix(p)
+function validateWindowPrefixCharacters(p)
 {
       p = p.replace(/[^A-Za-z0-9]/gi,'_');
       //p = p.replace(/_+$/,'');
       if (p.match(/^\d/)) {
             // if user tries to start prefix with a digit, prepend an underscore
             p = "_" + p;
+      }
+      return p;
+}
+
+function validateWindowPrefix(p)
+{
+      p = validateWindowPrefixCharacters(p);
+      if (p != "" && !p.endsWith("_")) {
+            p = p + "_";
       }
       return p;
 }
@@ -1734,9 +1746,6 @@ function updateWindowPrefix()
       ppar.win_prefix = validateWindowPrefix(ppar.win_prefix);
       if (windowPrefixComboBox != null) {
             windowPrefixComboBox.editText = ppar.win_prefix;
-      }
-      if (ppar.win_prefix != "" && !ppar.win_prefix.endsWith("_")) {
-            ppar.win_prefix = ppar.win_prefix + "_";
       }
       console.writeln("updateWindowPrefix, set winPrefix '" + ppar.win_prefix + "'");
       util.fixAllWindowArrays(ppar.win_prefix);
@@ -1769,7 +1778,7 @@ function addWinPrefix(parent)
       windowPrefixComboBox.onEditTextUpdated = function() {
             // This function is called for every character edit so actions
             // are moved to function updateWindowPrefix
-            ppar.win_prefix = validateWindowPrefix(windowPrefixComboBox.editText.trim());
+            ppar.win_prefix = validateWindowPrefixCharacters(windowPrefixComboBox.editText.trim());
             windowPrefixComboBox.editText = ppar.win_prefix;
       };
 
@@ -2817,7 +2826,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
-                        engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true);
+                        engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
                         if (!global.use_preview) {
                               updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
@@ -5878,12 +5887,22 @@ function AutoIntegrateDialog()
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
 
       this.narrowbandColorizedCheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
-            "<p>Enhance colors for narrowband.</p>" +
-            "<p>Colorizing is insipred by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685) " + 
-            "and by NBColourMapper script from Mike Cranfield and Adam Block.</p>" );
+            "<p>Enhance colors for narrowband and other images.</p>" +
+            "<p>RGB channels are extraced from the target color image, colorixed and then a new RGB image is created. " + 
+            "The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
+            "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
+            "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
+            "preview image is always discarded.</p>" +
+            "<p>With a mapping selection it is possible to change how channels are mapped in the final image.</p>" +
+            "<p>Combine selection gives a few option on how colorized channel images are combioed to and RGB image.</p>" +
+            "<p>Method gived choices on how colorization is done for channel images.</p>" +
+            "<p>Optionally is it possible to run linear fit for channel images before colorizing.</p>" +
+            "<p>Colorizing is inspired by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685), " + 
+            "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>" );
 
       var hue_width = 400;
       var sat_width = 200;
+      var weight_width = 200;
 
       this.hueColors = new AutoIntegrateHueColors(par);
       this.hueColors.setScaledFixedSize(hue_width,20);
@@ -5907,7 +5926,7 @@ function AutoIntegrateDialog()
                         break;
                   case 'North America':
                         var hue = [ 0.04, 0.104, 0.6 ];
-                        var sat = [ 0.566, 0.553, 0.4 ];
+                        var sat = [ 0.5, 0.5, 0.5 ];
                         break;
                   case 'Helix':
                         var hue = [ 0.1, 0.6, 0.2 ];
@@ -5937,6 +5956,17 @@ function AutoIntegrateDialog()
             updateHueColors();
       };
 
+      this.narrowbandColorizedMappingLabel = newLabel(this, "Mapping", this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedMappingComboBox = newComboBox(this, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, this.narrowbandColorizedCheckBox.toolTip);
+
+      this.narrowbandColorizedCombineLabel = newLabel(this, "Combine", this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedCombineComboBox = newComboBox(this, par.narrowband_colorized_combine, narrowband_colorized_combine_values, this.narrowbandColorizedCheckBox.toolTip);
+
+      this.narrowbandColorizedMethodLabel = newLabel(this, "Method", this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedMethodComboBox = newComboBox(this, par.narrowband_colorized_method, narrowband_colorized_method_values, this.narrowbandColorizedCheckBox.toolTip);
+
+      this.narrowbandColorizedLinerFitCheckBox = newCheckBox(this, "Linear fit", par.narrowband_colorized_linear_fit, this.narrowbandColorizedCheckBox.toolTip);
+
       this.narrowbandColorizedPreviewButton = new PushButton( this );
       this.narrowbandColorizedPreviewButton.text = "Preview";
       this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
@@ -5961,56 +5991,77 @@ function AutoIntegrateDialog()
             // Close windows
             util.forceCloseOneWindow(copyWin);
             util.forceCloseOneWindow(previewWin);
-            //util.forceCloseOneWindow(channel_images[0]);
-            //util.forceCloseOneWindow(channel_images[1]);
-            //util.forceCloseOneWindow(channel_images[2]);
+            util.forceCloseOneWindow(channel_images[0]);
+            util.forceCloseOneWindow(channel_images[1]);
+            util.forceCloseOneWindow(channel_images[2]);
       };
 
       this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
       this.narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_R_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_R_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_R_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_R_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
       this.narrowbandColorized_R_SatControl.setScaledFixedWidth(sat_width);
+      this.narrowbandColorized_R_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_R_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_R_WeightControl.setScaledFixedWidth(weight_width);
       
       this.narrowbandColorized_G_HueControl = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
       this.narrowbandColorized_G_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_G_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_G_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_G_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_G_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
       this.narrowbandColorized_G_SatControl.setScaledFixedWidth(sat_width);
+      this.narrowbandColorized_G_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_G_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_G_WeightControl.setScaledFixedWidth(weight_width);
       
       this.narrowbandColorized_B_HueControl = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
       this.narrowbandColorized_B_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_B_SatControl = newNumericControl(this, "saturation", par.narrowband_colorized_B_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_B_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_B_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
       this.narrowbandColorized_B_SatControl.setScaledFixedWidth(sat_width);
+      this.narrowbandColorized_B_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_B_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_B_WeightControl.setScaledFixedWidth(weight_width);
 
       this.narrowbandColorized_R_hue_sizer = new HorizontalSizer;
       this.narrowbandColorized_R_hue_sizer.spacing = 8;
       this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_HueControl );
       this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_SatControl );
+      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_WeightControl );
       this.narrowbandColorized_R_hue_sizer.addStretch();
 
       this.narrowbandColorized_G_hue_sizer = new HorizontalSizer;
       this.narrowbandColorized_G_hue_sizer.spacing = 8;
       this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_HueControl );
       this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_SatControl );
+      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_WeightControl );
       this.narrowbandColorized_G_hue_sizer.addStretch();
 
       this.narrowbandColorized_B_hue_sizer = new HorizontalSizer;
       this.narrowbandColorized_B_hue_sizer.spacing = 8;
       this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_HueControl );
       this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_SatControl );
+      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_WeightControl );
       this.narrowbandColorized_B_hue_sizer.addStretch();
 
       this.narrowbandColorized_sizer1 = new HorizontalSizer;
       this.narrowbandColorized_sizer1.spacing = 4;
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedCheckBox );
       this.narrowbandColorized_sizer1.addSpacing( 12 );
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetLabel );
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPresetComboBox );
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewButton );
       this.narrowbandColorized_sizer1.addStretch();
+
+      this.narrowbandColorized_sizer2 = new HorizontalSizer;
+      this.narrowbandColorized_sizer2.spacing = 4;
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedPresetLabel );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedPresetComboBox );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMappingLabel );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMappingComboBox );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedCombineLabel );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedCombineComboBox );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMethodLabel );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMethodComboBox );
+      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedLinerFitCheckBox );
+      this.narrowbandColorized_sizer2.addStretch();
 
       this.narrowbandColorized_sizer = new VerticalSizer;
       this.narrowbandColorized_sizer.spacing = 4;
       this.narrowbandColorized_sizer.add( this.narrowbandColorized_sizer1 );
+      this.narrowbandColorized_sizer.add( this.narrowbandColorized_sizer2 );
       this.narrowbandColorized_sizer.add( this.hueColors );
       this.narrowbandColorized_sizer.add( this.narrowbandColorized_R_hue_sizer );
       this.narrowbandColorized_sizer.add( this.narrowbandColorized_G_hue_sizer );
@@ -6290,6 +6341,9 @@ function AutoIntegrateDialog()
 
       this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
             "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
+      this.extra_autostf_CheckBox = newCheckBox(this, "AutoSTF", par.extra_autostf, 
+            "<p>Run unlinked AutoSTF stretch on image. Can be helpful in balancing image.</p>" );
+
       this.extra_force_new_mask_CheckBox = newCheckBox(this, "New mask", par.extra_force_new_mask, 
             "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
 
@@ -6587,6 +6641,7 @@ function AutoIntegrateDialog()
       this.extraImageOptionsSizer.spacing = 4;
       this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
       this.extraImageOptionsSizer.addStretch();
 
@@ -6757,15 +6812,17 @@ function AutoIntegrateDialog()
                   engine.closeAllWindows(par.keep_integrated_images.val, false);
                   if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
-                        console.writeln("Close prefix '" + ppar.win_prefix + "'");
-                        util.fixAllWindowArrays(ppar.win_prefix);
+                        var prefix = validateWindowPrefix(ppar.win_prefix);
+                        console.writeln("Close prefix '" + prefix + "'");
+                        util.fixAllWindowArrays(prefix);
                         engine.closeAllWindows(par.keep_integrated_images.val, false);
                   }
                   // Go through the prefix list
                   for (var i = 0; i < ppar.prefixArray.length; i++) {
                         if (ppar.prefixArray[i][1] != '-') {
-                              console.writeln("Close prefix '" + ppar.prefixArray[i][1] + "'");
-                              util.fixAllWindowArrays(ppar.prefixArray[i][1]);
+                              var prefix = validateWindowPrefix(ppar.prefixArray[i][1]);
+                              console.writeln("Close prefix '" + prefix + "'");
+                              util.fixAllWindowArrays(prefix);
                               engine.closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
                                     // If we keep integrated images then we can start
@@ -7277,7 +7334,6 @@ function AutoIntegrateDialog()
             this.filesTabSizer.add( this.filesButtonsSizer );
             this.filesTabSizer.add( this.pageButtonsSizer );
             this.mainTabBox.addPage( mainSizerTab(this, this.filesTabSizer), "Files" );
-            files_tab_index = tab_index;
             tab_index++;
       }
 
