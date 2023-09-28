@@ -5057,18 +5057,21 @@ function AutoIntegrateDialog()
 
       this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
 
-      this.CropToleranceLabel = newLabel(this, "Crop tolerance", "Number of consecutive black pixels allowed before detecting crop edge.");
+      this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
-      this.CropToleranceLabel2 = newLabel(this, "pixels", this.CropToleranceLabel.toolTip);
-      this.cropNoiseReductionCheckBox = newCheckBox(this, "Noise reduction", par.crop_noise_reduction, "Do noise reduction before finding the crop area. May be useful for very bad images.");
+      this.cropUseRejectionLowCheckBox = newCheckBox(this, "Use rejection low", par.crop_use_rejection_low, "Use rejection_low from ImageIntegration instead of integrated data to calculate crop amount.");
+      this.cropRejectionLowLimitControl = newNumericEdit(this, "Limit", par.crop_rejection_low_limit, 0, 1, 
+      "<p>Limit value for detecting crop edge. Values below  limit are consired to be inside the cropped area.</p>" +
+      "<p>This value is used only if rejection low is selected.</p>");
 
       this.CropToleranceSizer = new HorizontalSizer;
       this.CropToleranceSizer.margin = 6;
       this.CropToleranceSizer.spacing = 4;
+      this.CropToleranceSizer.add( this.cropUseRejectionLowCheckBox );
+      this.CropToleranceSizer.addSpacing( 12 );
       this.CropToleranceSizer.add( this.CropToleranceLabel );
       this.CropToleranceSizer.add( this.CropToleranceSpinBox );
-      this.CropToleranceSizer.add( this.CropToleranceLabel2 );
-      this.CropToleranceSizer.add( this.cropNoiseReductionCheckBox );
+      this.CropToleranceSizer.add( this.cropRejectionLowLimitControl );
       this.CropToleranceSizer.addStretch();
 
       this.CropSizer = new VerticalSizer;

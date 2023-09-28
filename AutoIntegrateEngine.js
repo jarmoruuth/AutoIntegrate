@@ -133,6 +133,8 @@ var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
 var crop_lowClipImage_changed = false; // changed flag for saving to disk
 
+var crop_suggestion_txt = "Adjust adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
+
 this.firstDateFileInfo = null;
 this.lastDateFileInfo = null;
 
@@ -440,7 +442,7 @@ function saveProcessedWindow(path, id, optional_save_id)
             return null;
       }
       if (path == "") {
-            console.criticalln("No output directory, cannot save image "+ id);
+            util.addCriticalStatus("No output directory, cannot save image "+ id);
             return null;
       }
       var processedPath = util.combinePath(path, global.AutoProcessedDir);
@@ -457,7 +459,7 @@ function saveOutputWindow(id, save_id)
       }
       var path = global.outputRootDir;
       if (path == "") {
-            console.criticalln("No output directory, cannot save image "+ id);
+            util.addCriticalStatus("No output directory, cannot save image "+ id);
             return null;
       }
 
@@ -4957,7 +4959,7 @@ function runImageIntegrationNormalized(images, best_image, name)
             if (checkFilesExist(imagearray)) {
                   norm_images[norm_images.length] = oneimage;
             } else {
-                  console.criticalln("ImageIntegration with LocalNormalization skipping image " + imagearray[0]);
+                  util.addCriticalStatus("ImageIntegration with LocalNormalization skipping image " + imagearray[0]);
             }
       }
       console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
@@ -5005,6 +5007,18 @@ function runImageIntegration(channel_images, name, save_to_file)
       return image_id;
 }
 
+function cropHandleDrizzle(name)
+{
+      console.writeln("Drizzle is used, expand the crop source image by " + par.drizzle_scale.val + "x for Crop");
+      var win = ImageWindow.windowById(name);
+      var P = new IntegerResample;
+      P.zoomFactor = par.drizzle_scale.val;
+      P.noGUIMessages = true;
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(win.mainView, false);
+      win.mainView.endProcess();
+}
+
 function runImageIntegrationForCrop(images)
 {
       console.noteln("ImageIntegration to find area common to all images");
@@ -5024,7 +5038,7 @@ function runImageIntegrationForCrop(images)
       // P.csvWeights = "";
       // P.adaptiveGridSize = 16;
       // P.adaptiveNoScale = false;
-      P.minWeight = par.ssweight_limit.val;     /* Default: 0.005, we use the value from the script parameter */
+      P.minWeight = par.ssweight_limit.val;  /* Default: 0.005, we use the value from the script parameter */
       P.ignoreNoiseKeywords = true; // We do not use noise information anyhow
       P.normalization = ImageIntegration.prototype.NoNormalization; // Gain time, useless for our  need
       P.rejection = ImageIntegration.prototype.NoRejection; // Default, but essential for our needs
@@ -5047,9 +5061,11 @@ function runImageIntegrationForCrop(images)
       // P.ccdScaleNoise = 0.00;
       P.clipLow = true;
       P.clipHigh = true;
-      P.rangeClipLow = false;  // Save some time especially on short runs.
-                              // this could be set to true to use the 'negative' map as an alternate source
-                              // for cropping information (currentyl not used)
+      if (par.crop_use_rejection_low.val) {
+            P.rangeClipLow = true;
+      } else {
+            P.rangeClipLow = false; // Save some time especially on short runs.
+      }
       P.rangeLow = 0.000000;   // default but ensure it is 0 for correct results in case rangeClipLow is true
       P.rangeClipHigh = false; // default, but ensure we do not clip higgh to avoid creating black dots.
       // P.rangeHigh = 0.980000;
@@ -5062,10 +5078,18 @@ function runImageIntegrationForCrop(images)
       // P.largeScaleClipHighProtectedLayers = 2;
       // P.largeScaleClipHighGrowth = 2;
       // P.generate64BitResult = false;
-      // P.generateRejectionMaps = false;
+      if (par.cropinfo_only.val || par.crop_use_rejection_low.val) {
+            P.generateRejectionMaps = true;
+      } else {
+            P.generateRejectionMaps = false;
+      }
       // P.generateIntegratedImage = true;
       // P.generateDrizzleData = false;
-      P.closePreviousImages = false; // Could be set to true to automatically supress previosu result, but they are removed by the script
+      if (par.cropinfo_only.val || par.crop_use_rejection_low.val) {
+            P.closePreviousImages = true;
+      } else {
+            P.closePreviousImages = false; // Could be set to true to automatically supress previosu result, but they are removed by the script
+      }
       // P.bufferSizeMB = 16; // Performance, left defaults, could be a parameter from an icon
       // P.stackSizeMB = 1024; // Performance, left defaults, could be a parameter from an icon
       // P.autoMemorySize = true; // Performance, left defaults, could be a parameter from an icon
@@ -5100,17 +5124,17 @@ function runImageIntegrationForCrop(images)
 
       // Depending on integration options, some useless maps may be generated, especially low rejection map,
       // With the current integration parameters, these images are not generated,
-      if (global.ai_debug) {
+      if (global.ai_debug || par.cropinfo_only.val || par.crop_use_rejection_low.val) {
             util.windowShowif(P.lowRejectionMapImageId);
       } else {
             util.closeOneWindow(P.lowRejectionMapImageId);
       }
-      if (global.ai_debug) {
+      if (global.ai_debug || par.cropinfo_only.val) {
             util.windowShowif(P.highRejectionMapImageId);
       } else {
             util.closeOneWindow(P.highRejectionMapImageId);
       }
-      if (global.ai_debug) {
+      if (global.ai_debug || par.cropinfo_only.val) {
             util.windowShowif(P.slopeMapImageId);
       } else {
             util.closeOneWindow(P.slopeMapImageId);
@@ -5130,25 +5154,19 @@ function runImageIntegrationForCrop(images)
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "LowRejectionMap_ALL");
 
       if (par.use_drizzle.val && par.drizzle_scale.val > 1) {
-            console.writeln("Drizzle is used, expand the image by " + par.drizzle_scale.val + "x for Crop");
-            var win = ImageWindow.windowById(new_name);
-            var P = new IntegerResample;
-            P.zoomFactor = par.drizzle_scale.val;
-            P.noGUIMessages = true;
-            win.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(win.mainView, false);
-            win.mainView.endProcess();
-            checkCancel();
+            cropHandleDrizzle(new_name);
+            if (par.crop_use_rejection_low.val) {
+                  cropHandleDrizzle(P.lowRejectionMapImageId);
+            }
       }
+      checkCancel();
 
-      // Noise reduction did help sometimes with very bad images but mostly not, so 
-      // we do not use it by default
-      if (par.crop_noise_reduction.val) {
-            console.writeln("Noise reduction for cropped image");
-            runMultiscaleLinearTransformReduceNoise(ImageWindow.windowById(new_name), null, 4);
+      if (par.crop_use_rejection_low.val) {
+            // We use the low rejection map to find the area common to all images
+            return { integrated_image_id: new_name, rejection_map_id: P.lowRejectionMapImageId };
+      } else {
+            return { integrated_image_id: new_name, rejection_map_id: new_name };
       }
-      return new_name
-      
 }
 
 /* Do run ABE so just make copy of the source window as
@@ -6735,7 +6753,7 @@ function runImageSolverEx(id)
                   console.writeln("runImageSolver: SolveImage succeeded");
             }
       } catch (err) {
-            console.criticalln(err);
+            util.addCriticalStatus(err);
       }
 
       if (!succ) {
@@ -7199,6 +7217,10 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
             }
       }
       file.outTextLn(global.processing_steps);
+      if (global.processing_errors.length > 0) {
+            file.outTextLn("Errors:");
+            file.outTextLn(global.processing_errors);
+      }
       file.close();
 }
 
@@ -7404,7 +7426,7 @@ function debayerImages(fileNames)
             succ = P.executeGlobal();
       } catch(err) {
             succ = false;
-            console.criticalln(err);
+            util.addCriticalStatus(err);
       }
 
       checkCancel();
@@ -7886,7 +7908,7 @@ function CreateChannelImages(parent, auto_continue)
                   /* Remove bad files. */
                   global.lightFileNames = filterBadPSFImages(global.lightFileNames);
                   if (global.lightFileNames.length == 0) {
-                        console.criticalln("No files to process after filtering bad PSF images");
+                        util.addCriticalStatus("No files to process after filtering bad PSF images");
                         return retval.ERROR;
                   }
             }
@@ -9307,7 +9329,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             // guiUpdatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
-            console.criticalln(err);
+            util.addCriticalStatus(err);
       }
       if (hsChannels != null) {
             util.forceCloseOneWindow(hsChannels[0]);
@@ -10719,27 +10741,32 @@ function make_full_image_list()
       return All_images;
 }
 
+function pointIsValidCrop(p)
+{
+      if (par.crop_use_rejection_low.val) {
+            return p <= par.crop_rejection_low_limit.val;
+      } else {
+            return p > 0.0;
+      }
+}
+
 // Find borders starting from a mid point and going up/down
 function find_up_down(image,col)
 {
       let row_mid = Math.floor(image.height / 2);
-      if (par.debug.val) console.writeln("DEBUG find_up_down: row_mid ", row_mid);
       let row_up = 0;
       let cnt = 0;
       for (let row=row_mid; row>=0; row--) {
             let p = image.sample(col, row);
-            if (par.debug.val && row < 5) {
-                  console.writeln("DEBUG find up: pixel at col ", col, " row ", row, " p ", p);
-            }
-            if (p==0) {
+            if (!pointIsValidCrop(p)) {
                   cnt++;
-                  console.writeln("find up: zero pixel at col ", col, " row ", row, " cnt ", cnt);
+                  console.writeln("find up: non-valid pixel at col ", col, " row ", row, " cnt ", cnt, " p ", p);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   row_up = row+1;
-                  console.writeln("find up: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_up);
+                  console.writeln("find up: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_up, " (", row_up, " pixels from top)");
                   break;
             }
       }
@@ -10747,18 +10774,15 @@ function find_up_down(image,col)
       cnt = 0;
       for (let row=row_mid; row<image.height; row++) {
             let p = image.sample(col, row);
-            if (par.debug.val && row > image.height - 5) {
-                  console.writeln("DEBUG find down: pixel at col ", col, " row ", row, " p ", p);
-            }
-            if (p==0) {
+            if (!pointIsValidCrop(p)) {
                   cnt++;
-                  console.writeln("find down: zero pixel at col ", col, " row ", row, " cnt ", cnt);
+                  console.writeln("find down: non-valid pixel at col ", col, " row ", row, " cnt ", cnt, " p ", p);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   row_down = row-1;
-                  console.writeln("find down: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_down);
+                  console.writeln("find down: over tolerance value ", par.crop_tolerance.val, " crop edge at row ", row_down, " (", image.height-1-row_down, " pixels from bottom)");
                   break;
             }
       }
@@ -10774,17 +10798,14 @@ function find_left_right(image,row)
       let cnt = 0;
       for (let col=col_mid; col>=0; col--) {
             let p = image.sample(col, row);
-            if (par.debug.val && col < 5) {
-                  console.writeln("DEBUG find left: pixel at col ", col, " row ", row, " p ", p);
-            }
-            if (p==0) {
+            if (!pointIsValidCrop(p)) {
                   cnt++;
-                  console.writeln("find left: zero pixel at col ", col, " row ", row, " cnt ", cnt);
+                  console.writeln("find left: non-valid pixel at col ", col, " row ", row, " cnt ", cnt, " p ", p);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
-                  console.writeln("find left: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_left);
+                  console.writeln("find left: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_left, " (", col_left, " pixels from left)");
                   col_left = col+1;
                   break;
             }
@@ -10792,18 +10813,15 @@ function find_left_right(image,row)
       let col_right = image.width-1;
       for (let col=col_mid; col<image.width; col++) {
             let p= image.sample(col, row);
-            if (par.debug.val && col > image.width - 5) {
-                  console.writeln("DEBUG find right: pixel at col ", col, " row ", row, " p ", p);
-            }
-            if (p==0) {
+            if (!pointIsValidCrop(p)) {
                   cnt++;
-                  console.writeln("find right: zero pixel at col ", col, " row ", row, " cnt ", cnt);
+                  console.writeln("find right: non-valid pixel at col ", col, " row ", row, " cnt ", cnt);
             } else {
                   cnt = 0;
             }
             if (cnt > par.crop_tolerance.val) {
                   col_right = col-1;
-                  console.writeln("find right: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_right);
+                  console.writeln("find right: over tolerance value ", par.crop_tolerance.val, " crop edge at col ", col_right, " (", image.width-1-col_right, " pixels from right)");
                   break;
             }
       }
@@ -10818,23 +10836,33 @@ function findMaximalBoundingBox(lowClipImage)
       if (par.debug.val) {
             console.writeln("DEBUG findMaximalBoundingBox col_mid=",col_mid,",row_mid=",row_mid);
       }
+
+      // Check that the starting point is valid
       let p = lowClipImage.sample(col_mid, row_mid);
-      if (p == 0.0) {
-            // TODO - should return an error message and use the uncropped lowClipImage
-            // Could look if other points around are ok in case of accidental dark middle point
+      if (!pointIsValidCrop(p)) {
+            col_mid = Math.floor(lowClipImage.width / 2) + 10;
+            row_mid = Math.floor(lowClipImage.height / 2) + 10;
+            p = lowClipImage.sample(col_mid, row_mid);
+      }
+      if (!pointIsValidCrop(p)) {
+            col_mid = Math.floor(lowClipImage.width / 2) - 10;
+            row_mid = Math.floor(lowClipImage.height / 2) - 10;
+            p = lowClipImage.sample(col_mid, row_mid);
+      }
+      if (p > par.crop_rejection_low_limit.val) {
             // Could also accept a % of rejection
-            util.throwFatalError("Middle pixel not black in integration of lowest value for Crop, possibly not enough overlap")
+            return { box: null, crop_errors: "Middle pixel not valid in integration of lowest value for Crop, possibly not enough overlap" };
       }
 
       // Find extent of black area at mid points (the black points nearest to the border)
-      let [top,bottom] = find_up_down(lowClipImage,col_mid);
-      let [left,right] = find_left_right(lowClipImage,row_mid);
+      var [top,bottom] = find_up_down(lowClipImage,col_mid);
+      var [left,right] = find_left_right(lowClipImage,row_mid);
 
       if (par.debug.val) {
             console.writeln("DEBUG findMaximalBoundingBox top=",top,",bottom=",bottom,",left=",left,",right=",right);
       }
 
-      return [top,bottom,left,right];
+      return { box: [top,bottom,left,right], crop_errors: '' };
 }
 
 // Find the bounding box of the area without rejected image, starting from the
@@ -10882,11 +10910,18 @@ function findMaximalBoundingBox(lowClipImage)
 function findBounding_box(lowClipImageWindow)
 {
       let image = lowClipImageWindow.mainView.image;
+      let crop_success = true;
+      let crop_errors = "";
 
       console.noteln("Finding valid bounding box for image ", lowClipImageWindow.mainView.id, 
             " (", image.width, "x" , image.height + ")");
 
-      let [top_row,bottom_row,left_col,right_col] = findMaximalBoundingBox(image);
+      let res = findMaximalBoundingBox(image);
+      let box = res.box;
+      if (box == null) {
+            return { success: false, box: [0, image.width-1, 0, image.height-1], crop_errors: res.crop_errors };
+      }
+      let [top_row,bottom_row,left_col,right_col] = box;
 
       // Initialize the points at the maximum possible extend of the image,
       // typically some or all will be invalid (not black).
@@ -10903,10 +10938,10 @@ function findBounding_box(lowClipImageWindow)
       let left_bottom = new Point(left_col, bottom_row);
       let right_bottom = new Point(right_col,bottom_row);
 
-      left_top_valid = image.sample(left_top)>0;
-      right_top_valid =  image.sample(right_top)>0;
-      left_bottom_valid =  image.sample(left_bottom)>0;
-      right_bottom_valid =  image.sample(right_bottom)>0;
+      left_top_valid = pointIsValidCrop(image.sample(left_top));
+      right_top_valid =  pointIsValidCrop(image.sample(right_top));
+      left_bottom_valid =  pointIsValidCrop(image.sample(left_bottom));
+      right_bottom_valid =  pointIsValidCrop(image.sample(right_bottom));
 
       let corner = 0;
       let all_valid = true;
@@ -10919,7 +10954,7 @@ function findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               if (!left_top_valid) {
                                     left_top = new Point(left_col,top_row);
-                                    left_top_valid = image.sample(left_top)>0; 
+                                    left_top_valid = pointIsValidCrop(image.sample(left_top)); 
                                     // if invalid move the corner inwards
                                     if (!left_top_valid)
                                     {
@@ -10935,7 +10970,7 @@ function findBounding_box(lowClipImageWindow)
                               // If not yet valid, check if the current point is valid
                               if (!right_bottom_valid) {
                                     right_bottom = new Point(right_col,bottom_row);
-                                    right_bottom_valid = image.sample(right_bottom)>0; 
+                                    right_bottom_valid = pointIsValidCrop(image.sample(right_bottom)); 
                                     // if invalid move the corner inwards
                                     if (!right_bottom_valid)
                                     {
@@ -10952,7 +10987,7 @@ function findBounding_box(lowClipImageWindow)
                               //
                               if (!left_bottom_valid) {
                                     left_bottom = new Point(left_col,bottom_row);
-                                    left_bottom_valid = image.sample(left_bottom)>0; 
+                                    left_bottom_valid = pointIsValidCrop(image.sample(left_bottom)); 
                                     // if invalid move the corner inwards
                                     if (!left_bottom_valid)
                                     {
@@ -10969,7 +11004,7 @@ function findBounding_box(lowClipImageWindow)
                               //
                               if (!right_top_valid) {
                                     right_top = new Point(right_col,top_row);
-                                    right_top_valid = image.sample(right_top)>0; 
+                                    right_top_valid = pointIsValidCrop(image.sample(right_top)); 
                                     // if invalid move the corner inwards
                                     if (!right_top_valid)
                                     {
@@ -11007,7 +11042,9 @@ function findBounding_box(lowClipImageWindow)
             number_cycle += 1;
             if (number_cycle>100) 
             {
-                  util.throwFatalError("Borders too wiggly for crop after ", number_cycle, " cycles"); 
+                  crop_errors = "Crop failed, borders too wiggly for crop after " + number_cycle + " cycles."; 
+                  crop_success = false;
+                  break;
             }
 
             let all_valid = true;
@@ -11018,7 +11055,7 @@ function findBounding_box(lowClipImageWindow)
             let non_valid_count = 0;
             for (let i=top_row; i<=bottom_row; i++)
             {
-                  left_col_valid = left_col_valid && image.sample(left_col,i)>0;
+                  left_col_valid = left_col_valid && pointIsValidCrop(image.sample(left_col,i));
                   if (left_col_valid) {
                         non_valid_count = 0;
                   } else if (non_valid_count > non_valid_count_limit) {
@@ -11041,7 +11078,7 @@ function findBounding_box(lowClipImageWindow)
             non_valid_count = 0;
             for (let i=top_row; i<=bottom_row; i++)
             {
-                  right_col_valid = right_col_valid && image.sample(right_col,i)>0;
+                  right_col_valid = right_col_valid && pointIsValidCrop(image.sample(right_col,i));
                   if (right_col_valid) {
                         non_valid_count = 0;
                   } else if (non_valid_count > non_valid_count_limit) {
@@ -11064,7 +11101,7 @@ function findBounding_box(lowClipImageWindow)
             non_valid_count = 0;
             for (let i=left_col; i<=right_col; i++)
             {
-                  top_row_valid = top_row_valid && image.sample(i,top_row)>0;
+                  top_row_valid = top_row_valid && pointIsValidCrop(image.sample(i,top_row));
                   if (top_row_valid) {
                         non_valid_count = 0;
                   } else if (non_valid_count > non_valid_count_limit) {
@@ -11087,7 +11124,7 @@ function findBounding_box(lowClipImageWindow)
             non_valid_count = 0;
             for (let i=left_col; i<=right_col; i++)
             {
-                  bottom_row_valid = bottom_row_valid && image.sample(i,bottom_row)>0;
+                  bottom_row_valid = bottom_row_valid && pointIsValidCrop(image.sample(i,bottom_row));
                   if (bottom_row_valid) {
                         non_valid_count = 0;
                   } else if (non_valid_count > non_valid_count_limit) {
@@ -11135,7 +11172,7 @@ function findBounding_box(lowClipImageWindow)
 
       console.noteln("Bounding box for crop: rows ", top_row ," to ", bottom_row, ", columns ", 
             left_col, " to  ",right_col, ",  area=", nmb_cols,"x",nmb_rows);
-      return [left_col, right_col, top_row, bottom_row];
+      return { success: crop_success, box: [left_col, right_col, top_row, bottom_row], crop_errors: crop_errors };
 }
 
 // We negate the crop amount here to match the requirement of the process Crop
@@ -11198,11 +11235,16 @@ function CropImageIf(window, truncate_amount)
       return true;
 }
 
-function calculate_crop_amount(window_id, crop_auto_continue)
+function calculate_crop_amount(lowClipImageName, integratedImageName, crop_auto_continue)
 {
-      let lowClipImageWindow = util.findWindow(window_id);
+      let crop_errors = "";
+      let lowClipImageWindow = util.findWindow(lowClipImageName);
       if (lowClipImageWindow == null) {
-            return null;
+            util.throwFatalError("Crop failed to find image " + lowClipImageName);
+      }
+      let integratedImageWindow = util.findWindow(integratedImageName);
+      if (integratedImageWindow == null) {
+            util.throwFatalError("Crop failed to find image " + integratedImageWindow);
       }
 
       if (crop_auto_continue && !par.cropinfo_only.val) {
@@ -11211,10 +11253,14 @@ function calculate_crop_amount(window_id, crop_auto_continue)
                   util.throwFatalError("Error: crop preview not found from " + lowClipImageWindow.mainView.id);
             }
             var rect = lowClipImageWindow.previewRect(preview);
+            var success = true;
             var bounding_box = [ rect.x0, rect.x1, rect.y0, rect.y1 ];
             console.writeln("Using crop preview bounding box " + JSON.stringify(bounding_box));
       } else {
-            var bounding_box = findBounding_box(lowClipImageWindow);
+            var res = findBounding_box(lowClipImageWindow);
+            var success = res.success;
+            var bounding_box = res.box;
+            crop_errors = res.crop_errors;
             console.writeln("Calculated crop preview bounding box " + JSON.stringify(bounding_box));
       }
       let [left_col, right_col, top_row, bottom_row] = bounding_box;
@@ -11222,7 +11268,13 @@ function calculate_crop_amount(window_id, crop_auto_continue)
       if (!crop_auto_continue) {
             // Preview for information to the user only
             // with auto continue we assume that the preview is already there
-            lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+            // We use integrated image for crop info as it better shows the actual cropping in the image
+            console.writeln("Creating crop preview");
+            integratedImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+            if (par.cropinfo_only.val && lowClipImageName != integratedImageName) {
+                  // For information  purposes, add preview also to a separate rejection_low image.
+                  lowClipImageWindow.createPreview( left_col, top_row, right_col, bottom_row, "crop" );
+            }
       }
       
       // Calculate how much to truncate as used for the Crop process (except Crop want it negative)
@@ -11244,10 +11296,17 @@ function calculate_crop_amount(window_id, crop_auto_continue)
       let new_area = (right_col-left_col+1) * (bottom_row-top_row+1);
       let full_area = full_image.width*full_image.height;
       let area_truncate_percent = 100*((full_area-new_area) / full_area);
-      console.noteln("Truncate percentages: width by ",x_truncate_percent.toFixed(1),"%, height by ", y_truncate_percent.toFixed(1), 
-            "%, area by ",area_truncate_percent.toFixed(1), "%");
+      var crop_check_limit = 5;
+      var txt = "Truncate percentages: width by " + x_truncate_percent.toFixed(1) +"%, height by " + y_truncate_percent.toFixed(1) + 
+                "%, area by " + area_truncate_percent.toFixed(1) + "%";
+      if (x_truncate_percent > crop_check_limit || y_truncate_percent > crop_check_limit || area_truncate_percent > crop_check_limit) {
+            crop_errors = crop_errors + "\n" + "Warning: Cropped more than " + crop_check_limit + "% of the image, please check the crop preview. " + crop_suggestion_txt;
+            crop_errors = crop_errors + "\n" + "Warning: " + txt;
+      } else {
+            console.noteln(txt);
+      }
 
-      return truncate_amount;
+      return { success: success,  truncate_amount: truncate_amount, crop_errors: crop_errors };
 }
 
 // Find the crop area and crop all channel images
@@ -11262,26 +11321,93 @@ function cropChannelImages()
       if (images == null || images.length == 0) {
             return;
       }
-      //console.writeln("all: " + JSON.stringify(images, null, 2));
+      var res = runImageIntegrationForCrop(images);
 
-      let lowClipImageName = runImageIntegrationForCrop(images);
+      if (par.crop_use_rejection_low.val) {
+            /* Use low rejection map to calculate crop. 
+             */
+            let integratedImageName = res.integrated_image_id;
+            let integratedImageWindow = util.findWindow(integratedImageName);
+            if (integratedImageWindow == null) {
+                  util.throwFatalError("Crop failed to find image " + integratedImageName);
+            }
+            let lowClipImageName = res.rejection_map_id;
+            let lowClipImageWindow = util.findWindow(lowClipImageName);
+            if (lowClipImageWindow == null) {
+                  util.throwFatalError("Crop failed to find image " + lowClipImageName);
+            }
+            var res = calculate_crop_amount(lowClipImageName, integratedImageName, false);
+            if (res.crop_errors != "")  {
+                  util.addCriticalStatus(res.crop_errors);
+            }
+            if (!res.success) {
+                  util.addCriticalStatus("No cropping done. "+ crop_suggestion_txt); 
+            }
 
+            if (!par.cropinfo_only.val) {
+                  // Close low rejection map window
+                  util.forceCloseOneWindow(lowClipImageWindow);
+            }
+
+            crop_truncate_amount = res.truncate_amount;
+            crop_lowClipImageName = integratedImageName; // crop info is saved to integrated image
+
+      } else {
+            /* Use integrated image to calculate crop. 
+             */
+            let lowClipImageName = res.integrated_image_id;
+            let lowClipImageWindow = util.findWindow(lowClipImageName);
+            if (lowClipImageWindow == null) {
+                  util.throwFatalError("Crop failed to find image " + lowClipImageName);
+            }
+
+            // Make a copy of the integrated image
+            lowClipImageWindowCopy = util.copyWindowEx(lowClipImageWindow, util.ensure_win_prefix(lowClipImageName + "_tmp"), true);
+
+            var res = calculate_crop_amount(lowClipImageWindowCopy.mainView.id, lowClipImageWindowCopy.mainView.id, false);
+            if (!res.success) {
+                  // Try with noise reduction
+                  console.noteln("Crop failed, trying with noise reduction for cropped image");
+                  // Close copy image since we have added crop preview into image
+                  util.forceCloseOneWindow(lowClipImageWindowCopy);
+                  // Make a new copy
+                  lowClipImageWindowCopy = util.copyWindowEx(lowClipImageWindow, util.ensure_win_prefix(lowClipImageName + "_tmp2"), true);
+                  // Run noise reduction
+                  runMultiscaleLinearTransformReduceNoise(lowClipImageWindowCopy, null, 4);
+                  // Crop again
+                  res = calculate_crop_amount(lowClipImageWindowCopy.mainView.id, lowClipImageWindowCopy.mainView.id, false);
+                  if (res.success) {
+                        util.addCriticalStatus("Crop succeeded after noise reduction but please check the crop amount in file " + lowClipImageName + ". If needed, adjust the crop manually and rerun the script using AutoContinue.");
+                  }
+            }
+            if (res.crop_errors != "")  {
+                  util.addCriticalStatus(res.crop_errors);
+            }
+            if (!res.success) {
+                  util.addCriticalStatus("No cropping done. " + crop_suggestion_txt); 
+            }
+
+            // Close original window
+            util.forceCloseOneWindow(lowClipImageWindow);
+
+            // Rename copy to original name
+            lowClipImageWindowCopy.mainView.id = lowClipImageName;
+
+            crop_truncate_amount = res.truncate_amount;
+            crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
+      }
       // Autostretch for the convenience of the user
       ApplyAutoSTF(
-            util.findWindow(lowClipImageName).mainView, 
+            util.findWindow(crop_lowClipImageName).mainView,
             DEFAULT_AUTOSTRETCH_SCLIP,
             DEFAULT_AUTOSTRETCH_TBGND,
             false,
             false);
-
-      crop_truncate_amount = calculate_crop_amount(lowClipImageName, false);
-      if (crop_truncate_amount == null) {
-            util.throwFatalError("cropChannelImages failed to find image " + lowClipImageName);
-      }
-
-      crop_lowClipImageName = lowClipImageName;       // save the name for saving to disk
+      
       saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
       crop_lowClipImage_changed = false;
+
+      console.noteln("Generated data for cropping");
 
       /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
@@ -11291,7 +11417,6 @@ function cropChannelImages()
             luminance_crop_id = L_win_crop.mainView.id;
       }
 
-      console.noteln("Generated data for cropping");
 }
 
 function cropChannelImagesAutoContinue()
@@ -11305,9 +11430,10 @@ function cropChannelImagesAutoContinue()
       util.addProcessingStepAndStatusInfo("Cropping all channel images to fully integrated area in AutoContinue");
       let lowClipImageName = autocontinue_prefix + "LowRejectionMap_ALL";
       crop_lowClipImageName = lowClipImageName;       // save the name for minimizing
-      crop_truncate_amount = calculate_crop_amount(lowClipImageName, true);
-      if (crop_truncate_amount == null) {
-            util.throwFatalError("cropChannelImagesAutoContinue failed to find image " + lowClipImageName);
+      var res = calculate_crop_amount(lowClipImageName, lowClipImageName, true);
+      crop_truncate_amount = res.truncate_amount;
+      if (res.crop_errors != "")  {
+            util.addCriticalStatus(res.crop_errors);
       }
 }
 
@@ -11527,6 +11653,7 @@ function cropChannelImagesAutoContinue()
        star_fix_mask_win = null;
        star_fix_mask_win_id = null;
        global.processing_steps = "";
+       global.processing_errors = "";
  
        console.noteln("Start extra processing...");
        guiUpdatePreviewId(extra_target_image);
@@ -11543,6 +11670,11 @@ function cropChannelImagesAutoContinue()
        console.noteln("Processing steps:");
        console.writeln(global.processing_steps);
        console.writeln("");
+       if (global.processing_errors.length > 0) {
+            console.criticalln("Processing errors:");
+            console.criticalln(global.processing_errors);
+            console.writeln("");
+       }
        console.noteln("Extra processing completed.");
 
        global.is_processing = false;
@@ -11656,6 +11788,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        global.processingDate = new Date;
        global.processing_steps = "";
+       global.processing_errors = "";
        global.all_windows = [];
        global.iconPoint = null;
        linear_fit_done = false;
@@ -12126,6 +12259,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        }
        console.writeln("--------------------------------------");
+       if (global.processing_errors.length > 0) {
+            console.criticalln("Processing errors:");
+            console.criticalln(global.processing_errors);
+            console.writeln("--------------------------------------");
+       }
        if (preprocessed_images != global.start_images.FINAL) {
              console.noteln("Console output is written into file " + logfname);
        }

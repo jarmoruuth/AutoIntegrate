@@ -226,7 +226,8 @@ this.par = {
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
-      crop_noise_reduction: { val: false, def: false, name : "Crop noise reduction", type : 'B' },
+      crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
+      crop_rejection_low_limit: { val: 0.25, def: 0.25, name : "Crop rejection low limit", type : 'R' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
@@ -477,6 +478,7 @@ this.processed_channel_images = [];
 this.extra_target_image = null;
 
 this.processing_steps = "";
+this.processing_errors = "";
 this.extra_processing_info = [];
 this.all_windows = [];
 this.iconPoint = null;
