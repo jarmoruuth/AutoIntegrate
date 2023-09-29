@@ -306,7 +306,7 @@ var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
-var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Helix' ];
+var colorized_narrowband_preset_values = [ 'Default', 'North America' ];
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
@@ -795,7 +795,7 @@ function close_undo_images(parent)
                   cb.aiParam.val = checked;
              }
        }
-       if ( typeof toolTip !== 'undefined' && toolTip != null ) { 
+       if ( typeof toolTip !== 'undefined' && toolTip != null ) {
              cb.toolTip = util.formatToolTip(toolTip);
        }
  
@@ -5926,16 +5926,14 @@ function AutoIntegrateDialog()
                   case 'Default':
                         var hue = [ par.narrowband_colorized_R_hue.def, par.narrowband_colorized_G_hue.def, par.narrowband_colorized_B_hue.def ];
                         var sat = [ par.narrowband_colorized_R_sat.def, par.narrowband_colorized_G_sat.def, par.narrowband_colorized_B_sat.def ];
+                        var weight = [ 1.0, 1.0, 1.0 ];
                         break;
                   case 'North America':
                         var hue = [ 0.04, 0.104, 0.6 ];
                         var sat = [ 0.5, 0.5, 0.5 ];
+                        var weight = [ 1.0, 1.0, 1.0 ];
                         break;
-                  case 'Helix':
-                        var hue = [ 0.1, 0.6, 0.2 ];
-                        var sat = [ 0.5, 0.5, 0.5 ];
-                        break;
-                        default:
+                  default:
                         throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
                         break;
             }
@@ -5955,6 +5953,10 @@ function AutoIntegrateDialog()
             this.dialog.narrowbandColorized_R_SatControl.setValue(sat[0]);
             this.dialog.narrowbandColorized_G_SatControl.setValue(sat[1]);
             this.dialog.narrowbandColorized_B_SatControl.setValue(sat[2]);
+
+            this.narrowbandColorized_R_WeightControl.setValue(weight[0]);
+            this.narrowbandColorized_G_WeightControl.setValue(weight[1]);
+            this.narrowbandColorized_B_WeightControl.setValue(weight[2]);
 
             updateHueColors();
       };
@@ -6349,6 +6351,8 @@ function AutoIntegrateDialog()
 
       this.extra_force_new_mask_CheckBox = newCheckBox(this, "New mask", par.extra_force_new_mask, 
             "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
+      this.extra_auto_reset_CheckBox = newCheckBox(this, "Auto reset", par.extra_auto_reset, 
+            "<p>If using Apply button, uncheck options when they are applied.</p>" );
 
       var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
       this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
@@ -6573,6 +6577,7 @@ function AutoIntegrateDialog()
                   }
                   console.writeln("Apply extra processing edits on " + global.extra_target_image);
                   try {
+                        engine.extraApply = true;
                         engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (undo_images.length == 0) {
                               // add first/original undo image
@@ -6592,6 +6597,7 @@ function AutoIntegrateDialog()
                         console.criticalln(err);
                         console.criticalln("Operation failed!");
                   }
+                  engine.extraApply = false;
             }
       };   
 
@@ -6646,6 +6652,7 @@ function AutoIntegrateDialog()
       this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_auto_reset_CheckBox );
       this.extraImageOptionsSizer.addStretch();
 
       this.extra1 = new VerticalSizer;

@@ -366,6 +366,7 @@ this.par = {
       extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
       extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
       extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
+      extra_auto_reset: { val: false, def: false, name : "Extra auto reset", type : 'B' },
       extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
       extra_highlight_enhance: { val: false, def: false, name : "Extra highlight enhance", type : 'B' },
             
