@@ -227,7 +227,7 @@ this.par = {
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
-      crop_rejection_low_limit: { val: 0.25, def: 0.25, name : "Crop rejection low limit", type : 'R' },
+      crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
@@ -306,6 +306,7 @@ this.par = {
       run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
 
       run_colorized_narrowband: { val: false, def: false, name : "Extra colorized narrowband", type : 'B' },
+      colorized_integrated_images: { val: false, def: false, name : "Extra colorized narrowband integrated images", type : 'B' },
       colorized_narrowband_preset: { val: "Default", def: "Default", name : "Extra colorized narrowband preset", type : 'S' },
       narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Extra colorized narrowband R hue", type : 'R' },
       narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Extra colorized narrowband R sat", type : 'R' },

@@ -9858,20 +9858,41 @@ function getColorizeChannels(imgWin)
 {
       var channel_wins = [];
 
-      console.writeln("getColorizeChannels R");
-      var id = extractRGBchannel(imgWin.mainView.id, 'R');
-      var win = util.findWindow(id);
-      channel_wins.push(win);
+      if (par.colorized_integrated_images.val) {
+            console.writeln("getColorizeChannels: colorized integrated images");
+            var win = util.findWindow(ppar.win_prefix + "Integration_S");
+            if (win == null) {
+                  util.throwFatalError("getColorizeChannels: Integration_S window not found");
+            }
+            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_S_colorized", true));
 
-      console.writeln("getColorizeChannels G");
-      id = extractRGBchannel(imgWin.mainView.id, 'G');
-      win = util.findWindow(id);
-      channel_wins.push(win);
+            win = util.findWindow(ppar.win_prefix + "Integration_H");
+            if (win == null) {
+                  util.throwFatalError("getColorizeChannels: Integration_H window not found");
+            }
+            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_H_colorized", true));
+            
+            win = util.findWindow(ppar.win_prefix + "Integration_O");
+            if (win == null) {
+                  util.throwFatalError("getColorizeChannels: Integration_O window not found");
+            }
+            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_O_colorized", true));
 
-      console.writeln("getColorizeChannels B");
-      id = extractRGBchannel(imgWin.mainView.id, 'B');
-      win = util.findWindow(id);
-      channel_wins.push(win);
+      } else {
+            console.writeln("getColorizeChannels: colorized RGB channels");
+
+            var id = extractRGBchannel(imgWin.mainView.id, 'R');
+            var win = util.findWindow(id);
+            channel_wins.push(win);
+
+            id = extractRGBchannel(imgWin.mainView.id, 'G');
+            win = util.findWindow(id);
+            channel_wins.push(win);
+
+            id = extractRGBchannel(imgWin.mainView.id, 'B');
+            win = util.findWindow(id);
+            channel_wins.push(win);
+      }
 
       return channel_wins;
 }
@@ -9976,8 +9997,6 @@ this.extraColorizedNarrowbandImages = function(imgWin)
       console.writeln("extraColorizedNarrowbandImages " + imgWin.mainView.id + ", mapping " + par.narrowband_colorized_mapping.val + ", combine " + par.narrowband_colorized_combine.val);
 
       var channel_wins = getColorizeChannels(imgWin);
-
-      var medians = [ channel_wins[0].mainView.image.median(), channel_wins[1].mainView.image.median(), channel_wins[2].mainView.image.median() ];
 
       if (par.narrowband_colorized_linear_fit.val) {
             console.writeln("extraColorizedNarrowbandImages, linear fit");

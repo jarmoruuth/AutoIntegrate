@@ -497,29 +497,37 @@ function savePersistentSettings(from_exit)
 
 function update_extra_target_image_window_list(parent, current_item)
 {
+      console.writeln("update_extra_target_image_window_list:1");
       if (current_item == null) {
             // use item from dialog
             current_item = extra_target_image_window_list[parent.extraImageComboBox.currentItem];
       }
 
+      console.writeln("update_extra_target_image_window_list:2");
       extra_target_image_window_list = util.getWindowListReverse();
       extra_target_image_window_list.unshift("Auto");
 
+      console.writeln("update_extra_target_image_window_list:3");
       parent.extraImageComboBox.clear();
+      console.writeln("update_extra_target_image_window_list:4");
       for (var i = 0; i < extra_target_image_window_list.length; i++) {
             parent.extraImageComboBox.addItem( extra_target_image_window_list[i] );
       }
+      console.writeln("update_extra_target_image_window_list:5");
 
       // update dialog
       if (current_item)  {
+            console.writeln("update_extra_target_image_window_list:6");
             parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
             if (!parent.extraImageComboBox.currentItem) {
                   parent.extraImageComboBox.currentItem = 0;
             }
+            console.writeln("update_extra_target_image_window_list:7");
             if (extra_target_image_window_list && extra_target_image_window_list.length > 0) {
                   parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
             }
       }
+      console.writeln("update_extra_target_image_window_list:8");
 }
 
 function forceNewHistogram(target_win)
@@ -4352,6 +4360,31 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       //this.imageParamsControl.sizer.addStretch();
 
+      // Image tools and batching set 1.
+      this.imageToolsSet1 = new VerticalSizer;
+      this.imageToolsSet1.margin = 6;
+      this.imageToolsSet1.spacing = 4;
+      this.imageToolsSet1.add( this.batch_mode_CheckBox );
+      this.imageToolsSet1.add( this.use_starxterminator_CheckBox );
+      this.imageToolsSet1.add( this.use_starnet2_CheckBox );
+      
+      // Image tools and batching set 2.
+      this.imageToolsSet2 = new VerticalSizer;
+      this.imageToolsSet2.margin = 6;
+      this.imageToolsSet2.spacing = 4;
+      this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
+      this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
+
+      // Image tools and batching par.
+      this.imageToolsControl = new Control( this );
+      this.imageToolsControl.sizer = new HorizontalSizer;
+      this.imageToolsControl.sizer.margin = 6;
+      this.imageToolsControl.sizer.spacing = 4;
+      this.imageToolsControl.sizer.add( this.imageToolsSet1 );
+      this.imageToolsControl.sizer.add( this.imageToolsSet2 );
+      this.imageToolsControl.visible = false;
+      //this.imageToolsControl.sizer.addStretch();
+      
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
             "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>");
@@ -4805,59 +4838,75 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer2.addStretch();
 
       // Other parameters set 1.
-      this.otherParamsSet1 = new VerticalSizer;
+      this.otherParamsSet11 = new VerticalSizer;
+      this.otherParamsSet11.margin = 6;
+      this.otherParamsSet11.spacing = 4;
+      this.otherParamsSet11.add( this.CalibrateOnlyCheckBox );
+      this.otherParamsSet11.add( this.DebayerOnlyCheckBox );
+      this.otherParamsSet11.add( this.BinningOnlyCheckBox );
+      this.otherParamsSet11.add( this.ExtractChannelsOnlyCheckBox );
+      this.otherParamsSet11.add( this.IntegrateOnlyCheckBox );
+      this.otherParamsSet11.add( this.ChannelCombinationOnlyCheckBox );
+      this.otherParamsSet11.add( this.CropInfoOnlyCheckBox );
+      this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
+      this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
+
+      this.otherParamsSet12 = new VerticalSizer;
+      this.otherParamsSet12.margin = 6;
+      this.otherParamsSet12.spacing = 4;
+      this.otherParamsSet12.add( this.start_from_imageintegration_CheckBox );
+      this.otherParamsSet12.add( this.RRGB_image_CheckBox );
+      this.otherParamsSet12.add( this.synthetic_l_image_CheckBox );
+      this.otherParamsSet12.add( this.synthetic_missing_images_CheckBox );
+      this.otherParamsSet12.add( this.generate_xdrz_CheckBox );
+      this.otherParamsSet12.add( this.force_file_name_filter_CheckBox );
+      this.otherParamsSet12.add( this.autodetect_filter_CheckBox );
+      this.otherParamsSet12.add( this.autodetect_imagetyp_CheckBox );
+
+      this.otherParamsSet1 = new HorizontalSizer;
       this.otherParamsSet1.margin = 6;
       this.otherParamsSet1.spacing = 4;
-      this.otherParamsSet1.add( this.CalibrateOnlyCheckBox );
-      this.otherParamsSet1.add( this.DebayerOnlyCheckBox );
-      this.otherParamsSet1.add( this.BinningOnlyCheckBox );
-      this.otherParamsSet1.add( this.ExtractChannelsOnlyCheckBox );
-      this.otherParamsSet1.add( this.IntegrateOnlyCheckBox );
-      this.otherParamsSet1.add( this.ChannelCombinationOnlyCheckBox );
-      this.otherParamsSet1.add( this.CropInfoOnlyCheckBox );
-      this.otherParamsSet1.add( this.imageWeightTestingCheckBox );
-      this.otherParamsSet1.add( this.earlyPSFCheckCheckBox );
-      this.otherParamsSet1.add( this.start_from_imageintegration_CheckBox );
-      this.otherParamsSet1.add( this.RRGB_image_CheckBox );
-      this.otherParamsSet1.add( this.synthetic_l_image_CheckBox );
-      this.otherParamsSet1.add( this.synthetic_missing_images_CheckBox );
-      this.otherParamsSet1.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet1.add( this.use_starxterminator_CheckBox );
-      this.otherParamsSet1.add( this.use_starnet2_CheckBox );
-      this.otherParamsSet1.add( this.use_noisexterminator_CheckBox );
-      this.otherParamsSet1.add( this.use_blurxterminator_CheckBox );
+      this.otherParamsSet1.add( this.otherParamsSet11 );
+      this.otherParamsSet1.add( this.otherParamsSet12 );
 
       // Other parameters set 2.
-      this.otherParamsSet2 = new VerticalSizer;
+      this.otherParamsSet21 = new VerticalSizer;
+      this.otherParamsSet21.margin = 6;
+      this.otherParamsSet21.spacing = 4;
+      this.otherParamsSet21.add( this.keepIntegratedImagesCheckBox );
+      this.otherParamsSet21.add( this.keepTemporaryImagesCheckBox );
+      this.otherParamsSet21.add( this.debugCheckBox );
+      this.otherParamsSet21.add( this.save_processed_channel_images_CheckBox );
+      this.otherParamsSet21.add( this.save_all_files_CheckBox );
+      this.otherParamsSet21.add( this.select_all_files_CheckBox );
+      this.otherParamsSet21.add( this.unique_file_names_CheckBox );
+      this.otherParamsSet21.add( this.win_prefix_to_log_files_CheckBox );
+
+      this.otherParamsSet22 = new VerticalSizer;
+      this.otherParamsSet22.margin = 6;
+      this.otherParamsSet22.spacing = 4;
+      this.otherParamsSet22.add( this.blink_checkbox );
+      this.otherParamsSet22.add( this.no_subdirs_CheckBox );
+      this.otherParamsSet22.add( this.StartWithEmptyWindowPrefixBox );
+      this.otherParamsSet22.add( this.ManualIconColumnBox );
+      this.otherParamsSet22.add( this.AutoSaveSetupBox );
+      this.otherParamsSet22.add( this.UseProcessedFilesBox );
+      this.otherParamsSet22.add( this.saveCroppedImagesBox );
+      this.otherParamsSet22.add( this.resetOnSetupLoadCheckBox );
+
+      this.otherParamsSet2 = new HorizontalSizer;
       this.otherParamsSet2.margin = 6;
       this.otherParamsSet2.spacing = 4;
-      this.otherParamsSet2.add( this.keepIntegratedImagesCheckBox );
-      this.otherParamsSet2.add( this.keepTemporaryImagesCheckBox );
-      this.otherParamsSet2.add( this.debugCheckBox );
-      this.otherParamsSet2.add( this.save_processed_channel_images_CheckBox );
-      this.otherParamsSet2.add( this.save_all_files_CheckBox );
-      this.otherParamsSet2.add( this.select_all_files_CheckBox );
-      this.otherParamsSet2.add( this.unique_file_names_CheckBox );
-      this.otherParamsSet2.add( this.win_prefix_to_log_files_CheckBox );
-      this.otherParamsSet2.add( this.batch_mode_CheckBox );
-      this.otherParamsSet2.add( this.force_file_name_filter_CheckBox );
-      this.otherParamsSet2.add( this.autodetect_filter_CheckBox );
-      this.otherParamsSet2.add( this.autodetect_imagetyp_CheckBox );
-      this.otherParamsSet2.add( this.generate_xdrz_CheckBox );
-      this.otherParamsSet2.add( this.blink_checkbox );
-      this.otherParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
-      this.otherParamsSet2.add( this.ManualIconColumnBox );
-      this.otherParamsSet2.add( this.AutoSaveSetupBox );
-      this.otherParamsSet2.add( this.UseProcessedFilesBox );
-      this.otherParamsSet2.add( this.saveCroppedImagesBox );
-      this.otherParamsSet2.add( this.resetOnSetupLoadCheckBox );
+      this.otherParamsSet2.add( this.otherParamsSet21 );
+      this.otherParamsSet2.add( this.otherParamsSet22 );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
-      this.otherParamsControl.sizer = new HorizontalSizer;
+      this.otherParamsControl.sizer = new VerticalSizer;
       this.otherParamsControl.sizer.margin = 6;
       this.otherParamsControl.sizer.spacing = 4;
       this.otherParamsControl.sizer.add( this.otherParamsSet1 );
+      this.otherParamsControl.sizer.addSpacing( 12 );
       this.otherParamsControl.sizer.add( this.otherParamsSet2 );
       this.otherParamsControl.visible = false;
       //this.otherParamsControl.sizer.addStretch();
@@ -5889,9 +5938,9 @@ function AutoIntegrateDialog()
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
 
-      this.narrowbandColorizedCheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
-            "<p>Enhance colors for narrowband and other images.</p>" +
-            "<p>RGB channels are extraced from the target color image, colorixed and then a new RGB image is created. " + 
+      var narrowbandColorizedtoolTip =
+            "<p>RGB channels are extraced from the target color image, or optionally linear integrated images (Integration_[SHO]) are used. " + 
+            "Channel images are then colorized and a new RGB image is created. " + 
             "The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
             "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
             "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
@@ -5901,7 +5950,16 @@ function AutoIntegrateDialog()
             "<p>Method gived choices on how colorization is done for channel images.</p>" +
             "<p>Optionally is it possible to run linear fit for channel images before colorizing.</p>" +
             "<p>Colorizing is inspired by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685), " + 
-            "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>" );
+            "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>";
+
+      this.narrowbandColorizedCheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
+            "<p>Enhance colors for narrowband and other images.</p>" + narrowbandColorizedtoolTip);
+
+      this.narrowbandColorizedIntegratedImagesCheckBox = newCheckBox(this, "Use integrated images", 
+                                                                     par.colorized_integrated_images, 
+                                                                     "<p>Use linear integrated images (Integration_[SHO]) for colorizing. " + 
+                                                                     "If not selected then RGB channels are extracted from the target image.</p>" +
+                                                                     narrowbandColorizedtoolTip);
 
       var hue_width = 400;
       var sat_width = 200;
@@ -5918,8 +5976,8 @@ function AutoIntegrateDialog()
             hueColors.repaint();
       }
       
-      this.narrowbandColorizedPresetLabel = newLabel(this, "Presets", this.narrowbandColorizedCheckBox.toolTip);
-      this.narrowbandColorizedPresetComboBox = newComboBox(this, par.colorized_narrowband_preset, colorized_narrowband_preset_values, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedPresetLabel = newLabel(this, "Presets", narrowbandColorizedtoolTip);
+      this.narrowbandColorizedPresetComboBox = newComboBox(this, par.colorized_narrowband_preset, colorized_narrowband_preset_values, narrowbandColorizedtoolTip);
       this.narrowbandColorizedPresetComboBox.onItemSelected = function( itemIndex )
       {
             switch (colorized_narrowband_preset_values[itemIndex]) {
@@ -5954,28 +6012,28 @@ function AutoIntegrateDialog()
             this.dialog.narrowbandColorized_G_SatControl.setValue(sat[1]);
             this.dialog.narrowbandColorized_B_SatControl.setValue(sat[2]);
 
-            this.narrowbandColorized_R_WeightControl.setValue(weight[0]);
-            this.narrowbandColorized_G_WeightControl.setValue(weight[1]);
-            this.narrowbandColorized_B_WeightControl.setValue(weight[2]);
+            this.dialog.narrowbandColorized_R_WeightControl.setValue(weight[0]);
+            this.dialog.narrowbandColorized_G_WeightControl.setValue(weight[1]);
+            this.dialog.narrowbandColorized_B_WeightControl.setValue(weight[2]);
 
             updateHueColors();
       };
 
-      this.narrowbandColorizedMappingLabel = newLabel(this, "Mapping", this.narrowbandColorizedCheckBox.toolTip);
-      this.narrowbandColorizedMappingComboBox = newComboBox(this, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedMappingLabel = newLabel(this, "Mapping", narrowbandColorizedtoolTip);
+      this.narrowbandColorizedMappingComboBox = newComboBox(this, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, narrowbandColorizedtoolTip);
 
-      this.narrowbandColorizedCombineLabel = newLabel(this, "Combine", this.narrowbandColorizedCheckBox.toolTip);
-      this.narrowbandColorizedCombineComboBox = newComboBox(this, par.narrowband_colorized_combine, narrowband_colorized_combine_values, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedCombineLabel = newLabel(this, "Combine", narrowbandColorizedtoolTip);
+      this.narrowbandColorizedCombineComboBox = newComboBox(this, par.narrowband_colorized_combine, narrowband_colorized_combine_values, narrowbandColorizedtoolTip);
 
-      this.narrowbandColorizedMethodLabel = newLabel(this, "Method", this.narrowbandColorizedCheckBox.toolTip);
-      this.narrowbandColorizedMethodComboBox = newComboBox(this, par.narrowband_colorized_method, narrowband_colorized_method_values, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedMethodLabel = newLabel(this, "Method", narrowbandColorizedtoolTip);
+      this.narrowbandColorizedMethodComboBox = newComboBox(this, par.narrowband_colorized_method, narrowband_colorized_method_values, narrowbandColorizedtoolTip);
 
-      this.narrowbandColorizedLinerFitCheckBox = newCheckBox(this, "Linear fit", par.narrowband_colorized_linear_fit, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorizedLinerFitCheckBox = newCheckBox(this, "Linear fit", par.narrowband_colorized_linear_fit, narrowbandColorizedtoolTip);
 
       this.narrowbandColorizedPreviewButton = new PushButton( this );
       this.narrowbandColorizedPreviewButton.text = "Preview";
       this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
-                                                      this.narrowbandColorizedCheckBox.toolTip;
+                                                      narrowbandColorizedtoolTip;
       this.narrowbandColorizedPreviewButton.onClick = function() 
       {
             console.writeln("Preview narrowband colorized image");
@@ -6001,25 +6059,25 @@ function AutoIntegrateDialog()
             util.forceCloseOneWindow(channel_images[2]);
       };
 
-      this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
       this.narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_R_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_R_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_R_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_R_sat, 0, 1, narrowbandColorizedtoolTip);
       this.narrowbandColorized_R_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_R_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_R_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_R_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_R_weight, 0, 10, narrowbandColorizedtoolTip);
       this.narrowbandColorized_R_WeightControl.setScaledFixedWidth(weight_width);
       
-      this.narrowbandColorized_G_HueControl = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_G_HueControl = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
       this.narrowbandColorized_G_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_G_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_G_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_G_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_G_sat, 0, 1, narrowbandColorizedtoolTip);
       this.narrowbandColorized_G_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_G_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_G_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_G_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_G_weight, 0, 10, narrowbandColorizedtoolTip);
       this.narrowbandColorized_G_WeightControl.setScaledFixedWidth(weight_width);
       
-      this.narrowbandColorized_B_HueControl = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, this.narrowbandColorizedCheckBox.toolTip, updateHueColors);
+      this.narrowbandColorized_B_HueControl = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
       this.narrowbandColorized_B_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_B_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_B_sat, 0, 1, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_B_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_B_sat, 0, 1, narrowbandColorizedtoolTip);
       this.narrowbandColorized_B_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_B_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_B_weight, 0, 10, this.narrowbandColorizedCheckBox.toolTip);
+      this.narrowbandColorized_B_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_B_weight, 0, 10, narrowbandColorizedtoolTip);
       this.narrowbandColorized_B_WeightControl.setScaledFixedWidth(weight_width);
 
       this.narrowbandColorized_R_hue_sizer = new HorizontalSizer;
@@ -6044,8 +6102,9 @@ function AutoIntegrateDialog()
       this.narrowbandColorized_B_hue_sizer.addStretch();
 
       this.narrowbandColorized_sizer1 = new HorizontalSizer;
-      this.narrowbandColorized_sizer1.spacing = 4;
+      this.narrowbandColorized_sizer1.spacing = 6;
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedCheckBox );
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedIntegratedImagesCheckBox );
       this.narrowbandColorized_sizer1.addSpacing( 12 );
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewButton );
       this.narrowbandColorized_sizer1.addStretch();
@@ -6581,10 +6640,12 @@ function AutoIntegrateDialog()
                         engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (undo_images.length == 0) {
                               // add first/original undo image
+                              console.writeln("Add first undo image");
                               add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
                               // save copy of original image to the window list and make is current
                               update_extra_target_image_window_list(this.dialog, global.extra_target_image);
                         }
+                        console.writeln("Add undo image");
                         let undo_image_id = create_undo_image(global.extra_target_image);
                         add_undo_image(this.dialog, global.extra_target_image, undo_image_id, current_histogramInfo);
                         console.noteln("Apply completed (" + undo_images.length + "/" + undo_images.length + ")");
@@ -7234,6 +7295,7 @@ function AutoIntegrateDialog()
       this.leftGroupBox = newGroupBoxSizer(this);
 
       newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
+      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsControl, "Tools and batching", "ImageTools");
       newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       this.leftGroupBox.sizer.addStretch();
 
