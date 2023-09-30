@@ -497,37 +497,29 @@ function savePersistentSettings(from_exit)
 
 function update_extra_target_image_window_list(parent, current_item)
 {
-      console.writeln("update_extra_target_image_window_list:1");
       if (current_item == null) {
             // use item from dialog
             current_item = extra_target_image_window_list[parent.extraImageComboBox.currentItem];
       }
 
-      console.writeln("update_extra_target_image_window_list:2");
       extra_target_image_window_list = util.getWindowListReverse();
       extra_target_image_window_list.unshift("Auto");
 
-      console.writeln("update_extra_target_image_window_list:3");
       parent.extraImageComboBox.clear();
-      console.writeln("update_extra_target_image_window_list:4");
       for (var i = 0; i < extra_target_image_window_list.length; i++) {
             parent.extraImageComboBox.addItem( extra_target_image_window_list[i] );
       }
-      console.writeln("update_extra_target_image_window_list:5");
 
       // update dialog
       if (current_item)  {
-            console.writeln("update_extra_target_image_window_list:6");
             parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
             if (!parent.extraImageComboBox.currentItem) {
                   parent.extraImageComboBox.currentItem = 0;
             }
-            console.writeln("update_extra_target_image_window_list:7");
             if (extra_target_image_window_list && extra_target_image_window_list.length > 0) {
                   parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
             }
       }
-      console.writeln("update_extra_target_image_window_list:8");
 }
 
 function forceNewHistogram(target_win)
@@ -6640,12 +6632,10 @@ function AutoIntegrateDialog()
                         engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (undo_images.length == 0) {
                               // add first/original undo image
-                              console.writeln("Add first undo image");
                               add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
                               // save copy of original image to the window list and make is current
                               update_extra_target_image_window_list(this.dialog, global.extra_target_image);
                         }
-                        console.writeln("Add undo image");
                         let undo_image_id = create_undo_image(global.extra_target_image);
                         add_undo_image(this.dialog, global.extra_target_image, undo_image_id, current_histogramInfo);
                         console.noteln("Apply completed (" + undo_images.length + "/" + undo_images.length + ")");
