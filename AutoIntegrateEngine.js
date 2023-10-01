@@ -9156,7 +9156,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       setFinalImageKeyword(stars_win);
       util.addProcessingStep("Stars image " + stars_win_id);
 
-      if (par.extra_combine_stars.val || apply_directly) {
+      if (par.extra_combine_stars.val || !apply_directly) {
             /* Make a copy of the starless image.
             */
             console.writeln("extraRemoveStars copy " + imgWin.mainView.id + " to " + imgWin.mainView.id + "_starless");
@@ -9166,7 +9166,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
              */
             var copywin = imgWin;
             copywin.mainView.id = util.ensure_win_prefix(copywin.mainView.id + "_starless");
-
+            global.extra_target_image = copywin.mainView.id;
       }
       setFinalImageKeyword(copywin);
       util.addProcessingStep("Starless image " + copywin.mainView.id);
@@ -9175,7 +9175,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       // guiUpdatePreviewWin(copywin);
 
       if (gui) {
-            gui.update_extra_target_image_window_list(parent, null);
+            gui.update_extra_target_image_window_list(parent, global.extra_target_image);
       }
 
       // return possibly new starless image for further processing

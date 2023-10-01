@@ -551,10 +551,13 @@ function copy_new_edit_image(id)
                   } else {
                         var copy_id = id +  "_" + x.toString() + "_edit";
                   }
-                  if (util.findWindow(copy_id) == null) {
+                  if (util.findWindow(copy_id) == null
+                      && util.findWindow(copy_id + "_starless") == null
+                      && util.findWindow(copy_id + "_stars") == null) 
+                  {
                         break;
                   }
-                  console.writeln("found copy_id, retry");
+                  // console.writeln(copy_id + " is use, retry");
             }
       } else {
             for (var x = 0; ; x++) {
@@ -577,10 +580,13 @@ function copy_new_edit_image(id)
                         var copy_id = base_id +  "_" + x.toString() + "_edit_" + (editcount + 1).toString();
                   }
                   console.writeln("base_id " + base_id + " copy_id " + copy_id);
-                  if (util.findWindow(copy_id) == null) {
+                  if (util.findWindow(copy_id) == null
+                      && util.findWindow(copy_id + "_starless") == null
+                      && util.findWindow(copy_id + "_stars") == null) 
+                  {
                         break;
                   }
-                  console.writeln("found copy_id, retry");
+                  // console.writeln(copy_id + " in use, retry");
             }
       }
       var copy_win = util.copyWindowEx(win, copy_id, true);
@@ -593,17 +599,25 @@ function copy_new_edit_image(id)
       return copy_win.mainView.id;
 }
 
+function print_extra_processing_info(txt, info)
+{
+      console.noteln(txt);
+      for (var i = 0; i < info.length; i++) {
+            console.writeln(info[i]);
+      }
+}
+
 function create_undo_image(id)
 {
       var undo_id = id + "_undo_tmp";
       var undo_win = util.copyWindowEx(ImageWindow.windowById(id), undo_id, true);
-      console.writeln("Create undo image " + undo_win.mainView.id);
+      //console.writeln("Create undo image " + undo_win.mainView.id);
       return undo_win.mainView.id;
 }
 
 function remove_undo_image(id)
 {
-      console.writeln("Remove undo image " + id);
+      //console.writeln("Remove undo image " + id);
       util.closeOneWindow(id);
 }
 
@@ -612,16 +626,18 @@ function add_undo_image(parent, original_id, undo_id, histogramInfo)
       //console.writeln("add_undo_image");
       while (undo_images.length > undo_images_pos + 1) {
             var removed = undo_images.pop();
-            console.writeln("Remove undo image " + removed);
+            console.writeln("Remove undo image " + removed.id);
             util.closeOneWindow(removed.id);
       }
       undo_images_pos++;
       // console.writeln("undo_images_pos " + undo_images_pos);
       var new_undo_id = original_id + "_undo_" + (undo_images_pos+1);
       util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
-      console.writeln("Add undo image " + new_undo_id);
+      //console.writeln("Add undo image " + new_undo_id);
       undo_images[undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo, extra_processing_info: global.extra_processing_info };
       update_undo_buttons(parent);
+
+      print_extra_processing_info("Applied extra processing:", global.extra_processing_info);
 }
 
 function apply_undo(parent)
@@ -659,6 +675,8 @@ function apply_undo(parent)
       undo_images_pos--;
       // console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
+
+      print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 }
 
 function apply_redo(parent)
@@ -687,17 +705,22 @@ function apply_redo(parent)
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
+
+      target_win.keywords = source_win.keywords;
+      global.extra_processing_info = undo_images[undo_images_pos + 1].extra_processing_info;
       
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       undo_images_pos++;
       // console.writeln("undo_images_pos " + undo_images_pos);
       update_undo_buttons(parent);
+
+      print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 }
 
 function save_as_undo(parent)
 {
-      console.writeln("save_as_undo");
+      //console.writeln("save_as_undo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -1628,26 +1651,49 @@ function createCombinedMosaicPreviewWin(imgWinArr)
       }
       var width = imgWinArr[0].mainView.image.width;
       var height = imgWinArr[0].mainView.image.height;
-      var channels = imgWinArr[0].mainView.image.numberOfChannels;
 
       var combinedWindow = util.copyWindow(imgWinArr[0], "AutoIntegrate_combined_preview");
 
       var bitmap = new Bitmap(width, height);
       var graphics = new Graphics(bitmap);
-      graphics.transparentBackground = true;
+      graphics.fillRect(0, 0, width, height, new Brush(0xff000000));
+      //graphics.transparentBackground = true;
 
-      for (var i = 0, x = 0, y = 0; i < imgWinArr.length; i++) {
-            // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x + " y " + y);
-            var imgWin = imgWinArr[i];
-            var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
-            graphics.drawBitmap(x, y, bmp);
-            if (x == 0) {
-                  x = width / 2;
+      if (imgWinArr.length == 2) {
+            if (width < height) {
+                  // Two images, rescale them to half size and put them side by side.
+                  for (var i = 0, x = 0; i < imgWinArr.length; i++) {
+                        // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x);
+                        var imgWin = imgWinArr[i];
+                        var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                        graphics.drawBitmap(x, height / 4, bmp);
+                        x = width / 2;
+                  }
             } else {
-                  x = 0;
+                  // Two images, rescale them to half size and put them on top of each other.
+                  for (var i = 0, y = 0; i < imgWinArr.length; i++) {
+                        // console.writeln("createCombinedMosaicPreviewWin, i " + i + " y " + y);
+                        var imgWin = imgWinArr[i];
+                        var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                        graphics.drawBitmap(width / 4, y, bmp);
+                        y = height / 2;
+                  }
             }
-            if (i >= 1) {
-                  y = height / 2;
+      } else {
+            // Assume four images, rescale them to half size and put them into a mosaic.
+            for (var i = 0, x = 0, y = 0; i < imgWinArr.length; i++) {
+                  // console.writeln("createCombinedMosaicPreviewWin, i " + i + " x " + x + " y " + y);
+                  var imgWin = imgWinArr[i];
+                  var bmp = getWindowBitmap(imgWin).scaledTo(width / 2, height / 2);
+                  graphics.drawBitmap(x, y, bmp);
+                  if (x == 0) {
+                        x = width / 2;
+                  } else {
+                        x = 0;
+                  }
+                  if (i >= 1) {
+                        y = height / 2;
+                  }
             }
       }
       graphics.end();
@@ -5952,7 +5998,6 @@ function AutoIntegrateDialog()
                                                                      "<p>Use linear integrated images (Integration_[SHO]) for colorizing. " + 
                                                                      "If not selected then RGB channels are extracted from the target image.</p>" +
                                                                      narrowbandColorizedtoolTip);
-
       var hue_width = 400;
       var sat_width = 200;
       var weight_width = 200;
@@ -6010,6 +6055,31 @@ function AutoIntegrateDialog()
 
             updateHueColors();
       };
+      function narrowbandColorizedPreview(mosaic) {
+            // make a copy if the current image
+            var extraWin = ImageWindow.windowById(global.extra_target_image);
+            var copyWin = util.copyWindow(extraWin, global.extra_target_image + "_NBCpreview");
+
+            // Process the copy and get channel images
+            var channel_images = engine.extraColorizedNarrowbandImages(copyWin);
+
+            if (mosaic) {
+                  // Create a preview window
+                  var previewWin = createCombinedMosaicPreviewWin([ channel_images[0], channel_images[1], channel_images[2], copyWin ]);
+            } else {
+                  var previewWin = createCombinedMosaicPreviewWin([ extraWin, copyWin ]);
+            }
+
+            // Show the preview window
+            updatePreviewWin(previewWin);
+
+            // Close windows
+            util.forceCloseOneWindow(copyWin);
+            util.forceCloseOneWindow(previewWin);
+            util.forceCloseOneWindow(channel_images[0]);
+            util.forceCloseOneWindow(channel_images[1]);
+            util.forceCloseOneWindow(channel_images[2]);
+      }
 
       this.narrowbandColorizedMappingLabel = newLabel(this, "Mapping", narrowbandColorizedtoolTip);
       this.narrowbandColorizedMappingComboBox = newComboBox(this, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, narrowbandColorizedtoolTip);
@@ -6024,31 +6094,20 @@ function AutoIntegrateDialog()
 
       this.narrowbandColorizedPreviewButton = new PushButton( this );
       this.narrowbandColorizedPreviewButton.text = "Preview";
-      this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
+      this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview of original and final images.</p>" + 
                                                       narrowbandColorizedtoolTip;
       this.narrowbandColorizedPreviewButton.onClick = function() 
       {
-            console.writeln("Preview narrowband colorized image");
+            narrowbandColorizedPreview(false);
+      };
 
-            // make a copy if the current image
-            var extraWin = ImageWindow.windowById(global.extra_target_image);
-            var copyWin = util.copyWindow(extraWin, global.extra_target_image + "_NBCpreview");
-
-            // Process the copy and get channel images
-            var channel_images = engine.extraColorizedNarrowbandImages(copyWin);
-
-            // Create a preview window
-            var previewWin = createCombinedMosaicPreviewWin([ channel_images[0], channel_images[1], channel_images[2], copyWin ]);
-
-            // Show the preview window
-            updatePreviewWin(previewWin);
-
-            // Close windows
-            util.forceCloseOneWindow(copyWin);
-            util.forceCloseOneWindow(previewWin);
-            util.forceCloseOneWindow(channel_images[0]);
-            util.forceCloseOneWindow(channel_images[1]);
-            util.forceCloseOneWindow(channel_images[2]);
+      this.narrowbandColorizedPreviewMosaicButton = new PushButton( this );
+      this.narrowbandColorizedPreviewMosaicButton.text = "Preview mosaic";
+      this.narrowbandColorizedPreviewMosaicButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
+                                                      narrowbandColorizedtoolTip;
+      this.narrowbandColorizedPreviewMosaicButton.onClick = function() 
+      {
+            narrowbandColorizedPreview(true);
       };
 
       this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
@@ -6099,6 +6158,7 @@ function AutoIntegrateDialog()
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedIntegratedImagesCheckBox );
       this.narrowbandColorized_sizer1.addSpacing( 12 );
       this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewButton );
+      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewMosaicButton );
       this.narrowbandColorized_sizer1.addStretch();
 
       this.narrowbandColorized_sizer2 = new HorizontalSizer;
