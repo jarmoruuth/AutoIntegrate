@@ -10069,9 +10069,9 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel, weight)
       }
 
       var P = new PixelMath();
-      P.expression = ch_win.mainView.id + "*" + rgb[0] + "*" + weight;
-      P.expression1 = ch_win.mainView.id + "*" + rgb[1] + "*" + weight;
-      P.expression2 = ch_win.mainView.id + "*" + rgb[2] + "*" + weight;
+      P.expression = ch_win.mainView.id + "*" + rgb[0];
+      P.expression1 = ch_win.mainView.id + "*" + rgb[1];
+      P.expression2 = ch_win.mainView.id + "*" + rgb[2];
       P.useSingleExpression = false;
       P.createNewImage = true;
       P.newImageId = ch_win.mainView.id + "_colorized";
@@ -10135,18 +10135,27 @@ this.extraColorizedNarrowbandImages = function(imgWin)
             switch (ch) {
                   case 'R':
                         mapping.push(channel_wins[0]);
-                        // weighted_mapping.push("(" + channel_wins[0].mainView.id + "*" + par.narrowband_colorized_R_weight.val + ")");
-                        weighted_mapping.push(channel_wins[0].mainView.id);
+                        if (par.narrowband_colorized_method.val == 'PixelMath') {
+                              weighted_mapping.push("(" + channel_wins[0].mainView.id + "*" + par.narrowband_colorized_R_weight.val + ")");
+                        } else {
+                              weighted_mapping.push(channel_wins[0].mainView.id);
+                        }
                         break;
                   case 'G':
                         mapping.push(channel_wins[1]);
-                        // weighted_mapping.push("(" + channel_wins[1].mainView.id + "*" + par.narrowband_colorized_G_weight.val + ")");
-                        weighted_mapping.push(channel_wins[1].mainView.id);
+                        if (par.narrowband_colorized_method.val == 'PixelMath') {
+                              weighted_mapping.push("(" + channel_wins[1].mainView.id + "*" + par.narrowband_colorized_G_weight.val + ")");
+                        } else {
+                              weighted_mapping.push(channel_wins[1].mainView.id);
+                        }
                         break;
                   case 'B':
                         mapping.push(channel_wins[2]);
-                        // weighted_mapping.push("(" + channel_wins[2].mainView.id + "*" + par.narrowband_colorized_B_weight.val + ")");
-                        weighted_mapping.push(channel_wins[2].mainView.id);
+                        if (par.narrowband_colorized_method.val == 'PixelMath') {
+                              weighted_mapping.push("(" + channel_wins[2].mainView.id + "*" + par.narrowband_colorized_B_weight.val + ")");
+                        } else {
+                              weighted_mapping.push(channel_wins[2].mainView.id);
+                        }
                         break;
                   default:
                         util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized mapping channel " + ch);

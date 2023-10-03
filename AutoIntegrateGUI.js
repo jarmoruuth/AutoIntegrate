@@ -439,6 +439,7 @@ function getNarrowbandColorizedSizer(parent)
                   util.forceCloseOneWindow(channel_images[1]);
                   util.forceCloseOneWindow(channel_images[2]);
             }
+            util.runGC();
       }
 
       if (par.debug.val) {

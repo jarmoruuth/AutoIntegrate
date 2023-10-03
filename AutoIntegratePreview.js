@@ -1,6 +1,49 @@
 /***************************************************************************
  * 
- *    PreviewControl
+ *    AutoIntegrateMaxPreviewDialog
+ * 
+ * Show image preview in max size view.,
+ * 
+ */
+function AutoIntegrateMaxPreviewDialog(par, imgWin, image, txt)
+{
+      this.__base__ = Dialog;
+      this.__base__();
+      this.restyle();
+
+      if (this.availableScreenRect != undefined) {
+            var screen_width = this.availableScreenRect.width;
+            var screen_height = this.availableScreenRect.height;
+       } else {
+            console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD as default");
+            var screen_width = 1920;
+            var screen_height = 1080;
+       }
+
+       var preview_width = parseInt(screen_width - screen_width / 10);
+       var preview_height = parseInt(screen_height - screen_height / 10);
+
+       console.writeln("AutoIntegrateMaxPreviewDialog: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
+
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, par, preview_width, preview_height, false, true);
+
+      this.maxPreviewControl.SetImage(imgWin, image, txt);
+   
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 6;
+      this.sizer.spacing = 4;
+      this.sizer.add( this.maxPreviewControl );
+   
+      this.windowTitle = "Max preview";
+      this.adjustToContents();
+      this.setFixedSize();
+}
+
+AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
+
+/***************************************************************************
+ * 
+ *    AutoIntegratePreviewControl
  * 
  * Slightly modified by Jarmo Ruuth for AutoIntegrate script.
  * 
@@ -9,10 +52,12 @@
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram)
+function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram, disable_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
+
+       this.maxPreview = !disable_max_preview;
 
        // Set image window and bitmap
        this.SetImage = function(imgWin, image, txt)
@@ -31,7 +76,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             } else {
                   this.image_name_Label.text = "";
             }
- }
+      }
  
        // Update image window and bitmap
        this.UpdateImage = function(imgWin, image, txt)
@@ -149,6 +194,19 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                   this.parent.UpdateZoom(-100);
             };
 
+            if (this.maxPreview) {
+                  this.maxPreview_Button = new ToolButton( this );
+                  this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
+                  this.maxPreview_Button.setScaledFixedSize( 20, 20 );
+                  this.maxPreview_Button.toolTip = "Open a new dialog to view the image in a max size preview window.";
+                  this.maxPreview_Button.onMousePress = function()
+                  {
+                        let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
+                        maxPreviewDialog.execute();
+                        gc(false);
+                  };
+            }
+
             this.image_name_Label = new Label( this );
             this.image_name_Label.text = "";
             this.image_name_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
@@ -158,6 +216,10 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.buttons_Sizer.add( this.zoomOut_Button );
             this.buttons_Sizer.add( this.zoom11_Button );
             this.buttons_Sizer.add( this.zoomFit_Button );
+            if (this.maxPreview) {
+                  this.buttons_Sizer.addSpacing( 12 );
+                  this.buttons_Sizer.add( this.maxPreview_Button );
+            }
             this.buttons_Sizer.addStretch();
             this.buttons_Sizer.addSpacing( 12 );
             this.buttons_Sizer.add( this.image_name_Label );
@@ -358,34 +420,36 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
             this.SampleVal_Label.text = "---";
 
-            this.coordinatesLabel = new Label(this);
-            this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.coordinatesLabel.text = "X,Y:";
-            this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-            this.coordinatesEdit = new Edit(this);
-            this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-            
-            this.coordinatesCopyFirstButton = new ToolButton( this );
-            this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
-            this.coordinatesCopyFirstButton.onClick = function () {
-                  var preview = this.parent.parent;
-                  if (preview.coordinatesEdit.text != "") {
-                        parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
-                        par.comet_first_xy.val = preview.coordinatesEdit.text;
-                  }
-            };
-            this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+            if (this.maxPreview) {
+                  this.coordinatesLabel = new Label(this);
+                  this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+                  this.coordinatesLabel.text = "X,Y:";
+                  this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+                  this.coordinatesEdit = new Edit(this);
+                  this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+                  
+                  this.coordinatesCopyFirstButton = new ToolButton( this );
+                  this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
+                  this.coordinatesCopyFirstButton.onClick = function () {
+                        var preview = this.parent.parent;
+                        if (preview.coordinatesEdit.text != "") {
+                              parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
+                              par.comet_first_xy.val = preview.coordinatesEdit.text;
+                        }
+                  };
+                  this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
 
-            this.coordinatesCopyLastButton = new ToolButton( this );
-            this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
-            this.coordinatesCopyLastButton.onClick = function () {
-                  var preview = this.parent.parent;
-                  if (preview.coordinatesEdit.text != "") {
-                        parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
-                        par.comet_last_xy.val = preview.coordinatesEdit.text;
-                  }
-            };
-            this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
+                  this.coordinatesCopyLastButton = new ToolButton( this );
+                  this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
+                  this.coordinatesCopyLastButton.onClick = function () {
+                        var preview = this.parent.parent;
+                        if (preview.coordinatesEdit.text != "") {
+                              parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
+                              par.comet_last_xy.val = preview.coordinatesEdit.text;
+                        }
+                  };
+                  this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
+            }
       } 
       this.coords_Frame = new Frame(this);
       this.coords_Frame.backgroundColor = 0xffffffff;
@@ -406,11 +470,13 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.coords_Frame.sizer.addSpacing(6);
             this.coords_Frame.sizer.add(this.SampleLabel_Label);
             this.coords_Frame.sizer.add(this.SampleVal_Label);
-            this.coords_Frame.sizer.addStretch();
-            this.coords_Frame.sizer.add(this.coordinatesLabel);
-            this.coords_Frame.sizer.add(this.coordinatesEdit);
-            this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
-            this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
+            if (this.maxPreview) {
+                  this.coords_Frame.sizer.addStretch();
+                  this.coords_Frame.sizer.add(this.coordinatesLabel);
+                  this.coords_Frame.sizer.add(this.coordinatesEdit);
+                  this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
+                  this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
+            }
        }
        this.coords_Frame.sizer.addStretch();
        this.sizer = new VerticalSizer;
