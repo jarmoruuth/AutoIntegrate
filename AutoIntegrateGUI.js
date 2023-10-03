@@ -306,12 +306,281 @@ var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
-var colorized_narrowband_preset_values = [ 'Default', 'North America' ];
+var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
+
+function getNarrowbandColorizedSizer(parent)
+{
+      var narrowbandColorizedtoolTip =
+      "<hr>" + 
+      "<p>RGB channels are extraced from the target color image, channel images are colorized and a new RGB image is created.</p>" + 
+      "<p>The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
+      "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
+      "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
+      "preview image is always discarded.</p>" +
+      "<p>Method gives choices on how colorization is done for channel images.</p>" +
+      "<p>Combine selection gives a few options on how colorized channel images are combined to and RGB image.</p>" +
+      "<p>With a mapping selection it is possible to change how channels are mapped in the final image. Works only with Channels combine method.</p>" +
+      "<p>Optionally is it possible to run linear fit for channel images before colorizing.</p>" +
+      "<p>Colorizing is inspired by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685), " + 
+      "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>";
+
+      var narrowbandColorizedCheckBox = newCheckBox(parent, "Colorize narrowband", par.run_colorized_narrowband, 
+            "<p>Enhance colors for narrowband and other images.</p>" + narrowbandColorizedtoolTip);
+
+      if (par.debug.val) {    
+            var narrowbandColorizedIntegratedImagesCheckBox = newCheckBox(parent, "D:Use integrated images", 
+                                                                     par.colorized_integrated_images, 
+                                                                     "<p>Use linear integrated images (Integration_[SHO]) for colorizing. " + 
+                                                                     "If not selected then RGB channels are extracted from the target image.</p>" +
+                                                                     narrowbandColorizedtoolTip);
+      }
+      var hue_width = 400;
+      var sat_width = 150;
+      var weight_width = 170;
+
+      var hueColors = new AutoIntegrateHueColors(par);
+      hueColors.setScaledFixedSize(hue_width,20);
+
+      function updateHueColors()
+      {
+            // console.writeln("updateHueColors");
+            hueColors.repaint();
+      }
+      
+      var narrowbandColorizedPresetLabel = newLabel(parent, "Presets", narrowbandColorizedtoolTip);
+      var narrowbandColorizedPresetComboBox = newComboBox(parent, par.colorized_narrowband_preset, colorized_narrowband_preset_values, narrowbandColorizedtoolTip);
+      narrowbandColorizedPresetComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (colorized_narrowband_preset_values[itemIndex]) {
+                  case 'Default':
+                        var hue = [ par.narrowband_colorized_R_hue.def, par.narrowband_colorized_G_hue.def, par.narrowband_colorized_B_hue.def ];
+                        var sat = [ par.narrowband_colorized_R_sat.def, par.narrowband_colorized_G_sat.def, par.narrowband_colorized_B_sat.def ];
+                        var weight = [ 1.0, 1.0, 1.0 ];
+                        break;
+                  case 'North America':
+                        var hue = [ 0.04, 0.104, 0.6 ];
+                        var sat = [ 0.5, 0.5, 0.5 ];
+                        var weight = [ 1.0, 1.0, 1.0 ];
+                        break;
+                  case 'Eagle':
+                        var hue = [ 0.067, 0.122, 0.572 ];
+                        var sat = [ 0.5, 0.6, 0.5 ];
+                        var weight = [ 0.7, 0.7, 0.7 ];
+                        break;
+                  default:
+                        throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
+                        break;
+            }
+
+            par.narrowband_colorized_R_hue.val = hue[0];
+            par.narrowband_colorized_G_hue.val = hue[1];
+            par.narrowband_colorized_B_hue.val = hue[2];
+
+            par.narrowband_colorized_R_sat.val = sat[0];
+            par.narrowband_colorized_G_sat.val = sat[1];
+            par.narrowband_colorized_B_sat.val = sat[2];
+
+            par.narrowband_colorized_R_weight.val = weight[0];
+            par.narrowband_colorized_G_weight.val = weight[1];
+            par.narrowband_colorized_B_weight.val = weight[2];
+
+            par.narrowband_colorized_R_hue.reset();
+            par.narrowband_colorized_G_hue.reset();
+            par.narrowband_colorized_B_hue.reset();
+
+            par.narrowband_colorized_R_sat.reset();
+            par.narrowband_colorized_G_sat.reset();
+            par.narrowband_colorized_B_sat.reset();
+
+            par.narrowband_colorized_R_weight.reset();
+            par.narrowband_colorized_G_weight.reset();
+            par.narrowband_colorized_B_weight.reset();
+
+            updateHueColors();
+      };
+      function narrowbandColorizedPreview(mosaic) {
+            // make a copy if the current image
+            if (global.extra_target_image == 'Auto') {
+                  var extraWin = null;
+                  var bitmap = createEmptyBitmap(2048, 2048, 0x80808080);
+                  var originalWin = createWindowFromBitmap(bitmap, "AutoIntegrate_NoImage");
+            } else {
+                  var extraWin = ImageWindow.windowById(global.extra_target_image);
+                  var originalWin = extraWin;
+            }
+            var copyWin = util.copyWindow(originalWin, originalWin.mainView.id + "_NBCpreview");
+
+            // Process the copy and get channel images
+            var channel_images = engine.extraColorizedNarrowbandImages(copyWin);
+
+            if (mosaic) {
+                  // Create a preview window
+                  var previewWin = createCombinedMosaicPreviewWin([ channel_images[0], channel_images[1], channel_images[2], copyWin ]);
+            } else {
+                  var previewWin = createCombinedMosaicPreviewWin([ originalWin, copyWin ]);
+            }
+
+            // Show the preview window
+            updatePreviewWin(previewWin);
+
+            if (1) {
+                  // Close windows
+                  if (extraWin == null) {
+                        util.forceCloseOneWindow(originalWin);
+                  }
+                  util.forceCloseOneWindow(copyWin);
+                  util.forceCloseOneWindow(previewWin);
+                  util.forceCloseOneWindow(channel_images[0]);
+                  util.forceCloseOneWindow(channel_images[1]);
+                  util.forceCloseOneWindow(channel_images[2]);
+            }
+      }
+
+      if (par.debug.val) {
+            narrowband_colorized_method_values.push('D:Curves');
+      }
+
+      var narrowbandColorizedMethodLabel = newLabel(parent, "Method",  "<p>Method tells hoe channels are colorized.</p>" + 
+                                                                       "<p>Colourize uses a built in process Colourise.</p>" + 
+                                                                       "<p>PixelMath uses RGB color values deriuved from hue to create a colorized image.</p>" + 
+                                                                       narrowbandColorizedtoolTip);
+      var narrowbandColorizedMethodComboBox = newComboBox(parent, par.narrowband_colorized_method, narrowband_colorized_method_values, narrowbandColorizedMethodLabel.toolTip);
+
+      var narrowbandColorizedCombineLabel = newLabel(parent, "Combine", "<p>Specifies how colorized channels are combined.</p>" + 
+                                                                        "<p>Option Channels uses PixelMath. Each colorized channel is assigned to a separate RGB channel in PixelMath.</p>" + 
+                                                                        "<p>Other options use a PixelMath formula combine channels. These options use a single PixelMath expression.</p>" + 
+                                                                        narrowbandColorizedtoolTip);
+      var narrowbandColorizedCombineComboBox = newComboBox(parent, par.narrowband_colorized_combine, narrowband_colorized_combine_values, narrowbandColorizedCombineLabel.toolTip);
+
+      var narrowbandColorizedMappingLabel = newLabel(parent, "Mapping", "<p>Specifies how colorized channels are mapped in case of Channels combine method. Mapping tells how original RGB channel are ordered in the final image.</p>" + 
+                                                             narrowbandColorizedtoolTip);
+      var narrowbandColorizedMappingComboBox = newComboBox(parent, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, narrowbandColorizedMappingLabel.toolTip);
+
+
+      var narrowbandColorizedLinerFitCheckBox = newCheckBox(parent, "Linear fit", par.narrowband_colorized_linear_fit, "<p>If set, channels are liear fit with R channel before colorize.</p>" + narrowbandColorizedtoolTip);
+
+      var narrowbandColorizedPreviewButton = new PushButton( parent );
+      narrowbandColorizedPreviewButton.text = "Preview";
+      narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview of original and final images.</p>" + 
+                                                 "<p>Note that the preview image is always discarded after preview.</p>" +
+                                                 narrowbandColorizedtoolTip;
+      narrowbandColorizedPreviewButton.onClick = function() 
+      {
+            narrowbandColorizedPreview(false);
+      };
+
+      var narrowbandColorizedPreviewMosaicButton = new PushButton( parent );
+      narrowbandColorizedPreviewMosaicButton.text = "Preview mosaic";
+      narrowbandColorizedPreviewMosaicButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
+                                                       "<p>Note that the preview image is always discarded after preview.</p>" +
+                                                       narrowbandColorizedtoolTip;
+      narrowbandColorizedPreviewMosaicButton.onClick = function() 
+      {
+            narrowbandColorizedPreview(true);
+      };
+
+      var hueToolTip = "<p>Color hue for the channel.</p>" + 
+                       "<p>Hue values for basic colors:</p>" + 
+                       "<ul>" +
+                       "<li>Red 0.000 - 0.167</li>" +
+                       "<li>Yellow 0.168 - 0.333</li>" +
+                       "<li>Green 0.334 - 0.500</li>" +
+                       "<li>Cyan 0.501 - 0.667</li>" +
+                       "<li>Blue 0.668 - 0.833</li>" +
+                       "<li>Magenta 0.833 - 1.000</li>" +
+                       "</ul>" +
+                       narrowbandColorizedtoolTip;
+
+      var weightToolTip = "<p>Relative weight for the channel.</p>" +
+                          "<p>Weight is used to adjust relative contribution of each channel to the final image when combining a colorized channel image.</p>" +
+                          "<p>A smaller weight value means darker image and a bigger value means a lighter image.</p>" +
+                          "<p>In case of Colourise combine method weight is used to calculate midtones value using a formula 1-weight/2.</p>" +
+                          "<p>In case of PixelMath combine method each colorized channel is multiplied by the weight value.</p>" +
+                          narrowbandColorizedtoolTip;
+
+      var narrowbandColorized_R_HueControl = newNumericControl3(parent, "R hue", par.narrowband_colorized_R_hue, 0, 1, hueToolTip, updateHueColors);
+      narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
+      var narrowbandColorized_R_SatControl = newNumericControl2(parent, "sat", par.narrowband_colorized_R_sat, 0, 1, narrowbandColorizedtoolTip);
+      narrowbandColorized_R_SatControl.setScaledFixedWidth(sat_width);
+      var narrowbandColorized_R_WeightControl = newNumericControl2(parent, "weight", par.narrowband_colorized_R_weight, 0, 2, weightToolTip);
+      narrowbandColorized_R_WeightControl.setScaledFixedWidth(weight_width);
+      
+      var narrowbandColorized_G_HueControl = newNumericControl3(parent, "G hue", par.narrowband_colorized_G_hue, 0, 1, hueToolTip, updateHueColors);
+      narrowbandColorized_G_HueControl.setScaledFixedWidth(hue_width);
+      var narrowbandColorized_G_SatControl = newNumericControl2(parent, "sat", par.narrowband_colorized_G_sat, 0, 1, narrowbandColorizedtoolTip);
+      narrowbandColorized_G_SatControl.setScaledFixedWidth(sat_width);
+      var narrowbandColorized_G_WeightControl = newNumericControl2(parent, "weight", par.narrowband_colorized_G_weight, 0, 2, weightToolTip);
+      narrowbandColorized_G_WeightControl.setScaledFixedWidth(weight_width);
+      
+      var narrowbandColorized_B_HueControl = newNumericControl3(parent, "B hue", par.narrowband_colorized_B_hue, 0, 1, hueToolTip, updateHueColors);
+      narrowbandColorized_B_HueControl.setScaledFixedWidth(hue_width);
+      var narrowbandColorized_B_SatControl = newNumericControl2(parent, "sat", par.narrowband_colorized_B_sat, 0, 1, narrowbandColorizedtoolTip);
+      narrowbandColorized_B_SatControl.setScaledFixedWidth(sat_width);
+      var narrowbandColorized_B_WeightControl = newNumericControl2(parent, "weight", par.narrowband_colorized_B_weight, 0, 2, weightToolTip);
+      narrowbandColorized_B_WeightControl.setScaledFixedWidth(weight_width);
+
+      var narrowbandColorized_R_hue_sizer = new HorizontalSizer;
+      narrowbandColorized_R_hue_sizer.spacing = 8;
+      narrowbandColorized_R_hue_sizer.add( narrowbandColorized_R_HueControl );
+      narrowbandColorized_R_hue_sizer.add( narrowbandColorized_R_SatControl );
+      narrowbandColorized_R_hue_sizer.add( narrowbandColorized_R_WeightControl );
+      narrowbandColorized_R_hue_sizer.addStretch();
+
+      var narrowbandColorized_G_hue_sizer = new HorizontalSizer;
+      narrowbandColorized_G_hue_sizer.spacing = 8;
+      narrowbandColorized_G_hue_sizer.add( narrowbandColorized_G_HueControl );
+      narrowbandColorized_G_hue_sizer.add( narrowbandColorized_G_SatControl );
+      narrowbandColorized_G_hue_sizer.add( narrowbandColorized_G_WeightControl );
+      narrowbandColorized_G_hue_sizer.addStretch();
+
+      var narrowbandColorized_B_hue_sizer = new HorizontalSizer;
+      narrowbandColorized_B_hue_sizer.spacing = 8;
+      narrowbandColorized_B_hue_sizer.add( narrowbandColorized_B_HueControl );
+      narrowbandColorized_B_hue_sizer.add( narrowbandColorized_B_SatControl );
+      narrowbandColorized_B_hue_sizer.add( narrowbandColorized_B_WeightControl );
+      narrowbandColorized_B_hue_sizer.addStretch();
+
+      var narrowbandColorized_sizer1 = new HorizontalSizer;
+      narrowbandColorized_sizer1.spacing = 6;
+      narrowbandColorized_sizer1.add( narrowbandColorizedCheckBox );
+      if (par.debug.val) {    
+            narrowbandColorized_sizer1.add( narrowbandColorizedIntegratedImagesCheckBox );
+      }
+      narrowbandColorized_sizer1.addSpacing( 12 );
+      narrowbandColorized_sizer1.add( narrowbandColorizedPreviewButton );
+      narrowbandColorized_sizer1.add( narrowbandColorizedPreviewMosaicButton );
+      narrowbandColorized_sizer1.addStretch();
+
+      var narrowbandColorized_sizer2 = new HorizontalSizer;
+      narrowbandColorized_sizer2.spacing = 4;
+      narrowbandColorized_sizer2.add( narrowbandColorizedPresetLabel );
+      narrowbandColorized_sizer2.add( narrowbandColorizedPresetComboBox );
+      narrowbandColorized_sizer2.add( narrowbandColorizedMethodLabel );
+      narrowbandColorized_sizer2.add( narrowbandColorizedMethodComboBox );
+      narrowbandColorized_sizer2.add( narrowbandColorizedCombineLabel );
+      narrowbandColorized_sizer2.add( narrowbandColorizedCombineComboBox );
+      narrowbandColorized_sizer2.add( narrowbandColorizedMappingLabel );
+      narrowbandColorized_sizer2.add( narrowbandColorizedMappingComboBox );
+      narrowbandColorized_sizer2.add( narrowbandColorizedLinerFitCheckBox );
+      narrowbandColorized_sizer2.addStretch();
+
+      var narrowbandColorized_sizer = new VerticalSizer;
+      narrowbandColorized_sizer.spacing = 4;
+      narrowbandColorized_sizer.add( narrowbandColorized_sizer1 );
+      narrowbandColorized_sizer.add( narrowbandColorized_sizer2 );
+      narrowbandColorized_sizer.add( hueColors );
+      narrowbandColorized_sizer.add( narrowbandColorized_R_hue_sizer );
+      narrowbandColorized_sizer.add( narrowbandColorized_G_hue_sizer );
+      narrowbandColorized_sizer.add( narrowbandColorized_B_hue_sizer );
+      //narrowbandColorized_sizer.addStretch();
+
+      return narrowbandColorized_sizer;
+}
 
 function isbatchNarrowbandPaletteMode()
 {
@@ -1027,13 +1296,18 @@ function newRGBNBNumericEdit(parent, txt, param, tooltip)
       return newNumericEdit(parent, txt, param, 0.1, 999, tooltip);
 }
 
-function newNumericControl(parent, txt, param, min, max, tooltip, updatedCallback)
+function newNumericControlEx(parent, txt, param, prec, min, max, tooltip, updatedCallback)
 {
       var edt = new NumericControl( parent );
       edt.label.text = txt;
       edt.setRange(min, max);
-      edt.setPrecision(3);
-      edt.slider.setRange(0.0, 1000.0);
+      if (prec == 3) {
+            edt.setPrecision(3);
+            edt.slider.setRange(0.0, 1000.0);
+      } else {
+            edt.setPrecision(2);
+            edt.slider.setRange(0.0, 100.0);
+      }
       edt.aiParam = param;
       edt.setValue(edt.aiParam.val);
       edt.onValueUpdated = function(value) { 
@@ -1052,6 +1326,16 @@ function newNumericControl(parent, txt, param, min, max, tooltip, updatedCallbac
             }
       };
       return edt;
+}
+
+function newNumericControl2(parent, txt, param, min, max, tooltip, updatedCallback)
+{
+      return newNumericControlEx(parent, txt, param, 2, min, max, tooltip, updatedCallback)
+}
+
+function newNumericControl3(parent, txt, param, min, max, tooltip, updatedCallback)
+{
+      return newNumericControlEx(parent, txt, param, 3, min, max, tooltip, updatedCallback)
 }
 
 function newSpinBox(parent, param, min, max, tooltip)
@@ -1593,14 +1877,44 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
       }
 }
 
+function createEmptyBitmap(width, height, fill_color)
+{
+      var bitmap = new Bitmap(width, height);
+
+      bitmap.fill(fill_color);
+
+      return bitmap;
+}
+
+function createWindowFromBitmap(bitmap, id)
+{
+      var win = new ImageWindow(
+                        bitmap.width,
+                        bitmap.height,
+                        3,
+                        32,
+                        true,
+                        true,
+                        id);
+
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      win.mainView.image.blend(bitmap);
+      win.mainView.endProcess();
+                  
+      return win;
+}
+
 function updatePreviewNoImageInControl(control)
 {
       if (ppar.preview.side_preview_visible) {
-            var bitmap = new Bitmap(ppar.preview.side_preview_width - ppar.preview.side_preview_width/10, ppar.preview.side_preview_height - ppar.preview.side_preview_height/10);
+            var width = ppar.preview.side_preview_width - ppar.preview.side_preview_width/10;
+            var height = ppar.preview.side_preview_height - ppar.preview.side_preview_height/10;
       } else {
-            var bitmap = new Bitmap(ppar.preview.preview_width - ppar.preview.preview_width/10, ppar.preview.preview_height - ppar.preview.preview_height/10);
+            var width = ppar.preview.preview_width - ppar.preview.preview_width/10;
+            var height = ppar.preview.preview_height - ppar.preview.preview_height/10;
       }
-      bitmap.fill(0xff808080);
+
+      var bitmap = createEmptyBitmap(width, height, 0xff808080);
 
       var graphics = new Graphics(bitmap);
       graphics.transparentBackground = true;
@@ -1613,18 +1927,7 @@ function updatePreviewNoImageInControl(control)
 
       graphics.end();
       
-      var startupWindow = new ImageWindow(
-                                    bitmap.width,
-                                    bitmap.height,
-                                    1,
-                                    32,
-                                    true,
-                                    false,
-                                    "AutoIntegrate_startup_preview");
-
-      startupWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-      startupWindow.mainView.image.blend(bitmap);
-      startupWindow.mainView.endProcess();
+      var startupWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
 
       control.UpdateImage(startupWindow, getWindowBitmap(startupWindow));
 
@@ -5976,213 +6279,7 @@ function AutoIntegrateDialog()
       this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
             "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
 
-      var narrowbandColorizedtoolTip =
-            "<p>RGB channels are extraced from the target color image, or optionally linear integrated images (Integration_[SHO]) are used. " + 
-            "Channel images are then colorized and a new RGB image is created. " + 
-            "The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
-            "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
-            "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
-            "preview image is always discarded.</p>" +
-            "<p>With a mapping selection it is possible to change how channels are mapped in the final image.</p>" +
-            "<p>Combine selection gives a few option on how colorized channel images are combioed to and RGB image.</p>" +
-            "<p>Method gived choices on how colorization is done for channel images.</p>" +
-            "<p>Optionally is it possible to run linear fit for channel images before colorizing.</p>" +
-            "<p>Colorizing is inspired by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685), " + 
-            "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>";
-
-      this.narrowbandColorizedCheckBox = newCheckBox(this, "Colorize narrowband", par.run_colorized_narrowband, 
-            "<p>Enhance colors for narrowband and other images.</p>" + narrowbandColorizedtoolTip);
-
-      this.narrowbandColorizedIntegratedImagesCheckBox = newCheckBox(this, "Use integrated images", 
-                                                                     par.colorized_integrated_images, 
-                                                                     "<p>Use linear integrated images (Integration_[SHO]) for colorizing. " + 
-                                                                     "If not selected then RGB channels are extracted from the target image.</p>" +
-                                                                     narrowbandColorizedtoolTip);
-      var hue_width = 400;
-      var sat_width = 200;
-      var weight_width = 200;
-
-      this.hueColors = new AutoIntegrateHueColors(par);
-      this.hueColors.setScaledFixedSize(hue_width,20);
-
-      var hueColors = this.hueColors;
-
-      function updateHueColors()
-      {
-            // console.writeln("updateHueColors");
-            hueColors.repaint();
-      }
-      
-      this.narrowbandColorizedPresetLabel = newLabel(this, "Presets", narrowbandColorizedtoolTip);
-      this.narrowbandColorizedPresetComboBox = newComboBox(this, par.colorized_narrowband_preset, colorized_narrowband_preset_values, narrowbandColorizedtoolTip);
-      this.narrowbandColorizedPresetComboBox.onItemSelected = function( itemIndex )
-      {
-            switch (colorized_narrowband_preset_values[itemIndex]) {
-                  case 'Default':
-                        var hue = [ par.narrowband_colorized_R_hue.def, par.narrowband_colorized_G_hue.def, par.narrowband_colorized_B_hue.def ];
-                        var sat = [ par.narrowband_colorized_R_sat.def, par.narrowband_colorized_G_sat.def, par.narrowband_colorized_B_sat.def ];
-                        var weight = [ 1.0, 1.0, 1.0 ];
-                        break;
-                  case 'North America':
-                        var hue = [ 0.04, 0.104, 0.6 ];
-                        var sat = [ 0.5, 0.5, 0.5 ];
-                        var weight = [ 1.0, 1.0, 1.0 ];
-                        break;
-                  default:
-                        throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
-                        break;
-            }
-
-            par.narrowband_colorized_R_hue.val = hue[0];
-            par.narrowband_colorized_G_hue.val = hue[1];
-            par.narrowband_colorized_B_hue.val = hue[2];
-
-            par.narrowband_colorized_R_sat.val = sat[0];
-            par.narrowband_colorized_G_sat.val = sat[1];
-            par.narrowband_colorized_B_sat.val = sat[2];
-
-            this.dialog.narrowbandColorized_R_HueControl.setValue(hue[0]);
-            this.dialog.narrowbandColorized_G_HueControl.setValue(hue[1]);
-            this.dialog.narrowbandColorized_B_HueControl.setValue(hue[2]);
-
-            this.dialog.narrowbandColorized_R_SatControl.setValue(sat[0]);
-            this.dialog.narrowbandColorized_G_SatControl.setValue(sat[1]);
-            this.dialog.narrowbandColorized_B_SatControl.setValue(sat[2]);
-
-            this.dialog.narrowbandColorized_R_WeightControl.setValue(weight[0]);
-            this.dialog.narrowbandColorized_G_WeightControl.setValue(weight[1]);
-            this.dialog.narrowbandColorized_B_WeightControl.setValue(weight[2]);
-
-            updateHueColors();
-      };
-      function narrowbandColorizedPreview(mosaic) {
-            // make a copy if the current image
-            var extraWin = ImageWindow.windowById(global.extra_target_image);
-            var copyWin = util.copyWindow(extraWin, global.extra_target_image + "_NBCpreview");
-
-            // Process the copy and get channel images
-            var channel_images = engine.extraColorizedNarrowbandImages(copyWin);
-
-            if (mosaic) {
-                  // Create a preview window
-                  var previewWin = createCombinedMosaicPreviewWin([ channel_images[0], channel_images[1], channel_images[2], copyWin ]);
-            } else {
-                  var previewWin = createCombinedMosaicPreviewWin([ extraWin, copyWin ]);
-            }
-
-            // Show the preview window
-            updatePreviewWin(previewWin);
-
-            // Close windows
-            util.forceCloseOneWindow(copyWin);
-            util.forceCloseOneWindow(previewWin);
-            util.forceCloseOneWindow(channel_images[0]);
-            util.forceCloseOneWindow(channel_images[1]);
-            util.forceCloseOneWindow(channel_images[2]);
-      }
-
-      this.narrowbandColorizedMappingLabel = newLabel(this, "Mapping", narrowbandColorizedtoolTip);
-      this.narrowbandColorizedMappingComboBox = newComboBox(this, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, narrowbandColorizedtoolTip);
-
-      this.narrowbandColorizedCombineLabel = newLabel(this, "Combine", narrowbandColorizedtoolTip);
-      this.narrowbandColorizedCombineComboBox = newComboBox(this, par.narrowband_colorized_combine, narrowband_colorized_combine_values, narrowbandColorizedtoolTip);
-
-      this.narrowbandColorizedMethodLabel = newLabel(this, "Method", narrowbandColorizedtoolTip);
-      this.narrowbandColorizedMethodComboBox = newComboBox(this, par.narrowband_colorized_method, narrowband_colorized_method_values, narrowbandColorizedtoolTip);
-
-      this.narrowbandColorizedLinerFitCheckBox = newCheckBox(this, "Linear fit", par.narrowband_colorized_linear_fit, narrowbandColorizedtoolTip);
-
-      this.narrowbandColorizedPreviewButton = new PushButton( this );
-      this.narrowbandColorizedPreviewButton.text = "Preview";
-      this.narrowbandColorizedPreviewButton.toolTip = "<p>Show a preview of original and final images.</p>" + 
-                                                      narrowbandColorizedtoolTip;
-      this.narrowbandColorizedPreviewButton.onClick = function() 
-      {
-            narrowbandColorizedPreview(false);
-      };
-
-      this.narrowbandColorizedPreviewMosaicButton = new PushButton( this );
-      this.narrowbandColorizedPreviewMosaicButton.text = "Preview mosaic";
-      this.narrowbandColorizedPreviewMosaicButton.toolTip = "<p>Show a preview mosaic with all channel images and the final image.</p>" + 
-                                                      narrowbandColorizedtoolTip;
-      this.narrowbandColorizedPreviewMosaicButton.onClick = function() 
-      {
-            narrowbandColorizedPreview(true);
-      };
-
-      this.narrowbandColorized_R_HueControl = newNumericControl(this, "R hue", par.narrowband_colorized_R_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
-      this.narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_R_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_R_sat, 0, 1, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_R_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_R_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_R_weight, 0, 10, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_R_WeightControl.setScaledFixedWidth(weight_width);
-      
-      this.narrowbandColorized_G_HueControl = newNumericControl(this, "G hue", par.narrowband_colorized_G_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
-      this.narrowbandColorized_G_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_G_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_G_sat, 0, 1, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_G_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_G_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_G_weight, 0, 10, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_G_WeightControl.setScaledFixedWidth(weight_width);
-      
-      this.narrowbandColorized_B_HueControl = newNumericControl(this, "B hue", par.narrowband_colorized_B_hue, 0, 1, narrowbandColorizedtoolTip, updateHueColors);
-      this.narrowbandColorized_B_HueControl.setScaledFixedWidth(hue_width);
-      this.narrowbandColorized_B_SatControl = newNumericControl(this, "sat", par.narrowband_colorized_B_sat, 0, 1, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_B_SatControl.setScaledFixedWidth(sat_width);
-      this.narrowbandColorized_B_WeightControl = newNumericControl(this, "weight", par.narrowband_colorized_B_weight, 0, 10, narrowbandColorizedtoolTip);
-      this.narrowbandColorized_B_WeightControl.setScaledFixedWidth(weight_width);
-
-      this.narrowbandColorized_R_hue_sizer = new HorizontalSizer;
-      this.narrowbandColorized_R_hue_sizer.spacing = 8;
-      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_HueControl );
-      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_SatControl );
-      this.narrowbandColorized_R_hue_sizer.add( this.narrowbandColorized_R_WeightControl );
-      this.narrowbandColorized_R_hue_sizer.addStretch();
-
-      this.narrowbandColorized_G_hue_sizer = new HorizontalSizer;
-      this.narrowbandColorized_G_hue_sizer.spacing = 8;
-      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_HueControl );
-      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_SatControl );
-      this.narrowbandColorized_G_hue_sizer.add( this.narrowbandColorized_G_WeightControl );
-      this.narrowbandColorized_G_hue_sizer.addStretch();
-
-      this.narrowbandColorized_B_hue_sizer = new HorizontalSizer;
-      this.narrowbandColorized_B_hue_sizer.spacing = 8;
-      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_HueControl );
-      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_SatControl );
-      this.narrowbandColorized_B_hue_sizer.add( this.narrowbandColorized_B_WeightControl );
-      this.narrowbandColorized_B_hue_sizer.addStretch();
-
-      this.narrowbandColorized_sizer1 = new HorizontalSizer;
-      this.narrowbandColorized_sizer1.spacing = 6;
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedCheckBox );
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedIntegratedImagesCheckBox );
-      this.narrowbandColorized_sizer1.addSpacing( 12 );
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewButton );
-      this.narrowbandColorized_sizer1.add( this.narrowbandColorizedPreviewMosaicButton );
-      this.narrowbandColorized_sizer1.addStretch();
-
-      this.narrowbandColorized_sizer2 = new HorizontalSizer;
-      this.narrowbandColorized_sizer2.spacing = 4;
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedPresetLabel );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedPresetComboBox );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMappingLabel );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMappingComboBox );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedCombineLabel );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedCombineComboBox );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMethodLabel );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedMethodComboBox );
-      this.narrowbandColorized_sizer2.add( this.narrowbandColorizedLinerFitCheckBox );
-      this.narrowbandColorized_sizer2.addStretch();
-
-      this.narrowbandColorized_sizer = new VerticalSizer;
-      this.narrowbandColorized_sizer.spacing = 4;
-      this.narrowbandColorized_sizer.add( this.narrowbandColorized_sizer1 );
-      this.narrowbandColorized_sizer.add( this.narrowbandColorized_sizer2 );
-      this.narrowbandColorized_sizer.add( this.hueColors );
-      this.narrowbandColorized_sizer.add( this.narrowbandColorized_R_hue_sizer );
-      this.narrowbandColorized_sizer.add( this.narrowbandColorized_G_hue_sizer );
-      this.narrowbandColorized_sizer.add( this.narrowbandColorized_B_hue_sizer );
-      //this.narrowbandColorized_sizer.addStretch();
+      this.narrowbandColorized_sizer = getNarrowbandColorizedSizer(this);
 
       this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
             "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");

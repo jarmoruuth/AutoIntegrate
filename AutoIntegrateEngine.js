@@ -9854,6 +9854,116 @@ function extraSHOHueShift(imgWin)
       // guiUpdatePreviewWin(imgWin);
 }
 
+function extraColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, curves_B)
+{
+      console.writeln("extraColorizeChannelCurves: " + imgWin.mainView.id + " channel: " + channel);
+
+      var ch_win = util.findWindow(ch_id); 
+      var ch_mask_win = newMaskWindow(ch_win, "auto_tmp_mask_" + channel, true);
+
+      // convert to RGB
+      var P = new ConvertToRGBColor;
+      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(ch_win.mainView);
+      ch_win.mainView.endProcess();
+
+      runNoiseReductionEx(ch_win, ch_mask_win, 4, false);
+
+      // run curves transformation with a mask
+      var P = new CurvesTransformation;
+
+      if (curves_R != null) {
+            P.R = curves_R;
+      }
+      if (curves_G != null) {
+            P.G = curves_G;
+      }
+      if (curves_B != null) {
+            P.B = curves_B;
+      }
+
+      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      /* Colorize only light parts of the image. */
+      setMaskChecked(ch_win, ch_mask_win);
+      ch_win.maskInverted = false;
+      
+      for (var i = 0; i < 2; i++) {
+            P.executeOn(ch_win.mainView, false);
+      }
+
+      ch_win.removeMask();
+      ch_win.mainView.endProcess();
+
+      guiUpdatePreviewWin(ch_win);
+
+      util.closeOneWindow(ch_mask_win.mainView.id);
+
+      return ch_win;
+}
+
+function extraColorizedSHO(imgWin, channel, ch_id)
+{
+      addExtraProcessingStep("Colorized SHO");
+
+      switch (channel) {
+            case 'R':
+                  var curves_S_R = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.39901, 0.63800],
+                        [1.00000, 1.00000]
+                  ];
+                  var curves_S_B = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.52709, 0.46200],
+                        [1.00000, 1.00000]
+                  ];
+                  var id = extraColorizeChannelCurves(imgWin, "R", ch_id, curves_S_R, null, curves_S_B).mainView.id;
+                  break;
+            case 'G':      
+                  var curves_H_R = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.43186, 0.58200],
+                        [1.00000, 1.00000]
+                  ];
+                  var curves_H_G = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.14614, 0.14600],
+                        [0.72578, 0.76000],
+                        [1.00000, 1.00000]
+                  ];
+                  var curves_H_B = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.54023, 0.45400],
+                        [1.00000, 1.00000]
+                  ];
+                  var id = extraColorizeChannelCurves(imgWin, "G", ch_id, curves_H_R, curves_H_G, curves_H_B).mainView.id;
+                  break;
+            case 'B':
+                  var curves_O_R = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.52874, 0.46400],
+                        [1.00000, 1.00000]
+                  ];
+                  var curves_O_G = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.51560, 0.47200],
+                        [1.00000, 1.00000]
+                  ];
+                  var curves_O_B = [ // x, y
+                        [0.00000, 0.00000],
+                        [0.42200, 0.61400],
+                        [1.00000, 1.00000]
+                  ];
+                  var id = extraColorizeChannelCurves(imgWin, "B", ch_id, curves_O_R, curves_O_G, curves_O_B).mainView.id;
+                  break;
+            default:
+                  util.throwFatalError("Invalid channel " + channel);
+                  break;
+      }
+
+     return util.findWindow(id);
+}
+
 function getColorizeChannels(imgWin)
 {
       var channel_wins = [];
@@ -9899,45 +10009,36 @@ function getColorizeChannels(imgWin)
 
 function extraColorizeChannelUsingColourise(ch_win, channel)
 {
-      var midtones = 0.5;
+      var P = new Colourise;
 
       switch (channel) {
             case 'R':
-                  console.writeln("Colorize channel R using Colourise, hue " + par.narrowband_colorized_R_hue.val + ", saturation " + par.narrowband_colorized_R_sat.val);
-                  var P = new Colourise;
                   P.hue = par.narrowband_colorized_R_hue.val;
                   P.saturation = par.narrowband_colorized_R_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = midtones;
+                  P.midtones = 1 - par.narrowband_colorized_R_weight.val / 2;
                   break;
             case 'G':
-                  console.writeln("Colorize channel G using Colourise, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
-                  var P = new Colourise;
                   P.hue = par.narrowband_colorized_G_hue.val;
                   P.saturation = par.narrowband_colorized_G_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = midtones;
+                  P.midtones = 1 - par.narrowband_colorized_G_weight.val / 2;
                   break;
             case 'B':
-                  console.writeln("Colorize channel B using Colourise, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
-                  var P = new Colourise;
                   P.hue = par.narrowband_colorized_B_hue.val;
                   P.saturation = par.narrowband_colorized_B_sat.val;
                   P.shadows = 0.000;
-                  P.midtones = midtones;
+                  P.midtones = 1 - par.narrowband_colorized_B_weight.val / 2;
                   break;
             default:
                   util.throwFatalError("extraColorizeChannelUsingColourise: Invalid channel " + channel);
                   break;
       }
-
-      console.writeln("extraColorizeChannelUsingColourise: mean before " + ch_win.mainView.image.mean());
+      console.writeln("Colorize channel " + channel + " using Colourise, hue " + P.hue + ", saturation " + P.saturation + ", midtones " + P.midtones);
 
       ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(ch_win.mainView);
       ch_win.mainView.endProcess();
-
-      console.writeln("extraColorizeChannelUsingColourise: mean after " + ch_win.mainView.image.mean());
 
       return ch_win;
 }
@@ -9950,17 +10051,17 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel, weight)
             case 'R':
                   console.writeln("Colorize channel R using PixelMath, hue " + par.narrowband_colorized_R_hue.val + ", saturation " + par.narrowband_colorized_R_sat.val);
                   var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_R_hue.val, par.narrowband_colorized_R_sat.val, midtones);
-                  console.writeln("RGB " + rgb[0] + ", " + rgb[1] + ", " + rgb[2]);
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
                   break;
             case 'G':
                   console.writeln("Colorize channel G using PixelMath, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
                   var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_G_hue.val, par.narrowband_colorized_G_sat.val, midtones);
-                  console.writeln("RGB " + rgb[0] + ", " + rgb[1] + ", " + rgb[2]);
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
                   break;
             case 'B':
                   console.writeln("Colorize channel B using PixelMath, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
                   var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_B_hue.val, par.narrowband_colorized_B_sat.val, midtones);
-                  console.writeln("RGB " + rgb[0] + ", " + rgb[1] + ", " + rgb[2]);
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
                   break;
             default:
                   util.throwFatalError("extraColorizeChannelUsingPixelMath: Invalid channel " + channel);
@@ -10016,6 +10117,11 @@ this.extraColorizedNarrowbandImages = function(imgWin)
                   channel_wins[0] = extraColorizeChannelUsingPixelMath(channel_wins[0], 'R', par.narrowband_colorized_R_weight.val);
                   channel_wins[1] = extraColorizeChannelUsingPixelMath(channel_wins[1], 'G', par.narrowband_colorized_G_weight.val);
                   channel_wins[2] = extraColorizeChannelUsingPixelMath(channel_wins[2], 'B', par.narrowband_colorized_B_weight.val);
+                  break;
+            case 'Curves':
+                  channel_wins[0] = extraColorizedSHO(channel_wins[0], 'R', channel_wins[0].mainView.id);
+                  channel_wins[1] = extraColorizedSHO(channel_wins[1], 'G', channel_wins[1].mainView.id);
+                  channel_wins[2] = extraColorizedSHO(channel_wins[2], 'B', channel_wins[2].mainView.id);
                   break;
             default:
                   util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized method " + par.narrowband_colorized_method.val);
