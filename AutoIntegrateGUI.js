@@ -267,8 +267,14 @@ var preview_keep_zoom = false;
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
 
-var undo_images = [];
-var undo_images_pos = -1;
+var extra_gui_info = { 
+      undo_images: [], 
+      undo_images_pos: -1, 
+      undo_button: null, 
+      redo_button: null, 
+      images_combobox: null,
+      save_button: null
+};
 
 var monochrome_text = "Monochrome: ";
 
@@ -312,6 +318,36 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
+
+var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
+
+var stars_combine_operations_Tooltip =    "<p>Possible combine operations are:</p>" +
+                                          "<ul>" + 
+                                          "<li>Add - Use stars+starless formula in Pixelmath</li>" +
+                                          "<li>Screen - Similar to screen in Photoshop</li>" +
+                                          "<li>Lighten - Similar to lighten in Photoshop</li>" +
+                                          "</ul>";
+
+var unscreen_tooltip =                    "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
+                                          "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
+                                          "recommended to use Screen method when combining star and starless images back together.<p>";
+
+var smoothBackgroundTooltipGeneric =      "<p>A limit value specifies below which the smoothing is done. " + 
+                                          "The value should be selected so that no foreground data is lost.</p>" + 
+                                          "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
+                                          "The new pixel values will be slightly higher than the old values.</p>" +
+                                          "<p>Smoothening can also help ABE to clean up the background better in case of " + 
+                                          "very uneven background.</p>";
+
+var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
+                                          "Bigger strength value means stronger noise reduction. Noise reduction uses MultiscaleLinerTransform or NoiseXTerminator.</p>" + 
+                                          "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
+                                          "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
+                                          "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
+                                          "and detail: 1=0.60 0.10, 2=0.70 0.15 3=0.80 0.15 4=0.90 0.15, 5=0.90 0.20 and 6=0.95 0.20.t</p>";
+
+var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
+                                          "left from previous noise reduction.</p>";
 
 function getNarrowbandColorizedSizer(parent)
 {
@@ -583,6 +619,776 @@ function getNarrowbandColorizedSizer(parent)
       return narrowbandColorized_sizer;
 }
 
+function extraProcessingGUI(parent)
+{
+      this.__base__ = Object;
+      this.__base__();
+
+      // Foraxx mapping
+      this.narrowband_Foraxx_CheckBox = newCheckBox(parent, "Foraxx mapping", par.run_foraxx_mapping, 
+            "<p>Use dynamic Foraxx palette on image.</p>" +
+            "<p>Foraxx mapping can be done on SHO or HOO image. Channels are extracted from the SHO or HOO " + 
+            "image and mapped again to create a dynamic Foraxx palette imege.</p>" +
+            "<p>After Foraxx SHO mapping <i>Remove green cast</i> and <i>Orange/blue colors</i> are run for the image.</p>" +
+            "<p>To run basic Foraxx SHO mapping use <i>SHO mapping</i> and select <i>Dynamic SHO</i>.</p>" +
+            "<p>" + Foraxx_credit + "</p>" );
+      this.narrowband_Foraxx_palette_ComboBox = newComboBox(parent, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
+
+      this.ForaxxSizer = new HorizontalSizer;
+      this.ForaxxSizer.spacing = 4;
+      this.ForaxxSizer.add( this.narrowband_Foraxx_CheckBox );
+      this.ForaxxSizer.add( this.narrowband_Foraxx_palette_ComboBox );
+      this.ForaxxSizer.addStretch();
+
+      // SHO mapping
+      this.extra_SHO_mapping_values = [];
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            if (global.narrowBandPalettes[i].sho_mappable) {
+                  this.extra_SHO_mapping_values.push(global.narrowBandPalettes[i].name);
+            }
+      }
+      this.extra_narrowband_mapping_CheckBox = newCheckBox(parent, "Narrowband mapping", par.run_extra_narrowband_mapping, 
+            "<p>Map source narrowband image to a new narrowband palette.</p>" +
+            "<p>Mapping can be done only on SHO or HOO images. Channels are extracted from the SHO or HOO " + 
+            "image and mapped again to create a new palette imege.</p>");
+      this.extra_narrowband_source_palette_ComboBox = newComboBox(parent, par.extra_narrowband_mapping_source_palette, Foraxx_palette_values, this.extra_narrowband_mapping_CheckBox.toolTip);
+      this.extra_narrowband_target_mapping_Label = newLabel(parent, "to", this.extra_narrowband_mapping_CheckBox.toolTip);
+      this.extra_narrowband_target_palette_ComboBox = newComboBox(parent, par.extra_narrowband_mapping_target_palette, this.extra_SHO_mapping_values, this.extra_narrowband_mapping_CheckBox.toolTip);
+
+      this.extraSHOMappingSizer = new HorizontalSizer;
+      this.extraSHOMappingSizer.spacing = 4;
+      this.extraSHOMappingSizer.add( this.extra_narrowband_mapping_CheckBox );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_source_palette_ComboBox );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_target_mapping_Label );
+      this.extraSHOMappingSizer.add( this.extra_narrowband_target_palette_ComboBox );
+      this.extraSHOMappingSizer.addStretch();
+
+      this.narrowband_orangeblue_colors_CheckBox = newCheckBox(parent, "Orange/blue colors", par.run_orangeblue_colors, 
+            "<p>Enhance image by shifting red colors more to  orange and enhancing blues. Useful for example with Foraxx palette.</p>");
+
+      this.fix_narrowband_star_color_CheckBox = newCheckBox(parent, "Fix star colors", par.fix_narrowband_star_color, 
+            "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
+      this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for less green", par.run_less_green_hue_shift, 
+            "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
+      this.narrowband_orange_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for more orange", par.run_orange_hue_shift, 
+            "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
+      this.narrowband_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for SHO", par.run_hue_shift, 
+            "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
+
+      this.narrowbandColorized_sizer = getNarrowbandColorizedSizer(parent);
+
+      this.narrowband_leave_some_green_CheckBox = newCheckBox(parent, "Leave some green", par.leave_some_green, 
+            "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
+      this.narrowband_leave_some_green_Edit = newNumericEdit(parent, "Amount", par.leave_some_green_amount, 0, 1, 
+            "<p>Amount value 0 keeps all the green, value 1 removes all green.</p>");
+      this.narrowband_leave_some_green_sizer = new HorizontalSizer;
+      this.narrowband_leave_some_green_sizer.spacing = 4;
+      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_CheckBox );
+      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_Edit );
+      this.narrowband_leave_some_green_sizer.addStretch();
+      this.run_narrowband_SCNR_CheckBox = newCheckBox(parent, "Remove green cast", par.run_narrowband_SCNR, 
+            "<p>Run SCNR to remove green cast. Useful with SHO color palette.</p>");
+      this.no_star_fix_mask_CheckBox = newCheckBox(parent, "No mask when fixing star colors", par.skip_star_fix_mask, 
+            "<p>Do not use star mask when fixing star colors</p>" );
+      this.remove_magenta_color_CheckBox = newCheckBox(parent, "Remove magenta color", par.remove_magenta_color, 
+            "<p>Remove magenta color from image.</p>" );
+
+      this.narrowbandOptions1_sizer = new VerticalSizer;
+      this.narrowbandOptions1_sizer.margin = 6;
+      this.narrowbandOptions1_sizer.spacing = 4;
+      this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
+      this.narrowbandOptions1_sizer.add( this.extraSHOMappingSizer );
+      this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
+
+      this.narrowbandOptions2_sizer = new VerticalSizer;
+      this.narrowbandOptions2_sizer.margin = 6;
+      this.narrowbandOptions2_sizer.spacing = 4;
+      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
+      this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
+      this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
+
+      var narrowbandExtraLabeltoolTip = 
+            "<p>" +
+            "Extra processing options to be applied on narrowband images. "+
+            "They are applied before other extra processing options in the following order:" +
+            "</p>" +
+            "<ol>" +
+            "<li>Hue shift for less green</li>" +
+            "<li>Hue shift for more orange</li>" +
+            "<li>Hue shift for SHO</li>" +
+            "<li>Colorized narrowband</li>" +
+            "<li>Remove green cast/Leave some green</li>" +
+            "<li>Remove magenta color</li>" +
+            "<li>Fix star colors</li>" +
+            "</ol>";
+      this.narrowbandExtraOptionsSizer = new HorizontalSizer;
+      //this.narrowbandExtraOptionsSizer.margin = 6;
+      //this.narrowbandExtraOptionsSizer.spacing = 4;
+      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions1_sizer );
+      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions2_sizer );
+      this.narrowbandExtraOptionsSizer.toolTip = narrowbandExtraLabeltoolTip;
+      this.narrowbandExtraOptionsSizer.addStretch();
+
+      // Extra processing
+      var extraRemoveStars_Tooltip = 
+            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
+            "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
+            "<p>At the end of the processing a combined image can be created from starless and star images. Combine operation can be " + 
+            "selected from the combo box.</p>" +
+            stars_combine_operations_Tooltip;
+      this.extraRemoveStars_CheckBox = newCheckBox(parent, "Remove stars", par.extra_remove_stars, extraRemoveStars_Tooltip);
+      this.extraUnscreenStars_CheckBox = newCheckBox(parent, "Unscreen", par.extra_unscreen_stars, unscreen_tooltip);
+      this.extraRemoveStars_Sizer = new HorizontalSizer;
+      this.extraRemoveStars_Sizer.spacing = 4;
+      this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
+      this.extraRemoveStars_Sizer.add( this.extraUnscreenStars_CheckBox);
+      this.extraRemoveStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
+      this.extraRemoveStars_Sizer.addStretch();
+
+      var extraCombineStarsReduce_Tooltip =
+            "<p>With reduce selection it is possible to reduce stars while combining. " +
+            "Star reduction uses PixelMath expressions created by Bill Blanshan.</p>" +
+            "<p>Different methods are:</p>" +
+            "<p>" +
+            "None - No reduction<br>" +
+            "Transfer - Method 1, Transfer method<br>" +
+            "Halo - Method 2, Halo method<br>" +
+            "Star - Method 3, Star method" +
+            "</p>";
+      var extraCombineStars_Tooltip = 
+            "<p>Create a combined image from starless and star images. Combine operation can be " + 
+            "selected from the combo box. To use combine you need to have starless image selected as the " + 
+            "target image. Stars image must be open in the desktop.</p>" +
+            "<p>Star image is searched using the following steps:</p>" +
+            "<ol>" +
+            "<li>All occurances of text starless replaced with text stars</li>" +
+            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
+            "<li>Text starless at the end replaced with text stars</li>" +
+            "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>" +
+            "<li>Text starless and any text that follows it (starless.*) replaced with text stars and any text after text stars " + 
+            "is accepted (stars.*). So starless image <i>sameprefix</i>_starless_<i>whatever</i> is matched with stars image " + 
+            "<i>sameprefix</i>_stars_<i>doesnotmatterwhatishere</i>.</li>" +
+            "</ol>" +
+            stars_combine_operations_Tooltip + 
+            extraCombineStarsReduce_Tooltip;
+      this.extraCombineStars_CheckBox = newCheckBox(parent, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
+      this.extraCombineStars_ComboBox = newComboBox(parent, par.extra_combine_stars_mode, starless_and_stars_combine_values, extraCombineStars_Tooltip);
+      
+      this.extraCombineStars_Sizer1= new HorizontalSizer;
+      this.extraCombineStars_Sizer1.spacing = 4;
+      this.extraCombineStars_Sizer1.add( this.extraCombineStars_CheckBox);
+      this.extraCombineStars_Sizer1.add( this.extraCombineStars_ComboBox);
+      this.extraCombineStars_Sizer1.toolTip = narrowbandExtraLabeltoolTip;
+      this.extraCombineStars_Sizer1.addStretch();
+
+      this.extraCombineStarsReduce_Label = newLabel(parent, "Reduce stars", extraCombineStarsReduce_Tooltip);
+      this.extraCombineStarsReduce_ComboBox = newComboBox(parent, par.extra_combine_stars_reduce, star_reduce_methods, 
+            extraCombineStarsReduce_Tooltip);
+      this.extraCombineStarsReduce_S_edit = newNumericEdit(parent, 'S', par.extra_combine_stars_reduce_S, 0.0, 1.0, 
+            "<p>To reduce stars size more with Transfer and Halo, lower S value.<p>" + extraCombineStarsReduce_Tooltip);
+      var extraCombineStarsReduce_M_toolTip = "<p>Star method mode; 1=Strong; 2=Moderate; 3=Soft reductions.</p>" + extraCombineStarsReduce_Tooltip;
+      this.extraCombineStarsReduce_M_Label = newLabel(parent, "I", extraCombineStarsReduce_M_toolTip);
+      this.extraCombineStarsReduce_M_SpinBox = newSpinBox(parent, par.extra_combine_stars_reduce_M, 1, 3, 
+            extraCombineStarsReduce_M_toolTip);
+
+      this.extraCombineStars_Sizer2 = new HorizontalSizer;
+      this.extraCombineStars_Sizer2.spacing = 4;
+      this.extraCombineStars_Sizer2.addSpacing(20);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_Label);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_ComboBox);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
+      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
+      this.extraCombineStars_Sizer2.toolTip = narrowbandExtraLabeltoolTip;
+      this.extraCombineStars_Sizer2.addStretch();
+
+      this.extraStarsImageLabel = newLabel(parent, "Starless image", "Text Auto or empty image uses default starless image.");
+      this.extraStarsImageEdit = newTextEdit(parent, par.extra_combine_stars_image, this.extraStarsImageLabel.toolTip);
+      this.extraStarsImageSelectButton = new ToolButton(parent);
+      this.extraStarsImageSelectButton.text = "Select";
+      this.extraStarsImageSelectButton.icon = parent.scaledResource(":/icons/find.png");
+      this.extraStarsImageSelectButton.toolTip = "<p>Select stars image manually from open images.</p>";
+      this.extraStarsImageSelectButton.onClick = function()
+      {
+            let selectStars = new AutoIntegrateSelectStarsImageDialog(util);
+            selectStars.windowTitle = "Select Stars Image";
+            if (selectStars.execute()) {
+                  if (selectStars.name == null) {
+                        console.writeln("Stars image not selected");
+                        return;
+                  }
+                  console.writeln("Stars image name " + selectStars.name);
+                  parent.dialog.extraStarsImageEdit.text = selectStars.name;
+                  par.extra_combine_stars_image.val = selectStars.name;
+            }
+      };
+
+      this.extraCombineStarsSelect_Sizer = new HorizontalSizer;
+      this.extraCombineStarsSelect_Sizer.spacing = 4;
+      this.extraCombineStarsSelect_Sizer.addSpacing(20);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageLabel);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageEdit);
+      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageSelectButton);
+
+      this.extraCombineStars_Sizer = new VerticalSizer;
+      this.extraCombineStars_Sizer.spacing = 4;
+      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer1);
+      this.extraCombineStars_Sizer.add( this.extraCombineStarsSelect_Sizer );
+      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer2);
+      this.extraCombineStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
+      this.extraCombineStars_Sizer.addStretch();
+
+      this.extraDarkerBackground_CheckBox = newCheckBox(parent, "Darker background", par.extra_darker_background, 
+            "<p>Make image background darker using a lightness mask.</p>" );
+      this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
+            "<p>Make image highlights darker using a lightness mask.</p>" );
+      this.extraABE_CheckBox = newCheckBox(parent, "ABE", par.extra_ABE, 
+            "<p>Run AutomaticBackgroundExtractor.</p>" );
+
+      var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
+      this.extra_ET_CheckBox = newCheckBox(parent, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
+      this.extra_ET_edit = newNumericEdit(parent, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
+      this.extra_ET_Sizer = new HorizontalSizer;
+      this.extra_ET_Sizer.spacing = 4;
+      this.extra_ET_Sizer.add( this.extra_ET_CheckBox );
+      this.extra_ET_Sizer.add( this.extra_ET_edit );
+      this.extra_ET_Sizer.toolTip = extra_ET_tooltip;
+      this.extra_ET_Sizer.addStretch();
+
+      var extra_HDRMLT_tooltip = "<p>Run HDRMultiscaleTransform on image using a mask.</p>" +
+                                 "<p>Color option is used to select different methods to keep hue and saturation.</p> " + 
+                                 "<ul>" +
+                                 "<li>Option 'None' uses HDRMLT To lightness option.</li>" + 
+                                 "<li>Option 'Preserve hue' uses HDRMLT preserve hue option.</li>" + 
+                                 "<li>Option 'Color corrected' uses To Intensity instead of To lightness. It applies HSI transformation to the intensity component. " + 
+                                 "In PixInsight 1.8.9-1 or older it uses a method described by Russell Croman</li>" + 
+                                 "</ul>" +
+                                 "<p>Layers selection specifies the layers value for HDRMLT.</p>";
+      this.extra_HDRMLT_CheckBox = newCheckBox(parent, "HDRMultiscaleTransform", par.extra_HDRMLT, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Layers_Label = new Label( parent );
+      this.extra_HDRMLT_Layers_Label.text = "Layers";
+      this.extra_HDRMLT_Layers_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extra_HDRMLT_Layers_Label.toolTip = extra_HDRMLT_tooltip;
+      this.extra_HDRMLT_Layers_SpinBox = newSpinBox(parent, par.extra_HDRMLT_layers, 2, 10, extra_HDRMLT_tooltip);
+      this.extra_HDRMLT_Overdrive_Edit = newNumericEditPrecision(parent, "Overdrive", par.extra_HDRMLT_overdrive, 0, 1, extra_HDRMLT_tooltip, 3);
+      this.extra_HDRMLT_Iterations_Label = newLabel(parent, "Iterations", extra_HDRMLT_tooltip);
+      this.extra_HDRMLT_Iterations_SpinBox = newSpinBox(parent, par.extra_HDRMLT_iterations, 1, 16, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Color_Label = new Label( parent );
+      this.extra_HDRMLT_Color_Label.text = "Color";
+      this.extra_HDRMLT_Color_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extra_HDRMLT_Color_Label.toolTip = extra_HDRMLT_tooltip;
+      this.extra_HDRMLT_color_ComboBox = newComboBox(parent, par.extra_HDRMLT_color, extra_HDRMLT_color_values, extra_HDRMLT_tooltip);
+
+      this.extra_HDRMLT_Options_Sizer = new HorizontalSizer;
+      this.extra_HDRMLT_Options_Sizer.spacing = 4;
+      this.extra_HDRMLT_Options_Sizer.addSpacing(20);
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_Label );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_SpinBox );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_Label );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_SpinBox );
+      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Overdrive_Edit );
+      this.extra_HDRMLT_Options_Sizer.addStretch();
+
+      this.extra_HDRMLT_Options_Sizer2 = new HorizontalSizer;
+      this.extra_HDRMLT_Options_Sizer2.spacing = 4;
+      this.extra_HDRMLT_Options_Sizer2.addSpacing(20);
+      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_Color_Label );
+      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_color_ComboBox );
+      this.extra_HDRMLT_Options_Sizer2.addStretch();
+
+      this.extra_HDRMLT_Sizer = new VerticalSizer;
+      this.extra_HDRMLT_Sizer.spacing = 4;
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_CheckBox );
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer );
+      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer2 );
+            
+      var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
+      this.extra_LHE_CheckBox = newCheckBox(parent, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
+      this.extra_LHE_edit = newNumericEdit(parent, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "Kernel radius value for LocalHistogramEqualization.");
+      this.extra_LHE_sizer = new HorizontalSizer;
+      this.extra_LHE_sizer.spacing = 4;
+      this.extra_LHE_sizer.add( this.extra_LHE_CheckBox );
+      this.extra_LHE_sizer.add( this.extra_LHE_edit );
+      this.extra_LHE_sizer.toolTip = extra_LHE_tooltip;
+      this.extra_LHE_sizer.addStretch();
+      
+      this.extra_Contrast_CheckBox = newCheckBox(parent, "Add contrast", par.extra_contrast, 
+            "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
+      this.contrastIterationsSpinBox = newSpinBox(parent, par.extra_contrast_iterations, 1, 5, "Number of iterations for contrast enhancement");
+      this.contrastIterationsLabel = new Label( parent );
+      this.contrastIterationsLabel.text = "iterations";
+      this.contrastIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.contrastIterationsLabel.toolTip = this.contrastIterationsSpinBox.toolTip;
+      this.extraContrastSizer = new HorizontalSizer;
+      this.extraContrastSizer.spacing = 4;
+      this.extraContrastSizer.add( this.extra_Contrast_CheckBox );
+      this.extraContrastSizer.add( this.contrastIterationsSpinBox );
+      this.extraContrastSizer.add( this.contrastIterationsLabel );
+      this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
+      this.extraContrastSizer.addStretch();
+
+      var extraAutoContrastTooltip = "<p>Do automatic contrast enhancement. Works best with starless image.</p>";
+      this.extraAutoContrastCheckBox = newCheckBox(parent, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
+      this.extraAutoContrastEditLow = newNumericEditPrecision(parent, 'low', par.extra_auto_contrast_limit_low, 0, 100, "Percentage of clipped low pixels.", 4);
+      this.extraAutoContrastEditHigh = newNumericEditPrecision(parent, 'high', par.extra_auto_contrast_limit_high, 0, 100, "Percentage of preserved high pixels.", 4);
+      this.extraAutoContrastChannelsCheckBox = newCheckBox(parent, "channels,", par.extra_auto_contrast_channels, "Apply auto contrast separately for each channel.");
+      this.extraAutoContrastSizer = new HorizontalSizer;
+      this.extraAutoContrastSizer.spacing = 4;
+      this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastEditLow );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastEditHigh );
+      this.extraAutoContrastSizer.add( this.extraAutoContrastChannelsCheckBox );
+      this.extraAutoContrastSizer.toolTip = extraAutoContrastTooltip;
+      this.extraAutoContrastSizer.addStretch();
+
+      this.extra_stretch_CheckBox = newCheckBox(parent, "Auto stretch", par.extra_stretch, 
+            "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
+      this.extra_autostf_CheckBox = newCheckBox(parent, "AutoSTF", par.extra_autostf, 
+            "<p>Run unlinked AutoSTF stretch on image. Can be helpful in balancing image.</p>" );
+
+      this.extra_force_new_mask_CheckBox = newCheckBox(parent, "New mask", par.extra_force_new_mask, 
+            "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
+      this.extra_auto_reset_CheckBox = newCheckBox(parent, "Auto reset", par.extra_auto_reset, 
+            "<p>If using Apply button, uncheck options when they are applied.</p>" );
+
+      var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
+      this.extra_shadowclip_CheckBox = newCheckBox(parent, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
+      this.extra_shadowclipperc_edit = newNumericEditPrecision(parent, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
+      this.extra_shadowclip_Sizer = new HorizontalSizer;
+      this.extra_shadowclip_Sizer.spacing = 4;
+      this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
+      this.extra_shadowclip_Sizer.add( this.extra_shadowclipperc_edit );
+      this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
+      this.extra_shadowclip_Sizer.addStretch();
+
+      var extraEnhanceShadowsTooltip = "<p>Enhance shadows by using log function on each pixel.</p>";
+      this.extraEnhanceShadowsCheckBox = newCheckBox(parent, "Enhance shadows", par.extra_shadow_enhance, extraEnhanceShadowsTooltip);
+      this.extraEnhanceShadowsSizer = new HorizontalSizer;
+      this.extraEnhanceShadowsSizer.spacing = 4;
+      this.extraEnhanceShadowsSizer.add( this.extraEnhanceShadowsCheckBox );
+      this.extraEnhanceShadowsSizer.toolTip = shadowclipTooltip;
+      this.extraEnhanceShadowsSizer.addStretch();
+
+      var extraEnhanceHighlightsTooltip = "<p>Enhance highlights by using exp function on each pixel.</p>";
+      this.extraEnhanceHighlightsCheckBox = newCheckBox(parent, "Enhance highlights", par.extra_highlight_enhance, extraEnhanceHighlightsTooltip);
+      this.extraEnhanceHighlightsSizer = new HorizontalSizer;
+      this.extraEnhanceHighlightsSizer.spacing = 4;
+      this.extraEnhanceHighlightsSizer.add( this.extraEnhanceHighlightsCheckBox );
+      this.extraEnhanceHighlightsSizer.toolTip = shadowclipTooltip;
+      this.extraEnhanceHighlightsSizer.addStretch();
+
+      var smoothBackgroundTooltip = 
+            "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
+            "from the preview image using a mouse.</p>" +
+            smoothBackgroundTooltipGeneric;
+
+      this.extra_smoothBackground_CheckBox = newCheckBox(parent, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
+      this.extra_smoothBackground_edit = newNumericEditPrecision(parent, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 4);
+      this.extra_smoothBackground_Sizer = new HorizontalSizer;
+      this.extra_smoothBackground_Sizer.spacing = 4;
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_CheckBox );
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_edit );
+      this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
+      this.extra_smoothBackground_Sizer.addStretch();
+
+      var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>";
+
+      this.extraAdjustChannelsCheckBox = newCheckBox(parent, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelR = newNumericEdit(parent, "R", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelG = newNumericEdit(parent, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelB = newNumericEdit(parent, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
+
+      this.extraAdjustChannelDefaultsButton = new ToolButton(parent);
+      this.extraAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
+      this.extraAdjustChannelDefaultsButton.toolTip = 
+            "<p>Reset channel adjust values to defaults.</p>";
+      this.extraAdjustChannelDefaultsButton.onMousePress = function()
+      {
+            par.extra_adjust_R.val = par.extra_adjust_R.def;
+            par.extra_adjust_G.val = par.extra_adjust_G.def;
+            par.extra_adjust_B.val = par.extra_adjust_B.def;
+            parent.dialog.extraAdjustChannelR.setValue(par.extra_adjust_R.val);
+            parent.dialog.extraAdjustChannelG.setValue(par.extra_adjust_G.val);
+            parent.dialog.extraAdjustChannelB.setValue(par.extra_adjust_B.val);
+      };
+
+      this.extraAdjustChannelsSizer = new HorizontalSizer;
+      this.extraAdjustChannelsSizer.spacing = 4;
+      this.extraAdjustChannelsSizer.margin = 2;
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelsCheckBox );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelB );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelDefaultsButton );
+      this.extraAdjustChannelsSizer.addStretch();
+
+      this.extra_SmallerStars_CheckBox = newCheckBox(parent, "Smaller stars", par.extra_smaller_stars, 
+            "<p>Make stars smaller on image.</p>" );
+      this.smallerStarsIterationsSpinBox = newSpinBox(parent, par.extra_smaller_stars_iterations, 0, 10, 
+            "Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection");
+      this.smallerStarsIterationsLabel = new Label( parent );
+      this.smallerStarsIterationsLabel.text = "iterations";
+      this.smallerStarsIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.smallerStarsIterationsLabel.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
+      this.extraSmallerStarsSizer = new HorizontalSizer;
+      this.extraSmallerStarsSizer.spacing = 4;
+      this.extraSmallerStarsSizer.add( this.extra_SmallerStars_CheckBox );
+      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsSpinBox );
+      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsLabel );
+      this.extraSmallerStarsSizer.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
+      this.extraSmallerStarsSizer.addStretch();
+
+      var extra_noise_reduction_tooltip = "<p>Noise reduction on image.</p>" + noiseReductionToolTipCommon;
+      this.extra_NoiseReduction_CheckBox = newCheckBox(parent, "Noise reduction", par.extra_noise_reduction, 
+            extra_noise_reduction_tooltip);
+
+      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(parent, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
+      this.extraNoiseReductionStrengthLabel = new Label( parent );
+      this.extraNoiseReductionStrengthLabel.text = "strength";
+      this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraNoiseReductionStrengthLabel.toolTip = extra_noise_reduction_tooltip;
+      this.extraNoiseReductionStrengthSizer = new HorizontalSizer;
+      this.extraNoiseReductionStrengthSizer.spacing = 4;
+      this.extraNoiseReductionStrengthSizer.add( this.extra_NoiseReduction_CheckBox );
+      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthComboBox );
+      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthLabel );
+      this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
+      this.extraNoiseReductionStrengthSizer.addStretch();
+
+      this.extra_ACDNR_CheckBox = newCheckBox(parent, "ACDNR noise reduction", par.extra_ACDNR, 
+            "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from noise reduction section.</p>" + ACDNR_StdDev_tooltip);
+      this.extra_color_noise_CheckBox = newCheckBox(parent, "Color noise reduction", par.extra_color_noise, 
+            "<p>Run color noise reduction on image.</p>" );
+      this.extra_star_noise_reduction_CheckBox = newCheckBox(parent, "Star noise reduction", par.extra_star_noise_reduction, 
+            "<p>Run star noise reduction on star image.</p>" );
+      this.extra_color_calibration_CheckBox = newCheckBox(parent, "Color calibration", par.extra_color_calibration, 
+            "<p>Run ColorCalibration on image.</p>" );
+      this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve image", par.extra_solve_image, 
+            "<p>Solve image by running ImageSolver script.</p>" + 
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
+      this.extra_annotate_image_CheckBox = newCheckBox(parent, "Annotate image", par.extra_annotate_image, 
+            "<p>Use AnnotateImage script to annotate image.</p>" + 
+            "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
+            "When using SPCC color calibration astrometric solution is automatically added.</p>" +
+            "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
+
+      var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
+                                  "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
+                                  "<p>If BlurXTerminator is used for sharpening then iterations parameter is ignored.</p>";
+      this.extra_sharpen_CheckBox = newCheckBox(parent, "Sharpening", par.extra_sharpen, extra_sharpen_tooltip);
+
+      this.extraSharpenIterationsSpinBox = newSpinBox(parent, par.extra_sharpen_iterations, 1, 10, extra_sharpen_tooltip);
+      this.extraSharpenIterationsLabel = new Label( parent );
+      this.extraSharpenIterationsLabel.text = "iterations";
+      this.extraSharpenIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraSharpenIterationsLabel.toolTip = extra_sharpen_tooltip;
+      this.extraSharpenIterationsSizer = new HorizontalSizer;
+      this.extraSharpenIterationsSizer.spacing = 4;
+      this.extraSharpenIterationsSizer.add( this.extra_sharpen_CheckBox );
+      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsSpinBox );
+      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsLabel );
+      this.extraSharpenIterationsSizer.toolTip = extra_sharpen_tooltip;
+      this.extraSharpenIterationsSizer.addStretch();
+
+      var unsharpmask_tooltip = "Sharpen image using UnsharpMask and a luminance mask.";
+      this.extra_unsharpmask_CheckBox = newCheckBox(parent, "UnsharpMask", par.extra_unsharpmask, unsharpmask_tooltip);
+      this.extraUnsharpMaskStdDevEdit = newNumericEdit(parent, "StdDev", par.extra_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
+      this.extraUnsharpMaskSizer = new HorizontalSizer;
+      this.extraUnsharpMaskSizer.spacing = 4;
+      this.extraUnsharpMaskSizer.add( this.extra_unsharpmask_CheckBox );
+      this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskStdDevEdit );
+      this.extraUnsharpMaskSizer.addStretch();
+      
+      var extra_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
+                                     "<p>Number of iterations specifies how many times add saturation is run.</p>";
+      this.extra_saturation_CheckBox = newCheckBox(parent, "Saturation", par.extra_saturation, extra_saturation_tooltip);
+
+      this.extraSaturationIterationsSpinBox = newSpinBox(parent, par.extra_saturation_iterations, 1, 20, extra_saturation_tooltip);
+      this.extraSaturationIterationsLabel = new Label( parent );
+      this.extraSaturationIterationsLabel.text = "iterations";
+      this.extraSaturationIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraSaturationIterationsLabel.toolTip = extra_saturation_tooltip;
+      this.extraSaturationIterationsSizer = new HorizontalSizer;
+      this.extraSaturationIterationsSizer.spacing = 4;
+      this.extraSaturationIterationsSizer.add( this.extra_saturation_CheckBox );
+      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsSpinBox );
+      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsLabel );
+      this.extraSaturationIterationsSizer.toolTip = extra_saturation_tooltip;
+      this.extraSaturationIterationsSizer.addStretch();
+
+      this.extraImageLabel = new Label( parent );
+      this.extraImageLabel.text = "Target image";
+      this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.extraImageLabel.toolTip = "<p>Target image for editing. By default edits are applied on a copy of target image. Copied " + 
+            "is named as <target image>_edit.</p>" +
+            "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
+      this.extraImageComboBox = new ComboBox( parent );
+      this.extraImageComboBox.minItemCharWidth = 20;
+      this.extraImageComboBox.onItemSelected = function( itemIndex )
+      {
+            if (global.extra_target_image == extra_target_image_window_list[itemIndex]) {
+                  return;
+            }
+            close_undo_images();
+            global.extra_target_image = extra_target_image_window_list[itemIndex];
+            // console.writeln("global.extra_target_image " + global.extra_target_image);
+            if (global.extra_target_image == "Auto") {
+                  updatePreviewNoImage();
+                  extra_gui_info.save_button.enabled = false;
+            } else {
+                  updatePreviewIdReset(global.extra_target_image, true);
+                  extra_gui_info.save_button.enabled = true;
+            }
+      };
+      extra_gui_info.images_combobox = this.extraImageComboBox;
+      update_extra_target_image_window_list("Auto");
+      global.extra_target_image = extra_target_image_window_list[0];
+
+      var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
+      this.extraApplyButton = new PushButton( parent );
+      this.extraApplyButton.text = "Apply";
+      this.extraApplyButton.toolTip = 
+            "<p>Apply extra processing edits on the copy of the selected image. Auto option is used when extra processing is done with Run or AutoContinue option.</p>" +
+            notetsaved_note;
+      this.extraApplyButton.onClick = function()
+      {
+            if (!util.is_extra_option() && !util.is_narrowband_option()) {
+                  console.criticalln("No extra processing option selected!");
+            } else if (global.extra_target_image == null) {
+                  console.criticalln("No image!");
+            } else if (global.extra_target_image == "Auto") {
+                  console.criticalln("Auto target image cannot be used with Apply button!");
+            } else if (util.findWindow(global.extra_target_image) == null) {
+                  console.criticalln("Could not find target image " + global.extra_target_image);
+            } else {
+                  if (extra_gui_info.undo_images.length == 0) {
+                        global.extra_processing_info = [];   // First image, clear extra processing info
+                        var saved_extra_target_image = global.extra_target_image;
+                        if (!par.extra_apply_no_copy_image.val) {
+                              // make copy of the original image
+                              global.extra_target_image = copy_new_edit_image(global.extra_target_image);
+                        }
+                        var first_undo_image_id = create_undo_image(global.extra_target_image);
+                        var first_undo_image_id_histogramInfo = current_histogramInfo;
+                  } else {
+                        var first_undo_image_id = null;
+                  }
+                  console.writeln("Apply extra processing edits on " + global.extra_target_image);
+                  try {
+                        engine.extraApply = true;
+                        engine.extraProcessingEngine(parent.dialog, global.extra_target_image, util.is_narrowband_option());
+                        if (extra_gui_info.undo_images.length == 0) {
+                              // add first/original undo image
+                              add_undo_image(global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
+                              // save copy of original image to the window list and make is current
+                              update_extra_target_image_window_list(global.extra_target_image);
+                        }
+                        let undo_image_id = create_undo_image(global.extra_target_image);
+                        add_undo_image(global.extra_target_image, undo_image_id, current_histogramInfo);
+                        console.noteln("Apply completed (" + extra_gui_info.undo_images.length + "/" + extra_gui_info.undo_images.length + ")");
+                  } 
+                  catch(err) {
+                        if (first_undo_image_id != null) {
+                              remove_undo_image(first_undo_image_id);
+                              global.extra_target_image = saved_extra_target_image;
+                        }
+                        console.criticalln(err);
+                        console.criticalln("Operation failed!");
+                  }
+                  engine.extraApply = false;
+            }
+      };   
+
+      this.extraUndoButton = new ToolButton( parent );
+      this.extraUndoButton.icon = new Bitmap( ":/icons/undo.png" );
+      this.extraUndoButton.toolTip = 
+            "<p>Undo last extra edit operation.</p>" + notetsaved_note;
+      this.extraUndoButton.enabled = false;
+      this.extraUndoButton.onMousePress = function()
+      {
+            apply_undo();
+      };
+      extra_gui_info.undo_button = this.extraUndoButton;
+
+      this.extraRedoButton = new ToolButton( parent );
+      this.extraRedoButton.icon = new Bitmap( ":/icons/redo.png" );
+      this.extraRedoButton.toolTip = 
+            "<p>Redo last extra edit operation.</p>" + notetsaved_note;
+      this.extraRedoButton.enabled = false;
+      this.extraRedoButton.onMousePress = function()
+      {
+            apply_redo();
+      };
+      extra_gui_info.redo_button = this.extraRedoButton;
+
+      this.extraSaveButton = new ToolButton( parent );
+      this.extraSaveButton.icon = new Bitmap( ":/icons/save-as.png" );
+      this.extraSaveButton.toolTip = 
+            "<p>Save current edited image to disk as a XISF image and as a 16-bit TIFF image.</p>" + notetsaved_note;
+      this.extraSaveButton.enabled = false;
+      this.extraSaveButton.onMousePress = function()
+      {
+            save_as_undo();
+      };
+      extra_gui_info.save_button = this.extraSaveButton;
+
+
+      this.extraImageSizer = new HorizontalSizer;
+      // this.extraImageSizer.margin = 6;
+      this.extraImageSizer.spacing = 4;
+      this.extraImageSizer.add( this.extraImageLabel );
+      this.extraImageSizer.add( this.extraImageComboBox );
+      this.extraImageSizer.add( this.extraApplyButton );
+      this.extraImageSizer.add( this.extraUndoButton );
+      this.extraImageSizer.add( this.extraRedoButton );
+      this.extraImageSizer.add( this.extraSaveButton );
+
+      this.extra_image_no_copy_CheckBox = newCheckBox(parent, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
+            "<p>Do not make a copy of the image for Apply.</p>" );
+
+      this.extraImageOptionsSizer = new HorizontalSizer;
+      this.extraImageOptionsSizer.margin = 6;
+      this.extraImageOptionsSizer.spacing = 4;
+      this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_auto_reset_CheckBox );
+      this.extraImageOptionsSizer.addStretch();
+
+      this.extra1 = new VerticalSizer;
+      this.extra1.margin = 6;
+      this.extra1.spacing = 4;
+      this.extra1.add( this.extraRemoveStars_Sizer );
+      this.extra1.add( this.extra_smoothBackground_Sizer );
+      this.extra1.add( this.extraABE_CheckBox );
+      this.extra1.add( this.extra_shadowclip_Sizer );
+      this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extraDarkerHighlights_CheckBox );
+      this.extra1.add( this.extraEnhanceShadowsSizer );
+      this.extra1.add( this.extraEnhanceHighlightsSizer );
+      this.extra1.add( this.extraAdjustChannelsSizer );
+      this.extra1.add( this.extra_ET_Sizer );
+      this.extra1.add( this.extra_HDRMLT_Sizer );
+      this.extra1.add( this.extra_LHE_sizer );
+      this.extra1.add( this.extraContrastSizer );
+      this.extra1.add( this.extraAutoContrastSizer );
+
+      this.extra2 = new VerticalSizer;
+      this.extra2.margin = 6;
+      this.extra2.spacing = 4;
+      this.extra2.add( this.extraNoiseReductionStrengthSizer );
+      this.extra2.add( this.extra_ACDNR_CheckBox );
+      this.extra2.add( this.extra_color_noise_CheckBox );
+      this.extra2.add( this.extra_star_noise_reduction_CheckBox );
+      this.extra2.add( this.extraUnsharpMaskSizer );
+      this.extra2.add( this.extraSharpenIterationsSizer );
+      this.extra2.add( this.extraSaturationIterationsSizer );
+      this.extra2.add( this.extraSmallerStarsSizer );
+      this.extra2.add( this.extraCombineStars_Sizer );
+      this.extra2.add( this.extra_color_calibration_CheckBox );
+      this.extra2.add( this.extra_solve_image_CheckBox );
+      this.extra2.add( this.extra_annotate_image_CheckBox );
+      this.extra2.addStretch();
+
+      var extraLabeltoolTip = 
+            "<p>" +
+            "In case of Run or AutoContinue " + 
+            "extra processing options are always applied to a copy of the final image. " + 
+            "A new image is created with _extra added to the name. " + 
+            "For example if the final image is AutoLRGB then a new image AutoLRGB_extra is created. " + 
+            "AutoContinue can be used to apply extra processing after the final image is created. " +
+            "</p><p>" +
+            "In case of Apply button extra processing is run directly on the selected image. " +
+            "Apply button can be used to execute extra options one by one in custom order." +
+            "</p><p>" +
+            "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
+            "narrowband options are selected then image is assumed to be narrowband." +
+            "</p><p>" +
+            "If multiple extra processing options are selected they are executed in the following order:" + 
+            "</p>" +
+            "<ol>" +
+            "<li>Auto stretch</li>" +
+            "<li>Narrowband options</li>" +
+            "<li>Remove stars</li>" +
+            "<li>Smoothen background</li>" +
+            "<li>AutomaticBackgroundExtractor</li>" +
+            "<li>Clip shadows</li>" +
+            "<li>Darker background</li>" +
+            "<li>Enhance shadows</li>" +
+            "<li>Adjust channels</li>" +
+            "<li>ExponentialTransformation</li>" +
+            "<li>HDRMultiscaleTransform</li>" +
+            "<li>LocalHistogramEqualization</li>" +
+            "<li>Add contrast</li>" +
+            "<li>Noise reduction</li>" +
+            "<li>ACDNR noise reduction</li>" +
+            "<li>Color noise reduction</li>" +
+            "<li>Sharpen using Unsharp Mask</li>" +
+            "<li>Sharpening</li>" +
+            "<li>Saturation</li>" +
+            "<li>Smaller stars</li>" +
+            "<li>Combine starless and stars images</li>" +
+            "</ol>" +
+            "<p>" +
+            "If narrowband processing options are selected they are applied before extra processing options." +
+            "</p>";
+
+      this.extraGroupBoxSizer = new HorizontalSizer;
+      //this.extraGroupBoxSizer.margin = 6;
+      //this.extraGroupBoxSizer.spacing = 4;
+      this.extraGroupBoxSizer.add( this.extra1 );
+      this.extraGroupBoxSizer.add( this.extra2 );
+      this.extraGroupBoxSizer.addStretch();
+
+      this.extraImageControl = new Control( parent );
+      this.extraImageControl.sizer = new VerticalSizer;
+      this.extraImageControl.sizer.margin = 6;
+      this.extraImageControl.sizer.spacing = 4;
+      this.extraImageControl.sizer.add( this.extraImageSizer );
+      this.extraImageControl.sizer.add( this.extraImageOptionsSizer );
+      this.extraImageControl.sizer.addStretch();
+      this.extraImageControl.visible = false;
+
+      this.extraControl1 = new Control( parent );
+      this.extraControl1.sizer = new VerticalSizer;
+      this.extraControl1.sizer.margin = 6;
+      this.extraControl1.sizer.spacing = 4;
+      this.extraControl1.sizer.add( this.extraGroupBoxSizer );
+      this.extraControl1.sizer.addStretch();
+      this.extraControl1.visible = false;
+
+      this.extraControl2 = new Control( parent );
+      this.extraControl2.sizer = new VerticalSizer;
+      this.extraControl2.sizer.margin = 6;
+      this.extraControl2.sizer.spacing = 4;
+      this.extraControl2.sizer.add( this.narrowbandExtraOptionsSizer );
+      this.extraControl2.sizer.addStretch();
+      this.extraControl2.visible = false;
+
+      this.extraControl3 = new Control( parent );
+      this.extraControl3.sizer = new VerticalSizer;
+      this.extraControl3.sizer.margin = 6;
+      this.extraControl3.sizer.spacing = 4;
+      this.extraControl3.sizer.add( this.narrowbandColorized_sizer );
+      this.extraControl3.sizer.addStretch();
+      this.extraControl3.visible = false;
+
+      this.getExtraGUIControls = function()
+      {
+            return [ this.extraImageControl, this.extraControl1, this.extraControl2, this.extraControl3 ];
+      }
+}
+
+extraProcessingGUI.prototype = new Object;
+
 function isbatchNarrowbandPaletteMode()
 {
       return (par.custom_R_mapping.val == "All" && par.custom_G_mapping.val == "All" && par.custom_B_mapping.val == "All") ||
@@ -765,29 +1571,31 @@ function savePersistentSettings(from_exit)
       }
 }
 
-function update_extra_target_image_window_list(parent, current_item)
+function update_extra_target_image_window_list(current_item)
 {
+      var combobox = extra_gui_info.images_combobox;
+
       if (current_item == null) {
             // use item from dialog
-            current_item = extra_target_image_window_list[parent.extraImageComboBox.currentItem];
+            current_item = extra_target_image_window_list[combobox.currentItem];
       }
 
       extra_target_image_window_list = util.getWindowListReverse();
       extra_target_image_window_list.unshift("Auto");
 
-      parent.extraImageComboBox.clear();
+      combobox.clear();
       for (var i = 0; i < extra_target_image_window_list.length; i++) {
-            parent.extraImageComboBox.addItem( extra_target_image_window_list[i] );
+            combobox.addItem( extra_target_image_window_list[i] );
       }
 
       // update dialog
       if (current_item)  {
-            parent.extraImageComboBox.currentItem = extra_target_image_window_list.indexOf(current_item);
-            if (!parent.extraImageComboBox.currentItem) {
-                  parent.extraImageComboBox.currentItem = 0;
+            combobox.currentItem = extra_target_image_window_list.indexOf(current_item);
+            if (!combobox.currentItem) {
+                  combobox.currentItem = 0;
             }
             if (extra_target_image_window_list && extra_target_image_window_list.length > 0) {
-                  parent.extraImageComboBox.setItemText(parent.extraImageComboBox.currentItem, extra_target_image_window_list[parent.extraImageComboBox.currentItem]);
+                  combobox.setItemText(combobox.currentItem, extra_target_image_window_list[combobox.currentItem]);
             }
       }
 }
@@ -803,10 +1611,10 @@ function forceNewHistogram(target_win)
       }
 }
 
-function update_undo_buttons(parent)
+function update_undo_buttons()
 {
-      parent.extraUndoButton.enabled = undo_images.length > 0 && undo_images_pos > 0;
-      parent.extraRedoButton.enabled = undo_images.length > 0 && undo_images_pos < undo_images.length - 1;
+      extra_gui_info.undo_button.enabled = extra_gui_info.undo_images.length > 0 && extra_gui_info.undo_images_pos > 0;
+      extra_gui_info.redo_button.enabled = extra_gui_info.undo_images.length > 0 && extra_gui_info.undo_images_pos < extra_gui_info.undo_images.length - 1;
 }
 
 function copy_new_edit_image(id)
@@ -891,104 +1699,105 @@ function remove_undo_image(id)
       util.closeOneWindow(id);
 }
 
-function add_undo_image(parent, original_id, undo_id, histogramInfo)
+function add_undo_image(original_id, undo_id, histogramInfo)
 {
       //console.writeln("add_undo_image");
-      while (undo_images.length > undo_images_pos + 1) {
-            var removed = undo_images.pop();
+      while (extra_gui_info.undo_images.length > extra_gui_info.undo_images_pos + 1) {
+            var removed = extra_gui_info.undo_images.pop();
             console.writeln("Remove undo image " + removed.id);
             util.closeOneWindow(removed.id);
       }
-      undo_images_pos++;
-      // console.writeln("undo_images_pos " + undo_images_pos);
-      var new_undo_id = original_id + "_undo_" + (undo_images_pos+1);
+      extra_gui_info.undo_images_pos++;
+      // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+      var new_undo_id = original_id + "_undo_" + (extra_gui_info.undo_images_pos+1);
       util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
       //console.writeln("Add undo image " + new_undo_id);
-      undo_images[undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo, extra_processing_info: global.extra_processing_info };
-      update_undo_buttons(parent);
+      extra_gui_info.undo_images[extra_gui_info.undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo, extra_processing_info: global.extra_processing_info };
+      update_undo_buttons();
 
       print_extra_processing_info("Applied extra processing:", global.extra_processing_info);
 }
 
-function apply_undo(parent)
+function apply_undo()
 {
       // console.writeln("apply_undo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
       }
-      if (undo_images_pos <= 0) {
+      if (extra_gui_info.undo_images_pos <= 0) {
             console.noteln("Nothing to undo");
             return;
       }
-      console.noteln("Undo on image " + global.extra_target_image + " (" + undo_images_pos + "/" + undo_images.length + ")");
+      console.noteln("Undo on image " + global.extra_target_image + " (" + extra_gui_info.undo_images_pos + "/" + extra_gui_info.undo_images.length + ")");
       var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(undo_images[undo_images_pos - 1].id);
+      var source_win = ImageWindow.windowById(extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].id);
       if (source_win == null) {
-            console.criticalln("Failed to find undo image " + undo_images[undo_images_pos - 1].id);
+            console.criticalln("Failed to find undo image " + extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].id);
             return;
       }
-      var source_histogramInfo = undo_images[undo_images_pos - 1].histogramInfo;
+      var source_histogramInfo = extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].histogramInfo;
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
 
       target_win.keywords = source_win.keywords;
-      global.extra_processing_info = undo_images[undo_images_pos - 1].extra_processing_info;
+      global.extra_processing_info = extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].extra_processing_info;
 
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
-      undo_images_pos--;
-      // console.writeln("undo_images_pos " + undo_images_pos);
-      update_undo_buttons(parent);
+      extra_gui_info.undo_images_pos--;
+      // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+      update_undo_buttons();
 
       print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 }
 
-function apply_redo(parent)
+function apply_redo()
 {
-      // console.writeln("apply_redo");
+      //console.writeln("apply_redo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
       }
-      if (undo_images_pos >= undo_images.length - 1) {
+      if (extra_gui_info.undo_images_pos >= extra_gui_info.undo_images.length - 1) {
             console.noteln("Nothing to redo");
             return;
       }
-      console.noteln("Redo on image " + global.extra_target_image + " (" + (undo_images_pos + 2) + "/" + undo_images.length + ")");
+      console.noteln("Redo on image " + global.extra_target_image + " (" + (extra_gui_info.undo_images_pos + 2) + "/" + extra_gui_info.undo_images.length + ")");
       var target_win = ImageWindow.windowById(global.extra_target_image);
       if (target_win == null) {
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(undo_images[undo_images_pos + 1].id);
+      var source_win = ImageWindow.windowById(extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].id);
       if (source_win == null) {
-            console.criticalln("Failed to find redo image " + undo_images[undo_images_pos + 1].id);
+            console.criticalln("Failed to find redo image " + extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].id);
             return;
       }
-      var source_histogramInfo = undo_images[undo_images_pos + 1].histogramInfo;
+      console.writeln("redo hist");
+      var source_histogramInfo = extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].histogramInfo;
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
 
       target_win.keywords = source_win.keywords;
-      global.extra_processing_info = undo_images[undo_images_pos + 1].extra_processing_info;
+      global.extra_processing_info = extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].extra_processing_info;
       
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
-      undo_images_pos++;
-      // console.writeln("undo_images_pos " + undo_images_pos);
-      update_undo_buttons(parent);
+      extra_gui_info.undo_images_pos++;
+      console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+      update_undo_buttons();
 
       print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 }
 
-function save_as_undo(parent)
+function save_as_undo()
 {
       //console.writeln("save_as_undo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
@@ -1045,7 +1854,7 @@ function save_as_undo(parent)
       util.forceCloseOneWindow(copy_win);
 
       util.saveLastDir(save_dir);
-      update_undo_buttons(parent);
+      update_undo_buttons();
 
       if (save_id != global.extra_target_image) {
             // Rename old image
@@ -1053,20 +1862,20 @@ function save_as_undo(parent)
             // Update preview name
             updatePreviewTxt(save_win);
             // Update target list
-            update_extra_target_image_window_list(parent, save_id);
+            update_extra_target_image_window_list(save_id);
       }
 }
 
-function close_undo_images(parent)
+function close_undo_images()
 {
-      if (undo_images.length > 0) {
+      if (extra_gui_info.undo_images.length > 0) {
             console.writeln("Close undo images");
-            for (var i = 0; i < undo_images.length; i++) {
-                  util.closeOneWindow(undo_images[i].id);
+            for (var i = 0; i < extra_gui_info.undo_images.length; i++) {
+                  util.closeOneWindow(extra_gui_info.undo_images[i].id);
             }
-            undo_images = [];
-            undo_images_pos = -1;
-            update_undo_buttons(parent);
+            extra_gui_info.undo_images = [];
+            extra_gui_info.undo_images_pos = -1;
+            update_undo_buttons();
       }
 }
 
@@ -1205,7 +2014,7 @@ function Autorun(parent)
                         } else {
                             engine.autointegrateProcessingEngine(parent.dialog, false, false);
                         }
-                        update_extra_target_image_window_list(parent.dialog, null);
+                        update_extra_target_image_window_list(null);
                   } 
                   catch(err) {
                         console.criticalln(err);
@@ -1790,7 +2599,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
                   }
                   if (sidePreviewControl != null) {
-                        sidePreviewControl.setSize(ppar.side_preview.preview_width, ppar.preview.side_preview_height);
+                        sidePreviewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
                   }
                   preview_size_changed = false;
             }
@@ -3387,7 +4196,7 @@ function newExitButton(parent, toolbutton)
             // save settings at the end
             savePersistentSettings(true);
             exitFromDialog();
-            close_undo_images(parent.dialog);
+            close_undo_images();
             exitCleanup(parent.dialog);
             console.noteln("Close dialog");
             parent.dialog.cancel();
@@ -3471,7 +4280,7 @@ function newAutoContinueButton(parent, toolbutton)
                   }
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
-                  update_extra_target_image_window_list(parent.dialog, null);
+                  update_extra_target_image_window_list(null);
                   if (global.haveIconized && !batch_narrowband_palette_mode) {
                         // We have iconized something so update prefix array
                         ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, Math.max(global.haveIconized, global.iconStartRow) ];
@@ -3606,6 +4415,84 @@ function newJsonSizer(parent)
       return jsonSizer;
 }
 
+function newMaxPreviewButton(parent)
+{
+      var maxPreview_Button = new ToolButton( parent );
+      maxPreview_Button.aiMaxPreviewMode = false;
+      maxPreview_Button.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
+
+      maxPreview_Button.setScaledFixedSize( 20, 20 );
+      maxPreview_Button.toolTip = "Maximize dialog size to (almost) full screen.";
+      maxPreview_Button.onMousePress = function()
+      {
+            if (!global.use_preview) {
+                  console.criticalln("No preview.");
+                  return;
+            }
+            if (maxPreview_Button.aiMaxPreviewMode) {   // restore
+                  maxPreview_Button.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
+                  maxPreview_Button.toolTip = "<p>Maximize dialog size to (almost) full screen.</p>" +
+                                              "<p>Note that the maximizing works best when the side preview is enabled in the Interface section.</p>";
+                  if (ppar.preview.side_preview_visible) {
+                        sidePreviewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
+                  } else {
+                        tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
+                  }
+            } else {                // maximize
+                  maxPreview_Button.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
+                  maxPreview_Button.toolTip = "Restore dialog to normal size.";
+                  if (parent.availableScreenRect != undefined) {
+                        var screen_width = parent.availableScreenRect.width;
+                        var screen_height = parent.availableScreenRect.height;
+                  } else {
+                        console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD (1920x1080) as default");
+                        var screen_width = 1920;
+                        var screen_height = 1080;
+                  }
+                  if (ppar.preview.side_preview_visible) {
+                        var preview_width = ppar.preview.side_preview_width;
+                        var preview_height = ppar.preview.side_preview_height;
+                        var preview_control_width = sidePreviewControl.width;
+                        var preview_control_height = sidePreviewControl.height;
+                  } else {
+                        // tab preview
+                        var preview_width = ppar.preview.preview_width;
+                        var preview_height = ppar.preview.preview_height;
+                        var preview_control_width = tabPreviewControl.width;
+                        var preview_control_height = tabPreviewControl.height;
+                  }
+                  if (!ppar.preview.show_histogram) {
+                        var histogram_control_height = 0;
+                  } else if (ppar.preview.side_preview_visible) {
+                        var histogram_control_height = sideHistogramControl.height;
+                  } else {
+                        var histogram_control_height = tabHistogramControl.height;
+                  }
+
+                  var emptyAreaHeight = mainTabBox.height - preview_control_height - histogram_control_height;
+                  var dialog_width = parent.dialog.width;
+                  var dialog_height = parent.dialog.height;
+                  var max_preview_width = preview_width + (screen_width - dialog_width) - (preview_control_width - preview_width) - 100;
+                  var max_preview_height = preview_height + (screen_height - dialog_height) + emptyAreaHeight - (preview_control_height - preview_height) - 100;
+
+                  console.writeln("preview width overhead " + (preview_control_width - preview_width) + ", height overhead " + (preview_control_height - preview_height));
+                  console.writeln("screen " + screen_width + "x" + screen_height + ", dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + 
+                                  ", max preview " + max_preview_width + "x" + max_preview_height + ", empty area height " + emptyAreaHeight);
+
+                  if (ppar.preview.side_preview_visible) {
+                        sidePreviewControl.setSize(max_preview_width, max_preview_height);
+                  } else {
+                        tabPreviewControl.setSize(max_preview_width, max_preview_height);
+                  }
+            }
+            maxPreview_Button.aiMaxPreviewMode = !maxPreview_Button.aiMaxPreviewMode;
+            parent.dialog.adjustToContents();
+            util.runGC();
+      };
+
+      return maxPreview_Button;
+}
+
 function newActionSizer(parent)
 {
       var actionsSizer = new HorizontalSizer;
@@ -3633,9 +4520,14 @@ function newActionSizer(parent)
       obj = newExitButton(parent, true);
       parent.rootingArr.push(obj);
       actionsSizer.add( obj );
-      actionsSizer.addSpacing( 6 );
+      actionsSizer.addSpacing( 12 );
 
       obj = newAdjustToContentButton(parent);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 12 );
+
+      obj = newMaxPreviewButton(parent);
       parent.rootingArr.push(obj);
       actionsSizer.add( obj );
 
@@ -4248,8 +5140,8 @@ function getPreviewSize(availableScreenRect)
             ppar.preview.side_preview_height = ppar.preview.preview_height;
             ppar.preview.side_histogram_height = ppar.preview.histogram_height;
       }
-      console.writeln("Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height + 
-                        ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + ", side histogram height " + ppar.preview.side_histogram_height);
+      return "Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height + 
+                        ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + ", side histogram height " + ppar.preview.side_histogram_height;
 }
 
 /***************************************************************************
@@ -4267,7 +5159,7 @@ function AutoIntegrateDialog()
        }
 
        if (ppar.preview.use_preview) {
-            getPreviewSize(this.availableScreenRect);
+            var previewTextSize = getPreviewSize(this.availableScreenRect);
       }
 
       this.textEditWidth = 25 * this.font.width( "M" );
@@ -4485,9 +5377,6 @@ function AutoIntegrateDialog()
             "<p>Remove stars after image has been stretched to non-linear state. Start from RGB image are saved and they " + 
             "can be later added back to the image. This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
-      var unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
-                             "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
-                             "recommended to use Screen method when combining star and starless images back together.<p>";
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
       this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before ABE", par.color_calibration_before_ABE, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
@@ -4842,12 +5731,6 @@ function AutoIntegrateDialog()
       this.saturationGroupBoxSizer.addStretch();
 
       // Noise reduction
-      var noiseReductionToolTipCommon = "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
-                                        "Bigger strength value means stronger noise reduction. Noise reduction uses MultiscaleLinerTransform or NoiseXTerminator.</p>" + 
-                                        "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
-                                        "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
-                                        "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
-                                        "and detail: 1=0.60 0.10, 2=0.70 0.15 3=0.80 0.15 4=0.90 0.15, 5=0.90 0.20 and 6=0.95 0.20.t</p>";
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
       this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
@@ -4874,7 +5757,6 @@ function AutoIntegrateDialog()
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
             "<p>Do color noise reduction.</p>" );
 
-      var ACDNR_StdDev_tooltip = "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots left from previous noise reduction.</p>";
       this.ACDNR_noise_reduction_Control = newNumericEdit(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
             "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
             ACDNR_StdDev_tooltip);
@@ -5517,12 +6399,6 @@ function AutoIntegrateDialog()
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");
       this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
-      var stars_combine_operations_Tooltip = "<p>Possible combine operations are:</p>" +
-                                             "<ul>" + 
-                                             "<li>Add - Use stars+starless formula in Pixelmath</li>" +
-                                             "<li>Screen - Similar to screen in Photoshop</li>" +
-                                             "<li>Lighten - Similar to lighten in Photoshop</li>" +
-                                             "</ul>";
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
@@ -5665,14 +6541,6 @@ function AutoIntegrateDialog()
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
       this.histogramStretchingSizer.addStretch();
-
-      var smoothBackgroundTooltipGeneric = 
-            "<p>A limit value specifies below which the smoothing is done. " + 
-            "The value should be selected so that no foreground data is lost.</p>" + 
-            "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
-            "The new pixel values will be slightly higher than the old values.</p>" +
-            "<p>Smoothening can also help ABE to clean up the background better in case of " + 
-            "very uneven background.</p>";
 
       this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
             "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
@@ -5873,7 +6741,6 @@ function AutoIntegrateDialog()
                   this.narrowbandCustomPalette_ComboBox.currentItem = i;
             }
       }
-      var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
       this.narrowbandCustomPalette_ComboBox.toolTip = 
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
@@ -6229,758 +7096,14 @@ function AutoIntegrateDialog()
 
       // Narrowband extra processing
 
-      // Foraxx mapping
-      this.narrowband_Foraxx_CheckBox = newCheckBox(this, "Foraxx mapping", par.run_foraxx_mapping, 
-            "<p>Use dynamic Foraxx palette on image.</p>" +
-            "<p>Foraxx mapping can be done on SHO or HOO image. Channels are extracted from the SHO or HOO " + 
-            "image and mapped again to create a dynamic Foraxx palette imege.</p>" +
-            "<p>After Foraxx SHO mapping <i>Remove green cast</i> and <i>Orange/blue colors</i> are run for the image.</p>" +
-            "<p>To run basic Foraxx SHO mapping use <i>SHO mapping</i> and select <i>Dynamic SHO</i>.</p>" +
-            "<p>" + Foraxx_credit + "</p>" );
-      this.narrowband_Foraxx_palette_ComboBox = newComboBox(this, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
+      this.extraProcessingGUI = new extraProcessingGUI(this);
 
-      this.ForaxxSizer = new HorizontalSizer;
-      this.ForaxxSizer.spacing = 4;
-      this.ForaxxSizer.add( this.narrowband_Foraxx_CheckBox );
-      this.ForaxxSizer.add( this.narrowband_Foraxx_palette_ComboBox );
-      this.ForaxxSizer.addStretch();
+      var extraGUIControls = this.extraProcessingGUI.getExtraGUIControls();
 
-      // SHO mapping
-      this.extra_SHO_mapping_values = [];
-      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
-            if (global.narrowBandPalettes[i].sho_mappable) {
-                  this.extra_SHO_mapping_values.push(global.narrowBandPalettes[i].name);
-            }
-      }
-      this.extra_narrowband_mapping_CheckBox = newCheckBox(this, "Narrowband mapping", par.run_extra_narrowband_mapping, 
-            "<p>Map source narrowband image to a new narrowband palette.</p>" +
-            "<p>Mapping can be done only on SHO or HOO images. Channels are extracted from the SHO or HOO " + 
-            "image and mapped again to create a new palette imege.</p>");
-      this.extra_narrowband_source_palette_ComboBox = newComboBox(this, par.extra_narrowband_mapping_source_palette, Foraxx_palette_values, this.extra_narrowband_mapping_CheckBox.toolTip);
-      this.extra_narrowband_target_mapping_Label = newLabel(this, "to", this.extra_narrowband_mapping_CheckBox.toolTip);
-      this.extra_narrowband_target_palette_ComboBox = newComboBox(this, par.extra_narrowband_mapping_target_palette, this.extra_SHO_mapping_values, this.extra_narrowband_mapping_CheckBox.toolTip);
-
-      this.extraSHOMappingSizer = new HorizontalSizer;
-      this.extraSHOMappingSizer.spacing = 4;
-      this.extraSHOMappingSizer.add( this.extra_narrowband_mapping_CheckBox );
-      this.extraSHOMappingSizer.add( this.extra_narrowband_source_palette_ComboBox );
-      this.extraSHOMappingSizer.add( this.extra_narrowband_target_mapping_Label );
-      this.extraSHOMappingSizer.add( this.extra_narrowband_target_palette_ComboBox );
-      this.extraSHOMappingSizer.addStretch();
-
-      this.narrowband_orangeblue_colors_CheckBox = newCheckBox(this, "Orange/blue colors", par.run_orangeblue_colors, 
-            "<p>Enhance image by shifting red colors more to  orange and enhancing blues. Useful for example with Foraxx palette.</p>");
-
-      this.fix_narrowband_star_color_CheckBox = newCheckBox(this, "Fix star colors", par.fix_narrowband_star_color, 
-            "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
-      this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(this, "Hue shift for less green", par.run_less_green_hue_shift, 
-            "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
-      this.narrowband_orange_hue_shift_CheckBox = newCheckBox(this, "Hue shift for more orange", par.run_orange_hue_shift, 
-            "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
-      this.narrowband_hue_shift_CheckBox = newCheckBox(this, "Hue shift for SHO", par.run_hue_shift, 
-            "<p>Do hue shift to enhance HSO colors. Useful with SHO color palette.</p>" );
-
-      this.narrowbandColorized_sizer = getNarrowbandColorizedSizer(this);
-
-      this.narrowband_leave_some_green_CheckBox = newCheckBox(this, "Leave some green", par.leave_some_green, 
-            "<p>Leave some green color on image when running SCNR. Useful with SHO color palette. </p>");
-      this.narrowband_leave_some_green_Edit = newNumericEdit(this, "Amount", par.leave_some_green_amount, 0, 1, 
-            "<p>Amount value 0 keeps all the green, value 1 removes all green.</p>");
-      this.narrowband_leave_some_green_sizer = new HorizontalSizer;
-      this.narrowband_leave_some_green_sizer.spacing = 4;
-      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_CheckBox );
-      this.narrowband_leave_some_green_sizer.add( this.narrowband_leave_some_green_Edit );
-      this.narrowband_leave_some_green_sizer.addStretch();
-      this.run_narrowband_SCNR_CheckBox = newCheckBox(this, "Remove green cast", par.run_narrowband_SCNR, 
-            "<p>Run SCNR to remove green cast. Useful with SHO color palette.</p>");
-      this.no_star_fix_mask_CheckBox = newCheckBox(this, "No mask when fixing star colors", par.skip_star_fix_mask, 
-            "<p>Do not use star mask when fixing star colors</p>" );
-      this.remove_magenta_color_CheckBox = newCheckBox(this, "Remove magenta color", par.remove_magenta_color, 
-            "<p>Remove magenta color from image.</p>" );
-
-      this.narrowbandOptions1_sizer = new VerticalSizer;
-      this.narrowbandOptions1_sizer.margin = 6;
-      this.narrowbandOptions1_sizer.spacing = 4;
-      this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
-      this.narrowbandOptions1_sizer.add( this.extraSHOMappingSizer );
-      this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
-
-      this.narrowbandOptions2_sizer = new VerticalSizer;
-      this.narrowbandOptions2_sizer.margin = 6;
-      this.narrowbandOptions2_sizer.spacing = 4;
-      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
-      this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
-      this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
-      this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
-      this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
-      this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
-
-      var narrowbandExtraLabeltoolTip = 
-            "<p>" +
-            "Extra processing options to be applied on narrowband images. "+
-            "They are applied before other extra processing options in the following order:" +
-            "</p>" +
-            "<ol>" +
-            "<li>Hue shift for less green</li>" +
-            "<li>Hue shift for more orange</li>" +
-            "<li>Hue shift for SHO</li>" +
-            "<li>Colorized narrowband</li>" +
-            "<li>Remove green cast/Leave some green</li>" +
-            "<li>Remove magenta color</li>" +
-            "<li>Fix star colors</li>" +
-            "</ol>";
-      this.narrowbandExtraOptionsSizer = new HorizontalSizer;
-      //this.narrowbandExtraOptionsSizer.margin = 6;
-      //this.narrowbandExtraOptionsSizer.spacing = 4;
-      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions1_sizer );
-      this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions2_sizer );
-      this.narrowbandExtraOptionsSizer.toolTip = narrowbandExtraLabeltoolTip;
-      this.narrowbandExtraOptionsSizer.addStretch();
-
-      // Extra processing
-      var extraRemoveStars_Tooltip = 
-            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
-            "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
-            "<p>At the end of the processing a combined image can be created from starless and star images. Combine operation can be " + 
-            "selected from the combo box.</p>" +
-            stars_combine_operations_Tooltip;
-      this.extraRemoveStars_CheckBox = newCheckBox(this, "Remove stars", par.extra_remove_stars, extraRemoveStars_Tooltip);
-      this.extraUnscreenStars_CheckBox = newCheckBox(this, "Unscreen", par.extra_unscreen_stars, unscreen_tooltip);
-      this.extraRemoveStars_Sizer = new HorizontalSizer;
-      this.extraRemoveStars_Sizer.spacing = 4;
-      this.extraRemoveStars_Sizer.add( this.extraRemoveStars_CheckBox);
-      this.extraRemoveStars_Sizer.add( this.extraUnscreenStars_CheckBox);
-      this.extraRemoveStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
-      this.extraRemoveStars_Sizer.addStretch();
-
-      var extraCombineStarsReduce_Tooltip =
-            "<p>With reduce selection it is possible to reduce stars while combining. " +
-            "Star reduction uses PixelMath expressions created by Bill Blanshan.</p>" +
-            "<p>Different methods are:</p>" +
-            "<p>" +
-            "None - No reduction<br>" +
-            "Transfer - Method 1, Transfer method<br>" +
-            "Halo - Method 2, Halo method<br>" +
-            "Star - Method 3, Star method" +
-            "</p>";
-      var extraCombineStars_Tooltip = 
-            "<p>Create a combined image from starless and star images. Combine operation can be " + 
-            "selected from the combo box. To use combine you need to have starless image selected as the " + 
-            "target image. Stars image must be open in the desktop.</p>" +
-            "<p>Star image is searched using the following steps:</p>" +
-            "<ol>" +
-            "<li>All occurances of text starless replaced with text stars</li>" +
-            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
-            "<li>Text starless at the end replaced with text stars</li>" +
-            "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>" +
-            "<li>Text starless and any text that follows it (starless.*) replaced with text stars and any text after text stars " + 
-            "is accepted (stars.*). So starless image <i>sameprefix</i>_starless_<i>whatever</i> is matched with stars image " + 
-            "<i>sameprefix</i>_stars_<i>doesnotmatterwhatishere</i>.</li>" +
-            "</ol>" +
-            stars_combine_operations_Tooltip + 
-            extraCombineStarsReduce_Tooltip;
-      this.extraCombineStars_CheckBox = newCheckBox(this, "Combine starless and stars", par.extra_combine_stars, extraCombineStars_Tooltip);
-      this.extraCombineStars_ComboBox = newComboBox(this, par.extra_combine_stars_mode, starless_and_stars_combine_values, extraCombineStars_Tooltip);
-      
-      this.extraCombineStars_Sizer1= new HorizontalSizer;
-      this.extraCombineStars_Sizer1.spacing = 4;
-      this.extraCombineStars_Sizer1.add( this.extraCombineStars_CheckBox);
-      this.extraCombineStars_Sizer1.add( this.extraCombineStars_ComboBox);
-      this.extraCombineStars_Sizer1.toolTip = narrowbandExtraLabeltoolTip;
-      this.extraCombineStars_Sizer1.addStretch();
-
-      this.extraCombineStarsReduce_Label = newLabel(this, "Reduce stars", extraCombineStarsReduce_Tooltip);
-      this.extraCombineStarsReduce_ComboBox = newComboBox(this, par.extra_combine_stars_reduce, star_reduce_methods, 
-            extraCombineStarsReduce_Tooltip);
-      this.extraCombineStarsReduce_S_edit = newNumericEdit(this, 'S', par.extra_combine_stars_reduce_S, 0.0, 1.0, 
-            "<p>To reduce stars size more with Transfer and Halo, lower S value.<p>" + extraCombineStarsReduce_Tooltip);
-      var extraCombineStarsReduce_M_toolTip = "<p>Star method mode; 1=Strong; 2=Moderate; 3=Soft reductions.</p>" + extraCombineStarsReduce_Tooltip;
-      this.extraCombineStarsReduce_M_Label = newLabel(this, "I", extraCombineStarsReduce_M_toolTip);
-      this.extraCombineStarsReduce_M_SpinBox = newSpinBox(this, par.extra_combine_stars_reduce_M, 1, 3, 
-            extraCombineStarsReduce_M_toolTip);
-
-      this.extraCombineStars_Sizer2 = new HorizontalSizer;
-      this.extraCombineStars_Sizer2.spacing = 4;
-      this.extraCombineStars_Sizer2.addSpacing(20);
-      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_Label);
-      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_ComboBox);
-      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_S_edit);
-      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_Label);
-      this.extraCombineStars_Sizer2.add( this.extraCombineStarsReduce_M_SpinBox);
-      this.extraCombineStars_Sizer2.toolTip = narrowbandExtraLabeltoolTip;
-      this.extraCombineStars_Sizer2.addStretch();
-
-      this.extraStarsImageLabel = newLabel(this, "Starless image", "Text Auto or empty image uses default starless image.");
-      this.extraStarsImageEdit = newTextEdit(this, par.extra_combine_stars_image, this.extraStarsImageLabel.toolTip);
-      this.extraStarsImageSelectButton = new ToolButton(this);
-      this.extraStarsImageSelectButton.text = "Select";
-      this.extraStarsImageSelectButton.icon = this.scaledResource(":/icons/find.png");
-      this.extraStarsImageSelectButton.toolTip = "<p>Select stars image manually from open images.</p>";
-      this.extraStarsImageSelectButton.onClick = function()
-      {
-            let selectStars = new AutoIntegrateSelectStarsImageDialog(util);
-            selectStars.windowTitle = "Select Stars Image";
-            if (selectStars.execute()) {
-                  if (selectStars.name == null) {
-                        console.writeln("Stars image not selected");
-                        return;
-                  }
-                  console.writeln("Stars image name " + selectStars.name);
-                  this.dialog.extraStarsImageEdit.text = selectStars.name;
-                  par.extra_combine_stars_image.val = selectStars.name;
-            }
-      };
-
-      this.extraCombineStarsSelect_Sizer = new HorizontalSizer;
-      this.extraCombineStarsSelect_Sizer.spacing = 4;
-      this.extraCombineStarsSelect_Sizer.addSpacing(20);
-      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageLabel);
-      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageEdit);
-      this.extraCombineStarsSelect_Sizer.add( this.extraStarsImageSelectButton);
-
-      this.extraCombineStars_Sizer = new VerticalSizer;
-      this.extraCombineStars_Sizer.spacing = 4;
-      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer1);
-      this.extraCombineStars_Sizer.add( this.extraCombineStarsSelect_Sizer );
-      this.extraCombineStars_Sizer.add( this.extraCombineStars_Sizer2);
-      this.extraCombineStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
-      this.extraCombineStars_Sizer.addStretch();
-
-      this.extraDarkerBackground_CheckBox = newCheckBox(this, "Darker background", par.extra_darker_background, 
-            "<p>Make image background darker using a lightness mask.</p>" );
-      this.extraDarkerHighlights_CheckBox = newCheckBox(this, "Darker highlights", par.extra_darker_hightlights, 
-            "<p>Make image highlights darker using a lightness mask.</p>" );
-      this.extraABE_CheckBox = newCheckBox(this, "ABE", par.extra_ABE, 
-            "<p>Run AutomaticBackgroundExtractor.</p>" );
-
-      var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
-      this.extra_ET_CheckBox = newCheckBox(this, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
-      this.extra_ET_edit = newNumericEdit(this, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
-      this.extra_ET_Sizer = new HorizontalSizer;
-      this.extra_ET_Sizer.spacing = 4;
-      this.extra_ET_Sizer.add( this.extra_ET_CheckBox );
-      this.extra_ET_Sizer.add( this.extra_ET_edit );
-      this.extra_ET_Sizer.toolTip = extra_ET_tooltip;
-      this.extra_ET_Sizer.addStretch();
-
-      var extra_HDRMLT_tooltip = "<p>Run HDRMultiscaleTransform on image using a mask.</p>" +
-                                 "<p>Color option is used to select different methods to keep hue and saturation.</p> " + 
-                                 "<ul>" +
-                                 "<li>Option 'None' uses HDRMLT To lightness option.</li>" + 
-                                 "<li>Option 'Preserve hue' uses HDRMLT preserve hue option.</li>" + 
-                                 "<li>Option 'Color corrected' uses To Intensity instead of To lightness. It applies HSI transformation to the intensity component. " + 
-                                 "In PixInsight 1.8.9-1 or older it uses a method described by Russell Croman</li>" + 
-                                 "</ul>" +
-                                 "<p>Layers selection specifies the layers value for HDRMLT.</p>";
-      this.extra_HDRMLT_CheckBox = newCheckBox(this, "HDRMultiscaleTransform", par.extra_HDRMLT, extra_HDRMLT_tooltip);
-
-      this.extra_HDRMLT_Layers_Label = new Label( this );
-      this.extra_HDRMLT_Layers_Label.text = "Layers";
-      this.extra_HDRMLT_Layers_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extra_HDRMLT_Layers_Label.toolTip = extra_HDRMLT_tooltip;
-      this.extra_HDRMLT_Layers_SpinBox = newSpinBox(this, par.extra_HDRMLT_layers, 2, 10, extra_HDRMLT_tooltip);
-      this.extra_HDRMLT_Overdrive_Edit = newNumericEditPrecision(this, "Overdrive", par.extra_HDRMLT_overdrive, 0, 1, extra_HDRMLT_tooltip, 3);
-      this.extra_HDRMLT_Iterations_Label = newLabel(this, "Iterations", extra_HDRMLT_tooltip);
-      this.extra_HDRMLT_Iterations_SpinBox = newSpinBox(this, par.extra_HDRMLT_iterations, 1, 16, extra_HDRMLT_tooltip);
-
-      this.extra_HDRMLT_Color_Label = new Label( this );
-      this.extra_HDRMLT_Color_Label.text = "Color";
-      this.extra_HDRMLT_Color_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extra_HDRMLT_Color_Label.toolTip = extra_HDRMLT_tooltip;
-      this.extra_HDRMLT_color_ComboBox = newComboBox(this, par.extra_HDRMLT_color, extra_HDRMLT_color_values, extra_HDRMLT_tooltip);
-
-      this.extra_HDRMLT_Options_Sizer = new HorizontalSizer;
-      this.extra_HDRMLT_Options_Sizer.spacing = 4;
-      this.extra_HDRMLT_Options_Sizer.addSpacing(20);
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_Label );
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Layers_SpinBox );
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_Label );
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Iterations_SpinBox );
-      this.extra_HDRMLT_Options_Sizer.add( this.extra_HDRMLT_Overdrive_Edit );
-      this.extra_HDRMLT_Options_Sizer.addStretch();
-
-      this.extra_HDRMLT_Options_Sizer2 = new HorizontalSizer;
-      this.extra_HDRMLT_Options_Sizer2.spacing = 4;
-      this.extra_HDRMLT_Options_Sizer2.addSpacing(20);
-      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_Color_Label );
-      this.extra_HDRMLT_Options_Sizer2.add( this.extra_HDRMLT_color_ComboBox );
-      this.extra_HDRMLT_Options_Sizer2.addStretch();
-
-      this.extra_HDRMLT_Sizer = new VerticalSizer;
-      this.extra_HDRMLT_Sizer.spacing = 4;
-      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_CheckBox );
-      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer );
-      this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer2 );
-            
-      var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
-      this.extra_LHE_CheckBox = newCheckBox(this, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
-      this.extra_LHE_edit = newNumericEdit(this, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "Kernel radius value for LocalHistogramEqualization.");
-      this.extra_LHE_sizer = new HorizontalSizer;
-      this.extra_LHE_sizer.spacing = 4;
-      this.extra_LHE_sizer.add( this.extra_LHE_CheckBox );
-      this.extra_LHE_sizer.add( this.extra_LHE_edit );
-      this.extra_LHE_sizer.toolTip = extra_LHE_tooltip;
-      this.extra_LHE_sizer.addStretch();
-      
-      this.extra_Contrast_CheckBox = newCheckBox(this, "Add contrast", par.extra_contrast, 
-            "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
-      this.contrastIterationsSpinBox = newSpinBox(this, par.extra_contrast_iterations, 1, 5, "Number of iterations for contrast enhancement");
-      this.contrastIterationsLabel = new Label( this );
-      this.contrastIterationsLabel.text = "iterations";
-      this.contrastIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.contrastIterationsLabel.toolTip = this.contrastIterationsSpinBox.toolTip;
-      this.extraContrastSizer = new HorizontalSizer;
-      this.extraContrastSizer.spacing = 4;
-      this.extraContrastSizer.add( this.extra_Contrast_CheckBox );
-      this.extraContrastSizer.add( this.contrastIterationsSpinBox );
-      this.extraContrastSizer.add( this.contrastIterationsLabel );
-      this.extraContrastSizer.toolTip = this.contrastIterationsSpinBox.toolTip;
-      this.extraContrastSizer.addStretch();
-
-      var extraAutoContrastTooltip = "<p>Do automatic contrast enhancement. Works best with starless image.</p>";
-      this.extraAutoContrastCheckBox = newCheckBox(this, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
-      this.extraAutoContrastEditLow = newNumericEditPrecision(this, 'low', par.extra_auto_contrast_limit_low, 0, 100, "Percentage of clipped low pixels.", 4);
-      this.extraAutoContrastEditHigh = newNumericEditPrecision(this, 'high', par.extra_auto_contrast_limit_high, 0, 100, "Percentage of preserved high pixels.", 4);
-      this.extraAutoContrastChannelsCheckBox = newCheckBox(this, "channels,", par.extra_auto_contrast_channels, "Apply auto contrast separately for each channel.");
-      this.extraAutoContrastSizer = new HorizontalSizer;
-      this.extraAutoContrastSizer.spacing = 4;
-      this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
-      this.extraAutoContrastSizer.add( this.extraAutoContrastEditLow );
-      this.extraAutoContrastSizer.add( this.extraAutoContrastEditHigh );
-      this.extraAutoContrastSizer.add( this.extraAutoContrastChannelsCheckBox );
-      this.extraAutoContrastSizer.toolTip = extraAutoContrastTooltip;
-      this.extraAutoContrastSizer.addStretch();
-
-      this.extra_stretch_CheckBox = newCheckBox(this, "Auto stretch", par.extra_stretch, 
-            "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
-      this.extra_autostf_CheckBox = newCheckBox(this, "AutoSTF", par.extra_autostf, 
-            "<p>Run unlinked AutoSTF stretch on image. Can be helpful in balancing image.</p>" );
-
-      this.extra_force_new_mask_CheckBox = newCheckBox(this, "New mask", par.extra_force_new_mask, 
-            "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
-      this.extra_auto_reset_CheckBox = newCheckBox(this, "Auto reset", par.extra_auto_reset, 
-            "<p>If using Apply button, uncheck options when they are applied.</p>" );
-
-      var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
-      this.extra_shadowclip_CheckBox = newCheckBox(this, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
-      this.extra_shadowclipperc_edit = newNumericEditPrecision(this, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
-      this.extra_shadowclip_Sizer = new HorizontalSizer;
-      this.extra_shadowclip_Sizer.spacing = 4;
-      this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
-      this.extra_shadowclip_Sizer.add( this.extra_shadowclipperc_edit );
-      this.extra_shadowclip_Sizer.toolTip = shadowclipTooltip;
-      this.extra_shadowclip_Sizer.addStretch();
-
-      var extraEnhanceShadowsTooltip = "<p>Enhance shadows by using log function on each pixel.</p>";
-      this.extraEnhanceShadowsCheckBox = newCheckBox(this, "Enhance shadows", par.extra_shadow_enhance, extraEnhanceShadowsTooltip);
-      this.extraEnhanceShadowsSizer = new HorizontalSizer;
-      this.extraEnhanceShadowsSizer.spacing = 4;
-      this.extraEnhanceShadowsSizer.add( this.extraEnhanceShadowsCheckBox );
-      this.extraEnhanceShadowsSizer.toolTip = shadowclipTooltip;
-      this.extraEnhanceShadowsSizer.addStretch();
-
-      var extraEnhanceHighlightsTooltip = "<p>Enhance highlights by using exp function on each pixel.</p>";
-      this.extraEnhanceHighlightsCheckBox = newCheckBox(this, "Enhance highlights", par.extra_highlight_enhance, extraEnhanceHighlightsTooltip);
-      this.extraEnhanceHighlightsSizer = new HorizontalSizer;
-      this.extraEnhanceHighlightsSizer.spacing = 4;
-      this.extraEnhanceHighlightsSizer.add( this.extraEnhanceHighlightsCheckBox );
-      this.extraEnhanceHighlightsSizer.toolTip = shadowclipTooltip;
-      this.extraEnhanceHighlightsSizer.addStretch();
-
-      var smoothBackgroundTooltip = 
-            "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
-            "from the preview image using a mouse.</p>" +
-            smoothBackgroundTooltipGeneric;
-
-      this.extra_smoothBackground_CheckBox = newCheckBox(this, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
-      this.extra_smoothBackground_edit = newNumericEditPrecision(this, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 4);
-      this.extra_smoothBackground_Sizer = new HorizontalSizer;
-      this.extra_smoothBackground_Sizer.spacing = 4;
-      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_CheckBox );
-      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_edit );
-      this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
-      this.extra_smoothBackground_Sizer.addStretch();
-
-      var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>";
-
-      this.extraAdjustChannelsCheckBox = newCheckBox(this, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
-      this.extraAdjustChannelR = newNumericEdit(this, "R", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
-      this.extraAdjustChannelG = newNumericEdit(this, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
-      this.extraAdjustChannelB = newNumericEdit(this, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
-
-      this.extraAdjustChannelDefaultsButton = new ToolButton(this);
-      this.extraAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
-      this.extraAdjustChannelDefaultsButton.toolTip = 
-            "<p>Reset channel adjust values to defaults.</p>";
-      this.extraAdjustChannelDefaultsButton.onMousePress = function()
-      {
-            par.extra_adjust_R.val = par.extra_adjust_R.def;
-            par.extra_adjust_G.val = par.extra_adjust_G.def;
-            par.extra_adjust_B.val = par.extra_adjust_B.def;
-            this.dialog.extraAdjustChannelR.setValue(par.extra_adjust_R.val);
-            this.dialog.extraAdjustChannelG.setValue(par.extra_adjust_G.val);
-            this.dialog.extraAdjustChannelB.setValue(par.extra_adjust_B.val);
-      };
-
-      this.extraAdjustChannelsSizer = new HorizontalSizer;
-      this.extraAdjustChannelsSizer.spacing = 4;
-      this.extraAdjustChannelsSizer.margin = 2;
-      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelsCheckBox );
-      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
-      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
-      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelB );
-      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelDefaultsButton );
-      this.extraAdjustChannelsSizer.addStretch();
-
-      this.extra_SmallerStars_CheckBox = newCheckBox(this, "Smaller stars", par.extra_smaller_stars, 
-            "<p>Make stars smaller on image.</p>" );
-      this.smallerStarsIterationsSpinBox = newSpinBox(this, par.extra_smaller_stars_iterations, 0, 10, 
-            "Number of iterations when reducing star sizes. Value zero uses Erosion instead of Morphological Selection");
-      this.smallerStarsIterationsLabel = new Label( this );
-      this.smallerStarsIterationsLabel.text = "iterations";
-      this.smallerStarsIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.smallerStarsIterationsLabel.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
-      this.extraSmallerStarsSizer = new HorizontalSizer;
-      this.extraSmallerStarsSizer.spacing = 4;
-      this.extraSmallerStarsSizer.add( this.extra_SmallerStars_CheckBox );
-      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsSpinBox );
-      this.extraSmallerStarsSizer.add( this.smallerStarsIterationsLabel );
-      this.extraSmallerStarsSizer.toolTip = this.smallerStarsIterationsSpinBox.toolTip;
-      this.extraSmallerStarsSizer.addStretch();
-
-      var extra_noise_reduction_tooltip = "<p>Noise reduction on image.</p>" + noiseReductionToolTipCommon;
-      this.extra_NoiseReduction_CheckBox = newCheckBox(this, "Noise reduction", par.extra_noise_reduction, 
-            extra_noise_reduction_tooltip);
-
-      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
-      this.extraNoiseReductionStrengthLabel = new Label( this );
-      this.extraNoiseReductionStrengthLabel.text = "strength";
-      this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraNoiseReductionStrengthLabel.toolTip = extra_noise_reduction_tooltip;
-      this.extraNoiseReductionStrengthSizer = new HorizontalSizer;
-      this.extraNoiseReductionStrengthSizer.spacing = 4;
-      this.extraNoiseReductionStrengthSizer.add( this.extra_NoiseReduction_CheckBox );
-      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthComboBox );
-      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthLabel );
-      this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
-      this.extraNoiseReductionStrengthSizer.addStretch();
-
-      this.extra_ACDNR_CheckBox = newCheckBox(this, "ACDNR noise reduction", par.extra_ACDNR, 
-            "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from noise reduction section.</p>" + ACDNR_StdDev_tooltip);
-      this.extra_color_noise_CheckBox = newCheckBox(this, "Color noise reduction", par.extra_color_noise, 
-            "<p>Run color noise reduction on image.</p>" );
-      this.extra_star_noise_reduction_CheckBox = newCheckBox(this, "Star noise reduction", par.extra_star_noise_reduction, 
-            "<p>Run star noise reduction on star image.</p>" );
-      this.extra_color_calibration_CheckBox = newCheckBox(this, "Color calibration", par.extra_color_calibration, 
-            "<p>Run ColorCalibration on image.</p>" );
-      this.extra_solve_image_CheckBox = newCheckBox(this, "Solve image", par.extra_solve_image, 
-            "<p>Solve image by running ImageSolver script.</p>" + 
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
-      this.extra_annotate_image_CheckBox = newCheckBox(this, "Annotate image", par.extra_annotate_image, 
-            "<p>Use AnnotateImage script to annotate image.</p>" + 
-            "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
-            "When using SPCC color calibration astrometric solution is automatically added.</p>" +
-            "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
-
-      var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
-                                  "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
-                                  "<p>If BlurXTerminator is used for sharpening then iterations parameter is ignored.</p>";
-      this.extra_sharpen_CheckBox = newCheckBox(this, "Sharpening", par.extra_sharpen, extra_sharpen_tooltip);
-
-      this.extraSharpenIterationsSpinBox = newSpinBox(this, par.extra_sharpen_iterations, 1, 10, extra_sharpen_tooltip);
-      this.extraSharpenIterationsLabel = new Label( this );
-      this.extraSharpenIterationsLabel.text = "iterations";
-      this.extraSharpenIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraSharpenIterationsLabel.toolTip = extra_sharpen_tooltip;
-      this.extraSharpenIterationsSizer = new HorizontalSizer;
-      this.extraSharpenIterationsSizer.spacing = 4;
-      this.extraSharpenIterationsSizer.add( this.extra_sharpen_CheckBox );
-      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsSpinBox );
-      this.extraSharpenIterationsSizer.add( this.extraSharpenIterationsLabel );
-      this.extraSharpenIterationsSizer.toolTip = extra_sharpen_tooltip;
-      this.extraSharpenIterationsSizer.addStretch();
-
-      var unsharpmask_tooltip = "Sharpen image using UnsharpMask and a luminance mask.";
-      this.extra_unsharpmask_CheckBox = newCheckBox(this, "UnsharpMask", par.extra_unsharpmask, unsharpmask_tooltip);
-      this.extraUnsharpMaskStdDevEdit = newNumericEdit(this, "StdDev", par.extra_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
-      this.extraUnsharpMaskSizer = new HorizontalSizer;
-      this.extraUnsharpMaskSizer.spacing = 4;
-      this.extraUnsharpMaskSizer.add( this.extra_unsharpmask_CheckBox );
-      this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskStdDevEdit );
-      this.extraUnsharpMaskSizer.addStretch();
-      
-      var extra_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
-                                     "<p>Number of iterations specifies how many times add saturation is run.</p>";
-      this.extra_saturation_CheckBox = newCheckBox(this, "Saturation", par.extra_saturation, extra_saturation_tooltip);
-
-      this.extraSaturationIterationsSpinBox = newSpinBox(this, par.extra_saturation_iterations, 1, 20, extra_saturation_tooltip);
-      this.extraSaturationIterationsLabel = new Label( this );
-      this.extraSaturationIterationsLabel.text = "iterations";
-      this.extraSaturationIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraSaturationIterationsLabel.toolTip = extra_saturation_tooltip;
-      this.extraSaturationIterationsSizer = new HorizontalSizer;
-      this.extraSaturationIterationsSizer.spacing = 4;
-      this.extraSaturationIterationsSizer.add( this.extra_saturation_CheckBox );
-      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsSpinBox );
-      this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsLabel );
-      this.extraSaturationIterationsSizer.toolTip = extra_saturation_tooltip;
-      this.extraSaturationIterationsSizer.addStretch();
-
-      this.extraImageLabel = new Label( this );
-      this.extraImageLabel.text = "Target image";
-      this.extraImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraImageLabel.toolTip = "<p>Target image for editing. By default edits are applied on a copy of target image. Copied " + 
-            "is named as <target image>_edit.</p>" +
-            "<p>Auto option is used when extra processing is done with Run or AutoContinue option.</p>";
-      this.extraImageComboBox = new ComboBox( this );
-      this.extraImageComboBox.minItemCharWidth = 20;
-      this.extraImageComboBox.onItemSelected = function( itemIndex )
-      {
-            if (global.extra_target_image == extra_target_image_window_list[itemIndex]) {
-                  return;
-            }
-            close_undo_images(this.dialog);
-            global.extra_target_image = extra_target_image_window_list[itemIndex];
-            // console.writeln("global.extra_target_image " + global.extra_target_image);
-            if (global.extra_target_image == "Auto") {
-                  updatePreviewNoImage();
-                  this.dialog.extraSaveButton.enabled = false;
-            } else {
-                  updatePreviewIdReset(global.extra_target_image, true);
-                  this.dialog.extraSaveButton.enabled = true;
-            }
-      };
-      update_extra_target_image_window_list(this, "Auto");
-      global.extra_target_image = extra_target_image_window_list[0];
-
-      var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
-      this.extraApplyButton = new PushButton( this );
-      this.extraApplyButton.text = "Apply";
-      this.extraApplyButton.toolTip = 
-            "<p>Apply extra processing edits on the copy of the selected image. Auto option is used when extra processing is done with Run or AutoContinue option.</p>" +
-            notetsaved_note;
-      this.extraApplyButton.onClick = function()
-      {
-            if (!util.is_extra_option() && !util.is_narrowband_option()) {
-                  console.criticalln("No extra processing option selected!");
-            } else if (global.extra_target_image == null) {
-                  console.criticalln("No image!");
-            } else if (global.extra_target_image == "Auto") {
-                  console.criticalln("Auto target image cannot be used with Apply button!");
-            } else if (util.findWindow(global.extra_target_image) == null) {
-                  console.criticalln("Could not find target image " + global.extra_target_image);
-            } else {
-                  if (undo_images.length == 0) {
-                        global.extra_processing_info = [];   // First image, clear extra processing info
-                        var saved_extra_target_image = global.extra_target_image;
-                        if (!par.extra_apply_no_copy_image.val) {
-                              // make copy of the original image
-                              global.extra_target_image = copy_new_edit_image(global.extra_target_image);
-                        }
-                        var first_undo_image_id = create_undo_image(global.extra_target_image);
-                        var first_undo_image_id_histogramInfo = current_histogramInfo;
-                  } else {
-                        var first_undo_image_id = null;
-                  }
-                  console.writeln("Apply extra processing edits on " + global.extra_target_image);
-                  try {
-                        engine.extraApply = true;
-                        engine.extraProcessingEngine(this.dialog, global.extra_target_image, util.is_narrowband_option());
-                        if (undo_images.length == 0) {
-                              // add first/original undo image
-                              add_undo_image(this.dialog, global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
-                              // save copy of original image to the window list and make is current
-                              update_extra_target_image_window_list(this.dialog, global.extra_target_image);
-                        }
-                        let undo_image_id = create_undo_image(global.extra_target_image);
-                        add_undo_image(this.dialog, global.extra_target_image, undo_image_id, current_histogramInfo);
-                        console.noteln("Apply completed (" + undo_images.length + "/" + undo_images.length + ")");
-                  } 
-                  catch(err) {
-                        if (first_undo_image_id != null) {
-                              remove_undo_image(first_undo_image_id);
-                              global.extra_target_image = saved_extra_target_image;
-                        }
-                        console.criticalln(err);
-                        console.criticalln("Operation failed!");
-                  }
-                  engine.extraApply = false;
-            }
-      };   
-
-      this.extraUndoButton = new ToolButton( this );
-      this.extraUndoButton.icon = new Bitmap( ":/icons/undo.png" );
-      this.extraUndoButton.toolTip = 
-            "<p>Undo last extra edit operation.</p>" + notetsaved_note;
-      this.extraUndoButton.enabled = false;
-      this.extraUndoButton.onMousePress = function()
-      {
-            apply_undo(this.dialog);
-      };
-
-      this.extraRedoButton = new ToolButton( this );
-      this.extraRedoButton.icon = new Bitmap( ":/icons/redo.png" );
-      this.extraRedoButton.toolTip = 
-            "<p>Redo last extra edit operation.</p>" + notetsaved_note;
-      this.extraRedoButton.enabled = false;
-      this.extraRedoButton.onMousePress = function()
-      {
-            apply_redo(this.dialog);
-      };
-
-      this.extraSaveButton = new ToolButton( this );
-      this.extraSaveButton.icon = new Bitmap( ":/icons/save-as.png" );
-      this.extraSaveButton.toolTip = 
-            "<p>Save current edited image to disk as a XISF image and as a 16-bit TIFF image.</p>" + notetsaved_note;
-      this.extraSaveButton.enabled = false;
-      this.extraSaveButton.onMousePress = function()
-      {
-            save_as_undo(this.dialog);
-      };
-
-      this.extraImageSizer = new HorizontalSizer;
-      // this.extraImageSizer.margin = 6;
-      this.extraImageSizer.spacing = 4;
-      this.extraImageSizer.add( this.extraImageLabel );
-      this.extraImageSizer.add( this.extraImageComboBox );
-      this.extraImageSizer.add( this.extraApplyButton );
-      this.extraImageSizer.add( this.extraUndoButton );
-      this.extraImageSizer.add( this.extraRedoButton );
-      this.extraImageSizer.add( this.extraSaveButton );
-      this.extraImageSizer.addStretch();
-
-      this.extra_image_no_copy_CheckBox = newCheckBox(this, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
-            "<p>Do not make a copy of the image for Apply.</p>" );
-
-      this.extraImageOptionsSizer = new HorizontalSizer;
-      this.extraImageOptionsSizer.margin = 6;
-      this.extraImageOptionsSizer.spacing = 4;
-      this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_auto_reset_CheckBox );
-      this.extraImageOptionsSizer.addStretch();
-
-      this.extra1 = new VerticalSizer;
-      this.extra1.margin = 6;
-      this.extra1.spacing = 4;
-      this.extra1.add( this.extraRemoveStars_Sizer );
-      this.extra1.add( this.extra_smoothBackground_Sizer );
-      this.extra1.add( this.extraABE_CheckBox );
-      this.extra1.add( this.extra_shadowclip_Sizer );
-      this.extra1.add( this.extraDarkerBackground_CheckBox );
-      this.extra1.add( this.extraDarkerHighlights_CheckBox );
-      this.extra1.add( this.extraEnhanceShadowsSizer );
-      this.extra1.add( this.extraEnhanceHighlightsSizer );
-      this.extra1.add( this.extraAdjustChannelsSizer );
-      this.extra1.add( this.extra_ET_Sizer );
-      this.extra1.add( this.extra_HDRMLT_Sizer );
-      this.extra1.add( this.extra_LHE_sizer );
-      this.extra1.add( this.extraContrastSizer );
-      this.extra1.add( this.extraAutoContrastSizer );
-
-      this.extra2 = new VerticalSizer;
-      this.extra2.margin = 6;
-      this.extra2.spacing = 4;
-      this.extra2.add( this.extraNoiseReductionStrengthSizer );
-      this.extra2.add( this.extra_ACDNR_CheckBox );
-      this.extra2.add( this.extra_color_noise_CheckBox );
-      this.extra2.add( this.extra_star_noise_reduction_CheckBox );
-      this.extra2.add( this.extraUnsharpMaskSizer );
-      this.extra2.add( this.extraSharpenIterationsSizer );
-      this.extra2.add( this.extraSaturationIterationsSizer );
-      this.extra2.add( this.extraSmallerStarsSizer );
-      this.extra2.add( this.extraCombineStars_Sizer );
-      this.extra2.add( this.extra_color_calibration_CheckBox );
-      this.extra2.add( this.extra_solve_image_CheckBox );
-      this.extra2.add( this.extra_annotate_image_CheckBox );
-      this.extra2.addStretch();
-
-      var extraLabeltoolTip = 
-            "<p>" +
-            "In case of Run or AutoContinue " + 
-            "extra processing options are always applied to a copy of the final image. " + 
-            "A new image is created with _extra added to the name. " + 
-            "For example if the final image is AutoLRGB then a new image AutoLRGB_extra is created. " + 
-            "AutoContinue can be used to apply extra processing after the final image is created. " +
-            "</p><p>" +
-            "In case of Apply button extra processing is run directly on the selected image. " +
-            "Apply button can be used to execute extra options one by one in custom order." +
-            "</p><p>" +
-            "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
-            "narrowband options are selected then image is assumed to be narrowband." +
-            "</p><p>" +
-            "If multiple extra processing options are selected they are executed in the following order:" + 
-            "</p>" +
-            "<ol>" +
-            "<li>Auto stretch</li>" +
-            "<li>Narrowband options</li>" +
-            "<li>Remove stars</li>" +
-            "<li>Smoothen background</li>" +
-            "<li>AutomaticBackgroundExtractor</li>" +
-            "<li>Clip shadows</li>" +
-            "<li>Darker background</li>" +
-            "<li>Enhance shadows</li>" +
-            "<li>Adjust channels</li>" +
-            "<li>ExponentialTransformation</li>" +
-            "<li>HDRMultiscaleTransform</li>" +
-            "<li>LocalHistogramEqualization</li>" +
-            "<li>Add contrast</li>" +
-            "<li>Noise reduction</li>" +
-            "<li>ACDNR noise reduction</li>" +
-            "<li>Color noise reduction</li>" +
-            "<li>Sharpen using Unsharp Mask</li>" +
-            "<li>Sharpening</li>" +
-            "<li>Saturation</li>" +
-            "<li>Smaller stars</li>" +
-            "<li>Combine starless and stars images</li>" +
-            "</ol>" +
-            "<p>" +
-            "If narrowband processing options are selected they are applied before extra processing options." +
-            "</p>";
-
-      this.extraGroupBoxSizer = new HorizontalSizer;
-      //this.extraGroupBoxSizer.margin = 6;
-      //this.extraGroupBoxSizer.spacing = 4;
-      this.extraGroupBoxSizer.add( this.extra1 );
-      this.extraGroupBoxSizer.add( this.extra2 );
-      this.extraGroupBoxSizer.addStretch();
-
-      this.extraImageControl = new Control( this );
-      this.extraImageControl.sizer = new VerticalSizer;
-      this.extraImageControl.sizer.margin = 6;
-      this.extraImageControl.sizer.spacing = 4;
-      this.extraImageControl.sizer.add( this.extraImageSizer );
-      this.extraImageControl.sizer.add( this.extraImageOptionsSizer );
-      this.extraImageControl.sizer.addStretch();
-      this.extraImageControl.visible = false;
-
-      this.extraControl1 = new Control( this );
-      this.extraControl1.sizer = new VerticalSizer;
-      this.extraControl1.sizer.margin = 6;
-      this.extraControl1.sizer.spacing = 4;
-      this.extraControl1.sizer.add( this.extraGroupBoxSizer );
-      this.extraControl1.sizer.addStretch();
-      this.extraControl1.visible = false;
-
-      this.extraControl2 = new Control( this );
-      this.extraControl2.sizer = new VerticalSizer;
-      this.extraControl2.sizer.margin = 6;
-      this.extraControl2.sizer.spacing = 4;
-      this.extraControl2.sizer.add( this.narrowbandExtraOptionsSizer );
-      this.extraControl2.sizer.addStretch();
-      this.extraControl2.visible = false;
-
-      this.extraControl3 = new Control( this );
-      this.extraControl3.sizer = new VerticalSizer;
-      this.extraControl3.sizer.margin = 6;
-      this.extraControl3.sizer.spacing = 4;
-      this.extraControl3.sizer.add( this.narrowbandColorized_sizer );
-      this.extraControl3.sizer.addStretch();
-      this.extraControl3.visible = false;
+      this.extraImageControl = extraGUIControls[0];
+      this.extraControl1 = extraGUIControls[1];
+      this.extraControl2 = extraGUIControls[2];
+      this.extraControl3 = extraGUIControls[3];
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
@@ -7010,7 +7133,7 @@ function AutoIntegrateDialog()
                   savePersistentSettings(false);
                   //this.columnCountControlComboBox.currentItem = global.columnCount + 1;
             }
-            update_extra_target_image_window_list(this.dialog, null);
+            update_extra_target_image_window_list(null);
             console.writeln("Close prefix completed");
       };
 
@@ -7063,7 +7186,7 @@ function AutoIntegrateDialog()
             savePersistentSettings(false);
             // restore original prefix
             util.fixAllWindowArrays(ppar.win_prefix);
-            update_extra_target_image_window_list(this.dialog, null);
+            update_extra_target_image_window_list(null);
             console.writeln("Close all prefixes completed");
       };
 
@@ -7784,7 +7907,9 @@ function AutoIntegrateDialog()
 
       console.show();
 
-      console.writeln()
+       if (ppar.preview.use_preview) {
+            console.writeln(previewTextSize + ", dialog width " + this.width + " height " + this.height);
+       }
 }
 
 AutoIntegrateDialog.prototype = new Dialog;

@@ -9175,7 +9175,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       // guiUpdatePreviewWin(copywin);
 
       if (gui) {
-            gui.update_extra_target_image_window_list(parent, global.extra_target_image);
+            gui.update_extra_target_image_window_list(global.extra_target_image);
       }
 
       // return possibly new starless image for further processing
@@ -12035,7 +12035,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        util.addProcessingStepAndStatusInfo("Start processing...");
  
        if (gui) {
-            gui.close_undo_images(parent);
+            gui.close_undo_images();
        }
  
        targetTypeSetup();

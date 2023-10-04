@@ -15,7 +15,7 @@ function AutoIntegrateMaxPreviewDialog(par, imgWin, image, txt)
             var screen_width = this.availableScreenRect.width;
             var screen_height = this.availableScreenRect.height;
        } else {
-            console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD as default");
+            console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD (1920x1080) as default");
             var screen_width = 1920;
             var screen_height = 1080;
        }
@@ -198,7 +198,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                   this.maxPreview_Button = new ToolButton( this );
                   this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
                   this.maxPreview_Button.setScaledFixedSize( 20, 20 );
-                  this.maxPreview_Button.toolTip = "Open a new dialog to view the image in a max size preview window.";
+                  this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
                   this.maxPreview_Button.onMousePress = function()
                   {
                         let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
@@ -206,7 +206,6 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                         gc(false);
                   };
             }
-
             this.image_name_Label = new Label( this );
             this.image_name_Label.text = "";
             this.image_name_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
