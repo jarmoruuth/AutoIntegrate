@@ -23,7 +23,7 @@ function AutoIntegrateMaxPreviewDialog(par, imgWin, image, txt)
        var preview_width = parseInt(screen_width - screen_width / 10);
        var preview_height = parseInt(screen_height - screen_height / 10);
 
-       console.writeln("AutoIntegrateMaxPreviewDialog: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
+       console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
       this.maxPreviewControl = new AutoIntegratePreviewControl(this, par, preview_width, preview_height, false, true);
 

@@ -318,6 +318,8 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
+var screen_width = 0;              // Screen width in pixels
+var screen_height = 0;             // Screen height in pixels
 
 var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
 
@@ -3703,6 +3705,7 @@ function newTargetSizer(parent)
 
       var winprefix_sizer = addWinPrefix(parent);
       var outputdir_sizer = addOutputDir(parent);
+      var action_sizer = newActionSizer(parent);
 
       var filesButtons_Sizer2 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer2);
@@ -3713,6 +3716,8 @@ function newTargetSizer(parent)
       filesButtons_Sizer2.addSpacing( 12 );
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
+      filesButtons_Sizer2.addSpacing( 12 );
+      filesButtons_Sizer2.add( action_sizer );
 
       return filesButtons_Sizer2;
 }
@@ -3938,8 +3943,11 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       files_TreeBox.multipleSelection = true;
       files_TreeBox.rootDecoration = false;
       files_TreeBox.alternateRowColor = true;
-      // files_TreeBox.setScaledMinSize( 300, 150 );
-      files_TreeBox.setScaledMinSize( 150, 150 );
+      if (ppar.files_in_tab) {
+            files_TreeBox.setScaledMinSize( 150, screen_height / 3 );
+      } else {
+            files_TreeBox.setScaledMinSize( 150, 150 );
+      }
       files_TreeBox.numberOfColumns = 1;
       files_TreeBox.headerVisible = false;
       files_TreeBox.onCurrentNodeUpdated = () =>
@@ -4441,14 +4449,6 @@ function newMaxPreviewButton(parent)
             } else {                // maximize
                   maxPreview_Button.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
                   maxPreview_Button.toolTip = "Restore dialog to normal size.";
-                  if (parent.availableScreenRect != undefined) {
-                        var screen_width = parent.availableScreenRect.width;
-                        var screen_height = parent.availableScreenRect.height;
-                  } else {
-                        console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD (1920x1080) as default");
-                        var screen_width = 1920;
-                        var screen_height = 1080;
-                  }
                   if (ppar.preview.side_preview_visible) {
                         var preview_width = ppar.preview.side_preview_width;
                         var preview_height = ppar.preview.side_preview_height;
@@ -4470,14 +4470,17 @@ function newMaxPreviewButton(parent)
                   }
 
                   var emptyAreaHeight = mainTabBox.height - preview_control_height - histogram_control_height;
+                  if (emptyAreaHeight < 0) {
+                        emptyAreaHeight = 0;
+                  }
                   var dialog_width = parent.dialog.width;
                   var dialog_height = parent.dialog.height;
                   var max_preview_width = preview_width + (screen_width - dialog_width) - (preview_control_width - preview_width) - 100;
                   var max_preview_height = preview_height + (screen_height - dialog_height) + emptyAreaHeight - (preview_control_height - preview_height) - 100;
 
-                  console.writeln("preview width overhead " + (preview_control_width - preview_width) + ", height overhead " + (preview_control_height - preview_height));
-                  console.writeln("screen " + screen_width + "x" + screen_height + ", dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + 
-                                  ", max preview " + max_preview_width + "x" + max_preview_height + ", empty area height " + emptyAreaHeight);
+                  // console.writeln("preview width overhead " + (preview_control_width - preview_width) + ", height overhead " + (preview_control_height - preview_height));
+                  console.writeln("Maximize dialog: screen " + screen_width + "x" + screen_height + ", dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + 
+                                  ", max preview " + max_preview_width + "x" + max_preview_height);
 
                   if (ppar.preview.side_preview_visible) {
                         sidePreviewControl.setSize(max_preview_width, max_preview_height);
@@ -4498,10 +4501,12 @@ function newActionSizer(parent)
       var actionsSizer = new HorizontalSizer;
       parent.rootingArr.push(actionsSizer);
 
-      let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
-      parent.rootingArr.push(obj);
-      actionsSizer.add( obj );
-      actionsSizer.addSpacing( 6 );
+      if (0) {
+            let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
+            parent.rootingArr.push(obj);
+            actionsSizer.add( obj );
+            actionsSizer.addSpacing( 6 );
+      }
 
       obj = newCancelButton(parent, true);
       parent.rootingArr.push(obj);
@@ -4747,7 +4752,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
 
       buttonsSizer.addStretch();
       if (!ppar.files_in_tab) {
-            buttonsSizer.add( actionSizer );
+            // buttonsSizer.add( actionSizer );
       }
 
       return buttonsSizer;
@@ -5077,7 +5082,7 @@ function updatePreviewSize(w, h, hh, sw, sh, shh)
                         ppar.preview.preview_sizes[i][4] + ", " + ppar.preview.preview_sizes[i][5] + ", " + ppar.preview.preview_sizes[i][6]);
 }
 
-function getPreviewSize(availableScreenRect)
+function getPreviewSize()
 {
       ppar.preview.preview_width = 0;
       ppar.preview.preview_height = 0;
@@ -5104,36 +5109,22 @@ function getPreviewSize(availableScreenRect)
       }
 
       if (ppar.preview.preview_width == 0 || ppar.preview.preview_width == 0) {
-            /* Preview size not set for this screen size. */
-            if (availableScreenRect != undefined) {
-                  /* Calculate preview size from screen size.
-                   * Use a small preview size as a default to ensure that it fits on screen. 
-                   */
-                  let preview_size = Math.floor(Math.min(availableScreenRect.width * 0.25, availableScreenRect.height * 0.25));
-                  preview_size = Math.min(preview_size, 400);
-                  ppar.preview.preview_width = preview_size;
-                  ppar.preview.preview_height = preview_size;
-                  ppar.preview.histogram_height = Math.floor(availableScreenRect.height * 0.05);
-            } else {
-                  /* Use a fixed default size. 
-                   */
-                  console.writeln("Could not get screen size, use a default preview size.");
-                  ppar.preview.preview_width = 300;
-                  ppar.preview.preview_height = 300;
-            }
+            /* Preview size not set for this screen size.
+             * Calculate preview size from screen size.
+             * Use a small preview size as a default to ensure that it fits on screen. 
+             */
+            let preview_size = Math.floor(Math.min(screen_width * 0.25, screen_height * 0.25));
+            preview_size = Math.min(preview_size, 400);
+            ppar.preview.preview_width = preview_size;
+            ppar.preview.preview_height = preview_size;
+            ppar.preview.histogram_height = Math.floor(screen_height * 0.05);
       }
       if (ppar.preview.histogram_height == 0) {
-            /* Preview size not set for this screen size. */
-            if (availableScreenRect != undefined) {
-                  /* Calculate histogram height from screen size.
-                   * Use a small preview size as a default to ensure that it fits on screen. 
-                   */
-                  ppar.preview.histogram_height = Math.floor(availableScreenRect.height * 0.05);
-            } else {
-                  /* Use a fixed default size. 
-                   */
-                  ppar.preview.histogram_height = 50;
-            }
+            /* Preview size not set for this screen size.
+             * Calculate histogram height from screen size.
+             * Use a small preview size as a default to ensure that it fits on screen. 
+             */
+            ppar.preview.histogram_height = Math.floor(screen_height * 0.05);
       }
       if (ppar.preview.side_preview_width == 0) {
             ppar.preview.side_preview_width = ppar.preview.preview_width;
@@ -5155,11 +5146,17 @@ function AutoIntegrateDialog()
        this.__base__();
 
        if (this.availableScreenRect != undefined) {
+            screen_width = this.availableScreenRect.width;
+            screen_height = this.availableScreenRect.height;
             screen_size = this.availableScreenRect.width + "x" + this.availableScreenRect.height;
+       } else {
+            console.criticalln("Could not get the screen size, using Full HD (1920x1080) as default");
+            screen_height = 1080;
+            screen_size = 1920;
        }
 
        if (ppar.preview.use_preview) {
-            var previewTextSize = getPreviewSize(this.availableScreenRect);
+            var previewTextSize = getPreviewSize();
       }
 
       this.textEditWidth = 25 * this.font.width( "M" );
@@ -7852,13 +7849,13 @@ function AutoIntegrateDialog()
             this.baseSizer.add( this.tabBox);             // Files tabs
       }
 
-      this.actionSizer = newActionSizer(this);
+      // this.actionSizer = newActionSizer(this);
       this.jsonSizer = newJsonSizer(this);
 
       if (ppar.files_in_tab) {
             this.topButtonsSizer = new HorizontalSizer;
             this.topButtonsSizer.spacing = 4;
-            this.topButtonsSizer.add( this.actionSizer );
+            // this.topButtonsSizer.add( this.actionSizer );
             this.baseSizer.add( this.topButtonsSizer );
 
             this.topButtonsSizer2 = new HorizontalSizer;
@@ -7868,7 +7865,7 @@ function AutoIntegrateDialog()
             this.topButtonsSizer2.add( this.targetSizer );
             this.baseSizer.add( this.topButtonsSizer2 );
       } else {
-            this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
+            // this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
             this.baseSizer.add( this.pageButtonsSizer );
       }
       if (!ppar.files_in_tab) {
