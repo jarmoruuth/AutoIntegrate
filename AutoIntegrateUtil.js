@@ -942,6 +942,7 @@ function is_non_starless_option()
              par.extra_unsharpmask.val ||
              par.extra_saturation.val ||
              par.extra_smaller_stars.val ||
+             par.extra_normalize_channels.val ||
              par.extra_adjust_channels.val ||
              par.extra_shadow_enhance.val ||
              par.extra_highlight_enhance.val ||

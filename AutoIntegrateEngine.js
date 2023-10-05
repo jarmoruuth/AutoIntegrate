@@ -617,6 +617,54 @@ function extractLchannel(sourceWindow)
       return targetWindow;
 }
 
+function extraNormalizeImage(imgWin)
+{
+      addExtraProcessingStep("Normalize image");
+
+      switch (par.extra_normalize_channels_reference.val) {
+            case 'R':
+                  var expressions = [ "$T[0]",
+                                      "((adev($T[0])/adev($T[1]))*($T[1]-med($T[1])))+med($T[0])",
+                                      "((adev($T[0])/adev($T[2]))*($T[2]-med($T[2])))+med($T[0])"
+                                    ];
+                  break;
+            case 'G':
+                  var expressions = [ "((adev($T[1])/adev($T[0]))*($T[0]-med($T[0])))+med($T[1])",
+                                      "$T[1]",
+                                      "((adev($T[1])/adev($T[2]))*($T[2]-med($T[2])))+med($T[1])"
+                                    ];
+                  break;
+            case 'B':
+                  var expressions = [ "((adev($T[2])/adev($T[0]))*($T[0]-med($T[0])))+med($T[2])",
+                                      "((adev($T[2])/adev($T[1]))*($T[1]-med($T[1])))+med($T[2])",
+                                      "$T[2]"
+                                    ];
+                  break;
+            default:
+                  util.throwFatalError("Invalid extra_normalize_channels_reference value: " + par.extra_normalize_channels_reference.val);
+                  break;
+      }
+
+      console.writeln("Expressions " + expressions[0] + ", " + expressions[1] + ", " + expressions[2]);
+
+      var P = new PixelMath;
+
+      P.expression = expressions[0];
+      P.expression1 = expressions[1];
+      P.expression2 = expressions[2];
+      P.useSingleExpression = false;
+      P.showNewImage = false;
+      P.createNewImage = false;
+      P.newImageId = "";
+      P.newImageColorSpace = PixelMath.prototype.RGB;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(imgWin.mainView);
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
 function addMildBlur(imgWin)
 {
       console.writeln("Add slight blur to image " + imgWin.mainView.id);
@@ -10770,6 +10818,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_highlight_enhance.val) {
             extraEnhanceHighlights(extraWin);
             extraOptionCompleted(par.extra_highlight_enhance);
+      }
+      if (par.extra_normalize_channels.val) {
+            extraNormalizeImage(extraWin);
+            extraOptionCompleted(par.extra_normalize_channels);
       }
       if (par.extra_adjust_channels.val) {
             extraAdjustChannels(extraWin);

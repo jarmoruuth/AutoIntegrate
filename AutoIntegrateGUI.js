@@ -316,6 +316,7 @@ var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ]
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
+var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -1000,6 +1001,22 @@ function extraProcessingGUI(parent)
       this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
       this.extra_smoothBackground_Sizer.addStretch();
 
+      this.extraNormalizeChannelsCheckBox = newCheckBox(parent, "Normalize channels,", par.extra_normalize_channels, 
+                                                        "<p>Normalize back point and brightness on all channels based on a reference channel.<p>" +
+                                                        "<p>Can be useful for example on narrowband images where Halpha data (typically on channel B) is much stronger than S or O.<p>" +
+                                                        "<p>Normalization uses similar PixelMath expressions as Bill Blanshan in his <i>Narrowband Normalization using Pixnsight Pixelmath</i> " + 
+                                                        "script. See more information in his YouTube channel AnotherAstroChannel.</p>");
+      this.extraNormalizeChannelsReferenceLabel = newLabel(parent, "reference", "Reference channel for normalization." + this.extraNormalizeChannelsCheckBox.toolTip);
+      this.extraNormalizeChannelsReferenceComboBox = newComboBox(parent, par.extra_normalize_channels_reference, normalize_channels_reference_values, this.extraNormalizeChannelsReferenceLabel.toolTip);
+
+      this.extraNormalizeChannelsSizer = new HorizontalSizer;
+      this.extraNormalizeChannelsSizer.spacing = 4;
+      this.extraNormalizeChannelsSizer.margin = 2;
+      this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsCheckBox );
+      this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceLabel );
+      this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceComboBox );
+      this.extraNormalizeChannelsSizer.addStretch();
+
       var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>";
 
       this.extraAdjustChannelsCheckBox = newCheckBox(parent, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
@@ -1251,6 +1268,7 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.add( this.extraUndoButton );
       this.extraImageSizer.add( this.extraRedoButton );
       this.extraImageSizer.add( this.extraSaveButton );
+      this.extraImageSizer.addStretch();
 
       this.extra_image_no_copy_CheckBox = newCheckBox(parent, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
@@ -1276,16 +1294,17 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraDarkerHighlights_CheckBox );
       this.extra1.add( this.extraEnhanceShadowsSizer );
       this.extra1.add( this.extraEnhanceHighlightsSizer );
+      this.extra1.add( this.extraNormalizeChannelsSizer );
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
       this.extra1.add( this.extra_LHE_sizer );
-      this.extra1.add( this.extraContrastSizer );
-      this.extra1.add( this.extraAutoContrastSizer );
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
       this.extra2.spacing = 4;
+      this.extra2.add( this.extraContrastSizer );
+      this.extra2.add( this.extraAutoContrastSizer );
       this.extra2.add( this.extraNoiseReductionStrengthSizer );
       this.extra2.add( this.extra_ACDNR_CheckBox );
       this.extra2.add( this.extra_color_noise_CheckBox );
