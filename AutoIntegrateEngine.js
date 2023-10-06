@@ -645,6 +645,11 @@ function extraNormalizeImage(imgWin)
                   break;
       }
 
+      if (par.extra_normalize_channels_mask.val) {
+            util.closeOneWindow("AutoNormalizeMask");
+            var mask_win = newMaskWindow(imgWin, "AutoNormalizeMask", false, true);
+      }
+
       console.writeln("Expressions " + expressions[0] + ", " + expressions[1] + ", " + expressions[2]);
 
       var P = new PixelMath;
@@ -659,7 +664,18 @@ function extraNormalizeImage(imgWin)
       P.newImageColorSpace = PixelMath.prototype.RGB;
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      if (par.extra_normalize_channels_mask.val) {
+            setMaskChecked(imgWin, mask_win);
+            /* Normalize only light parts of the image. */
+            imgWin.maskInverted = false;
+      }
+
       P.executeOn(imgWin.mainView);
+
+      if (par.extra_normalize_channels_mask.val) {
+            imgWin.removeMask();
+      }
       imgWin.mainView.endProcess();
 
       checkCancel();
@@ -869,7 +885,7 @@ function findSymmetryPoint(win, perc, channel)
       return normalizedShadowClipping;
 }
 
-function newMaskWindow(sourceWindow, name, allow_duplicate_name)
+function newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
 {
       var targetWindow;
 
@@ -896,9 +912,11 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name)
 
       targetWindow.show();
 
-      if (!par.skip_mask_contrast.val) {
+      if (clip_shadows_more) {
+            autoContrast(targetWindow, 10, 99.9);
+      } else if (!par.skip_mask_contrast.val) {
             //clipShadows(targetWindow, 1.0);   Not sure if this actually helps
-            autoContrast(targetWindow, 0.1, 100);
+            autoContrast(targetWindow, 0.1, 99.9);
       }
 
       runMultiscaleLinearTransformReduceNoise(targetWindow, null, 3);
@@ -7490,6 +7508,19 @@ function debayerImages(fileNames)
       return fileNamesFromOutputData(P.outputFileData);
 }
 
+function runBandingReduction(imageWindow)
+{
+      console.writeln("runBandingReduction");
+
+      var bandingEngine = new AutoIntegrateBandingEngine();
+
+      bandingEngine.setAmount(par.banding_reduction_amount.val);
+      bandingEngine.setHighlightProtect(par.banding_reduction_protect_highlights.val);
+
+      bandingEngine.setTargetImage(imageWindow.mainView.image);
+      bandingEngine.doit(imageWindow.mainView);
+}
+
 function bandingEngineForImages(fileNames)
 {
       util.addStatusInfo("Banding reduction for " + fileNames.length + " images");
@@ -9294,10 +9325,15 @@ function extraAdjustChannels(imgWin)
 
       var P = new PixelMath;
 
-      P.expression = "$T * " + par.extra_adjust_R.val;
-      P.expression1 = "$T * " + par.extra_adjust_G.val;
-      P.expression2 = "$T * " + par.extra_adjust_B.val;
-      P.useSingleExpression = false;
+      if (par.extra_adjust_G.val == 0 && par.extra_adjust_B.val == 0) {
+            P.expression = "$T * " + par.extra_adjust_R.val;
+            P.useSingleExpression = true;
+      } else {
+            P.expression = "$T[0] * " + par.extra_adjust_R.val;
+            P.expression1 = "$T[1] * " + par.extra_adjust_G.val;
+            P.expression2 = "$T[2] * " + par.extra_adjust_B.val;
+            P.useSingleExpression = false;
+      }
       P.showNewImage = false;
       P.createNewImage = false;
       P.newImageId = "";
@@ -9841,6 +9877,13 @@ function extraSaturation(extraWin, mask_win)
       // guiUpdatePreviewWin(extraWin);
 }
 
+function extraBandingReduction(extraWin)
+{
+      addExtraProcessingStep("Banding reduction");
+
+      runBandingReduction(extraWin);
+}
+
 function extraABE(extraWin)
 {
       addExtraProcessingStep("ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
@@ -10091,7 +10134,7 @@ function extraColorizeChannelUsingColourise(ch_win, channel)
       return ch_win;
 }
 
-function extraColorizeChannelUsingPixelMath(ch_win, channel, weight)
+function extraColorizeChannelUsingPixelMath(ch_win, channel)
 {
       var midtones = 0.5;
 
@@ -10141,73 +10184,108 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel, weight)
       return ch_win;
 }
 
+function extraColorizePixelMathChannelsWeightedMapping(channel)
+{
+      var midtones = 0.5;
+
+      switch (channel) {
+            case 'R':
+                  console.writeln("Colorize channel R using PixelMathChannel, hue " + par.narrowband_colorized_R_hue.val + ", saturation " + par.narrowband_colorized_R_sat.val);
+                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_R_hue.val, par.narrowband_colorized_R_sat.val, midtones);
+                  var weight = par.narrowband_colorized_R_weight.val;
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
+                  break;
+            case 'G':
+                  console.writeln("Colorize channel G using PixelMathChannel, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
+                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_G_hue.val, par.narrowband_colorized_G_sat.val, midtones);
+                  var weight = par.narrowband_colorized_G_weight.val;
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
+                  break;
+            case 'B':
+                  console.writeln("Colorize channel B using PixelMathChannel, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
+                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_B_hue.val, par.narrowband_colorized_B_sat.val, midtones);
+                  var weight = par.narrowband_colorized_B_weight.val;
+                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
+                  break;
+            default:
+                  util.throwFatalError("extraColorizeChannelUsingPixelMath: Invalid channel " + channel);
+                  break;
+      }
+      var weighted_mapping = "((" + "$T[0]" + "*" + rgb[0] + "+$T[1]" + "*" + rgb[1] + "+$T[2]" + "*" + rgb[2] + ")" + "*" + weight + ")";
+      console.writeln("extraColorizePixelMathChannelsWeightedMapping: " + weighted_mapping);
+      return weighted_mapping;
+}
+
 this.extraColorizedNarrowbandImages = function(imgWin)
 {
       console.writeln("extraColorizedNarrowbandImages " + imgWin.mainView.id + ", mapping " + par.narrowband_colorized_mapping.val + ", combine " + par.narrowband_colorized_combine.val);
 
-      var channel_wins = getColorizeChannels(imgWin);
-
-      if (par.narrowband_colorized_linear_fit.val) {
-            console.writeln("extraColorizedNarrowbandImages, linear fit");
-            var R_id = channel_wins[0].mainView.id;
-            var G_id = channel_wins[1].mainView.id;
-            var B_id = channel_wins[2].mainView.id;
-            linearFitArray(R_id, [ G_id, B_id ]);
-      }
-
-      switch (par.narrowband_colorized_method.val) {
-            case 'Colourise':
-                  channel_wins[0] = extraColorizeChannelUsingColourise(channel_wins[0], 'R', par.narrowband_colorized_R_weight.val);
-                  channel_wins[1] = extraColorizeChannelUsingColourise(channel_wins[1], 'G', par.narrowband_colorized_G_weight.val);
-                  channel_wins[2] = extraColorizeChannelUsingColourise(channel_wins[2], 'B', par.narrowband_colorized_B_weight.val);
-                  break;
-            case 'PixelMath':
-                  channel_wins[0] = extraColorizeChannelUsingPixelMath(channel_wins[0], 'R', par.narrowband_colorized_R_weight.val);
-                  channel_wins[1] = extraColorizeChannelUsingPixelMath(channel_wins[1], 'G', par.narrowband_colorized_G_weight.val);
-                  channel_wins[2] = extraColorizeChannelUsingPixelMath(channel_wins[2], 'B', par.narrowband_colorized_B_weight.val);
-                  break;
-            case 'Curves':
-                  channel_wins[0] = extraColorizedSHO(channel_wins[0], 'R', channel_wins[0].mainView.id);
-                  channel_wins[1] = extraColorizedSHO(channel_wins[1], 'G', channel_wins[1].mainView.id);
-                  channel_wins[2] = extraColorizedSHO(channel_wins[2], 'B', channel_wins[2].mainView.id);
-                  break;
-            default:
-                  util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized method " + par.narrowband_colorized_method.val);
-                  break;
-      }
-
-      var mapping = [];
       var weighted_mapping = [];
-      for (var i = 0; i < 3; i++) {
-            var ch = par.narrowband_colorized_mapping.val.charAt(i);
-            switch (ch) {
-                  case 'R':
-                        mapping.push(channel_wins[0]);
-                        if (par.narrowband_colorized_method.val == 'PixelMath') {
-                              weighted_mapping.push("(" + channel_wins[0].mainView.id + "*" + par.narrowband_colorized_R_weight.val + ")");
-                        } else {
-                              weighted_mapping.push(channel_wins[0].mainView.id);
-                        }
+
+      if (par.narrowband_colorized_method.val == 'D:PixelMathChannels') {
+            var channel_wins = [];
+            weighted_mapping[0] = extraColorizePixelMathChannelsWeightedMapping('R');
+            weighted_mapping[1] = extraColorizePixelMathChannelsWeightedMapping('G');
+            weighted_mapping[2] = extraColorizePixelMathChannelsWeightedMapping('B');
+      } else {
+            var channel_wins = getColorizeChannels(imgWin);
+            if (par.narrowband_colorized_linear_fit.val) {
+                  console.writeln("extraColorizedNarrowbandImages, linear fit");
+                  var R_id = channel_wins[0].mainView.id;
+                  var G_id = channel_wins[1].mainView.id;
+                  var B_id = channel_wins[2].mainView.id;
+                  linearFitArray(R_id, [ G_id, B_id ]);
+            }
+
+            switch (par.narrowband_colorized_method.val) {
+                  case 'Colourise':
+                        channel_wins[0] = extraColorizeChannelUsingColourise(channel_wins[0], 'R');
+                        channel_wins[1] = extraColorizeChannelUsingColourise(channel_wins[1], 'G');
+                        channel_wins[2] = extraColorizeChannelUsingColourise(channel_wins[2], 'B');
                         break;
-                  case 'G':
-                        mapping.push(channel_wins[1]);
-                        if (par.narrowband_colorized_method.val == 'PixelMath') {
-                              weighted_mapping.push("(" + channel_wins[1].mainView.id + "*" + par.narrowband_colorized_G_weight.val + ")");
-                        } else {
-                              weighted_mapping.push(channel_wins[1].mainView.id);
-                        }
+                  case 'PixelMath':
+                        channel_wins[0] = extraColorizeChannelUsingPixelMath(channel_wins[0], 'R');
+                        channel_wins[1] = extraColorizeChannelUsingPixelMath(channel_wins[1], 'G');
+                        channel_wins[2] = extraColorizeChannelUsingPixelMath(channel_wins[2], 'B');
                         break;
-                  case 'B':
-                        mapping.push(channel_wins[2]);
-                        if (par.narrowband_colorized_method.val == 'PixelMath') {
-                              weighted_mapping.push("(" + channel_wins[2].mainView.id + "*" + par.narrowband_colorized_B_weight.val + ")");
-                        } else {
-                              weighted_mapping.push(channel_wins[2].mainView.id);
-                        }
+                  case 'D:Curves':
+                        channel_wins[0] = extraColorizedSHO(channel_wins[0], 'R', channel_wins[0].mainView.id);
+                        channel_wins[1] = extraColorizedSHO(channel_wins[1], 'G', channel_wins[1].mainView.id);
+                        channel_wins[2] = extraColorizedSHO(channel_wins[2], 'B', channel_wins[2].mainView.id);
                         break;
                   default:
-                        util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized mapping channel " + ch);
+                        util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized method " + par.narrowband_colorized_method.val);
                         break;
+            }
+
+            for (var i = 0; i < 3; i++) {
+                  var ch = par.narrowband_colorized_mapping.val.charAt(i);
+                  switch (ch) {
+                        case 'R':
+                              if (par.narrowband_colorized_method.val == 'PixelMath') {
+                                    weighted_mapping.push("(" + channel_wins[0].mainView.id + "*" + par.narrowband_colorized_R_weight.val + ")");
+                              } else {
+                                    weighted_mapping.push(channel_wins[0].mainView.id);
+                              }
+                              break;
+                        case 'G':
+                              if (par.narrowband_colorized_method.val == 'PixelMath') {
+                                    weighted_mapping.push("(" + channel_wins[1].mainView.id + "*" + par.narrowband_colorized_G_weight.val + ")");
+                              } else {
+                                    weighted_mapping.push(channel_wins[1].mainView.id);
+                              }
+                              break;
+                        case 'B':
+                              if (par.narrowband_colorized_method.val == 'PixelMath') {
+                                    weighted_mapping.push("(" + channel_wins[2].mainView.id + "*" + par.narrowband_colorized_B_weight.val + ")");
+                              } else {
+                                    weighted_mapping.push(channel_wins[2].mainView.id);
+                              }
+                              break;
+                        default:
+                              util.throwFatalError("extraColorizedNarrowbandImages: Invalid narrowband colorized mapping channel " + ch);
+                              break;
+                  }
             }
       }
 
@@ -10275,7 +10353,7 @@ this.extraColorizedNarrowbandImages = function(imgWin)
             P.executeOn(imgWin.mainView);
       }
 
-      return mapping;
+      return channel_wins;
 }
 
 function extraColorizedNarrowband(imgWin)
@@ -10308,9 +10386,9 @@ function extraColorizedNarrowband(imgWin)
       var channel_images = engine.extraColorizedNarrowbandImages(imgWin);
 
       // close channel images
-      util.forceCloseOneWindow(channel_images[0]);
-      util.forceCloseOneWindow(channel_images[1]);
-      util.forceCloseOneWindow(channel_images[2]);
+      for (var i = 0; i < channel_images.length; i++) {
+            util.forceCloseOneWindow(channel_images[i]);
+      }
 }
 
 function findNarrowBandPalette(name)
@@ -10775,6 +10853,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_smoothbackground.val) {
             extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val);
             extraOptionCompleted(par.extra_smoothbackground);
+      }
+      if (par.extra_banding_reduction.val) {
+            extraBandingReduction(extraWin);
+            extraOptionCompleted(par.extra_banding_reduction);
       }
       if (par.extra_ABE.val) {
             extraABE(extraWin);

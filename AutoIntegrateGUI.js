@@ -474,15 +474,16 @@ function getNarrowbandColorizedSizer(parent)
                   }
                   util.forceCloseOneWindow(copyWin);
                   util.forceCloseOneWindow(previewWin);
-                  util.forceCloseOneWindow(channel_images[0]);
-                  util.forceCloseOneWindow(channel_images[1]);
-                  util.forceCloseOneWindow(channel_images[2]);
+                  for (var i = 0; i < channel_images.length; i++) {
+                        util.forceCloseOneWindow(channel_images[i]);
+                  }
             }
             util.runGC();
       }
 
       if (par.debug.val) {
             narrowband_colorized_method_values.push('D:Curves');
+            narrowband_colorized_method_values.push('D:PixelMathChannels');
       }
 
       var narrowbandColorizedMethodLabel = newLabel(parent, "Method",  "<p>Method tells hoe channels are colorized.</p>" + 
@@ -852,6 +853,8 @@ function extraProcessingGUI(parent)
             "<p>Make image highlights darker using a lightness mask.</p>" );
       this.extraABE_CheckBox = newCheckBox(parent, "ABE", par.extra_ABE, 
             "<p>Run AutomaticBackgroundExtractor.</p>" );
+      this.extraBandinReduction_CheckBox = newCheckBox(parent, "Banding reduction", par.extra_banding_reduction, 
+            "<p>Run banding reduction on the image.</p>" );
 
       var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
       this.extra_ET_CheckBox = newCheckBox(parent, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
@@ -1008,6 +1011,9 @@ function extraProcessingGUI(parent)
                                                         "script. See more information in his YouTube channel AnotherAstroChannel.</p>");
       this.extraNormalizeChannelsReferenceLabel = newLabel(parent, "reference", "Reference channel for normalization." + this.extraNormalizeChannelsCheckBox.toolTip);
       this.extraNormalizeChannelsReferenceComboBox = newComboBox(parent, par.extra_normalize_channels_reference, normalize_channels_reference_values, this.extraNormalizeChannelsReferenceLabel.toolTip);
+      this.extraNormalizeChannelsMaskCheckBox = newCheckBox(parent, "Mask", par.extra_normalize_channels_mask, 
+                                                            "<p>Use a lightness mask when normalizing. It can help to avoid overstretching dark parts of the imege.</p>" + 
+                                                            this.extraNormalizeChannelsCheckBox.toolTip);
 
       this.extraNormalizeChannelsSizer = new HorizontalSizer;
       this.extraNormalizeChannelsSizer.spacing = 4;
@@ -1015,12 +1021,14 @@ function extraProcessingGUI(parent)
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsCheckBox );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceLabel );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceComboBox );
+      this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsMaskCheckBox );
       this.extraNormalizeChannelsSizer.addStretch();
 
-      var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>";
+      var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>" + 
+                                       "<p>If channel G and B values are zero then value R/K is used the adjust the whole image.</p>";
 
       this.extraAdjustChannelsCheckBox = newCheckBox(parent, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
-      this.extraAdjustChannelR = newNumericEdit(parent, "R", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
+      this.extraAdjustChannelR = newNumericEdit(parent, "R/K", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
       this.extraAdjustChannelG = newNumericEdit(parent, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
       this.extraAdjustChannelB = newNumericEdit(parent, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
 
@@ -1288,6 +1296,7 @@ function extraProcessingGUI(parent)
       this.extra1.spacing = 4;
       this.extra1.add( this.extraRemoveStars_Sizer );
       this.extra1.add( this.extra_smoothBackground_Sizer );
+      this.extra1.add( this.extraBandinReduction_CheckBox );
       this.extra1.add( this.extraABE_CheckBox );
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
@@ -1701,8 +1710,12 @@ function copy_new_edit_image(id)
 function print_extra_processing_info(txt, info)
 {
       console.noteln(txt);
-      for (var i = 0; i < info.length; i++) {
-            console.writeln(info[i]);
+      if (info.length == 0) {
+            console.writeln("- No extra processing");
+      } else {
+            for (var i = 0; i < info.length; i++) {
+                  console.writeln("- " + info[i]);
+            }
       }
 }
 
@@ -1800,7 +1813,7 @@ function apply_redo()
             console.criticalln("Failed to find redo image " + extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].id);
             return;
       }
-      console.writeln("redo hist");
+      //console.writeln("redo hist");
       var source_histogramInfo = extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].histogramInfo;
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       target_win.mainView.image.assign( source_win.mainView.image );
