@@ -675,6 +675,7 @@ function extraNormalizeImage(imgWin)
 
       if (par.extra_normalize_channels_mask.val) {
             imgWin.removeMask();
+            util.forceCloseOneWindow(mask_win);
       }
       imgWin.mainView.endProcess();
 
