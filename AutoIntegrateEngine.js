@@ -2738,6 +2738,15 @@ function filterByFileName(filePath, filename_postfix)
             default:
                   break;
       }
+      // Check if filter name is embedded in file name.
+      var filter = null;
+      var names = [ 'Luminance', 'Red', 'Green', 'Blue', 'SII', 'Halpha', 'OIII' ];
+      var filters = [ 'L', 'R', 'G', 'B', 'S', 'H', 'O' ];
+      for (var i = 0; i < names.length; i++) {
+            if (basename.indexOf(names[i]) != -1) {
+                  return filters[i];
+            }
+      }
       return null;
 }
 
