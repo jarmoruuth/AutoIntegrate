@@ -4647,6 +4647,10 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                   global.user_selected_best_image = null;
                   global.user_selected_reference_image = [];
                   global.star_alignment_image = null;
+                  global.lightFilterSet = null;
+            }
+            if (parent.tabBox.currentPageIndex == global.pages.FLATS) {
+                  global.flatFilterSet = null;
             }
       };
       var currentPageCollapseButton = new ToolButton( parent );
