@@ -813,6 +813,7 @@ function extraProcessingGUI(parent)
 
       this.extraStarsImageLabel = newLabel(parent, "Starless image", "Text Auto or empty image uses default starless image.");
       this.extraStarsImageEdit = newTextEdit(parent, par.extra_combine_stars_image, this.extraStarsImageLabel.toolTip);
+      var extraStarsImageEdit = this.extraStarsImageEdit;
       this.extraStarsImageSelectButton = new ToolButton(parent);
       this.extraStarsImageSelectButton.text = "Select";
       this.extraStarsImageSelectButton.icon = parent.scaledResource(":/icons/find.png");
@@ -827,7 +828,7 @@ function extraProcessingGUI(parent)
                         return;
                   }
                   console.writeln("Stars image name " + selectStars.name);
-                  parent.dialog.extraStarsImageEdit.text = selectStars.name;
+                  extraStarsImageEdit.text = selectStars.name;
                   par.extra_combine_stars_image.val = selectStars.name;
             }
       };
@@ -1031,6 +1032,9 @@ function extraProcessingGUI(parent)
       this.extraAdjustChannelR = newNumericEdit(parent, "R/K", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
       this.extraAdjustChannelG = newNumericEdit(parent, "G", par.extra_adjust_G, 0, 100, extraAdjustChannelsToolTip);
       this.extraAdjustChannelB = newNumericEdit(parent, "B", par.extra_adjust_B, 0, 100, extraAdjustChannelsToolTip);
+      var extraAdjustChannelR = this.extraAdjustChannelR;
+      var extraAdjustChannelG = this.extraAdjustChannelG;
+      var extraAdjustChannelB = this.extraAdjustChannelB;
 
       this.extraAdjustChannelDefaultsButton = new ToolButton(parent);
       this.extraAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
@@ -1041,9 +1045,9 @@ function extraProcessingGUI(parent)
             par.extra_adjust_R.val = par.extra_adjust_R.def;
             par.extra_adjust_G.val = par.extra_adjust_G.def;
             par.extra_adjust_B.val = par.extra_adjust_B.def;
-            parent.dialog.extraAdjustChannelR.setValue(par.extra_adjust_R.val);
-            parent.dialog.extraAdjustChannelG.setValue(par.extra_adjust_G.val);
-            parent.dialog.extraAdjustChannelB.setValue(par.extra_adjust_B.val);
+            extraAdjustChannelR.setValue(par.extra_adjust_R.val);
+            extraAdjustChannelG.setValue(par.extra_adjust_G.val);
+            extraAdjustChannelB.setValue(par.extra_adjust_B.val);
       };
 
       this.extraAdjustChannelsSizer = new HorizontalSizer;
