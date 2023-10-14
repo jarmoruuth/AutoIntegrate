@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.64 test3";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.64 test4";         // Version, also updated into updates.xri
 this.autointegrate_info = "Narrowband colorization, max preview"; // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -370,8 +370,8 @@ this.par = {
       extra_adjust_R: { val: 1, def: 1, name : "Extra adjust R", type : 'R' },
       extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
       extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
-      extra_force_new_mask: { val: false, def: false, name : "Extra force new mask", type : 'B' },
-      extra_auto_reset: { val: false, def: false, name : "Extra auto reset", type : 'B' },
+      extra_force_new_mask: { val: true, def: true, name : "Extra force new mask", type : 'B' },
+      extra_auto_reset: { val: true, def: true, name : "Extra auto reset", type : 'B' },
       extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
       extra_highlight_enhance: { val: false, def: false, name : "Extra highlight enhance", type : 'B' },
             
@@ -431,7 +431,7 @@ this.ppar = {
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       preview: {
             use_preview: true,            // Show image preview on dialog preview window
-            side_preview_visible: false,  // Show image preview on the side of the dialog
+            side_preview_visible: true,   // Show image preview on the side of the dialog
             use_large_preview: true,      // Use large preview window
             preview_sizes: [],            // Array of [ screen_size, width, height ]
             preview_width: 0,             // Current preview width, default set in getPreviewSize.
@@ -443,7 +443,7 @@ this.ppar = {
             side_histogram_height: 0      // Histogram height in side preview window, default set in getPreviewSize.
       },
       use_single_column: false, // show all options in a single column
-      use_more_tabs: false,     // use more tabs for parameters and settings
+      use_more_tabs: true,      // use more tabs for parameters and settings
       files_in_tab: true        // show files in a tab
 };
 
@@ -476,7 +476,7 @@ this.flatFileNames = null;
 this.best_ssweight = 0;
 this.best_image = null;
 this.user_selected_best_image = null;
-this.user_selected_reference_image = [];
+this.user_selected_reference_image = [];  // array of [image, filter]
 this.star_alignment_image = null;
 
 this.processed_channel_images = [];

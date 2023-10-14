@@ -2426,7 +2426,7 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
             medianFWHM = measurements[measurements.length / 2][indexFWHM];
             console.writeln("medianFWHM " + medianFWHM);
       } else {
-            console.writeln("medianFWHM not available");
+            console.writeln("medianFWHM not available, measurements.length " + measurements.length + ", measurements[measurements.length / 2] " + measurements[measurements.length / 2]);
       }
 
       var ssFiles = [];
@@ -6975,6 +6975,10 @@ function runColorCalibration(imgWin, phase)
                         if (P.limitMagnitude == NaN) {
                               util.throwFatalError("Invalid limit magnitude " + par.spcc_limit_magnitude.val);
                         }
+                        if (P.limitMagnitude > 30) {
+                              console.writeln("SpectrophotometricColorCalibration adjusting limit magnitude from " + P.limitMagnitude  + " to 30.");
+                              P.limitMagnitude = 30;
+                        }
                         console.writeln("SpectrophotometricColorCalibration using limit magnitude " + P.limitMagnitude);
                   }
                   P.targetSourceCount = 8000;
@@ -7022,6 +7026,7 @@ function runColorCalibration(imgWin, phase)
             } catch(err) {
                   console.criticalln("SpectrophotometricColorCalibration failed");
                   console.criticalln(err);
+                  console.noteln("You can try adjusting SpectophotometricColorCalibration parameters and rerun the script.");
                   util.throwFatalError("SpectrophotometricColorCalibration failed");
             }
 
@@ -8972,12 +8977,16 @@ function ProcessRGBimage(RGBmapping)
                         runImageSolver(RGB_win.mainView.id, true);
                   }
                   if (par.color_calibration_before_ABE.val) {
-                        if (par.use_background_neutralization.val) {
+                        if (par.use_background_neutralization.val && !par.use_spcc.val) {
+                              /* With SPCC, do not rum background neutralization before SPCC. */
                               runBackgroundNeutralization(RGB_win.mainView);
                         }
                         /* Color calibration on RGB
                         */
                         runColorCalibration(RGB_win, 'linear');
+                        if (par.use_background_neutralization.val && par.use_spcc.val) {
+                              runBackgroundNeutralization(RGB_win.mainView);
+                        }
                   }
                   if (par.use_ABE_on_L_RGB.val) {
                         console.writeln("ABE RGB");
@@ -8989,12 +8998,16 @@ function ProcessRGBimage(RGBmapping)
             }
 
             if (!par.color_calibration_before_ABE.val) {
-                  if (par.use_background_neutralization.val) {
+                  if (par.use_background_neutralization.val && !par.use_spcc.val) {
+                        /* With SPCC, do not rum background neutralization before SPCC. */
                         runBackgroundNeutralization(ImageWindow.windowById(RGB_ABE_id).mainView);
                   }
                   /* Color calibration on RGB
                   */
                   runColorCalibration(ImageWindow.windowById(RGB_ABE_id), 'linear');
+                  if (par.use_background_neutralization.val && par.use_spcc.val) {
+                        runBackgroundNeutralization(ImageWindow.windowById(RGB_ABE_id).mainView);
+                  }
             }
 
             if (par.use_RGBNB_Mapping.val) {

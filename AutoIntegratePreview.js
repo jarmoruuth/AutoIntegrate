@@ -52,12 +52,16 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram, disable_max_preview)
+function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
 
-       this.maxPreview = !disable_max_preview;
+       if (call_from_max_preview) {
+            this.normalPreview = false;
+      } else {   
+            this.normalPreview = true;
+      }
 
        // Set image window and bitmap
        this.SetImage = function(imgWin, image, txt)
@@ -194,7 +198,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                   this.parent.UpdateZoom(-100);
             };
 
-            if (this.maxPreview) {
+            if (this.normalPreview) {
                   this.maxPreview_Button = new ToolButton( this );
                   this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
                   this.maxPreview_Button.setScaledFixedSize( 20, 20 );
@@ -215,7 +219,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.buttons_Sizer.add( this.zoomOut_Button );
             this.buttons_Sizer.add( this.zoom11_Button );
             this.buttons_Sizer.add( this.zoomFit_Button );
-            if (this.maxPreview) {
+            if (this.normalPreview) {
                   this.buttons_Sizer.addSpacing( 12 );
                   this.buttons_Sizer.add( this.maxPreview_Button );
             }
@@ -317,7 +321,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
  
              var p =  preview.transform(x, y, preview);
 
-             if (preview.zoom == 1) {
+             if (preview.zoom == 1 && preview.coordinatesEdit) {
                   preview.coordinatesEdit.text = Math.floor(p.x).toString() + "," + Math.floor(p.y).toString();
              }
 
@@ -419,7 +423,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
             this.SampleVal_Label.text = "---";
 
-            if (this.maxPreview) {
+            if (this.normalPreview) {
                   this.coordinatesLabel = new Label(this);
                   this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
                   this.coordinatesLabel.text = "X,Y:";
@@ -469,7 +473,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
             this.coords_Frame.sizer.addSpacing(6);
             this.coords_Frame.sizer.add(this.SampleLabel_Label);
             this.coords_Frame.sizer.add(this.SampleVal_Label);
-            if (this.maxPreview) {
+            if (this.normalPreview) {
                   this.coords_Frame.sizer.addStretch();
                   this.coords_Frame.sizer.add(this.coordinatesLabel);
                   this.coords_Frame.sizer.add(this.coordinatesEdit);

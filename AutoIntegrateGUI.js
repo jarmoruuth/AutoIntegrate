@@ -322,6 +322,8 @@ var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
 var screen_height = 0;             // Screen height in pixels
 
+var actionsizer_in_separate_row = true;    // Actions to a separate row
+
 var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
 
 var stars_combine_operations_Tooltip =    "<p>Possible combine operations are:</p>" +
@@ -672,8 +674,8 @@ function extraProcessingGUI(parent)
 
       this.fix_narrowband_star_color_CheckBox = newCheckBox(parent, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
-      this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for less green", par.run_less_green_hue_shift, 
-            "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
+      // this.narrowband_less_green_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for less green", par.run_less_green_hue_shift, 
+      //       "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
       this.narrowband_orange_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for more orange", par.run_orange_hue_shift, 
             "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
       this.narrowband_hue_shift_CheckBox = newCheckBox(parent, "Hue shift for SHO", par.run_hue_shift, 
@@ -703,13 +705,13 @@ function extraProcessingGUI(parent)
       this.narrowbandOptions1_sizer.add( this.ForaxxSizer );
       this.narrowbandOptions1_sizer.add( this.extraSHOMappingSizer );
       this.narrowbandOptions1_sizer.add( this.narrowband_orangeblue_colors_CheckBox );
-      this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
+      // this.narrowbandOptions1_sizer.add( this.narrowband_less_green_hue_shift_CheckBox );
       this.narrowbandOptions1_sizer.add( this.narrowband_orange_hue_shift_CheckBox );
+      this.narrowbandOptions1_sizer.add( this.narrowband_hue_shift_CheckBox );
 
       this.narrowbandOptions2_sizer = new VerticalSizer;
       this.narrowbandOptions2_sizer.margin = 6;
       this.narrowbandOptions2_sizer.spacing = 4;
-      this.narrowbandOptions2_sizer.add( this.narrowband_hue_shift_CheckBox );
       this.narrowbandOptions2_sizer.add( this.run_narrowband_SCNR_CheckBox );
       this.narrowbandOptions2_sizer.add( this.narrowband_leave_some_green_sizer );
       this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
@@ -2754,6 +2756,7 @@ function createWindowFromBitmap(bitmap, id)
 
 function updatePreviewNoImageInControl(control)
 {
+      let startup_image = false;
       if (ppar.preview.side_preview_visible) {
             var width = ppar.preview.side_preview_width - ppar.preview.side_preview_width/10;
             var height = ppar.preview.side_preview_height - ppar.preview.side_preview_height/10;
@@ -2762,16 +2765,30 @@ function updatePreviewNoImageInControl(control)
             var height = ppar.preview.preview_height - ppar.preview.preview_height/10;
       }
 
-      var bitmap = createEmptyBitmap(width, height, 0xff808080);
+      if (startup_image) {
+            var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
+      } else {
+            var bitmap = createEmptyBitmap(width, height, 0xff808080);
+      }
 
       var graphics = new Graphics(bitmap);
       graphics.transparentBackground = true;
 
-      graphics.pen = new Pen(0xff000000, 4);
+      if (startup_image) {
+            graphics.pen = new Pen(0xffffffff, 4);
+      } else {
+            graphics.pen = new Pen(0xff000000, 4);
+      }
       graphics.font.bold = true;
       var txt = global.autointegrate_version;
-      var txtLen = graphics.font.width(txt);
-      graphics.drawText(bitmap.width / 2 - txtLen / 2, bitmap.height / 2, txt);
+      var txtWidth = graphics.font.width(txt);
+      var txtHeight = graphics.font.height;
+      if (0 && startup_image) {
+            var textMargin = 4;
+            var textBackgroundBitmap = createEmptyBitmap(txtWidth + textMargin, txtHeight + textMargin, 0xff808080);
+            graphics.drawBitmap(bitmap.width / 2 - (txtWidth + textMargin) / 2, bitmap.height / 2 - txtHeight - textMargin, textBackgroundBitmap);
+      }
+      graphics.drawText(bitmap.width / 2 - txtWidth / 2, bitmap.height / 2 - txtHeight / 2, txt);
 
       graphics.end();
       
@@ -3741,7 +3758,9 @@ function newTargetSizer(parent)
 
       var winprefix_sizer = addWinPrefix(parent);
       var outputdir_sizer = addOutputDir(parent);
-      var action_sizer = newActionSizer(parent);
+      if (!actionsizer_in_separate_row) {
+            var action_sizer = newActionSizer(parent);
+      }
 
       var filesButtons_Sizer2 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer2);
@@ -3752,8 +3771,10 @@ function newTargetSizer(parent)
       filesButtons_Sizer2.addSpacing( 12 );
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
-      filesButtons_Sizer2.addSpacing( 12 );
-      filesButtons_Sizer2.add( action_sizer );
+      if (!actionsizer_in_separate_row) {
+            filesButtons_Sizer2.addSpacing( 12 );
+            filesButtons_Sizer2.add( action_sizer );
+      }
 
       return filesButtons_Sizer2;
 }
@@ -4537,7 +4558,7 @@ function newActionSizer(parent)
       var actionsSizer = new HorizontalSizer;
       parent.rootingArr.push(actionsSizer);
 
-      if (0) {
+      if (actionsizer_in_separate_row) {
             let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
             parent.rootingArr.push(obj);
             actionsSizer.add( obj );
@@ -4657,6 +4678,74 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                   global.flatFilterSet = null;
             }
       };
+
+      var currentPageRemoveSelectedButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageRemoveSelectedButton);
+      currentPageRemoveSelectedButton.icon = parent.scaledResource(":/icons/remove.png");
+      currentPageRemoveSelectedButton.toolTip = "<p>Remove unchecked images in the current page.</p>";
+      currentPageRemoveSelectedButton.setScaledFixedSize( 20, 20 );
+      currentPageRemoveSelectedButton.onClick = function()
+      {
+            var pageIndex = parent.tabBox.currentPageIndex;
+            var treebox = parent.treeBox[pageIndex];
+            // get checked files and unchecked files
+            var checked_files = [];
+            var unchecked_files = [];
+            getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+            getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+            if (parent.tabBox.currentPageIndex == global.pages.LIGHTS) {
+                  // find global.user_selected_best_image from unchecked files
+                  if (global.user_selected_best_image != null) {
+                        var index = unchecked_files.indexOf(global.user_selected_best_image);
+                        if (index != -1) {
+                              // clear best image
+                              global.user_selected_best_image = null;
+                        }
+                  }
+                  // find global.user_selected_reference_image from unchecked files
+                  if (global.user_selected_reference_image.length > 0) {
+                        for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+                              for (var j = 0; j < unchecked_files.length; j++) {
+                                    if (global.user_selected_reference_image[i][0] == unchecked_files[j]) {
+                                          // clear reference image
+                                          global.user_selected_reference_image.splice(i, 1);
+                                          i--;
+                                          break;
+                                    }
+                              }
+                        }
+                  }
+                  // find global.star_alignment_image from unchecked files
+                  if (global.star_alignment_image != null) {
+                        var index = unchecked_files.indexOf(global.star_alignment_image);
+                        if (index != -1) {
+                              // clear star alignment image
+                              global.star_alignment_image = null;
+                        }
+                  }
+                  // find unchecked files from global.lightFilterSet
+                  if (global.lightFilterSet != null) {
+                        for (var i = 0; i < unchecked_files.length; i++) {
+                              util.removeFilterFiles(global.lightFilterSet, unchecked_files[i]);
+                        }
+                  }
+            }
+            if (parent.tabBox.currentPageIndex == global.pages.FLATS) {
+                  // find unchecked files from global.flatFilterSet
+                  if (global.flatFilterSet != null) {
+                        for (var i = 0; i < unchecked_files.length; i++) {
+                              util.removeFilterFiles(global.flatFilterSet, unchecked_files[i]);
+                        }
+                  }
+            }
+            // add checked files back
+            treebox.clear();
+            var treeboxfiles = [];
+            filenamesToTreeboxfiles(treeboxfiles, checked_files, true);
+            addFilesToTreeBox(parent, pageIndex, treeboxfiles);
+            updateInfoLabel(parent);
+      };
+
       var currentPageCollapseButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageCollapseButton);
       currentPageCollapseButton.icon = parent.scaledResource(":/browser/collapse.png");
@@ -4779,6 +4868,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( currentPageLabel );
       buttonsSizer.add( currentPageCheckButton );
       buttonsSizer.add( currentPageClearButton );
+      buttonsSizer.add( currentPageRemoveSelectedButton );
       buttonsSizer.add( currentPageCollapseButton );
       buttonsSizer.add( currentPageExpandButton );
       buttonsSizer.add( currentPageFilterButton );
@@ -4791,8 +4881,8 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( findBestImageButton );
 
       buttonsSizer.addStretch();
-      if (!ppar.files_in_tab) {
-            // buttonsSizer.add( actionSizer );
+      if (actionSizer) {
+            buttonsSizer.add( actionSizer );
       }
 
       return buttonsSizer;
@@ -5167,9 +5257,13 @@ function getPreviewSize()
             ppar.preview.histogram_height = Math.floor(screen_height * 0.05);
       }
       if (ppar.preview.side_preview_width == 0) {
-            ppar.preview.side_preview_width = ppar.preview.preview_width;
-            ppar.preview.side_preview_height = ppar.preview.preview_height;
-            ppar.preview.side_histogram_height = ppar.preview.histogram_height;
+            // Side preview size not set for this screen size.
+            // Calculate side preview size from screen size.
+            let preview_size = Math.floor(Math.min(screen_width * 0.4, screen_height * 0.4));
+            preview_size = Math.min(preview_size, 500);
+            ppar.preview.side_preview_width = preview_size;
+            ppar.preview.side_preview_height = preview_size;
+            ppar.preview.side_histogram_height = Math.floor(screen_height * 0.1);
       }
       return "Screen size " + screen_size +  ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + ", histogram height " + ppar.preview.histogram_height + 
                         ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + ", side histogram height " + ppar.preview.side_histogram_height;
@@ -5997,18 +6091,18 @@ function AutoIntegrateDialog()
       this.colorCalibrationSizer.add( this.colorCalibrationNarrowbandCheckBox );
       this.colorCalibrationSizer.addStretch();
 
-      this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation.");
+      this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation. If SPCC fails you can try increasing the value.");
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
       this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. If SPCC fails you can try increasing the value.");
       this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
       this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
       this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
-      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 17 or larger if SPCC fails.");
+      this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 20 or larger if SPCC fails. Maximum value is 30.");
       this.spccLimitMagnitudeEdit = newTextEdit(this, par.spcc_limit_magnitude, this.spccLimitMagnitudeLabel.toolTip);
       this.spccSaturationThresholdEdit = newNumericEdit(this, "Saturation threshold", par.spcc_saturation_threshold, 0, 1, 
                                                       "If SPCC fails you can try increasing this to for example 0.90.");
       this.spccMinSNREdit = newNumericEdit(this, "Min SNR", par.spcc_min_SNR, 0, 1000, 
-                                                      "If SPCC fails you can try decreasing this value.");
+                                                      "If SPCC fails you can try decreasing this value. You can for example try value 0.");
 
       this.spccWhiteReferenceLabel = newLabel(this, "White reference", "<p>Select white reference for SPCC.</p>" +
                                                                        "<p>Usually Average Spiral Galaxy is the best choice but for narrowband images Photon Flux should be used.</p>");
@@ -7476,7 +7570,7 @@ function AutoIntegrateDialog()
       this.interfaceSizer2.addStretch();
       this.processDefaultsButton = new PushButton( this );
       this.processDefaultsButton.text = "Print process defaults";
-      this.processDefaultsButton.toolTip = "<p>Print process default values.</p>";
+      this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
       this.processDefaultsButton.onClick = function() {
             engine.getProcessDefaultValues();
       }
@@ -7889,13 +7983,17 @@ function AutoIntegrateDialog()
             this.baseSizer.add( this.tabBox);             // Files tabs
       }
 
-      // this.actionSizer = newActionSizer(this);
+      if (actionsizer_in_separate_row || !ppar.files_in_tab) {
+            this.actionSizer = newActionSizer(this);
+      }
       this.jsonSizer = newJsonSizer(this);
 
       if (ppar.files_in_tab) {
             this.topButtonsSizer = new HorizontalSizer;
             this.topButtonsSizer.spacing = 4;
-            // this.topButtonsSizer.add( this.actionSizer );
+            if (actionsizer_in_separate_row) {
+                  this.topButtonsSizer.add( this.actionSizer );
+            }
             this.baseSizer.add( this.topButtonsSizer );
 
             this.topButtonsSizer2 = new HorizontalSizer;
@@ -7905,7 +8003,7 @@ function AutoIntegrateDialog()
             this.topButtonsSizer2.add( this.targetSizer );
             this.baseSizer.add( this.topButtonsSizer2 );
       } else {
-            // this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
+            this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
             this.baseSizer.add( this.pageButtonsSizer );
       }
       if (!ppar.files_in_tab) {
@@ -7913,11 +8011,11 @@ function AutoIntegrateDialog()
       }
       this.baseSizer.add( this.mainTabsSizer );     // Main view with tabs
       this.baseSizer.add( this.info_Sizer );
-      this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom
+      // this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom
 
-      this.sizer = new HorizontalSizer;
-      this.sizer.margin = 6;
-      this.sizer.spacing = 4;
+      this.sizer1 = new HorizontalSizer;
+      //this.sizer1.margin = 6;
+      //this.sizer1.spacing = 4;
       if (global.use_preview && ppar.preview.use_large_preview) {
             this.sidePreviewSizer = new VerticalSizer;
             this.sidePreviewSizer.margin = 6;
@@ -7927,10 +8025,16 @@ function AutoIntegrateDialog()
                   this.sidePreviewSizer.add( sideHistogramControl );
             }
             this.sidePreviewSizer.addStretch();
-            this.sizer.add( this.sidePreviewSizer);
+            this.sizer1.add( this.sidePreviewSizer);
       }
-      this.sizer.add( this.baseSizer);
+      this.sizer1.add( this.baseSizer);
       //this.sizer.addStretch();
+
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 6;
+      //this.sizer.spacing = 4;
+      this.sizer.add( this.sizer1);
+      this.sizer.add( this.buttons_Sizer );     // Buttons at the bottom
 
       // Version number
       this.windowTitle = global.autointegrate_version; 
