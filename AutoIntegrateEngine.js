@@ -2740,7 +2740,7 @@ function filterByFileName(filePath, filename_postfix)
       }
       // Check if filter name is embedded in file name.
       var filter = null;
-      var names = [ 'Luminance', 'Red', 'Green', 'Blue', 'SII', 'Halpha', 'OIII' ];
+      var names = [ '_Luminance_', '_Red_', '_Green_', '_Blue_', '_SII_', '_Halpha_', '_OIII_' ];
       var filters = [ 'L', 'R', 'G', 'B', 'S', 'H', 'O' ];
       for (var i = 0; i < names.length; i++) {
             if (basename.indexOf(names[i]) != -1) {
