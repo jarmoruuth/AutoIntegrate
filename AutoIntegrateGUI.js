@@ -3067,10 +3067,16 @@ function setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
             // set values at run time.
             if (best_image != null && util.compareReferenceFileNames(best_image, node.filename, filename_postfix)) {
                   //console.writeln("setBestImageInTreeBoxNode found best image");
-                  node.best_image = true;
+                  // Invert the flag, either set or clear it
+                  node.best_image = !node.best_image;
                   updateTreeBoxNodeFromFlags(parent, node);
-                  global.user_selected_best_image = node.filename;
+                  if (node.best_image) {
+                        global.user_selected_best_image = node.filename;
+                  } else {
+                        global.user_selected_best_image = null;
+                  }
             } else if (node.best_image) {
+                  // Clear old best image flag
                   node.best_image = false;
                   updateTreeBoxNodeFromFlags(parent, node);
             }
@@ -3105,8 +3111,22 @@ function set_user_selected_reference_image(reference_image, filter)
       }
       if (i == global.user_selected_reference_image.length) {
             // not found, add new
-            console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
+            // console.writeln("set_user_selected_reference_image, add filter " + filter + " and image " + reference_image);
             global.user_selected_reference_image[global.user_selected_reference_image.length] = [ reference_image, filter ];
+      }
+}
+
+function remove_user_selected_reference_image(reference_image, filter)
+{
+      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+            if (global.user_selected_reference_image[i][0] == reference_image
+                && (filter == null || global.user_selected_reference_image[i][1] == filter)) 
+            {
+                  // clear reference image
+                  // console.writeln("remove_user_selected_reference_image, remove filter " + filter + " and image " + reference_image);
+                  global.user_selected_reference_image.splice(i, 1);
+                  return;
+            }
       }
 }
 
@@ -3116,12 +3136,18 @@ function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_
             // We compare only file name as path and extension can be different when we
             // set values at run time.
             if (reference_image != null && util.compareReferenceFileNames(reference_image, node.filename, filename_postfix)) {
-                  //console.writeln("setReferenceImageInTreeBoxNode found reference image");
-                  node.reference_image = true;
+                  // console.writeln("setReferenceImageInTreeBoxNode found reference image");
+                  // Invert the flag, either set or clear it
+                  node.reference_image = !node.reference_image;
                   updateTreeBoxNodeFromFlags(parent, node);
-                  set_user_selected_reference_image(node.filename, filter);
+                  if (node.reference_image) {
+                        set_user_selected_reference_image(node.filename, filter);
+                  } else {
+                        remove_user_selected_reference_image(node.filename, filter);
+                  }
             } else if (node.reference_image) {
-                  //console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
+                  // console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
+                  // Clear old reference image flag
                   node.reference_image = false;
                   updateTreeBoxNodeFromFlags(parent, node);
             }
@@ -3820,7 +3846,7 @@ function addFilesButtons(parent, targetSizer)
             filesButtons_Sizer.add( filesButtons_Sizer1 );
             if ( !ppar.files_in_tab) {
                   filesButtons_Sizer.addSpacing( 12 );
-                  filesButtons_Sizer.add( newTargetSizer(parent) );
+                  filesButtons_Sizer.add( targetSizer );
             }
       }
       return filesButtons_Sizer;
@@ -4449,15 +4475,18 @@ function newJsonSizer(parent)
       {
             loadJsonFile(parent.dialog);
       };
-      var jsonSaveButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonSaveButton);
-      jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
-      jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
-      jsonSaveButton.setScaledFixedSize( 20, 20 );
-      jsonSaveButton.onClick = function()
-      {
-            util.saveJsonFile(parent.dialog, false);
-      };
+      let add_jsonSaveButton = false;     // not used, save with settings button is always used
+      if (add_jsonSaveButton) {
+            var jsonSaveButton = new ToolButton( parent );
+            parent.rootingArr.push(jsonSaveButton);
+            jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
+            jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
+            jsonSaveButton.setScaledFixedSize( 20, 20 );
+            jsonSaveButton.onClick = function()
+            {
+                  util.saveJsonFile(parent.dialog, false);
+            };
+      }
       var jsonSaveWithSewttingsButton = new ToolButton( parent );
       parent.rootingArr.push(jsonSaveWithSewttingsButton);
       jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
@@ -4474,7 +4503,9 @@ function newJsonSizer(parent)
       parent.rootingArr.push(jsonSizer);
       jsonSizer.add( jsonLabel );
       jsonSizer.add( jsonLoadButton );
-      jsonSizer.add( jsonSaveButton );
+      if (add_jsonSaveButton) {
+            jsonSizer.add( jsonSaveButton );
+      }
       jsonSizer.add( jsonSaveWithSewttingsButton );
 
       return jsonSizer;
@@ -4702,18 +4733,9 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                               global.user_selected_best_image = null;
                         }
                   }
-                  // find global.user_selected_reference_image from unchecked files
-                  if (global.user_selected_reference_image.length > 0) {
-                        for (var i = 0; i < global.user_selected_reference_image.length; i++) {
-                              for (var j = 0; j < unchecked_files.length; j++) {
-                                    if (global.user_selected_reference_image[i][0] == unchecked_files[j]) {
-                                          // clear reference image
-                                          global.user_selected_reference_image.splice(i, 1);
-                                          i--;
-                                          break;
-                                    }
-                              }
-                        }
+                  // remove unchecked files from global.user_selected_reference_image array
+                  for (var i = 0; i < unchecked_files.length; i++) {
+                        remove_user_selected_reference_image(unchecked_files[i], null);
                   }
                   // find global.star_alignment_image from unchecked files
                   if (global.star_alignment_image != null) {
