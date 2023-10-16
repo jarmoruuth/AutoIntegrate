@@ -121,6 +121,21 @@ this.findFilterForFile = function(filterSet, filePath, filename_postfix)
       return null;
 }
 
+// remove a file from filter set
+this.removeFilterFile = function(filterSet, filePath)
+{
+      var basename = File.extractName(filePath);
+      for (var i = 0; i < filterSet.length; i++) {
+            var filterFileSet = filterSet[i][1];
+            for (var j = 0; j < filterFileSet.length; j++) {
+                  if (filterFileSet[j].name == basename) {
+                        filterFileSet.splice(j, 1);
+                        return;
+                  }
+            }
+      }
+}
+
 this.clearFilterFileUsedFlags = function(filterSet)
 {
       console.writeln("clearUsedFilterForFiles");
@@ -1506,6 +1521,116 @@ this.formatToolTip = function(txt)
       } else {
             return "<p>" + txt + "</p>";
       }
+}
+
+this.getScreenSize = function(dialog)
+{
+      if (dialog.availableScreenRect != undefined) {
+            var screen_width = dialog.availableScreenRect.width;
+            var screen_height = dialog.availableScreenRect.height;
+       } else {
+            console.criticalln("getScreenSize: availableScreenRect is undefined, using size 1680 x 1050 as default");
+            var screen_width = 1680;
+            var screen_height = 1050;
+       }
+
+       return [screen_width, screen_height];
+}
+
+// Adjust dialog to screen size by adjusting preview control size
+this.adjustDialogToScreen = function(dialog, preview_control, maxsize, preview_width, preview_height)
+{
+      var changes = false;
+      
+      var sz = util.getScreenSize(dialog);
+      var screen_width = sz[0];
+      var screen_height = sz[1];
+
+      if (maxsize) {
+            var limit = 50;
+            var target_width = screen_width;
+            var target_height = screen_height;
+      } else {
+            var limit = 100;
+            var target_width = Math.floor(screen_width * 0.7);
+            var target_height = Math.floor(screen_height * 0.7);
+      }
+      var step = limit / 2;
+
+      if (par.debug.val) {
+            console.writeln("DEBUG:adjustDialogToScreen, maxsize " + maxsize + ", screen size " + screen_width + "x" + screen_height + ", target size " + target_width + "x" + target_height + ", preview size " + preview_width + "x" + preview_height);
+      }
+
+      var dialog_width = dialog.width;
+      var dialog_height = dialog.height;
+
+      if (par.debug.val) {
+            console.writeln("DEBUG:adjustDialogToScreen, start, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
+      }
+
+      for (var i = 0; i < 100; i++) {
+            preview_control.setSize(preview_width, preview_height);
+            preview_control.adjustToContents();
+            dialog.adjustToContents();
+
+            if (dialog_width == dialog.width && dialog_height == dialog.height) {
+                  // No change
+                  if (par.debug.val) {
+                        console.writeln("DEBUG:adjustDialogToScreen, stop, no change, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );   
+                  }
+                  break;
+            }
+
+            dialog_width = dialog.width;
+            dialog_height = dialog.height;
+      
+            if (maxsize) {
+                  // Try to get dialog as close to screen size as possible.
+                  if (dialog_width < target_width 
+                      && dialog_width >= target_width - limit
+                      && dialog_height < target_height 
+                      && dialog_height >= target_height - limit)
+                  {
+                        // We are close enough
+                        if (par.debug.val) {
+                              console.writeln("DEBUG:adjustDialogToScreen, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
+                        }
+                        break;
+                  }
+            } else {
+                  // Just make sure that the dialog fits on screen
+                  if (dialog_width < target_width - limit && dialog_height < target_height - limit) {
+                        // We are close enough
+                        if (par.debug.val) {
+                              console.writeln("DEBUG:adjustDialogToScreen, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
+                        }
+                        break;
+                  }
+            }
+
+            if (par.debug.val) {
+                  console.writeln("DEBUG:adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
+            }
+
+            if (maxsize && dialog_width < target_width + limit) {
+                  preview_width = preview_width + step;
+            }
+            if (maxsize && dialog_height < target_height + limit) {
+                  preview_height = preview_height + step;
+            }
+            if (dialog_width > target_width - limit) {
+                  preview_width = preview_width - step;
+            }
+            if (dialog_height > target_height - limit) {
+                  preview_height = preview_height - step;
+            }
+            changes = true;
+      }
+      if (changes) {
+            console.writeln("adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", steps " + i );
+      }
+
+      return { width: preview_width, height: preview_height, changes: changes };
 }
 
 }  /* AutoIntegrateUtil */

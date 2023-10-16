@@ -5,27 +5,23 @@
  * Show image preview in max size view.,
  * 
  */
-function AutoIntegrateMaxPreviewDialog(par, imgWin, image, txt)
+function AutoIntegrateMaxPreviewDialog(util, par, imgWin, image, txt)
 {
       this.__base__ = Dialog;
       this.__base__();
       this.restyle();
 
-      if (this.availableScreenRect != undefined) {
-            var screen_width = this.availableScreenRect.width;
-            var screen_height = this.availableScreenRect.height;
-       } else {
-            console.criticalln("AutoIntegrateMaxPreviewDialog: availableScreenRect is undefined, using Full HD (1920x1080) as default");
-            var screen_width = 1920;
-            var screen_height = 1080;
-       }
+      let sz = util.getScreenSize(this);
 
-       var preview_width = parseInt(screen_width - screen_width / 10);
-       var preview_height = parseInt(screen_height - screen_height / 10);
+      var screen_width = sz[0];
+      var screen_height = sz[1];
+
+       var preview_width = Math.floor(screen_width - 50);
+       var preview_height = Math.floor(screen_height - 50);
 
        console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
-      this.maxPreviewControl = new AutoIntegratePreviewControl(this, par, preview_width, preview_height, false, true);
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, par, preview_width, preview_height, false, true);
 
       this.maxPreviewControl.SetImage(imgWin, image, txt);
    
@@ -33,6 +29,11 @@ function AutoIntegrateMaxPreviewDialog(par, imgWin, image, txt)
       this.sizer.margin = 6;
       this.sizer.spacing = 4;
       this.sizer.add( this.maxPreviewControl );
+
+      // adjust to ensure that we fit on screen
+      util.adjustDialogToScreen(this, this.maxPreviewControl, true, preview_width, preview_height);
+
+      this.move(5, 5);      // move to top left corner
    
       this.windowTitle = "Max preview";
       this.adjustToContents();
@@ -52,7 +53,7 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histogram, call_from_max_preview)
+function AutoIntegratePreviewControl(parentDialog, util, par, size_x, size_y, is_histogram, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
@@ -205,7 +206,7 @@ function AutoIntegratePreviewControl(parentDialog, par, size_x, size_y, is_histo
                   this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
                   this.maxPreview_Button.onMousePress = function()
                   {
-                        let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
+                        let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
                         maxPreviewDialog.execute();
                         gc(false);
                   };

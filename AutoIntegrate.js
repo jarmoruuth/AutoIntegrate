@@ -372,6 +372,8 @@ function readPersistentSettings()
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored previewSettings '" + tempSetting + "' from settings.");
             var preview = JSON.parse(tempSetting);
+            // Check that all settings are defined. When coming from older version
+            // some values may be missing. Use defaults for missing values.
             if (preview.show_histogram == undefined) {
                   preview.show_histogram = ppar.preview.show_histogram;
             }
