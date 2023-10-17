@@ -2096,7 +2096,9 @@ function newLabel(parent, text, tip, align_left)
       } else {
             lbl.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       }
-      lbl.toolTip = util.formatToolTip(tip);
+      if (tip != null) {
+            lbl.toolTip = util.formatToolTip(tip);
+      }
 
       return lbl;
 }
@@ -5268,7 +5270,7 @@ function getPreviewSize()
             }
       }
 
-      if (ppar.preview.preview_width == 0 || ppar.preview.preview_width == 0) {
+      if (ppar.preview.preview_width == 0) {
             /* Preview size not set for this screen size.
              * Calculate preview size from screen size.
              * Use a small preview size as a default to ensure that it fits on screen. 
@@ -5371,24 +5373,26 @@ function AutoIntegrateDialog()
             "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
             "<ul>" +
             "<li>Run a normal workflow to get correct stars and background objects.</li>" +
-            "<li>Load star aligned *_r.xisf files as light files.</li>" + 
-            "<li>Set Window prefix to avoid overwriting files in the first step.</li>" + 
+            "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
+            "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
             "<li>Check <i>Remove stars from lights</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>Check <i>No CosmetiCorrection</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>No CosmeticCorrection</i> in <i>Image processing parameters</i>.</li>" +
             "<li>Go to the <i>Processing tab</i> and <i>CometAlignment</i> section.</li>" +
-            "<li>Fill first and last comet position coordinates. Note that the first and last images " + 
-                "are selected automatically based on image timestamps from the DATE-OBS keyword when images are loaded.</li>" +
-            "<li>To get the coordinates click the <i>Preview</i> button for the image, go to preview image tab, zoom " + 
-                  "to 1:1 view and click the comet nucleus with the left mouse button.</li>" + 
-            "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box.</li>" +
+            "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
+                  "<i>Preview</i> button for the first or last image, go to preview, zoom " + 
+                  "to 1:1 view and click the comet nucleus with the left mouse button. Note that the " + 
+                  "first and last images are selected automatically based on image timestamps from the " + 
+                  "DATE-OBS keyword when images are loaded.</li>" +
+            "<li>Copy coordinates from the preview coordinates box and paste them to the comet coordinates box. There are arrow " + 
+                  "buttons in the preview to automatically copy coordinates.</li>" +
             "<li>Use the <i>Run</i> button to process images.</li>" +
             "</ul>" + 
-            "<p>Comet alignment will automatically skip star alignment and SCNR. If you are not using already star aligned images " + 
-               "then Star alignment may invalidate coordinates given here so it is not used.</p>" +
+            "<p>Comet alignment will automatically skip star alignment and SCNR. Since already star aligned images (*_r.xisf) " + 
+               "are used then Star alignment could invalidate coordinates given here and thus it is not used.</p>" +
             "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error in ImageIntegration " +
             "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
-            "<p>It is possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
+            "<p>It is also possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
             "<ul>" + 
             "<li>Run normal workflow to get correct stars and background objects.</li>" +
             "<li>Manually run the CometAlignment on star aligned *_r.xisf files. This will create *_ca.xisf files.</li>" + 
@@ -5462,7 +5466,8 @@ function AutoIntegrateDialog()
             "If checked, fix linear row defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
       this.CosmeticCorrectionCheckBox = newCheckBox(this, "No CosmeticCorrection", par.skip_cosmeticcorrection, 
-            "<p>Do not run CosmeticCorrection on image files</p>" );
+            "<p>Do not run CosmeticCorrection on image files.</p>" +
+            "<p>Can be useful when doing Comet align.</p>" );
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
@@ -5531,7 +5536,9 @@ function AutoIntegrateDialog()
             "This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
       this.remove_stars_light_CheckBox = newCheckBox(this, "Remove stars from lights", par.remove_stars_light, 
-            "<p>Remove stars from light image. Stars are removed after after star alignment. If comet alignmet is chosen then stars are removed before comet align.</p>");
+            "<p>Remove stars from light image.</p>" + 
+            "<p>Stars are removed after after star alignment.</p>" + 
+            "<p>If comet alignment is chosen then stars are removed before comet align.</p>");
       this.remove_stars_stretched_CheckBox = newCheckBox(this, "Remove_stars after stretch", par.remove_stars_stretched, 
             "<p>Remove stars after image has been stretched to non-linear state. Start from RGB image are saved and they " + 
             "can be later added back to the image. This needs StarXTerminator.</p>" +
@@ -5541,7 +5548,7 @@ function AutoIntegrateDialog()
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor in run on RGB image</p>" );
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
-            "<p>Note that if <i>Color calibration using SPCC</i> ios selected image is solved automatically with chjecking this box.</p>" +
+            "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with chjecking this box.</p>" +
             "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
             "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
@@ -5627,7 +5634,7 @@ function AutoIntegrateDialog()
             "<p>Clipping shadows increases contrast but clips out some data. Shadow clip clips " + global.shadow_clip_value + "% of shadows " +
             "after image is stretched.</p>");
       this.forceNewMask_CheckBox = newCheckBox(this, "New mask", par.force_new_mask, 
-            "<p>Do not use an existing mask but always create a new mask.</p>)");
+            "<p>Do not use an existing mask but always create a new mask.</p>");
       this.no_SCNR_CheckBox = newCheckBox(this, "No SCNR", par.skip_SCNR, 
             "<p>Do not use SCNR to remove green cast.</p>"  +
             "<p>SCNR is automatically skipped when processing narrowband images.</p>" +
@@ -5704,37 +5711,21 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.FixColumnDefectsCheckBox );
       this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
       this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
-      this.imageParamsSet1.add( this.SubframeSelectorCheckBox );
       this.imageParamsSet1.add( this.CometAlignCheckBox );
       this.imageParamsSet1.add( this.fastIntegrationCheckBox );
-      /* this.imageParamsSet1.add( this.relaxedStartAlignCheckBox); */
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
-      this.imageParamsSet1.add( this.imageintegration_clipping_CheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
-      this.imageParamsSet1.add( this.no_mask_contrast_CheckBox );
       this.imageParamsSet1.add( this.remove_stars_light_CheckBox );
-      this.imageParamsSet1.add( this.remove_stars_channel_CheckBox );
-      this.imageParamsSet1.add( this.remove_stars_before_stretch_CheckBox );
-      this.imageParamsSet1.add( this.remove_stars_stretched_CheckBox );
-      this.imageParamsSet1.add( this.unscreen_stars_CheckBox );
       this.imageParamsSet1.add( this.forceNewMask_CheckBox );
-      this.imageParamsSet1.add( this.shadowClip_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
-      this.imageParamsSet2.add( this.no_SCNR_CheckBox );
-      this.imageParamsSet2.add( this.no_sharpening_CheckBox );
-      this.imageParamsSet2.add( this.skip_noise_reduction_CheckBox );
-      this.imageParamsSet2.add( this.skip_star_noise_reduction_CheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
-      this.imageParamsSet2.add( this.skip_color_calibration_CheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
-      this.imageParamsSet2.add( this.solve_image_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
-      this.imageParamsSet2.add( this.ABE_on_lights_CheckBox );
       this.imageParamsSet2.add( this.ABE_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_CheckBox );
       this.imageParamsSet2.add( this.useABE_L_RGB_stretched_CheckBox );
@@ -5764,6 +5755,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet2.spacing = 4;
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
+      this.imageToolsSet2.add( this.solve_image_CheckBox );
 
       // Image tools and batching par.
       this.imageToolsControl = new Control( this );
@@ -5956,7 +5948,7 @@ function AutoIntegrateDialog()
 
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
 
-      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Other parameters</i> section.");
+      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
       this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
       this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features. Use a value between 0.00 and 1.00.");
@@ -6220,6 +6212,35 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerB );
       this.spccGroupBoxSizer2.addStretch();
 
+      // Other parameters set 0.
+      this.otherParamsSet01 = new VerticalSizer;
+      this.otherParamsSet01.margin = 6;
+      this.otherParamsSet01.spacing = 4;
+      this.otherParamsSet01.add( this.SubframeSelectorCheckBox );
+      this.otherParamsSet01.add( this.imageintegration_clipping_CheckBox );
+      this.otherParamsSet01.add( this.no_mask_contrast_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_channel_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_before_stretch_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_stretched_CheckBox );
+      this.otherParamsSet01.add( this.unscreen_stars_CheckBox );
+
+      this.otherParamsSet02 = new VerticalSizer;
+      this.otherParamsSet02.margin = 6;
+      this.otherParamsSet02.spacing = 4;
+      this.otherParamsSet02.add( this.shadowClip_CheckBox );
+      this.otherParamsSet02.add( this.no_SCNR_CheckBox );
+      this.otherParamsSet02.add( this.no_sharpening_CheckBox );
+      this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
+      this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
+      this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
+      this.otherParamsSet02.add( this.ABE_on_lights_CheckBox );
+
+      this.otherParamsSet0 = new HorizontalSizer;
+      this.otherParamsSet0.margin = 6;
+      this.otherParamsSet0.spacing = 4;
+      this.otherParamsSet0.add( this.otherParamsSet01 );
+      this.otherParamsSet0.add( this.otherParamsSet02 );
+
       // Other parameters set 1.
       this.otherParamsSet11 = new VerticalSizer;
       this.otherParamsSet11.margin = 6;
@@ -6288,12 +6309,21 @@ function AutoIntegrateDialog()
       this.otherParamsControl.sizer = new VerticalSizer;
       this.otherParamsControl.sizer.margin = 6;
       this.otherParamsControl.sizer.spacing = 4;
+      this.otherParamsControl.sizer.add( newLabel(this, "Additional processing options", null, true) );
+      this.otherParamsControl.sizer.add( this.otherParamsSet0 );
+      this.otherParamsControl.sizer.add( newLabel(this, "Special processing", null, true) );
       this.otherParamsControl.sizer.add( this.otherParamsSet1 );
-      this.otherParamsControl.sizer.addSpacing( 12 );
-      this.otherParamsControl.sizer.add( this.otherParamsSet2 );
       this.otherParamsControl.visible = false;
       //this.otherParamsControl.sizer.addStretch();
-      
+
+      this.systemParamsControl = new Control( this );
+      this.systemParamsControl.sizer = new VerticalSizer;
+      this.systemParamsControl.sizer.margin = 6;
+      this.systemParamsControl.sizer.spacing = 4;
+      this.systemParamsControl.sizer.add( this.otherParamsSet2 );
+      this.systemParamsControl.visible = false;
+      //this.systemParamsControl.sizer.addStretch();
+
       // Weight calculations
       var weightHelpToolTips =
             "<p>" +
@@ -7732,6 +7762,7 @@ function AutoIntegrateDialog()
       // Settings right group box
       this.rightGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.rightGroupBox, this.systemParamsControl, "System settings", "System1");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       this.rightGroupBox.sizer.addStretch();
 
@@ -8122,7 +8153,7 @@ function AutoIntegrateDialog()
                             ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
                             ", side histogram height " + ppar.preview.side_histogram_height + 
                             ", dialog size " + this.width + "x" + this.height);
-       }
+      }
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
