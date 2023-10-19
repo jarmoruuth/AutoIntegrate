@@ -389,6 +389,8 @@ this.par = {
       extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
+      extra_rotate: { val: false, def: false, name : "Extra rotate", type : 'B' },
+      extra_rotate_degrees: { val: '90', def: '90', name : "Extra rotate degrees", type : 'S' },
       extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
       extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
       extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },

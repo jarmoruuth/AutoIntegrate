@@ -317,6 +317,7 @@ var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', '
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
+var rotate_degrees_values = [ '90', '180', '270' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -1284,12 +1285,17 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.add( this.extraSaveButton );
       this.extraImageSizer.addStretch();
 
-      this.extra_image_no_copy_CheckBox = newCheckBox(parent, "Do not make a copy for Apply", par.extra_apply_no_copy_image, 
+      this.extra_rotate_CheckBox = newCheckBox(parent, "Rotate", par.extra_rotate, 
+            "<p>Rotate the image in clockwise direction.</p>" );
+      this.extra_rotate_degrees_ComboBox = newComboBox(parent, par.extra_rotate_degrees, rotate_degrees_values, this.extra_rotate_CheckBox.toolTip);
+      this.extra_image_no_copy_CheckBox = newCheckBox(parent, "No copy", par.extra_apply_no_copy_image, 
             "<p>Do not make a copy of the image for Apply.</p>" );
 
       this.extraImageOptionsSizer = new HorizontalSizer;
       this.extraImageOptionsSizer.margin = 6;
       this.extraImageOptionsSizer.spacing = 4;
+      this.extraImageOptionsSizer.add( this.extra_rotate_CheckBox );
+      this.extraImageOptionsSizer.add( this.extra_rotate_degrees_ComboBox );
       this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
       this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
@@ -1715,7 +1721,9 @@ function copy_new_edit_image(id)
 
 function print_extra_processing_info(txt, info)
 {
-      console.noteln(txt);
+      if (txt) {
+            console.noteln(txt);
+      }
       if (info.length == 0) {
             console.writeln("- No extra processing");
       } else {
@@ -1785,6 +1793,8 @@ function apply_undo()
       target_win.mainView.image.assign( source_win.mainView.image );
       target_win.mainView.endProcess();
 
+      print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
+
       target_win.keywords = source_win.keywords;
       global.extra_processing_info = extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].extra_processing_info;
 
@@ -1794,7 +1804,6 @@ function apply_undo()
       // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
       update_undo_buttons();
 
-      print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 }
 
 function apply_redo()
@@ -1831,10 +1840,10 @@ function apply_redo()
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       extra_gui_info.undo_images_pos++;
-      console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+      // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
       update_undo_buttons();
 
-      print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
+      print_extra_processing_info("Redo extra processing:", global.extra_processing_info);
 }
 
 function save_as_undo()
@@ -5244,7 +5253,7 @@ function updatePreviewSize(w, h, hh, sw, sh, shh)
 
 function getPreviewSize()
 {
-      var preview_size_set = true;
+      let use_old_preview_size = true;
 
       ppar.preview.preview_width = 0;
       ppar.preview.preview_height = 0;
@@ -5280,7 +5289,7 @@ function getPreviewSize()
             ppar.preview.preview_width = preview_size;
             ppar.preview.preview_height = preview_size;
             ppar.preview.histogram_height = Math.floor(screen_height * 0.05);
-            preview_size_set = false;
+            use_old_preview_size = false;
       }
       if (ppar.preview.histogram_height == 0) {
             /* Preview size not set for this screen size.
@@ -5300,7 +5309,7 @@ function getPreviewSize()
       }
       // ppar.preview.side_preview_height = 1500;  // XXX testing
 
-      return preview_size_set;
+      return use_old_preview_size;
 }
 
 /***************************************************************************
@@ -5314,13 +5323,14 @@ function AutoIntegrateDialog()
       this.__base__();
 
       let sz = util.getScreenSize(this);
+      let use_restored_preview_size = true;
 
       screen_width = sz[0];
       screen_height = sz[1];
       screen_size = screen_width + "x" + screen_height;
 
        if (ppar.preview.use_preview) {
-            var preview_size_set = getPreviewSize();
+            use_restored_preview_size = getPreviewSize();
       }
 
       this.textEditWidth = 25 * this.font.width( "M" );
@@ -5376,8 +5386,8 @@ function AutoIntegrateDialog()
             "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>Check <i>No CosmeticCorrection</i> in <i>Image processing parameters</i>.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i>.</li>" +
+            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i>.</li>" +
             "<li>Go to the <i>Processing tab</i> and <i>CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
                   "<i>Preview</i> button for the first or last image, go to preview, zoom " + 
@@ -5549,7 +5559,8 @@ function AutoIntegrateDialog()
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
             "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with chjecking this box.</p>" +
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
+            "<p>Consider also using Drizzle with scale 1 or 2 when using SPCC.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
             "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
             "<p>Run color calibration using SpectrophotometricColorCalibration (SPCC). This requires image solving which is done automatically on " + 
@@ -5595,7 +5606,10 @@ function AutoIntegrateDialog()
                   }
             });
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle, scale", par.use_drizzle, 
-            "<p>Use Drizzle integration</p>" );
+            "<p>Use Drizzle integration</p>" +
+            "<p>Drizzle scale 1 does not change the image size but may help with fine details like stars in the image.</p>" +
+            "<p>Drizzle scale 2 doubles the image resolution and may help with small details in the image.</p>" +
+            "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" );
       this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 2, this.use_drizzle_CheckBox.toolTip);
 
       this.drizzleSizer = new HorizontalSizer;
@@ -5710,12 +5724,10 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.spacing = 4;
       this.imageParamsSet1.add( this.FixColumnDefectsCheckBox );
       this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
-      this.imageParamsSet1.add( this.CosmeticCorrectionCheckBox );
       this.imageParamsSet1.add( this.CometAlignCheckBox );
       this.imageParamsSet1.add( this.fastIntegrationCheckBox );
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
-      this.imageParamsSet1.add( this.remove_stars_light_CheckBox );
       this.imageParamsSet1.add( this.forceNewMask_CheckBox );
       
       // Image parameters set 2.
@@ -6216,17 +6228,19 @@ function AutoIntegrateDialog()
       this.otherParamsSet01 = new VerticalSizer;
       this.otherParamsSet01.margin = 6;
       this.otherParamsSet01.spacing = 4;
+      this.otherParamsSet01.add( this.CosmeticCorrectionCheckBox );
       this.otherParamsSet01.add( this.SubframeSelectorCheckBox );
       this.otherParamsSet01.add( this.imageintegration_clipping_CheckBox );
-      this.otherParamsSet01.add( this.no_mask_contrast_CheckBox );
       this.otherParamsSet01.add( this.remove_stars_channel_CheckBox );
       this.otherParamsSet01.add( this.remove_stars_before_stretch_CheckBox );
       this.otherParamsSet01.add( this.remove_stars_stretched_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_light_CheckBox );
       this.otherParamsSet01.add( this.unscreen_stars_CheckBox );
 
       this.otherParamsSet02 = new VerticalSizer;
       this.otherParamsSet02.margin = 6;
       this.otherParamsSet02.spacing = 4;
+      this.otherParamsSet02.add( this.no_mask_contrast_CheckBox );
       this.otherParamsSet02.add( this.shadowClip_CheckBox );
       this.otherParamsSet02.add( this.no_SCNR_CheckBox );
       this.otherParamsSet02.add( this.no_sharpening_CheckBox );
@@ -6273,36 +6287,36 @@ function AutoIntegrateDialog()
       this.otherParamsSet1.add( this.otherParamsSet11 );
       this.otherParamsSet1.add( this.otherParamsSet12 );
 
-      // Other parameters set 2.
-      this.otherParamsSet21 = new VerticalSizer;
-      this.otherParamsSet21.margin = 6;
-      this.otherParamsSet21.spacing = 4;
-      this.otherParamsSet21.add( this.keepIntegratedImagesCheckBox );
-      this.otherParamsSet21.add( this.keepTemporaryImagesCheckBox );
-      this.otherParamsSet21.add( this.debugCheckBox );
-      this.otherParamsSet21.add( this.save_processed_channel_images_CheckBox );
-      this.otherParamsSet21.add( this.save_all_files_CheckBox );
-      this.otherParamsSet21.add( this.select_all_files_CheckBox );
-      this.otherParamsSet21.add( this.unique_file_names_CheckBox );
-      this.otherParamsSet21.add( this.win_prefix_to_log_files_CheckBox );
+      // System parameters set 2.
+      this.systemParamsSet1 = new VerticalSizer;
+      this.systemParamsSet1.margin = 6;
+      this.systemParamsSet1.spacing = 4;
+      this.systemParamsSet1.add( this.keepIntegratedImagesCheckBox );
+      this.systemParamsSet1.add( this.keepTemporaryImagesCheckBox );
+      this.systemParamsSet1.add( this.debugCheckBox );
+      this.systemParamsSet1.add( this.save_processed_channel_images_CheckBox );
+      this.systemParamsSet1.add( this.save_all_files_CheckBox );
+      this.systemParamsSet1.add( this.select_all_files_CheckBox );
+      this.systemParamsSet1.add( this.unique_file_names_CheckBox );
+      this.systemParamsSet1.add( this.win_prefix_to_log_files_CheckBox );
 
-      this.otherParamsSet22 = new VerticalSizer;
-      this.otherParamsSet22.margin = 6;
-      this.otherParamsSet22.spacing = 4;
-      this.otherParamsSet22.add( this.blink_checkbox );
-      this.otherParamsSet22.add( this.no_subdirs_CheckBox );
-      this.otherParamsSet22.add( this.StartWithEmptyWindowPrefixBox );
-      this.otherParamsSet22.add( this.ManualIconColumnBox );
-      this.otherParamsSet22.add( this.AutoSaveSetupBox );
-      this.otherParamsSet22.add( this.UseProcessedFilesBox );
-      this.otherParamsSet22.add( this.saveCroppedImagesBox );
-      this.otherParamsSet22.add( this.resetOnSetupLoadCheckBox );
+      this.systemParamsSet2 = new VerticalSizer;
+      this.systemParamsSet2.margin = 6;
+      this.systemParamsSet2.spacing = 4;
+      this.systemParamsSet2.add( this.blink_checkbox );
+      this.systemParamsSet2.add( this.no_subdirs_CheckBox );
+      this.systemParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
+      this.systemParamsSet2.add( this.ManualIconColumnBox );
+      this.systemParamsSet2.add( this.AutoSaveSetupBox );
+      this.systemParamsSet2.add( this.UseProcessedFilesBox );
+      this.systemParamsSet2.add( this.saveCroppedImagesBox );
+      this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
 
-      this.otherParamsSet2 = new HorizontalSizer;
-      this.otherParamsSet2.margin = 6;
-      this.otherParamsSet2.spacing = 4;
-      this.otherParamsSet2.add( this.otherParamsSet21 );
-      this.otherParamsSet2.add( this.otherParamsSet22 );
+      this.systemParamsSet = new HorizontalSizer;
+      this.systemParamsSet.margin = 6;
+      this.systemParamsSet.spacing = 4;
+      this.systemParamsSet.add( this.systemParamsSet1 );
+      this.systemParamsSet.add( this.systemParamsSet2 );
 
       // Other Group par.
       this.otherParamsControl = new Control( this );
@@ -6320,7 +6334,7 @@ function AutoIntegrateDialog()
       this.systemParamsControl.sizer = new VerticalSizer;
       this.systemParamsControl.sizer.margin = 6;
       this.systemParamsControl.sizer.spacing = 4;
-      this.systemParamsControl.sizer.add( this.otherParamsSet2 );
+      this.systemParamsControl.sizer.add( this.systemParamsSet );
       this.systemParamsControl.visible = false;
       //this.systemParamsControl.sizer.addStretch();
 
@@ -8107,7 +8121,7 @@ function AutoIntegrateDialog()
 
       console.show();
 
-       if (ppar.preview.use_preview && !preview_size_set) {
+       if (ppar.preview.use_preview && !use_restored_preview_size) {
             // preview size not set, adjust to screen
             var preview_size = util.adjustDialogToScreen(
                                     this.dialog, 

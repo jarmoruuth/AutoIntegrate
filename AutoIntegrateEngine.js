@@ -10737,9 +10737,9 @@ function combineStarsAndStarless(stars_combine, starless_id, stars_id)
       return new_id;
 }
 
-function annotateImage(extraWin, apply_directly)
+function extraAnnotateImage(extraWin, apply_directly)
 {
-      util.addProcessingStepAndStatusInfo("Annotate image " + extraWin.mainView.id);
+      addExtraProcessingStep("Annotate image " + extraWin.mainView.id);
 
       let engine = new AnnotationEngine;
       engine.Init(extraWin);
@@ -10763,6 +10763,34 @@ function annotateImage(extraWin, apply_directly)
       }
 
       return annotatedImgWin;
+}
+
+function extraRotate(imgWin)
+{
+      addExtraProcessingStep("Rotate image " + imgWin.mainView.id + " " + par.extra_rotate_degrees.val + " degrees");
+
+      var P = new FastRotation;
+      switch (par.extra_rotate_degrees.val) {
+            case '90':
+                  P.mode = FastRotation.prototype.Rotate90CW;
+                  break;
+            case '180':
+                  P.mode = FastRotation.prototype.Rotate180;
+                  break;
+            case '270':
+                  P.mode = FastRotation.prototype.Rotate90CCW;
+                  break;
+            default:
+                  util.throwFatalError("Invalid rotate degrees " + par.extra_rotate_degrees.val);
+                  break;
+      }
+      P.noGUIMessages = true;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
 }
 
 function extraOptionCompleted(param)
@@ -10810,6 +10838,11 @@ function extraProcessing(parent, id, apply_directly)
       if (!apply_directly) {
             extra_id = util.ensure_win_prefix(id + "_extra");
             extraWin = util.copyWindow(extraWin, extra_id);
+      }
+
+      if (par.extra_rotate.val) {
+            extraRotate(extraWin);
+            extraOptionCompleted(par.extra_rotate);
       }
 
       if (par.extra_stretch.val) {
@@ -11025,7 +11058,7 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_annotate_image.val) {
             addExtraProcessingStep("Annotate image");
-            let annotatedImgWin = annotateImage(extraWin, apply_directly);
+            let annotatedImgWin = extraAnnotateImage(extraWin, apply_directly);
             if (!apply_directly) {
                   // There is a new window with the annotated image
                   extraWin = annotatedImgWin;

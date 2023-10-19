@@ -965,7 +965,8 @@ function is_non_starless_option()
              par.extra_auto_contrast.val ||
              par.extra_color_calibration.val ||
              par.extra_solve_image.val ||
-             par.extra_annotate_image.val;
+             par.extra_annotate_image.val ||
+             par.extra_rotate.val;
 }
 
 this.is_extra_option = function()
