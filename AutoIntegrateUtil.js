@@ -1561,7 +1561,7 @@ this.adjustDialogToScreen = function(dialog, preview_control, maxsize, preview_w
       var dialog_width = dialog.width;
       var dialog_height = dialog.height;
 
-      if (dialog_width < target_width - limit && dialog_height < target_height - limit) {
+      if (!maxsize && dialog_width < target_width - limit && dialog_height < target_height - limit) {
             // Dialog already fits on screen
             return { width: preview_width, height: preview_height, changes: changes };
       }
