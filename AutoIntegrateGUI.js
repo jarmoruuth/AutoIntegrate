@@ -3079,13 +3079,9 @@ function setBestImageInTreeBoxNode(parent, node, best_image, filename_postfix)
             if (best_image != null && util.compareReferenceFileNames(best_image, node.filename, filename_postfix)) {
                   //console.writeln("setBestImageInTreeBoxNode found best image");
                   // Invert the flag, either set or clear it
-                  node.best_image = !node.best_image;
+                  node.best_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
-                  if (node.best_image) {
-                        global.user_selected_best_image = node.filename;
-                  } else {
-                        global.user_selected_best_image = null;
-                  }
+                  global.user_selected_best_image = node.filename;
             } else if (node.best_image) {
                   // Clear old best image flag
                   node.best_image = false;
@@ -3149,13 +3145,9 @@ function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_
             if (reference_image != null && util.compareReferenceFileNames(reference_image, node.filename, filename_postfix)) {
                   // console.writeln("setReferenceImageInTreeBoxNode found reference image");
                   // Invert the flag, either set or clear it
-                  node.reference_image = !node.reference_image;
+                  node.reference_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
-                  if (node.reference_image) {
-                        set_user_selected_reference_image(node.filename, filter);
-                  } else {
-                        remove_user_selected_reference_image(node.filename, filter);
-                  }
+                  set_user_selected_reference_image(node.filename, filter);
             } else if (node.reference_image) {
                   // console.writeln("setReferenceImageInTreeBoxNode clear old reference image " + node.filename);
                   // Clear old reference image flag
