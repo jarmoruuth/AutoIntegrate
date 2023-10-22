@@ -268,7 +268,7 @@ var current_selected_file_name = null;
 var current_selected_file_filter = null;
 
 var extra_gui_info = { 
-      undo_images: [], 
+      undo_images: [],        // undo_images[0] == original image, { id: <image id>, histogramInfo: <see getHistogramInfo>, extra_processing_info: [] }, see add_undo_image
       undo_images_pos: -1, 
       undo_button: null, 
       redo_button: null, 
@@ -357,19 +357,23 @@ var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with 
 
 function getNarrowbandColorizedSizer(parent)
 {
-      var narrowbandColorizedtoolTip =
-      "<hr>" + 
+      var narrowbandColorizedtoolTipBase =
       "<p>RGB channels are extraced from the target color image, channel images are colorized and a new RGB image is created.</p>" + 
       "<p>The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
       "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
       "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
       "preview image is always discarded.</p>" +
-      "<p>Method gives choices on how colorization is done for channel images.</p>" +
-      "<p>Combine selection gives a few options on how colorized channel images are combined to and RGB image.</p>" +
-      "<p>With a mapping selection it is possible to change how channels are mapped in the final image. Works only with Channels combine method.</p>" +
-      "<p>Optionally is it possible to run linear fit for channel images before colorizing.</p>" +
-      "<p>Colorizing is inspired by Steven Miller's YouTube channel Entering Into Space (https://www.youtube.com/@enteringintospace4685), " + 
+      "<p>Settings are briefly described below:</p>" +
+      "<ul>" +
+      "<li>Method gives choices on how colorization is done for channel images.</li>" +
+      "<li>Combine selection gives a few options on how colorized channel images are combined to and RGB image.</li>" +
+      "<li>With a mapping selection it is possible to change how channels are mapped in the final image. Works only with Channels combine method.</li>" +
+      "<li>Optionally is it possible to run linear fit for channel images before colorizing.</li>" +
+      "</ul>" +
+      '<p>Colorizing is inspired by Steven Miller YouTube channel <a href="https://www.youtube.com/@enteringintospace4685">Entering Into Space</a>, ' + 
       "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>";
+
+      var narrowbandColorizedtoolTip = "<hr>" + narrowbandColorizedtoolTipBase;
 
       var narrowbandColorizedCheckBox = newCheckBox(parent, "Colorize narrowband", par.run_colorized_narrowband, 
             "<p>Enhance colors for narrowband and other images.</p>" + narrowbandColorizedtoolTip);
@@ -528,6 +532,15 @@ function getNarrowbandColorizedSizer(parent)
             narrowbandColorizedPreview(true);
       };
 
+      var narrowbandColorizedHelpTips = new ToolButton( parent );
+      narrowbandColorizedHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
+      narrowbandColorizedHelpTips.setScaledFixedSize( 20, 20 );
+      narrowbandColorizedHelpTips.toolTip = narrowbandColorizedtoolTipBase;
+      narrowbandColorizedHelpTips.onMousePress = function()
+      {
+            new MessageBox(narrowbandColorizedtoolTipBase, "Narrowband colorization", StdIcon_Information ).execute();
+      }
+
       var hueToolTip = "<p>Color hue for the channel.</p>" + 
                        "<p>Hue values for basic colors:</p>" + 
                        "<ul>" +
@@ -598,6 +611,8 @@ function getNarrowbandColorizedSizer(parent)
       narrowbandColorized_sizer1.addSpacing( 12 );
       narrowbandColorized_sizer1.add( narrowbandColorizedPreviewButton );
       narrowbandColorized_sizer1.add( narrowbandColorizedPreviewMosaicButton );
+      narrowbandColorized_sizer1.addSpacing( 12 );
+      narrowbandColorized_sizer1.add( narrowbandColorizedHelpTips );
       narrowbandColorized_sizer1.addStretch();
 
       var narrowbandColorized_sizer2 = new HorizontalSizer;
@@ -1273,6 +1288,28 @@ function extraProcessingGUI(parent)
       };
       extra_gui_info.save_button = this.extraSaveButton;
 
+      this.extraHistoryButton = new ToolButton( parent );
+      this.extraHistoryButton.icon = new Bitmap( ":/history-explorer/history-explorer-window-icon.png" );
+      this.extraHistoryButton.toolTip = "<p>Show extra processing history.</p>";
+      this.extraHistoryButton.enabled = true;
+      var extraHistoryButton = this.extraHistoryButton;
+      this.extraHistoryButton.onMousePress = function()
+      {
+            extraHistoryButton.enabled = false;
+            if (extra_gui_info.undo_images_pos <= 1) {
+                  new MessageBox("No extra processing history", "Extra processing history", StdIcon_Information ).execute();
+            } else {
+                  var txt = "<p>Extra processing history:</p><ul>";
+                  for (var i = 1; i < extra_gui_info.undo_images_pos; i++) {
+                        for (var j = 0; j < extra_gui_info.undo_images[i].extra_processing_info.length; j++) {
+                              txt += "<li>" + extra_gui_info.undo_images[i].extra_processing_info[j] + "</li>";
+                        }
+                  }
+                  txt += "</ul>";
+                  new MessageBox(txt, "Extra processing history", StdIcon_Information ).execute();
+            }
+            extraHistoryButton.enabled = true;
+      };
 
       this.extraImageSizer = new HorizontalSizer;
       // this.extraImageSizer.margin = 6;
@@ -1282,6 +1319,7 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.add( this.extraApplyButton );
       this.extraImageSizer.add( this.extraUndoButton );
       this.extraImageSizer.add( this.extraRedoButton );
+      this.extraImageSizer.add( this.extraHistoryButton );
       this.extraImageSizer.add( this.extraSaveButton );
       this.extraImageSizer.addStretch();
 
@@ -1497,9 +1535,13 @@ function exitCleanup(dialog)
 function setWindowPrefixHelpTip(default_prefix)
 {
       var prefix_list = "<table><tr><th>Col</th><th>Name</th><th>Icon count</th></tr>";
-      for (var i = 0; i < ppar.prefixArray.length; i++) {
-            if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
-                  prefix_list = prefix_list + "<tr><td>" + (ppar.prefixArray[i][0] + 1) + '</td><td>' + ppar.prefixArray[i][1] + '</td><td>' + ppar.prefixArray[i][2] + '</td></tr>';
+      if (ppar.prefixArray.length == 0) {
+            prefix_list = prefix_list + "<tr><td></td><td><i>No prefixes</i></td><td></td></tr>";
+      } else {
+            for (var i = 0; i < ppar.prefixArray.length; i++) {
+                  if (ppar.prefixArray[i] != null && ppar.prefixArray[i][1] != '-') {
+                        prefix_list = prefix_list + "<tr><td>" + (ppar.prefixArray[i][0] + 1) + '</td><td>' + ppar.prefixArray[i][1] + '</td><td>' + ppar.prefixArray[i][2] + '</td></tr>';
+                  }
             }
       }
       prefix_list = prefix_list + "</table>";
@@ -3013,6 +3055,10 @@ function addWinPrefix(parent)
       windowPrefixHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       windowPrefixHelpTips.setScaledFixedSize( 20, 20 );
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
+      windowPrefixHelpTips.onMousePress = function()
+      {
+            new MessageBox(windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon_Information ).execute();
+      }
 
       var winprefix_Sizer = new HorizontalSizer;
       winprefix_Sizer.spacing = 4;
@@ -5332,21 +5378,19 @@ function AutoIntegrateDialog()
 
       var mainHelpTips = 
       "<p>" +
-      "<b>AutoIntegrate - Automatic image processing utility</b>" +
+      "<b>" + global.autointegrate_version + " - Automatic image processing utility</b>" +
       "</p><p>" +
       "Script automates initial steps of image processing in PixInsight. "+ 
       "It can calibrate images or it can be used with already calibrated images. "+ 
-      "Most often you get the best results by running the script with default " +
+      "Often you get the good results by running the script with default " +
       "settings and then continue processing in PixInsight." +
       "</p><p>"+
       global.getDirectoryInfo(false) +
       "</p><p>" +
-      "User can give output root directory which can be relative or absolute path." +
-      "</p><p>"+
-      "Always remember to check you data with Blink tool and remove all bad images." +
+      "Always remember to check you data with AutoIntegrate preview or Blink tool and remove all bad images." +
       "</p><p>" +
-      "Batch mode is intended to be used with mosaic images. In Batch mode script " +
-      "automatically asks files for the next mosaic panel. All mosaic panels are left open " +
+      "Mosaic/batch mode is intended to be used with mosaic images. In Batch mode script " +
+      "automatically asks files for mosaic panels before processing. All mosaic panels are left open " +
       "and can be saved with Save batch result files buttons." +
       "</p><p>" +
       "When using color/OSC/RAW files it is recommended to set Pure RAW in PixInsight settings." +
@@ -5354,13 +5398,14 @@ function AutoIntegrateDialog()
       "For more details see:" +
       "</p>" +
       "<ul>" +
-      "<li>Web site: https://ruuth.xyz/AutoIntegrateInfo.html</ul>" +
-      "<li>Discussion forums: https://forums.ruuth.xyz<>" +
-      "<li>Discord: https://discord.gg/baqMqmKS3N</ul>" +
+      '<li>Web site: <a href="https://ruuth.xyz/AutoIntegrateInfo.html">https://ruuth.xyz/AutoIntegrateInfo.html</a></ul>' +
+      'li>Discussion forums: <a href="https://forums.ruuth.xyz">https://forums.ruuth.xyz</a></ul>' +
+      '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></ul>' +
       "</ul>" +
       "<p>" +
       "This product is based on software from the PixInsight project, developed " +
-      "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)." +
+      "by Pleiades Astrophoto and its contributors (" +
+      '<a href="https://pixinsight.com/">https://pixinsight.com/</a>)' + 
       "</p><p>" +
       "Copyright (c) 2018-2023 Jarmo Ruuth<br>" +
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
@@ -5408,6 +5453,10 @@ function AutoIntegrateDialog()
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.helpTips.setScaledFixedSize( 20, 20 );
       this.helpTips.toolTip = mainHelpTips;
+      this.helpTips.onMousePress = function()
+      {
+            new MessageBox(mainHelpTips, global.autointegrate_version, StdIcon_Information ).execute();
+      }
 
       // Run, Exit and AutoContinue buttons
       this.run_Button = newRunButton(this, false);
@@ -5851,6 +5900,15 @@ function AutoIntegrateDialog()
       this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignLastLabel.toolTip);
       this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
 
+      this.cometAlignHelpTips = new ToolButton( this );
+      this.cometAlignHelpTips.icon = this.scaledResource( ":/icons/help.png" );
+      this.cometAlignHelpTips.setScaledFixedSize( 20, 20 );
+      this.cometAlignHelpTips.toolTip = comet_alignment_toolTip;
+      this.cometAlignHelpTips.onMousePress = function()
+      {
+            new MessageBox(comet_alignment_toolTip, "Comet alignment", StdIcon_Information ).execute();
+      }
+
       this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
       this.cometAlignmentGroupBoxSizer.margin = 6;
       this.cometAlignmentGroupBoxSizer.spacing = 4;
@@ -5860,6 +5918,7 @@ function AutoIntegrateDialog()
       this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastLabel );
       this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastXY );
       this.cometAlignmentGroupBoxSizer.add( this.cometAlignLastXYButton );
+      this.cometAlignmentGroupBoxSizer.add( this.cometAlignHelpTips );
       this.cometAlignmentGroupBoxSizer.addStretch();
 
       // Saturation selection

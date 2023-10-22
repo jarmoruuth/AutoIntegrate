@@ -390,7 +390,7 @@ this.par = {
       extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
       extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
       extra_rotate: { val: false, def: false, name : "Extra rotate", type : 'B' },
-      extra_rotate_degrees: { val: '90', def: '90', name : "Extra rotate degrees", type : 'S' },
+      extra_rotate_degrees: { val: '180', def: '180', name : "Extra rotate degrees", type : 'S' },
       extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
       extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
       extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
@@ -487,7 +487,7 @@ this.extra_target_image = null;
 
 this.processing_steps = "";
 this.processing_errors = "";
-this.extra_processing_info = [];
+this.extra_processing_info = [];    // extra processing info steps from last Apply, array of [ txt]
 this.all_windows = [];
 this.iconPoint = null;
 this.iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position
@@ -672,10 +672,10 @@ this.narrowBandPalettes = [
 this.getDirectoryInfo = function(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
       var info = [
+            "AutoProcessed contains processed final images. Also integrated images and log output is here.",
             "AutoOutput contains intermediate files generated during processing",
             "AutoMaster contains generated master calibration files",
-            "AutoCalibrated contains calibrated light files",
-            "AutoProcessed contains processed final images. Also integrated images and log output is here."
+            "AutoCalibrated contains calibrated light files"
       ];
       if (simple_text) {
             return header + "\n" + info.join('\n');

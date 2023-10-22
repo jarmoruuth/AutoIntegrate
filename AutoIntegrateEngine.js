@@ -2207,6 +2207,10 @@ function getImagePSF(imgWin)
       console.writeln("Calculate PSF from image " + imgWin.mainView.id);
 
       var save_id = imgWin.mainView.id + "_psf";
+      var ret = util.ensureDialogFilePath(save_id);
+      if (ret == 0) {
+            util.throwFatalError("No directory sset to save image " + save_id);
+      }
       var savedName = saveOutputWindow(imgWin.mainView.id, save_id);
       if (savedName == null) {
             util.throwFatalError("Failed to save image " + save_id);
@@ -9224,7 +9228,7 @@ function extraFixNarrowbandStarColor(targetWin)
 function addExtraProcessingStep(txt)
 {
       global.extra_processing_info.push(txt);
-      util.addProcessingStepAndStatusInfo(txt);
+      util.addProcessingStepAndStatusInfo("Processing: " + txt);
 }
 
 // When start removal is run we do some things differently
@@ -10803,6 +10807,7 @@ function extraOptionCompleted(param)
                   param.reset();
             }
       }
+      util.addProcessingStepAndStatusInfo("Completed: " + global.extra_processing_info[global.extra_processing_info.length - 1]);
       checkCancel();
 }
 
@@ -10822,7 +10827,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_LHE.val ||
                         (par.extra_noise_reduction.val && !par.use_noisexterminator.val) ||
                         par.extra_ACDNR.val ||
-                        par.extra_sharpen.val ||
+                        (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
                         par.extra_unsharpmask.val ||
                         par.extra_saturation.val;
 
@@ -12582,6 +12587,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    // We have number which is not valid
                    fname = 'P' + fname;
              }
+             fname = util.ensure_win_prefix(fname);
              util.addProcessingStep("Batch mode, rename " + LRGB_ABE_HT_id + " to " + fname);
              LRGB_ABE_HT_id = util.windowRenameKeepifEx(LRGB_ABE_HT_id, fname, true, true);
              saveProcessedWindow(global.outputRootDir, LRGB_ABE_HT_id);          /* Final renamed batch image. */
