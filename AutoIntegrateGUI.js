@@ -963,7 +963,7 @@ function extraProcessingGUI(parent)
       this.extraAutoContrastCheckBox = newCheckBox(parent, "Auto contrast,", par.extra_auto_contrast, extraAutoContrastTooltip);
       this.extraAutoContrastEditLow = newNumericEditPrecision(parent, 'low', par.extra_auto_contrast_limit_low, 0, 100, "Percentage of clipped low pixels.", 4);
       this.extraAutoContrastEditHigh = newNumericEditPrecision(parent, 'high', par.extra_auto_contrast_limit_high, 0, 100, "Percentage of preserved high pixels.", 4);
-      this.extraAutoContrastChannelsCheckBox = newCheckBox(parent, "channels,", par.extra_auto_contrast_channels, "Apply auto contrast separately for each channel.");
+      this.extraAutoContrastChannelsCheckBox = newCheckBox(parent, "channels", par.extra_auto_contrast_channels, "Apply auto contrast separately for each channel.");
       this.extraAutoContrastSizer = new HorizontalSizer;
       this.extraAutoContrastSizer.spacing = 4;
       this.extraAutoContrastSizer.add( this.extraAutoContrastCheckBox );
@@ -1147,12 +1147,14 @@ function extraProcessingGUI(parent)
       this.extraSharpenIterationsSizer.addStretch();
 
       var unsharpmask_tooltip = "Sharpen image using UnsharpMask and a luminance mask.";
-      this.extra_unsharpmask_CheckBox = newCheckBox(parent, "UnsharpMask", par.extra_unsharpmask, unsharpmask_tooltip);
+      this.extra_unsharpmask_CheckBox = newCheckBox(parent, "UnsharpMask,", par.extra_unsharpmask, unsharpmask_tooltip);
       this.extraUnsharpMaskStdDevEdit = newNumericEdit(parent, "StdDev", par.extra_unsharpmask_stddev, 0.1, 250, unsharpmask_tooltip);
+      this.extraUnsharpMaskAmountEdit = newNumericEdit(parent, "Amount", par.extra_unsharpmask_amount, 0.1, 1.00, unsharpmask_tooltip);
       this.extraUnsharpMaskSizer = new HorizontalSizer;
       this.extraUnsharpMaskSizer.spacing = 4;
       this.extraUnsharpMaskSizer.add( this.extra_unsharpmask_CheckBox );
       this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskStdDevEdit );
+      this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskAmountEdit );
       this.extraUnsharpMaskSizer.addStretch();
       
       var extra_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
@@ -1171,6 +1173,21 @@ function extraProcessingGUI(parent)
       this.extraSaturationIterationsSizer.add( this.extraSaturationIterationsLabel );
       this.extraSaturationIterationsSizer.toolTip = extra_saturation_tooltip;
       this.extraSaturationIterationsSizer.addStretch();
+
+      var clarity_tooltip = "<p>Add clarity to the image using a luminance mask. Clarity is a local contrast enhancement.</p>" +
+                            "<p>Clarity uses UnsharpMask process where stddev should be large and amount should be small.</p>" + 
+                            "<p>If a mask is used then clarity is applied only to the light parts of the image.</p>";
+      this.extra_clarity_CheckBox = newCheckBox(parent, "Clarity,", par.extra_clarity, clarity_tooltip);
+      this.extraClarityStdDevEdit = newNumericEdit(parent, "StdDev", par.extra_clarity_stddev, 0.1, 250, clarity_tooltip);
+      this.extraClarityAmountEdit = newNumericEdit(parent, "Amount", par.extra_clarity_amount, 0.1, 1.00, clarity_tooltip);
+      this.extraClarityMaskCheckBox = newCheckBox(parent, "Mask", par.extra_clarity_mask, clarity_tooltip);
+      this.extraClaritySizer = new HorizontalSizer;
+      this.extraClaritySizer.spacing = 4;
+      this.extraClaritySizer.add( this.extra_clarity_CheckBox );
+      this.extraClaritySizer.add( this.extraClarityStdDevEdit );
+      this.extraClaritySizer.add( this.extraClarityAmountEdit );
+      this.extraClaritySizer.add( this.extraClarityMaskCheckBox );
+      this.extraClaritySizer.addStretch();
 
       this.extraImageLabel = new Label( parent );
       this.extraImageLabel.text = "Target image";
@@ -1371,6 +1388,7 @@ function extraProcessingGUI(parent)
       this.extra2.add( this.extraUnsharpMaskSizer );
       this.extra2.add( this.extraSharpenIterationsSizer );
       this.extra2.add( this.extraSaturationIterationsSizer );
+      this.extra2.add( this.extraClaritySizer );
       this.extra2.add( this.extraSmallerStarsSizer );
       this.extra2.add( this.extraCombineStars_Sizer );
       this.extra2.add( this.extra_color_calibration_CheckBox );

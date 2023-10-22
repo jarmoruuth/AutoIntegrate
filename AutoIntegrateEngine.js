@@ -9854,11 +9854,43 @@ function extraColorNoise(extraWin)
 
 function extraUnsharpMask(extraWin, mask_win)
 {
-      addExtraProcessingStep("UnsharpMask using StdDev " + par.extra_unsharpmask_stddev.val);
+      addExtraProcessingStep("UnsharpMask using StdDev " + par.extra_unsharpmask_stddev.val + ", amount " + par.extra_unsharpmask_amount.val);
 
       var P = new UnsharpMask;
       P.sigma = par.extra_unsharpmask_stddev.val;
-      P.amount = 0.80;
+      P.amount = par.extra_unsharpmask_amount.val;
+      P.useLuminance = true;
+
+      if (mask_win != null) {
+            /* Sharpen only light parts of the image. */
+            setMaskChecked(extraWin, mask_win);
+            extraWin.maskInverted = false;
+      }
+
+      extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(extraWin.mainView, false);
+      extraWin.mainView.endProcess();
+
+      checkCancel();
+
+      if (mask_win != null) {
+            extraWin.removeMask();
+      }
+
+      // guiUpdatePreviewWin(extraWin);
+}
+
+function extraClarity(extraWin, mask_win)
+{
+      addExtraProcessingStep("Clarity using StdDev " + par.extra_clarity_stddev.val + ", amount " + par.extra_clarity_amount.val + (par.extra_clarity_mask.val ? " using a mask" : ""));
+
+      if (!par.extra_clarity_mask.val) {
+            mask_win = null;
+      }
+
+      var P = new UnsharpMask;
+      P.sigma = par.extra_clarity_stddev.val;
+      P.amount = par.extra_clarity_amount.val;
       P.useLuminance = true;
 
       if (mask_win != null) {
@@ -10829,7 +10861,8 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_ACDNR.val ||
                         (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
                         par.extra_unsharpmask.val ||
-                        par.extra_saturation.val;
+                        par.extra_saturation.val ||
+                        (par.extra_clarity.val && par.extra_clarity_mask.val);
 
       var extraWin = ImageWindow.windowById(id);
 
@@ -11016,6 +11049,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_saturation.val) {
             extraSaturation(extraWin, mask_win);
             extraOptionCompleted(par.extra_saturation);
+      }
+      if (par.extra_clarity.val) {
+            extraClarity(extraWin, mask_win);
+            extraOptionCompleted(par.extra_clarity);
       }
       if (par.extra_smaller_stars.val) {
             if (par.extra_remove_stars.val) {
