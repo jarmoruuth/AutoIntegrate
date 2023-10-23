@@ -374,6 +374,8 @@ this.par = {
       extra_auto_reset: { val: true, def: true, name : "Extra auto reset", type : 'B' },
       extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
       extra_highlight_enhance: { val: false, def: false, name : "Extra highlight enhance", type : 'B' },
+      extra_gamma: { val: false, def: false, name : "Extra gamma", type : 'B' },
+      extra_gamma_value: { val: 1, def: 1, name : "Extra gamma value", type : 'R' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
       extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },

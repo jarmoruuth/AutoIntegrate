@@ -538,7 +538,9 @@ function getNarrowbandColorizedSizer(parent)
       narrowbandColorizedHelpTips.toolTip = narrowbandColorizedtoolTipBase;
       narrowbandColorizedHelpTips.onMousePress = function()
       {
+            narrowbandColorizedHelpTips.enabled = false;
             new MessageBox(narrowbandColorizedtoolTipBase, "Narrowband colorization", StdIcon_Information ).execute();
+            narrowbandColorizedHelpTips.enabled = true;
       }
 
       var hueToolTip = "<p>Color hue for the channel.</p>" + 
@@ -1009,6 +1011,17 @@ function extraProcessingGUI(parent)
       this.extraEnhanceHighlightsSizer.toolTip = shadowclipTooltip;
       this.extraEnhanceHighlightsSizer.addStretch();
 
+      var extraGammaTooltip = "<p>Apply gamma correction to the image.</p>" +
+                              "<p>Value below 1 will make image lighter. Value above 1 will make image darker.</p>";
+      this.extraGammaCheckBox = newCheckBox(parent, "Gamma", par.extra_gamma, extraGammaTooltip);
+      this.extraGammaEdit = newNumericEdit(parent, '', par.extra_gamma_value, 0, 2, extraGammaTooltip);
+      this.extraGammaSizer = new HorizontalSizer;
+      this.extraGammaSizer.spacing = 4;
+      this.extraGammaSizer.add( this.extraGammaCheckBox );
+      this.extraGammaSizer.add( this.extraGammaEdit );
+      this.extraGammaSizer.toolTip = extraGammaTooltip;
+      this.extraGammaSizer.addStretch();
+
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
             "from the preview image using a mouse.</p>" +
@@ -1036,7 +1049,7 @@ function extraProcessingGUI(parent)
 
       this.extraNormalizeChannelsSizer = new HorizontalSizer;
       this.extraNormalizeChannelsSizer.spacing = 4;
-      this.extraNormalizeChannelsSizer.margin = 2;
+      // this.extraNormalizeChannelsSizer.margin = 2;
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsCheckBox );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceLabel );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceComboBox );
@@ -1070,7 +1083,7 @@ function extraProcessingGUI(parent)
 
       this.extraAdjustChannelsSizer = new HorizontalSizer;
       this.extraAdjustChannelsSizer.spacing = 4;
-      this.extraAdjustChannelsSizer.margin = 2;
+      // this.extraAdjustChannelsSizer.margin = 2;
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelsCheckBox );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
@@ -1328,74 +1341,6 @@ function extraProcessingGUI(parent)
             extraHistoryButton.enabled = true;
       };
 
-      this.extraImageSizer = new HorizontalSizer;
-      // this.extraImageSizer.margin = 6;
-      this.extraImageSizer.spacing = 4;
-      this.extraImageSizer.add( this.extraImageLabel );
-      this.extraImageSizer.add( this.extraImageComboBox );
-      this.extraImageSizer.add( this.extraApplyButton );
-      this.extraImageSizer.add( this.extraUndoButton );
-      this.extraImageSizer.add( this.extraRedoButton );
-      this.extraImageSizer.add( this.extraHistoryButton );
-      this.extraImageSizer.add( this.extraSaveButton );
-      this.extraImageSizer.addStretch();
-
-      this.extra_rotate_CheckBox = newCheckBox(parent, "Rotate", par.extra_rotate, 
-            "<p>Rotate the image in clockwise direction.</p>" );
-      this.extra_rotate_degrees_ComboBox = newComboBox(parent, par.extra_rotate_degrees, rotate_degrees_values, this.extra_rotate_CheckBox.toolTip);
-      this.extra_image_no_copy_CheckBox = newCheckBox(parent, "No copy", par.extra_apply_no_copy_image, 
-            "<p>Do not make a copy of the image for Apply.</p>" );
-
-      this.extraImageOptionsSizer = new HorizontalSizer;
-      this.extraImageOptionsSizer.margin = 6;
-      this.extraImageOptionsSizer.spacing = 4;
-      this.extraImageOptionsSizer.add( this.extra_rotate_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_rotate_degrees_ComboBox );
-      this.extraImageOptionsSizer.add( this.extra_image_no_copy_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_stretch_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_autostf_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_force_new_mask_CheckBox );
-      this.extraImageOptionsSizer.add( this.extra_auto_reset_CheckBox );
-      this.extraImageOptionsSizer.addStretch();
-
-      this.extra1 = new VerticalSizer;
-      this.extra1.margin = 6;
-      this.extra1.spacing = 4;
-      this.extra1.add( this.extraRemoveStars_Sizer );
-      this.extra1.add( this.extra_smoothBackground_Sizer );
-      this.extra1.add( this.extraBandinReduction_CheckBox );
-      this.extra1.add( this.extraABE_CheckBox );
-      this.extra1.add( this.extra_shadowclip_Sizer );
-      this.extra1.add( this.extraDarkerBackground_CheckBox );
-      this.extra1.add( this.extraDarkerHighlights_CheckBox );
-      this.extra1.add( this.extraEnhanceShadowsSizer );
-      this.extra1.add( this.extraEnhanceHighlightsSizer );
-      this.extra1.add( this.extraNormalizeChannelsSizer );
-      this.extra1.add( this.extraAdjustChannelsSizer );
-      this.extra1.add( this.extra_ET_Sizer );
-      this.extra1.add( this.extra_HDRMLT_Sizer );
-      this.extra1.add( this.extra_LHE_sizer );
-
-      this.extra2 = new VerticalSizer;
-      this.extra2.margin = 6;
-      this.extra2.spacing = 4;
-      this.extra2.add( this.extraContrastSizer );
-      this.extra2.add( this.extraAutoContrastSizer );
-      this.extra2.add( this.extraNoiseReductionStrengthSizer );
-      this.extra2.add( this.extra_ACDNR_CheckBox );
-      this.extra2.add( this.extra_color_noise_CheckBox );
-      this.extra2.add( this.extra_star_noise_reduction_CheckBox );
-      this.extra2.add( this.extraUnsharpMaskSizer );
-      this.extra2.add( this.extraSharpenIterationsSizer );
-      this.extra2.add( this.extraSaturationIterationsSizer );
-      this.extra2.add( this.extraClaritySizer );
-      this.extra2.add( this.extraSmallerStarsSizer );
-      this.extra2.add( this.extraCombineStars_Sizer );
-      this.extra2.add( this.extra_color_calibration_CheckBox );
-      this.extra2.add( this.extra_solve_image_CheckBox );
-      this.extra2.add( this.extra_annotate_image_CheckBox );
-      this.extra2.addStretch();
-
       var extraLabeltoolTip = 
             "<p>" +
             "In case of Run or AutoContinue " + 
@@ -1410,34 +1355,103 @@ function extraProcessingGUI(parent)
             "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
             "narrowband options are selected then image is assumed to be narrowband." +
             "</p><p>" +
-            "If multiple extra processing options are selected they are executed in the following order:" + 
+            "If multiple extra processing options are selected they are executed in the order they are listyed in the dialog." + 
             "</p>" +
-            "<ol>" +
-            "<li>Auto stretch</li>" +
-            "<li>Narrowband options</li>" +
-            "<li>Remove stars</li>" +
-            "<li>Smoothen background</li>" +
-            "<li>AutomaticBackgroundExtractor</li>" +
-            "<li>Clip shadows</li>" +
-            "<li>Darker background</li>" +
-            "<li>Enhance shadows</li>" +
-            "<li>Adjust channels</li>" +
-            "<li>ExponentialTransformation</li>" +
-            "<li>HDRMultiscaleTransform</li>" +
-            "<li>LocalHistogramEqualization</li>" +
-            "<li>Add contrast</li>" +
-            "<li>Noise reduction</li>" +
-            "<li>ACDNR noise reduction</li>" +
-            "<li>Color noise reduction</li>" +
-            "<li>Sharpen using Unsharp Mask</li>" +
-            "<li>Sharpening</li>" +
-            "<li>Saturation</li>" +
-            "<li>Smaller stars</li>" +
-            "<li>Combine starless and stars images</li>" +
-            "</ol>" +
             "<p>" +
-            "If narrowband processing options are selected they are applied before extra processing options." +
+            "Narrowband processing options are selected they are applied before extra processing options." +
             "</p>";
+
+      this.extraHelpTips = new ToolButton( parent );
+      this.extraHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
+      this.extraHelpTips.setScaledFixedSize( 20, 20 );
+      this.extraHelpTips.toolTip = extraLabeltoolTip;
+      var extraHelpTips = this.extraHelpTips;
+      this.extraHelpTips.onMousePress = function()
+      {
+            extraHelpTips.enabled = false;
+            new MessageBox(extraLabeltoolTip, "Extra processing", StdIcon_Information ).execute();
+            extraHelpTips.enabled = true;
+      }
+
+      this.extraImageSizer = new HorizontalSizer;
+      // this.extraImageSizer.margin = 6;
+      this.extraImageSizer.spacing = 4;
+      this.extraImageSizer.add( this.extraImageLabel );
+      this.extraImageSizer.add( this.extraImageComboBox );
+      this.extraImageSizer.add( this.extraApplyButton );
+      this.extraImageSizer.add( this.extraUndoButton );
+      this.extraImageSizer.add( this.extraRedoButton );
+      this.extraImageSizer.add( this.extraHistoryButton );
+      this.extraImageSizer.add( this.extraSaveButton );
+      this.extraImageSizer.addStretch();
+      this.extraImageSizer.add( this.extraHelpTips );
+
+      this.extra_rotate_CheckBox = newCheckBox(parent, "Rotate", par.extra_rotate, 
+            "<p>Rotate the image in clockwise direction.</p>" );
+      this.extra_rotate_degrees_ComboBox = newComboBox(parent, par.extra_rotate_degrees, rotate_degrees_values, this.extra_rotate_CheckBox.toolTip);
+      this.extra_image_no_copy_CheckBox = newCheckBox(parent, "No copy", par.extra_apply_no_copy_image, 
+            "<p>Do not make a copy of the image for Apply.</p>" );
+
+      this.extraImageOptionsSizer1 = new HorizontalSizer;
+      this.extraImageOptionsSizer1.spacing = 4;
+      this.extraImageOptionsSizer1.add( this.extra_image_no_copy_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_force_new_mask_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_auto_reset_CheckBox );
+      this.extraImageOptionsSizer1.addStretch();
+
+      this.extraImageOptionsSizer2 = new HorizontalSizer;
+      this.extraImageOptionsSizer2.spacing = 4;
+      this.extraImageOptionsSizer2.add( this.extra_rotate_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_rotate_degrees_ComboBox );
+      this.extraImageOptionsSizer2.add( this.extra_stretch_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_autostf_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_color_calibration_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_solve_image_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_annotate_image_CheckBox );
+      this.extraImageOptionsSizer2.addStretch();
+
+      this.extraImageOptionsSizer = new VerticalSizer;
+      this.extraImageOptionsSizer.margin = 6;
+      this.extraImageOptionsSizer.spacing = 4;
+      this.extraImageOptionsSizer.add( this.extraImageOptionsSizer1 );
+      this.extraImageOptionsSizer.add( this.extraImageOptionsSizer2 );
+      this.extraImageOptionsSizer.addStretch();
+
+      this.extra1 = new VerticalSizer;
+      this.extra1.margin = 6;
+      this.extra1.spacing = 4;
+      this.extra1.add( this.extraRemoveStars_Sizer );
+      this.extra1.add( this.extra_smoothBackground_Sizer );
+      this.extra1.add( this.extraBandinReduction_CheckBox );
+      this.extra1.add( this.extraABE_CheckBox );
+      this.extra1.add( this.extra_shadowclip_Sizer );
+      this.extra1.add( this.extraDarkerBackground_CheckBox );
+      this.extra1.add( this.extraDarkerHighlights_CheckBox );
+      this.extra1.add( this.extraEnhanceShadowsSizer );
+      this.extra1.add( this.extraEnhanceHighlightsSizer );
+      this.extra1.add( this.extraGammaSizer );
+      this.extra1.add( this.extraNormalizeChannelsSizer );
+      this.extra1.add( this.extraAdjustChannelsSizer );
+      this.extra1.add( this.extra_ET_Sizer );
+      this.extra1.add( this.extra_HDRMLT_Sizer );
+
+      this.extra2 = new VerticalSizer;
+      this.extra2.margin = 6;
+      this.extra2.spacing = 4;
+      this.extra2.add( this.extra_LHE_sizer );
+      this.extra2.add( this.extraContrastSizer );
+      this.extra2.add( this.extraAutoContrastSizer );
+      this.extra2.add( this.extraNoiseReductionStrengthSizer );
+      this.extra2.add( this.extra_ACDNR_CheckBox );
+      this.extra2.add( this.extra_color_noise_CheckBox );
+      this.extra2.add( this.extra_star_noise_reduction_CheckBox );
+      this.extra2.add( this.extraUnsharpMaskSizer );
+      this.extra2.add( this.extraSharpenIterationsSizer );
+      this.extra2.add( this.extraSaturationIterationsSizer );
+      this.extra2.add( this.extraClaritySizer );
+      this.extra2.add( this.extraSmallerStarsSizer );
+      this.extra2.add( this.extraCombineStars_Sizer );
+      this.extra2.addStretch();
 
       this.extraGroupBoxSizer = new HorizontalSizer;
       //this.extraGroupBoxSizer.margin = 6;
@@ -3075,7 +3089,9 @@ function addWinPrefix(parent)
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
       windowPrefixHelpTips.onMousePress = function()
       {
+            windowPrefixHelpTips.enabled = false;
             new MessageBox(windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon_Information ).execute();
+            windowPrefixHelpTips.enabled = true;
       }
 
       var winprefix_Sizer = new HorizontalSizer;
@@ -5810,7 +5826,7 @@ function AutoIntegrateDialog()
       this.imageParamsControl.sizer.add( this.imageParamsSet1 );
       this.imageParamsControl.sizer.add( this.imageParamsSet2 );
       this.imageParamsControl.visible = false;
-      //this.imageParamsControl.sizer.addStretch();
+      this.imageParamsControl.sizer.addStretch();
 
       // Image tools and batching set 1.
       this.imageToolsSet1 = new VerticalSizer;
@@ -5836,7 +5852,7 @@ function AutoIntegrateDialog()
       this.imageToolsControl.sizer.add( this.imageToolsSet1 );
       this.imageToolsControl.sizer.add( this.imageToolsSet2 );
       this.imageToolsControl.visible = false;
-      //this.imageToolsControl.sizer.addStretch();
+      this.imageToolsControl.sizer.addStretch();
       
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
@@ -5922,9 +5938,12 @@ function AutoIntegrateDialog()
       this.cometAlignHelpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.cometAlignHelpTips.setScaledFixedSize( 20, 20 );
       this.cometAlignHelpTips.toolTip = comet_alignment_toolTip;
+      var cometAlignHelpTips = this.cometAlignHelpTips;
       this.cometAlignHelpTips.onMousePress = function()
       {
+            cometAlignHelpTips.enabled = false;
             new MessageBox(comet_alignment_toolTip, "Comet alignment", StdIcon_Information ).execute();
+            cometAlignHelpTips.enabled = true;
       }
 
       this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
@@ -5995,7 +6014,7 @@ function AutoIntegrateDialog()
 
       this.noiseReductionGroupBoxLabel = newSectionLabel(this, "Noise reduction settings");
       this.noiseReductionGroupBoxSizer1 = new HorizontalSizer;
-      this.noiseReductionGroupBoxSizer1.margin = 2;
+      // this.noiseReductionGroupBoxSizer1.margin = 6;
       this.noiseReductionGroupBoxSizer1.spacing = 4;
       this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthLabel );
       this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthComboBox );
@@ -6004,14 +6023,14 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer1.addStretch();
 
       this.noiseReductionGroupBoxSizer11 = new HorizontalSizer;
-      this.noiseReductionGroupBoxSizer11.margin = 2;
+      // this.noiseReductionGroupBoxSizer11.margin = 2;
       this.noiseReductionGroupBoxSizer11.spacing = 4;
       this.noiseReductionGroupBoxSizer11.add( this.color_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer11.add( this.ACDNR_noise_reduction_Control );
       this.noiseReductionGroupBoxSizer11.addStretch();
 
       this.noiseReductionGroupBoxSizer2 = new HorizontalSizer;
-      this.noiseReductionGroupBoxSizer2.margin = 2;
+      // this.noiseReductionGroupBoxSizer2.margin = 2;
       this.noiseReductionGroupBoxSizer2.spacing = 4;
       this.noiseReductionGroupBoxSizer2.add( this.noise_reduction_checkbox_label );
       this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
@@ -6029,19 +6048,19 @@ function AutoIntegrateDialog()
 
       this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
 
-      this.bxtLabel = newLabel(this, "BlurXterminator", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
+      this.bxtLabel = newLabel(this, "BlurXTerminator,", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
       this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
       this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features. Use a value between 0.00 and 1.00.");
 
-      this.sharpeningGroupBoxSizer = new HorizontalSizer;
-      this.sharpeningGroupBoxSizer.margin = 2;
-      this.sharpeningGroupBoxSizer.spacing = 4;
-      this.sharpeningGroupBoxSizer.add( this.bxtLabel );
-      this.sharpeningGroupBoxSizer.add( this.bxtSharpenStars );
-      this.sharpeningGroupBoxSizer.add( this.bxtAdjustHalo );
-      this.sharpeningGroupBoxSizer.add( this.bxtSharpenNonstellar );
-      this.sharpeningGroupBoxSizer.addStretch();
+      this.sharpeningGroupBoxSizer1 = new HorizontalSizer;
+      // this.sharpeningGroupBoxSizer1.margin = 6;
+      this.sharpeningGroupBoxSizer1.spacing = 4;
+      this.sharpeningGroupBoxSizer1.add( this.bxtLabel );
+      this.sharpeningGroupBoxSizer1.add( this.bxtSharpenStars );
+      this.sharpeningGroupBoxSizer1.add( this.bxtAdjustHalo );
+      this.sharpeningGroupBoxSizer1.add( this.bxtSharpenNonstellar );
+      this.sharpeningGroupBoxSizer1.addStretch();
 
       this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
       this.bxtImagePSF = newCheckBox(this, "Get PSF from image", par.bxt_image_psf, 
@@ -6055,13 +6074,20 @@ function AutoIntegrateDialog()
             "<p>Set correct first flag for BlurXTerminator.</p>" );
 
       this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
-      this.sharpeningGroupBoxSizer2.margin = 2;
+      // this.sharpeningGroupBoxSizer2.margin = 2;
       this.sharpeningGroupBoxSizer2.spacing = 4;
       this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtMedianPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtCorrectFirst );
       this.sharpeningGroupBoxSizer2.addStretch();
+
+      this.sharpeningGroupBoxSizer = new VerticalSizer;
+      this.sharpeningGroupBoxSizer.margin = 6;
+      this.sharpeningGroupBoxSizer.spacing = 4;
+      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer1 );
+      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer2 );
+      this.sharpeningGroupBoxSizer.addStretch();
 
       this.binningLabel = new Label( this );
       this.binningLabel.text = "Binning";
@@ -6137,16 +6163,6 @@ function AutoIntegrateDialog()
             }
       };
 
-      this.imageSolvingGroupBoxSizer = new HorizontalSizer;
-      this.imageSolvingGroupBoxSizer.margin = 2;
-      this.imageSolvingGroupBoxSizer.spacing = 4;
-      this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
-      this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
-      this.imageSolvingGroupBoxSizer.add( this.targetRaDecLabel );
-      this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
-      this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
-      this.imageSolvingGroupBoxSizer.addStretch();
-
       this.targetFocalLabel = newLabel(this, "Focal length mm", "Focal length in millimeters. Empty value uses image metadata.");
       this.targetFocalEdit = newTextEdit(this, par.target_focal, this.targetFocalLabel.toolTip);
       this.targetPixelSizeLabel = newLabel(this, "Pixel size μm", "Pixel size in μm. Empty value uses image metadata.");
@@ -6159,19 +6175,18 @@ function AutoIntegrateDialog()
                                                             "</ul>");
       this.targetBinningComboBox = newComboBox(this, par.target_binning, target_binning_values, this.targetBinningLabel.toolTip);
 
-      this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
-      this.imageSolvingGroupBoxSizer = new HorizontalSizer;
-      this.imageSolvingGroupBoxSizer.margin = 2;
-      this.imageSolvingGroupBoxSizer.spacing = 4;
-      this.imageSolvingGroupBoxSizer.add( this.targetNameLabel );
-      this.imageSolvingGroupBoxSizer.add( this.targetNameEdit );
-      this.imageSolvingGroupBoxSizer.add( this.targetRaDecLabel );
-      this.imageSolvingGroupBoxSizer.add( this.targetRaDecEdit );
-      this.imageSolvingGroupBoxSizer.add( this.findTargetCoordinatesButton );
-      this.imageSolvingGroupBoxSizer.addStretch();
+      this.imageSolvingGroupBoxSizer1 = new HorizontalSizer;
+      // this.imageSolvingGroupBoxSizer1.margin = 6;
+      this.imageSolvingGroupBoxSizer1.spacing = 4;
+      this.imageSolvingGroupBoxSizer1.add( this.targetNameLabel );
+      this.imageSolvingGroupBoxSizer1.add( this.targetNameEdit );
+      this.imageSolvingGroupBoxSizer1.add( this.targetRaDecLabel );
+      this.imageSolvingGroupBoxSizer1.add( this.targetRaDecEdit );
+      this.imageSolvingGroupBoxSizer1.add( this.findTargetCoordinatesButton );
+      this.imageSolvingGroupBoxSizer1.addStretch();
 
       this.imageSolvingGroupBoxSizer2 = new HorizontalSizer;
-      this.imageSolvingGroupBoxSizer2.margin = 2;
+      // this.imageSolvingGroupBoxSizer2.margin = 2;
       this.imageSolvingGroupBoxSizer2.spacing = 4;
       this.imageSolvingGroupBoxSizer2.add( this.targetFocalLabel );
       this.imageSolvingGroupBoxSizer2.add( this.targetFocalEdit );
@@ -6180,6 +6195,14 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer2.add( this.targetBinningLabel );
       this.imageSolvingGroupBoxSizer2.add( this.targetBinningComboBox );
       this.imageSolvingGroupBoxSizer2.addStretch();
+
+      this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
+      this.imageSolvingGroupBoxSizer = new VerticalSizer;
+      this.imageSolvingGroupBoxSizer.margin = 6;
+      this.imageSolvingGroupBoxSizer.spacing = 4;
+      this.imageSolvingGroupBoxSizer.add( this.imageSolvingGroupBoxSizer1 );
+      this.imageSolvingGroupBoxSizer.add( this.imageSolvingGroupBoxSizer2 );
+      this.imageSolvingGroupBoxSizer.addStretch();
 
       this.colorCalibrationGroupBoxLabel = newSectionLabel(this, "Color Calibration");
 
@@ -6211,19 +6234,19 @@ function AutoIntegrateDialog()
 
       this.spccGroupBoxLabel = newSectionLabel(this, "Spectrophotometric Color Calibration");
 
-      this.spccGroupBoxSizer = new HorizontalSizer;
-      this.spccGroupBoxSizer.margin = 6;
-      this.spccGroupBoxSizer.spacing = 4;
-      this.spccGroupBoxSizer.add( this.spccDetectionScalesLabel );
-      this.spccGroupBoxSizer.add( this.spccDetectionScalesSpinBox );
-      this.spccGroupBoxSizer.add( this.spccNoiseScalesLabel );
-      this.spccGroupBoxSizer.add( this.spccNoiseScalesSpinBox );
-      this.spccGroupBoxSizer.add( this.spccMinStructSizeLabel );
-      this.spccGroupBoxSizer.add( this.spccMinStructSizeSpinBox );
-      this.spccGroupBoxSizer.addStretch();
+      this.spccGroupBoxSizer0 = new HorizontalSizer;
+      // this.spccGroupBoxSizer0.margin = 6;
+      this.spccGroupBoxSizer0.spacing = 4;
+      this.spccGroupBoxSizer0.add( this.spccDetectionScalesLabel );
+      this.spccGroupBoxSizer0.add( this.spccDetectionScalesSpinBox );
+      this.spccGroupBoxSizer0.add( this.spccNoiseScalesLabel );
+      this.spccGroupBoxSizer0.add( this.spccNoiseScalesSpinBox );
+      this.spccGroupBoxSizer0.add( this.spccMinStructSizeLabel );
+      this.spccGroupBoxSizer0.add( this.spccMinStructSizeSpinBox );
+      this.spccGroupBoxSizer0.addStretch();
 
       this.spccGroupBoxSizer1 = new HorizontalSizer;
-      this.spccGroupBoxSizer1.margin = 6;
+      // this.spccGroupBoxSizer1.margin = 6;
       this.spccGroupBoxSizer1.spacing = 4;
       this.spccGroupBoxSizer1.add( this.spccWhiteReferenceLabel );
       this.spccGroupBoxSizer1.add( this.spccWhiteReferenceComboBox );
@@ -6232,7 +6255,7 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer1.addStretch();
 
       this.spccGroupBoxSizer11 = new HorizontalSizer;
-      this.spccGroupBoxSizer11.margin = 6;
+      // this.spccGroupBoxSizer11.margin = 6;
       this.spccGroupBoxSizer11.spacing = 4;
       this.spccGroupBoxSizer11.add( this.spccSaturationThresholdEdit );
       this.spccGroupBoxSizer11.add( this.spccMinSNREdit );
@@ -6246,7 +6269,7 @@ function AutoIntegrateDialog()
             "Automatically update narrowband mode, white reference and filters. Filters are selected automatically when a single filter is used.");
 
       this.spccGroupBoxSizerCheckBoxes = new HorizontalSizer;
-      this.spccGroupBoxSizerCheckBoxes.margin = 4;
+      // this.spccGroupBoxSizerCheckBoxes.margin = 4;
       this.spccGroupBoxSizerCheckBoxes.spacing = 4;
       this.spccGroupBoxSizerCheckBoxes.add( this.spccAutoUpdateFiltersCheckBox );
       this.spccGroupBoxSizerCheckBoxes.add( this.spccNarrowbandCheckBox );
@@ -6264,34 +6287,43 @@ function AutoIntegrateDialog()
       this.spccBlueFilterBandwidth = newNumericEdit(this, "Bandwidth", par.spcc_blue_bandwidth, 0, 999999, spccFilterTooTip);
 
       this.spccGroupBoxSizerR = new HorizontalSizer;
-      this.spccGroupBoxSizerR.margin = 2;
+      // this.spccGroupBoxSizerR.margin = 2;
       this.spccGroupBoxSizerR.spacing = 4;
       this.spccGroupBoxSizerR.add( this.spccRedFilterWavelength );
       this.spccGroupBoxSizerR.add( this.spccRedFilterBandwidth );
       this.spccGroupBoxSizerR.addStretch();
 
       this.spccGroupBoxSizerG = new HorizontalSizer;
-      this.spccGroupBoxSizerG.margin = 2;
+      // this.spccGroupBoxSizerG.margin = 2;
       this.spccGroupBoxSizerG.spacing = 4;
       this.spccGroupBoxSizerG.add( this.spccGreenFilterWavelength );
       this.spccGroupBoxSizerG.add( this.spccGreenFilterBandwidth );
       this.spccGroupBoxSizerG.addStretch();
 
       this.spccGroupBoxSizerB = new HorizontalSizer;
-      this.spccGroupBoxSizerB.margin = 2;
+      // this.spccGroupBoxSizerB.margin = 2;
       this.spccGroupBoxSizerB.spacing = 4;
       this.spccGroupBoxSizerB.add( this.spccBlueFilterWavelength );
       this.spccGroupBoxSizerB.add( this.spccBlueFilterBandwidth );
       this.spccGroupBoxSizerB.addStretch();
 
       this.spccGroupBoxSizer2 = new VerticalSizer;
-      this.spccGroupBoxSizer2.margin = 2;
+      // this.spccGroupBoxSizer2.margin = 2;
       this.spccGroupBoxSizer2.spacing = 2;
       this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerCheckBoxes );
       this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerR );
       this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerG );
       this.spccGroupBoxSizer2.add( this.spccGroupBoxSizerB );
       this.spccGroupBoxSizer2.addStretch();
+
+      this.spccGroupBoxSizer = new VerticalSizer;
+      this.spccGroupBoxSizer.margin = 6;
+      this.spccGroupBoxSizer.spacing = 4;
+      this.spccGroupBoxSizer.add( this.spccGroupBoxSizer0 );
+      this.spccGroupBoxSizer.add( this.spccGroupBoxSizer1 );
+      this.spccGroupBoxSizer.add( this.spccGroupBoxSizer11 );
+      this.spccGroupBoxSizer.add( this.spccGroupBoxSizer2 );
+      this.spccGroupBoxSizer.addStretch();
 
       // Other parameters set 0.
       this.otherParamsSet01 = new VerticalSizer;
@@ -6577,15 +6609,13 @@ function AutoIntegrateDialog()
       this.linearFitSizer.add( this.linearFitGroupBoxSizer );
       this.linearFitSizer.addStretch();
 
-      this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-
       this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.");
       this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
       this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.");
       this.ABECorrectionComboBox = newComboBox(this, par.ABE_correction, ABE_correction_values, this.ABECorrectionLabel.toolTip);
 
       this.ABEDegreeSizer = new HorizontalSizer;
-      this.ABEDegreeSizer.margin = 6;
+      // this.ABEDegreeSizer.margin = 6;
       this.ABEDegreeSizer.spacing = 4;
       this.ABEDegreeSizer.add( this.ABEDegreeLabel );
       this.ABEDegreeSizer.add( this.ABEDegreeSpinBox );
@@ -6593,14 +6623,13 @@ function AutoIntegrateDialog()
       this.ABEDegreeSizer.add( this.ABECorrectionComboBox );
       this.ABEDegreeSizer.addStretch();
 
-      this.ABESizer = new VerticalSizer;
-      this.ABESizer.margin = 6;
-      this.ABESizer.spacing = 4;
-      this.ABESizer.add( this.ABEGroupBoxLabel );
-      this.ABESizer.add( this.ABEDegreeSizer );
-      this.ABESizer.addStretch();
-
-      this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
+      this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
+      this.ABEGroupBoxSizer = new VerticalSizer;
+      this.ABEGroupBoxSizer.margin = 6;
+      this.ABEGroupBoxSizer.spacing = 4;
+      this.ABEGroupBoxSizer.add( this.ABEGroupBoxLabel );
+      this.ABEGroupBoxSizer.add( this.ABEDegreeSizer );
+      this.ABEGroupBoxSizer.addStretch();
 
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
@@ -6610,7 +6639,7 @@ function AutoIntegrateDialog()
       "<p>This value is used only if rejection low is selected.</p>");
 
       this.CropToleranceSizer = new HorizontalSizer;
-      this.CropToleranceSizer.margin = 6;
+      // this.CropToleranceSizer.margin = 6;
       this.CropToleranceSizer.spacing = 4;
       this.CropToleranceSizer.add( this.cropUseRejectionLowCheckBox );
       this.CropToleranceSizer.addSpacing( 12 );
@@ -6619,6 +6648,7 @@ function AutoIntegrateDialog()
       this.CropToleranceSizer.add( this.cropRejectionLowLimitControl );
       this.CropToleranceSizer.addStretch();
 
+      this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
       this.CropSizer = new VerticalSizer;
       this.CropSizer.margin = 6;
       this.CropSizer.spacing = 4;
@@ -6634,7 +6664,7 @@ function AutoIntegrateDialog()
 
       this.linearFitAndLRGBCombinationSizer2 = new VerticalSizer;
       this.linearFitAndLRGBCombinationSizer2.spacing = 4;
-      this.linearFitAndLRGBCombinationSizer2.add( this.ABESizer );
+      this.linearFitAndLRGBCombinationSizer2.add( this.ABEGroupBoxSizer );
       this.linearFitAndLRGBCombinationSizer2.add( this.CropSizer );
       this.linearFitAndLRGBCombinationSizer2.addStretch();
 
@@ -6716,7 +6746,7 @@ function AutoIntegrateDialog()
 
       this.MaskedStretchSizer = new HorizontalSizer;
       this.MaskedStretchSizer.spacing = 4;
-      this.MaskedStretchSizer.margin = 2;
+      // this.MaskedStretchSizer.margin = 2;
       this.MaskedStretchSizer.add( this.MaskedStretchTargetBackgroundEdit );
       this.MaskedStretchSizer.addStretch();
       
@@ -6736,7 +6766,7 @@ function AutoIntegrateDialog()
 
       this.ArcsinhSizer = new HorizontalSizer;
       this.ArcsinhSizer.spacing = 4;
-      this.ArcsinhSizer.margin = 2;
+      // this.ArcsinhSizer.margin = 2;
       this.ArcsinhSizer.add( this.Arcsinh_stretch_factor_Edit );
       this.ArcsinhSizer.add( this.Arcsinh_black_point_Control );
       this.ArcsinhSizer.add( this.Arcsinh_iterations_Label );
@@ -6774,25 +6804,28 @@ function AutoIntegrateDialog()
                                          "<li>2 - Decrease D for every iteration, use histogram peak as symmetry point (ignore SP value %)</li>" +
                                          "</ul>" + Hyperbolic_tips;
       this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 1, 2, this.hyperbolicModeLabel.toolTip);
+      
       this.hyperbolicSizer1 = new HorizontalSizer;
       this.hyperbolicSizer1.spacing = 4;
-      this.hyperbolicSizer1.margin = 2;
+      // this.hyperbolicSizer1.margin = 2;
       this.hyperbolicSizer1.add( this.Hyperbolic_D_Control );
       this.hyperbolicSizer1.add( this.Hyperbolic_b_Control );
       this.hyperbolicSizer1.add( this.Hyperbolic_SP_Control );
       this.hyperbolicSizer1.addStretch();
+      
       this.hyperbolicSizer2 = new HorizontalSizer;
       this.hyperbolicSizer2.spacing = 4;
-      this.hyperbolicSizer2.margin = 2;
+      // this.hyperbolicSizer2.margin = 2;
       this.hyperbolicSizer2.add( this.Hyperbolic_target_Control );
       this.hyperbolicSizer2.add( this.hyperbolicIterationsLabel );
       this.hyperbolicSizer2.add( this.hyperbolicIterationsSpinBox );
       this.hyperbolicSizer2.add( this.hyperbolicModeLabel );
       this.hyperbolicSizer2.add( this.hyperbolicModeSpinBox );
       this.hyperbolicSizer2.addStretch();
+      
       this.hyperbolicSizer = new VerticalSizer;
       this.hyperbolicSizer.spacing = 4;
-      this.hyperbolicSizer.margin = 2;
+      // this.hyperbolicSizer.margin = 2;
       this.hyperbolicSizer.add( this.hyperbolicSizer1 );
       this.hyperbolicSizer.add( this.hyperbolicSizer2 );
       this.hyperbolicSizer.addStretch();
@@ -6807,7 +6840,7 @@ function AutoIntegrateDialog()
 
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
-      this.histogramStretchingSizer.margin = 2;
+      // this.histogramStretchingSizer.margin = 2;
       this.histogramStretchingSizer.add( this.histogramShadowClip_Control );
       this.histogramStretchingSizer.add( this.histogramTypeLabel );
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
@@ -6828,7 +6861,7 @@ function AutoIntegrateDialog()
 
       this.smoothBackgroundSizer = new HorizontalSizer;
       this.smoothBackgroundSizer.spacing = 4;
-      this.smoothBackgroundSizer.margin = 2;
+      // this.smoothBackgroundSizer.margin = 2;
       this.smoothBackgroundSizer.add( this.logarithmicTargetValue_Control );
       this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
       this.smoothBackgroundSizer.addStretch();
@@ -6837,7 +6870,7 @@ function AutoIntegrateDialog()
        */
       this.StretchingOptionsSizer = new VerticalSizer;
       this.StretchingOptionsSizer.spacing = 4;
-      this.StretchingOptionsSizer.margin = 2;
+      // this.StretchingOptionsSizer.margin = 2;
       this.StretchingOptionsSizer.add( this.STFSizer );
       this.StretchingOptionsSizer.add( this.MaskedStretchSizer );
       this.StretchingOptionsSizer.add( this.ArcsinhSizer );
@@ -6850,8 +6883,8 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.spacing = 4;
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
-      this.StretchingOptionsSizer.add( this.hyperbolicSizer );
       this.StretchingOptionsSizer.add( this.histogramStretchingSizer );
+      this.StretchingOptionsSizer.add( this.hyperbolicSizer );
       this.StretchingOptionsSizer.add( this.smoothBackgroundSizer );
       this.StretchingGroupBoxSizer.addStretch();
 
@@ -7074,7 +7107,7 @@ function AutoIntegrateDialog()
       this.narrowbandCustomPalette_B_ComboBox = newComboBoxpalette(this, par.custom_B_mapping, [par.custom_B_mapping.val, "0.30*H + 0.70*O"], this.narrowbandCustomPalette_B_Label.toolTip);
 
       this.narrowbandCustomPalette_Sizer = new HorizontalSizer;
-      this.narrowbandCustomPalette_Sizer.margin = 6;
+      // this.narrowbandCustomPalette_Sizer.margin = 6;
       this.narrowbandCustomPalette_Sizer.spacing = 4;
       this.narrowbandCustomPalette_Sizer.toolTip = narrowbandToolTip;
       this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_ComboBox );
@@ -7111,7 +7144,7 @@ function AutoIntegrateDialog()
       this.narrowbandLinearFit_ComboBox = newComboBox(this, par.narrowband_linear_fit, narrowband_linear_fit_values, this.narrowbandLinearFit_Label.toolTip);
 
       this.mapping_on_nonlinear_data_Sizer = new HorizontalSizer;
-      this.mapping_on_nonlinear_data_Sizer.margin = 2;
+      // this.mapping_on_nonlinear_data_Sizer.margin = 2;
       this.mapping_on_nonlinear_data_Sizer.spacing = 4;
       this.mapping_on_nonlinear_data_Sizer.add( this.force_narrowband_mapping_CheckBox );
       this.mapping_on_nonlinear_data_Sizer.add( this.mapping_on_nonlinear_data_CheckBox );
@@ -7153,7 +7186,7 @@ function AutoIntegrateDialog()
       this.NbLuminanceLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.NbLuminanceLabel.toolTip = this.narrowbandLuminancePalette_ComboBox.toolTip;
       this.NbLuminanceSizer = new HorizontalSizer;
-      this.NbLuminanceSizer.margin = 2;
+      // this.NbLuminanceSizer.margin = 2;
       this.NbLuminanceSizer.spacing = 4;
       this.NbLuminanceSizer.add( this.NbLuminanceLabel );
       this.NbLuminanceSizer.add( this.narrowbandLuminancePalette_ComboBox );
@@ -7187,7 +7220,7 @@ function AutoIntegrateDialog()
       };
 
       this.narrowbandSelectMultipleSizer = new HorizontalSizer;
-      this.narrowbandSelectMultipleSizer.margin = 2;
+      // this.narrowbandSelectMultipleSizer.margin = 2;
       this.narrowbandSelectMultipleSizer.spacing = 4;
       this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleCheckBox );
       this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleButton );
@@ -7276,7 +7309,7 @@ function AutoIntegrateDialog()
       this.RGBNB_MappingBValue = newComboBox(this, par.B_mapping, RGBNB_mapping_values, this.RGBNB_MappingBLabel.toolTip);
 
       this.RGBNB_MappingSizer = new HorizontalSizer;
-      this.RGBNB_MappingSizer.margin = 6;
+      // this.RGBNB_MappingSizer.margin = 6;
       this.RGBNB_MappingSizer.spacing = 4;
       this.RGBNB_MappingSizer.add( this.RGBNB_MappingLabel );
       this.RGBNB_MappingSizer.add( this.RGBNB_MappingLLabel );
@@ -7297,7 +7330,7 @@ function AutoIntegrateDialog()
       this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.B_BoostFactor, "Boost, or multiplication factor, for the B channel.");
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
-      this.RGBNB_BoostSizer.margin = 6;
+      // this.RGBNB_BoostSizer.margin = 6;
       this.RGBNB_BoostSizer.spacing = 4;
       this.RGBNB_BoostSizer.add( this.RGBNB_BoostLabel );
       this.RGBNB_BoostSizer.add( this.RGBNB_BoostLValue );
@@ -7322,7 +7355,7 @@ function AutoIntegrateDialog()
       this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.O_bandwidth, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
-      this.RGBNB_BandwidthSizer.margin = 6;
+      // this.RGBNB_BandwidthSizer.margin = 6;
       this.RGBNB_BandwidthSizer.spacing = 4;
       this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthLabel );
       //this.RGBNB_BandwidthSizer.add( this.RGBNB_BandwidthRGBValue );
@@ -7337,8 +7370,8 @@ function AutoIntegrateDialog()
       this.RGBNB_BandwidthSizer.addStretch();
 
       this.RGBNB_Sizer = new VerticalSizer;
-      this.RGBNB_Sizer.margin = 6;
-      //this.RGBNB_Sizer.spacing = 4;
+      // this.RGBNB_Sizer.margin = 6;
+      this.RGBNB_Sizer.spacing = 4;
       this.RGBNB_Sizer.toolTip = RGBNB_tooltip;
       this.RGBNB_Sizer.add(this.useRGBNBmappingSizer);
       this.RGBNB_Sizer.add(this.RGBNB_Sizer1);
@@ -7862,8 +7895,7 @@ function AutoIntegrateDialog()
               this.noiseReductionGroupBoxLabel,
               this.noiseReductionGroupBoxSizer,
               this.sharpeningGroupBoxLabel,
-              this.sharpeningGroupBoxSizer,
-              this.sharpeningGroupBoxSizer2 ]);
+              this.sharpeningGroupBoxSizer ]);
       this.leftProcessingGroupBox.sizer.addStretch();
 
       // Right processing group box
@@ -7889,14 +7921,10 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image solving and color calibration", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
               this.imageSolvingGroupBoxSizer,
-              this.imageSolvingGroupBoxSizer2,
               this.colorCalibrationGroupBoxLabel,
               this.colorCalibrationSizer,
               this.spccGroupBoxLabel,
-              this.spccGroupBoxSizer,
-              this.spccGroupBoxSizer1,
-              this.spccGroupBoxSizer11,
-              this.spccGroupBoxSizer2 ]);
+              this.spccGroupBoxSizer ]);
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
       this.rightProcessingGroupBox.sizer.addStretch();
         

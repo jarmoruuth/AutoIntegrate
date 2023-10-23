@@ -9772,6 +9772,15 @@ function extraEnhanceHighlights(win)
       runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, true);
 }
 
+function extraGamma(win)
+{
+      addExtraProcessingStep("Apply gamma correction with value " + par.extra_gamma_value.val);
+
+      var mapping = "$T ^ " + par.extra_gamma_value.val;
+
+      runPixelMathSingleMappingEx(win.mainView.id, mapping, false, null, false);
+}
+
 function autoContrast(win, contrast_limit_low, contrast_limit_high)
 {
       console.writeln("autoContrast: image " + win.mainView.id + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
@@ -10994,6 +11003,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_highlight_enhance.val) {
             extraEnhanceHighlights(extraWin);
             extraOptionCompleted(par.extra_highlight_enhance);
+      }
+      if (par.extra_gamma.val) {
+            extraGamma(extraWin);
+            extraOptionCompleted(par.extra_gamma);
       }
       if (par.extra_normalize_channels.val) {
             extraNormalizeImage(extraWin);
