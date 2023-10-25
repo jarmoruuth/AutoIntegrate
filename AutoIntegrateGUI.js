@@ -241,6 +241,10 @@ this.__base__();
 var par = global.par;
 var ppar = global.ppar;
 
+var dialog_mode = 1;    // 0 = minimized, 1 = normal, 2 = maximized
+var dialog_old_position = null;
+var dialog_min_position = null;
+
 var histogramUsePreviewControl = false;
 
 var infoLabel;
@@ -322,8 +326,6 @@ var rotate_degrees_values = [ '90', '180', '270' ];
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
 var screen_height = 0;             // Screen height in pixels
-
-var actionsizer_in_separate_row = true;    // Actions to a separate row
 
 var Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
 
@@ -1326,16 +1328,25 @@ function extraProcessingGUI(parent)
       this.extraHistoryButton.onMousePress = function()
       {
             extraHistoryButton.enabled = false;
-            if (extra_gui_info.undo_images_pos <= 1) {
+            if (extra_gui_info.undo_images_pos < 1) {
                   new MessageBox("No extra processing history", "Extra processing history", StdIcon_Information ).execute();
             } else {
-                  var txt = "<p>Extra processing history:</p><ul>";
-                  for (var i = 1; i < extra_gui_info.undo_images_pos; i++) {
+                  var txt = "<p>Applied extra processing:</p><ul>";
+                  for (var i = 1; i <= extra_gui_info.undo_images_pos; i++) {
                         for (var j = 0; j < extra_gui_info.undo_images[i].extra_processing_info.length; j++) {
                               txt += "<li>" + extra_gui_info.undo_images[i].extra_processing_info[j] + "</li>";
                         }
                   }
                   txt += "</ul>";
+                  if (i < extra_gui_info.undo_images.length) {
+                        txt += "<p><i>Not applied extra processing:</i></p><ul>";
+                        for (; i < extra_gui_info.undo_images.length; i++) {
+                              for (var j = 0; j < extra_gui_info.undo_images[i].extra_processing_info.length; j++) {
+                                    txt += "<li><i>" + extra_gui_info.undo_images[i].extra_processing_info[j] + "</i></li>";
+                              }
+                        }
+                        txt += "</ul>";
+                  }
                   new MessageBox(txt, "Extra processing history", StdIcon_Information ).execute();
             }
             extraHistoryButton.enabled = true;
@@ -1710,7 +1721,10 @@ function update_extra_target_image_window_list(current_item)
             if (!combobox.currentItem) {
                   combobox.currentItem = 0;
             }
-            if (extra_target_image_window_list && extra_target_image_window_list.length > 0) {
+            if (extra_target_image_window_list 
+                && extra_target_image_window_list.length > 0
+                && extra_target_image_window_list[combobox.currentItem]) 
+            {
                   combobox.setItemText(combobox.currentItem, extra_target_image_window_list[combobox.currentItem]);
             }
       }
@@ -3867,9 +3881,6 @@ function newTargetSizer(parent)
 
       var winprefix_sizer = addWinPrefix(parent);
       var outputdir_sizer = addOutputDir(parent);
-      if (!actionsizer_in_separate_row) {
-            var action_sizer = newActionSizer(parent);
-      }
 
       var filesButtons_Sizer2 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer2);
@@ -3880,10 +3891,6 @@ function newTargetSizer(parent)
       filesButtons_Sizer2.addSpacing( 12 );
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
-      if (!actionsizer_in_separate_row) {
-            filesButtons_Sizer2.addSpacing( 12 );
-            filesButtons_Sizer2.add( action_sizer );
-      }
 
       return filesButtons_Sizer2;
 }
@@ -3919,7 +3926,7 @@ function addFilesButtons(parent, targetSizer)
             var filesButtons_Sizer = new VerticalSizer;
             parent.rootingArr.push(filesButtons_Sizer);
             filesButtons_Sizer.add( filesButtons_Sizer1 );
-            if ( !ppar.files_in_tab) {
+            if (!ppar.files_in_tab) {
                   filesButtons_Sizer.add( targetSizer );
             }
             filesButtons_Sizer1.addStretch();
@@ -4290,7 +4297,7 @@ function saveParametersToPersistentModuleSettings()
       }
 }
 
-function newPushorToolButton(parent, icon, txt, tooltip, action, toolbutton)
+function newPushOrToolButton(parent, icon, txt, tooltip, action, toolbutton)
 {
       if (toolbutton) {
             var button = new ToolButton( parent );
@@ -4348,7 +4355,7 @@ function newRunButton(parent, toolbutton)
                   savePersistentSettings(false);
             }
       };
-      return newPushorToolButton(
+      return newPushOrToolButton(
                   parent,
                   ":/icons/power.png",
                   "Run",
@@ -4372,7 +4379,7 @@ function newExitButton(parent, toolbutton)
             parent.dialog.cancel();
       };
 
-      return newPushorToolButton(
+      return newPushOrToolButton(
                   parent,
                   ":/icons/close.png",
                   "Exit",
@@ -4393,7 +4400,7 @@ function newCancelButton(parent, toolbutton)
             }
       };
 
-      return newPushorToolButton(
+      return newPushOrToolButton(
                   parent,
                   ":/icons/cancel.png",
                   "Cancel",
@@ -4469,7 +4476,7 @@ function newAutoContinueButton(parent, toolbutton)
             }
       };
 
-      return newPushorToolButton(
+      return newPushOrToolButton(
             parent,
             ":/icons/goto-next.png",
             "AutoContinue",
@@ -4566,14 +4573,14 @@ function newJsonSizer(parent)
                   util.saveJsonFile(parent.dialog, false);
             };
       }
-      var jsonSaveWithSewttingsButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonSaveWithSewttingsButton);
-      jsonSaveWithSewttingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
-      jsonSaveWithSewttingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
+      var jsonSaveWithSettingsButton = new ToolButton( parent );
+      parent.rootingArr.push(jsonSaveWithSettingsButton);
+      jsonSaveWithSettingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
+      jsonSaveWithSettingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
                                             "Current window prefix and output directory is also saved.</p>" + 
                                             "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
-      jsonSaveWithSewttingsButton.setScaledFixedSize( 20, 20 );
-      jsonSaveWithSewttingsButton.onClick = function()
+      jsonSaveWithSettingsButton.setScaledFixedSize( 20, 20 );
+      jsonSaveWithSettingsButton.onClick = function()
       {
             util.saveJsonFile(parent.dialog, true);
       };
@@ -4585,40 +4592,46 @@ function newJsonSizer(parent)
       if (add_jsonSaveButton) {
             jsonSizer.add( jsonSaveButton );
       }
-      jsonSizer.add( jsonSaveWithSewttingsButton );
+      jsonSizer.add( jsonSaveWithSettingsButton );
 
       return jsonSizer;
 }
 
-function newMaxPreviewButton(parent)
+function newMaximizeDialogButton(parent)
 {
-      var maxPreview_Button = new ToolButton( parent );
-      maxPreview_Button.aiMaxPreviewMode = false;
-      maxPreview_Button.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
+      var maxDialogButton = new ToolButton( parent );
+      maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
 
-      maxPreview_Button.setScaledFixedSize( 20, 20 );
-      maxPreview_Button.toolTip = "Maximize dialog size to (almost) full screen.";
-      maxPreview_Button.onMousePress = function()
+      var maxDialogToolTip = "<p>Maximize dialog size to (almost) full screen.</p>" +
+                             "<p>Note that the maximizing works best when the side preview is enabled in the Interface section.</p>";
+
+      maxDialogButton.setScaledFixedSize( 20, 20 );
+      maxDialogButton.toolTip = maxDialogToolTip;
+      maxDialogButton.onMousePress = function()
       {
-            if (!global.use_preview) {
-                  console.criticalln("No preview.");
+            if (dialog_mode == 0) {
+                  // minimized, do nothing
                   return;
             }
-            if (maxPreview_Button.aiMaxPreviewMode) {   // restore
-                  maxPreview_Button.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
-                  maxPreview_Button.toolTip = "<p>Maximize dialog size to (almost) full screen.</p>" +
-                                              "<p>Note that the maximizing works best when the side preview is enabled in the Interface section.</p>";
+            if (!global.use_preview) {
+                  console.criticalln("No preview, cannot maximize.");
+                  return;
+            }
+            if (dialog_mode == 2) {   // restore
+                  maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
+                  maxDialogButton.toolTip = maxDialogToolTip;
                   if (ppar.preview.side_preview_visible) {
                         sidePreviewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
                   } else {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
                   }
-                  parent.dialog.move(this.aiOldPosition);
-            } else {
+                  parent.dialog.move(dialog_old_position);
+                  dialog_mode = 1;
+            } else if (dialog_mode == 1) {
                   // maximize
                   // calculate starting point for maximized dialog size
-                  maxPreview_Button.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
-                  maxPreview_Button.toolTip = "Restore dialog to normal size.";
+                  maxDialogButton.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
+                  maxDialogButton.toolTip = "Restore dialog to a normal size.";
                   if (ppar.preview.side_preview_visible) {
                         var preview_width = ppar.preview.side_preview_width;
                         var preview_height = ppar.preview.side_preview_height;
@@ -4657,20 +4670,84 @@ function newMaxPreviewButton(parent)
                                           max_preview_width, 
                                           max_preview_height);
 
-                  this.aiOldPosition = parent.dialog.position;    // save old position so we can restore it
+                  dialog_old_position = parent.dialog.position;   // save old position so we can restore it
                   parent.dialog.move(10, 10);                     // move to top left corner
+                  dialog_mode = 2;
 
                   // console.writeln("preview width overhead " + (preview_control_width - preview_width) + ", height overhead " + (preview_control_height - preview_height));
                   console.writeln("Maximize dialog: screen " + screen_width + "x" + screen_height + ", dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + 
                                   ", max preview " + preview_size.width + "x" + preview_size.height);
 
             }
-            maxPreview_Button.aiMaxPreviewMode = !maxPreview_Button.aiMaxPreviewMode;
             parent.dialog.adjustToContents();
             util.runGC();
       };
 
-      return maxPreview_Button;
+      return maxDialogButton;
+}
+
+function newMinimizeDialogButton(parent)
+{
+      var minDialogButton = new ToolButton( parent );
+      minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
+
+      minDialogButton.setScaledFixedSize( 20, 20 );
+      var minDialogToolTip = "Minimize dialog to a minimum size.";
+      minDialogButton.toolTip = minDialogToolTip;
+      minDialogButton.onMousePress = function()
+      {
+            if (dialog_mode == 2) {
+                  // maximized, do nothing
+                  return;
+            }
+            if (dialog_mode == 0) {   // restore
+                  dialog_min_position = parent.dialog.position;    // save old position so we can restore it
+                  minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
+                  minDialogButton.toolTip = minDialogToolTip;
+                  if (global.use_preview) {
+                        if (ppar.preview.side_preview_visible) {
+                              sidePreviewControl.show();
+                              if (sideHistogramControl != null) {
+                                    sideHistogramControl.show();
+                              }
+                        }
+                  }
+                  if (ppar.files_in_tab) {
+                        parent.top2ndRowControl.show();
+                  }
+                  mainTabBox.show();
+                  parent.dialog.move(dialog_old_position);
+                  dialog_mode = 1;
+            } else if (dialog_mode == 1) {
+                  // minimize
+                  minDialogButton.icon = parent.scaledResource( ":/workspace/window-maximize.png" );
+                  minDialogButton.toolTip = "Restore dialog to normal size.";
+                  dialog_old_position = parent.dialog.position;    // save old position so we can restore it
+                  if (global.use_preview) {
+                        if (ppar.preview.side_preview_visible) {
+                              sidePreviewControl.hide();
+                              if (sideHistogramControl != null) {
+                                    sideHistogramControl.hide();
+                              }
+                        }
+                  }
+                  mainTabBox.hide();
+                  if (ppar.files_in_tab) {
+                        parent.top2ndRowControl.hide();
+                  }
+                  if (dialog_min_position == null) {
+                        parent.dialog.move(Math.floor(screen_width / 2), Math.floor(screen_height / 2)); // move to center of screen
+                  } else {
+                        parent.dialog.move(dialog_min_position);
+                  }
+                  dialog_mode = 0;
+            }
+            minDialogButton.aiminDialogMode = !minDialogButton.aiminDialogMode;
+            parent.dialog.adjustToContents();
+            util.runGC();
+      };
+
+      return minDialogButton;
 }
 
 function newActionSizer(parent)
@@ -4678,12 +4755,10 @@ function newActionSizer(parent)
       var actionsSizer = new HorizontalSizer;
       parent.rootingArr.push(actionsSizer);
 
-      if (actionsizer_in_separate_row) {
-            let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
-            parent.rootingArr.push(obj);
-            actionsSizer.add( obj );
-            actionsSizer.addSpacing( 6 );
-      }
+      let obj = newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
 
       let obj = newCancelButton(parent, true);
       parent.rootingArr.push(obj);
@@ -4709,7 +4784,11 @@ function newActionSizer(parent)
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
 
-      obj = newMaxPreviewButton(parent);
+      obj = newMinimizeDialogButton(parent);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+
+      obj = newMaximizeDialogButton(parent);
       parent.rootingArr.push(obj);
       actionsSizer.add( obj );
 
@@ -5762,17 +5841,19 @@ function AutoIntegrateDialog()
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
-      this.blink_checkbox = newCheckBoxEx(this, "No blink", par.skip_blink, 
-            "<p>Disable blinking of files.</p>",
-            function(checked) { 
-                  this.dialog.blink_checkbox.aiParam.val = checked;
-                  if (this.dialog.blink_checkbox.aiParam.val) {
+      if (!global.use_preview) {
+            this.blink_checkbox = newCheckBoxEx(this, "No blink", par.skip_blink, "<p>Disable blinking of files.</p>");
+            var blink_checkbox = this.blink_checkbox;
+            this.blink_checkbox.onClick = function(checked) { 
+                  blink_checkbox.aiParam.val = checked;
+                  if (blink_checkbox.aiParam.val) {
                         if (blink_window != null) {
                               blink_window.forceClose();
                               blink_window = null;
                         }
                   }
-            });
+            };
+      }
       this.StartWithEmptyWindowPrefixBox = newCheckBox(this, "Start with empty window prefix", par.start_with_empty_window_prefix, 
             "<p>Start the script with empty window prefix</p>" );
       this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column, 
@@ -5929,10 +6010,10 @@ function AutoIntegrateDialog()
 
       this.cometAlignFirstLabel = newLabel(this, "First image X₀,Y₀:", "<p>Coordinates for the first comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignFirstXY = newTextEdit(this, par.comet_first_xy, this.cometAlignFirstLabel.toolTip);
-      this.cometAlignFirstXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + comet_alignment_toolTip, cometFirstImageAction, false);
+      this.cometAlignFirstXYButton = newPushOrToolButton(this, null, "Preview", "<p>Show the first comet image in the preview tab.</p>" + comet_alignment_toolTip, cometFirstImageAction, false);
       this.cometAlignLastLabel = newLabel(this, "Last image X₁,Y₁:", "<p>Coordinates for the last comet image.</p>" + comet_alignment_toolTip);
       this.cometAlignLastXY = newTextEdit(this, par.comet_last_xy, this.cometAlignLastLabel.toolTip);
-      this.cometAlignLastXYButton = newPushorToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
+      this.cometAlignLastXYButton = newPushOrToolButton(this, null, "Preview", "<p>Show the last image in the preview tab.</p>" + comet_alignment_toolTip, cometLastImageAction, false);
 
       this.cometAlignHelpTips = new ToolButton( this );
       this.cometAlignHelpTips.icon = this.scaledResource( ":/icons/help.png" );
@@ -6404,7 +6485,9 @@ function AutoIntegrateDialog()
       this.systemParamsSet2 = new VerticalSizer;
       this.systemParamsSet2.margin = 6;
       this.systemParamsSet2.spacing = 4;
-      this.systemParamsSet2.add( this.blink_checkbox );
+      if (!global.use_preview) {
+            this.systemParamsSet2.add( this.blink_checkbox );
+      }
       this.systemParamsSet2.add( this.no_subdirs_CheckBox );
       this.systemParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
       this.systemParamsSet2.add( this.ManualIconColumnBox );
@@ -8153,17 +8236,13 @@ function AutoIntegrateDialog()
             this.baseSizer.add( this.tabBox);             // Files tabs
       }
 
-      if (actionsizer_in_separate_row || !ppar.files_in_tab) {
-            this.actionSizer = newActionSizer(this);
-      }
+      this.actionSizer = newActionSizer(this);
       this.jsonSizer = newJsonSizer(this);
 
       if (ppar.files_in_tab) {
             this.topButtonsSizer = new HorizontalSizer;
             this.topButtonsSizer.spacing = 4;
-            if (actionsizer_in_separate_row) {
-                  this.topButtonsSizer.add( this.actionSizer );
-            }
+            this.topButtonsSizer.add( this.actionSizer );
             this.baseSizer.add( this.topButtonsSizer );
 
             this.topButtonsSizer2 = new HorizontalSizer;
@@ -8171,7 +8250,10 @@ function AutoIntegrateDialog()
             this.topButtonsSizer2.add( this.jsonSizer );
             this.topButtonsSizer2.addSpacing( 12 );
             this.topButtonsSizer2.add( this.targetSizer );
-            this.baseSizer.add( this.topButtonsSizer2 );
+            this.top2ndRowControl = new Control( this );
+            this.top2ndRowControl.sizer = new HorizontalSizer;
+            this.top2ndRowControl.sizer.add(this.topButtonsSizer2);
+            this.baseSizer.add( this.top2ndRowControl );
       } else {
             this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
             this.baseSizer.add( this.pageButtonsSizer );

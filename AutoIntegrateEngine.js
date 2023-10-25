@@ -9756,7 +9756,7 @@ function extraSmoothBackground(win, val)
 
 function extraEnhanceShadows(win)
 {
-      addExtraProcessingStep("Extra enhance shadows");
+      addExtraProcessingStep("Enhance shadows");
 
       var mapping = "ln(1+$T)";
 
@@ -9774,7 +9774,7 @@ function extraEnhanceHighlights(win)
 
 function extraGamma(win)
 {
-      addExtraProcessingStep("Apply gamma correction with value " + par.extra_gamma_value.val);
+      addExtraProcessingStep("Gamma correction with value " + par.extra_gamma_value.val);
 
       var mapping = "$T ^ " + par.extra_gamma_value.val;
 

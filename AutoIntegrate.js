@@ -480,17 +480,17 @@ function readParametersFromProcessIcon()
 }
 
 // Read default parameters from persistent module settings
-function ReadParametersFromPersistentModuleSettings()
+function readParametersFromPersistentModuleSettings()
 {
       if (global.do_not_read_settings) {
             console.writeln("Use default settings, do not read parameter values from persistent module settings");
             return;
       }
       if (!global.ai_use_persistent_module_settings) {
-            console.writeln("skip ReadParametersFromPersistentModuleSettings");
+            console.writeln("skip readParametersFromPersistentModuleSettings");
             return;
       }
-      console.writeln("ReadParametersFromPersistentModuleSettings");
+      console.writeln("readParametersFromPersistentModuleSettings");
       for (let x in par) {
             var param = par[x];
             var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
@@ -640,7 +640,7 @@ this.autointerate_main = function()
 
             // 1. Read saved parameters from persistent module settings
             console.noteln("Read persistent module settings");
-            ReadParametersFromPersistentModuleSettings();
+            readParametersFromPersistentModuleSettings();
 
             // 2. Read parameters saved to process icon, these overwrite persistent module settings
             if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
@@ -689,6 +689,7 @@ this.autointerate_main = function()
       }
 
       this.dialog = new gui.AutoIntegrateDialog();
+      global.dialog = this.dialog;
       this.dialog.execute();
 }
 
