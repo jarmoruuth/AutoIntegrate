@@ -5884,13 +5884,12 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.fastIntegrationCheckBox );
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
-      this.imageParamsSet1.add( this.forceNewMask_CheckBox );
+      this.imageParamsSet1.add( this.use_background_neutralization_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
-      this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
@@ -5934,6 +5933,124 @@ function AutoIntegrateDialog()
       this.imageToolsControl.sizer.add( this.imageToolsSet2 );
       this.imageToolsControl.visible = false;
       this.imageToolsControl.sizer.addStretch();
+
+      // Other parameters set 0.
+      this.otherParamsSet01 = new VerticalSizer;
+      this.otherParamsSet01.margin = 6;
+      this.otherParamsSet01.spacing = 4;
+      this.otherParamsSet01.add( this.CosmeticCorrectionCheckBox );
+      this.otherParamsSet01.add( this.SubframeSelectorCheckBox );
+      this.otherParamsSet01.add( this.imageintegration_clipping_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_channel_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_before_stretch_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_stretched_CheckBox );
+      this.otherParamsSet01.add( this.remove_stars_light_CheckBox );
+      this.otherParamsSet01.add( this.unscreen_stars_CheckBox );
+      this.otherParamsSet01.add( this.forceNewMask_CheckBox );
+
+      this.otherParamsSet02 = new VerticalSizer;
+      this.otherParamsSet02.margin = 6;
+      this.otherParamsSet02.spacing = 4;
+      this.otherParamsSet02.add( this.no_mask_contrast_CheckBox );
+      this.otherParamsSet02.add( this.shadowClip_CheckBox );
+      this.otherParamsSet02.add( this.no_SCNR_CheckBox );
+      this.otherParamsSet02.add( this.no_sharpening_CheckBox );
+      this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
+      this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
+      this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
+      this.otherParamsSet02.add( this.ABE_on_lights_CheckBox );
+
+      this.otherParamsSet0 = new HorizontalSizer;
+      this.otherParamsSet0.margin = 6;
+      this.otherParamsSet0.spacing = 4;
+      this.otherParamsSet0.add( this.otherParamsSet01 );
+      this.otherParamsSet0.add( this.otherParamsSet02 );
+
+      // Other parameters set 1.
+      this.otherParamsSet11 = new VerticalSizer;
+      this.otherParamsSet11.margin = 6;
+      this.otherParamsSet11.spacing = 4;
+      this.otherParamsSet11.add( this.CalibrateOnlyCheckBox );
+      this.otherParamsSet11.add( this.DebayerOnlyCheckBox );
+      this.otherParamsSet11.add( this.BinningOnlyCheckBox );
+      this.otherParamsSet11.add( this.ExtractChannelsOnlyCheckBox );
+      this.otherParamsSet11.add( this.IntegrateOnlyCheckBox );
+      this.otherParamsSet11.add( this.ChannelCombinationOnlyCheckBox );
+      this.otherParamsSet11.add( this.CropInfoOnlyCheckBox );
+      this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
+      this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
+
+      this.otherParamsSet12 = new VerticalSizer;
+      this.otherParamsSet12.margin = 6;
+      this.otherParamsSet12.spacing = 4;
+      this.otherParamsSet12.add( this.start_from_imageintegration_CheckBox );
+      this.otherParamsSet12.add( this.RRGB_image_CheckBox );
+      this.otherParamsSet12.add( this.synthetic_l_image_CheckBox );
+      this.otherParamsSet12.add( this.synthetic_missing_images_CheckBox );
+      this.otherParamsSet12.add( this.generate_xdrz_CheckBox );
+      this.otherParamsSet12.add( this.force_file_name_filter_CheckBox );
+      this.otherParamsSet12.add( this.autodetect_filter_CheckBox );
+      this.otherParamsSet12.add( this.autodetect_imagetyp_CheckBox );
+
+      this.otherParamsSet1 = new HorizontalSizer;
+      this.otherParamsSet1.margin = 6;
+      this.otherParamsSet1.spacing = 4;
+      this.otherParamsSet1.add( this.otherParamsSet11 );
+      this.otherParamsSet1.add( this.otherParamsSet12 );
+
+      // System parameters set 2.
+      this.systemParamsSet1 = new VerticalSizer;
+      this.systemParamsSet1.margin = 6;
+      this.systemParamsSet1.spacing = 4;
+      this.systemParamsSet1.add( this.keepIntegratedImagesCheckBox );
+      this.systemParamsSet1.add( this.keepTemporaryImagesCheckBox );
+      this.systemParamsSet1.add( this.debugCheckBox );
+      this.systemParamsSet1.add( this.save_processed_channel_images_CheckBox );
+      this.systemParamsSet1.add( this.save_all_files_CheckBox );
+      this.systemParamsSet1.add( this.select_all_files_CheckBox );
+      this.systemParamsSet1.add( this.unique_file_names_CheckBox );
+      this.systemParamsSet1.add( this.win_prefix_to_log_files_CheckBox );
+
+      this.systemParamsSet2 = new VerticalSizer;
+      this.systemParamsSet2.margin = 6;
+      this.systemParamsSet2.spacing = 4;
+      if (!global.use_preview) {
+            this.systemParamsSet2.add( this.blink_checkbox );
+      }
+      this.systemParamsSet2.add( this.no_subdirs_CheckBox );
+      this.systemParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
+      this.systemParamsSet2.add( this.ManualIconColumnBox );
+      this.systemParamsSet2.add( this.AutoSaveSetupBox );
+      this.systemParamsSet2.add( this.UseProcessedFilesBox );
+      this.systemParamsSet2.add( this.saveCroppedImagesBox );
+      this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
+
+      this.systemParamsSet = new HorizontalSizer;
+      this.systemParamsSet.margin = 6;
+      this.systemParamsSet.spacing = 4;
+      this.systemParamsSet.add( this.systemParamsSet1 );
+      this.systemParamsSet.add( this.systemParamsSet2 );
+
+      // Other Group par.
+      this.otherParamsControl = new Control( this );
+      this.otherParamsControl.sizer = new VerticalSizer;
+      this.otherParamsControl.sizer.margin = 6;
+      this.otherParamsControl.sizer.spacing = 4;
+      this.otherParamsControl.sizer.add( newLabel(this, "Additional processing options", null, true) );
+      this.otherParamsControl.sizer.add( this.otherParamsSet0 );
+      this.otherParamsControl.sizer.add( newLabel(this, "Special processing", null, true) );
+      this.otherParamsControl.sizer.add( this.otherParamsSet1 );
+      this.otherParamsControl.visible = false;
+      //this.otherParamsControl.sizer.addStretch();
+
+      this.systemParamsControl = new Control( this );
+      this.systemParamsControl.sizer = new VerticalSizer;
+      this.systemParamsControl.sizer.margin = 6;
+      this.systemParamsControl.sizer.spacing = 4;
+      this.systemParamsControl.sizer.add( this.systemParamsSet );
+      this.systemParamsControl.visible = false;
+      //this.systemParamsControl.sizer.addStretch();
+      
       
       // LRGBCombination selection
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
@@ -6405,122 +6522,6 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer11 );
       this.spccGroupBoxSizer.add( this.spccGroupBoxSizer2 );
       this.spccGroupBoxSizer.addStretch();
-
-      // Other parameters set 0.
-      this.otherParamsSet01 = new VerticalSizer;
-      this.otherParamsSet01.margin = 6;
-      this.otherParamsSet01.spacing = 4;
-      this.otherParamsSet01.add( this.CosmeticCorrectionCheckBox );
-      this.otherParamsSet01.add( this.SubframeSelectorCheckBox );
-      this.otherParamsSet01.add( this.imageintegration_clipping_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_channel_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_before_stretch_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_stretched_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_light_CheckBox );
-      this.otherParamsSet01.add( this.unscreen_stars_CheckBox );
-
-      this.otherParamsSet02 = new VerticalSizer;
-      this.otherParamsSet02.margin = 6;
-      this.otherParamsSet02.spacing = 4;
-      this.otherParamsSet02.add( this.no_mask_contrast_CheckBox );
-      this.otherParamsSet02.add( this.shadowClip_CheckBox );
-      this.otherParamsSet02.add( this.no_SCNR_CheckBox );
-      this.otherParamsSet02.add( this.no_sharpening_CheckBox );
-      this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
-      this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
-      this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
-      this.otherParamsSet02.add( this.ABE_on_lights_CheckBox );
-
-      this.otherParamsSet0 = new HorizontalSizer;
-      this.otherParamsSet0.margin = 6;
-      this.otherParamsSet0.spacing = 4;
-      this.otherParamsSet0.add( this.otherParamsSet01 );
-      this.otherParamsSet0.add( this.otherParamsSet02 );
-
-      // Other parameters set 1.
-      this.otherParamsSet11 = new VerticalSizer;
-      this.otherParamsSet11.margin = 6;
-      this.otherParamsSet11.spacing = 4;
-      this.otherParamsSet11.add( this.CalibrateOnlyCheckBox );
-      this.otherParamsSet11.add( this.DebayerOnlyCheckBox );
-      this.otherParamsSet11.add( this.BinningOnlyCheckBox );
-      this.otherParamsSet11.add( this.ExtractChannelsOnlyCheckBox );
-      this.otherParamsSet11.add( this.IntegrateOnlyCheckBox );
-      this.otherParamsSet11.add( this.ChannelCombinationOnlyCheckBox );
-      this.otherParamsSet11.add( this.CropInfoOnlyCheckBox );
-      this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
-      this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
-
-      this.otherParamsSet12 = new VerticalSizer;
-      this.otherParamsSet12.margin = 6;
-      this.otherParamsSet12.spacing = 4;
-      this.otherParamsSet12.add( this.start_from_imageintegration_CheckBox );
-      this.otherParamsSet12.add( this.RRGB_image_CheckBox );
-      this.otherParamsSet12.add( this.synthetic_l_image_CheckBox );
-      this.otherParamsSet12.add( this.synthetic_missing_images_CheckBox );
-      this.otherParamsSet12.add( this.generate_xdrz_CheckBox );
-      this.otherParamsSet12.add( this.force_file_name_filter_CheckBox );
-      this.otherParamsSet12.add( this.autodetect_filter_CheckBox );
-      this.otherParamsSet12.add( this.autodetect_imagetyp_CheckBox );
-
-      this.otherParamsSet1 = new HorizontalSizer;
-      this.otherParamsSet1.margin = 6;
-      this.otherParamsSet1.spacing = 4;
-      this.otherParamsSet1.add( this.otherParamsSet11 );
-      this.otherParamsSet1.add( this.otherParamsSet12 );
-
-      // System parameters set 2.
-      this.systemParamsSet1 = new VerticalSizer;
-      this.systemParamsSet1.margin = 6;
-      this.systemParamsSet1.spacing = 4;
-      this.systemParamsSet1.add( this.keepIntegratedImagesCheckBox );
-      this.systemParamsSet1.add( this.keepTemporaryImagesCheckBox );
-      this.systemParamsSet1.add( this.debugCheckBox );
-      this.systemParamsSet1.add( this.save_processed_channel_images_CheckBox );
-      this.systemParamsSet1.add( this.save_all_files_CheckBox );
-      this.systemParamsSet1.add( this.select_all_files_CheckBox );
-      this.systemParamsSet1.add( this.unique_file_names_CheckBox );
-      this.systemParamsSet1.add( this.win_prefix_to_log_files_CheckBox );
-
-      this.systemParamsSet2 = new VerticalSizer;
-      this.systemParamsSet2.margin = 6;
-      this.systemParamsSet2.spacing = 4;
-      if (!global.use_preview) {
-            this.systemParamsSet2.add( this.blink_checkbox );
-      }
-      this.systemParamsSet2.add( this.no_subdirs_CheckBox );
-      this.systemParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
-      this.systemParamsSet2.add( this.ManualIconColumnBox );
-      this.systemParamsSet2.add( this.AutoSaveSetupBox );
-      this.systemParamsSet2.add( this.UseProcessedFilesBox );
-      this.systemParamsSet2.add( this.saveCroppedImagesBox );
-      this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
-
-      this.systemParamsSet = new HorizontalSizer;
-      this.systemParamsSet.margin = 6;
-      this.systemParamsSet.spacing = 4;
-      this.systemParamsSet.add( this.systemParamsSet1 );
-      this.systemParamsSet.add( this.systemParamsSet2 );
-
-      // Other Group par.
-      this.otherParamsControl = new Control( this );
-      this.otherParamsControl.sizer = new VerticalSizer;
-      this.otherParamsControl.sizer.margin = 6;
-      this.otherParamsControl.sizer.spacing = 4;
-      this.otherParamsControl.sizer.add( newLabel(this, "Additional processing options", null, true) );
-      this.otherParamsControl.sizer.add( this.otherParamsSet0 );
-      this.otherParamsControl.sizer.add( newLabel(this, "Special processing", null, true) );
-      this.otherParamsControl.sizer.add( this.otherParamsSet1 );
-      this.otherParamsControl.visible = false;
-      //this.otherParamsControl.sizer.addStretch();
-
-      this.systemParamsControl = new Control( this );
-      this.systemParamsControl.sizer = new VerticalSizer;
-      this.systemParamsControl.sizer.margin = 6;
-      this.systemParamsControl.sizer.spacing = 4;
-      this.systemParamsControl.sizer.add( this.systemParamsSet );
-      this.systemParamsControl.visible = false;
-      //this.systemParamsControl.sizer.addStretch();
 
       // Weight calculations
       var weightHelpToolTips =
