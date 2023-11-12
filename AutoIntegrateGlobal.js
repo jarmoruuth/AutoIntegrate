@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.64";                     // Version, also updated into updates.xri
-this.autointegrate_info = "Interface changes, narrowband colorization"; // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65 test1";   // Version, also updated into updates.xri
+this.autointegrate_info = "Process flow chart";             // For updates.xri
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
@@ -472,6 +472,7 @@ this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, De
 
 this.saved_measurements = null;
 
+this.flowchart = false;  // true if we are running in flowchart mode
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
 this.shadow_clip_value = 0.01;

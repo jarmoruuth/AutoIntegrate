@@ -2866,6 +2866,17 @@ function updatePreviewNoImageInControl(control)
 
       if (startup_image) {
             var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
+            var bitmap_width = bitmap.width;
+            var bitmap_height = bitmap.height;
+            // scale the bitmap to fit into the preview window
+            if (bitmap.width > width) {
+                  var scalew = width / bitmap.width;
+            }
+            if (bitmap.height > height) {
+                  var scaleh = height / bitmap.height;
+            }
+            var scale = Math.min(scalew, scaleh);
+            bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
       } else {
             var bitmap = createEmptyBitmap(width, height, 0xff808080);
       }
@@ -2893,7 +2904,7 @@ function updatePreviewNoImageInControl(control)
       
       var startupWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
 
-      control.UpdateImage(startupWindow, getWindowBitmap(startupWindow));
+      control.SetImage(startupWindow, getWindowBitmap(startupWindow));
 
       startupWindow.forceClose();
 }
@@ -4314,53 +4325,58 @@ function newPushOrToolButton(parent, icon, txt, tooltip, action, toolbutton)
       return button;
 }
 
+function runAction(parent)
+{
+      exitFromDialog();
+      if (global.ai_get_process_defaults) {
+            engine.getProcessDefaultValues();
+            return;
+      }
+      if (par.integrated_lights.val) {
+            console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
+            return;
+      }
+      updateWindowPrefix();
+      getFilesFromTreebox(parent.dialog);
+      global.haveIconized = 0;
+      var index = findPrefixIndex(ppar.win_prefix);
+      if (index == -1) {
+            index = findNewPrefixIndex(ppar.userColumnCount == -1);
+      }
+      if (ppar.userColumnCount == -1) {
+            global.columnCount = ppar.prefixArray[index][0];
+            console.writeln('Using auto icon column ' + global.columnCount);
+      } else {
+            global.columnCount = ppar.userColumnCount;
+            console.writeln('Using user icon column ' + global.columnCount);
+      }
+      global.iconStartRow = 0;
+      global.write_processing_log_file = true;
+      Autorun(parent);
+      if (global.haveIconized) {
+            // We have iconized something so update prefix array
+            ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, global.haveIconized ];
+            fix_win_prefix_array();
+            if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
+                  ppar.userColumnCount = global.columnCount + 1;
+                  parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
+            }
+            savePersistentSettings(false);
+      }
+}
+
 function newRunButton(parent, toolbutton)
 {
-      var run_action = function()
+      var local_run_action = function()
       {
-            exitFromDialog();
-            if (global.ai_get_process_defaults) {
-                  engine.getProcessDefaultValues();
-                  return;
-            }
-            if (par.integrated_lights.val) {
-                  console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
-                  return;
-            }
-            updateWindowPrefix();
-            getFilesFromTreebox(parent.dialog);
-            global.haveIconized = 0;
-            var index = findPrefixIndex(ppar.win_prefix);
-            if (index == -1) {
-                  index = findNewPrefixIndex(ppar.userColumnCount == -1);
-            }
-            if (ppar.userColumnCount == -1) {
-                  global.columnCount = ppar.prefixArray[index][0];
-                  console.writeln('Using auto icon column ' + global.columnCount);
-            } else {
-                  global.columnCount = ppar.userColumnCount;
-                  console.writeln('Using user icon column ' + global.columnCount);
-            }
-            global.iconStartRow = 0;
-            global.write_processing_log_file = true;
-            Autorun(parent);
-            if (global.haveIconized) {
-                  // We have iconized something so update prefix array
-                  ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, global.haveIconized ];
-                  fix_win_prefix_array();
-                  if (ppar.userColumnCount != -1 && par.use_manual_icon_column.val) {
-                        ppar.userColumnCount = global.columnCount + 1;
-                        parent.dialog.columnCountControlComboBox.currentItem = ppar.userColumnCount + 1;
-                  }
-                  savePersistentSettings(false);
-            }
+            runAction(parent);
       };
       return newPushOrToolButton(
                   parent,
                   ":/icons/power.png",
                   "Run",
                   "Run the script.",
-                  run_action,
+                  local_run_action,
                   toolbutton
       );
 }
@@ -7579,6 +7595,22 @@ function AutoIntegrateDialog()
             console.writeln("Close all prefixes completed");
       };
 
+      // Flowchart button
+      this.flowchartButton = new PushButton( this );
+      this.flowchartButton.text = "Flowchart";
+      this.flowchartButton.toolTip = "<p>Print AutoIntegrate workflow flowchart using the current settings.</p>" +
+                                    "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
+      this.flowchartButton.onClick = function()
+      {
+            console.noteln("Flowchart");
+
+            global.flowchart = true;
+            runAction(this.parent);
+            global.flowchart = false;
+            
+            console.writeln("Flowchart completed");
+      };
+      
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -7937,6 +7969,8 @@ function AutoIntegrateDialog()
             this.buttons_Sizer.add( this.info_Sizer );
       }
       this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( this.flowchartButton );
+      this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.closeAllButton );

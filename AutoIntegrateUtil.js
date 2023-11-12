@@ -354,6 +354,11 @@ this.windowIconizeif = function(id)
       if (id == null) {
             return null;
       }
+      if (global.flowchart) {
+            util.closeOneWindow(id);
+            return null;
+      }
+
       var w = util.findWindow(id);
 
       if (w != null) {
