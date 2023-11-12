@@ -472,7 +472,9 @@ this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, De
 
 this.saved_measurements = null;
 
-this.flowchart = false;  // true if we are running in flowchart mode
+this.flowchart = false;       // true if we are running in flowchart mode
+this.flowchartWindows = [];   // array of flowchart window ids
+
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
 this.shadow_clip_value = 0.01;

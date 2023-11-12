@@ -2732,7 +2732,7 @@ function getHistogramInfo(imgWin, side_preview)
 
 function updatePreviewWinTxt(imgWin, txt, histogramInfo)
 {
-      if (global.use_preview && imgWin != null) {
+      if (global.use_preview && imgWin != null && !global.flowchart) {
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
@@ -2778,7 +2778,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
 {
       console.writeln("updatePreviewFilenameAndInfo ", filename);
 
-      if (!global.use_preview) {
+      if (!global.use_preview || global.flowchart) {
             return;
       }
       var imageWindows = ImageWindow.open(filename);
@@ -2816,7 +2816,7 @@ function updatePreviewId(id)
 
 function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 {
-      if (global.use_preview) {
+      if (global.use_preview && !global.flowchart) {
             preview_keep_zoom = keep_zoom;
             var win = ImageWindow.windowById(id);
             updatePreviewWinTxt(win, id, histogramInfo);
@@ -7607,6 +7607,9 @@ function AutoIntegrateDialog()
             global.flowchart = true;
             runAction(this.parent);
             global.flowchart = false;
+
+            engine.closeAllWindowsFromArray(global.flowchartWindows);
+            global.flowchartWindows = [];
             
             console.writeln("Flowchart completed");
       };

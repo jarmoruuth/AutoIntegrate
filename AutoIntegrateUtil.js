@@ -443,7 +443,7 @@ this.getKeywordValue = function(imageWindow, keywordname)
       return null;
 }
 
-function findKeywordName(imageWindow, keywordname) 
+this.findKeywordName = function(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       for (var i = 0; i < keywords.length; i++) {
@@ -457,7 +457,7 @@ function findKeywordName(imageWindow, keywordname)
 
 this.setFITSKeywordNoOverwrite = function(imageWindow, name, value, comment)
 {
-      if (findKeywordName(imageWindow, name)) {
+      if (util.findKeywordName(imageWindow, name)) {
             console.writeln("keyword already set");
             return;
       }
@@ -886,6 +886,10 @@ this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 
       console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
 
+      if (global.flowchart) {
+            global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
+      }
+
       return targetWindow;
 }
 
@@ -902,6 +906,9 @@ this.addProcessingStep = function(txt)
 
 this.updateStatusInfoLabel = function(txt)
 {
+      if (global.flowchart) {
+            return;
+      }
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
