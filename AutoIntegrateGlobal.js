@@ -45,6 +45,12 @@ this.__base__();
 this.autointegrate_version = "AutoIntegrate v1.65 test1";   // Version, also updated into updates.xri
 this.autointegrate_info = "Process flow chart";             // For updates.xri
 
+this.autointegrate_version_info = [
+      this.autointegrate_version,
+      "",
+      "Added button for Flowchart"
+];
+
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 

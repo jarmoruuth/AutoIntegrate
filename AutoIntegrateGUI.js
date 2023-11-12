@@ -2857,12 +2857,15 @@ function updatePreviewNoImageInControl(control)
 {
       let startup_image = false;
       if (ppar.preview.side_preview_visible) {
-            var width = ppar.preview.side_preview_width - ppar.preview.side_preview_width/10;
-            var height = ppar.preview.side_preview_height - ppar.preview.side_preview_height/10;
+            var width = ppar.preview.side_preview_width ;
+            var height = ppar.preview.side_preview_height;
       } else {
-            var width = ppar.preview.preview_width - ppar.preview.preview_width/10;
-            var height = ppar.preview.preview_height - ppar.preview.preview_height/10;
+            var width = ppar.preview.preview_width;
+            var height = ppar.preview.preview_height;
       }
+      var ratio = width / height;
+      var height = 1080;
+      var width = height * ratio;
 
       if (startup_image) {
             var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
@@ -2881,26 +2884,54 @@ function updatePreviewNoImageInControl(control)
             var bitmap = createEmptyBitmap(width, height, 0xff808080);
       }
 
-      var graphics = new Graphics(bitmap);
-      graphics.transparentBackground = true;
+      for (var fontsize = 24; fontsize > 0; fontsize -= 4) {   
+            var graphics = new Graphics(bitmap);
+            graphics.font = new Font( FontFamily_SansSerif, fontsize );
+            graphics.transparentBackground = true;
 
-      if (startup_image) {
-            graphics.pen = new Pen(0xffffffff, 4);
-      } else {
-            graphics.pen = new Pen(0xff000000, 4);
-      }
-      graphics.font.bold = true;
-      var txt = global.autointegrate_version;
-      var txtWidth = graphics.font.width(txt);
-      var txtHeight = graphics.font.height;
-      if (0 && startup_image) {
-            var textMargin = 4;
-            var textBackgroundBitmap = createEmptyBitmap(txtWidth + textMargin, txtHeight + textMargin, 0xff808080);
-            graphics.drawBitmap(bitmap.width / 2 - (txtWidth + textMargin) / 2, bitmap.height / 2 - txtHeight - textMargin, textBackgroundBitmap);
-      }
-      graphics.drawText(bitmap.width / 2 - txtWidth / 2, bitmap.height / 2 - txtHeight / 2, txt);
+            if (startup_image) {
+                  graphics.pen = new Pen(0xffffffff, 4);
+            } else {
+                  graphics.pen = new Pen(0xff000000, 4);
+            }
+            graphics.font.bold = true;
 
-      graphics.end();
+            var linecount = global.autointegrate_version_info.length;
+            var maxrowlen = 0;
+            var maxtxt = "";
+            for (var i = 0; i < linecount; i++) {
+                  if (global.autointegrate_version_info[i].length > maxrowlen) {
+                        maxrowlen = global.autointegrate_version_info[i].length;
+                        maxtxt = global.autointegrate_version_info[i];
+                  }
+            }
+
+            var txtWidth = graphics.font.width(maxtxt);
+            var lineheight = graphics.font.height + 4; 
+            var txtHeight = lineheight * linecount;
+
+            var startpos_x = bitmap.width / 2 - txtWidth / 2;
+            var startpos_y = bitmap.height / 2 - txtHeight / 2;
+
+            if (startpos_x > 10 && startpos_y > 10) {
+                  if (0 && startup_image) {
+                        var textMargin = 4;
+                        var textBackgroundBitmap = createEmptyBitmap(txtWidth + textMargin, txtHeight + textMargin, 0xff808080);
+                        graphics.drawBitmap(bitmap.width / 2 - (txtWidth + textMargin) / 2, bitmap.height / 2 - txtHeight - textMargin, textBackgroundBitmap);
+                  }
+
+                  for (var i = 0; i < linecount; i++) {
+                        graphics.drawText(startpos_x, startpos_y + i * lineheight, global.autointegrate_version_info[i]);
+                  }
+
+                  graphics.end();
+                  break;
+
+            } else {
+                  // Try with a smaller font size
+                  graphics.end();
+            }
+      }
       
       var startupWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
 
