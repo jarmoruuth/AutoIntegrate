@@ -313,24 +313,6 @@ function flowchartFilterFiles(fileNames)
       return newFileNames;
 }
 
-function flowchartNewFiles(fileNames, postfix)
-{
-      console.writeln("flowchartFiles");
-
-      var newFileNames = [];
-      for (var i = 0; i < fileNames.length; i++) {
-            var name = fileNames[i];
-            newFileNames[newFileNames.length] = File.extractDrive(name) +
-                                                util.ensurePathEndSlash(File.extractDirectory(name)) +
-                                                File.extractName(name) + postfix +
-                                                ".xisf";
-      }
-}
-
-function flowchartNewImage(id, newId)
-{
-}
-
 function flowchartNewIntegrationImage(fileName, targetImageName)
 {
       console.writeln("flowchartNewIntegrationImage");
@@ -342,23 +324,28 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
       return targetImageName;
 }
 
+function flowchartNewNode(type, txt)
+{
+      return { type: type, txt: txt, list: [], width: 0, height: 0 };
+}
+
 function flowchartInit(txt)
 {
-      flowchartCurrent = { type: "header", txt: txt, list: [] };
+      flowchartCurrent = flowchartNewNode("header", txt);
       flowchartStack = [];
 }
 
 function flowchartOperation(txt)
 {
       console.writeln("flowchartOperation " + txt);
-      flowchartCurrent.list.push( { type: "process", txt: txt, list: null } );
+      flowchartCurrent.list.push( flowchartNewNode("process", txt) );
 }
 
 function flowchartSubtaskBegin(txt)
 {
       console.writeln("flowchartSubtaskBegin " + txt);
       flowchartStack.push(flowchartCurrent);
-      var newFlowchartCurrent = { type: "header", txt: txt, list: [] };
+      var newFlowchartCurrent = flowchartNewNode("header", txt);
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
 }
@@ -369,17 +356,57 @@ function flowchartSubtaskEnd(txt)
       flowchartCurrent = flowchartStack.pop();
 }
 
+function flowchartParentBegin(txt)
+{
+      console.writeln("flowchartParentBegin " + txt);
+      flowchartStack.push(flowchartCurrent);
+      var newFlowchartCurrent = flowchartNewNode("parent", txt);
+      flowchartCurrent.list.push(newFlowchartCurrent);
+      flowchartCurrent = newFlowchartCurrent;
+}
+
+function flowchartParentEnd(txt)
+{
+      console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
+      flowchartCurrent = flowchartStack.pop();
+}
+
+function flowchartSiblingBegin(txt)
+{
+      console.writeln("flowchartSiblingBegin " + txt);
+      if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "sibling") {
+            util.throwFatalError("flowchartSiblingBegin, current node is not parent or sibling");
+      }
+      flowchartStack.push(flowchartCurrent);
+      var newFlowchartCurrent = flowchartNewNode("sibling", txt);
+      flowchartCurrent.list.push(newFlowchartCurrent);
+      flowchartCurrent = newFlowchartCurrent;
+}
+
+function flowchartSiblingEnd(txt)
+{
+      console.writeln("flowchartSiblingEnd " + (txt != null ? txt : "null"));
+      flowchartCurrent = flowchartStack.pop();
+      if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "sibling") {
+            util.throwFatalError("flowchartSiblingBegin, current node is not parent or sibling");
+      }
+}
+
 function flowchartPrintList(list, indent)
 {
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
             if (item.type == "header") {
-                  if (item.list.length > 0) {
-                        console.writeln(indent + item.txt);
-                        flowchartPrintList(item.list, indent + "  ");
-                  }
+                  console.writeln(indent + item.txt + " h(" + item.width + "x" + item.height + ")");
+                  flowchartPrintList(item.list, indent + "  ");
+            } else if (item.type == "sibling") {
+                  console.writeln(indent + item.txt + " s(" + item.width + "x" + item.height + ")");
+                  flowchartPrintList(item.list, indent + "  ");
+            } else if (item.type == "parent") {
+                  console.writeln(indent + item.txt + " p(" + item.width + "x" + item.height + ")");
+                  flowchartPrintList(item.list, indent + "  ");
             } else {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt  + " (" + item.width + "x" + item.height + ")");
             }
       }
 }
@@ -388,6 +415,8 @@ function flowchartPrint()
 {
       console.noteln("======================================");
       console.writeln("Flowchart:");
+      flowchartPrintList(flowchartCurrent.list, "  ");
+      gui.flowchartGraph(flowchartCurrent);
       flowchartPrintList(flowchartCurrent.list, "  ");
       // console.writeln("JSON");
       // console.writeln(JSON.stringify(flowchartList, null, 2));
@@ -4483,14 +4512,16 @@ function customMapping(RGBmapping, check_allfilesarr)
 
                   copyToMapImages(images);
 
+                  flowchartParentBegin("Channels");
                   for (var i = 0; i < images.length; i++) {
-                        flowchartSubtaskBegin(findChannelFromName(images[i]));
+                        flowchartSiblingBegin(findChannelFromName(images[i]));
 
                         CropImageIf(images[i]);
                         processChannelImage(images[i], false);
                         
-                        flowchartSubtaskEnd(findChannelFromName(images[i]));
+                        flowchartSiblingEnd(findChannelFromName(images[i]));
                   }
+                  flowchartParentEnd("Channels");
 
                   var narrowband_linear_fit = par.narrowband_linear_fit.val;
                   if (narrowband_linear_fit == "Auto") {
@@ -4666,7 +4697,8 @@ function mapLRGBchannels(RGBmapping)
             } else {
                   console.writeln("Make a copy of original windows.");
                   
-                  flowchartSubtaskBegin("L");
+                  flowchartParentBegin("Channels");
+                  flowchartSiblingBegin("L");
                   if (luminance_id == null) {
                         // We may already have copied L_id so we do it
                         // here only if it is not copied yet.
@@ -4674,25 +4706,26 @@ function mapLRGBchannels(RGBmapping)
                         CropImageIf(luminance_id);
                   }
                   processChannelImage(luminance_id, true, 'L');
-                  flowchartSubtaskEnd("L");
+                  flowchartSiblingEnd("L");
 
-                  flowchartSubtaskBegin("R");
+                  flowchartSiblingBegin("R");
                   red_id = copyToMapIf(R_id);
                   CropImageIf(red_id);
                   processChannelImage(red_id, false);
-                  flowchartSubtaskEnd("R");
+                  flowchartSiblingEnd("R");
                   
-                  flowchartSubtaskBegin("G");
+                  flowchartSiblingBegin("G");
                   green_id = copyToMapIf(G_id);
                   CropImageIf(green_id);
                   processChannelImage(green_id, false);
-                  flowchartSubtaskEnd("G");
+                  flowchartSiblingEnd("G");
                   
-                  flowchartSubtaskBegin("B");
+                  flowchartSiblingBegin("B");
                   blue_id = copyToMapIf(B_id);
                   CropImageIf(blue_id);
                   processChannelImage(blue_id, false);
-                  flowchartSubtaskEnd("B");
+                  flowchartSiblingEnd("B");
+                  flowchartParentEnd("Channels");
             }
       }
       return RGBmapping;
@@ -5361,7 +5394,7 @@ function runImageIntegration(channel_images, name, save_to_file)
             return null;
       }
       util.addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
-      flowchartSubtaskBegin(name);
+      flowchartSiblingBegin(name);
       if (!global.flowchart) {
             ensureThreeImages(images);
       }
@@ -5393,7 +5426,7 @@ function runImageIntegration(channel_images, name, save_to_file)
             saveProcessedWindow(global.outputRootDir, image_id);
       }
       util.runGC();
-      flowchartSubtaskEnd(name);
+      flowchartSiblingEnd(name);
       return image_id;
 }
 
@@ -8748,6 +8781,7 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = false;
 
 
+                  flowchartParentBegin("Channels");
                   if (is_luminance_images) {
                         L_id = runImageIntegration(L_images, 'L', true);
                         // Make a copy of the luminance image so we do not
@@ -8772,6 +8806,7 @@ function CreateChannelImages(parent, auto_continue)
                         util.windowShowif(S_id);
                         util.windowShowif(O_id);
                   }
+                  flowchartParentEnd("Channels");
 
             } else {
                   /* We have color files. */
@@ -9131,11 +9166,13 @@ function CombineRGBimageEx(target_name, images)
       if (autocontinue_processed_channel_images.image_ids.length == 0) {
             if (checkNoiseReduction('RGB', 'channel') && !process_narrowband) {
                   util.addProcessingStep("Noise reduction on channel images");
+                  flowchartParentBegin("Channels");
                   for (var i = 0; i < images.length; i++) {
-                        flowchartSubtaskBegin(findChannelFromName(images[i]));
+                        flowchartSiblingBegin(findChannelFromName(images[i]));
                         channelNoiseReduction(images[i]);
-                        flowchartSubtaskBegin(findChannelFromName(images[i]));
+                        flowchartSiblingEnd(findChannelFromName(images[i]));
                   }
+                  flowchartParentEnd("Channels");
             }
             for (var i = 0; i < images.length; i++) {
                   saveProcessedChannelImage(images[i]);
@@ -12373,10 +12410,9 @@ function createCropInformation()
       /* Luminance image may have been copied earlier in CreateChannelImages()
        * so we try to crop it here.
        */
-      var luminanceWin = util.findWindow(luminance_id);
-      if (luminanceWin != null) {
+      if (luminance_id != null) {
             flowchartSubtaskBegin("L");
-            if (CropImageIf(luminanceWin, crop_truncate_amount)) {
+            if (CropImageIf(luminance_id)) {
                   let L_win_crop = util.copyWindow(util.findWindow(luminance_id), util.ensure_win_prefix("Integration_L_crop"));
                   luminance_crop_id = L_win_crop.mainView.id;
             }
@@ -12891,14 +12927,14 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                     * This need to be run early as we create a mask from
                     * L image.
                     */
-                   flowchartSubtaskBegin("LRGB");
-                   flowchartSubtaskBegin("L");
+                   flowchartParentBegin("LRGB");
+                   flowchartSiblingBegin("L");
 
                    LRGBEnsureMask(null);
                    ProcessLimage(RGBmapping);
                    
-                   flowchartSubtaskEnd("L");
-                   flowchartSubtaskBegin("RGB");
+                   flowchartSiblingEnd("L");
+                   flowchartSiblingBegin("RGB");
                    var processed_l_image = true;
 
              } else {
@@ -12919,8 +12955,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    LRGB_ABE_HT_id = util.windowRename(L_ABE_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
                    guiUpdatePreviewId(LRGB_ABE_HT_id);
                    if (processed_l_image) {
-                        flowchartSubtaskEnd("RGB");
-                        flowchartSubtaskEnd("LRGB");
+                        flowchartSiblingEnd("RGB");
+                        flowchartParentEnd("LRGB");
                    }
  
              } else if (!par.channelcombination_only.val) {
@@ -12933,8 +12969,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          runNoiseReduction(ImageWindow.windowById(RGB_ABE_HT_id), mask_win, false);
                    }
                    if (processed_l_image) {
-                        flowchartSubtaskEnd("RGB");
-                        flowchartSubtaskEnd("LRGB");
+                        flowchartSiblingEnd("RGB");
+                        flowchartParentEnd("LRGB");
                    }
        
                    if (is_color_files || !is_luminance_images) {
@@ -13026,8 +13062,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    guiUpdatePreviewId(LRGB_ABE_HT_id);
              } else {
                    if (processed_l_image) {
-                        flowchartSubtaskEnd("RGB");
-                        flowchartSubtaskEnd("LRGB");
+                        flowchartSiblingEnd("RGB");
+                        flowchartParentEnd("LRGB");
                    }
             }
              if (stars_id != null) {

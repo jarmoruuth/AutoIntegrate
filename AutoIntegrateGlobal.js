@@ -48,7 +48,8 @@ this.autointegrate_info = "Process flow chart";             // For updates.xri
 this.autointegrate_version_info = [
       this.autointegrate_version,
       "",
-      "Added button for Flowchart"
+      "Changes since the previous version:",
+      "- Added button for Flowchart"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

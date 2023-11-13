@@ -357,6 +357,153 @@ var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a lu
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
 
+
+var font_width_spacing = 10;              // Font width spacing for GUI elements
+var font_height_spacing = 4;              // Font height spacing for GUI elements
+
+// Iterate size of the flowchart siblings graph
+function flowchartGraphIterateSiblings(list, font)
+{
+      var width = 0;
+      var height = 0;
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            console.writeln("flowchartGraphIterateSiblings: " + node.txt);
+            if (node.type != "sibling") {
+                  throw new Error("flowchartGraphIterateSiblings: node.type != sibling");
+            }
+            node.width = font.width(node.txt) + font_width_spacing;
+            node.height = font.height + font_height_spacing;
+            // node.width = node.txt.length;
+            // node.height = 1;
+
+            var size = flowchartGraphIterate(node.list, font);
+            node.width = Math.max(size[0], node.width);
+            node.height += size[1];
+
+            width += node.width;
+            height = Math.max(height, node.height);
+      }
+      return [ width, height ];
+}
+
+// Iterate size of the flowchart graph
+function flowchartGraphIterate(list, font)
+{
+      var width = 0;
+      var height = 0;
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            console.writeln("flowchartGraphIterate: " + node.txt);
+            node.width = font.width(node.txt) + font_width_spacing;
+            node.height = font.height + font_height_spacing;
+            // node.width = node.txt.length;
+            // node.height = 1;
+            if (node.type == "header") {
+                  if (node.list.length > 0) {
+                        var size = flowchartGraphIterate(node.list, font);
+                        node.width = Math.max(size[0], node.width);
+                        node.height += size[1];
+                  }
+            } else if (node.type == "parent") {
+                  if (node.list.length > 0) {
+                        var size = flowchartGraphIterateSiblings(node.list, font);
+                        node.width = size[0];
+                        node.height = size[1];
+                  }
+            }
+            width = Math.max(width, node.width);
+            height += node.height;
+      }
+      return [ width, height ];
+}
+
+// Iterate size of the flowchart siblings graph
+// position is the top left corner of the graph
+function flowchartGraphDrawSiblings(list, pos, graphics, font)
+{
+      var p = pos;
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type != "sibling") {
+                  throw new Error("flowchartGraphDrawSiblings: node.type != sibling");
+            }
+            var middle_x = p.x + node.width / 2;
+            var x = middle_x - font.width(node.txt) / 2;
+            var y = p.y;
+            console.writeln("flowchartGraphDraw:s " + node.txt + " " + x + " " + y);
+            graphics.drawText(x, y, node.txt);
+            flowchartGraphDraw(node.list, { x: middle_x, y: p.y + font.height + font_height_spacing }, graphics, font);
+            p.x += node.width;
+      }
+}
+
+// Iterate size of the flowchart graph
+// pos is middle position of the node
+function flowchartGraphDraw(list, pos, graphics, font)
+{
+      var p = pos;
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type == "header") {
+                  if (node.list.length > 0) {
+                        var x = p.x - font.width(node.txt) / 2;
+                        var y = p.y;
+                        console.writeln("flowchartGraphDraw:h " + node.txt + " " + x + " " + y);
+                        graphics.drawText(x, y, node.txt);
+                        flowchartGraphDraw(node.list, { x: p.x, y: p.y + font.height + font_height_spacing }, graphics, font);
+                  }
+            } else if (node.type == "parent") {
+                  console.writeln("flowchartGraphDraw:p " + node.txt);
+                  flowchartGraphDrawSiblings(node.list, { x: p.x - node.width / 2, y: p.y }, graphics, font);
+            } else {
+                  var x = p.x - font.width(node.txt) / 2;
+                  var y = p.y;
+                  console.writeln("flowchartGraphDraw:n " + node.txt + " " + x + " " + y);
+                  graphics.drawText(x, y, node.txt);
+            }
+            p.y += node.height;
+      }
+}
+
+// Draw a gaphical version of the workflow
+this.flowchartGraph = function(rootnode)
+{
+      console.writeln("flowchartGraph");
+
+      var fontsize = 8;
+      var font = new Font( FontFamily_SansSerif, fontsize );
+
+      console.writeln("flowchartGraph:iterate size");
+      var size = flowchartGraphIterate(rootnode.list, font);
+      console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
+
+      var margin = 50;
+      var width = size[0] + margin;
+      var height = size[1] + margin;
+
+      console.writeln("flowchartGraph:draw bitmap");
+      var bitmap = createEmptyBitmap(width, height, 0xff808080);
+
+      var graphics = new Graphics(bitmap);
+      graphics.font = font;
+      graphics.transparentBackground = true;
+      graphics.pen = new Pen(0xff000000, 4);
+
+      flowchartGraphDraw(rootnode.list, { x: width / 2, y: margin / 2 }, graphics, font);
+
+      graphics.end();
+
+      console.writeln("flowchartGraph:show bitmap");
+      var flowchartWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_flowchart");
+
+      tabPreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
+      sidePreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
+
+      flowchartWindow.forceClose();
+
+}
+
 function getNarrowbandColorizedSizer(parent)
 {
       var narrowbandColorizedtoolTipBase =
