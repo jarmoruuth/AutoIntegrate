@@ -164,7 +164,7 @@ this.par = {
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
-      autosave_setup: { val: false, def: false, name: "Autosave setup", type: 'B' },
+      autosave_setup: { val: true, def: true, name: "Autosave setup", type: 'B' },
       use_processed_files: { val: false, def: false, name: "Use processed files", type: 'B' },
       save_cropped_images: { val: false, def: false, name: "Save cropped images", type: 'B' },
 
@@ -481,6 +481,7 @@ this.saved_measurements = null;
 
 this.flowchart = false;       // true if we are running in flowchart mode
 this.flowchartWindows = [];   // array of flowchart window ids
+this.flowchartData = [];
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false

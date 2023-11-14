@@ -5,7 +5,7 @@
  * Show image preview in max size view.,
  * 
  */
-function AutoIntegrateMaxPreviewDialog(util, par, imgWin, image, txt)
+function AutoIntegrateMaxPreviewDialog(util, global, imgWin, image, txt)
 {
       this.__base__ = Dialog;
       this.__base__();
@@ -21,7 +21,7 @@ function AutoIntegrateMaxPreviewDialog(util, par, imgWin, image, txt)
 
        console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
-      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, par, preview_width, preview_height, false, true);
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, global, preview_width, preview_height, false, true);
 
       this.maxPreviewControl.SetImage(imgWin, image, txt);
    
@@ -53,10 +53,12 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, util, par, size_x, size_y, is_histogram, call_from_max_preview)
+function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y, is_histogram, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
+
+       var par = global.par;
 
        if (call_from_max_preview) {
             this.normalPreview = false;
@@ -199,6 +201,51 @@ function AutoIntegratePreviewControl(parentDialog, util, par, size_x, size_y, is
                   this.parent.UpdateZoom(-100);
             };
 
+            this.save_Button = new ToolButton( this );
+            this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
+            this.save_Button.setScaledFixedSize( 20, 20 );
+            this.save_Button.toolTip = "Save image to a file.";
+            this.save_Button.onMousePress = function()
+            {
+                  this.parent.save_Button.enabled = false;
+                  if (!this.parent.image) {
+                        console.noteln("No image to save");
+                        this.parent.save_Button.enabled = true;
+                        return;
+                  }
+                  let saveFileDialog = new SaveFileDialog();
+                  saveFileDialog.caption = "Save As TIFF";
+                  if (global.outputRootDir == "") {
+                        var path = global.ppar.lastDir;
+                  } else {
+                        var path = global.outputRootDir;
+                  }
+                  if (path != "") {
+                        path = util.ensurePathEndSlash(path);
+                  }
+                  saveFileDialog.initialPath = path + "preview" + ".tif";
+                  if (!saveFileDialog.execute()) {
+                        console.noteln("Preview image not saved");
+                        this.parent.save_Button.enabled = true;
+                        return;
+                  }
+                  var copy_win = util.createWindowFromBitmap(this.parent.image, "AutoIntegrate_preview_savetmp");
+                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
+                  if (copy_win.bitsPerSample != 16) {
+                        console.writeln("set bits to 16");
+                        copy_win.setSampleFormat(16, false);
+                  }
+                  // Save image. No format options, no warning messages, 
+                  // no strict mode, no overwrite checks.
+                  if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
+                        console.criticalln("Failed to save image: " + saveFileDialog.fileName);
+                  } else {
+                        console.writeln("Saved image: " + saveFileDialog.fileName);
+                  }
+                  util.forceCloseOneWindow(copy_win);
+                  this.parent.save_Button.enabled = true;
+            };
+
             if (this.normalPreview) {
                   this.maxPreview_Button = new ToolButton( this );
                   this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
@@ -224,6 +271,8 @@ function AutoIntegratePreviewControl(parentDialog, util, par, size_x, size_y, is
                   this.buttons_Sizer.addSpacing( 12 );
                   this.buttons_Sizer.add( this.maxPreview_Button );
             }
+            this.buttons_Sizer.addSpacing( 12 );
+            this.buttons_Sizer.add( this.save_Button );
             this.buttons_Sizer.addStretch();
             this.buttons_Sizer.addSpacing( 12 );
             this.buttons_Sizer.add( this.image_name_Label );

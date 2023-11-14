@@ -898,6 +898,24 @@ this.copyWindow = function(sourceWindow, name)
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
+this.createWindowFromBitmap = function(bitmap, id)
+{
+      var win = new ImageWindow(
+                        bitmap.width,
+                        bitmap.height,
+                        3,
+                        32,
+                        true,
+                        true,
+                        id);
+
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      win.mainView.image.blend(bitmap);
+      win.mainView.endProcess();
+                  
+      return win;
+}
+
 this.addProcessingStep = function(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
@@ -1150,6 +1168,10 @@ this.readJsonFile = function(fname, lights_only)
             console.writeln("Restored subframe selector measurements");
             global.saved_measurements = saveInfo.saved_measurements;
       }
+      if (saveInfo.flowchartData != null && saveInfo.flowchartData != undefined) {
+            console.writeln("Restored flowchart data");
+            global.flowchartData = saveInfo.flowchartData;
+      }
 
       var pagearray = [];
       for (var i = 0; i < global.pages.END; i++) {
@@ -1291,6 +1313,9 @@ this.initJsonSaveInfo = function(fileInfoList, save_settings, saveDir)
             }
             if (global.saved_measurements != null) {
                   saveInfo.saved_measurements = global.saved_measurements;
+            }
+            if (global.flowchartData != null) {
+                  saveInfo.flowchartData = global.flowchartData;
             }
       } else {
             var saveInfo = { version: 1, fileinfo: fileInfoList };

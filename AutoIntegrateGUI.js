@@ -373,7 +373,7 @@ function flowchartGraphIterateChilds(parent, font)
       var node_boxwidth = 0;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            console.writeln("flowchartGraphIterateChilds: " + node.txt);
+            // console.writeln("flowchartGraphIterateChilds: " + node.txt);
             if (node.type != "child") {
                   throw new Error("flowchartGraphIterateChilds: node.type != child");
             }
@@ -411,7 +411,7 @@ function flowchartGraphIterate(parent, font)
       var node_boxwidth = 0;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            console.writeln("flowchartGraphIterate: " + node.txt);
+            // console.writeln("flowchartGraphIterate: " + node.txt);
             node.width = font.width(node.txt) + flowchart_margin;
             node.height = font.height + flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
@@ -489,7 +489,7 @@ function flowchartGraphDrawChilds(list, pos, graphics)
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
-            console.writeln("flowchartGraphDraw:s " + node.txt + " " + x + " " + y);
+            // console.writeln("flowchartGraphDraw:s " + node.txt + " " + x + " " + y);
             flowchartDrawText(graphics, x, y, node);
             flowchartGraphDraw(node.list, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
             p.x += node.width;
@@ -507,17 +507,17 @@ function flowchartGraphDraw(list, pos, graphics)
                   if (node.list.length > 0) {
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
-                        console.writeln("flowchartGraphDraw:h " + node.txt + " " + x + " " + y);
+                        // console.writeln("flowchartGraphDraw:h " + node.txt + " " + x + " " + y);
                         flowchartDrawText(graphics, x, y, node);
                         flowchartGraphDraw(node.list, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
-                  console.writeln("flowchartGraphDraw:p " + node.txt);
+                  // console.writeln("flowchartGraphDraw:p " + node.txt);
                   flowchartGraphDrawChilds(node.list, { x: p.x - node.width / 2, y: p.y }, graphics);
             } else {
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
-                  console.writeln("flowchartGraphDraw:n " + node.txt + " " + x + " " + y);
+                  // console.writeln("flowchartGraphDraw:n " + node.txt + " " + x + " " + y);
                   flowchartDrawText(graphics, x, y, node);
             }
             p.y += node.height;
@@ -525,22 +525,27 @@ function flowchartGraphDraw(list, pos, graphics)
 }
 
 // Draw a gaphical version of the workflow
-this.flowchartGraph = function(rootnode)
+function flowchartGraph(rootnode)
 {
-      console.writeln("flowchartGraph");
+      // console.writeln("flowchart Graph");
+
+      if (rootnode == null) {
+            console.writeln("No flowchart");
+            return;
+      }
 
       var fontsize = 8;
       var font = new Font( FontFamily_SansSerif, fontsize );
 
-      console.writeln("flowchartGraph:iterate size");
+      // console.writeln("flowchartGraph:iterate size");
       var size = flowchartGraphIterate(rootnode, font);
-      console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
+      // console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
 
       var margin = 50;
       var width = size[0] + margin;
       var height = size[1] + margin;
 
-      console.writeln("flowchartGraph:draw bitmap");
+      // console.writeln("flowchartGraph:draw bitmap");
       var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);
 
       var graphics = new Graphics(bitmap);
@@ -552,14 +557,15 @@ this.flowchartGraph = function(rootnode)
 
       graphics.end();
 
-      console.writeln("flowchartGraph:show bitmap");
-      var flowchartWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_flowchart");
+      // console.writeln("flowchartGraph:show bitmap");
+      var flowchartWindow = util.createWindowFromBitmap(bitmap, "AutoIntegrate_flowchart");
 
       tabPreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
       sidePreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
 
       flowchartWindow.forceClose();
 
+      // console.writeln("flowchart Graph completed");
 }
 
 function getNarrowbandColorizedSizer(parent)
@@ -661,7 +667,7 @@ function getNarrowbandColorizedSizer(parent)
             if (global.extra_target_image == 'Auto') {
                   var extraWin = null;
                   var bitmap = createEmptyBitmap(2048, 2048, 0x80808080);
-                  var originalWin = createWindowFromBitmap(bitmap, "AutoIntegrate_NoImage");
+                  var originalWin = util.createWindowFromBitmap(bitmap, "AutoIntegrate_NoImage");
             } else {
                   var extraWin = ImageWindow.windowById(global.extra_target_image);
                   var originalWin = extraWin;
@@ -2361,7 +2367,7 @@ function Autorun(parent)
                   catch(err) {
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
-                        engine.writeProcessingSteps(null, false, null);
+                        engine.writeProcessingSteps(null, false, null, true);
                   }
                   if (par.batch_mode.val) {
                         global.outputRootDir = savedOutputRootDir;
@@ -3040,24 +3046,6 @@ function createEmptyBitmap(width, height, fill_color)
       return bitmap;
 }
 
-function createWindowFromBitmap(bitmap, id)
-{
-      var win = new ImageWindow(
-                        bitmap.width,
-                        bitmap.height,
-                        3,
-                        32,
-                        true,
-                        true,
-                        id);
-
-      win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      win.mainView.image.blend(bitmap);
-      win.mainView.endProcess();
-                  
-      return win;
-}
-
 function updatePreviewNoImageInControl(control)
 {
       let startup_image = false;
@@ -3138,7 +3126,7 @@ function updatePreviewNoImageInControl(control)
             }
       }
       
-      var startupWindow = createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
+      var startupWindow = util.createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
 
       control.SetImage(startupWindow, getWindowBitmap(startupWindow));
 
@@ -4605,7 +4593,9 @@ function newRunButton(parent, toolbutton)
 {
       var local_run_action = function()
       {
-            runAction(parent);
+            if (!global.flowchart) {
+                  runAction(parent);
+            }
       };
       return newPushOrToolButton(
                   parent,
@@ -4721,7 +4711,7 @@ function newAutoContinueButton(parent, toolbutton)
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  engine.writeProcessingSteps(null, true, null);
+                  engine.writeProcessingSteps(null, true, null, true);
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
@@ -5397,9 +5387,9 @@ function getWindowBitmap(imgWin)
 function newPreviewObj(parent, side_preview)
 {
       if (side_preview) {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, par, ppar.preview.side_preview_width, ppar.preview.side_preview_height, false);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height, false);
       } else {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, par, ppar.preview.preview_width, ppar.preview.preview_height, false);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.preview_width, ppar.preview.preview_height, false);
       }
 
       var previewImageSizer = new Sizer();
@@ -5446,7 +5436,7 @@ function newHistogramControl(parent, side_preview)
             var height = ppar.preview.histogram_height;
       }
       if (histogramUsePreviewControl) {
-            var histogramViewControl = new AutoIntegratePreviewControl(parent, util, par, width, height, true);
+            var histogramViewControl = new AutoIntegratePreviewControl(parent, util, global, width, height, true);
             var bitmap = new Bitmap(width, height);
             var graphics = new VectorGraphics(bitmap);
             setHistogramBitmapBackground(graphics, side_preview);
@@ -7626,7 +7616,7 @@ function AutoIntegrateDialog()
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
+                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB", true);
                   console.endLog();
                   util.setDefaultDirs();
             }
@@ -7831,25 +7821,52 @@ function AutoIntegrateDialog()
             console.writeln("Close all prefixes completed");
       };
 
-      // Flowchart button
-      this.flowchartButton = new PushButton( this );
-      this.flowchartButton.text = "Flowchart";
-      this.flowchartButton.toolTip = "<p>Print AutoIntegrate workflow flowchart using the current settings.</p>" +
+      // New Flowchart button
+      this.newFlowchartButton = new PushButton( this );
+      this.newFlowchartButton.text = "New Flowchart";
+      this.newFlowchartButton.toolTip = "<p>Create a new AutoIntegrate workflow flowchart using the current settings.</p>" +
                                     "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
-      this.flowchartButton.onClick = function()
+      this.newFlowchartButton.onClick = function()
       {
-            console.noteln("Flowchart");
-
             global.flowchart = true;
-            runAction(this.parent);
+            try {
+                  runAction(this.parent);
+                  flowchartGraph(global.flowchartData);
+            } catch (x) {
+                  console.writeln( x );
+            }
             global.flowchart = false;
 
             engine.closeAllWindowsFromArray(global.flowchartWindows);
             global.flowchartWindows = [];
             
-            console.writeln("Flowchart completed");
+            console.writeln("Flowchart done");
       };
-      
+
+      // Show Flowchart button
+      this.showFlowchartButton = new PushButton( this );
+      this.showFlowchartButton.text = "Show Flowchart";
+      this.showFlowchartButton.toolTip = "<p>Show previously generated AutoIntegrate workflow flowchart if one is available.</p>";
+      this.showFlowchartButton.onClick = function()
+      {
+            global.flowchart = true;
+            try {
+                  if (global.flowchartData != null) {
+                        flowchartGraph(global.flowchartData);
+                  } else {
+                        console.noteln("No flowchart data available");
+                  }
+            } catch (x) {
+                  console.writeln( x );
+            }
+            global.flowchart = false;
+
+            engine.closeAllWindowsFromArray(global.flowchartWindows);
+            global.flowchartWindows = [];
+            
+            console.writeln("Flowchart done");
+      };
+
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -8207,9 +8224,10 @@ function AutoIntegrateDialog()
             this.buttons_Sizer.addSpacing( 6 );
             this.buttons_Sizer.add( this.info_Sizer );
       }
-      this.buttons_Sizer.addStretch();
-      this.buttons_Sizer.add( this.flowchartButton );
       this.buttons_Sizer.addSpacing( 48 );
+      this.buttons_Sizer.add( this.newFlowchartButton );
+      this.buttons_Sizer.add( this.showFlowchartButton );
+      this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.closeAllButton );

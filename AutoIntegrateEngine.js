@@ -115,9 +115,7 @@ var par = global.par;
 var ppar = global.ppar;
 var engine = this;
 
-var flowchartList = [];
-var flowchartSublist = [];
-
+var flowchart_active = false;
 var flowchartCurrent = null;
 var flowchartStack = [];
 
@@ -329,20 +327,20 @@ function flowchartNewNode(type, txt)
       return { type: type, txt: txt, list: [], width: 0, height: 0, color: 0xff8B0000  }; // dark red
 }
 
-function flowchartInit(txt)
-{
-      flowchartCurrent = flowchartNewNode("header", txt);
-      flowchartStack = [];
-}
-
 function flowchartOperation(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartOperation " + txt);
       flowchartCurrent.list.push( flowchartNewNode("process", txt) );
 }
 
 function flowchartSubtaskBegin(txt, type)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartSubtaskBegin " + txt);
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("header", txt);
@@ -355,12 +353,18 @@ function flowchartSubtaskBegin(txt, type)
 
 function flowchartSubtaskEnd(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartSubtaskEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
 }
 
 function flowchartParentBegin(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartParentBegin " + txt);
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("parent", txt);
@@ -370,12 +374,18 @@ function flowchartParentBegin(txt)
 
 function flowchartParentEnd(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
 }
 
 function flowchartChildBegin(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartChildBegin " + txt);
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
             util.throwFatalError("flowchartChildBegin, current node is not parent or child");
@@ -389,6 +399,9 @@ function flowchartChildBegin(txt)
 
 function flowchartChildEnd(txt)
 {
+      if (!flowchart_active) {
+            return;
+      }
       console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
@@ -401,29 +414,35 @@ function flowchartPrintList(list, indent)
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
             if (item.type == "header") {
-                  console.writeln(indent + item.txt + " h(" + item.width + "x" + item.height + ")");
+                  console.writeln(indent + item.txt);
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "child") {
-                  console.writeln(indent + item.txt + " s(" + item.width + "x" + item.height + ")");
+                  console.writeln(indent + item.txt);
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "parent") {
-                  console.writeln(indent + item.txt + " p(" + item.width + "x" + item.height + ")");
+                  console.writeln(indent + item.txt);
                   flowchartPrintList(item.list, indent + "  ");
             } else {
-                  console.writeln(indent + item.txt  + " (" + item.width + "x" + item.height + ")");
+                  console.writeln(indent + item.txt);
             }
       }
 }
 
-function flowchartPrint()
+function flowchartInit(txt)
 {
-      console.noteln("======================================");
-      console.writeln("Flowchart:");
-      flowchartPrintList(flowchartCurrent.list, "  ");
-      gui.flowchartGraph(flowchartCurrent);
-      flowchartPrintList(flowchartCurrent.list, "  ");
-      // console.writeln("JSON");
-      // console.writeln(JSON.stringify(flowchartList, null, 2));
+      flowchartCurrent = flowchartNewNode("header", txt);
+      flowchartStack = [];
+      flowchart_active = true;
+}
+
+function flowchartDone()
+{
+      if (!flowchart_active) {
+            return;
+      }
+      flowchart_active = false;
+      global.flowchartData = flowchartCurrent;
+      flowchartPrintList(global.flowchartData.list, "  ");
 }
 
 // Find focal length using telescope name saved into variable current_telescope_name
@@ -7682,7 +7701,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
-this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
+this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserror)
 {
       if (global.flowchart) {
             basename = "AutoFlowchart";
@@ -7722,28 +7741,31 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename)
 
       console.writeln("Write processing steps to " + global.run_results.processing_steps_file);
 
-
       var file = new File();
       file.createForWriting(global.run_results.processing_steps_file);
 
       file.write(console.endLog());
       file.outTextLn("======================================");
-      if (global.lightFileNames != null) {
-            file.outTextLn("Dialog files:");
-            for (var i = 0; i < global.lightFileNames.length; i++) {
-                  file.outTextLn(global.lightFileNames[i]);
+      if (iserror) {
+            // In case of error write info to log file.
+            // Normally this is written from the console output.
+            if (global.lightFileNames != null) {
+                  file.outTextLn("Dialog files:");
+                  for (var i = 0; i < global.lightFileNames.length; i++) {
+                        file.outTextLn(global.lightFileNames[i]);
+                  }
             }
-      }
-      if (alignedFiles != null) {
-            file.outTextLn("Aligned files:");
-            for (var i = 0; i < alignedFiles.length; i++) {
-                  file.outTextLn(alignedFiles[i]);
+            if (alignedFiles != null) {
+                  file.outTextLn("Aligned files:");
+                  for (var i = 0; i < alignedFiles.length; i++) {
+                        file.outTextLn(alignedFiles[i]);
+                  }
             }
-      }
-      file.outTextLn(global.processing_steps);
-      if (global.processing_errors.length > 0) {
-            file.outTextLn("Errors:");
-            file.outTextLn(global.processing_errors);
+            file.outTextLn(global.processing_steps);
+            if (global.processing_errors.length > 0) {
+                  file.outTextLn("Processing errors:");
+                  file.outTextLn(global.processing_errors);
+            }
       }
       file.close();
 }
@@ -8812,7 +8834,9 @@ function CreateChannelImages(parent, auto_continue)
             } else {
                   /* We have color files. */
                   util.addProcessingStepAndStatusInfo("Processing as color files");
+                  flowchartParentBegin("RGB");
                   RGB_color_id = runImageIntegration(C_images, 'RGB_color', true);
+                  flowchartParentEnd("RGB");
             }
       }
       return retval.SUCCESS;
@@ -13261,6 +13285,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        var end_time = Date.now();
        util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
        console.noteln("======================================");
+
+       console.writeln("--------------------------------------");
+       // Print global.flowchart list
+       console.noteln("Flowchart:");
+       flowchartDone();
  
        if (preprocessed_images != global.start_images.FINAL
            && par.autosave_setup.val 
@@ -13276,10 +13305,15 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              }
              util.saveJsonFileEx(parent, true, json_file);
        }
-       if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
-             engine.writeProcessingSteps(alignedFiles, auto_continue, null);
-       }
- 
+       if (alignedFiles != null) {
+            console.writeln("--------------------------------------");
+            console.noteln("Aligned files:");
+            for (var i = 0; i < alignedFiles.length; i++) {
+                  console.writeln(alignedFiles[i]);
+            }
+      }
+
+       console.writeln("--------------------------------------");
        console.noteln("Processing steps:");
        console.writeln(global.processing_steps);
        console.writeln("--------------------------------------");
@@ -13297,9 +13331,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        if (global.processing_errors.length > 0) {
             console.criticalln("Processing errors:");
             console.criticalln(global.processing_errors);
-            console.writeln("--------------------------------------");
        }
-       if (preprocessed_images != global.start_images.FINAL) {
+       if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
+            engine.writeProcessingSteps(alignedFiles, auto_continue, null, false);
+      }
+      if (preprocessed_images != global.start_images.FINAL) {
              console.noteln("Console output is written into file " + logfname);
        }
 
@@ -13309,9 +13345,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        console.noteln("Processing completed.");
        global.is_processing = false;
 
-       // Print global.flowchart list
-       flowchartPrint();
- 
        return true;
 }
  
@@ -13380,7 +13413,7 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
       printProcessDefaultValues("new Colourise", new Colourise);
 
-      engine.writeProcessingSteps(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str);
+      engine.writeProcessingSteps(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }
 
 }  /* AutoIntegrateEngine*/
