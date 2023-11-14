@@ -360,21 +360,25 @@ var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with 
 
 
 // Settings for flowchart graph
-var flowchart_text_margin = 2;                                                // Margin between box and text
+var flowchart_text_margin = 3;                                                // Margin between box and text
 var flowchart_box_margin = 2;                                                 // Margin outside of the box
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
-// Iterate size of the flowchart siblings graph
-function flowchartGraphIterateSiblings(list, font)
+// Iterate size of the flowchart childs graph
+function flowchartGraphIterateChilds(parent, font)
 {
+      var list = parent.list;
       var width = 0;
       var height = 0;
       var node_boxwidth = 0;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            console.writeln("flowchartGraphIterateSiblings: " + node.txt);
-            if (node.type != "sibling") {
-                  throw new Error("flowchartGraphIterateSiblings: node.type != sibling");
+            console.writeln("flowchartGraphIterateChilds: " + node.txt);
+            if (node.type != "child") {
+                  throw new Error("flowchartGraphIterateChilds: node.type != child");
+            }
+            if (node.list.length == 0) {
+                  continue;
             }
             node.width = font.width(node.txt) + flowchart_margin;
             node.height = font.height + flowchart_margin;
@@ -382,7 +386,7 @@ function flowchartGraphIterateSiblings(list, font)
             // node.width = node.txt.length;
             // node.height = 1;
 
-            var size = flowchartGraphIterate(node.list, font);
+            var size = flowchartGraphIterate(node, font);
             node.width = Math.max(size[0], node.width);
             node.height += size[1];
 
@@ -390,14 +394,18 @@ function flowchartGraphIterateSiblings(list, font)
             height = Math.max(height, node.height);
       }
       for (var i = 0; i < list.length; i++) {
+            if (list[i].type == "process") {
+                  list[i].color = parent.color;
+            }
             list[i].boxwidth = node_boxwidth;
       }
       return [ width, height ];
 }
 
 // Iterate size of the flowchart graph
-function flowchartGraphIterate(list, font)
+function flowchartGraphIterate(parent, font)
 {
+      var list = parent.list;
       var width = 0;
       var height = 0;
       var node_boxwidth = 0;
@@ -411,13 +419,13 @@ function flowchartGraphIterate(list, font)
             // node.height = 1;
             if (node.type == "header") {
                   if (node.list.length > 0) {
-                        var size = flowchartGraphIterate(node.list, font);
+                        var size = flowchartGraphIterate(node, font);
                         node.width = Math.max(size[0], node.width);
                         node.height += size[1];
                   }
             } else if (node.type == "parent") {
                   if (node.list.length > 0) {
-                        var size = flowchartGraphIterateSiblings(node.list, font);
+                        var size = flowchartGraphIterateChilds(node, font);
                         node.width = size[0];
                         node.height = size[1];
                   }
@@ -426,6 +434,9 @@ function flowchartGraphIterate(list, font)
             height += node.height;
       }
       for (var i = 0; i < list.length; i++) {
+            if (list[i].type == "process") {
+                  list[i].color = parent.color;
+            }
             list[i].boxwidth = node_boxwidth;
       }
       return [ width, height ];
@@ -448,7 +459,9 @@ function flowchartDrawText(graphics, x, y, node)
       var width = node.boxwidth - 2 * flowchart_box_margin;
       var height = graphics.font.height + 2 * flowchart_text_margin;
 
-      var drawbox = true;
+      var drawbox =  node.type == "process";
+
+      graphics.pen = new Pen(node.color, 1);
 
       graphics.drawText(middle_x - txtwidth / 2, middle_y + flowchart_box_margin + flowchart_text_margin, node.txt);
       
@@ -460,15 +473,18 @@ function flowchartDrawText(graphics, x, y, node)
       }
 }
 
-// Iterate size of the flowchart siblings graph
+// Iterate size of the flowchart childs graph
 // position is the top left corner of the graph
-function flowchartGraphDrawSiblings(list, pos, graphics)
+function flowchartGraphDrawChilds(list, pos, graphics)
 {
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (node.type != "sibling") {
-                  throw new Error("flowchartGraphDrawSiblings: node.type != sibling");
+            if (node.type != "child") {
+                  throw new Error("flowchartGraphDrawChilds: node.type != child");
+            }
+            if (node.list.length == 0) {
+                  continue;
             }
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
@@ -497,7 +513,7 @@ function flowchartGraphDraw(list, pos, graphics)
                   }
             } else if (node.type == "parent") {
                   console.writeln("flowchartGraphDraw:p " + node.txt);
-                  flowchartGraphDrawSiblings(node.list, { x: p.x - node.width / 2, y: p.y }, graphics);
+                  flowchartGraphDrawChilds(node.list, { x: p.x - node.width / 2, y: p.y }, graphics);
             } else {
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
@@ -517,7 +533,7 @@ this.flowchartGraph = function(rootnode)
       var font = new Font( FontFamily_SansSerif, fontsize );
 
       console.writeln("flowchartGraph:iterate size");
-      var size = flowchartGraphIterate(rootnode.list, font);
+      var size = flowchartGraphIterate(rootnode, font);
       console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
 
       var margin = 50;
@@ -525,13 +541,12 @@ this.flowchartGraph = function(rootnode)
       var height = size[1] + margin;
 
       console.writeln("flowchartGraph:draw bitmap");
-      var bitmap = createEmptyBitmap(width, height, 0xff808080);
+      var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);
 
       var graphics = new Graphics(bitmap);
       graphics.font = font;
       graphics.transparentBackground = true;
       graphics.pen = new Pen(0xff000000, 1);       // black
-      // graphics.pen = new Pen(0xffffffff,1);     // white
 
       flowchartGraphDraw(rootnode.list, { x: width / 2, y: margin / 2 }, graphics, font);
 
