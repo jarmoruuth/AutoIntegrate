@@ -358,22 +358,27 @@ var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with 
                                           "left from previous noise reduction.</p>";
 
 
-var font_width_spacing = 10;              // Font width spacing for GUI elements
-var font_height_spacing = 4;              // Font height spacing for GUI elements
+
+// Settings for flowchart graph
+var flowchart_text_margin = 2;                                                // Margin between box and text
+var flowchart_box_margin = 2;                                                 // Margin outside of the box
+var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
 // Iterate size of the flowchart siblings graph
 function flowchartGraphIterateSiblings(list, font)
 {
       var width = 0;
       var height = 0;
+      var node_boxwidth = 0;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             console.writeln("flowchartGraphIterateSiblings: " + node.txt);
             if (node.type != "sibling") {
                   throw new Error("flowchartGraphIterateSiblings: node.type != sibling");
             }
-            node.width = font.width(node.txt) + font_width_spacing;
-            node.height = font.height + font_height_spacing;
+            node.width = font.width(node.txt) + flowchart_margin;
+            node.height = font.height + flowchart_margin;
+            node_boxwidth = Math.max(node_boxwidth, node.width);
             // node.width = node.txt.length;
             // node.height = 1;
 
@@ -384,6 +389,9 @@ function flowchartGraphIterateSiblings(list, font)
             width += node.width;
             height = Math.max(height, node.height);
       }
+      for (var i = 0; i < list.length; i++) {
+            list[i].boxwidth = node_boxwidth;
+      }
       return [ width, height ];
 }
 
@@ -392,11 +400,13 @@ function flowchartGraphIterate(list, font)
 {
       var width = 0;
       var height = 0;
+      var node_boxwidth = 0;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             console.writeln("flowchartGraphIterate: " + node.txt);
-            node.width = font.width(node.txt) + font_width_spacing;
-            node.height = font.height + font_height_spacing;
+            node.width = font.width(node.txt) + flowchart_margin;
+            node.height = font.height + flowchart_margin;
+            node_boxwidth = Math.max(node_boxwidth, node.width);
             // node.width = node.txt.length;
             // node.height = 1;
             if (node.type == "header") {
@@ -415,12 +425,44 @@ function flowchartGraphIterate(list, font)
             width = Math.max(width, node.width);
             height += node.height;
       }
+      for (var i = 0; i < list.length; i++) {
+            list[i].boxwidth = node_boxwidth;
+      }
       return [ width, height ];
+}
+
+function flowchartDrawText(graphics, x, y, node)
+{
+      if (!node.boxwidth) {
+            throw new Error("flowchartDrawText: boxwidth == null");
+      }
+
+      var middle_x = x + node.boxwidth / 2;
+      var middle_y = y + (graphics.font.height + flowchart_margin) / 2;
+      var txtwidth = graphics.font.width(node.txt);
+
+      // x, y for the box top right corner
+      x = x + flowchart_box_margin;
+      y = y + flowchart_box_margin;
+
+      var width = node.boxwidth - 2 * flowchart_box_margin;
+      var height = graphics.font.height + 2 * flowchart_text_margin;
+
+      var drawbox = true;
+
+      graphics.drawText(middle_x - txtwidth / 2, middle_y + flowchart_box_margin + flowchart_text_margin, node.txt);
+      
+      if (drawbox) {
+            graphics.drawLine(x, y, x + width, y);
+            graphics.drawLine(x, y, x, y + height);
+            graphics.drawLine(x + width, y, x + width, y + height);
+            graphics.drawLine(x, y + height, x + width, y + height);
+      }
 }
 
 // Iterate size of the flowchart siblings graph
 // position is the top left corner of the graph
-function flowchartGraphDrawSiblings(list, pos, graphics, font)
+function flowchartGraphDrawSiblings(list, pos, graphics)
 {
       var p = pos;
       for (var i = 0; i < list.length; i++) {
@@ -429,38 +471,38 @@ function flowchartGraphDrawSiblings(list, pos, graphics, font)
                   throw new Error("flowchartGraphDrawSiblings: node.type != sibling");
             }
             var middle_x = p.x + node.width / 2;
-            var x = middle_x - font.width(node.txt) / 2;
+            var x = middle_x - node.boxwidth / 2;
             var y = p.y;
             console.writeln("flowchartGraphDraw:s " + node.txt + " " + x + " " + y);
-            graphics.drawText(x, y, node.txt);
-            flowchartGraphDraw(node.list, { x: middle_x, y: p.y + font.height + font_height_spacing }, graphics, font);
+            flowchartDrawText(graphics, x, y, node);
+            flowchartGraphDraw(node.list, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
             p.x += node.width;
       }
 }
 
 // Iterate size of the flowchart graph
 // pos is middle position of the node
-function flowchartGraphDraw(list, pos, graphics, font)
+function flowchartGraphDraw(list, pos, graphics)
 {
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type == "header") {
                   if (node.list.length > 0) {
-                        var x = p.x - font.width(node.txt) / 2;
+                        var x = p.x - node.boxwidth / 2;
                         var y = p.y;
                         console.writeln("flowchartGraphDraw:h " + node.txt + " " + x + " " + y);
-                        graphics.drawText(x, y, node.txt);
-                        flowchartGraphDraw(node.list, { x: p.x, y: p.y + font.height + font_height_spacing }, graphics, font);
+                        flowchartDrawText(graphics, x, y, node);
+                        flowchartGraphDraw(node.list, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
                   console.writeln("flowchartGraphDraw:p " + node.txt);
-                  flowchartGraphDrawSiblings(node.list, { x: p.x - node.width / 2, y: p.y }, graphics, font);
+                  flowchartGraphDrawSiblings(node.list, { x: p.x - node.width / 2, y: p.y }, graphics);
             } else {
-                  var x = p.x - font.width(node.txt) / 2;
+                  var x = p.x - node.boxwidth / 2;
                   var y = p.y;
                   console.writeln("flowchartGraphDraw:n " + node.txt + " " + x + " " + y);
-                  graphics.drawText(x, y, node.txt);
+                  flowchartDrawText(graphics, x, y, node);
             }
             p.y += node.height;
       }
@@ -488,7 +530,8 @@ this.flowchartGraph = function(rootnode)
       var graphics = new Graphics(bitmap);
       graphics.font = font;
       graphics.transparentBackground = true;
-      graphics.pen = new Pen(0xff000000, 4);
+      graphics.pen = new Pen(0xff000000, 1);       // black
+      // graphics.pen = new Pen(0xffffffff,1);     // white
 
       flowchartGraphDraw(rootnode.list, { x: width / 2, y: margin / 2 }, graphics, font);
 
