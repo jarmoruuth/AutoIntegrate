@@ -364,9 +364,13 @@ var flowchart_text_margin = 3;                                                //
 var flowchart_box_margin = 2;                                                 // Margin outside of the box
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
+//                       blue        green       red         magenta     cyan             yellow      black
+var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];    
+
 // Iterate size of the flowchart childs graph
-function flowchartGraphIterateChilds(parent, font)
+function flowchartGraphIterateChilds(parent, font, level)
 {
+      parent.color = flowchart_colors[level % flowchart_colors.length];
       var list = parent.list;
       var width = 0;
       var height = 0;
@@ -386,7 +390,7 @@ function flowchartGraphIterateChilds(parent, font)
             // node.width = node.txt.length;
             // node.height = 1;
 
-            var size = flowchartGraphIterate(node, font);
+            var size = flowchartGraphIterate(node, font, level);  // Iterate childs, parent node is a dummy node
             node.width = Math.max(size[0], node.width);
             node.height += size[1];
 
@@ -403,8 +407,9 @@ function flowchartGraphIterateChilds(parent, font)
 }
 
 // Iterate size of the flowchart graph
-function flowchartGraphIterate(parent, font)
+function flowchartGraphIterate(parent, font, level)
 {
+      parent.color = flowchart_colors[level % flowchart_colors.length];
       var list = parent.list;
       var width = 0;
       var height = 0;
@@ -419,13 +424,13 @@ function flowchartGraphIterate(parent, font)
             // node.height = 1;
             if (node.type == "header") {
                   if (node.list.length > 0) {
-                        var size = flowchartGraphIterate(node, font);
+                        var size = flowchartGraphIterate(node, font, level + 1);
                         node.width = Math.max(size[0], node.width);
                         node.height += size[1];
                   }
             } else if (node.type == "parent") {
                   if (node.list.length > 0) {
-                        var size = flowchartGraphIterateChilds(node, font);
+                        var size = flowchartGraphIterateChilds(node, font, level + 1);
                         node.width = size[0];
                         node.height = size[1];
                   }
@@ -538,7 +543,7 @@ function flowchartGraph(rootnode)
       var font = new Font( FontFamily_SansSerif, fontsize );
 
       // console.writeln("flowchartGraph:iterate size");
-      var size = flowchartGraphIterate(rootnode, font);
+      var size = flowchartGraphIterate(rootnode, font, 0);
       // console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
 
       var margin = 50;
@@ -7821,11 +7826,17 @@ function AutoIntegrateDialog()
             console.writeln("Close all prefixes completed");
       };
 
+      var flowchartToolTip = "<p>Flowchart information is always generated during the procesing. It is saved to the " + 
+                             "AutosaveSetup file so it can be loaded later.</p>" +
+                             "´<p>Flowchart is printed to the preview window.</p>";
+
       // New Flowchart button
       this.newFlowchartButton = new PushButton( this );
       this.newFlowchartButton.text = "New Flowchart";
       this.newFlowchartButton.toolTip = "<p>Create a new AutoIntegrate workflow flowchart using the current settings.</p>" +
-                                    "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
+                                        "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
+                                        "<p>To run the similated workflow all relevant files must be loaded to the Files tab.</p>" + 
+                                        flowchartToolTip;
       this.newFlowchartButton.onClick = function()
       {
             global.flowchart = true;
@@ -7846,7 +7857,8 @@ function AutoIntegrateDialog()
       // Show Flowchart button
       this.showFlowchartButton = new PushButton( this );
       this.showFlowchartButton.text = "Show Flowchart";
-      this.showFlowchartButton.toolTip = "<p>Show previously generated AutoIntegrate workflow flowchart if one is available.</p>";
+      this.showFlowchartButton.toolTip = "<p>Show a previously generated AutoIntegrate workflow flowchart if one is available.</p>" +
+                                         flowchartToolTip;
       this.showFlowchartButton.onClick = function()
       {
             global.flowchart = true;

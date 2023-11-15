@@ -270,28 +270,42 @@ var telescope_info = [
 // Filter files for global.flowchart.
 // Pick just three files for each channel
 // and use IntegerResample to make files really small.
-function flowchartFilterFiles(fileNames)
+function flowchartFilterFiles(fileNames, filetype)
 {
-      console.writeln("flowchartFilterFiles");
 
-      var flowchar_filtered_lights = engine.getFilterFiles(fileNames, global.pages.LIGHTS, '');
-      var allfilesarr = flowchar_filtered_lights.allfilesarr;
+      if (filetype == global.pages.FLATS) {
+            console.writeln("flowchartFilterFiles, " + fileNames.length + " flats");
+            var basename = "AutoFlowChartFlat";
+            var stop_on_image = 1;
+      } else if (filetype == global.pages.LIGHTS) {
+            console.writeln("flowchartFilterFiles, " + fileNames.length + " lights");
+            var basename = "AutoFlowChart";
+            var stop_on_image = 0;
+      } else {
+            throwFatalError("flowchartFilterFiles, unknown filetype " + filetype);
+      }
+
+      var flowchar_filtered_files = engine.getFilterFiles(fileNames, filetype, '');
+      var allfilesarr = flowchar_filtered_files.allfilesarr;
       var newFileNames = [];
       var renamedFileNames = [];
-      var maxsize = Math.max(flowchar_filtered_lights.maxwidth, flowchar_filtered_lights.maxheigth);
+      var maxsize = Math.max(flowchar_filtered_files.maxwidth, flowchar_filtered_files.maxheigth);
 
-      // Pick first three files for each channel
+      // Pick first files for each channel
+      console.writeln("flowchartFilterFiles, " + allfilesarr.length + " channels");
       for (var i = 0; i < allfilesarr.length; i++) {
+            console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files.length);
             for (var j = 0; j < allfilesarr[i].files.length; j++) {
+                  console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files[j].name);
                   var name = allfilesarr[i].files[j].name;
                   newFileNames[newFileNames.length] = name;
                   renamedFileNames[renamedFileNames.length] = util.ensurePathEndSlash(global.outputRootDir) + 
                                                               util.ensurePathEndSlash(global.AutoOutputDir) +
-                                                              "AutoFlowChart_" + j + "_" +
+                                                              basename + "_" + j + "_" +
                                                               allfilesarr[i].filter +
                                                               ".xisf";
                   console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + name, ', ' + renamedFileNames[renamedFileNames.length - 1]);
-                  if (j == 0) {
+                  if (j == stop_on_image) {
                         break;
                   }
             }
@@ -322,6 +336,16 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
       return targetImageName;
 }
 
+function flowchartNewImage(imgWIn, targetImageName)
+{
+      console.writeln("flowchartNewIntegrationImage");
+
+      // copy image file
+      util.copyWindow(imgWIn, targetImageName);
+
+      return targetImageName;
+}
+
 function flowchartNewNode(type, txt)
 {
       return { type: type, txt: txt, list: [], width: 0, height: 0, color: 0xff8B0000  }; // dark red
@@ -344,9 +368,6 @@ function flowchartSubtaskBegin(txt, type)
       console.writeln("flowchartSubtaskBegin " + txt);
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("header", txt);
-      if (type == "mask") {
-            newFlowchartCurrent.color = 0xff003300; // dark green
-      }
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
 }
@@ -392,7 +413,6 @@ function flowchartChildBegin(txt)
       }
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("child", txt);
-      newFlowchartCurrent.color = 0xff00008B; // dark blue
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
 }
@@ -1517,9 +1537,14 @@ function writeImage(filePath, imageWindow)
  */
 
 // Integrate (stack) bias and dark images
-function runImageIntegrationBiasDarks(images, name)
+function runImageIntegrationBiasDarks(images, name, type)
 {
       console.writeln("runImageIntegrationBiasDarks, images[0] " + images[0][1] + ", name " + name);
+      flowchartOperation("ImageIntegration:" + type);
+
+      if (global.flowchart) {
+            return flowchartNewIntegrationImage(images[0][1], name);
+      }
 
       ensureThreeImages(images);
 
@@ -1554,6 +1579,11 @@ function runImageIntegrationBiasDarks(images, name)
 function runSuberBias(biasWin)
 {
       console.writeln("runSuberBias, bias " + biasWin.mainView.id);
+      flowchartOperation("Superbias");
+
+      if (global.flowchart) {
+            return flowchartNewImage(biasWin, ppar.win_prefix + "AutoMasterSuperBias");
+      }
 
       var P = new Superbias;
 
@@ -1647,6 +1677,11 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       console.noteln("runCalibrateDarks, images[0] " + fileNames[0][1] + ", master bias " + masterbiasPath);
       console.writeln("runCalibrateDarks, master bias " + masterbiasPath);
+      flowchartOperation("ImageCalibration:darks");
+
+      if (global.flowchart) {
+            return fileNames;
+      }
 
       var P = new ImageCalibration;
       P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
@@ -1676,6 +1711,11 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       }
 
       console.noteln("runCalibrateFlats, images[0] " + images[0][1]);
+      flowchartOperation("ImageCalibration:flats");
+
+      if (global.flowchart) {
+            return imagesEnabledPathToFileList(images);
+      }
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
@@ -1728,6 +1768,11 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 function runImageIntegrationFlats(images, name)
 {
       console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
+      flowchartOperation("ImageIntegration:flats");
+
+      if (global.flowchart) {
+            return flowchartNewIntegrationImage(images[0][1], name);
+      }
 
       var P = new ImageIntegration;
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
@@ -1767,6 +1812,11 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
 
       console.noteln("runCalibrateLights, images[0] " + images[0][1]);
+      flowchartOperation("ImageCalibration:lights");
+
+      if (global.flowchart) {
+            return imagesEnabledPathToFileList(images);
+      }
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
@@ -8477,7 +8527,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (global.flowchart) {
                   // Filter files for global.flowchart.
-                  global.lightFileNames = flowchartFilterFiles(global.lightFileNames);
+                  global.lightFileNames = flowchartFilterFiles(global.lightFileNames, global.pages.LIGHTS);
             }
 
             if (!par.image_weight_testing.val && par.early_PSF_check.val) {
@@ -12502,6 +12552,11 @@ function createCropInformationAutoContinue()
        util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
        util.ensureDir(util.combinePath(global.outputRootDir, global.AutoCalibratedDir));
  
+       if (global.flowchart) {
+            // Filter files for global.flowchart.
+            global.flatFileNames = flowchartFilterFiles(global.flatFileNames, global.pages.FLATS);
+      }
+
        // Collect filter files
        var filtered_flats = engine.getFilterFiles(global.flatFileNames, global.pages.FLATS, '');
  
@@ -12530,7 +12585,7 @@ function createCropInformationAutoContinue()
              util.addProcessingStep("calibrateEngine generate master bias using " + global.biasFileNames.length + " files");
              // integrate bias images
              var biasimages = filesForImageIntegration(global.biasFileNames);
-             var masterbiasid = runImageIntegrationBiasDarks(biasimages, ppar.win_prefix + "AutoMasterBias");
+             var masterbiasid = runImageIntegrationBiasDarks(biasimages, ppar.win_prefix + "AutoMasterBias", "bias");
  
              // save master bias
              setImagetypKeyword(util.findWindow(masterbiasid), "Master bias");
@@ -12561,7 +12616,7 @@ function createCropInformationAutoContinue()
              util.addProcessingStep("calibrateEngine generate master flat dark using " + global.flatdarkFileNames.length + " files");
              // integrate flat dark images
              var flatdarkimages = filesForImageIntegration(global.flatdarkFileNames);
-             var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark");
+             var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark", "flatdark");
              setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
              var masterflatdarkPath = saveMasterWindow(global.outputRootDir, masterflatdarkid);
              guiUpdatePreviewId(masterflatdarkid);
@@ -12586,7 +12641,7 @@ function createCropInformationAutoContinue()
                    var darkimages = filesForImageIntegration(global.darkFileNames);
              }
              // generate master dark file
-             var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark");
+             var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark", "dark");
              setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
              var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
              guiUpdatePreviewId(masterdarkid);
@@ -12598,9 +12653,11 @@ function createCropInformationAutoContinue()
        // generate master flat for each filter
        util.addProcessingStepAndStatusInfo("Image calibration, generate master flats");
        var masterflatPath = [];
+       flowchartParentBegin("Flats");
        for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
              var filterFiles = filtered_flats.allfilesarr[i].files;
              var filterName = filtered_flats.allfilesarr[i].filter;
+             flowchartChildBegin(filterName);
              if (filterFiles.length == 1) {
                    util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat " + filterFiles[0].name);
                    masterflatPath[i] = filterFiles[0].name;
@@ -12624,13 +12681,17 @@ function createCropInformationAutoContinue()
              } else {
                    masterflatPath[i] = null;
              }
+             flowchartChildEnd(filterName);
        }
+       flowchartParentEnd("Flats");
  
        util.addProcessingStepAndStatusInfo("Image calibration, calibrate light images");
        var calibratedLightFileNames = [];
+       flowchartParentBegin("Calibrate lights");
        for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
              var filterFiles = filtered_lights.allfilesarr[i].files;
              var filterName = filtered_lights.allfilesarr[i].filter;
+             flowchartChildBegin(filterName);
              if (filterFiles.length > 0) {
                    // calibrate light frames with master bias, master dark and master flat
                    // optionally master dark can be left out
@@ -12646,7 +12707,9 @@ function createCropInformationAutoContinue()
                          calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
                    }
              }
+             flowchartChildEnd(filterName);
        }
+       flowchartParentEnd("Calibrate lights");
  
        // We now have calibrated light images
        // We now proceed with cosmetic correction and

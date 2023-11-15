@@ -727,6 +727,10 @@ this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id)
             console.writeln("saveWindowEx " + fname);
       }
 
+      if (global.flowchart) {
+            return fname;
+      }
+
       var w = ImageWindow.windowById(id);
 
       if (w == null) {
