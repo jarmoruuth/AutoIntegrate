@@ -362,10 +362,89 @@ var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with 
 // Settings for flowchart graph
 var flowchart_text_margin = 3;                                                // Margin between box and text
 var flowchart_box_margin = 2;                                                 // Margin outside of the box
+var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
 //                       blue        green       red         magenta     cyan             yellow      black
 var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];    
+
+// Iterate size of the flowchart childs graph
+function flowchartGraphCleanupChilds(parent)
+{
+      var removed = false;
+      var list = parent.list;
+      var newlist = [];
+
+      // filter list first
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            // console.writeln("flowchartGraphCleanupChilds: " + node.txt);
+            if (node.type != "child") {
+                  throw new Error("flowchartGraphCleanupChilds: node.type != child");
+            }
+            if (node.list.length == 0) {
+                  removed = true;
+                  continue;
+            }
+            newlist.push(node);
+      }
+      parent.list = newlist;
+      list = newlist;
+      
+      // cleanup child nodes
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (flowchartGraphCleanup(node)) {
+                  removed = true;
+            }
+      }
+      return removed;
+}
+
+// Iterate size of the flowchart graph
+function flowchartGraphCleanup(parent)
+{
+      var removed = false;
+      var list = parent.list;
+
+      // filter list first
+      var newlist = [];
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type == "header" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            } else if (node.type == "parent" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            } else if (node.type == "mask" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            }
+            newlist.push(node);
+      }
+      parent.list = newlist;
+      list = newlist;
+
+      // cleanup child nodes
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type == "header") {
+                  if (flowchartGraphCleanup(node)) {
+                        removed = true;
+                  }
+            } else if (node.type == "parent") {
+                  if (flowchartGraphCleanupChilds(node)) {
+                        removed = true;
+                  }
+            } else if (node.type == "mask") {
+                  if (flowchartGraphCleanup(node)) {
+                        removed = true;
+                  }
+            }
+      }
+      return removed;
+}
 
 // Iterate size of the flowchart childs graph
 function flowchartGraphIterateChilds(parent, font, level)
@@ -375,15 +454,10 @@ function flowchartGraphIterateChilds(parent, font, level)
       var width = 0;
       var height = 0;
       var node_boxwidth = 0;
+      // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             // console.writeln("flowchartGraphIterateChilds: " + node.txt);
-            if (node.type != "child") {
-                  throw new Error("flowchartGraphIterateChilds: node.type != child");
-            }
-            if (node.list.length == 0) {
-                  continue;
-            }
             node.width = font.width(node.txt) + flowchart_margin;
             node.height = font.height + flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
@@ -398,7 +472,7 @@ function flowchartGraphIterateChilds(parent, font, level)
             height = Math.max(height, node.height);
       }
       for (var i = 0; i < list.length; i++) {
-            if (list[i].type == "process") {
+            if (list[i].type == "process" || list[i].type == "mask") {
                   list[i].color = parent.color;
             }
             list[i].boxwidth = node_boxwidth;
@@ -414,6 +488,7 @@ function flowchartGraphIterate(parent, font, level)
       var width = 0;
       var height = 0;
       var node_boxwidth = 0;
+      // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             // console.writeln("flowchartGraphIterate: " + node.txt);
@@ -433,13 +508,23 @@ function flowchartGraphIterate(parent, font, level)
                         var size = flowchartGraphIterateChilds(node, font, level + 1);
                         node.width = size[0];
                         node.height = size[1];
+                        if (node.list.length > 1) {
+                              node.height += 2 * flowchart_line_margin;
+                        }
+                  }
+            } else if (node.type == "mask") {
+                  // Ignore process steps to create a mask in graph
+                  if (0 && node.list.length > 0) {
+                        var size = flowchartGraphIterate(node, font, level + 1);
+                        node.width = Math.max(size[0], node.width);
+                        node.height += size[1];
                   }
             }
             width = Math.max(width, node.width);
             height += node.height;
       }
       for (var i = 0; i < list.length; i++) {
-            if (list[i].type == "process") {
+            if (list[i].type == "process" || list[i].type == "mask") {
                   list[i].color = parent.color;
             }
             list[i].boxwidth = node_boxwidth;
@@ -464,7 +549,7 @@ function flowchartDrawText(graphics, x, y, node)
       var width = node.boxwidth - 2 * flowchart_box_margin;
       var height = graphics.font.height + 2 * flowchart_text_margin;
 
-      var drawbox =  node.type == "process";
+      var drawbox = (node.type == "process" || node.type == "mask");
 
       graphics.pen = new Pen(node.color, 1);
 
@@ -478,10 +563,52 @@ function flowchartDrawText(graphics, x, y, node)
       }
 }
 
+// draw vertical lines for each child position
+// lines are always drawn to down direction
+// position is the top left corner of the graph
+function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
+{
+      var list = parent.list;
+      var p = pos;
+      graphics.pen = new Pen(parent.color, 1);
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            // console.writeln("flowchartGraphDrawChildsConnectLines: " + node.txt + " " + p.x + " " + p.y);
+            graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
+            p.x += node.width;
+      }
+}
+
+// draw a line connecting child nodes
+// position is the top left corner of the graph
+function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
+{
+      var p = pos;
+
+
+      p.y += flowchart_line_margin / 2;
+
+      var childlen1 = parent.list[0].width;
+      var childlen2 = parent.list[parent.list.length - 1].width;
+
+      // draw horizontal line connecting child nodes
+      graphics.pen = new Pen(parent.color, 1);
+      graphics.drawLine(p.x + childlen1 / 2, p.y, p.x + parent.width - childlen2 / 2, p.y);
+
+      if (loc == "top") {
+            flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y }, graphics);
+      } else if (loc == "bottom") {
+            flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y -  + flowchart_line_margin / 2 }, graphics);
+      } else {
+            throwFatalError("flowchartGraphDrawChildsLine: loc != top or bottom, " + loc);
+      }
+}
+
 // Iterate size of the flowchart childs graph
 // position is the top left corner of the graph
-function flowchartGraphDrawChilds(list, pos, graphics)
+function flowchartGraphDrawChilds(parent, pos, graphics)
 {
+      var list = parent.list;
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
@@ -496,15 +623,16 @@ function flowchartGraphDrawChilds(list, pos, graphics)
             var y = p.y;
             // console.writeln("flowchartGraphDraw:s " + node.txt + " " + x + " " + y);
             flowchartDrawText(graphics, x, y, node);
-            flowchartGraphDraw(node.list, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
+            flowchartGraphDraw(node, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
             p.x += node.width;
       }
 }
 
 // Iterate size of the flowchart graph
 // pos is middle position of the node
-function flowchartGraphDraw(list, pos, graphics)
+function flowchartGraphDraw(parent, pos, graphics)
 {
+      var list = parent.list;
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
@@ -514,12 +642,24 @@ function flowchartGraphDraw(list, pos, graphics)
                         var y = p.y;
                         // console.writeln("flowchartGraphDraw:h " + node.txt + " " + x + " " + y);
                         flowchartDrawText(graphics, x, y, node);
-                        flowchartGraphDraw(node.list, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
+                        flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
                   // console.writeln("flowchartGraphDraw:p " + node.txt);
-                  flowchartGraphDrawChilds(node.list, { x: p.x - node.width / 2, y: p.y }, graphics);
+                  if (node.list.length > 0) {
+                        if (node.list.length > 1) {
+                              var parent_margin = flowchart_line_margin;
+                              flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y }, graphics, "top");
+                        } else {
+                              var parent_margin = 0;
+                        }
+                        flowchartGraphDrawChilds(node, { x: p.x - node.width / 2, y: p.y + parent_margin }, graphics);
+                        if (node.list.length > 1) {
+                              flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y + node.height - parent_margin }, graphics, "bottom");
+                        }
+                  }
             } else {
+                  // process or mask
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
                   // console.writeln("flowchartGraphDraw:n " + node.txt + " " + x + " " + y);
@@ -539,12 +679,17 @@ function flowchartGraph(rootnode)
             return;
       }
 
+      // Iterate cleanup to remove empty nodes
+      for (var i = 0; i < 10; i++) {
+            if (!flowchartGraphCleanup(rootnode)) {
+                  break;
+            }
+      }
+
       var fontsize = 8;
       var font = new Font( FontFamily_SansSerif, fontsize );
 
-      // console.writeln("flowchartGraph:iterate size");
       var size = flowchartGraphIterate(rootnode, font, 0);
-      // console.writeln(rootnode.txt + " (" + size[0] + "x" + size[1] + ")");
 
       var margin = 50;
       var width = size[0] + margin;
@@ -558,7 +703,7 @@ function flowchartGraph(rootnode)
       graphics.transparentBackground = true;
       graphics.pen = new Pen(0xff000000, 1);       // black
 
-      flowchartGraphDraw(rootnode.list, { x: width / 2, y: margin / 2 }, graphics, font);
+      flowchartGraphDraw(rootnode, { x: width / 2, y: margin / 2 }, graphics, font);
 
       graphics.end();
 

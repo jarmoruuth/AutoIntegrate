@@ -367,7 +367,7 @@ function flowchartSubtaskBegin(txt, type)
       }
       console.writeln("flowchartSubtaskBegin " + txt);
       flowchartStack.push(flowchartCurrent);
-      var newFlowchartCurrent = flowchartNewNode("header", txt);
+      var newFlowchartCurrent = flowchartNewNode("mask", txt);
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
 }
@@ -440,6 +440,9 @@ function flowchartPrintList(list, indent)
                   console.writeln(indent + item.txt);
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "parent") {
+                  console.writeln(indent + item.txt);
+                  flowchartPrintList(item.list, indent + "  ");
+            } else if (item.type == "mask") {
                   console.writeln(indent + item.txt);
                   flowchartPrintList(item.list, indent + "  ");
             } else {
@@ -4622,9 +4625,13 @@ function customMapping(RGBmapping, check_allfilesarr)
                   }
                   if (checkNoiseReduction('RGB', 'channel')) {
                         // Do noise reduction after linear fit.
+                        flowchartParentBegin("Channels");
                         for (var i = 0; i < images.length; i++) {
+                              flowchartChildBegin(findChannelFromName(images[i]));
                               channelNoiseReduction(images[i]);
+                              flowchartChildEnd(findChannelFromName(images[i]));
                         }
+                        flowchartParentEnd("Channels");
                         RGBmapping.channel_noise_reduction = true;
                   }
                   for (var i = 0; i < images.length; i++) {
