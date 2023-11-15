@@ -2053,6 +2053,7 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
             Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
             Settings.write (SETTINGSKEY + "/filesInTab", DataType_Boolean, ppar.files_in_tab);
+            Settings.write (SETTINGSKEY + "/savedVersion", DataType_String, global.autointegrate_version);
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -3239,13 +3240,22 @@ function updatePreviewNoImageInControl(control)
             }
             graphics.font.bold = true;
 
-            var linecount = global.autointegrate_version_info.length;
+            var startup_text = [ global.autointegrate_version ];
+            if (ppar.savedVersion != global.autointegrate_version) {
+                  // Started with a new version, show the version info
+                  startup_text.push("");
+                  for (var i = 0; i < global.autointegrate_version_info.length; i++) {
+                        startup_text.push(global.autointegrate_version_info[i]);
+                  }
+            }
+
+            var linecount = startup_text.length;
             var maxrowlen = 0;
             var maxtxt = "";
             for (var i = 0; i < linecount; i++) {
-                  if (global.autointegrate_version_info[i].length > maxrowlen) {
-                        maxrowlen = global.autointegrate_version_info[i].length;
-                        maxtxt = global.autointegrate_version_info[i];
+                  if (startup_text[i].length > maxrowlen) {
+                        maxrowlen = startup_text[i].length;
+                        maxtxt = startup_text[i];
                   }
             }
 
@@ -3264,7 +3274,7 @@ function updatePreviewNoImageInControl(control)
                   }
 
                   for (var i = 0; i < linecount; i++) {
-                        graphics.drawText(startpos_x, startpos_y + i * lineheight, global.autointegrate_version_info[i]);
+                        graphics.drawText(startpos_x, startpos_y + i * lineheight, startup_text[i]);
                   }
 
                   graphics.end();

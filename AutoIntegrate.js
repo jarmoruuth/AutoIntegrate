@@ -367,6 +367,11 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
             ppar.lastDir = tempSetting;
       }
+      var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");
+            ppar.savedVersion = tempSetting;
+      }
 
       var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType_String);
       if (Settings.lastReadOK) {
@@ -671,7 +676,12 @@ this.autointerate_main = function()
             console.noteln("======================================================");
             console.noteln(global.autointegrate_version + ", PixInsight v" + global.pixinsight_version_str + ' (' + global.pixinsight_version_num + ')');
             console.noteln("======================================================");
-
+            if (global.autointegrate_version_info.length > 0) {
+                  for (var i = 0; i < global.autointegrate_version_info.length; i++) {
+                        console.noteln(global.autointegrate_version_info[i]);
+                  }
+                  console.noteln("======================================================");
+            }
             if (global.pixinsight_version_num < 1080810) {
                   var old_default = 'Generic';
                   if (par.use_weight.val == par.use_weight.def 

@@ -46,8 +46,6 @@ this.autointegrate_version = "AutoIntegrate v1.65 test1";   // Version, also upd
 this.autointegrate_info = "Process flow chart";             // For updates.xri
 
 this.autointegrate_version_info = [
-      this.autointegrate_version,
-      "",
       "Changes since the previous version:",
       "- Added button for Flowchart"
 ];
@@ -445,6 +443,7 @@ this.ppar = {
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
+      savedVersion: "",       // Saved version of the script
       preview: {
             use_preview: true,            // Show image preview on dialog preview window
             side_preview_visible: true,   // Show image preview on the side of the dialog
