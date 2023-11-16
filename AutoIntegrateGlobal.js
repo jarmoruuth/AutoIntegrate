@@ -459,7 +459,8 @@ this.ppar = {
       },
       use_single_column: false, // show all options in a single column
       use_more_tabs: true,      // use more tabs for parameters and settings
-      files_in_tab: true        // show files in a tab
+      files_in_tab: true,       // show files in a tab
+      startup_image: false      // show startup image
 };
 
 // Run results for testing

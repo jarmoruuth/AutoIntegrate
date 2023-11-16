@@ -1976,6 +1976,7 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
             Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
             Settings.write (SETTINGSKEY + "/filesInTab", DataType_Boolean, ppar.files_in_tab);
+            Settings.write (SETTINGSKEY + "/startupImage", DataType_Boolean, ppar.startup_image);
             Settings.write (SETTINGSKEY + "/savedVersion", DataType_String, global.autointegrate_version);
       }
       if (!from_exit) {
@@ -3122,89 +3123,106 @@ function createEmptyBitmap(width, height, fill_color)
 
 function updatePreviewNoImageInControl(control)
 {
-      let startup_image = false;
-      if (ppar.preview.side_preview_visible) {
-            var width = ppar.preview.side_preview_width ;
-            var height = ppar.preview.side_preview_height;
-      } else {
-            var width = ppar.preview.preview_width;
-            var height = ppar.preview.preview_height;
-      }
-      var ratio = width / height;
-      var height = 1080;
-      var width = height * ratio;
+      let startup_image = ppar.startup_image;
 
       if (startup_image) {
-            var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
-            var bitmap_width = bitmap.width;
-            var bitmap_height = bitmap.height;
-            // scale the bitmap to fit into the preview window
-            if (bitmap.width > width) {
-                  var scalew = width / bitmap.width;
+            try {
+                  var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
+            } catch (e) {
+                  var bitmap = null;
             }
-            if (bitmap.height > height) {
-                  var scaleh = height / bitmap.height;
+            if (!bitmap) {
+                  startup_image = false;
+            } else {
+                  // scale the bitmap
+                  let scale = 1;
+                  if (bitmap.height > 1080) {
+                        scale = bitmap.height / 1080;
+                  }
+                  bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
             }
-            var scale = Math.min(scalew, scaleh);
-            bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
-      } else {
+      }
+      if (!startup_image) {
+            let width;
+            let height;
+            if (ppar.preview.side_preview_visible) {
+                  width = ppar.preview.side_preview_width ;
+                  height = ppar.preview.side_preview_height;
+            } else {
+                  width = ppar.preview.preview_width;
+                  height = ppar.preview.preview_height;
+            }
+            let ratio = width / height;
+            height = 1080;
+            width = height * ratio;
             var bitmap = createEmptyBitmap(width, height, 0xff808080);
+      }
+
+      var startup_text = [ global.autointegrate_version ];
+      if (ppar.savedVersion != global.autointegrate_version) {
+            // Started with a new version, show the version info
+            startup_text.push("");
+            for (var i = 0; i < global.autointegrate_version_info.length; i++) {
+                  startup_text.push(global.autointegrate_version_info[i]);
+            }
+      } else if (startup_image) {
+            // Do now show text with a startup image
+            startup_text = null;
       }
 
       for (var fontsize = 24; fontsize > 0; fontsize -= 4) {   
             var graphics = new Graphics(bitmap);
+            console.writeln("updatePreviewNoImageInControl, fontsize " + fontsize);
             graphics.font = new Font( FontFamily_SansSerif, fontsize );
             graphics.transparentBackground = true;
 
-            if (startup_image) {
-                  graphics.pen = new Pen(0xffffffff, 4);
-            } else {
-                  graphics.pen = new Pen(0xff000000, 4);
-            }
+            graphics.pen = new Pen(0xff000000, 4);
             graphics.font.bold = true;
 
-            var startup_text = [ global.autointegrate_version ];
-            if (ppar.savedVersion != global.autointegrate_version) {
-                  // Started with a new version, show the version info
-                  startup_text.push("");
-                  for (var i = 0; i < global.autointegrate_version_info.length; i++) {
-                        startup_text.push(global.autointegrate_version_info[i]);
-                  }
-            }
-
-            var linecount = startup_text.length;
-            var maxrowlen = 0;
-            var maxtxt = "";
-            for (var i = 0; i < linecount; i++) {
-                  if (startup_text[i].length > maxrowlen) {
-                        maxrowlen = startup_text[i].length;
-                        maxtxt = startup_text[i];
-                  }
-            }
-
-            var txtWidth = graphics.font.width(maxtxt);
-            var lineheight = graphics.font.height + 4; 
-            var txtHeight = lineheight * linecount;
-
-            var startpos_x = bitmap.width / 2 - txtWidth / 2;
-            var startpos_y = bitmap.height / 2 - txtHeight / 2;
-
-            if (startpos_x > 10 && startpos_y > 10) {
-                  if (0 && startup_image) {
-                        var textMargin = 4;
-                        var textBackgroundBitmap = createEmptyBitmap(txtWidth + textMargin, txtHeight + textMargin, 0xff808080);
-                        graphics.drawBitmap(bitmap.width / 2 - (txtWidth + textMargin) / 2, bitmap.height / 2 - txtHeight - textMargin, textBackgroundBitmap);
-                  }
-
+            if (startup_text != null) {
+                  var linecount = startup_text.length;
+                  var maxrowlen = 0;
+                  var maxtxt = "";
                   for (var i = 0; i < linecount; i++) {
-                        graphics.drawText(startpos_x, startpos_y + i * lineheight, startup_text[i]);
+                        if (startup_text[i].length > maxrowlen) {
+                              maxrowlen = startup_text[i].length;
+                              maxtxt = startup_text[i];
+                        }
                   }
 
+                  var txtWidth = graphics.font.width(maxtxt);
+                  var lineheight = graphics.font.height + 4; 
+                  var txtHeight = lineheight * linecount;
+
+                  var startpos_x = bitmap.width / 2 - txtWidth / 2;
+                  var startpos_y = bitmap.height / 2 - txtHeight / 2 + graphics.font.height / 2;
+            } else {
+                  var startpos_x = bitmap.width / 2;
+                  var startpos_y = bitmap.height / 2;
+                  var lineheight = 0;
+            }
+
+            if (startpos_x > 2 * lineheight && startpos_y > 2 * lineheight) {
+                  if (startup_image) {
+                        console.writeln("updatePreviewNoImageInControl, drawRect");
+                        var textMargin = lineheight;
+                        graphics.brush = new Brush( 0xffC0C0C0 );
+                        // graphics.brush = new Brush( 0xff808080 );
+                        graphics.drawRect(bitmap.width / 2 - txtWidth / 2 - textMargin, bitmap.height / 2 - txtHeight / 2 - textMargin, 
+                                          bitmap.width / 2 + txtWidth / 2 + textMargin, bitmap.height / 2 + txtHeight / 2 + textMargin);
+                  }
+                  if (startup_text != null) {
+                        console.writeln("updatePreviewNoImageInControl, drawText");
+                        for (var i = 0; i < linecount; i++) {
+                              graphics.drawText(startpos_x, startpos_y + i * lineheight, startup_text[i]);
+                        }
+                  }
                   graphics.end();
                   break;
 
             } else {
                   // Try with a smaller font size
+                  console.writeln("updatePreviewNoImageInControl, try with a smaller font size");
                   graphics.end();
             }
       }
@@ -8074,6 +8092,9 @@ function AutoIntegrateDialog()
       this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
             "<p>File listing is in a separate tab instead of on top of the window.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.files_in_tab = checked; });
+      this.startup_image_CheckBox = newGenericCheckBox(this, "Startup image", ppar, ppar.startup_image, 
+            "<p>Show startup image in preview window.</p>",
+            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.startup_image = checked; });
 
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -8084,6 +8105,7 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.files_in_tab_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
+      this.preview1Sizer.add( this.startup_image_CheckBox );
       this.preview1Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");

@@ -422,7 +422,7 @@ function readPersistentSettings()
             }
             var tempSetting = Settings.read(SETTINGSKEY + "/useLargePreview", DataType_Boolean);
             if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored useLargePreview'" + tempSetting + "' from settings.");
+                  console.writeln("AutoIntegrate: Restored useLargePreview '" + tempSetting + "' from settings.");
                   ppar.preview.use_large_preview = tempSetting;
             }
       }
@@ -432,9 +432,9 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored useSingleColumn '" + tempSetting + "' from settings.");
             ppar.use_single_column = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/useMoreTabs ", DataType_Boolean);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored useMoreTabs'" + tempSetting + "' from settings.");
+            console.writeln("AutoIntegrate: Restored useMoreTabs '" + tempSetting + "' from settings.");
             ppar.use_more_tabs = tempSetting;
       }
       if (ppar.use_single_column) {
@@ -442,8 +442,13 @@ function readPersistentSettings()
       }
       var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType_Boolean);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored filesInTab'" + tempSetting + "' from settings.");
+            console.writeln("AutoIntegrate: Restored filesInTab '" + tempSetting + "' from settings.");
             ppar.files_in_tab = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/startupImage ", DataType_Boolean);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored startupImage '" + tempSetting + "' from settings.");
+            ppar.startup_image = tempSetting;
       }
 }
 
