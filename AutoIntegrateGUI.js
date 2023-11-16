@@ -369,84 +369,6 @@ var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    //
 var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];    
 
 // Iterate size of the flowchart childs graph
-function flowchartGraphCleanupChilds(parent)
-{
-      var removed = false;
-      var list = parent.list;
-      var newlist = [];
-
-      // filter list first
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            // console.writeln("flowchartGraphCleanupChilds: " + node.txt);
-            if (node.type != "child") {
-                  throw new Error("flowchartGraphCleanupChilds: node.type != child");
-            }
-            if (node.list.length == 0) {
-                  removed = true;
-                  continue;
-            }
-            newlist.push(node);
-      }
-      parent.list = newlist;
-      list = newlist;
-      
-      // cleanup child nodes
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (flowchartGraphCleanup(node)) {
-                  removed = true;
-            }
-      }
-      return removed;
-}
-
-// Iterate size of the flowchart graph
-function flowchartGraphCleanup(parent)
-{
-      var removed = false;
-      var list = parent.list;
-
-      // filter list first
-      var newlist = [];
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (node.type == "header" && node.list.length == 0) {
-                  removed = true;
-                  continue;
-            } else if (node.type == "parent" && node.list.length == 0) {
-                  removed = true;
-                  continue;
-            } else if (node.type == "mask" && node.list.length == 0) {
-                  removed = true;
-                  continue;
-            }
-            newlist.push(node);
-      }
-      parent.list = newlist;
-      list = newlist;
-
-      // cleanup child nodes
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (node.type == "header") {
-                  if (flowchartGraphCleanup(node)) {
-                        removed = true;
-                  }
-            } else if (node.type == "parent") {
-                  if (flowchartGraphCleanupChilds(node)) {
-                        removed = true;
-                  }
-            } else if (node.type == "mask") {
-                  if (flowchartGraphCleanup(node)) {
-                        removed = true;
-                  }
-            }
-      }
-      return removed;
-}
-
-// Iterate size of the flowchart childs graph
 function flowchartGraphIterateChilds(parent, font, level)
 {
       parent.color = flowchart_colors[level % flowchart_colors.length];
@@ -679,11 +601,10 @@ function flowchartGraph(rootnode)
             return;
       }
 
-      // Iterate cleanup to remove empty nodes
-      for (var i = 0; i < 10; i++) {
-            if (!flowchartGraphCleanup(rootnode)) {
-                  break;
-            }
+      engine.flowchartPrint(rootnode);
+
+      if (!global.use_preview) {
+            return;
       }
 
       var fontsize = 8;
@@ -695,8 +616,10 @@ function flowchartGraph(rootnode)
       var width = size[0] + margin;
       var height = size[1] + margin;
 
+      console.writeln("flowchartGraph:width " + width + " height " + height);
+
       // console.writeln("flowchartGraph:draw bitmap");
-      var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);
+      var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
 
       var graphics = new Graphics(bitmap);
       graphics.font = font;
@@ -7982,8 +7905,9 @@ function AutoIntegrateDialog()
       };
 
       var flowchartToolTip = "<p>Flowchart information is always generated during the procesing. It is saved to the " + 
-                             "AutosaveSetup file so it can be loaded later.</p>" +
-                             "´<p>Flowchart is printed to the preview window.</p>";
+                             "setup file and AutosaveSetup file so it can be loaded later.</p>" +
+                             "´<p>A graphical version of the flowchart is printed to the preview window and " + 
+                             "a text version is printed to the process console and AutoIntegrate log file.</p>";
 
       // New Flowchart button
       this.newFlowchartButton = new PushButton( this );

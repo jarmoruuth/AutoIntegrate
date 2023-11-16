@@ -429,6 +429,87 @@ function flowchartChildEnd(txt)
       }
 }
 
+// Remove empty nodes
+function flowchartCleanupChilds(parent)
+{
+      var removed = false;
+      var list = parent.list;
+      var newlist = [];
+
+      // filter list first
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            // console.writeln("flowchartCleanupChilds: " + node.txt);
+            if (node.type != "child") {
+                  throw new Error("flowchartCleanupChilds: node.type != child, " + node.txt);
+            }
+            if (node.list.length == 0) {
+                  if (node.type == "process") {
+                        throw new Error("flowchartCleanupChilds: node.type == process, " + node.txt);
+                  }
+                  removed = true;
+                  continue;
+            }
+            newlist.push(node);
+      }
+      parent.list = newlist;
+      list = newlist;
+      
+      // cleanup child nodes
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (flowchartCleanup(node)) {
+                  removed = true;
+            }
+      }
+      return removed;
+}
+
+// Remove empty nodes
+function flowchartCleanup(parent)
+{
+      var removed = false;
+      var list = parent.list;
+
+      // filter list first
+      var newlist = [];
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type == "header" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            } else if (node.type == "parent" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            } else if (node.type == "mask" && node.list.length == 0) {
+                  removed = true;
+                  continue;
+            }
+            newlist.push(node);
+      }
+      parent.list = newlist;
+      list = newlist;
+
+      // cleanup child nodes
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            if (node.type == "header") {
+                  if (flowchartCleanup(node)) {
+                        removed = true;
+                  }
+            } else if (node.type == "parent") {
+                  if (flowchartCleanupChilds(node)) {
+                        removed = true;
+                  }
+            } else if (node.type == "mask") {
+                  if (flowchartCleanup(node)) {
+                        removed = true;
+                  }
+            }
+      }
+      return removed;
+}
+
 function flowchartPrintList(list, indent)
 {
       for (var i = 0; i < list.length; i++) {
@@ -451,6 +532,16 @@ function flowchartPrintList(list, indent)
       }
 }
 
+this.flowchartPrint = function(rootnode)
+{
+      if (rootnode == null) {
+            console.writeln("No flowchart");
+            return;
+      }
+      console.noteln("Flowchart:");      
+      flowchartPrintList(rootnode.list, "  ");
+}
+
 function flowchartInit(txt)
 {
       flowchartCurrent = flowchartNewNode("header", txt);
@@ -465,7 +556,15 @@ function flowchartDone()
       }
       flowchart_active = false;
       global.flowchartData = flowchartCurrent;
-      flowchartPrintList(global.flowchartData.list, "  ");
+
+      // Iterate cleanup to remove empty nodes
+      for (var i = 0; i < 10; i++) {
+            if (!flowchartCleanup(global.flowchartData)) {
+                  break;
+            }
+      }
+      
+      engine.flowchartPrint(global.flowchartData);
 }
 
 // Find focal length using telescope name saved into variable current_telescope_name
@@ -13358,7 +13457,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
 
        console.writeln("--------------------------------------");
        // Print global.flowchart list
-       console.noteln("Flowchart:");
        flowchartDone();
  
        if (preprocessed_images != global.start_images.FINAL

@@ -224,6 +224,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                         path = util.ensurePathEndSlash(path);
                   }
                   saveFileDialog.initialPath = path + "preview" + ".tif";
+                  saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
                   if (!saveFileDialog.execute()) {
                         console.noteln("Preview image not saved");
                         this.parent.save_Button.enabled = true;
