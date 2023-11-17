@@ -445,10 +445,15 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored filesInTab '" + tempSetting + "' from settings.");
             ppar.files_in_tab = tempSetting;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/startupImage ", DataType_Boolean);
+      var tempSetting = Settings.read(SETTINGSKEY + "/showStartupImage ", DataType_Boolean);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored startupImage '" + tempSetting + "' from settings.");
-            ppar.startup_image = tempSetting;
+            console.writeln("AutoIntegrate: Restored showStartupImage '" + tempSetting + "' from settings.");
+            ppar.show_startup_image = tempSetting;
+      }
+      var tempSetting = Settings.read(SETTINGSKEY + "/startupImageName", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored startupImageName '" + tempSetting + "' from settings.");
+            ppar.startup_image_name = tempSetting;
       }
 }
 

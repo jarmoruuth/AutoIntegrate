@@ -47,7 +47,8 @@ this.autointegrate_info = "Process flow chart";             // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Print a Flowchart from the current workflow"
+      "- Print a Flowchart from the current workflow",
+      "- User settable startup image"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -431,6 +432,8 @@ this.par = {
       use_manual_icon_column: { val: false, def: false, name: "manualIconColumn", type: 'B' }                  // Allow manual control of icon column
 };
 
+this.default_startup_image_name = "startup.jpg";
+
 /*
       Parameters that are persistent and are saved to only Settings and
       restored only from Settings at the start.
@@ -459,8 +462,9 @@ this.ppar = {
       },
       use_single_column: false, // show all options in a single column
       use_more_tabs: true,      // use more tabs for parameters and settings
-      files_in_tab: true,       // show files in a tab
-      startup_image: false      // show startup image
+      files_in_tab: true,         // show files in a tab
+      show_startup_image: true,   // show startup image
+      startup_image_name: this.default_startup_image_name
 };
 
 // Run results for testing

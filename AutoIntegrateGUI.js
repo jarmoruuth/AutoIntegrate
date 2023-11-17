@@ -360,18 +360,22 @@ var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with 
 
 
 // Settings for flowchart graph
-var flowchart_text_margin = 3;                                                // Margin between box and text
-var flowchart_box_margin = 2;                                                 // Margin outside of the box
+var flowchart_text_margin = 4;                                                // Margin between box and text
+var flowchart_box_margin = 4;                                                 // Margin outside of the box
 var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
-//                       blue        green       red         magenta     cyan             yellow      black
-var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];    
+//                          blue        green       red         magenta     cyan             yellow      black
+// var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];   // For text 
+// var flowchart_colors =    [ 0xffadd8e6, 0xff90EE90, 0xffFFA07A, 0xffff00ff, 0xffE0FFFF, 0xffFFFFE0, 0xff000000 ];      // For background
+//var flowchart_colors =    [ 0xffcceeff, 0xffccfff5, 0xffffd6cc, 0xffffe6f0, 0xffd6f5f5, 0xffffffe6, 0xff000000 ];      // For background
+var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
+
 
 // Iterate size of the flowchart childs graph
 function flowchartGraphIterateChilds(parent, font, level)
 {
-      parent.color = flowchart_colors[level % flowchart_colors.length];
+      parent.level = level;
       var list = parent.list;
       var width = 0;
       var height = 0;
@@ -395,7 +399,7 @@ function flowchartGraphIterateChilds(parent, font, level)
       }
       for (var i = 0; i < list.length; i++) {
             if (list[i].type == "process" || list[i].type == "mask") {
-                  list[i].color = parent.color;
+                  list[i].level = parent.level;
             }
             list[i].boxwidth = node_boxwidth;
       }
@@ -405,7 +409,7 @@ function flowchartGraphIterateChilds(parent, font, level)
 // Iterate size of the flowchart graph
 function flowchartGraphIterate(parent, font, level)
 {
-      parent.color = flowchart_colors[level % flowchart_colors.length];
+      parent.level = level;
       var list = parent.list;
       var width = 0;
       var height = 0;
@@ -447,14 +451,14 @@ function flowchartGraphIterate(parent, font, level)
       }
       for (var i = 0; i < list.length; i++) {
             if (list[i].type == "process" || list[i].type == "mask") {
-                  list[i].color = parent.color;
+                  list[i].level = parent.level;
             }
             list[i].boxwidth = node_boxwidth;
       }
       return [ width, height ];
 }
 
-function flowchartDrawText(graphics, x, y, node)
+function flowchartDrawText2(graphics, x, y, node)
 {
       if (!node.boxwidth) {
             throw new Error("flowchartDrawText: boxwidth == null");
@@ -473,7 +477,7 @@ function flowchartDrawText(graphics, x, y, node)
 
       var drawbox = (node.type == "process" || node.type == "mask");
 
-      graphics.pen = new Pen(node.color, 1);
+      graphics.pen = new Pen(flowchart_colors[node.level % flowchart_colors.length], 1);
 
       graphics.drawText(middle_x - txtwidth / 2, middle_y + flowchart_box_margin + flowchart_text_margin, node.txt);
       
@@ -485,6 +489,22 @@ function flowchartDrawText(graphics, x, y, node)
       }
 }
 
+function flowchartDrawText(graphics, x, y, node)
+{
+      if (!node.boxwidth) {
+            throw new Error("flowchartDrawText: boxwidth == null");
+      }
+
+      var width = node.boxwidth - 2 * flowchart_box_margin;
+      var height = graphics.font.height + 2 * flowchart_text_margin;
+
+      graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
+      if (node.type == "process" || node.type == "mask") {
+            graphics.drawRect(x, y, x + width, y + height);
+      }
+      graphics.drawTextRect(x + flowchart_box_margin, y, x + width + flowchart_box_margin, y + height, node.txt, TextAlign_Center | TextAlign_VertCenter);
+}
+
 // draw vertical lines for each child position
 // lines are always drawn to down direction
 // position is the top left corner of the graph
@@ -492,7 +512,6 @@ function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
 {
       var list = parent.list;
       var p = pos;
-      graphics.pen = new Pen(parent.color, 1);
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             // console.writeln("flowchartGraphDrawChildsConnectLines: " + node.txt + " " + p.x + " " + p.y);
@@ -507,14 +526,12 @@ function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
 {
       var p = pos;
 
-
       p.y += flowchart_line_margin / 2;
 
       var childlen1 = parent.list[0].width;
       var childlen2 = parent.list[parent.list.length - 1].width;
 
       // draw horizontal line connecting child nodes
-      graphics.pen = new Pen(parent.color, 1);
       graphics.drawLine(p.x + childlen1 / 2, p.y, p.x + parent.width - childlen2 / 2, p.y);
 
       if (loc == "top") {
@@ -616,9 +633,8 @@ function flowchartGraph(rootnode)
       var width = size[0] + margin;
       var height = size[1] + margin;
 
-      console.writeln("flowchartGraph:width " + width + " height " + height);
+      //console.writeln("flowchartGraph:width " + width + " height " + height);
 
-      // console.writeln("flowchartGraph:draw bitmap");
       var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
 
       var graphics = new Graphics(bitmap);
@@ -1976,7 +1992,8 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/useSingleColumn", DataType_Boolean, ppar.use_single_column);
             Settings.write (SETTINGSKEY + "/useMoreTabs", DataType_Boolean, ppar.use_more_tabs);
             Settings.write (SETTINGSKEY + "/filesInTab", DataType_Boolean, ppar.files_in_tab);
-            Settings.write (SETTINGSKEY + "/startupImage", DataType_Boolean, ppar.startup_image);
+            Settings.write (SETTINGSKEY + "/showStartupImage", DataType_Boolean, ppar.show_startup_image);
+            Settings.write (SETTINGSKEY + "/startupImageName", DataType_String, ppar.startup_image_name);
             Settings.write (SETTINGSKEY + "/savedVersion", DataType_String, global.autointegrate_version);
       }
       if (!from_exit) {
@@ -2498,6 +2515,16 @@ function newTextEdit(parent, param, tooltip)
       edt.aiParam.reset = function() {
             edt.text = edt.aiParam.val;
       };
+      return edt;
+}
+
+function newGenericTextEdit(parent, param, val, tooltip, onTextUpdated)
+{
+      var edt = new Edit( parent );
+      edt.aiParam = param;
+      edt.onTextUpdated = onTextUpdated;
+      edt.text = val;
+      edt.toolTip = util.formatToolTip(tooltip);
       return edt;
 }
 
@@ -3123,16 +3150,22 @@ function createEmptyBitmap(width, height, fill_color)
 
 function updatePreviewNoImageInControl(control)
 {
-      let startup_image = ppar.startup_image;
+      let show_startup_image = ppar.show_startup_image;
 
-      if (startup_image) {
+      if (show_startup_image) {
+            if (ppar.startup_image_name == global.default_startup_image_name) {
+                  var startup_image_name = File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/" + ppar.startup_image_name;
+            } else {
+                  var startup_image_name = ppar.startup_image_name;
+            }
             try {
-                  var bitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/startup.jpg" );
+                  var bitmap = new Bitmap( startup_image_name );
             } catch (e) {
                   var bitmap = null;
             }
             if (!bitmap) {
-                  startup_image = false;
+                  console.noteln("Could not load startup image " + startup_image_name);
+                  show_startup_image = false;
             } else {
                   // scale the bitmap
                   let scale = 1;
@@ -3142,7 +3175,7 @@ function updatePreviewNoImageInControl(control)
                   bitmap = bitmap.scaledTo(bitmap.width * scale, bitmap.height * scale);
             }
       }
-      if (!startup_image) {
+      if (!show_startup_image) {
             let width;
             let height;
             if (ppar.preview.side_preview_visible) {
@@ -3165,14 +3198,13 @@ function updatePreviewNoImageInControl(control)
             for (var i = 0; i < global.autointegrate_version_info.length; i++) {
                   startup_text.push(global.autointegrate_version_info[i]);
             }
-      } else if (startup_image) {
+      } else if (show_startup_image) {
             // Do now show text with a startup image
             startup_text = null;
       }
 
       for (var fontsize = 24; fontsize > 0; fontsize -= 4) {   
             var graphics = new Graphics(bitmap);
-            console.writeln("updatePreviewNoImageInControl, fontsize " + fontsize);
             graphics.font = new Font( FontFamily_SansSerif, fontsize );
             graphics.transparentBackground = true;
 
@@ -3203,8 +3235,7 @@ function updatePreviewNoImageInControl(control)
             }
 
             if (startpos_x > 2 * lineheight && startpos_y > 2 * lineheight) {
-                  if (startup_image) {
-                        console.writeln("updatePreviewNoImageInControl, drawRect");
+                  if (show_startup_image) {
                         var textMargin = lineheight;
                         graphics.brush = new Brush( 0xffC0C0C0 );
                         // graphics.brush = new Brush( 0xff808080 );
@@ -3212,7 +3243,6 @@ function updatePreviewNoImageInControl(control)
                                           bitmap.width / 2 + txtWidth / 2 + textMargin, bitmap.height / 2 + txtHeight / 2 + textMargin);
                   }
                   if (startup_text != null) {
-                        console.writeln("updatePreviewNoImageInControl, drawText");
                         for (var i = 0; i < linecount; i++) {
                               graphics.drawText(startpos_x, startpos_y + i * lineheight, startup_text[i]);
                         }
@@ -3222,7 +3252,6 @@ function updatePreviewNoImageInControl(control)
 
             } else {
                   // Try with a smaller font size
-                  console.writeln("updatePreviewNoImageInControl, try with a smaller font size");
                   graphics.end();
             }
       }
@@ -8092,9 +8121,14 @@ function AutoIntegrateDialog()
       this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
             "<p>File listing is in a separate tab instead of on top of the window.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.files_in_tab = checked; });
-      this.startup_image_CheckBox = newGenericCheckBox(this, "Startup image", ppar, ppar.startup_image, 
+
+      this.show_startup_image_CheckBox = newGenericCheckBox(this, "Startup image", ppar, ppar.show_startup_image, 
             "<p>Show startup image in preview window.</p>",
-            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.startup_image = checked; });
+            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.show_startup_image = checked; });
+      this.startup_image_name_Edit = newGenericTextEdit(this, ppar, ppar.startup_image_name, 
+            "<p>Startup image name.</p>" +
+            "<p>You can set your own startup image here.</p>",
+            function(value) { ppar.startup_image_name = value; });
 
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
@@ -8105,8 +8139,14 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.files_in_tab_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
-      this.preview1Sizer.add( this.startup_image_CheckBox );
       this.preview1Sizer.addStretch();
+
+      this.preview11Sizer = new HorizontalSizer;
+      this.preview11Sizer.margin = 6;
+      this.preview11Sizer.spacing = 4;
+      this.preview11Sizer.add( this.show_startup_image_CheckBox );
+      this.preview11Sizer.add( this.startup_image_name_Edit );
+      this.preview11Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
       this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
@@ -8241,6 +8281,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.spacing = 4;
       this.interfaceControl.sizer.add( this.preview0Sizer );
       this.interfaceControl.sizer.add( this.preview1Sizer );
+      this.interfaceControl.sizer.add( this.preview11Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.preview3Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );

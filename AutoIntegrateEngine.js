@@ -348,7 +348,7 @@ function flowchartNewImage(imgWIn, targetImageName)
 
 function flowchartNewNode(type, txt)
 {
-      return { type: type, txt: txt, list: [], width: 0, height: 0, color: 0xff8B0000  }; // dark red
+      return { type: type, txt: txt, list: []  };
 }
 
 function flowchartOperation(txt)
@@ -3164,7 +3164,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
 
       // Check if we have user selected reference image for the channel.
       var refImage = null;
-      for (var i = 0; i < global.user_selected_reference_image.length; i++) {
+      for (var i = 0; i < global.user_selected_reference_image.length && !global.flowchart; i++) {
             if (global.user_selected_reference_image[i][1] == filter) {
                   refImage = global.user_selected_reference_image[i][0];
                   console.writeln("User selected reference image " + refImage);
@@ -3211,7 +3211,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             }
             files.exptime += filearr[i].exptime;
       }
-      if (automatic_reference_image != null && gui) {
+      if (automatic_reference_image != null && gui && !global.flowchart) {
             gui.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
       }
 }
