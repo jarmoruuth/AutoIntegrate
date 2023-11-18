@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Process flow chart";             // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Use GraXpert instead of ABE for background extraction",
       "- Print a Flowchart from the current workflow",
       "- User settable startup image"
 ];
@@ -100,6 +101,7 @@ this.par = {
       ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
       use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
       use_ABE_on_L_RGB_stretched: { val: false, def: false, name : "Use ABE on L, RGB stretched", type : 'B' },
+      use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
@@ -231,6 +233,9 @@ this.par = {
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
+      graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
+      graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },
+      graxpert_smoothing: { val: 0.5, def: 0.5, name : "GraXpert smoothing", type : 'R' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },

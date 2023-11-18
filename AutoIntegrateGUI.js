@@ -315,6 +315,7 @@ var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
+var graxpert_correction_values = [ 'Subtraction', 'Division' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
@@ -365,10 +366,7 @@ var flowchart_box_margin = 4;                                                 //
 var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
-//                          blue        green       red         magenta     cyan             yellow      black
-// var flowchart_colors = [ 0xff0000ff, 0xff003300, 0xffff0000, 0xffff00ff, 0xff008B8B, 0xffF0E68C, 0xff000000 ];   // For text 
-// var flowchart_colors =    [ 0xffadd8e6, 0xff90EE90, 0xffFFA07A, 0xffff00ff, 0xffE0FFFF, 0xffFFFFE0, 0xff000000 ];      // For background
-//var flowchart_colors =    [ 0xffcceeff, 0xffccfff5, 0xffffd6cc, 0xffffe6f0, 0xffd6f5f5, 0xffffffe6, 0xff000000 ];      // For background
+//                          blue        green       red         magenta     cyan        yellow      black
 var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
 var flowchart_debug = false;
 
@@ -699,6 +697,36 @@ function flowchartGraph(rootnode)
       if (flowchart_debug) {
             console.writeln("flowchartGraph:end");
       }
+}
+
+function newVerticalSizer(margin, addStretch, items)
+{
+      var sizer = new VerticalSizer;
+      sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
+      sizer.margin = margin;
+      sizer.spacing = 4;
+      for (var i = 0; i < items.length; i++) {
+            sizer.add(items[i]);
+      }
+      if (addStretch) {
+            sizer.addStretch();
+      }
+      return sizer;
+}
+
+function newHorizontalSizer(margin, addStretch, items)
+{
+      var sizer = new HorizontalSizer;
+      sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
+      sizer.margin = margin;
+      sizer.spacing = 4;
+      for (var i = 0; i < items.length; i++) {
+            sizer.add(items[i]);
+      }
+      if (addStretch) {
+            sizer.addStretch();
+      }
+      return sizer;
 }
 
 function getNarrowbandColorizedSizer(parent)
@@ -2576,6 +2604,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
+      edt.label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       edt.real = true;
       edt.edit.setFixedWidth( 6 * parent.font.width( "0" ) );
       edt.aiParam = param;
@@ -2589,6 +2618,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
       };
+      edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       return edt;
 }
 
@@ -6244,6 +6274,12 @@ function AutoIntegrateDialog()
             "But it is always good to experiment what " +
             "is best for your own data.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>");
+      this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
+            "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) for gradient removal.</p>" +
+            "<p><b>NOTE</b>A path to GraXpert file must be set in the GraXpert section before iy can be used.</p>" +
+            "<p>GraXpert always uses the AI background model. In the GraXpert section " +
+            "it is possible to set correction and smoothing values.</p>");
+
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -6329,6 +6365,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet1.margin = 6;
       this.imageToolsSet1.spacing = 4;
       this.imageToolsSet1.add( this.batch_mode_CheckBox );
+      this.imageToolsSet1.add( this.use_graxpert_CheckBox );
       this.imageToolsSet1.add( this.use_starxterminator_CheckBox );
       this.imageToolsSet1.add( this.use_starnet2_CheckBox );
       
@@ -6479,19 +6516,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationGroupBoxLabel.toolTip = 
             "<p>LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.</p>";
-      this.LRGBCombinationGroupBoxSizer = new HorizontalSizer;
-      this.LRGBCombinationGroupBoxSizer.margin = 6;
-      this.LRGBCombinationGroupBoxSizer.spacing = 4;
-      this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationLightnessControl );
-      this.LRGBCombinationGroupBoxSizer.add( this.LRGBCombinationSaturationControl );
-      this.LRGBCombinationGroupBoxSizer.addStretch();
-
-      this.LRGBCombinationSizer = new VerticalSizer;
-      this.LRGBCombinationSizer.margin = 6;
-      this.LRGBCombinationSizer.spacing = 4;
-      this.LRGBCombinationSizer.add( this.LRGBCombinationGroupBoxLabel );
-      this.LRGBCombinationSizer.add( this.LRGBCombinationGroupBoxSizer );
-      this.LRGBCombinationSizer.addStretch();
+      this.LRGBCombinationSizer = newVerticalSizer(6, true, [this.LRGBCombinationGroupBoxLabel, this.LRGBCombinationLightnessControl, this.LRGBCombinationSaturationControl] );
 
       // StarAlignment selection
       var starAlignmentValuesToolTip = "<p>If star aligment fails you can try change values. Here is one suggestion of values that might help:<br>" +
@@ -7096,83 +7121,65 @@ function AutoIntegrateDialog()
       );
 
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
-      this.linearFitGroupBoxSizer = new HorizontalSizer;
-      this.linearFitGroupBoxSizer.margin = 6;
-      this.linearFitGroupBoxSizer.spacing = 4;
-      this.linearFitGroupBoxSizer.add( this.linearFitComboBox );
-      this.linearFitGroupBoxSizer.addStretch();
+      this.linearFitSizer = newVerticalSizer(6, true, [this.linearFitGroupBoxLabel, this.linearFitComboBox]);
 
-      this.linearFitSizer = new VerticalSizer;
-      this.linearFitSizer.margin = 6;
-      this.linearFitSizer.spacing = 4;
-      this.linearFitSizer.add( this.linearFitGroupBoxLabel );
-      this.linearFitSizer.add( this.linearFitGroupBoxSizer );
-      this.linearFitSizer.addStretch();
-
-      this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.");
+      this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
       this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
-      this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.");
+      this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.", true);
       this.ABECorrectionComboBox = newComboBox(this, par.ABE_correction, ABE_correction_values, this.ABECorrectionLabel.toolTip);
 
-      this.ABEDegreeSizer = new HorizontalSizer;
-      // this.ABEDegreeSizer.margin = 6;
-      this.ABEDegreeSizer.spacing = 4;
-      this.ABEDegreeSizer.add( this.ABEDegreeLabel );
-      this.ABEDegreeSizer.add( this.ABEDegreeSpinBox );
-      this.ABEDegreeSizer.add( this.ABECorrectionLabel );
-      this.ABEDegreeSizer.add( this.ABECorrectionComboBox );
-      this.ABEDegreeSizer.addStretch();
+      this.ABEDegreeSizer = newHorizontalSizer(0, true, [this.ABEDegreeLabel, this.ABEDegreeSpinBox]);
+      this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
 
       this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-      this.ABEGroupBoxSizer = new VerticalSizer;
-      this.ABEGroupBoxSizer.margin = 6;
-      this.ABEGroupBoxSizer.spacing = 4;
-      this.ABEGroupBoxSizer.add( this.ABEGroupBoxLabel );
-      this.ABEGroupBoxSizer.add( this.ABEDegreeSizer );
-      this.ABEGroupBoxSizer.addStretch();
+      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEDegreeSizer, this.ABECorrectionSizer]);
+
+      this.graxpertPathLabel = newLabel(this, "Path", 
+            "<p>Path to GraXpert executable.</p>" +
+            "<p><b>NOTE!</b> Remember to use the tools button on lower left corner to save the path to " + 
+            "the persistent module settings. Then the value is automatically restored when the script starts.</p>");
+      this.graxpertPathEdit = newTextEdit(this, par.graxpert_path, this.graxpertPathLabel.toolTip);
+      this.graxpertPathButton = new ToolButton( this );
+      this.graxpertPathButton.icon = this.scaledResource(":/icons/select-file.png");
+      this.graxpertPathButton.toolTip = this.graxpertPathLabel.toolTip;
+      this.graxpertPathButton.setScaledFixedSize( 20, 20 );
+      this.graxpertPathButton.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  return;
+            }
+            this.dialog.graxpertPathEdit.text = ofd.fileName;
+            par.graxpert_path.val = ofd.fileName;
+      };
+
+      this.graxpertPathSizer = newHorizontalSizer(0, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
+      
+      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXperr.");
+      this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXperr.", true);
+      this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
+
+      this.graxpertCorrectionSizer = newHorizontalSizer(0, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox]);
+
+      this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
+      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertPathSizer, this.graxpertSmoothingEdit, this.graxpertCorrectionSizer]);
 
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.cropUseRejectionLowCheckBox = newCheckBox(this, "Use rejection low", par.crop_use_rejection_low, "Use rejection_low from ImageIntegration instead of integrated data to calculate crop amount.");
       this.cropRejectionLowLimitControl = newNumericEdit(this, "Limit", par.crop_rejection_low_limit, 0, 1, 
-      "<p>Limit value for detecting crop edge. Values below  limit are consired to be inside the cropped area.</p>" +
-      "<p>This value is used only if rejection low is selected.</p>");
+            "<p>Limit value for detecting crop edge. Values below  limit are consired to be inside the cropped area.</p>" +
+            "<p>This value is used only if rejection low is selected.</p>");
 
-      this.CropToleranceSizer = new HorizontalSizer;
-      // this.CropToleranceSizer.margin = 6;
-      this.CropToleranceSizer.spacing = 4;
-      this.CropToleranceSizer.add( this.cropUseRejectionLowCheckBox );
-      this.CropToleranceSizer.addSpacing( 12 );
-      this.CropToleranceSizer.add( this.CropToleranceLabel );
-      this.CropToleranceSizer.add( this.CropToleranceSpinBox );
-      this.CropToleranceSizer.add( this.cropRejectionLowLimitControl );
-      this.CropToleranceSizer.addStretch();
+      this.CropToleranceSizer = newHorizontalSizer(0, true, [this.CropToleranceLabel, this.CropToleranceSpinBox]);
 
       this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
-      this.CropSizer = new VerticalSizer;
-      this.CropSizer.margin = 6;
-      this.CropSizer.spacing = 4;
-      this.CropSizer.add( this.CropToleranceGroupBoxLabel );
-      this.CropSizer.add( this.CropToleranceSizer );
-      this.CropSizer.addStretch();
+      this.CropSizer = newVerticalSizer(6, true, [this.CropToleranceGroupBoxLabel, this.cropUseRejectionLowCheckBox, this.CropToleranceSizer, this.cropRejectionLowLimitControl]);
 
-      this.linearFitAndLRGBCombinationSizer1 = new VerticalSizer;
-      this.linearFitAndLRGBCombinationSizer1.spacing = 4;
-      this.linearFitAndLRGBCombinationSizer1.add( this.linearFitSizer );
-      this.linearFitAndLRGBCombinationSizer1.add( this.LRGBCombinationSizer );
-      this.linearFitAndLRGBCombinationSizer1.addStretch();
+      this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 
-      this.linearFitAndLRGBCombinationSizer2 = new VerticalSizer;
-      this.linearFitAndLRGBCombinationSizer2.spacing = 4;
-      this.linearFitAndLRGBCombinationSizer2.add( this.ABEGroupBoxSizer );
-      this.linearFitAndLRGBCombinationSizer2.add( this.CropSizer );
-      this.linearFitAndLRGBCombinationSizer2.addStretch();
-
-      this.linearFitAndLRGBCombinationSizer = new HorizontalSizer;
-      this.linearFitAndLRGBCombinationSizer.spacing = 4;
-      this.linearFitAndLRGBCombinationSizer.add( this.linearFitAndLRGBCombinationSizer1 );
-      this.linearFitAndLRGBCombinationSizer.add( this.linearFitAndLRGBCombinationSizer2 );
-      this.linearFitAndLRGBCombinationSizer.addStretch();
+      this.ABEGraXpertSizer = newHorizontalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer]);
 
       //
       // Stretching
@@ -8171,9 +8178,24 @@ function AutoIntegrateDialog()
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.show_startup_image = checked; });
       this.startup_image_name_Edit = newGenericTextEdit(this, ppar, ppar.startup_image_name, 
             "<p>Startup image name.</p>" +
-            "<p>You can set your own startup image here.</p>",
+            "<p>You can set your own startup image here.</p>" + 
+            "<p><b>NOTE!</b> Remember to use the Save button to save the name to persistent module settings.</p>",
             function(value) { ppar.startup_image_name = value; });
-
+      this.startup_image_name_Button = new ToolButton( this );
+      this.startup_image_name_Button.icon = this.scaledResource(":/icons/select-file.png");
+      this.startup_image_name_Button.toolTip = this.startup_image_name_Edit.toolTip;
+      this.startup_image_name_Button.setScaledFixedSize( 20, 20 );
+      this.startup_image_name_Button.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  return;
+            }
+            this.dialog.startup_image_name_Edit.text = ofd.fileName;
+            ppar.startup_image_name = ofd.fileName;
+      };
+      
       this.preview1Sizer = new HorizontalSizer;
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
@@ -8190,6 +8212,7 @@ function AutoIntegrateDialog()
       this.preview11Sizer.spacing = 4;
       this.preview11Sizer.add( this.show_startup_image_CheckBox );
       this.preview11Sizer.add( this.startup_image_name_Edit );
+      this.preview11Sizer.add( this.startup_image_name_Button );
       this.preview11Sizer.addStretch();
 
       this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
@@ -8460,8 +8483,10 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
             [ this.StretchingGroupBoxLabel,
               this.StretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, ABE and Crop settings", "ps_linearfit_combination",
-            [ this.linearFitAndLRGBCombinationSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
+            [ this.linearFitAndLRGBCombinationCropSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "ABE and GraXpert settings", "ps_ave_graxpert",
+            [ this.ABEGraXpertSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,

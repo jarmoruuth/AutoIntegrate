@@ -2297,8 +2297,11 @@ function runABEOnLights(fileNames)
       var outputExtension = ".xisf";
 
       util.addProcessingStepAndStatusInfo("Run ABE on on light files");
-      flowchartOperation("AutomaticBackgroundExtractor");
-
+      if (par.use_graxpert.val) {
+            flowchartOperation("GraXpert");
+      } else {
+            flowchartOperation("AutomaticBackgroundExtractor");
+      }
       if (global.flowchart) {
             return fileNames;
       }
@@ -2318,7 +2321,11 @@ function runABEOnLights(fileNames)
             }
             
             // Run ABE which creates a new window with _ABE extension
-            var new_id = runABEex(imageWindow, false, postfix);
+            if (par.use_graxpert.val) {
+                  var new_id = runGraXpert(imageWindow, false, postfix);
+            } else {
+                  var new_id = runABEex(imageWindow, false, postfix);
+            }
             var new_win = util.findWindow(new_id);
             if (new_win == null) {
                   util.throwFatalError("*** runABEOnLights Error: could not find window: " + new_id);
@@ -5801,6 +5808,75 @@ function noABEcopyWin(win)
       return noABE_id;
 }
 
+// Run GraXpert as an external process
+function runGraXpert(win, replaceTarget, postfix)
+{
+      if (replaceTarget) {
+            util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
+            var ABE_id = win.mainView.id;
+      } else {
+            var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
+            util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + ABE_id);
+      }
+      console.writeln("GraXpert using correction" + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
+
+      if (par.graxpert_path.val == "") {
+            util.throwFatalError("GraXpert path is empty");
+      }
+      if (!File.exists(par.graxpert_path.val)) {
+            util.throwFatalError("GraXpert path does not exist: " + par.graxpert_path.val);
+      }
+
+      fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
+      console.writeln("GraXpert input file " + fname);
+      if (!win.saveAs(fname, false, false, false, false)) {
+            util.throwFatalError("Failed to save image for GraXpert: " + fname);
+      }
+
+      var command = par.graxpert_path.val + " " + fname + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+
+      console.writeln("GraXpert command " + command);
+
+      if (0) {
+            var P = new ExternalProcess(command);
+            P.waitForFinished();    // this does not wait correctly for some reason
+            if (P.exitCode != 0) {
+                  util.throwFatalError("GraXpert failed with exit code " + P.exitCode);
+            }
+      } else {
+            var P = new ExternalProcess();
+            P.start(command);
+            while (P.isStarting) {
+                  processEvents();
+            }
+            while (P.isRunning) {
+                  processEvents();
+            }
+      }
+      var graxpert_fname = fname.replace(".xisf", "_GraXpert.fits");
+      console.writeln("GraXpert output file " + graxpert_fname);
+
+      var imgWin = engine.openImageWindowFromFile(graxpert_fname);
+      imgWin.show();
+      console.writeln("GraXpert output window " + imgWin.mainView.id);
+      imgWin.copyAstrometricSolution(win);
+
+      if (replaceTarget) {
+            console.writeln("GraXpert replace target " + ABE_id);
+            util.closeOneWindow(win.mainView.id);
+            var copyWin = util.copyWindowEx(imgWin, ABE_id, true);
+      } else {
+            console.writeln("GraXpert create target " + ABE_id);
+            var copyWin = util.copyWindowEx(imgWin, ABE_id, true);
+      }
+      util.closeOneWindow(imgWin.mainView.id);
+      copyWin.show();
+
+      console.writeln("GraXpert output window " + copyWin.mainView.id);
+
+      return ABE_id;
+}
+
 function runABEex(win, replaceTarget, postfix)
 {
       if (replaceTarget) {
@@ -5810,7 +5886,7 @@ function runABEex(win, replaceTarget, postfix)
             var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
             util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + ABE_id);
       }
-      console.writeln("ABE using function degree " + par.ABE_degree.val + ' and correction' + par.ABE_correction.val);
+      console.writeln("ABE using function degree " + par.ABE_degree.val + ' and correction ' + par.ABE_correction.val);
 
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = ABE_id;
@@ -5854,8 +5930,13 @@ function runABEex(win, replaceTarget, postfix)
 
 function runABE(win, replaceTarget)
 {
-      flowchartOperation("AutomaticBackgroundExtractor");
-      return runABEex(win, replaceTarget, "_ABE");
+      if (par.use_graxpert.val) {
+            flowchartOperation("GraXpert");
+            return runGraXpert(win, replaceTarget, "_ABE");
+      } else {
+            flowchartOperation("AutomaticBackgroundExtractor");
+            return runABEex(win, replaceTarget, "_ABE");
+      }
 }
 
 // Run ABE and rename windows so that the final result has the same id
@@ -5864,9 +5945,14 @@ function runABEBeforeChannelCombination(id)
       if (id == null) {
             util.throwFatalError("No image for ABE, maybe some previous step like star alignment failed");
       }
-      flowchartOperation("AutomaticBackgroundExtractor");
       var id_win = ImageWindow.windowById(id);
-      runABEex(id_win, true, "");
+      if (par.use_graxpert.val) {
+            flowchartOperation("GraXpert");
+            runGraXpert(id_win, true, "");
+      } else {
+            flowchartOperation("AutomaticBackgroundExtractor");
+            runABEex(id_win, true, "");
+      }
       return id;
 }
 
@@ -10634,8 +10720,9 @@ function extraBandingReduction(extraWin)
 function extraABE(extraWin)
 {
       addExtraProcessingStep("ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
-      runABE(extraWin, true);
+      var id = runABE(extraWin, true);
       // guiUpdatePreviewWin(extraWin);
+      return id;
 }
 
 function extraSHOHueShift(imgWin)
@@ -11655,7 +11742,8 @@ function extraProcessing(parent, id, apply_directly)
             extraOptionCompleted(par.extra_banding_reduction);
       }
       if (par.extra_ABE.val) {
-            extraABE(extraWin);
+            let abe_id = extraABE(extraWin);
+            extraWin = ImageWindow.windowById(abe_id);
             extraOptionCompleted(par.extra_ABE);
       }
       if (need_L_mask) {

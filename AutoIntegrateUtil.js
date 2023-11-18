@@ -1063,9 +1063,11 @@ this.setParameterDefaults = function()
       console.writeln("Set parameter defaults");
       for (let x in par) {
             var param = par[x];
-            param.val = param.def;
-            if (param.reset != undefined) {
-                  param.reset();
+            if (!param.skip_reset) {
+                  param.val = param.def;
+                  if (param.reset != undefined) {
+                        param.reset();
+                  }
             }
       }
 }
