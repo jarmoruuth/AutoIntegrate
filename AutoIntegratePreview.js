@@ -272,7 +272,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   this.buttons_Sizer.addSpacing( 12 );
                   this.buttons_Sizer.add( this.maxPreview_Button );
             }
-            this.buttons_Sizer.addSpacing( 12 );
+            this.buttons_Sizer.addSpacing( 24 );
             this.buttons_Sizer.add( this.save_Button );
             this.buttons_Sizer.addStretch();
             this.buttons_Sizer.addSpacing( 12 );
