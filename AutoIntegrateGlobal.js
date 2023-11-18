@@ -47,7 +47,7 @@ this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Use GraXpert instead of ABE for background extraction",
+      "- Support for GraXpert",
       "- Print a Flowchart from the current workflow",
       "- User settable startup image"
 ];
