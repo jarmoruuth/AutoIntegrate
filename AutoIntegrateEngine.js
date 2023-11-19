@@ -2296,10 +2296,11 @@ function runABEOnLights(fileNames)
       var postfix = "_ABE";
       var outputExtension = ".xisf";
 
-      util.addProcessingStepAndStatusInfo("Run ABE on on light files");
       if (par.use_graxpert.val) {
+            util.addProcessingStepAndStatusInfo("Run ABE on light files using GraXpert");
             flowchartOperation("GraXpert");
       } else {
+            util.addProcessingStepAndStatusInfo("Run ABE on on light files");
             flowchartOperation("AutomaticBackgroundExtractor");
       }
       if (global.flowchart) {
@@ -5845,6 +5846,7 @@ function runGraXpert(win, replaceTarget, postfix)
             }
       } else {
             var P = new ExternalProcess();
+            console.writeln("GraXpert processing...");
             P.start(command);
             while (P.isStarting) {
                   processEvents();
@@ -5852,6 +5854,7 @@ function runGraXpert(win, replaceTarget, postfix)
             while (P.isRunning) {
                   processEvents();
             }
+            console.writeln("GraXpert finished");
       }
       var graxpert_fname = fname.replace(".xisf", "_GraXpert.fits");
       console.writeln("GraXpert output file " + graxpert_fname);
@@ -10719,7 +10722,11 @@ function extraBandingReduction(extraWin)
 
 function extraABE(extraWin)
 {
-      addExtraProcessingStep("ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
+      if (par.use_graxpert.val) {
+            addExtraProcessingStep("ABE using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
+      } else {
+            addExtraProcessingStep("ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
+      }
       var id = runABE(extraWin, true);
       // guiUpdatePreviewWin(extraWin);
       return id;
