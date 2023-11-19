@@ -5824,7 +5824,7 @@ function runGraXpert(win, replaceTarget, postfix)
             util.throwFatalError("GraXpert path is empty");
       }
       if (!File.exists(par.graxpert_path.val)) {
-            util.throwFatalError("GraXpert path does not exist: " + par.graxpert_path.val);
+            console.noteln("GraXpert path does not exist: " + par.graxpert_path.val);
       }
 
       fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
