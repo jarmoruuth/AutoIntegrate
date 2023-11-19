@@ -910,11 +910,9 @@ function getNarrowbandColorizedSizer(parent)
       narrowbandColorizedHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       narrowbandColorizedHelpTips.setScaledFixedSize( 20, 20 );
       narrowbandColorizedHelpTips.toolTip = narrowbandColorizedtoolTipBase;
-      narrowbandColorizedHelpTips.onMousePress = function()
+      narrowbandColorizedHelpTips.onClick = function()
       {
-            narrowbandColorizedHelpTips.enabled = false;
             new MessageBox(narrowbandColorizedtoolTipBase, "Narrowband colorization", StdIcon_Information ).execute();
-            narrowbandColorizedHelpTips.enabled = true;
       }
 
       var hueToolTip = "<p>Color hue for the channel.</p>" + 
@@ -1445,7 +1443,7 @@ function extraProcessingGUI(parent)
       this.extraAdjustChannelDefaultsButton.icon = new Bitmap( ":/images/icons/reset.png" );
       this.extraAdjustChannelDefaultsButton.toolTip = 
             "<p>Reset channel adjust values to defaults.</p>";
-      this.extraAdjustChannelDefaultsButton.onMousePress = function()
+      this.extraAdjustChannelDefaultsButton.onClick = function()
       {
             par.extra_adjust_R.val = par.extra_adjust_R.def;
             par.extra_adjust_G.val = par.extra_adjust_G.def;
@@ -1664,7 +1662,7 @@ function extraProcessingGUI(parent)
       this.extraUndoButton.toolTip = 
             "<p>Undo last extra edit operation.</p>" + notetsaved_note;
       this.extraUndoButton.enabled = false;
-      this.extraUndoButton.onMousePress = function()
+      this.extraUndoButton.onClick = function()
       {
             apply_undo();
       };
@@ -1675,7 +1673,7 @@ function extraProcessingGUI(parent)
       this.extraRedoButton.toolTip = 
             "<p>Redo last extra edit operation.</p>" + notetsaved_note;
       this.extraRedoButton.enabled = false;
-      this.extraRedoButton.onMousePress = function()
+      this.extraRedoButton.onClick = function()
       {
             apply_redo();
       };
@@ -1686,7 +1684,7 @@ function extraProcessingGUI(parent)
       this.extraSaveButton.toolTip = 
             "<p>Save current edited image to disk as a XISF image and as a 16-bit TIFF image.</p>" + notetsaved_note;
       this.extraSaveButton.enabled = false;
-      this.extraSaveButton.onMousePress = function()
+      this.extraSaveButton.onClick = function()
       {
             save_as_undo();
       };
@@ -1697,9 +1695,8 @@ function extraProcessingGUI(parent)
       this.extraHistoryButton.toolTip = "<p>Show extra processing history.</p>";
       this.extraHistoryButton.enabled = true;
       var extraHistoryButton = this.extraHistoryButton;
-      this.extraHistoryButton.onMousePress = function()
+      this.extraHistoryButton.onClick = function()
       {
-            extraHistoryButton.enabled = false;
             if (extra_gui_info.undo_images_pos < 1) {
                   new MessageBox("No extra processing history", "Extra processing history", StdIcon_Information ).execute();
             } else {
@@ -1721,7 +1718,6 @@ function extraProcessingGUI(parent)
                   }
                   new MessageBox(txt, "Extra processing history", StdIcon_Information ).execute();
             }
-            extraHistoryButton.enabled = true;
       };
 
       var extraLabeltoolTip = 
@@ -1749,11 +1745,9 @@ function extraProcessingGUI(parent)
       this.extraHelpTips.setScaledFixedSize( 20, 20 );
       this.extraHelpTips.toolTip = extraLabeltoolTip;
       var extraHelpTips = this.extraHelpTips;
-      this.extraHelpTips.onMousePress = function()
+      this.extraHelpTips.onClick = function()
       {
-            extraHelpTips.enabled = false;
             new MessageBox(extraLabeltoolTip, "Extra processing", StdIcon_Information ).execute();
-            extraHelpTips.enabled = true;
       }
 
       this.extraImageSizer = new HorizontalSizer;
@@ -1892,15 +1886,15 @@ function isbatchNarrowbandPaletteMode()
 
 function previewControlCleanup(control)
 {
-      control.zoomIn_Button.onMousePress = null;
-      control.zoomOut_Button.onMousePress = null;
-      control.zoom11_Button.onMousePress = null;
-      control.zoomFit_Button.onMousePress = null;
+      control.zoomIn_Button.onClick = null;
+      control.zoomOut_Button.onClick = null;
+      control.zoom11_Button.onClick = null;
+      control.zoomFit_Button.onClick = null;
       control.scrollbox.onHorizontalScrollPosUpdated = null;
       control.scrollbox.onVerticalScrollPosUpdated = null;
       control.forceRedraw = null;
       control.scrollbox.viewport.onMouseWheel = null;
-      control.scrollbox.viewport.onMousePress = null;
+      control.scrollbox.viewport.onClick = null;
       control.scrollbox.viewport.onMouseMove = null;
       control.scrollbox.viewport.onMouseRelease = null;
       control.scrollbox.viewport.onResize = null;
@@ -3540,11 +3534,9 @@ function addWinPrefix(parent)
       windowPrefixHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
       windowPrefixHelpTips.setScaledFixedSize( 20, 20 );
       windowPrefixHelpTips.toolTip = "<p>Current Window Prefixes:</p>";
-      windowPrefixHelpTips.onMousePress = function()
+      windowPrefixHelpTips.onClick = function()
       {
-            windowPrefixHelpTips.enabled = false;
             new MessageBox(windowPrefixHelpTips.toolTip, "Current Window Prefixes", StdIcon_Information ).execute();
-            windowPrefixHelpTips.enabled = true;
       }
 
       var winprefix_Sizer = new HorizontalSizer;
@@ -4962,7 +4954,7 @@ function newAdjustToContentButton(parent)
       var button = new ToolButton(parent);
       button.icon = new Bitmap( ":/toolbar/preview-reset.png" );
       button.toolTip = "<p>Adjust script window to content.</p>";
-      button.onMousePress = function()
+      button.onClick = function()
       {
             parent.adjustToContents();
       };
@@ -5053,7 +5045,7 @@ function newMaximizeDialogButton(parent)
 
       maxDialogButton.setScaledFixedSize( 20, 20 );
       maxDialogButton.toolTip = maxDialogToolTip;
-      maxDialogButton.onMousePress = function()
+      maxDialogButton.onClick = function()
       {
             if (dialog_mode == 0) {
                   // minimized, do nothing
@@ -5140,7 +5132,7 @@ function newMinimizeDialogButton(parent)
       minDialogButton.setScaledFixedSize( 20, 20 );
       var minDialogToolTip = "Minimize dialog to a minimum size.";
       minDialogButton.toolTip = minDialogToolTip;
-      minDialogButton.onMousePress = function()
+      minDialogButton.onClick = function()
       {
             if (dialog_mode == 2) {
                   // maximized, do nothing
@@ -5663,7 +5655,7 @@ function newHistogramControl(parent, side_preview)
                   graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
                   graphics.end();
             };
-            histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
+            histogramViewControl.onClick = function(x, y, buttonState, modifiers) {
                   if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
                         this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
                         this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
@@ -6012,7 +6004,7 @@ function AutoIntegrateDialog()
       this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
       this.helpTips.setScaledFixedSize( 20, 20 );
       this.helpTips.toolTip = mainHelpTips;
-      this.helpTips.onMousePress = function()
+      this.helpTips.onClick = function()
       {
             new MessageBox(mainHelpTips, global.autointegrate_version, StdIcon_Information ).execute();
       }
@@ -6578,11 +6570,9 @@ function AutoIntegrateDialog()
       this.cometAlignHelpTips.setScaledFixedSize( 20, 20 );
       this.cometAlignHelpTips.toolTip = comet_alignment_toolTip;
       var cometAlignHelpTips = this.cometAlignHelpTips;
-      this.cometAlignHelpTips.onMousePress = function()
+      this.cometAlignHelpTips.onClick = function()
       {
-            cometAlignHelpTips.enabled = false;
             new MessageBox(comet_alignment_toolTip, "Comet alignment", StdIcon_Information ).execute();
-            cometAlignHelpTips.enabled = true;
       }
 
       this.cometAlignmentGroupBoxSizer = new HorizontalSizer;
@@ -8363,7 +8353,7 @@ function AutoIntegrateDialog()
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
       this.newInstance_Button.toolTip = "<p>New Instance</p>";
-      this.newInstance_Button.onMousePress = function()
+      this.newInstance_Button.onClick = function()
       {
          this.hasFocus = true;
          saveParametersToProcessIcon();
@@ -8377,21 +8367,21 @@ function AutoIntegrateDialog()
             "values are remembered and automatically restored when the script starts.</p> " +
             "<p>Persistent module settings are overwritten by any settings restored from process icon.</p>" +
             "<p>Set default button sets default values for all parameters.</p>";
-      this.savedefaults_Button.onMousePress = function()
+      this.savedefaults_Button.onClick = function()
       {
             saveParametersToPersistentModuleSettings();
       };
       this.reset_Button = new ToolButton(this);
       this.reset_Button.icon = new Bitmap( ":/images/icons/reset.png" );
       this.reset_Button.toolTip = "<p>Set default values for all parameters.</p>";
-      this.reset_Button.onMousePress = function()
+      this.reset_Button.onClick = function()
       {
             util.setParameterDefaults();
       };
       this.website_Button = new ToolButton(this);
       this.website_Button.icon = new Bitmap( ":/icons/internet.png" );
       this.website_Button.toolTip = "<p>Browse documentation on AutoIntegrate web site.</p>";
-      this.website_Button.onMousePress = function()
+      this.website_Button.onClick = function()
       {
             Dialog.openBrowser("https://ruuth.xyz/AutoIntegrateInfo.html");
       };

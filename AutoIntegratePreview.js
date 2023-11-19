@@ -169,7 +169,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
             this.zoomIn_Button.setScaledFixedSize( 20, 20 );
             this.zoomIn_Button.toolTip = "Zoom in";
-            this.zoomIn_Button.onMousePress = function()
+            this.zoomIn_Button.onClick = function()
             {
                   this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
             };
@@ -178,7 +178,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
             this.zoomOut_Button.setScaledFixedSize( 20, 20 );
             this.zoomOut_Button.toolTip = "Zoom out";
-            this.zoomOut_Button.onMousePress = function()
+            this.zoomOut_Button.onClick = function()
             {
                   this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
             };
@@ -187,7 +187,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
             this.zoom11_Button.setScaledFixedSize( 20, 20 );
             this.zoom11_Button.toolTip = "Zoom 1:1";
-            this.zoom11_Button.onMousePress = function()
+            this.zoom11_Button.onClick = function()
             {
                   this.parent.UpdateZoom(1);
             };
@@ -196,7 +196,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
             this.zoomFit_Button.setScaledFixedSize( 20, 20 );
             this.zoomFit_Button.toolTip = "Zoom fit";
-            this.zoomFit_Button.onMousePress = function()
+            this.zoomFit_Button.onClick = function()
             {
                   this.parent.UpdateZoom(-100);
             };
@@ -205,12 +205,10 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
             this.save_Button.setScaledFixedSize( 20, 20 );
             this.save_Button.toolTip = "Save image to a file.";
-            this.save_Button.onMousePress = function()
+            this.save_Button.onClick = function()
             {
-                  this.parent.save_Button.enabled = false;
                   if (!this.parent.image) {
                         console.noteln("No image to save");
-                        this.parent.save_Button.enabled = true;
                         return;
                   }
                   let saveFileDialog = new SaveFileDialog();
@@ -227,7 +225,6 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
                   if (!saveFileDialog.execute()) {
                         console.noteln("Preview image not saved");
-                        this.parent.save_Button.enabled = true;
                         return;
                   }
                   var copy_win = util.createWindowFromBitmap(this.parent.image, "AutoIntegrate_preview_savetmp");
@@ -244,7 +241,6 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                         console.writeln("Saved image: " + saveFileDialog.fileName);
                   }
                   util.forceCloseOneWindow(copy_win);
-                  this.parent.save_Button.enabled = true;
             };
 
             if (this.normalPreview) {
@@ -252,7 +248,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
                   this.maxPreview_Button.setScaledFixedSize( 20, 20 );
                   this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
-                  this.maxPreview_Button.onMousePress = function()
+                  this.maxPreview_Button.onClick = function()
                   {
                         let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
                         maxPreviewDialog.execute();
@@ -325,7 +321,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              preview.UpdateZoom(preview.zoom + (delta > 0 ? preview.zoomOutLimit : -preview.zoomOutLimit), new Point(x,y));
        }
  
-       this.scrollbox.viewport.onMousePress = function ( x, y, button, buttonState, modifiers )
+       this.scrollbox.viewport.onClick = function ( x, y, button, buttonState, modifiers )
        {
              var preview = this.parent.parent;
              var p =  preview.transform(x, y, preview);
