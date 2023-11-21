@@ -5810,17 +5810,8 @@ function noABEcopyWin(win)
 }
 
 // Run GraXpert as an external process
-function runGraXpert(win, replaceTarget, postfix)
+function runGraXpertExternal(win)
 {
-      if (replaceTarget) {
-            util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
-            var ABE_id = win.mainView.id;
-      } else {
-            var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
-            util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + ABE_id);
-      }
-      console.writeln("GraXpert using correction" + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
-
       if (par.graxpert_path.val == "") {
             util.throwFatalError("GraXpert path is empty");
       }
@@ -5828,13 +5819,23 @@ function runGraXpert(win, replaceTarget, postfix)
             console.noteln("GraXpert path does not exist: " + par.graxpert_path.val);
       }
 
+      var copy_win = util.copyWindowEx(win, "AutoIntegrateTemp", true);
+
+      var image_id_name = "AutoIntegrateImageId";
+      var image_id = Date.now().toString();
+
+      util.setFITSKeyword(copy_win, image_id_name, image_id, "Image processing id.");
+
       fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
       console.writeln("GraXpert input file " + fname);
-      if (!win.saveAs(fname, false, false, false, false)) {
+      if (!copy_win.saveAs(fname, false, false, false, false)) {
+            util.closeOneWindow(copy_win.mainView.id);
             util.throwFatalError("Failed to save image for GraXpert: " + fname);
       }
 
-      var command = par.graxpert_path.val + " " + fname + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      util.closeOneWindow(copy_win.mainView.id);
+
+      var command = '"' + par.graxpert_path.val + '"' + " " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
 
       console.writeln("GraXpert command " + command);
 
@@ -5861,8 +5862,36 @@ function runGraXpert(win, replaceTarget, postfix)
 
       var imgWin = engine.openImageWindowFromFile(graxpert_fname);
       imgWin.show();
+
+      var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
+      if (processed_image_id != image_id) {
+            util.closeOneWindow(imgWin.mainView.id);
+            util.throwFatalError("GraXpert did not run, maybe path is incorrect. Processed image id mismatch: " + processed_image_id + " != " + image_id);
+      }
+
       console.writeln("GraXpert output window " + imgWin.mainView.id);
       imgWin.copyAstrometricSolution(win);
+
+      return imgWin;
+}
+
+// Run GraXpert on an image
+function runGraXpert(win, replaceTarget, postfix)
+{
+      if (replaceTarget) {
+            util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
+            var ABE_id = win.mainView.id;
+      } else {
+            var ABE_id = util.ensure_win_prefix(win.mainView.id + postfix);
+            util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + ABE_id);
+      }
+      console.writeln("GraXpert using correction" + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
+
+      if (global.flowchart) {
+            var imgWin = util.copyWindowEx(win, "AutoIntegrateTemp", true);
+      } else {
+            var imgWin = runGraXpertExternal(win);
+      }
 
       if (replaceTarget) {
             console.writeln("GraXpert replace target " + ABE_id);

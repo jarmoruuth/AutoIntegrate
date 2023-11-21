@@ -6268,7 +6268,7 @@ function AutoIntegrateDialog()
             "<p>" + BXT_no_PSF_tip + "</p>");
       this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
             "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) for gradient removal.</p>" +
-            "<p><b>NOTE</b>A path to GraXpert file must be set in the GraXpert section before iy can be used.</p>" +
+            "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
 
