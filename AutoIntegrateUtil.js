@@ -973,7 +973,7 @@ this.ensure_win_prefix = function(id)
 
 function is_non_starless_option()
 {
-      return par.extra_ABE.val || 
+      return par.extra_BE.val || 
              par.extra_banding_reduction.val ||
              par.extra_darker_background.val || 
              par.extra_darker_hightlights.val ||

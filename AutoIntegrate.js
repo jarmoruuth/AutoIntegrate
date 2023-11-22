@@ -10,17 +10,19 @@ In the end there will be integrated light files and automatically
 processed final image. Script accepts LRGB, color and narrowband files. 
 It is also possible do only partial processing and continue manually.
 
-Clicking button AutoRun on GUI all the following steps listed below are performed.
+Clicking button Run on GUI all the following steps listed below are performed.
 
 LRGB files need to have keyword FILTER that has values for Luminance, Red, Green
 or Blue channels. A couple of variants are accepted like 'Red' or 'R'.
-If keyword FILTER is not found images are assumed to be color images. Also
-camera RAW files can be used.
+If keyword FILTER is not found file name is use to resolve filter. If that
+fails then images are assumed to be color images. Also camera RAW files can be used.
 
 Script creates an AutoIntegrate.log file where details of the processing can be checked.
 
 NOTE! These steps may not be updated with recent changes. They do describe the basic
-      processing but some details may have changed.
+      processing but some details may have changed. To get a detailed workflow check the
+      Flowchart buttons on the GUI.
+
 
 Manual processing
 -----------------
@@ -31,20 +33,20 @@ if there are manually created images:
   LRGB image with HistogramTransformation already done, the script starts after step <lHT> and <rgbHT>.
 - RGB_HT
   Color (RGB) image with HistogramTransformation already done, the script starts after step <colorHT>.
-- Integration_L_DBE + Integration_RGB_DBE
-  LRGB image background extracted, the script starts after step <lABE> and <rgbABE>.
-- Integration_RGB_DBE
-  Color (RGB) image background extracted, the script starts with after step <colorABE>.
-- Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE
-  LRGB image background extracted before image integration, the script starts after step <lABE> and 
-   <rgbDBE>. Automatic ABE is then skipped.
+- Integration_L_BE + Integration_RGB_BE
+  LRGB image background extracted, the script starts after step <lBE> and <rgbBE>.
+- Integration_RGB_BE
+  Color (RGB) image background extracted, the script starts with after step <colorBE>.
+- Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE
+  LRGB image background extracted before image integration, the script starts after step <lBE> and 
+   <rgbBE>. Automatic background extract is then skipped.
 - Integration_L + Integration_R + Integration_G + Integration_B + + Integration_H + Integration_S + Integration_O
   (L)RGB or narrowband image with integrated L,R,G,B;H,S,O images the script starts with step <lII>. 
 
 Note that it is possible to run first automatic processing and then manually enhance some 
 intermediate files and autocontinue there. 
 - Crop integrated images and continue automatic processing using cropped images.
-- Run manual DBE.
+- Run manual DBE or other backgroudn extraction.
 
 Calibration steps
 -----------------
@@ -92,21 +94,21 @@ Steps with LRGB files
    or with narrowband Integration_H, Integration_S and Integration_O.
 2. Optionally the Integration images and corresponding support images are cropped to the area
    contributed to by all images.
-3. Optionally ABE in run on L image. <lABE>
+3. Optionally extract background in run on L image. <lBE>
 4. HistogramTransform is run on L image. <lHT>
 5. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
 6. Noise reduction is run on L image using a mask.
-7. If ABE_before_channel_combination is selected then ABE is run on each color channel (R,G,B). 
-   <rgbDBE>
+7. If BE_before_channel_combination is selected then extract background is run on each color channel (R,G,B). 
+   <rgbBE>
 8. By default LinearFit is run on RGB channels using L, R, G or B as a reference
 9. If Channel noise reduction is non-zero then noise reduction is done separately 
    for each R,G and B images using a mask.
 10. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
-11. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+11. If color_calibration_before_BE is selected then color calibration is run on RGB image.
     If use_background_neutralization is selected then BackgroundNeutralization is run before
     color calibration.
-12. Optionally AutomaticBackgroundExtraction is run on RGB image. <rgbABE>
+12. Optionally extract background is run on RGB image. <rgbBE>
 13. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
 14. HistogramTransform is run on RGB image. <rgbHT>
@@ -122,10 +124,10 @@ Steps with color files
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
    After this step there is Integration_RGB_color image.
-2. If color_calibration_before_ABE is selected then color calibration is run on RGB image.
+2. If color_calibration_before_BE is selected then color calibration is run on RGB image.
    If use_background_neutralization is selected then BackgroundNeutralization is run before
    color calibration.
-3. Optionally ABE in run on RGB image. <colorABE>
+3. Optionally extract background in run on RGB image. <colorBE>
 4. If color calibration is not yet done the color calibration is run on RGB image. Optionally
    BackgroundNeutralization is run before color calibration
 5. HistogramTransform is run on RGB image. <colorHT>
@@ -190,7 +192,7 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-202 Jarmo Ruuth.
+Copyright (c) 2018-2023 Jarmo Ruuth.
 
 Crop to common area code
 

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65 test3";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65 test4";   // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -97,13 +97,13 @@ this.par = {
       comet_last_xy: { val: '', def: '', name : "Comet align last XY", type : 'S' },
       binning: { val: 0, def: 0, name : "Binning", type : 'I' },
       binning_resample: { val: 2, def: 2, name : "Binning resample factor", type : 'I' },
-      ABE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
-      ABE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
-      use_ABE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
-      use_ABE_on_L_RGB_stretched: { val: false, def: false, name : "Use ABE on L, RGB stretched", type : 'B' },
+      BE_before_channel_combination: { val: false, def: false, name : "ABE before channel combination", type : 'B' },
+      BE_on_lights: { val: false, def: false, name : "ABE on light images", type : 'B' },
+      use_BE_on_L_RGB: { val: false, def: false, name : "Use ABE on L, RGB", type : 'B' },
+      use_BE_on_L_RGB_stretched: { val: false, def: false, name : "Use ABE on L, RGB stretched", type : 'B' },
       use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
-      color_calibration_before_ABE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
+      color_calibration_before_BE: { val: false, def: false, name : "Color calibration before ABE", type : 'B' },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
       solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
@@ -349,7 +349,7 @@ this.par = {
       extra_combine_stars_reduce: { val: 'None', def: 'None', name : "Extra combine stars reduce", type : 'S' },
       extra_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Extra combine stars reduce S", type : 'R' },
       extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
-      extra_ABE: { val: false, def: false, name : "Extra ABE", type : 'B' },
+      extra_BE: { val: false, def: false, name : "Extra ABE", type : 'B' },
       extra_banding_reduction: { val: false, def: false, name : "Extra banding reduction", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
       extra_darker_hightlights: { val: false, def: false, name : "Extra Darker highlights", type : 'B' },
@@ -490,7 +490,7 @@ this.saved_measurements = null;
 
 this.flowchart = false;       // true if we are running in flowchart mode
 this.flowchartWindows = [];   // array of flowchart window ids
-this.flowchartData = [];
+this.flowchartData = null;    // flowchart data
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
@@ -595,8 +595,8 @@ this.fixed_windows = [
       // "Integration_L_start",
       // "Integration_RGB_start",
       "Integration_L_crop",
-      "Integration_L_ABE",
-      "Integration_R_ABE",
+      "Integration_L_ABE",          // NOTE! ABE is a placeholder that we replace 
+      "Integration_R_ABE",          // with possible other extensions like GXP.
       "Integration_G_ABE",
       "Integration_B_ABE",
       "Integration_RGB_ABE",
