@@ -47,7 +47,7 @@ this.init_pixinsight_version = function()
                                       CoreApplication.versionRevision;     
 }
 
-this.runGC = function()
+this.runGarbageCollection = function()
 {
       gc(false);        // run soft gc
 }
@@ -55,7 +55,7 @@ this.runGC = function()
 this.checkEvents = function()
 {
       processEvents();  // process events to keep GUI responsible
-      util.runGC();
+      util.runGarbageCollection();
 }
 
 /// Init filter sets. We used to have actual Set object but
@@ -973,7 +973,7 @@ this.ensure_win_prefix = function(id)
 
 function is_non_starless_option()
 {
-      return par.extra_BE.val || 
+      return par.extra_GC.val || 
              par.extra_banding_reduction.val ||
              par.extra_darker_background.val || 
              par.extra_darker_hightlights.val ||
@@ -1089,6 +1089,13 @@ function getSettingsFromJson(settings)
             for (let x in par) {
                   var param = par[x];
                   if (param.name == settings[i][0]) {
+                        var name_found = true;
+                  } else if (param.oldname != undefined && param.oldname == settings[i][0]) {
+                        var name_found = true;
+                  } else {
+                        var name_found = false;
+                  }
+                  if (name_found) {
                         param.val = settings[i][1];
                         if (param.reset != undefined) {
                               param.reset();

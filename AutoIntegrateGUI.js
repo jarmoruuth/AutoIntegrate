@@ -345,7 +345,7 @@ var smoothBackgroundTooltipGeneric =      "<p>A limit value specifies below whic
                                           "The value should be selected so that no foreground data is lost.</p>" + 
                                           "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
                                           "The new pixel values will be slightly higher than the old values.</p>" +
-                                          "<p>Smoothening can also help extract background to clean up the background better in case of " + 
+                                          "<p>Smoothening can also help gradient correction to clean up the background better in case of " + 
                                           "very uneven background.</p>";
 
 var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
@@ -859,7 +859,7 @@ function getNarrowbandColorizedSizer(parent)
                         util.forceCloseOneWindow(channel_images[i]);
                   }
             }
-            util.runGC();
+            util.runGarbageCollection();
       }
 
       if (par.debug.val) {
@@ -1244,8 +1244,8 @@ function extraProcessingGUI(parent)
             "<p>Make image background darker using a lightness mask.</p>" );
       this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
             "<p>Make image highlights darker using a lightness mask.</p>" );
-      this.extraBE_CheckBox = newCheckBox(parent, "Extract background", par.extra_BE, 
-            "<p>Extract background from the image using ABE or GraXpert.</p>" );
+      this.extra_GC_CheckBox = newCheckBox(parent, "Gradient correction", par.extra_GC, 
+            "<p>Do gradient correction to the image using ABE or GraXpert.</p>" );
       this.extraBandinReduction_CheckBox = newCheckBox(parent, "Banding reduction", par.extra_banding_reduction, 
             "<p>Run banding reduction on the image.</p>" );
 
@@ -1800,7 +1800,7 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraRemoveStars_Sizer );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraBandinReduction_CheckBox );
-      this.extra1.add( this.extraBE_CheckBox );
+      this.extra1.add( this.extra_GC_CheckBox );
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extraDarkerHighlights_CheckBox );
@@ -4721,6 +4721,10 @@ function saveParametersToPersistentModuleSettings()
                               util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
                               break;
                   }
+                  if (param.oldname != undefined) {
+                        // remove old name
+                        Settings.remove(SETTINGSKEY + '/' + util.mapBadChars(param.oldname));
+                  }
             } else {
                   // default value, remove possible setting
                   Settings.remove(name);
@@ -4924,10 +4928,10 @@ function newAutoContinueButton(parent, toolbutton)
             "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
             "<li>L_HT + RGB_HT - Manually stretched L and RGB images</li>" +
             "<li>RGB_HT - Manually stretched RGB image</li>" +
-            "<li>Integration_L_DBE + Integration_RGB_DBE - Background extracted L and RGB images</li>" +
-            "<li>Integration_RGB_DBE - Background extracted RGB image</li>" +
-            "<li>Integration_L_DBE + Integration_R_DBE + Integration_G_DBE + Integration_B_DBE -  Background extracted channel images</li>" +
-            "<li>Integration_H_DBE + Integration_S_DBE + Integration_O_DBE -  Background extracted channel images</li>" +
+            "<li>Integration_L_GC + Integration_RGB_GC - Gradient corrected L and RGB images</li>" +
+            "<li>Integration_RGB_GC - Gradient corrected RGB image</li>" +
+            "<li>Integration_L_GC + Integration_R_GC + Integration_G_GC + Integration_B_GC - Gradient corrected channel images</li>" +
+            "<li>Integration_H_GC + Integration_S_GC + Integration_O_HC - Gradient corrected channel images</li>" +
             "<li>Light file list - Integrated channel/RGB images if only one image for a filter</li>" +
             "<li>Integration_RGB_color - Integrated Color RGB image</li>" +
             "<li>Integration_RGB_narrowband - Integrated narrowband RGB image</li>" +
@@ -4941,7 +4945,7 @@ function newAutoContinueButton(parent, toolbutton)
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
             "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
-            "DBE = Background Extracted, for example manual DBE is run on image.<br>" +
+            "GC = Gradient Corrected, for example manual DBE or GraXpert is run on image. In addition to _GC postfix, also _ABE, _DBE and _GraXpert are checked.<br>" +
             "Integration = Individual light images are integrated into one image.<br>" +
             "</p>",
             autocontinue_action,
@@ -5118,7 +5122,7 @@ function newMaximizeDialogButton(parent)
 
             }
             parent.dialog.adjustToContents();
-            util.runGC();
+            util.runGarbageCollection();
       };
 
       return maxDialogButton;
@@ -5182,7 +5186,7 @@ function newMinimizeDialogButton(parent)
             }
             minDialogButton.aiminDialogMode = !minDialogButton.aiminDialogMode;
             parent.dialog.adjustToContents();
-            util.runGC();
+            util.runGarbageCollection();
       };
 
       return minDialogButton;
@@ -6113,13 +6117,13 @@ function AutoIntegrateDialog()
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
             "<p>Print some additionalö debug information to the log output files.</p>" );
-      this.BE_before_channel_combination_CheckBox = newCheckBox(this, "Extract background from channel images", par.BE_before_channel_combination, 
+      this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
             "<p>Use AutomaticBackgroundExtractor or GraXpert on L, R, G and B images separately before channels are combined.</p>" );
-      this.BE_on_lights_CheckBox = newCheckBox(this, "Extract background from light images", par.BE_on_lights, 
+      this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
             "<p>Use AutomaticBackgroundExtractor or GraXpert on all light images. It is run very early in the processing before cosmetic correction.</p>" );
-      this.use_BE_L_RGB_CheckBox = newCheckBox(this, "Extract background from combined images", par.use_BE_on_L_RGB, 
+      this.use_GC_L_RGB_CheckBox = newCheckBox(this, "Gradient correction on combined images", par.use_GC_on_L_RGB, 
             "<p>Use AutomaticBackgroundExtractor or GraXpert on L and RGB images while image is still in linear mode.</p>" );
-      this.use_BE_L_RGB_stretched_CheckBox = newCheckBox(this, "Extract background from stretched images", par.use_BE_on_L_RGB_stretched, 
+      this.use_GC_L_RGB_stretched_CheckBox = newCheckBox(this, "Gradient correction on stretched images", par.use_GC_on_L_RGB_stretched, 
             "<p>Use AutomaticBackgroundExtractor or GraXpert on L and RGB images after they have been stretched to non-linear mode.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
@@ -6146,7 +6150,7 @@ function AutoIntegrateDialog()
             "can be later added back to the image. This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
-      this.color_calibration_before_ABE_CheckBox = newCheckBox(this, "Color calibration before extract background", par.color_calibration_before_BE, 
+      this.color_calibration_before_GC_CheckBox = newCheckBox(this, "Color calibration before gradient correction", par.color_calibration_before_GC, 
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor or GraXpert in run on RGB image</p>" );
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
@@ -6267,7 +6271,7 @@ function AutoIntegrateDialog()
             "is best for your own data.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>");
       this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
-            "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to extract background from images.</p>" +
+            "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>" +
             "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
@@ -6335,11 +6339,11 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
-      this.imageParamsSet2.add( this.color_calibration_before_ABE_CheckBox );
+      this.imageParamsSet2.add( this.color_calibration_before_GC_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
-      this.imageParamsSet2.add( this.BE_before_channel_combination_CheckBox );
-      this.imageParamsSet2.add( this.use_BE_L_RGB_CheckBox );
-      this.imageParamsSet2.add( this.use_BE_L_RGB_stretched_CheckBox );
+      this.imageParamsSet2.add( this.GC_before_channel_combination_CheckBox );
+      this.imageParamsSet2.add( this.use_GC_L_RGB_CheckBox );
+      this.imageParamsSet2.add( this.use_GC_L_RGB_stretched_CheckBox );
       this.imageParamsSet2.add( this.drizzleSizer );
 
       // Image group par.
@@ -6403,7 +6407,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
-      this.otherParamsSet02.add( this.BE_on_lights_CheckBox );
+      this.otherParamsSet02.add( this.GC_on_lights_CheckBox );
 
       this.otherParamsSet0 = new HorizontalSizer;
       this.otherParamsSet0.margin = 6;
@@ -7347,7 +7351,7 @@ function AutoIntegrateDialog()
       this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
             "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
             "smoothing. Smoothing is done after image has been stretched to non-linear " + 
-            "and before optional <i>Extract background on stretched image</i> is done.</p>" +
+            "and before optional <i>Gradient correction on stretched image</i> is done.</p>" +
             "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
             "Zero values does not do smoothing.</p>" +
             smoothBackgroundTooltipGeneric,

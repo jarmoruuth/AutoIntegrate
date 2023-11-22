@@ -33,20 +33,20 @@ if there are manually created images:
   LRGB image with HistogramTransformation already done, the script starts after step <lHT> and <rgbHT>.
 - RGB_HT
   Color (RGB) image with HistogramTransformation already done, the script starts after step <colorHT>.
-- Integration_L_BE + Integration_RGB_BE
-  LRGB image background extracted, the script starts after step <lBE> and <rgbBE>.
-- Integration_RGB_BE
-  Color (RGB) image background extracted, the script starts with after step <colorBE>.
-- Integration_L_BE + Integration_R_BE + Integration_G_BE + Integration_B_BE
-  LRGB image background extracted before image integration, the script starts after step <lBE> and 
-   <rgbBE>. Automatic background extract is then skipped.
+- Integration_L_GC + Integration_RGB_GC
+  LRGB image background extracted, the script starts after step <lGC> and <rgbGC>.
+- Integration_RGB_GC
+  Color (RGB) image background extracted, the script starts with after step <colorGC>.
+- Integration_L_GC + Integration_R_GC + Integration_G_GC + Integration_B_GC
+  LRGB image background extracted before image integration, the script starts after step <lGC> and 
+   <rgbGC>. Automatic background extract is then skipped.
 - Integration_L + Integration_R + Integration_G + Integration_B + + Integration_H + Integration_S + Integration_O
   (L)RGB or narrowband image with integrated L,R,G,B;H,S,O images the script starts with step <lII>. 
 
 Note that it is possible to run first automatic processing and then manually enhance some 
 intermediate files and autocontinue there. 
 - Crop integrated images and continue automatic processing using cropped images.
-- Run manual DBE or other backgroudn extraction.
+- Run manual DBE or other gradient correction.
 
 Calibration steps
 -----------------
@@ -94,21 +94,21 @@ Steps with LRGB files
    or with narrowband Integration_H, Integration_S and Integration_O.
 2. Optionally the Integration images and corresponding support images are cropped to the area
    contributed to by all images.
-3. Optionally extract background in run on L image. <lBE>
+3. Optionally gradient correction in run on L image. <lGC>
 4. HistogramTransform is run on L image. <lHT>
 5. Stretched L image is stored as a mask unless user has a predefined mask named AutoMask.
 6. Noise reduction is run on L image using a mask.
-7. If BE_before_channel_combination is selected then extract background is run on each color channel (R,G,B). 
-   <rgbBE>
+7. If GC_before_channel_combination is selected then gradient correction is run on each color channel (R,G,B). 
+   <rgbGC>
 8. By default LinearFit is run on RGB channels using L, R, G or B as a reference
 9. If Channel noise reduction is non-zero then noise reduction is done separately 
    for each R,G and B images using a mask.
 10. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
-11. If color_calibration_before_BE is selected then color calibration is run on RGB image.
+11. If color_calibration_before_GC is selected then color calibration is run on RGB image.
     If use_background_neutralization is selected then BackgroundNeutralization is run before
     color calibration.
-12. Optionally extract background is run on RGB image. <rgbBE>
+12. Optionally gradient correction is run on RGB image. <rgbGC>
 13. If color calibration is not yet done the color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
 14. HistogramTransform is run on RGB image. <rgbHT>
@@ -124,10 +124,10 @@ Steps with color files
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
    After this step there is Integration_RGB_color image.
-2. If color_calibration_before_BE is selected then color calibration is run on RGB image.
+2. If color_calibration_before_GC is selected then color calibration is run on RGB image.
    If use_background_neutralization is selected then BackgroundNeutralization is run before
    color calibration.
-3. Optionally extract background in run on RGB image. <colorBE>
+3. Optionally gradient correction in run on RGB image. <colorGC>
 4. If color calibration is not yet done the color calibration is run on RGB image. Optionally
    BackgroundNeutralization is run before color calibration
 5. HistogramTransform is run on RGB image. <colorHT>
@@ -459,6 +459,36 @@ function readPersistentSettings()
       }
 }
 
+function readOneParameterFromProcessIcon(name, type)
+{
+      var val = null;
+      name = util.mapBadChars(name);
+      if (Parameters.has(name)) {
+            switch (type) {
+                  case 'S':
+                        var val = Parameters.getString(name);
+                        console.writeln(name + "=" + param.val);
+                        break;
+                  case 'B':
+                        var val = Parameters.getBoolean(name);
+                        console.writeln(name + "=" + param.val);
+                        break;
+                  case 'I':
+                        var val = Parameters.getInteger(name);
+                        console.writeln(name + "=" + param.val);
+                        break;
+                  case 'R':
+                        var val = Parameters.getReal(name);
+                        console.writeln(name + "=" + param.val);
+                        break;
+                  default:
+                        util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                        break;
+            }
+      }
+      return val;
+}
+
 // Read default parameters from process icon
 function readParametersFromProcessIcon() 
 {
@@ -469,30 +499,41 @@ function readParametersFromProcessIcon()
       console.writeln("readParametersFromProcessIcon");
       for (let x in par) {
             var param = par[x];
-            var name = util.mapBadChars(param.name);
-            if (Parameters.has(name)) {
-                  switch (param.type) {
-                        case 'S':
-                              param.val = Parameters.getString(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'B':
-                              param.val = Parameters.getBoolean(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'I':
-                              param.val = Parameters.getInteger(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        case 'R':
-                              param.val = Parameters.getReal(name);
-                              console.writeln(name + "=" + param.val);
-                              break;
-                        default:
-                              util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
-                              break;
-                  }
+            var val = readOneParameterFromProcessIcon(param.name, param.type);
+            if (val == null && param.oldname != undefined) {
+                  val = readOneParameterFromProcessIcon(param.oldname, param.type);
             }
+            if (val != null) {
+                  param.val = val;
+            }
+      }
+}
+
+function readOneParameterFromPersistentModuleSettings(name, type)
+{
+            name = SETTINGSKEY + '/' + util.mapBadChars(name);
+            switch (type) {
+                  case 'S':
+                        var tempSetting = Settings.read(name, DataType_String);
+                        break;
+                  case 'B':
+                        var tempSetting = Settings.read(name, DataType_Boolean);
+                        break;
+                  case 'I':
+                        var tempSetting = Settings.read(name, DataType_Int32);
+                        break;
+                  case 'R':
+                        var tempSetting = Settings.read(name, DataType_Real32);
+                        break;
+                  default:
+                        util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                        break;
+            }
+            if (Settings.lastReadOK) {
+                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+                  return tempSetting;
+            } else {
+                  return null;
       }
 }
 
@@ -510,27 +551,12 @@ function readParametersFromPersistentModuleSettings()
       console.writeln("readParametersFromPersistentModuleSettings");
       for (let x in par) {
             var param = par[x];
-            var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
-            switch (param.type) {
-                  case 'S':
-                        var tempSetting = Settings.read(name, DataType_String);
-                        break;
-                  case 'B':
-                        var tempSetting = Settings.read(name, DataType_Boolean);
-                        break;
-                  case 'I':
-                        var tempSetting = Settings.read(name, DataType_Int32);
-                        break;
-                  case 'R':
-                        var tempSetting = Settings.read(name, DataType_Real32);
-                        break;
-                  default:
-                        util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
-                        break;
+            var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
+            if (val == null && param.oldname != undefined) {
+                  val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
             }
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
-                  param.val = tempSetting;
+            if (val != null) {
+                  param.val = val;
             }
       }
 }
