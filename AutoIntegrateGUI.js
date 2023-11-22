@@ -4944,7 +4944,7 @@ function newAutoContinueButton(parent, toolbutton)
             "<p>" +
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
-            "HT = Histogram Transformation, image is manually stretched to non-liner state.<br>" +
+            "HT = Histogram Transformation, image is stretched to non-liner state.<br>" +
             "GC = Gradient Corrected, for example manual DBE or GraXpert is run on image. In addition to _GC postfix, also _ABE, _DBE and _GraXpert are checked.<br>" +
             "Integration = Individual light images are integrated into one image.<br>" +
             "</p>",

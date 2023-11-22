@@ -5813,7 +5813,7 @@ function noGradientCorrectionCopyWin(win)
       } else {
             var noGC_id = util.ensure_win_prefix(new_win_id + "_noGC");
       }
-      util.addProcessingStep("No gradioent correction for " + win.mainView.id);
+      util.addProcessingStep("No gradient correction for " + win.mainView.id);
       util.addScriptWindow(noGC_id);
       util.copyWindow(win, noGC_id);
       return noGC_id;
@@ -5895,7 +5895,7 @@ function runGraXpert(win, replaceTarget, postfix)
             var GC_id = util.ensure_win_prefix(win.mainView.id + postfix);
             util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + GC_id);
       }
-      console.writeln("GraXpert using correction" + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
+      console.writeln("GraXpert using correction " + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
 
       if (global.flowchart) {
             var imgWin = util.copyWindowEx(win, "AutoIntegrateTemp", true);
@@ -8413,7 +8413,7 @@ function extractChannels(fileNames)
 
 function findStartWindowCheckBaseNameIf(id, check_base_name)
 {
-      var extensions = [ '_GC', '_BE', '_ABE', '_DBE', '_GraXpert' ];
+      var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
 
       for (var i = 0; i < extensions.length; i++) {
       var win = findWindowCheckBaseNameIf(id + extensions[i], check_base_name);
