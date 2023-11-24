@@ -496,6 +496,9 @@ this.addScriptWindow = function(name)
 
 this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate_name)
 {
+      if (global.flowchart) {
+            allow_duplicate_name = true;
+      }
       if (old_name == new_name) {
             return new_name;
       }
@@ -509,6 +512,9 @@ this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate
       }
       if (!allow_duplicate_name && w.mainView.id != new_name) {
             util.fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
+      }
+      if (global.flowchart && w.mainView.id != new_name) {
+            global.flowchartWindows[global.flowchartWindows.length] = w.mainView.id;
       }
       return w.mainView.id;
 }
@@ -861,6 +867,9 @@ this.fatalWindowNameFailed = function(txt)
 
 this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 {
+      if (global.flowchart) {
+            allow_duplicate_name = true;
+      }
       if (sourceWindow == null) {
             util.throwFatalError("Window not found, cannot copy to " + name);
       }

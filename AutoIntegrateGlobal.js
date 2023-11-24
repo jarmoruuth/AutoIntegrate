@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65 test5";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65 test6";   // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -600,11 +600,6 @@ this.fixed_windows = [
       "Integration_G_GC",
       "Integration_B_GC",
       "Integration_RGB_GC",
-      "Integration_L_BE",
-      "Integration_R_BE",
-      "Integration_G_BE",
-      "Integration_B_BE",
-      "Integration_RGB_BE",
       "Integration_L_GC_HT",
       "Integration_RGB_GC_HT",
       "Integration_L_BE_HT",

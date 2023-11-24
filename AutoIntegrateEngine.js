@@ -329,7 +329,7 @@ function flowchartFilterFiles(fileNames, filetype)
 
 function flowchartNewIntegrationImage(fileName, targetImageName)
 {
-      console.writeln("flowchartNewIntegrationImage");
+      console.writeln("flowchartNewIntegrationImage: " + fileName + ", " + targetImageName);
       // read image file
       var imgWin = engine.openImageWindowFromFile(fileName);
       // rename image
@@ -358,7 +358,7 @@ function flowchartOperation(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartOperation " + txt);
+      // console.writeln("flowchartOperation " + txt);
       flowchartCurrent.list.push( flowchartNewNode("process", txt) );
 }
 
@@ -367,7 +367,7 @@ function flowchartSubtaskBegin(txt, type)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartSubtaskBegin " + txt);
+      // console.writeln("flowchartSubtaskBegin " + txt);
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("mask", txt);
       flowchartCurrent.list.push(newFlowchartCurrent);
@@ -379,7 +379,7 @@ function flowchartSubtaskEnd(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartSubtaskEnd " + (txt != null ? txt : "null"));
+      // console.writeln("flowchartSubtaskEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
 }
 
@@ -388,7 +388,7 @@ function flowchartParentBegin(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartParentBegin " + txt);
+      // console.writeln("flowchartParentBegin " + txt);
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("parent", txt);
       flowchartCurrent.list.push(newFlowchartCurrent);
@@ -400,7 +400,7 @@ function flowchartParentEnd(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
+      // console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
 }
 
@@ -409,7 +409,7 @@ function flowchartChildBegin(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartChildBegin " + txt);
+      // console.writeln("flowchartChildBegin " + txt);
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
             util.throwFatalError("flowchartChildBegin, current node is not parent or child");
       }
@@ -424,7 +424,7 @@ function flowchartChildEnd(txt)
       if (!flowchart_active) {
             return;
       }
-      console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
+      // console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
       flowchartCurrent = flowchartStack.pop();
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
             util.throwFatalError("flowchartChildBegin, current node is not parent or child");
@@ -831,6 +831,7 @@ function setMaskChecked(imgWin, maskWin)
             imgWin.setMask(maskWin);
       } catch(err) {
             console.criticalln("setMask failed: " + err);
+            console.criticalln("Image:" + imgWin.mainView.id + ", mask:" + maskWin.mainView.id);
             console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
             util.throwFatalError("Error setting the mask.");
       }
@@ -4219,14 +4220,30 @@ function mapRGBchannel(images, refimage, mapping, is_luminance, name)
       // We close these images at the end as next call may want to use the
       // same image names.
 
-      flowchartSubtaskBegin(name);
+      flowchartChildBegin(name);
 
       copyToMapImages(images);
 
+      if (images.length > 1) {
+            // we have multiple channles in images array
+            flowchartParentBegin(name);
+      }
+
       for (var i = 0; i < images.length; i++) {
+            if (images.length > 1) {
+                  flowchartChildBegin(findChannelFromName(images[i]));
+            }
             CropImageIf(images[i]);
             processChannelImage(images[i], is_luminance);
+            if (images.length > 1) {
+                  flowchartChildEnd(findChannelFromName(images[i]));
+            }
       }
+
+      if (images.length > 1) {
+            flowchartParentEnd(name);
+      }
+
       refimage = refimage + "_map";
       console.writeln("mapRGBchannel, new refimage " + refimage);
       if (util.findWindow(refimage) == null) {
@@ -4244,7 +4261,7 @@ function mapRGBchannel(images, refimage, mapping, is_luminance, name)
       // close all copied images as we may want use the same names in the next RGB round
       closeAllWindowsFromArray(images);
 
-      flowchartSubtaskEnd(name);
+      flowchartChildEnd(name);
 
       return target_image;
 }
@@ -4804,6 +4821,7 @@ function customMapping(RGBmapping, check_allfilesarr)
             // then continue as normal RGB processing.
             // If we have multiple images in mapping we use linear fit to match
             // them before PixelMath.
+            flowchartParentBegin("RGB+Narroband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (autocontinue_processed_channel_images.rgb) {
                   util.throwFatalError("Never should have RGB+Narrowband with mapped images.");
@@ -4817,6 +4835,8 @@ function customMapping(RGBmapping, check_allfilesarr)
             red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping, false, 'R');
             green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping, false, 'G');
             blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping, false, 'B');
+
+            flowchartParentEnd("RGB+Narroband");
       }
 
       return RGBmapping;
@@ -5203,6 +5223,7 @@ function runLocalNormalization(imagetable, refImage, filter)
       flowchartOperation("LocalNormalization");
 
       if (imagetable.length == 1 || global.flowchart) {
+            console.writeln("runLocalNormalization, only one file or flowchart, no need for local normalization");
             return;
       }
 
@@ -5280,6 +5301,11 @@ function runLinearFit(refViewId, targetId)
       }
 
       linear_fit_done = true;
+
+      if (global.flowchart) {
+            return targetId;
+      }
+
       var targetWin = ImageWindow.windowById(targetId);
       var P = new LinearFit;
       P.referenceViewId = refViewId;
@@ -7997,7 +8023,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
             }
       }
       logfname = basename + util.getOptionalUniqueFilenamePart() + ".log";
-      if (par.win_prefix_to_log_files.val) {
+      if (par.win_prefix_to_log_files.val && !global.flowchart) {
             logfname = util.ensure_win_prefix(logfname);
       }
 
@@ -8411,21 +8437,21 @@ function extractChannels(fileNames)
       return newFileNames;
 }
 
-function findStartWindowCheckBaseNameIf(id, check_base_name)
+function findGCStartWindowCheckBaseNameIf(id, check_base_name)
 {
       var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
 
       for (var i = 0; i < extensions.length; i++) {
       var win = findWindowCheckBaseNameIf(id + extensions[i], check_base_name);
             if (win) {
-                  console.writeln("findStartWindowCheckBaseNameIf: found " + win.mainView.id);
+                  console.writeln("findCGStartWindowCheckBaseNameIf: found " + win.mainView.id);
             }
             return win;
       }
       return null;
 }
 
-function findGCStartWindowCheckBaseNameIf(id, check_base_name)
+function findStartWindowCheckBaseNameIf(id, check_base_name)
 {
       var win = findWindowCheckBaseNameIf(id, check_base_name);
       if (win) {
@@ -8448,6 +8474,10 @@ function findStartWindowCheckBaseNameArrayIf(idarray, check_base_name)
 
 function findStartImages(auto_continue, check_base_name, can_update_preview)
 {
+      if (global.flowchart) {
+            return global.start_images.NONE;
+      }
+
       /* Check if we have manually done histogram transformation. */
       L_HT_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
       RGB_HT_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
@@ -9530,7 +9560,11 @@ function CombineRGBimageEx(target_name, images)
                         rgb_name);                          // const IsoString &id=IsoString()
 
       if (win.mainView.id != rgb_name) {
-            util.fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
+            if (global.flowchart) {
+                  global.flowchartWindows[global.flowchartWindows.length] = win.mainView.id;
+            } else {
+                  util.fatalWindowNameFailed("Failed to create window with name " + rgb_name + ", window name is " + win.mainView.id);
+            }
       }
 
       copySelectedFITSKeywords(model_win, win);
@@ -12520,6 +12554,7 @@ function CropImageIf(id)
       }
       flowchartOperation("Crop");
       if (global.flowchart) {
+            util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
             return true;
       }
 

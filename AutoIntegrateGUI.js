@@ -298,7 +298,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Arcsinh Stretch', 'Histogram stretch', 'Hyperbolic', 'Logarithmic stretch', 'None' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Histogram stretch', 'Hyperbolic', 'Arcsinh Stretch', 'Logarithmic stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -6346,13 +6346,46 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.add( this.use_GC_L_RGB_stretched_CheckBox );
       this.imageParamsSet2.add( this.drizzleSizer );
 
+      //
+      // Stretching choice
+      //
+      var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
+                                    "Works best with images that are processed with the Crop to common area option.";
+
+      var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
+                            "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
+                            "the implementation in AutoIntegrate does not work that well.</p>" + 
+                            "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
+                            "Consider using ABE or GraXpert on combined images and maybe also BackgroundNeutralization to clean image background. Local Normalization can be useful too.</p>" +
+                            "<p>It is also recommended that Crop to common are option is used. It cleans the image from bad data and makes " + 
+                            "finding the symmetry point more robust.</p>" + 
+                            "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
+
+      var stretchingTootip = 
+            "<p>Select how image is stretched from linear to non-linear.</p>" +
+            "<ul>" +
+            "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</p></li>" +
+            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
+            "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
+            "<li><p>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process.</p>" + Hyperbolic_tips + "</li>" +
+            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Can be useful when stretching stars to keep good star color.</p></li>" +
+            "<li><p>Logarithmic stretch - Experimental stretch</p></li>" +
+            "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
+            "</ul>" + 
+            "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>";
+      this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
+      this.stretchingLabel = newLabel(this, "Stretching", stretchingTootip, true);
+      this.stretchingSizer = newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
+
+      this.imageParamsControlSubSizer = newHorizontalSizer(4, true, [ this.imageParamsSet1, this.imageParamsSet2 ]);
+
       // Image group par.
       this.imageParamsControl = new Control( this );
-      this.imageParamsControl.sizer = new HorizontalSizer;
+      this.imageParamsControl.sizer = new VerticalSizer;
       this.imageParamsControl.sizer.margin = 6;
       this.imageParamsControl.sizer.spacing = 4;
-      this.imageParamsControl.sizer.add( this.imageParamsSet1 );
-      this.imageParamsControl.sizer.add( this.imageParamsSet2 );
+      this.imageParamsControl.sizer.add( this.imageParamsControlSubSizer );
+      this.imageParamsControl.sizer.add( this.stretchingSizer );
       this.imageParamsControl.visible = false;
       this.imageParamsControl.sizer.addStretch();
 
@@ -7176,40 +7209,18 @@ function AutoIntegrateDialog()
       this.ABEGraXpertSizer = newHorizontalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer]);
 
       //
-      // Stretching
+      // Stretching parameters
       //
 
-      var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
-                            "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
-                            "the implementation in AutoIntegrate does not work that well.</p>" + 
-                            "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
-                            "Consider using ABE or GraXpert on combined images and maybe also BackgroundNeutralization to clean image background. Local Normalization can be useful too.</p>" +
-                            "<p>It is also recommended that Crop to common are option is used. It cleans the image from bad data and makes " + 
-                            "finding the symmetry point more robust.</p>" + 
-                            "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
-
-      var histogramStretchToolTip = "Using a simple histogram transformation with some clipping to get histogram median or peak to the target value. " + 
-                                    "Works best with images that are processed with the Crop to common area option.";
-      var stretchingTootip = 
-            "<ul>" +
-            "<li>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</li>" +
-            "<li>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<p>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
-            "<li>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Useful also when stretching stars to keep good star color.</p></li>" +
-            "<li>Histogram stretch - " + histogramStretchToolTip + "</li>" +
-            "<li>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process. " + Hyperbolic_tips + "</li>" +
-            "<li>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</li>" +
-            "</ul>";
-      this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
-      this.starsStretchingLabel = newLabel(this, " Stars ", "Stretching for stars if stars are extracted from image.");
+      this.starsStretchingLabel = newLabel(this, "Stretching for Stars ", "Stretching for stars if stars are extracted from a linear image.");
       this.starsStretchingComboBox = newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + stars_combine_operations_Tooltip;
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
       
       this.stretchingChoiceSizer = new HorizontalSizer;
-      this.stretchingChoiceSizer.margin = 6;
+      //this.stretchingChoiceSizer.margin = 6;
       this.stretchingChoiceSizer.spacing = 4;
-      this.stretchingChoiceSizer.add( this.stretchingComboBox );
       this.stretchingChoiceSizer.add( this.starsStretchingLabel );
       this.stretchingChoiceSizer.add( this.starsStretchingComboBox );
       this.stretchingChoiceSizer.add( this.starsCombineLabel );
@@ -8010,6 +8021,11 @@ function AutoIntegrateDialog()
                                         flowchartToolTip;
       this.newFlowchartButton.onClick = function()
       {
+            
+            // Use prefix when running flowchart to avoid name conflicts
+            var saved_win_prefix = ppar.win_prefix;
+            ppar.win_prefix = "AutoIntegrateFlowchart_";
+
             global.flowchart = true;
             try {
                   runAction(this.parent);
@@ -8018,6 +8034,14 @@ function AutoIntegrateDialog()
                   console.writeln( x );
             }
             global.flowchart = false;
+
+            // Close all windows with flowchart prefix
+            util.fixAllWindowArrays(ppar.win_prefix);
+            engine.closeAllWindows(false, false);
+
+            // restore original prefix
+            ppar.win_prefix = saved_win_prefix;
+            util.fixAllWindowArrays(ppar.win_prefix);
 
             engine.closeAllWindowsFromArray(global.flowchartWindows);
             global.flowchartWindows = [];
