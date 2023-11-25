@@ -653,12 +653,12 @@ this.openImageWindowFromFile = function(name)
 
 /***************************************************************************
  * 
- *    autointerate_main
+ *    autointegrate_main
  * 
  */
-this.autointerate_main = function()
+this.autointegrate_main = function()
 {
-      console.writeln("autointerate_main");
+      console.writeln("autointegrate_main");
       try {
             /* Check command line arguments. Arguments can be given by starting the script from
              * the command line in the Process Console window. Arguments are given using syntax:
@@ -749,7 +749,7 @@ function main()
 {
       var autointegrate = new AutoIntegrate();
 
-      autointegrate.autointerate_main();
+      autointegrate.autointegrate_main();
 
       autointegrate = null;
 }

@@ -89,7 +89,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 */
 
 #ifndef NO_SOLVER_LIBRARY
-/* Settings to ImageSolver scipt. This is copied from WBPP script. */
+/* Settings to ImageSolver script. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
 #define USE_ANNOTATE_LIBRARY true
 #define SETTINGS_MODULE "AutoIntegrate"
@@ -5676,11 +5676,11 @@ function runImageIntegrationForCrop(images)
 
       var P = new ImageIntegration;
 
-      // The commented properties are normally defaults, not set because the defults could
-      // be changed by the developper of ImageIntegration and should not impact this process
+      // The commented properties are normally defaults, not set because the defaults could
+      // be changed by the developer of ImageIntegration and should not impact this process
       // (hopefully).
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
-      // P.inputHints = "fits-keywords normalize raw cfa signed-is-physical"; //Default, maybe shoulsd forcce normalize
+      // P.inputHints = "fits-keywords normalize raw cfa signed-is-physical"; //Default, maybe should force normalize
       P.combination = ImageIntegration.prototype.Minimum;
       // P.weightMode = ImageIntegration.prototype.PSFSignalWeight;
       // P.weightKeyword = "";
@@ -5717,7 +5717,7 @@ function runImageIntegrationForCrop(images)
             P.rangeClipLow = false; // Save some time especially on short runs.
       }
       P.rangeLow = 0.000000;   // default but ensure it is 0 for correct results in case rangeClipLow is true
-      P.rangeClipHigh = false; // default, but ensure we do not clip higgh to avoid creating black dots.
+      P.rangeClipHigh = false; // default, but ensure we do not clip high to avoid creating black dots.
       // P.rangeHigh = 0.980000;
       // P.mapRangeRejection = true;
       // P.reportRangeRejection = false;
@@ -5738,7 +5738,7 @@ function runImageIntegrationForCrop(images)
       if (par.cropinfo_only.val || par.crop_use_rejection_low.val) {
             P.closePreviousImages = true;
       } else {
-            P.closePreviousImages = false; // Could be set to true to automatically supress previosu result, but they are removed by the script
+            P.closePreviousImages = false; // Could be set to true to automatically suppress previuos result, but they are removed by the script
       }
       // P.bufferSizeMB = 16; // Performance, left defaults, could be a parameter from an icon
       // P.stackSizeMB = 1024; // Performance, left defaults, could be a parameter from an icon
@@ -5760,7 +5760,7 @@ function runImageIntegrationForCrop(images)
       // P.psfType = ImageIntegration.prototype.PSFType_Moffat4;
       // P.subtractPedestals = false;
       // P.truncateOnOutOfRange = false;
-      P.noGUIMessages = true; // Default, but want to be sure as we are not interractive
+      P.noGUIMessages = true; // Default, but want to be sure as we are not interactive
       P.showImages = true; // To have the image on the workspace
       // P.useFileThreads = true;
       // P.fileThreadOverload = 1.00;
@@ -7156,7 +7156,7 @@ function runBlurXTerminator(imgWin)
                   util.throwFatalError("Cannot run BlurXTerminator, median FWHM is not calculated. Maybe subframe selector was not run.")
             }
             var psf = medianFWHM;
-            console.writeln("Using PSF " + psf + " frome madian FWHM value");
+            console.writeln("Using PSF " + psf + " from median FWHM value");
       } else if (par.bxt_image_psf.val) {
             var auto_psf = false;
             var psf = getImagePSF(imgWin);
@@ -7592,7 +7592,7 @@ function runImageSolver(id, image_is_linear)
                   var copyWin = util.copyWindowEx(imgWin, id + "_solvercopy", true);
                   console.writeln("runImageSolver: using a copied image " + copyWin.mainView.id);
 
-                  /* Apply autostretch on image, maybe it helps imagesolver to find stars. */
+                  /* Apply auto stretch on image, maybe it helps image solver to find stars. */
                   console.writeln("runImageSolver: stretch image " + copyWin.mainView.id);
                   engine.runHistogramTransformSTFex(copyWin, null, copyWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
 
@@ -8789,7 +8789,7 @@ function CreateChannelImages(parent, auto_continue)
             guiUpdatePreviewFilename(global.lightFileNames[0]);
 
             // We keep track of extensions added to the file names
-            // If we need to original file names we can substract
+            // If we need to original file names we can subtract
             // added extensions.
             var filename_postfix = '';
 
@@ -10812,9 +10812,9 @@ function extraBandingReduction(extraWin)
 function extraGradientCorrection(extraWin)
 {
       if (par.use_graxpert.val) {
-            addExtraProcessingStep("Extrach background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
+            addExtraProcessingStep("Extract background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
       } else {
-            addExtraProcessingStep("Extrach background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
+            addExtraProcessingStep("Extract background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
       }
       var id = runGradientCorrection(extraWin, true);
       // guiUpdatePreviewWin(extraWin);
@@ -11698,7 +11698,7 @@ function extraRotate(imgWin)
             case '180':
                   P.mode = FastRotation.prototype.Rotate180;
                   break;
-            case '270':
+            case '-90':
                   P.mode = FastRotation.prototype.Rotate90CCW;
                   break;
             default:
@@ -11965,7 +11965,7 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_combine_stars.val) {
             /* Restore stars by combining starless image and stars. */
-            addExtraProcessingStep("Combine stars and a´starless images using " + par.extra_combine_stars_mode.val + ", reduce stars by " + par.extra_combine_stars_reduce.val);
+            addExtraProcessingStep("Combine stars and starless images using " + par.extra_combine_stars_mode.val + ", reduce stars by " + par.extra_combine_stars_reduce.val);
             var new_image_id = combineStarsAndStarless(
                                     par.extra_combine_stars_mode.val,
                                     extraWin.mainView.id, // starless
@@ -12217,7 +12217,7 @@ function findMaximalBoundingBox(lowClipImage)
  *   but CosmeticCorrection may have to be applied in some case.
  * - The valid area will be rectangular and parallel to the borders of the image.
  * With these assumptions there is generally not a single possible rectangular area
- * (think of an image inside a circle of valie points), the algorithm assumes that the valid area is 
+ * (think of an image inside a circle of valid points), the algorithm assumes that the valid area is 
  * "reasonable", that is a few percent smaller than the full image. In extreme cases
  * the selected area will work but may not be optimal. This should not be the case
  * for any common image.

@@ -258,7 +258,7 @@ this.par = {
       ESD_outliers: { val: 0.3, def: 0.3, name : "ESD outliers", type : 'R' },
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
-      use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Mmultiscale", type : 'B' },
+      use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Multiscale", type : 'B' },
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },

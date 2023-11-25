@@ -322,7 +322,7 @@ var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', '
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
-var rotate_degrees_values = [ '90', '180', '270' ];
+var rotate_degrees_values = [ '90', '180', '-90' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -642,7 +642,7 @@ function flowchartGraphDraw(parent, pos, graphics)
       }
 }
 
-// Draw a gaphical version of the workflow
+// Draw a graphical version of the workflow
 function flowchartGraph(rootnode)
 {
       if (flowchart_debug) {
@@ -732,10 +732,10 @@ function newHorizontalSizer(margin, addStretch, items)
 function getNarrowbandColorizedSizer(parent)
 {
       var narrowbandColorizedtoolTipBase =
-      "<p>RGB channels are extraced from the target color image, channel images are colorized and a new RGB image is created.</p>" + 
+      "<p>RGB channels are extracted from the target color image, channel images are colorized and a new RGB image is created.</p>" + 
       "<p>The idea is to pick a color hue and saturation for each channel to change the final image colors. Also relative weight for each channel can be given.</p>" +
       "<p>Preview button can be used to show a mosaic preview of each colorized channel image and the final image.</p>" +
-      "<p>Some presets are available to give a starting point fopr experimenting. Note that the target image Apply creates the final image, " +
+      "<p>Some presets are available to give a starting point for experimenting. Note that the target image Apply creates the final image, " +
       "preview image is always discarded.</p>" +
       "<p>Settings are briefly described below:</p>" +
       "<ul>" +
@@ -869,7 +869,7 @@ function getNarrowbandColorizedSizer(parent)
 
       var narrowbandColorizedMethodLabel = newLabel(parent, "Method",  "<p>Method tells hoe channels are colorized.</p>" + 
                                                                        "<p>Colourize uses a built in process Colourise.</p>" + 
-                                                                       "<p>PixelMath uses RGB color values deriuved from hue to create a colorized image.</p>" + 
+                                                                       "<p>PixelMath uses RGB color values derived from hue to create a colorized image.</p>" + 
                                                                        narrowbandColorizedtoolTip);
       var narrowbandColorizedMethodComboBox = newComboBox(parent, par.narrowband_colorized_method, narrowband_colorized_method_values, narrowbandColorizedMethodLabel.toolTip);
 
@@ -884,7 +884,7 @@ function getNarrowbandColorizedSizer(parent)
       var narrowbandColorizedMappingComboBox = newComboBox(parent, par.narrowband_colorized_mapping, narrowband_colorized_mapping_values, narrowbandColorizedMappingLabel.toolTip);
 
 
-      var narrowbandColorizedLinerFitCheckBox = newCheckBox(parent, "Linear fit", par.narrowband_colorized_linear_fit, "<p>If set, channels are liear fit with R channel before colorize.</p>" + narrowbandColorizedtoolTip);
+      var narrowbandColorizedLinerFitCheckBox = newCheckBox(parent, "Linear fit", par.narrowband_colorized_linear_fit, "<p>If set, channels are linear fit with R channel before colorize.</p>" + narrowbandColorizedtoolTip);
 
       var narrowbandColorizedPreviewButton = new PushButton( parent );
       narrowbandColorizedPreviewButton.text = "Preview";
@@ -1024,7 +1024,7 @@ function extraProcessingGUI(parent)
       this.narrowband_Foraxx_CheckBox = newCheckBox(parent, "Foraxx mapping", par.run_foraxx_mapping, 
             "<p>Use dynamic Foraxx palette on image.</p>" +
             "<p>Foraxx mapping can be done on SHO or HOO image. Channels are extracted from the SHO or HOO " + 
-            "image and mapped again to create a dynamic Foraxx palette imege.</p>" +
+            "image and mapped again to create a dynamic Foraxx palette image.</p>" +
             "<p>After Foraxx SHO mapping <i>Remove green cast</i> and <i>Orange/blue colors</i> are run for the image.</p>" +
             "<p>To run basic Foraxx SHO mapping use <i>SHO mapping</i> and select <i>Dynamic SHO</i>.</p>" +
             "<p>" + Foraxx_credit + "</p>" );
@@ -1046,7 +1046,7 @@ function extraProcessingGUI(parent)
       this.extra_narrowband_mapping_CheckBox = newCheckBox(parent, "Narrowband mapping", par.run_extra_narrowband_mapping, 
             "<p>Map source narrowband image to a new narrowband palette.</p>" +
             "<p>Mapping can be done only on SHO or HOO images. Channels are extracted from the SHO or HOO " + 
-            "image and mapped again to create a new palette imege.</p>");
+            "image and mapped again to create a new palette image.</p>");
       this.extra_narrowband_source_palette_ComboBox = newComboBox(parent, par.extra_narrowband_mapping_source_palette, Foraxx_palette_values, this.extra_narrowband_mapping_CheckBox.toolTip);
       this.extra_narrowband_target_mapping_Label = newLabel(parent, "to", this.extra_narrowband_mapping_CheckBox.toolTip);
       this.extra_narrowband_target_palette_ComboBox = newComboBox(parent, par.extra_narrowband_mapping_target_palette, this.extra_SHO_mapping_values, this.extra_narrowband_mapping_CheckBox.toolTip);
@@ -1132,7 +1132,7 @@ function extraProcessingGUI(parent)
 
       // Extra processing
       var extraRemoveStars_Tooltip = 
-            "<p>Run Starnet or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
+            "<p>Run Starnet2 or StarXTerminator on image to generate a starless image and a separate image for the stars.</p>" + 
             "<p>When this is selected, extra processing is applied to the starless image. Smaller stars option is run on star images.</p>" + 
             "<p>At the end of the processing a combined image can be created from starless and star images. Combine operation can be " + 
             "selected from the combo box.</p>" +
@@ -1162,8 +1162,8 @@ function extraProcessingGUI(parent)
             "target image. Stars image must be open in the desktop.</p>" +
             "<p>Star image is searched using the following steps:</p>" +
             "<ol>" +
-            "<li>All occurances of text starless replaced with text stars</li>" +
-            "<li>All occurances of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
+            "<li>All occurrences of text starless replaced with text stars</li>" +
+            "<li>All occurrences of text starless_edit followed by a number (starless_edit[1-9]*) replaced with text stars</li>" +
             "<li>Text starless at the end replaced with text stars</li>" +
             "<li>Text starless and any text that follows it (starless.*) replaced with text stars</li>" +
             "<li>Text starless and any text that follows it (starless.*) replaced with text stars and any text after text stars " + 
@@ -1416,7 +1416,7 @@ function extraProcessingGUI(parent)
       this.extraNormalizeChannelsReferenceLabel = newLabel(parent, "reference", "Reference channel for normalization." + this.extraNormalizeChannelsCheckBox.toolTip);
       this.extraNormalizeChannelsReferenceComboBox = newComboBox(parent, par.extra_normalize_channels_reference, normalize_channels_reference_values, this.extraNormalizeChannelsReferenceLabel.toolTip);
       this.extraNormalizeChannelsMaskCheckBox = newCheckBox(parent, "Mask", par.extra_normalize_channels_mask, 
-                                                            "<p>Use a lightness mask when normalizing. It can help to avoid overstretching dark parts of the imege.</p>" + 
+                                                            "<p>Use a lightness mask when normalizing. It can help to avoid overstretching dark parts of the image.</p>" + 
                                                             this.extraNormalizeChannelsCheckBox.toolTip);
 
       this.extraNormalizeChannelsSizer = new HorizontalSizer;
@@ -1734,7 +1734,7 @@ function extraProcessingGUI(parent)
             "Both extra processing options and narrowband processing options are applied to the image. If some of the " +
             "narrowband options are selected then image is assumed to be narrowband." +
             "</p><p>" +
-            "If multiple extra processing options are selected they are executed in the order they are listyed in the dialog." + 
+            "If multiple extra processing options are selected they are executed in the order they are listed in the dialog." + 
             "</p>" +
             "<p>" +
             "Narrowband processing options are selected they are applied before extra processing options." +
@@ -5202,7 +5202,7 @@ function newActionSizer(parent)
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
-      let obj = newCancelButton(parent, true);
+      obj = newCancelButton(parent, true);
       parent.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
@@ -6080,7 +6080,7 @@ function AutoIntegrateDialog()
             "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing</i> tab.</p>" +
             comet_alignment_toolTip);
       this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.fast_integration, 
-            "<p>If checked, use FastIntegration process instead of ImageIntegration process when integratating light images.</p>");
+            "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
@@ -6105,18 +6105,18 @@ function AutoIntegrateDialog()
             "<p>Checking this box will enable early PSF signal test. Then light files are filtered for PSF signal values below weight limit before any processing.</p>" +
             "<p>Weight limit is set in <i>filtering</i> section in <i>Processing</i> tab.</p>" );
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
-            "<p>Run only channel combination to linear RGB file. No autostretch or color calibration.</p>" );
+            "<p>Run only channel combination to linear RGB file. No auto stretch or color calibration.</p>" );
       /* this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
             "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" ); */
       this.keepIntegratedImagesCheckBox = newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.resetOnSetupLoadCheckBox = newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
-            "<p>Reset parameters toi default values before loading a setup. This ensures that only parametrers from the setup file are set " + 
+            "<p>Reset parameters toi default values before loading a setup. This ensures that only parameters from the setup file are set " + 
             "and user saved default parameters are not set.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
-            "<p>Print some additionalö debug information to the log output files.</p>" );
+            "<p>Print some additional debug information to the log output files.</p>" );
       this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
             "<p>Use AutomaticBackgroundExtractor or GraXpert on L, R, G and B images separately before channels are combined.</p>" );
       this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
@@ -6154,7 +6154,7 @@ function AutoIntegrateDialog()
             "<p>Run ColorCalibration before AutomaticBackgroundExtractor or GraXpert in run on RGB image</p>" );
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
-            "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with chjecking this box.</p>" +
+            "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with checking this box.</p>" +
             "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
             "<p>Consider also using Drizzle with scale 1 or 2 when using SPCC.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
@@ -6254,7 +6254,7 @@ function AutoIntegrateDialog()
       this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
             "<p><b>NOTE!</b>If you are using an old version of StarXTerminator you need to start StarXTerminator manually once after PixInsight is started. " +
-            "Just a simple start and close is enough. Othwerwise StarXTerminator will fail with file I/O error and " +
+            "Just a simple start and close is enough. Otherwise StarXTerminator will fail with file I/O error and " +
             "does not remove stars.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
@@ -6262,7 +6262,7 @@ function AutoIntegrateDialog()
             "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
       this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
             "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
-            "<p>BlurXTerminator is applied on the linear image just before it is stetched to non-linear. Extra processing " +
+            "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Extra processing " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
             "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>" +
             "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
@@ -6283,7 +6283,7 @@ function AutoIntegrateDialog()
             "<p>This option can be useful for testing different processing like Local Normalization or Drizzle " + 
             "(if Generate .xdrz files is selected). This is also useful if there is a need to manually remove " + 
             "bad files after alignment.</p>" +
-            "<p>This moption is also useful when doing comet alignment. Then input files should be comet aligned *_ca.xisf files.</p>" +
+            "<p>This option is also useful when doing comet alignment. Then input files should be comet aligned *_ca.xisf files.</p>" +
             "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
             "filter files must be added manually to the file list.</p>" );
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
@@ -6316,7 +6316,7 @@ function AutoIntegrateDialog()
       this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
             "<p>When possible use already processed files. This option can be useful when adding files to an already processed set of files. " +
             "Only files generated before image integration are reused.</p>" +
-            "<p>Option works best with a json setup file that is saved after processing or with Autosave generated AutosaveSetup.json file because " + 
+            "<p>Option works best with a Json setup file that is saved after processing or with Autosave generated AutosaveSetup.json file because " + 
             "then star alignment reference image and possible defect info is saved.</p>" +
             "<p>With image calibration it is possible to use previously generated master files by adding already processed master files " +
             "into calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
@@ -6805,7 +6805,7 @@ function AutoIntegrateDialog()
 
       this.targetRaDecLabel = newLabel(this, "RA DEC", "<p>Target RA DEC in decimal hours and degrees.</p>" + 
                                                        "<p>Should be given if target image does not contain coordinates.</p>" +
-                                                       "<p>Search button can be used to search coordinames.</p>");
+                                                       "<p>Search button can be used to search coordinates.</p>");
       this.targetRaDecEdit = newTextEdit(this, par.target_radec, this.targetRaDecLabel.toolTip);
 
       this.findTargetCoordinatesButton = new ToolButton(this);
@@ -6885,7 +6885,7 @@ function AutoIntegrateDialog()
       this.spccDetectionScalesSpinBox = newSpinBox(this, par.spcc_detection_scales, 1, 8, this.spccDetectionScalesLabel.toolTip);
       this.spccNoiseScalesLabel = newLabel(this, "Noise scales", "Number of layers used for noise reduction. If SPCC fails you can try increasing the value.");
       this.spccNoiseScalesSpinBox = newSpinBox(this, par.spcc_noise_scales, 0, 4, this.spccNoiseScalesLabel.toolTip);
-      this.spccMinStructSizeLabel = newLabel(this, "Minumum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
+      this.spccMinStructSizeLabel = newLabel(this, "Minimum structure size", "Minimum size for a detectable star structure. Can be increased to avoid detecting image artifacts as real stars.");
       this.spccMinStructSizeSpinBox = newSpinBox(this, par.spcc_min_struct_size, 0, 1000, this.spccMinStructSizeLabel.toolTip);
       this.spccLimitMagnitudeLabel = newLabel(this, "Limit magnitude", "Limit magnitude for catalog search. Can be changed from Auto to something like 20 or larger if SPCC fails. Maximum value is 30.");
       this.spccLimitMagnitudeEdit = newTextEdit(this, par.spcc_limit_magnitude, this.spccLimitMagnitudeLabel.toolTip);
@@ -6942,7 +6942,7 @@ function AutoIntegrateDialog()
       this.spccGroupBoxSizerCheckBoxes.add( this.spccBackgroundNeutralizationCheckBox );
       this.spccGroupBoxSizerCheckBoxes.addStretch();
 
-      var spccFilterTooTip = "<p>Wavelength and bandwidths for Red, Geen and Blue filters with narrowband processing.</p>" +
+      var spccFilterTooTip = "<p>Wavelength and bandwidths for Red, Green and Blue filters with narrowband processing.</p>" +
                              "<p>Default values are for Astrodon LRGB 2GEN filters using SHO palette.</p>";
 
       this.spccRedFilterWavelength = newNumericEdit(this, "Narrowband Red Wavelength", par.spcc_red_wavelength, 0, 999999, spccFilterTooTip);
@@ -7183,8 +7183,8 @@ function AutoIntegrateDialog()
 
       this.graxpertPathSizer = newHorizontalSizer(0, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
       
-      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXperr.");
-      this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXperr.", true);
+      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert.");
+      this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXpert.", true);
       this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
 
       this.graxpertCorrectionSizer = newHorizontalSizer(0, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox]);
@@ -7196,7 +7196,7 @@ function AutoIntegrateDialog()
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.cropUseRejectionLowCheckBox = newCheckBox(this, "Use rejection low", par.crop_use_rejection_low, "Use rejection_low from ImageIntegration instead of integrated data to calculate crop amount.");
       this.cropRejectionLowLimitControl = newNumericEdit(this, "Limit", par.crop_rejection_low_limit, 0, 1, 
-            "<p>Limit value for detecting crop edge. Values below  limit are consired to be inside the cropped area.</p>" +
+            "<p>Limit value for detecting crop edge. Values below the limit are considered to be inside the cropped area.</p>" +
             "<p>This value is used only if rejection low is selected.</p>");
 
       this.CropToleranceSizer = newHorizontalSizer(0, true, [this.CropToleranceLabel, this.CropToleranceSpinBox]);
@@ -8007,9 +8007,9 @@ function AutoIntegrateDialog()
             console.writeln("Close all prefixes completed");
       };
 
-      var flowchartToolTip = "<p>Flowchart information is always generated during the procesing. It is saved to the " + 
+      var flowchartToolTip = "<p>Flowchart information is always generated during the processing. It is saved to the " + 
                              "setup file and AutosaveSetup file so it can be loaded later.</p>" +
-                             "´<p>A graphical version of the flowchart is printed to the preview window and " + 
+                             "<p>A graphical version of the flowchart is printed to the preview window and " + 
                              "a text version is printed to the process console and AutoIntegrate log file.</p>";
 
       // New Flowchart button
@@ -8017,7 +8017,7 @@ function AutoIntegrateDialog()
       this.newFlowchartButton.text = "New Flowchart";
       this.newFlowchartButton.toolTip = "<p>Create a new AutoIntegrate workflow flowchart using the current settings.</p>" +
                                         "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
-                                        "<p>To run the similated workflow all relevant files must be loaded to the Files tab.</p>" + 
+                                        "<p>To run the simulated workflow all relevant files must be loaded to the Files tab.</p>" + 
                                         flowchartToolTip;
       this.newFlowchartButton.onClick = function()
       {
