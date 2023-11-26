@@ -3347,6 +3347,8 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                   filter = util.findFilterForFile(filterSet, filePath, filename_postfix);
             }
 
+            /* Go through keywords in the file.
+             */
             var keywords = getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
@@ -3416,22 +3418,31 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                   }
             }
 
+            /* 1. Check Hubble filter
+             */
             if (filter != null && filter.trim().substring(0, 1) == 'F') {
                   // Hubble FILTER starts with F, force using file name
                   filter = null;
             }
+            /* 2. No filter keyword, check file name
+             */
             if (filter == null || par.force_file_name_filter.val) {
                   // No filter keyword. Try mapping based on file name.
                   filter = filterByFileName(filePath, filename_postfix);
             }
+            /* 3. No filter keyword or name found, default to color files
+             */
             if (filter == null) {
                   filter = 'Color';
             }
+            /* 4. With monochrome settings, set all as luminance
+             */
             if (par.monochrome_image.val) {
                   console.writeln("Create monochrome image, set filter = Luminance");
                   filter = 'Luminance';
             }
-            // First check with full filter name
+            /* 5. Check with full filter name, either from FILTER keyword or file name
+             */
             switch (filter.trim().toUpperCase()) {
                   case 'LUMINANCE':
                   case 'LUM':
@@ -3467,13 +3478,15 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                   case 'COLOR':
                   case 'NO FILTER':
                   case 'L_EN':
+                  case 'LC':   // Seestar
                   case 'C':
                         filter = 'C';
                         break;
                   default:
                         break;
             }
-            // Do final resolve based on first letter in the filter
+            /* 6.  Do final resolve based on the first letter in the filter
+             */
             var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
             var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
                               best_image: treebox_best_image, reference_image: treebox_reference_image,
@@ -3564,9 +3577,12 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
             error_text = "Error, cannot mix color and monochrome filter files";
       } else if (rgb && (allfiles.R.length == 0 || allfiles.G.length == 0 || allfiles.B.length == 0)) {
             error_text = "Error, with RGB files for all RGB channels must be given";
+      } else if (luminance && (!rgb && !narrowband && !par.monochrome_image.val)) {
+            error_text = "Error, with luminance files RGB or narrowband channels must be given";
       }
 
       return { allfilesarr : allfilesarr,
+               luminance : luminance, 
                rgb : rgb, 
                narrowband : narrowband,
                color_files : color_files,
@@ -5303,7 +5319,7 @@ function runLinearFit(refViewId, targetId)
       linear_fit_done = true;
 
       if (global.flowchart) {
-            return targetId;
+            return;
       }
 
       var targetWin = ImageWindow.windowById(targetId);
@@ -8075,6 +8091,8 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
             if (global.processing_errors.length > 0) {
                   file.outTextLn("Processing errors:");
                   file.outTextLn(global.processing_errors);
+                  console.criticalln("Processing errors:");
+                  console.criticalln(global.processing_errors);
             }
       }
       file.close();
@@ -8818,20 +8836,24 @@ function CreateChannelImages(parent, auto_continue)
             }
 
             var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
-            if (isCustomMapping(filtered_lights.narrowband)
-                && !par.image_weight_testing.val
+            if (!par.image_weight_testing.val
                 && !par.debayer_only.val
                 && !par.binning_only.val
                 && !par.extract_channels_only.val
                 && !par.integrate_only.val
                 && !par.calibrate_only.val)
             {
-                  // Do a check round in custom mapping to verify that all needed
-                  // channels have files.
-                  // We exit with fatal error if some files are missing
-                  global.write_processing_log_file = false;
-                  customMapping(null, filtered_lights.allfilesarr);
-                  global.write_processing_log_file = true;
+                  if (filtered_lights.error_text != "") {
+                        util.throwFatalError(filtered_lights.error_text);
+                  }
+                  if (isCustomMapping(filtered_lights.narrowband)) {
+                        // Do a check round in custom mapping to verify that all needed
+                        // channels have files.
+                        // We exit with fatal error if some files are missing
+                        global.write_processing_log_file = false;
+                        customMapping(null, filtered_lights.allfilesarr);
+                        global.write_processing_log_file = true;
+                  }
             }
 
             if (par.extract_channels_only.val && par.extract_channel_mapping.val == 'None') {

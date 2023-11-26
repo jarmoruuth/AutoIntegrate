@@ -676,7 +676,7 @@ this.narrowBandPalettes = [
       { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true }, 
       { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
       { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
-      { name: "max(RGB,H)", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false }, 
+      { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false }, 
       { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false }, 
       { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true }, 
       { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
