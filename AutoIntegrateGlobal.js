@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65 test6";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65 test7";   // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -193,13 +193,13 @@ this.par = {
       use_RGB_image: { val: false, def: false, name : "Narrowband RGB mapping use RGB", type : 'B' },
       L_mapping: { val: '',  def: '',  name : "Narrowband RGB mapping for L", type : 'S' },
       R_mapping: { val: 'H', def: 'H', name : "Narrowband RGB mapping for R", type : 'S' },
-      G_mapping: { val: 'O', def: 'O', name : "Narrowband RGB mapping for G", type : 'S' },
-      B_mapping: { val: 'O', def: 'O', name : "Narrowband RGB mapping for B", type : 'S' },
+      G_mapping: { val: '', def: '', name : "Narrowband RGB mapping for G", type : 'S' },
+      B_mapping: { val: '', def: '', name : "Narrowband RGB mapping for B", type : 'S' },
       L_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping L boost factor", type : 'R' },
       R_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping R boost factor", type : 'R' },
       G_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping G boost factor", type : 'R' },
       B_BoostFactor: { val: 1.2, def: 1.2, name : "Narrowband RGB mapping B boost factor", type : 'R' },
-      L_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping L bandwidth", type : 'R' },
+      L_bandwidth: { val: 300, def: 300, name : "Narrowband RGB mapping L bandwidth", type : 'R' },
       R_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping R bandwidth", type : 'R' },
       G_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping G bandwidth", type : 'R' },
       B_bandwidth: { val: 100, def: 100, name : "Narrowband RGB mapping B bandwidth", type : 'R' },
@@ -591,6 +591,9 @@ this.fixed_windows = [
       "Mapping_G",
       "Mapping_B",
       "Integration_RGB",
+      "Integration_R_NB",
+      "Integration_G_NB",
+      "Integration_B_NB",
       // "Integration_RGB_narrowband",
       // "Integration_L_start",
       // "Integration_RGB_start",

@@ -368,7 +368,7 @@ var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    //
 
 //                          blue        green       red         magenta     cyan        yellow      black
 var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-var flowchart_debug = false;
+var flowchart_debug = true;
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -439,7 +439,7 @@ function flowchartGraphIterate(parent, font, level)
             } else if (node.type == "parent") {
                   if (node.list.length > 0) {
                         var size = flowchartGraphIterateChilds(node, font, level + 1);
-                        node.width = size[0];
+                        node.width = Math.max(size[0], node.width);
                         node.height = size[1];
                         if (node.list.length > 1) {
                               // parent has no text but add space for connecting lines
@@ -570,11 +570,19 @@ function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
 }
 
 // Iterate size of the flowchart childs graph
-// position is the top left corner of the graph
+// position is themiddle position of the graph
 function flowchartGraphDrawChilds(parent, pos, graphics)
 {
       var list = parent.list;
       var p = pos;
+      // calculate child width
+      var width = 0;
+      for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            width += node.width;
+      }
+      // Calculate lest start position
+      p.x -= width / 2;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type != "child") {
@@ -624,7 +632,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                         } else {
                               var parent_margin = 0;
                         }
-                        flowchartGraphDrawChilds(node, { x: p.x - node.width / 2, y: p.y + parent_margin }, graphics);
+                        flowchartGraphDrawChilds(node, { x: p.x, y: p.y + parent_margin }, graphics);
                         if (node.list.length > 1) {
                               flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y + node.height - parent_margin }, graphics, "bottom");
                         }
@@ -2103,10 +2111,10 @@ function forceNewHistogram(target_win)
 {
       try {
             if (!target_win.mainView.deleteProperty("Histogram16")) {
-                  // console.writeln("Failed to delete property Histogram16");
+                  console.writeln("Failed to delete property Histogram16");
             }
       } catch(err) {
-            // console.writeln("Failed to delete property Histogram16 : " + err);
+            console.writeln("Failed to delete property Histogram16 : " + err);
       }
 }
 
@@ -3035,10 +3043,13 @@ function setHistogramBitmapBackground(graphics, side_preview)
 
 function getHistogramInfo(imgWin, side_preview)
 {
+      console.writeln("getHistogramInfo");
       var view = imgWin.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
       var values = [];
       var maxvalue = 0;
+      var maxvalue_channel = 0;
+      var maxvalue_pos = 0;
       var maxchannels = histogramMatrix.rows;
 
       if (side_preview) {
@@ -3055,15 +3066,19 @@ function getHistogramInfo(imgWin, side_preview)
                   values[channel][i] = 0;
             }
       }
+      console.writeln("getHistogramInfo: maxchannels ", maxchannels);
       for (var channel = 0; channel < maxchannels; channel++) {
             for (var col = 0; col < histogramMatrix.cols; col++) {
                   var i = parseInt(col / histogramMatrix.cols * width);
                   values[channel][i] += histogramMatrix.at(channel, col);
                   if (values[channel][i] > maxvalue) {
                         maxvalue = values[channel][i];
+                        maxvalue_channel = channel;
+                        maxvalue_pos = i;
                   }
             }
       }
+      console.writeln("getHistogramInfo: maxvalue " + maxvalue + " maxvalue_channel " + maxvalue_channel + " maxvalue_pos " + maxvalue_pos);
       var cumulativeValues = [];
       for (var i = 0; i < width; i++) {
             var channels_values = 0;
@@ -3080,6 +3095,8 @@ function getHistogramInfo(imgWin, side_preview)
       for (var i = 0; i < width; i++) {
             percentageValues[i] = cumulativeValues[i] / cumulativeValues[width-1] * 100;
       }
+
+      console.writeln("getHistogramInfo: width " +  width + " height " + height);
 
       var bitmap = new Bitmap(width, height);
       var graphics = new VectorGraphics(bitmap);
@@ -3124,15 +3141,15 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   preview_size_changed = false;
             }
             if (histogramInfo) {
-                  // console.writeln("updatePreviewWinTxt:use exiting histogramInfo");
+                  console.writeln("updatePreviewWinTxt:use exiting histogramInfo");
                   current_histogramInfo = histogramInfo;
             } else {
                   if (tabHistogramControl != null && sideHistogramControl != null) {
-                        // console.writeln("updatePreviewWinTxt:get new histogramInfo");
+                        console.writeln("updatePreviewWinTxt:get new histogramInfo");
                         forceNewHistogram(imgWin);
                         histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
                   } else {
-                        // console.writeln("updatePreviewWinTxt:no histogram");
+                        console.writeln("updatePreviewWinTxt:no histogram");
                         histogramInfo = null;
                   }
                   current_histogramInfo = histogramInfo;
@@ -3144,7 +3161,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   updatePreviewImageBmp(tabPreviewControl, imgWin, txt, bmp, tabHistogramControl, histogramInfo);
             }
             updatePreviewTxt(txt);
-            // console.noteln("Preview updated");
+            console.noteln("Preview updated");
             is_some_preview = true;
             current_selected_file_name = null; // reset file name, it is set by caller if needed
       }
@@ -7783,12 +7800,12 @@ function AutoIntegrateDialog()
             "<p>" +
             "Test narrowband RGB mapping. This requires that you have opened:" +
             "</p><p>" +
-            "- Integration_RGB file.<br>" +
+            "- RGB files Integration_[RGB].<br>" +
             "- Those narrowband files Integration_[SHO] that are used in the mapping." +
             "</p><p>" +
-            "To get required Integration_RGB and Integration_[SHO] files you can a full workflow first." +
+            "To get required Integration_[RGB] and Integration_[SHO] files you can run a full workflow first." +
             "</p><p>" +
-            "Result image will be in linear mode." +
+            "Result image will be in linear mode. " +
             "</p>" ;
       this.testNarrowbandMappingButton.onClick = function()
       {
@@ -7835,11 +7852,12 @@ function AutoIntegrateDialog()
       this.RGBNB_MappingSizer.addStretch();
 
       // Boost factor for LRGB
+      var RGBNB_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
       this.RGBNB_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
-      this.RGBNB_BoostLValue = newRGBNBNumericEdit(this, 'L', par.L_BoostFactor, "Boost, or multiplication factor, for the L channel.");
-      this.RGBNB_BoostRValue = newRGBNBNumericEdit(this, 'R', par.R_BoostFactor, "Boost, or multiplication factor, for the R channel.");
-      this.RGBNB_BoostGValue = newRGBNBNumericEdit(this, 'G', par.G_BoostFactor, "Boost, or multiplication factor, for the G channel.");
-      this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.B_BoostFactor, "Boost, or multiplication factor, for the B channel.");
+      this.RGBNB_BoostLValue = newRGBNBNumericEdit(this, 'L', par.L_BoostFactor, "<p>Boost, or multiplication factor, for the L channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostRValue = newRGBNBNumericEdit(this, 'R', par.R_BoostFactor, "<p>Boost, or multiplication factor, for the R channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostGValue = newRGBNBNumericEdit(this, 'G', par.G_BoostFactor, "<p>Boost, or multiplication factor, for the G channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.B_BoostFactor, "<p>Boost, or multiplication factor, for the B channel.</p>" + RGBNB_boost_common_tooltip);
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       // this.RGBNB_BoostSizer.margin = 6;
@@ -7852,19 +7870,21 @@ function AutoIntegrateDialog()
       this.RGBNB_BoostSizer.addStretch();
 
       this.RGBNB_Sizer1 = new HorizontalSizer;
+      this.RGBNB_Sizer1.spacing = 4;
       this.RGBNB_Sizer1.add(this.RGBNB_MappingSizer);
       this.RGBNB_Sizer1.add(this.RGBNB_BoostSizer);
       this.RGBNB_Sizer1.addStretch();
 
       // Bandwidth for different channels
+      var RGBNB_bandwidth_common_tooltip = "<p>To make changes more visible you can lower the RGB bandwidths to something like 40 or 60.</p>";
       this.RGBNB_BandwidthLabel = newLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
-      this.RGBNB_BandwidthLValue = newRGBNBNumericEdit(this, 'L', par.L_bandwidth, "Bandwidth (nm) for the L filter.");
-      this.RGBNB_BandwidthRValue = newRGBNBNumericEdit(this, 'R', par.R_bandwidth, "Bandwidth (nm) for the R filter.");
-      this.RGBNB_BandwidthGValue = newRGBNBNumericEdit(this, 'G', par.G_bandwidth, "Bandwidth (nm) for the G filter.");
-      this.RGBNB_BandwidthBValue = newRGBNBNumericEdit(this, 'B', par.B_bandwidth, "Bandwidth (nm) for the B filter.");
-      this.RGBNB_BandwidthHValue = newRGBNBNumericEdit(this, 'H', par.H_bandwidth, "Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.");
-      this.RGBNB_BandwidthSValue = newRGBNBNumericEdit(this, 'S', par.S_bandwidth, "Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.");
-      this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.O_bandwidth, "Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.");
+      this.RGBNB_BandwidthLValue = newRGBNBNumericEdit(this, 'L', par.L_bandwidth, "<p>Bandwidth (nm) for the L filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthRValue = newRGBNBNumericEdit(this, 'R', par.R_bandwidth, "<p>Bandwidth (nm) for the R filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthGValue = newRGBNBNumericEdit(this, 'G', par.G_bandwidth, "<p>Bandwidth (nm) for the G filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthBValue = newRGBNBNumericEdit(this, 'B', par.B_bandwidth, "<p>Bandwidth (nm) for the B filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthHValue = newRGBNBNumericEdit(this, 'H', par.H_bandwidth, "<p>Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthSValue = newRGBNBNumericEdit(this, 'S', par.S_bandwidth, "<p>Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.O_bandwidth, "<p>Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       // this.RGBNB_BandwidthSizer.margin = 6;

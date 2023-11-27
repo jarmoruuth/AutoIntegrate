@@ -214,6 +214,7 @@ var H_id;
 var S_id;
 var O_id;
 var RGB_color_id;              // Integrate RGB from OSC/DSLR data
+var RGBNB_image_ids = [];      // Narrowband RGB images
 
 var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
 var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
@@ -4491,11 +4492,8 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       } else if (par.use_starnet2.val) {
             util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
             var P = createNewStarNet2(create_star_mask);
-      } else if (linear_data) {
-            util.throwFatalError("StarNet cannot be used to remove stars while image is still in linear stage.");
       } else {
-            util.addProcessingStep("Run StarNet on " + imgWin.mainView.id);
-            var P = createNewStarNet(create_star_mask);
+            util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
       }
 
       if (par.use_starnet2.val && linear_data) {
@@ -4504,13 +4502,17 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             runPixelMathSingleMappingEx(imgWin.mainView.id, "median", "mtf(" + median.at(0) + ", $T)", false, null, false, true);
       }
 
-      /* Execute on image.
-       */
-      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      if (!global.flowchart) {
+            /* Execute on image.
+             */
+            imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      var succp = P.executeOn(imgWin.mainView, false);
-      
-      imgWin.mainView.endProcess();
+            var succp = P.executeOn(imgWin.mainView, false);
+            
+            imgWin.mainView.endProcess();
+      } else {
+            var succp = true;
+      }
 
       if (par.use_starnet2.val && linear_data) {
             runPixelMathSingleMappingEx(imgWin.mainView.id, "median", "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
@@ -7652,7 +7654,7 @@ function runColorCalibrationProcess(imgWin)
       } catch(err) {
             console.criticalln("Color calibration failed");
             console.criticalln(err);
-            util.criticalln("Maybe filter files or file format were not recognized correctly");
+            console.criticalln("Maybe filter files or file format were not recognized correctly");
             util.throwFatalError("Color calibration failed");
       }
 }
@@ -9392,10 +9394,12 @@ function ProcessLimage(RGBmapping)
                         }
                   }
                   if (par.use_RGBNB_Mapping.val) {
+                        flowchartParentBegin("RGB Narrowband mapping");
                         var mapped_L_GC_id = RGBNB_Channel_Mapping(L_GC_id, 'L', par.L_bandwidth.val, par.L_mapping.val, par.L_BoostFactor.val);
                         mapped_L_GC_id = util.windowRename(mapped_L_GC_id, L_GC_id + "_NB");
                         util.closeOneWindow(L_GC_id);
                         L_GC_id = mapped_L_GC_id;
+                        flowchartParentEnd("RGB Narrowband mapping");
                   }
             }
 
@@ -9671,9 +9675,13 @@ function extractRGBchannel(RGB_id, channel)
       return targetWindow.mainView.id;
 }
 
+/* Map narrowband channels to RGB image. We try to remove continuum from
+ * narrowband image before mapping.
+ */
 function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, BoostFactor)
 {
-      console.writeln("RGBNB channel mapping " + RGB_id);
+      console.writeln("RGBNB channel " + channel + " mapping " + RGB_id);
+      flowchartChildBegin(channel);
 
       if (channel == 'L') {
             var L_win_copy = util.copyWindow(util.findWindow(RGB_id), util.ensure_win_prefix(RGB_id + "_RGBNBcopy"));
@@ -9696,6 +9704,8 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
                   var NB_id = O_id;
                   break;
             case '':
+                  console.writeln("RGBNB, no mapping for channel " + channel);
+                  flowchartChildEnd(channel);
                   return channelId;
             default:
                   util.throwFatalError("Invalid NB mapping " + mapping);
@@ -9703,6 +9713,11 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       if (NB_id == null) {
             util.throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
       }
+
+      if (par.use_starxterminator.val || par.use_starnet2.val) {
+            removeStars(util.findWindow(NB_id), true, false, null, null, false);
+      }
+
       if (par.use_RGB_image.val) {
             var sourceChannelId = RGB_id;
             channel_bandwidth = par.R_bandwidth.val;
@@ -9741,15 +9756,24 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       util.closeOneWindow(mappedChannelId);
       util.closeOneWindow(mappedChannelId2);
 
+      flowchartChildEnd(channel);
+      util.findWindow(mappedChannelId3).show();
+
       return mappedChannelId3;
 }
 
 function doRGBNBmapping(RGB_id)
 {
       util.addProcessingStepAndStatusInfo("Create mapped channel images from " + RGB_id);
+      flowchartParentBegin("RGB Narrowband mapping");
       var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.R_bandwidth.val, par.R_mapping.val, par.R_BoostFactor.val);
       var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.G_bandwidth.val, par.G_mapping.val, par.G_BoostFactor.val);
       var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.B_bandwidth.val, par.B_mapping.val, par.B_BoostFactor.val);
+      flowchartParentEnd("RGB Narrowband mapping");
+
+      R_mapped = util.windowRename(R_mapped, ppar.win_prefix + "Integration_R_NB");
+      G_mapped = util.windowRename(G_mapped, ppar.win_prefix + "Integration_G_NB");
+      B_mapped = util.windowRename(B_mapped, ppar.win_prefix + "Integration_B_NB");
 
       /* Combine RGB image from mapped channel images. */
       util.addProcessingStep("Combine mapped channel images to an RGB image");
@@ -9760,9 +9784,7 @@ function doRGBNBmapping(RGB_id)
                               G_mapped,
                               B_mapped);
 
-      util.closeOneWindow(R_mapped);
-      util.closeOneWindow(G_mapped);
-      util.closeOneWindow(B_mapped);
+      RGBNB_image_ids = [R_mapped, G_mapped, B_mapped];
       util.closeOneWindow(RGB_id);
 
       return RGB_mapped_id;
@@ -9770,6 +9792,8 @@ function doRGBNBmapping(RGB_id)
 
 this.testRGBNBmapping = function()
 {
+      var test_RGB_color_id = null;
+
       console.beginLog();
 
       util.addProcessingStep("Test narrowband mapping to RGB");
@@ -9777,17 +9801,32 @@ this.testRGBNBmapping = function()
       findChannelImages(false);
 
       if (RGB_color_id == null) {
-            util.throwFatalError("Could not find RGB image");
+            // Try to create color image from channel images
+            if (R_id != null && G_id != null && B_id != null) {
+                  var images = [R_id, G_id, B_id];
+                  copyToMapImages(images);
+                  linearFitArray(images[0], images);
+                  var color_win = CombineRGBimageEx(util.ensure_win_prefix("RGBNB_RGB_original"), images);
+                  color_win.show();
+                  var test_RGB_color_id = color_win.mainView.id;
+                  runColorCalibration(color_win, 'linear');
+            } else {
+                  util.throwFatalError("Could not find or create RGB image");
+            }
+      } else {
+            var images = [];
+            var test_RGB_color_id = RGB_color_id;
+            var color_win = util.findWindow(test_RGB_color_id);
       }
-
-      var color_win = util.findWindow(RGB_color_id);
 
       checkWinFilePath(color_win);
 
-      var test_win = util.copyWindow(color_win, util.ensure_win_prefix(RGB_color_id + "_test"));
+      var test_win = util.copyWindow(color_win, util.ensure_win_prefix("RGBNB_RGB_mapped"));
 
       doRGBNBmapping(test_win.mainView.id);
-      
+
+      util.forceCloseWindowsFromArray(images);
+
       util.addProcessingStep("Processing completed");
       engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
 
@@ -12695,7 +12734,7 @@ function createCropInformationEx()
       }
       if (global.flowchart) {
             crop_truncate_amount = "Yes";
-            crop_lowClipImageName = "LowRejectionMap_ALL";
+            crop_lowClipImageName = ppar.win_prefix + "LowRejectionMap_ALL";
             return;
       }
 
@@ -13162,6 +13201,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        H_id = null;
        S_id = null;
        O_id = null;
+       RGBNB_image_ids = [];
        RGB_color_id = null;
        R_GC_id = null;
        G_GC_id = null;
@@ -13441,13 +13481,14 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                          }
                    }
  
-                   /* Color calibration on RGB
-                    */
-                   runColorCalibration(ImageWindow.windowById(LRGB_GC_HT_id), 'nonlinear');
-                   if (stars_id != null) {
-                         runColorCalibration(ImageWindow.windowById(stars_id), 'nonlinear');
-                   }
- 
+                  if (!par.use_RGBNB_Mapping.val) {
+                        /* Color calibration on RGB
+                         */
+                        runColorCalibration(ImageWindow.windowById(LRGB_GC_HT_id), 'nonlinear');
+                        if (stars_id != null) {
+                              runColorCalibration(ImageWindow.windowById(stars_id), 'nonlinear');
+                        }
+                  } 
                    /* Rename some windows. Need to be done before iconize.
                    */
                    if (!is_color_files && is_luminance_images) {
@@ -13567,6 +13608,10 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        if (RGB_stars_HT_win != null) {
              setFinalImageKeyword(ImageWindow.windowById(RGB_stars_HT_win.mainView.id));   /* Integration_RGB_stars (non-linear) */
        }
+
+       for (var i = 0; i < RGBNB_image_ids.length; i++) {
+            util.windowIconizeAndKeywordif(RGBNB_image_ids[i]);
+      }
  
        for (var i = 0; i < global.processed_channel_images.length; i++) {
              util.windowIconizeAndKeywordif(global.processed_channel_images[i]);

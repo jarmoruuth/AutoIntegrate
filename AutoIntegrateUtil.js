@@ -28,7 +28,7 @@ var gui = null;
 var par = global.par;
 var ppar = global.ppar;
 
-var use_force_close = true;
+var use_force_close = true;   // We use this to disable force close in some cases
 
 /* Set optional GUI object to update GUI components.
  */
@@ -539,9 +539,11 @@ this.forceCloseOneWindow = function(w)
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
       } else if (use_force_close) {
+            console.writeln("Force close " + w.mainView.id);
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
+            console.writeln("Close " + w.mainView.id);
             w.close();
       }
 }
@@ -555,11 +557,18 @@ this.closeOneWindow = function(id)
       }
 }
 
+this.forceCloseWindowsFromArray = function(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            util.closeOneWindow(arr[i]);
+      }
+}
+
 // For the final window, we may have more different names with
 // both prefix or postfix added
 this.closeFinalWindowsFromArray = function(arr, force_close)
 {
-      use_force_close = force_close;
+      use_force_close = force_close;      // use_force_close is true by default
 
       for (var i = 0; i < arr.length; i++) {
             util.closeOneWindow(arr[i]);
