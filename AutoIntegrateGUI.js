@@ -7782,7 +7782,14 @@ function AutoIntegrateDialog()
             "</p>";
             
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping, RGBNB_tooltip);
-      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", par.use_RGB_image, 
+      this.RGBNB_add_CheckBox = newCheckBox(this, "Add", par.RGBNB_add, 
+            "<p>Add narrowband image to the target image.</p>" + 
+            "<p>With this option boost factor is used to adjust the narrowband channel but bandwidth is not used.</p>" );
+      this.RGBNB_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBNB_gradient_correction, 
+            "<p>Do gradient correction on narrowband image before mapping.</p>" );
+      this.RGBNB_linear_fit_CheckBox = newCheckBox(this, "Linear fit", par.RGBNB_linear_fit, 
+            "<p>Do linear fit on narrowband image before mapping. Not used with Add option.</p>" );
+      this.useRGBbandwidth_CheckBox = newCheckBox(this, "Use RGB image", par.RGBNB_use_RGB_image, 
             "<p>" +
             "Use RGB image for bandwidth mapping instead of separate R, G and B channel images. " +
             "R channel bandwidth is then used for the RGB image." +
@@ -7791,7 +7798,11 @@ function AutoIntegrateDialog()
       this.useRGBNBmappingSizer.margin = 6;
       this.useRGBNBmappingSizer.spacing = 4;
       this.useRGBNBmappingSizer.add( this.useRGBNBmapping_CheckBox );
+      this.useRGBNBmappingSizer.add( this.RGBNB_add_CheckBox );
+      this.useRGBNBmappingSizer.add( this.RGBNB_gradient_correction_CheckBox );
+      this.useRGBNBmappingSizer.add( this.RGBNB_linear_fit_CheckBox );
       this.useRGBNBmappingSizer.add( this.useRGBbandwidth_CheckBox );
+      this.useRGBNBmappingSizer.addStretch();
 
       // Button to test narrowband mapping
       this.testNarrowbandMappingButton = new PushButton( this );
@@ -7829,13 +7840,13 @@ function AutoIntegrateDialog()
       // channel mapping
       this.RGBNB_MappingLabel = newLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
       this.RGBNB_MappingLLabel = newLabel(this, 'L', "Mapping of narrowband channel to L channel. If there is no L channel available then this setting is ignored.");
-      this.RGBNB_MappingLValue = newComboBox(this, par.L_mapping, RGBNB_mapping_values, this.RGBNB_MappingLLabel.toolTip);
+      this.RGBNB_MappingLValue = newComboBox(this, par.RGBNB_L_mapping, RGBNB_mapping_values, this.RGBNB_MappingLLabel.toolTip);
       this.RGBNB_MappingRLabel = newLabel(this, 'R', "Mapping of narrowband channel to R channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingRValue = newComboBox(this, par.R_mapping, RGBNB_mapping_values, this.RGBNB_MappingRLabel.toolTip);
+      this.RGBNB_MappingRValue = newComboBox(this, par.RGBNB_R_mapping, RGBNB_mapping_values, this.RGBNB_MappingRLabel.toolTip);
       this.RGBNB_MappingGLabel = newLabel(this, 'G', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingGValue = newComboBox(this, par.G_mapping, RGBNB_mapping_values, this.RGBNB_MappingGLabel.toolTip);
+      this.RGBNB_MappingGValue = newComboBox(this, par.RGBNB_G_mapping, RGBNB_mapping_values, this.RGBNB_MappingGLabel.toolTip);
       this.RGBNB_MappingBLabel = newLabel(this, 'B', "Mapping of narrowband channel to G channel. If no mapping is selected then channel is left unchanged.");
-      this.RGBNB_MappingBValue = newComboBox(this, par.B_mapping, RGBNB_mapping_values, this.RGBNB_MappingBLabel.toolTip);
+      this.RGBNB_MappingBValue = newComboBox(this, par.RGBNB_B_mapping, RGBNB_mapping_values, this.RGBNB_MappingBLabel.toolTip);
 
       this.RGBNB_MappingSizer = new HorizontalSizer;
       // this.RGBNB_MappingSizer.margin = 6;
@@ -7854,10 +7865,10 @@ function AutoIntegrateDialog()
       // Boost factor for LRGB
       var RGBNB_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
       this.RGBNB_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor, for the channels.");
-      this.RGBNB_BoostLValue = newRGBNBNumericEdit(this, 'L', par.L_BoostFactor, "<p>Boost, or multiplication factor, for the L channel.</p>" + RGBNB_boost_common_tooltip);
-      this.RGBNB_BoostRValue = newRGBNBNumericEdit(this, 'R', par.R_BoostFactor, "<p>Boost, or multiplication factor, for the R channel.</p>" + RGBNB_boost_common_tooltip);
-      this.RGBNB_BoostGValue = newRGBNBNumericEdit(this, 'G', par.G_BoostFactor, "<p>Boost, or multiplication factor, for the G channel.</p>" + RGBNB_boost_common_tooltip);
-      this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.B_BoostFactor, "<p>Boost, or multiplication factor, for the B channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostLValue = newRGBNBNumericEdit(this, 'L', par.RGBNB_L_BoostFactor, "<p>Boost, or multiplication factor, for the L channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostRValue = newRGBNBNumericEdit(this, 'R', par.RGBNB_R_BoostFactor, "<p>Boost, or multiplication factor, for the R channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostGValue = newRGBNBNumericEdit(this, 'G', par.RGBNB_G_BoostFactor, "<p>Boost, or multiplication factor, for the G channel.</p>" + RGBNB_boost_common_tooltip);
+      this.RGBNB_BoostBValue = newRGBNBNumericEdit(this, 'B', par.RGBNB_B_BoostFactor, "<p>Boost, or multiplication factor, for the B channel.</p>" + RGBNB_boost_common_tooltip);
 
       this.RGBNB_BoostSizer = new HorizontalSizer;
       // this.RGBNB_BoostSizer.margin = 6;
@@ -7878,13 +7889,13 @@ function AutoIntegrateDialog()
       // Bandwidth for different channels
       var RGBNB_bandwidth_common_tooltip = "<p>To make changes more visible you can lower the RGB bandwidths to something like 40 or 60.</p>";
       this.RGBNB_BandwidthLabel = newLabel(this, 'Bandwidth', "Select bandwidth (nm) for each filter.");
-      this.RGBNB_BandwidthLValue = newRGBNBNumericEdit(this, 'L', par.L_bandwidth, "<p>Bandwidth (nm) for the L filter.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthRValue = newRGBNBNumericEdit(this, 'R', par.R_bandwidth, "<p>Bandwidth (nm) for the R filter.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthGValue = newRGBNBNumericEdit(this, 'G', par.G_bandwidth, "<p>Bandwidth (nm) for the G filter.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthBValue = newRGBNBNumericEdit(this, 'B', par.B_bandwidth, "<p>Bandwidth (nm) for the B filter.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthHValue = newRGBNBNumericEdit(this, 'H', par.H_bandwidth, "<p>Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthSValue = newRGBNBNumericEdit(this, 'S', par.S_bandwidth, "<p>Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
-      this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.O_bandwidth, "<p>Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthLValue = newRGBNBNumericEdit(this, 'L', par.RGBNB_L_bandwidth, "<p>Bandwidth (nm) for the L filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthRValue = newRGBNBNumericEdit(this, 'R', par.RGBNB_R_bandwidth, "<p>Bandwidth (nm) for the R filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthGValue = newRGBNBNumericEdit(this, 'G', par.RGBNB_G_bandwidth, "<p>Bandwidth (nm) for the G filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthBValue = newRGBNBNumericEdit(this, 'B', par.RGBNB_B_bandwidth, "<p>Bandwidth (nm) for the B filter.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthHValue = newRGBNBNumericEdit(this, 'H', par.RGBNB_H_bandwidth, "<p>Bandwidth (nm) for the H filter. Typical values could be 7 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthSValue = newRGBNBNumericEdit(this, 'S', par.RGBNB_S_bandwidth, "<p>Bandwidth (nm) for the S filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
+      this.RGBNB_BandwidthOValue = newRGBNBNumericEdit(this, 'O', par.RGBNB_O_bandwidth, "<p>Bandwidth (nm) for the O filter. Typical values could be 8.5 nm or 3 nm.</p>" + RGBNB_bandwidth_common_tooltip);
 
       this.RGBNB_BandwidthSizer = new HorizontalSizer;
       // this.RGBNB_BandwidthSizer.margin = 6;

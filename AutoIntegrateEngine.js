@@ -680,6 +680,12 @@ function closeAllWindowsFromArray(arr)
                   // For possible old images
                   util.closeOneWindow(arr[i].replace("noGC", "noABE"));
             }
+            if (arr[i].indexOf("_NB") != -1) {
+                  // For possible old images
+                  util.closeOneWindow(arr[i] + "_NB_continuum");
+                  util.closeOneWindow(arr[i] + "_NB_combine");
+                  util.closeOneWindow(arr[i] + "_NB_max");
+            }
       }
 }
 
@@ -9395,7 +9401,7 @@ function ProcessLimage(RGBmapping)
                   }
                   if (par.use_RGBNB_Mapping.val) {
                         flowchartParentBegin("RGB Narrowband mapping");
-                        var mapped_L_GC_id = RGBNB_Channel_Mapping(L_GC_id, 'L', par.L_bandwidth.val, par.L_mapping.val, par.L_BoostFactor.val);
+                        var mapped_L_GC_id = RGBNB_Channel_Mapping(L_GC_id, 'L', par.RGBNB_L_bandwidth.val, par.RGBNB_L_mapping.val, par.RGBNB_L_BoostFactor.val);
                         mapped_L_GC_id = util.windowRename(mapped_L_GC_id, L_GC_id + "_NB");
                         util.closeOneWindow(L_GC_id);
                         L_GC_id = mapped_L_GC_id;
@@ -9693,14 +9699,14 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       switch (mapping) {
             case 'H':
                   var NB_id = H_id;
-                  var NB_bandwidth = par.H_bandwidth.val;
+                  var NB_bandwidth = par.RGBNB_H_bandwidth.val;
                   break;
             case 'S':
                   var NB_id = S_id;
-                  var NB_bandwidth = par.S_bandwidth.val;
+                  var NB_bandwidth = par.RGBNB_S_bandwidth.val;
                   break;
             case 'O':
-                  var NB_bandwidth = par.O_bandwidth.val;
+                  var NB_bandwidth = par.RGBNB_O_bandwidth.val;
                   var NB_id = O_id;
                   break;
             case '':
@@ -9714,47 +9720,97 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
             util.throwFatalError("Could not find " + mapping + " image for mapping to " + channel);
       }
 
-      if (par.use_starxterminator.val || par.use_starnet2.val) {
-            removeStars(util.findWindow(NB_id), true, false, null, null, false);
-      }
+      flowchartParentBegin("Mapping");
+      flowchartChildBegin(mapping);
 
-      if (par.use_RGB_image.val) {
+      var NB_images = [ NB_id ];
+
+      copyToMapImages(NB_images);
+      NB_id = NB_images[0];
+
+      CropImageIf(NB_id);
+      if (par.RGBNB_add.val) {
+            if (par.RGBNB_gradient_correction.val) {
+                  NB_id = runGradientCorrection(util.findWindow(NB_id), true);
+            }
+            var medChannelId = runPixelMathSingleMapping(
+                                    NB_id,
+                                    "RGBNB:med",
+                                    "$T - med($T)");
+            util.closeOneWindow(NB_id);
+            NB_id = medChannelId;
+            runNoiseReduction(util.findWindow(NB_id), util.findWindow(NB_id), true);
+            NB_id = util.windowRename(NB_id, ppar.win_prefix + "Integration_" + mapping + "_NB_continuum");
+            util.findWindow(NB_id).show();
+            RGBNB_image_ids.push(NB_id);
+      } else {
+            if (par.RGBNB_gradient_correction.val) {
+                  NB_id = runGradientCorrection(util.findWindow(NB_id), true);
+            }
+            if (par.RGBNB_linear_fit.val) {
+                  flowchartOperation("LinearFit");
+                  runLinearFit(channelId, NB_id);
+            }
+            if (par.use_starxterminator.val || par.use_starnet2.val) {
+                  removeStars(util.findWindow(NB_id), true, false, null, null, false);
+            }
+      }
+      flowchartChildEnd(mapping);
+      flowchartParentEnd("Mapping");
+
+      if (par.RGBNB_use_RGB_image.val && !par.RGBNB_add.val) {
             var sourceChannelId = RGB_id;
-            channel_bandwidth = par.R_bandwidth.val;
+            channel_bandwidth = par.RGBNB_R_bandwidth.val;
       } else {
             var sourceChannelId = channelId;
       }
 
-      util.addProcessingStepAndStatusInfo("Run " + channel + " mapping using " + NB_id + ", " + 
-                        channel + " bandwidth " + channel_bandwidth + ", " + 
-                        mapping + " bandwidth " + NB_bandwidth + 
-                        " and boost factor " + BoostFactor);
-      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + sourceChannelId);
-      var mappedChannelId = runPixelMathSingleMapping(
-                              channelId,
-                              "RGBNB",
-                              "((" + NB_id + " * " + channel_bandwidth + ") - " + 
-                              "("+ sourceChannelId + " * " + NB_bandwidth + "))" +
-                              " / (" + channel_bandwidth + " - " +  NB_bandwidth + ")");
-      
-      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId);
-      var mappedChannelId2 = runPixelMathSingleMapping(
-                              mappedChannelId,
-                              "RGBNB",
-                              channelId + " + ((" + mappedChannelId + " - Med(" + mappedChannelId + ")) * " + 
-                              BoostFactor + ")");
-      
-      runLinearFit(mappedChannelId2, mappedChannelId);
+      if (par.RGBNB_add.val) {
+            var mappedChannelId3 = runPixelMathSingleMapping(
+                                    sourceChannelId,
+                                    "RGBNB:max",
+                                    sourceChannelId + "+" + NB_id + "*" + BoostFactor);
+            util.closeOneWindow(channelId);
 
-      console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId2);
-      var mappedChannelId3 = runPixelMathSingleMapping(
-                                    mappedChannelId2,
-                                    "RGBNB",
-                                    "max(" + mappedChannelId + ", " + mappedChannelId2 + ")");
+      } else {
+            util.addProcessingStepAndStatusInfo("Run " + channel + " mapping using " + NB_id + ", " + 
+                              channel + " bandwidth " + channel_bandwidth + ", " + 
+                              mapping + " bandwidth " + NB_bandwidth + 
+                              " and boost factor " + BoostFactor);
+            console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + sourceChannelId);
+            var mappedChannelId = runPixelMathSingleMapping(
+                                    channelId,
+                                    "RGBNB:continuum",
+                                    "((" + NB_id + " * " + channel_bandwidth + ") - " + 
+                                    "("+ sourceChannelId + " * " + NB_bandwidth + "))" +
+                                    " / (" + channel_bandwidth + " - " +  NB_bandwidth + ")");
+            mappedChannelId = util.windowRename(mappedChannelId, ppar.win_prefix + "Integration_" + channel + "_NB_continuum");
+            
+            console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId);
+            var mappedChannelId2 = runPixelMathSingleMapping(
+                                    mappedChannelId,
+                                    "RGBNB:combine",
+                                    channelId + " + ((" + mappedChannelId + " - Med(" + mappedChannelId + ")) * " + 
+                                    BoostFactor + ")");
+            mappedChannelId2 = util.windowRename(mappedChannelId2, ppar.win_prefix + "Integration_" + channel + "_NB_combine");
+            
+            if (!par.RGBNB_linear_fit.val) {
+                  flowchartOperation("LinearFit");
+                  runLinearFit(mappedChannelId2, mappedChannelId);
+            }
 
-      util.closeOneWindow(channelId);
-      util.closeOneWindow(mappedChannelId);
-      util.closeOneWindow(mappedChannelId2);
+            console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId2);
+            var mappedChannelId3 = runPixelMathSingleMapping(
+                                          mappedChannelId2,
+                                          "RGBNB:max",
+                                          "max(" + mappedChannelId + ", " + mappedChannelId2 + ")");
+
+            util.closeOneWindow(channelId);
+            util.closeOneWindow(NB_id);
+
+            RGBNB_image_ids.push(mappedChannelId);
+            RGBNB_image_ids.push(mappedChannelId2);
+      }
 
       flowchartChildEnd(channel);
       util.findWindow(mappedChannelId3).show();
@@ -9766,9 +9822,9 @@ function doRGBNBmapping(RGB_id)
 {
       util.addProcessingStepAndStatusInfo("Create mapped channel images from " + RGB_id);
       flowchartParentBegin("RGB Narrowband mapping");
-      var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.R_bandwidth.val, par.R_mapping.val, par.R_BoostFactor.val);
-      var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.G_bandwidth.val, par.G_mapping.val, par.G_BoostFactor.val);
-      var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.B_bandwidth.val, par.B_mapping.val, par.B_BoostFactor.val);
+      var R_mapped = RGBNB_Channel_Mapping(RGB_id, 'R', par.RGBNB_R_bandwidth.val, par.RGBNB_R_mapping.val, par.RGBNB_R_BoostFactor.val);
+      var G_mapped = RGBNB_Channel_Mapping(RGB_id, 'G', par.RGBNB_G_bandwidth.val, par.RGBNB_G_mapping.val, par.RGBNB_G_BoostFactor.val);
+      var B_mapped = RGBNB_Channel_Mapping(RGB_id, 'B', par.RGBNB_B_bandwidth.val, par.RGBNB_B_mapping.val, par.RGBNB_B_BoostFactor.val);
       flowchartParentEnd("RGB Narrowband mapping");
 
       R_mapped = util.windowRename(R_mapped, ppar.win_prefix + "Integration_R_NB");
@@ -9784,7 +9840,9 @@ function doRGBNBmapping(RGB_id)
                               G_mapped,
                               B_mapped);
 
-      RGBNB_image_ids = [R_mapped, G_mapped, B_mapped];
+      RGBNB_image_ids.push(R_mapped);
+      RGBNB_image_ids.push(G_mapped);
+      RGBNB_image_ids.push(B_mapped);
       util.closeOneWindow(RGB_id);
 
       return RGB_mapped_id;
@@ -9806,9 +9864,17 @@ this.testRGBNBmapping = function()
                   var images = [R_id, G_id, B_id];
                   copyToMapImages(images);
                   linearFitArray(images[0], images);
+                  if (par.use_GC_on_L_RGB.val) {
+                        for (var i = 0; i < images.length; i++) {
+                              images[i] = runGradientCorrection(util.findWindow(images[i]), true);
+                        }
+                  }
                   var color_win = CombineRGBimageEx(util.ensure_win_prefix("RGBNB_RGB_original"), images);
                   color_win.show();
                   var test_RGB_color_id = color_win.mainView.id;
+                  if (par.use_background_neutralization.val) {
+                        runBackgroundNeutralization(color_win.mainView);
+                  }
                   runColorCalibration(color_win, 'linear');
             } else {
                   util.throwFatalError("Could not find or create RGB image");
@@ -11481,20 +11547,20 @@ function runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette)
                   util.throwFatalError("Invalid source palette " + source_palette_name);
       }
 
-      var R_mapping = target_palette.R;
+      var RGBNB_R_mapping = target_palette.R;
       for (var i = 0; i < mappings.length; i++) {
-            R_mapping = replaceMappingImageNamesExt(R_mapping, mappings[i][0], mappings[i][1], "", null, null);
+            RGBNB_R_mapping = replaceMappingImageNamesExt(RGBNB_R_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
-      var G_mapping = target_palette.G;
+      var RGBNB_G_mapping = target_palette.G;
       for (var i = 0; i < mappings.length; i++) {
-            G_mapping = replaceMappingImageNamesExt(G_mapping, mappings[i][0], mappings[i][1], "", null, null);
+            RGBNB_G_mapping = replaceMappingImageNamesExt(RGBNB_G_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
-      var B_mapping = target_palette.B;
+      var RGBNB_B_mapping = target_palette.B;
       for (var i = 0; i < mappings.length; i++) {
-            B_mapping = replaceMappingImageNamesExt(B_mapping, mappings[i][0], mappings[i][1], "", null, null);
+            RGBNB_B_mapping = replaceMappingImageNamesExt(RGBNB_B_mapping, mappings[i][0], mappings[i][1], "", null, null);
       }
 
-      runPixelMathRGBMapping(null, imgWin, R_mapping, G_mapping, B_mapping);
+      runPixelMathRGBMapping(null, imgWin, RGBNB_R_mapping, RGBNB_G_mapping, RGBNB_B_mapping);
 
       for (var i = 0; i < mappings.length; i++) {
             util.closeOneWindow(mappings[i][1]);
