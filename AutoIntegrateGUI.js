@@ -260,6 +260,7 @@ var tabHistogramControl = null;        // For updating histogram window
 var sideHistogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
+var stretchingComboBox = null;         // For disabling stretching method if Target type is selected
 
 var current_histogramInfo = null;
 
@@ -4312,6 +4313,10 @@ function addTargetType(parent)
       
       var targetTypeComboBox = newComboBox(parent, par.target_type, target_type_values, lbl.toolTip);
       parent.rootingArr.push(targetTypeComboBox);
+      targetTypeComboBox.onItemSelected = function(itemIndex) {
+            targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
+            stretchingComboBox.enabled = itemIndex == 0;
+      }
 
       var outputdir_Sizer = new HorizontalSizer;
       outputdir_Sizer.spacing = 4;
@@ -6391,6 +6396,7 @@ function AutoIntegrateDialog()
             "</ul>" + 
             "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
+      stretchingComboBox = this.stretchingComboBox;
       this.stretchingLabel = newLabel(this, "Stretching", stretchingTootip, true);
       this.stretchingSizer = newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
 
