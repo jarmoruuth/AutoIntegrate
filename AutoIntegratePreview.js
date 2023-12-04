@@ -201,48 +201,49 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   this.parent.UpdateZoom(-100);
             };
 
-            this.save_Button = new ToolButton( this );
-            this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
-            this.save_Button.setScaledFixedSize( 20, 20 );
-            this.save_Button.toolTip = "Save image to a file.";
-            this.save_Button.onClick = function()
-            {
-                  if (!this.parent.image) {
-                        console.noteln("No image to save");
-                        return;
-                  }
-                  let saveFileDialog = new SaveFileDialog();
-                  saveFileDialog.caption = "Save As TIFF";
-                  if (global.outputRootDir == "") {
-                        var path = global.ppar.lastDir;
-                  } else {
-                        var path = global.outputRootDir;
-                  }
-                  if (path != "") {
-                        path = util.ensurePathEndSlash(path);
-                  }
-                  saveFileDialog.initialPath = path + "preview" + ".tif";
-                  saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
-                  if (!saveFileDialog.execute()) {
-                        console.noteln("Preview image not saved");
-                        return;
-                  }
-                  var copy_win = util.createWindowFromBitmap(this.parent.image, "AutoIntegrate_preview_savetmp");
-                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
-                  if (copy_win.bitsPerSample != 16) {
-                        console.writeln("set bits to 16");
-                        copy_win.setSampleFormat(16, false);
-                  }
-                  // Save image. No format options, no warning messages, 
-                  // no strict mode, no overwrite checks.
-                  if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
-                        console.criticalln("Failed to save image: " + saveFileDialog.fileName);
-                  } else {
-                        console.writeln("Saved image: " + saveFileDialog.fileName);
-                  }
-                  util.forceCloseOneWindow(copy_win);
-            };
-
+            if (this.normalPreview) {
+                  this.save_Button = new ToolButton( this );
+                  this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
+                  this.save_Button.setScaledFixedSize( 20, 20 );
+                  this.save_Button.toolTip = "Save image to a file.";
+                  this.save_Button.onClick = function()
+                  {
+                        if (!this.parent.image) {
+                              console.noteln("No image to save");
+                              return;
+                        }
+                        let saveFileDialog = new SaveFileDialog();
+                        saveFileDialog.caption = "Save As TIFF";
+                        if (global.outputRootDir == "") {
+                              var path = global.ppar.lastDir;
+                        } else {
+                              var path = global.outputRootDir;
+                        }
+                        if (path != "") {
+                              path = util.ensurePathEndSlash(path);
+                        }
+                        saveFileDialog.initialPath = path + "preview" + ".tif";
+                        saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
+                        if (!saveFileDialog.execute()) {
+                              console.noteln("Preview image not saved");
+                              return;
+                        }
+                        var copy_win = util.createWindowFromBitmap(this.parent.image, "AutoIntegrate_preview_savetmp");
+                        console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
+                        if (copy_win.bitsPerSample != 16) {
+                              console.writeln("set bits to 16");
+                              copy_win.setSampleFormat(16, false);
+                        }
+                        // Save image. No format options, no warning messages, 
+                        // no strict mode, no overwrite checks.
+                        if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
+                              console.criticalln("Failed to save image: " + saveFileDialog.fileName);
+                        } else {
+                              console.writeln("Saved image: " + saveFileDialog.fileName);
+                        }
+                        util.forceCloseOneWindow(copy_win);
+                  };
+            }
             if (this.normalPreview) {
                   this.maxPreview_Button = new ToolButton( this );
                   this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
@@ -268,8 +269,10 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   this.buttons_Sizer.addSpacing( 12 );
                   this.buttons_Sizer.add( this.maxPreview_Button );
             }
-            this.buttons_Sizer.addSpacing( 24 );
-            this.buttons_Sizer.add( this.save_Button );
+            if (this.normalPreview) {
+                  this.buttons_Sizer.addSpacing( 24 );
+                  this.buttons_Sizer.add( this.save_Button );
+            }
             this.buttons_Sizer.addStretch();
             this.buttons_Sizer.addSpacing( 12 );
             this.buttons_Sizer.add( this.image_name_Label );
