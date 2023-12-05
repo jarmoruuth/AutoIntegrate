@@ -285,7 +285,7 @@ function flowchartFilterFiles(fileNames, filetype)
             var basename = "AutoFlowChart";
             var stop_on_image = 0;
       } else {
-            throwFatalError("flowchartFilterFiles, unknown filetype " + filetype);
+            util.throwFatalError("flowchartFilterFiles, unknown filetype " + filetype);
       }
 
       var flowchar_filtered_files = engine.getFilterFiles(fileNames, filetype, '');
@@ -402,6 +402,11 @@ function flowchartParentEnd(txt)
             return;
       }
       // console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
+      if (flowchartCurrent.type != "parent") {
+            util.addCriticalStatus("flowchartParentEnd, current node type " + flowchartCurrent.type + " is not parent, node txt:" + flowchartCurrent.txt);
+            flowchartCancel();
+            return;
+      }
       flowchartCurrent = flowchartStack.pop();
 }
 
@@ -412,7 +417,9 @@ function flowchartChildBegin(txt)
       }
       // console.writeln("flowchartChildBegin " + txt);
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
-            util.throwFatalError("flowchartChildBegin, current node is not parent or child");
+            util.addCriticalStatus("flowchartChildBegin, current node type " + flowchartCurrent.type + " is not parent or child, node txt:" + flowchartCurrent.txt);
+            flowchartCancel();
+            return;
       }
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("child", txt);
@@ -426,10 +433,12 @@ function flowchartChildEnd(txt)
             return;
       }
       // console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
-      flowchartCurrent = flowchartStack.pop();
-      if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
-            util.throwFatalError("flowchartChildBegin, current node is not parent or child");
+      if (flowchartCurrent.type != "child") {
+            util.addCriticalStatus("flowchartChildEnd, current node type " + flowchartCurrent.type + " is not child, node txt:" + flowchartCurrent.txt);
+            flowchartCancel();
+            return;
       }
+      flowchartCurrent = flowchartStack.pop();
 }
 
 // Remove empty nodes
@@ -444,11 +453,15 @@ function flowchartCleanupChilds(parent)
             var node = list[i];
             // console.writeln("flowchartCleanupChilds: " + node.txt);
             if (node.type != "child") {
-                  throw new Error("flowchartCleanupChilds: node.type != child, " + node.txt);
+                  util.addCriticalStatus("flowchartCleanupChilds: node.type " + node.type + " is not child, node txt:" + node.txt);
+                  parent.list = [];
+                  return false;
             }
             if (node.list.length == 0) {
                   if (node.type == "process") {
-                        throw new Error("flowchartCleanupChilds: node.type == process, " + node.txt);
+                        util.addCriticalStatus("flowchartCleanupChilds: node.type == process, node txt:" + node.txt);
+                        parent.list = [];
+                        return false;
                   }
                   removed = true;
                   continue;
@@ -543,6 +556,14 @@ this.flowchartPrint = function(rootnode)
       }
       console.noteln("Flowchart:");      
       flowchartPrintList(rootnode.list, "  ");
+}
+
+function flowchartCancel()
+{
+      flowchartCurrent = null;
+      flowchartStack = [];
+      global.flowchartData = null;
+      flowchart_active = false;
 }
 
 function flowchartInit(txt)
@@ -2123,7 +2144,11 @@ function getDefectInfo(fileNames)
       }
       // Run image integration as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
+
+      flowchartParentBegin("Fix linear defects");
       var LDD_id = runImageIntegration(LDD_images, "LDD", false);
+      flowchartParentEnd("Fix linear defects");
+
       var LDD_win = util.findWindow(LDD_id);
       var defects = [];
 

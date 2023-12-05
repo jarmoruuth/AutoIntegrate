@@ -963,7 +963,11 @@ this.updateStatusInfoLabel = function(txt)
 this.addCriticalStatus = function(txt)
 {
       console.criticalln(txt);
-      global.processing_errors = global.processing_errors + "\n" + txt;
+      if (global.processing_errors == "") {
+            global.processing_errors = txt;
+      } else {
+            global.processing_errors = global.processing_errors + "\n" + txt;
+      }
 }
 
 this.addStatusInfo = function(txt)

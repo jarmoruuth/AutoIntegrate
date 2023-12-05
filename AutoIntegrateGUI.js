@@ -369,7 +369,7 @@ var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    //
 
 //                          blue        green       red         magenta     cyan        yellow      black
 var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-var flowchart_debug = true;
+var flowchart_debug = false;
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -470,7 +470,7 @@ function flowchartGraphIterate(parent, font, level)
 function flowchartDrawText2(graphics, x, y, node)
 {
       if (!node.boxwidth) {
-            throw new Error("flowchartDrawText: boxwidth == null");
+            util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
       var middle_x = x + node.boxwidth / 2;
@@ -501,7 +501,7 @@ function flowchartDrawText2(graphics, x, y, node)
 function flowchartDrawText(graphics, x, y, node)
 {
       if (!node.boxwidth) {
-            throw new Error("flowchartDrawText: boxwidth == null");
+            util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
       if (flowchart_debug) {
@@ -587,7 +587,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type != "child") {
-                  throw new Error("flowchartGraphDrawChilds: node.type != child");
+                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child");
             }
             if (node.list.length == 0) {
                   continue;
@@ -802,7 +802,7 @@ function getNarrowbandColorizedSizer(parent)
                         var weight = [ 0.7, 0.7, 0.7 ];
                         break;
                   default:
-                        throw new Error("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
+                        util.throwFatalError("Unknown preset " + colorized_narrowband_preset_values[itemIndex]);
                         break;
             }
 
