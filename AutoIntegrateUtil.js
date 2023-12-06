@@ -964,9 +964,9 @@ this.addCriticalStatus = function(txt)
 {
       console.criticalln(txt);
       if (global.processing_errors == "") {
-            global.processing_errors = txt;
+            global.processing_errors = "Error: " + txt;
       } else {
-            global.processing_errors = global.processing_errors + "\n" + txt;
+            global.processing_errors = global.processing_errors + "\n" + "Error: " + txt;
       }
 }
 
