@@ -4948,12 +4948,12 @@ function newAutoContinueButton(parent, toolbutton)
             "<p>Image check order is:</p>" +
             "<ol>" +
             "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
-            "<li>L_HT + RGB_HT - Manually stretched L and RGB images</li>" +
+            "<li>L_HT + RGB_HT - Manually stretched L and RGB images. See Note1 for more information.</li>" +
             "<li>RGB_HT - Manually stretched RGB image</li>" +
-            "<li>Integration_L_GC + Integration_RGB_GC - Gradient corrected L and RGB images</li>" +
-            "<li>Integration_RGB_GC - Gradient corrected RGB image</li>" +
-            "<li>Integration_L_GC + Integration_R_GC + Integration_G_GC + Integration_B_GC - Gradient corrected channel images</li>" +
-            "<li>Integration_H_GC + Integration_S_GC + Integration_O_HC - Gradient corrected channel images</li>" +
+            "<li>Integration_L_<i>CGext</i> + Integration_RGB_<i>CGext</i> - Gradient corrected L and RGB images</li>" +
+            "<li>Integration_RGB_<i>CGext</i> - Gradient corrected RGB image</li>" +
+            "<li>Integration_L_<i>CGext</i> + Integration_R_<i>CGext</i> + Integration_G_<i>CGext</i> + Integration_B_<i>CGext</i> - Gradient corrected channel images</li>" +
+            "<li>Integration_H_<i>CGext</i> + Integration_S_<i>CGext</i> + Integration_O_<i>CGext</i> - Gradient corrected channel images</li>" +
             "<li>Light file list - Integrated channel/RGB images if only one image for a filter</li>" +
             "<li>Integration_RGB_color - Integrated Color RGB image</li>" +
             "<li>Integration_RGB_narrowband - Integrated narrowband RGB image</li>" +
@@ -4967,8 +4967,9 @@ function newAutoContinueButton(parent, toolbutton)
             "Not all images must be present, for example L image can be missing.<br>" +
             "RGB = Combined image, can be RGB or HSO.<br>" +
             "HT = Histogram Transformation, image is stretched to non-liner state.<br>" +
-            "GC = Gradient Corrected, for example manual DBE or GraXpert is run on image. In addition to _GC postfix, also _ABE, _DBE and _GraXpert are checked.<br>" +
+            "<i>CGext</i> = Gradient Corrected, for example manual DBE or GraXpert is run on image. Postfix can be _CG _ABE, _DBE or _GraXpert.<br>" +
             "Integration = Individual light images are integrated into one image.<br>" +
+            "Note1: Integration_L_crop and Integration_RGB should be used as a base for stretching.<br>" +
             "</p>",
             autocontinue_action,
             toolbutton
@@ -6332,7 +6333,7 @@ function AutoIntegrateDialog()
             "<p>This setting is effective only after restart of the script.</p>" );
       this.AutoSaveSetupBox = newCheckBox(this, "Autosave setup", par.autosave_setup, 
             "<p>Save setup after successful processing into AutosaveSetup.json file. Autosave is done only after the Run command, " + 
-            "it is not done after the Autocontinue command.</p>" +
+            "it is not done after the AutoContinue command.</p>" +
             "<p>File is saved to the lights file directory, or to the user given output directory.</p>" +
             "<p>Setup can be later loaded into AutoIntegrate to see the settings or run the setup again possibly with different options.</p>");
       this.UseProcessedFilesBox = newCheckBox(this, "Use processed files", par.use_processed_files, 
@@ -6342,7 +6343,7 @@ function AutoIntegrateDialog()
             "then star alignment reference image and possible defect info is saved.</p>" +
             "<p>With image calibration it is possible to use previously generated master files by adding already processed master files " +
             "into calibration file lists. If only one calibration file is present then the script automatically uses it as a master file.</p>");
-      this.saveCroppedImagesBox = newCheckBox(this, "Save cropped files", par.save_cropped_images, "Save cropped image files with _crop postfix.");
+      this.saveCroppedImagesBox = newCheckBox(this, "Save cropped images", par.save_cropped_images, "Save cropped image files with _crop postfix.");
 
       // Image parameters set 1.
       this.imageParamsSet1 = new VerticalSizer;
@@ -6510,7 +6511,6 @@ function AutoIntegrateDialog()
       this.systemParamsSet1.add( this.keepIntegratedImagesCheckBox );
       this.systemParamsSet1.add( this.keepTemporaryImagesCheckBox );
       this.systemParamsSet1.add( this.debugCheckBox );
-      this.systemParamsSet1.add( this.save_processed_channel_images_CheckBox );
       this.systemParamsSet1.add( this.save_all_files_CheckBox );
       this.systemParamsSet1.add( this.select_all_files_CheckBox );
       this.systemParamsSet1.add( this.unique_file_names_CheckBox );
@@ -6528,6 +6528,7 @@ function AutoIntegrateDialog()
       this.systemParamsSet2.add( this.AutoSaveSetupBox );
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
+      this.systemParamsSet2.add( this.save_processed_channel_images_CheckBox );
       this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
 
       this.systemParamsSet = new HorizontalSizer;

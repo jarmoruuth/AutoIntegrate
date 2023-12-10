@@ -605,6 +605,8 @@ this.closeTempWindows = function()
             util.closeTempWindowsForOneImage(global.integration_color_windows[i]);
             util.closeTempWindowsForOneImage(global.integration_color_windows[i] + "_BE");
       }
+      util.forceCloseWindowsFromArray(global.temporary_windows);
+      global.temporary_windows = [];
 }
 
 this.findFromArray = function(arr, id)

@@ -688,9 +688,12 @@ function checkAutoCont(w)
 }
 
 // close all windows from an array
-function closeAllWindowsFromArray(arr)
+function closeAllWindowsFromArray(arr, print_names)
 {
       for (var i = 0; i < arr.length; i++) {
+            if (print_names) {
+                  console.writeln("closeAllWindowsFromArray: " + arr[i]);
+            }
             util.closeOneWindow(arr[i]+"_stars");
             util.closeOneWindow(arr[i]);
             if (arr[i].indexOf("_GC") != -1) {
@@ -4232,6 +4235,7 @@ function copyToMapImages(images)
                   util.copyWindow(
                         findWindowNoPrefixIf(images[i], global.run_auto_continue), 
                         copyname);
+                  global.temporary_windows[global.temporary_windows.length] = copyname;
             } else {
                   console.writeln("map image " + copyname + " already copied");
             }
@@ -4248,6 +4252,7 @@ function copyOneProcessedToMapImage(id)
       var copyname = util.ensure_win_prefix(id.replace("_processed", "_map"));
 
       util.copyWindow(util.findWindow(id), copyname);
+      global.temporary_windows[global.temporary_windows.length] = copyname;
 
       return copyname;
 }
@@ -4273,7 +4278,7 @@ function mapRGBchannel(images, refimage, mapping, is_luminance, name)
       copyToMapImages(images);
 
       if (images.length > 1) {
-            // we have multiple channles in images array
+            // we have multiple channels in images array
             flowchartParentBegin(name);
       }
 
@@ -4904,6 +4909,7 @@ function copyToMapIf(id)
       if (id != null) {
             var new_id = util.ensure_win_prefix(id + "_map");
             util.copyWindow(util.findWindow(id), new_id);
+            global.temporary_windows[global.temporary_windows.length] = new_id;
             return new_id;
       } else {
             return id;
@@ -8134,6 +8140,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
 // Find window and optionally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
+      console.writeln("findWindowCheckBaseNameIf: " + id);
       var win = util.findWindow(util.ensure_win_prefix(id));
       if (win == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
@@ -8490,14 +8497,19 @@ function extractChannels(fileNames)
 
 function findGCStartWindowCheckBaseNameIf(id, check_base_name)
 {
+      var cropextensions = [ '', '_crop' ];
       var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
 
-      for (var i = 0; i < extensions.length; i++) {
-      var win = findWindowCheckBaseNameIf(id + extensions[i], check_base_name);
-            if (win) {
-                  console.writeln("findCGStartWindowCheckBaseNameIf: found " + win.mainView.id);
+      console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
+
+      for (var i = 0; i < cropextensions.length; i++) {
+            for (var j = 0; j < extensions.length; j++) {
+                  var win = findWindowCheckBaseNameIf(id + cropextensions[i] + extensions[j], check_base_name);
+                  if (win) {
+                        console.writeln("findCGStartWindowCheckBaseNameIf: found " + win.mainView.id);
+                        return win;
+                  }
             }
-            return win;
       }
       return null;
 }
@@ -9810,6 +9822,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
                                     "("+ sourceChannelId + " * " + NB_bandwidth + "))" +
                                     " / (" + channel_bandwidth + " - " +  NB_bandwidth + ")");
             mappedChannelId = util.windowRename(mappedChannelId, ppar.win_prefix + "Integration_" + channel + "_NB_continuum");
+            util.findWindow(mappedChannelId).show();
             
             console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId);
             var mappedChannelId2 = runPixelMathSingleMapping(
@@ -9818,8 +9831,9 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
                                     channelId + " + ((" + mappedChannelId + " - Med(" + mappedChannelId + ")) * " + 
                                     BoostFactor + ")");
             mappedChannelId2 = util.windowRename(mappedChannelId2, ppar.win_prefix + "Integration_" + channel + "_NB_combine");
+            util.findWindow(mappedChannelId2).show();
             
-            if (!par.RGBNB_linear_fit.val) {
+            if (par.RGBNB_linear_fit.val) {
                   flowchartOperation("LinearFit");
                   runLinearFit(mappedChannelId2, mappedChannelId);
             }
