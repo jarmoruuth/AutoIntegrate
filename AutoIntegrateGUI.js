@@ -369,7 +369,6 @@ var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    //
 
 //                          blue        green       red         magenta     cyan        yellow      black
 var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-var flowchart_debug = false;
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -391,7 +390,7 @@ function flowchartGraphIterateChilds(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (flowchart_debug) {
+            if (par.debug.val) {
                   console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node.txt);
             }
             node.width = font.width(node.txt) + flowchart_margin;
@@ -425,7 +424,7 @@ function flowchartGraphIterate(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (flowchart_debug) {
+            if (par.debug.val) {
                   console.writeln("flowchartGraphIterate: " + node.type + " " + node.txt);
             }
             node.width = font.width(node.txt) + flowchart_margin;
@@ -504,7 +503,7 @@ function flowchartDrawText(graphics, x, y, node)
             util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " in: " + x + " " + y);
       }
 
@@ -519,7 +518,7 @@ function flowchartDrawText(graphics, x, y, node)
             var y1 = y + graphics.font.height + 2 * flowchart_text_margin;
       }
 
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
@@ -539,7 +538,7 @@ function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (flowchart_debug) {
+            if (par.debug.val) {
                   console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node.txt + " " + p.x + " " + p.y);
             }
             graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
@@ -595,7 +594,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
-            if (flowchart_debug) {
+            if (par.debug.val) {
                   console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
             }
             flowchartDrawText(graphics, x, y, node);
@@ -616,14 +615,14 @@ function flowchartGraphDraw(parent, pos, graphics)
                   if (node.list.length > 0) {
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
-                        if (flowchart_debug) {
+                        if (par.debug.val) {
                               console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
                         }
                         flowchartDrawText(graphics, x, y, node);
                         flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
-                  if (flowchart_debug) {
+                  if (par.debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node.txt);
                   }
                   if (node.list.length > 0) {
@@ -642,7 +641,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                   // process or mask
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
-                  if (flowchart_debug) {
+                  if (par.debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
                   }
                   flowchartDrawText(graphics, x, y, node);
@@ -654,7 +653,7 @@ function flowchartGraphDraw(parent, pos, graphics)
 // Draw a graphical version of the workflow
 function flowchartGraph(rootnode)
 {
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchart Graph");
       }
 
@@ -678,7 +677,7 @@ function flowchartGraph(rootnode)
       var width = size[0] + margin;
       var height = size[1] + margin;
 
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchartGraph:width " + width + " height " + height);
       }
 
@@ -693,7 +692,7 @@ function flowchartGraph(rootnode)
 
       graphics.end();
 
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchartGraph:show bitmap");
       }
       var flowchartWindow = util.createWindowFromBitmap(bitmap, "AutoIntegrate_flowchart");
@@ -703,7 +702,7 @@ function flowchartGraph(rootnode)
 
       flowchartWindow.forceClose();
 
-      if (flowchart_debug) {
+      if (par.debug.val) {
             console.writeln("flowchartGraph:end");
       }
 }
@@ -4940,37 +4939,40 @@ function newAutoContinueButton(parent, toolbutton)
             }
       };
 
+      var autocontinueToolTip =
+      "AutoContinue - Run automatic processing from previously created LRGB, narrowband or Color images." +
+      "<p>Image check order is:</p>" +
+      "<ol>" +
+      "<li>AutoLRGB or AutoRGB - Final image for extra processing</li>" +
+      "<li>L_HT + RGB_HT - Manually stretched L and RGB images.</li>" +
+      "<li>RGB_HT - Manually stretched RGB image</li>" +
+      "<li>Integration_<i>filter</i>_<i>GCext</i> - Gradient corrected integrated channel images</li>" +
+      "<li>Integration_RGB_<i>GCext</i> - Gradient corrected integrated color RGB image</li>" +
+      "<li>Integration_<i>filter</i> - Integrated channel images</li>" +
+      "<li>Integration_RGB - Integrated RGB image</li>" +
+      "</ol>" +
+      "<p>" +
+      "<i>filter</i> = Mono camera filter name, one of L, R, G, B, H, S or O.<br>" +
+      "<i>GCext</i> = Gradient Corrected image, for example manual DBE or GraXpert is run on image. Postfix can be _CG _ABE, _DBE or _GraXpert." +
+      "</p>" +
+      "<p>" +
+      "Note that it is possible to load integrated light images also to the file list. " +
+      "File list images are used when:" +
+      "<ul>" +
+      "<li><i>Integrated lights</i> option in Files tab is checked</li>" +
+      "<li>A filter has only one image</li>" +
+      "<li>No matching desktop image is found</li>" +
+      "</ul>" +
+      "<p>" +
+      "Using the file list can be useful for example when using integrated lights from WBPP as there is no need to rename images." +
+      "</p>";
+
+
       return newPushOrToolButton(
             parent,
             ":/icons/goto-next.png",
             "AutoContinue",
-            "AutoContinue - Run automatic processing from previously created LRGB, narrowband or Color images." +
-            "<p>Image check order is:</p>" +
-            "<ol>" +
-            "<li>AutoLRGB, AutoRGB, AutoRRGB or AutoMono - Final image for extra processing</li>" +
-            "<li>L_HT + RGB_HT - Manually stretched L and RGB images. See Note1 for more information.</li>" +
-            "<li>RGB_HT - Manually stretched RGB image</li>" +
-            "<li>Integration_L_<i>CGext</i> + Integration_RGB_<i>CGext</i> - Gradient corrected L and RGB images</li>" +
-            "<li>Integration_RGB_<i>CGext</i> - Gradient corrected RGB image</li>" +
-            "<li>Integration_L_<i>CGext</i> + Integration_R_<i>CGext</i> + Integration_G_<i>CGext</i> + Integration_B_<i>CGext</i> - Gradient corrected channel images</li>" +
-            "<li>Integration_H_<i>CGext</i> + Integration_S_<i>CGext</i> + Integration_O_<i>CGext</i> - Gradient corrected channel images</li>" +
-            "<li>Light file list - Integrated channel/RGB images if only one image for a filter</li>" +
-            "<li>Integration_RGB_color - Integrated Color RGB image</li>" +
-            "<li>Integration_RGB_narrowband - Integrated narrowband RGB image</li>" +
-            "<li>Integration_<i>channel</i>_processed - <i>channel</i> can be LRGBHSO</li>" +
-            "<li>Integration_H + Integration_S + Integration_O - Integrated channel images</li>" +
-            "<li>Integration_L + Integration_R + Integration_G + Integration_B - Integrated channel images</li>" +
-            "<li>Integration_L_start + Integration_RGB_start - Integrated L and RGB image</li>" +
-            "<li>Integration_RGB_start - Integrated RGB image</li>" +
-            "</ol>" +
-            "<p>" +
-            "Not all images must be present, for example L image can be missing.<br>" +
-            "RGB = Combined image, can be RGB or HSO.<br>" +
-            "HT = Histogram Transformation, image is stretched to non-liner state.<br>" +
-            "<i>CGext</i> = Gradient Corrected, for example manual DBE or GraXpert is run on image. Postfix can be _CG _ABE, _DBE or _GraXpert.<br>" +
-            "Integration = Individual light images are integrated into one image.<br>" +
-            "Note1: Integration_L_crop and Integration_RGB should be used as a base for stretching.<br>" +
-            "</p>",
+            autocontinueToolTip,
             autocontinue_action,
             toolbutton
       );
@@ -5976,9 +5978,9 @@ function AutoIntegrateDialog()
       "For more details see:" +
       "</p>" +
       "<ul>" +
-      '<li>Web site: <a href="https://ruuth.xyz/AutoIntegrateInfo.html">https://ruuth.xyz/AutoIntegrateInfo.html</a></ul>' +
-      'li>Discussion forums: <a href="https://forums.ruuth.xyz">https://forums.ruuth.xyz</a></ul>' +
-      '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></ul>' +
+      '<li>Web site: <a href="https://ruuth.xyz/AutoIntegrateInfo.html">https://ruuth.xyz/AutoIntegrateInfo.html</a></li>' +
+      '<li>Discussion forums: <a href="https://forums.ruuth.xyz">https://forums.ruuth.xyz</a></li>' +
+      '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></li>' +
       "</ul>" +
       "<p>" +
       "This product is based on software from the PixInsight project, developed " +
@@ -6206,10 +6208,6 @@ function AutoIntegrateDialog()
                   showOrHideFilterSectionBar(global.LIGHTS);
                   showOrHideFilterSectionBar(global.FLATS);
             });
-      this.save_processed_channel_images_CheckBox = newCheckBox(this, "Save processed channel images", par.save_processed_channel_images, 
-            "<p>If selected save also processed channel images for AutoContinue and iconize them to the desktop.</p>" +
-            "<p>Processed channel images may make it faster to try different stretching " + 
-            "or narrowband combinations.</p>" );
       this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files, 
             "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );
       this.select_all_files_CheckBox = newCheckBox(this, "Select all files", par.select_all_files, 
@@ -6528,7 +6526,6 @@ function AutoIntegrateDialog()
       this.systemParamsSet2.add( this.AutoSaveSetupBox );
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
-      this.systemParamsSet2.add( this.save_processed_channel_images_CheckBox );
       this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
 
       this.systemParamsSet = new HorizontalSizer;
@@ -7605,6 +7602,15 @@ function AutoIntegrateDialog()
             par.custom_R_mapping.val = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
             par.custom_G_mapping.val = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
             par.custom_B_mapping.val = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
+      };
+      var narrowbandCustomPalette_ComboBox = this.narrowbandCustomPalette_ComboBox;
+      par.narrowband_mapping.reset = function() {
+            for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+                  if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
+                        narrowbandCustomPalette_ComboBox.currentItem = i;
+                        break;
+                  }
+            }
       };
 
       /* Create Editable boxes for R, G and B mapping. 

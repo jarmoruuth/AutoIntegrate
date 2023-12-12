@@ -544,20 +544,20 @@ this.pages = {
 this.columnCount = 0;          // A column position
 this.haveIconized = 0;
 
+/* Possible start images for AutoContinue.
+ * These are used to determine what images are available for AutoContinue.
+ * The numbering order is important as we use it for comparison.
+ */
 this.start_images = {
-    NONE : 0,
-    L_R_G_B_GC : 1,
-    L_RGB_GC : 2,
-    RGB_GC : 3,
-    L_RGB_HT : 4,
-    RGB_HT : 5,
-    RGB_COLOR : 6,
-    L_R_G_B_PROCESSED : 7,
-    L_R_G_B : 8,
-    L_RGB : 9,
-    RGB : 10,
-    FINAL : 11,
-    CALIBRATE_ONLY : 12
+      NONE : 0,
+      RGB : 1,                  // Integrated RGB color image
+      L_R_G_B : 2,              // Integrated channel images
+      RGB_GC : 3,               // Gradient corrected integrated RGB color image
+      L_R_G_B_GC : 4,           // Gradient corrected integrated channel images
+      RGB_HT : 5,               // Histogram transformed RGB image
+      L_RGB_HT : 6,             // Histogram transformed L+RGB image
+      FINAL : 7,                // Final image
+      CALIBRATE_ONLY : 8
 };
 
 this.temporary_windows = [];
@@ -607,36 +607,21 @@ this.fixed_windows = [
       // "Integration_L_start",
       // "Integration_RGB_start",
       "Integration_L_crop",
-      "Integration_L_GC",
-      "Integration_R_GC",
-      "Integration_G_GC",
-      "Integration_B_GC",
-      "Integration_RGB_GC",
-      "Integration_L_GC_HT",
-      "Integration_RGB_GC_HT",
+      "Integration_L_processed",
+      "Integration_R_processed",
+      "Integration_G_processed",
+      "Integration_B_processed",
+      "Integration_RGB_processed",
+      "Integration_RGB_combined",
+      "Integration_L_HT",
+      "Integration_RGB_HT",
       "Integration_L_BE_HT",
       "Integration_RGB_BE_HT",
-      "copy_Integration_RGB_GC_HT",
-      "Integration_RGB_GC_NB_HT",
-      "copy_Integration_RGB_GC_NB_HT",
-      "Integration_LRGB_GC_HT",
-      "copy_Integration_LRGB_GC_HT",
-      "Integration_L_noGC",
-      "Integration_R_noGC",
-      "Integration_G_noGC",
-      "Integration_B_noGC",
-      "Integration_RGB_noGC",
-      "Integration_RGB_noGC_NB",
-      "Integration_L_noGC_HT",
-      "Integration_L_noGC_NB",
-      "Integration_L_noGC_NB_HT",
-      "Integration_RGB_noGC_HT",
-      "copy_Integration_RGB_noGC_HT",
-      "Integration_RGB_noGC_NB_HT",
-      "Integration_LRGB_noGC_HT",
-      "copy_Integration_LRGB_noGC_HT",
-      "Integration_LRGB_noGC_NB_HT",
-      "copy_Integration_LRGB_noGC_NB_HT",
+      "copy_Integration_RGB_HT",
+      "Integration_RGB_processed_NB_HT",
+      "copy_Integration_RGB_processed_NB_HT",
+      "Integration_LRGB_HT",
+      "copy_Integration_LRGB_HT",
       "AutoMask",
       "AutoStarMask",
       "AutoStarFixMask",
@@ -644,12 +629,11 @@ this.fixed_windows = [
       "Measurements",
       "Expressions",
       "L_win_mask",
-      "Integration_L_map_GC",
-      "Integration_L_map_GC_HT",
-      "Integration_L_map_pm_GC",
+      "Integration_L_map_processed",
+      "Integration_L_map_HT",
+      "Integration_L_map_pm_processed",
       "Integration_L_map_pm_noGC",
-      "Integration_L_map_pm_GC_HT",
-      "Integration_L_map_pm_noGC_HT"
+      "Integration_L_map_pm_HT"
 ];
 
 this.calibrate_windows = [
@@ -717,7 +701,6 @@ this.getDirectoryInfo = function(simple_text) {
 }
 
 // variables for temporary debugging and testing
-this.ai_debug = false;                          // temp setting for debugging
 this.ai_get_process_defaults = false;           // temp setting to print process defaults
 
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings

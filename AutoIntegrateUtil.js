@@ -496,6 +496,9 @@ this.addScriptWindow = function(name)
 
 this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate_name)
 {
+      if (par.debug.val) {
+            console.writeln("windowRenameKeepifEx " + old_name + " to " + new_name + ", keepif " + keepif + ", allow_duplicate_name " + allow_duplicate_name);
+      }
       if (global.flowchart) {
             allow_duplicate_name = true;
       }
@@ -1057,6 +1060,23 @@ this.mapBadChars = function(str)
       str = str.replace(/-/g,"_");
       str = str.replace(/,/g,"_");
       return str;
+}
+
+this.replacePostfixOrAppend = function(name, postfixarr, new_postfix)
+{
+      if (name.endsWith(new_postfix)) {
+            // we already have a correct postfix
+            return name;
+      }
+      for (var i = 0; i < postfixarr.length; i++) {
+            var postfix = postfixarr[i];
+            if (name.endsWith(postfix)) {
+                  // replace postfix with new postfix
+                  return name.substr(0, name.length - postfix.length) + new_postfix;
+            }
+      }
+      // something else than expected postfix, just append new postfix
+      return name + new_postfix;
 }
 
 this.ensureDialogFilePath = function(names)

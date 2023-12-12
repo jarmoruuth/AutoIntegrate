@@ -563,7 +563,6 @@ function readParametersFromPersistentModuleSettings()
 
 this.test_initdebug = function()
 {
-      global.ai_debug = true;
       global.par.debug.val = true;
       global.ai_get_process_defaults = false;
       global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings

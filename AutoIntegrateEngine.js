@@ -19,7 +19,6 @@ Interface functions:
       writeProcessingSteps
       closeAllWindows
       getProcessDefaultValues
-      ensureDialogFilePath
 
 Copyright (c) 2018-2023 Jarmo Ruuth.
 
@@ -137,6 +136,8 @@ var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
 var crop_lowClipImage_changed = false; // changed flag for saving to disk
 
+var save_processed_images = true;     // save processed L+RGB images to disk while they still are linear
+
 var crop_suggestion_txt = "Adjust adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
 
 this.extraApply = false;
@@ -164,15 +165,6 @@ var spcc_params = {
       narrowband_mode: false
 };
 
-var autocontinue_processed_channel_images = {
-      lrgb_channels: [ 'L', 'R', 'G', 'B' ],
-      narrowband_channels: [ 'H', 'S', 'O' ],
-      image_ids: [],
-      luminance_id: null,
-      rbg: false,
-      narrowband: false
-};
-
 var process_narrowband;
 
 var logfname;
@@ -186,25 +178,24 @@ var star_mask_win;
 var star_mask_win_id;
 var star_fix_mask_win;
 var star_fix_mask_win_id;
+
 var RGB_win;
 var RGB_win_id;
+var L_processed_id;
+var L_processed_HT_win;
+var L_processed_HT_id;
+var RGB_processed_id;
+
 var is_color_files = false;
 var preprocessed_images;
-var L_GC_id;
-var L_GC_HT_win;
-var L_GC_HT_id;
-var L_HT_win;
-var RGB_GC_id;
 
-var L_start_win;
-var RGB_start_win;
 
 var luminance_id = null;      // These are working images and copies of 
 var red_id = null;            // original integrated images
 var green_id = null;
 var blue_id = null;
 
-var luminance_crop_id = null;
+var luminance_crop_id = null; // Not used for now, use Save cropped images
 
 var L_id;                     // Original integrated images
 var R_id;                     // We make copies of these images during processing
@@ -213,19 +204,17 @@ var B_id;
 var H_id;
 var S_id;
 var O_id;
-var RGB_color_id;              // Integrate RGB from OSC/DSLR data
+var RGB_color_id;              // Integrated RGB from OSC/DSLR data
+
 var RGBNB_image_ids = [];      // Narrowband RGB images
 
 var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
 var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
 var RGB_stars = [];           // linear RGB channel star image ids
 
-var R_GC_id = null;
-var G_GC_id = null;
-var B_GC_id = null;
 var start_time;
 
-var L_GC_start_win;     /* Start images for AutoContinue */
+var L_GC_start_win;           // Gradient corrected and integrated start images for AutoContinue
 var R_GC_start_win;
 var G_GC_start_win;
 var B_GC_start_win;
@@ -234,8 +223,9 @@ var S_GC_start_win;
 var O_GC_start_win;
 var RGB_GC_start_win;
 
-var L_HT_win;
-var RGB_HT_win;
+var L_HT_start_win;           // HT images for AutoContinue
+var RGB_HT_start_win;
+
 var range_mask_win;
 var final_win;
 var current_telescope_name = "";
@@ -695,15 +685,8 @@ function closeAllWindowsFromArray(arr, print_names)
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
             util.closeOneWindow(arr[i]+"_stars");
+            util.closeOneWindow(arr[i]+"_map");
             util.closeOneWindow(arr[i]);
-            if (arr[i].indexOf("_GC") != -1) {
-                  // For possible old images
-                  util.closeOneWindow(arr[i].replace("_GC", "_ABE"));
-            }
-            if (arr[i].indexOf("noGC") != -1) {
-                  // For possible old images
-                  util.closeOneWindow(arr[i].replace("noGC", "noABE"));
-            }
             if (arr[i].indexOf("_NB") != -1) {
                   // For possible old images
                   util.closeOneWindow(arr[i] + "_NB_continuum");
@@ -723,11 +706,6 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
       if (keep_integrated_imgs) {
             var isLRGB = false;
             var integration_windows = global.integration_LRGB_windows;
-            if (par.save_processed_channel_images.val ||
-                  preprocessed_images == global.start_images.L_R_G_B_PROCESSED) 
-            {
-                  integration_windows = integration_windows.concat(global.integration_processed_channel_windows);
-            }
             for (var i = 0; i < integration_windows.length; i++) {
                   if (util.findWindow(integration_windows[i]) != null) {
                         // we have LRGB images
@@ -764,28 +742,29 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
       util.runGarbageCollection();
 }
 
-function saveProcessedChannelImage(id, save_id)
+function saveProcessedImage(id, save_id)
 {
-      if (id == null || !par.save_processed_channel_images.val) {
+      if (id == null) {
             return;
       }
 
-      // Replace _map or _map_pm to _processed
-      if (save_id) {
-            save_id = save_id.replace(/_map.*/g, "_processed");
-      } else {
-            save_id = id.replace(/_map.*/g, "_processed");
+      if (!save_id.endsWith("_processed")) {
+            // Replace _map or _map_pm to _processed
+            if (save_id) {
+                  save_id = save_id.replace(/_map.*/g, "_processed");
+            } else {
+                  save_id = id.replace(/_map.*/g, "_processed");
+            }
+            util.copyWindow(util.findWindow(id), save_id);
+            global.processed_channel_images[global.processed_channel_images.length] = save_id;
       }
-      util.copyWindow(util.findWindow(id), save_id);
 
-      global.processed_channel_images[global.processed_channel_images.length] = save_id;
+      console.writeln("Save processed image " + id + " as " + save_id);
 
-      console.writeln("Save processed channel image " + id + " as " + save_id);
-
-      saveProcessedWindow(global.outputRootDir, save_id);
+      saveProcessedWindow(save_id);
 }
 
-function saveProcessedWindow(path, id, optional_save_id)
+function saveProcessedWindow(id, optional_save_id)
 {
       if (id == null) {
             return null;
@@ -793,12 +772,18 @@ function saveProcessedWindow(path, id, optional_save_id)
       if (global.flowchart) {
             return null;
       }
-      if (path == "") {
-            util.addCriticalStatus("No output directory, cannot save image "+ id);
-            return null;
+      if (global.outputRootDir == "") {
+            // Ask for a save location
+            util.ensureDialogFilePath(optional_save_id ? optional_save_id : id);
+            if (global.outputRootDir == "") {
+                  util.addCriticalStatus("No output directory, cannot save image " + (optional_save_id ? optional_save_id : id));
+                  return null;
+            }
+            var processedPath = global.outputRootDir;
+      } else {
+            var processedPath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
+            util.ensureDir(processedPath);
       }
-      var processedPath = util.combinePath(path, global.AutoProcessedDir);
-      util.ensureDir(processedPath);
       return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id);
 }
 
@@ -2328,7 +2313,7 @@ function runBinning(fileNames, binning_val, resample_val, filtered_files, rename
 function runBinningOnLights(fileNames, filtered_files)
 {
       util.addStatusInfo("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files");
-      util.addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + postfix + ".xisf");
+      util.addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + getBinningPostfix() + ".xisf");
 
       var newFileNames = runBinning(fileNames, par.binning.val, par.binning_resample.val, filtered_files);
 
@@ -3866,11 +3851,7 @@ function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfi
             if (check_allfilesarr != null) {
                   ensureLightImages(from, check_allfilesarr);
             } else if (images != null) {
-                  if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
-                        add_missing_image(images, to + "_processed");
-                  } else {
-                        add_missing_image(images, to);
-                  }
+                  add_missing_image(images, to);
             }
             return to + ext;
       }
@@ -3894,11 +3875,7 @@ function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfi
                               if (check_allfilesarr != null) {
                                     ensureLightImages(from, check_allfilesarr);
                               } else if (images != null) {
-                                    if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
-                                          var to_id = to + "_processed";
-                                    } else {
-                                          var to_id = to;
-                                    }
+                                    var to_id = to;
                                     if (findWindowNoPrefixIf(to_id, global.run_auto_continue) == null) {
                                           util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
                                     }
@@ -4080,11 +4057,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       for (var i = 0; i < reference_images.length && idWin == null; i++) {
             // Try to find idWin from reference images
             var refId = reference_images[i];
-            if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
-                  refId = refId + "_processed";
-            } else {
-                  refId = refId + "_map";
-            }
+            refId = refId + "_map";
             idWin = findWindowCheckBaseNameIf(refId, global.run_auto_continue);
       }
       if (idWin == null) {
@@ -4249,7 +4222,7 @@ function copyOneProcessedToMapImage(id)
             return null;
       }
 
-      var copyname = util.ensure_win_prefix(id.replace("_processed", "_map"));
+      var copyname = util.ensure_win_prefix(util.replacePostfixOrAppend(id, ["_processed"], "_map"));
 
       util.copyWindow(util.findWindow(id), copyname);
       global.temporary_windows[global.temporary_windows.length] = copyname;
@@ -4765,67 +4738,61 @@ function customMapping(RGBmapping, check_allfilesarr)
              * (Integration_H -> Integration_H_map).
              */
             var images = [];
-            if (autocontinue_processed_channel_images.image_ids.length > 0) {
-                  images = copyProcessedToMapImages(autocontinue_processed_channel_images.image_ids);
 
-            } else {
-                  arrayAppendCheckDuplicates(images, R_images);
-                  arrayAppendCheckDuplicates(images, G_images);
-                  arrayAppendCheckDuplicates(images, B_images);
+            arrayAppendCheckDuplicates(images, R_images);
+            arrayAppendCheckDuplicates(images, G_images);
+            arrayAppendCheckDuplicates(images, B_images);
 
-                  copyToMapImages(images);
+            copyToMapImages(images);
 
+            flowchartParentBegin("Channels");
+            for (var i = 0; i < images.length; i++) {
+                  flowchartChildBegin(findChannelFromName(images[i]));
+
+                  CropImageIf(images[i]);
+                  processChannelImage(images[i], false);
+                  
+                  flowchartChildEnd(findChannelFromName(images[i]));
+            }
+            flowchartParentEnd("Channels");
+
+            var narrowband_linear_fit = par.narrowband_linear_fit.val;
+            if (narrowband_linear_fit == "Auto") {
+                  /* By default we do not do linear fit
+                        * if we stretch with STF. If we stretch
+                        * with MaskedStretch we use linear
+                        * fit to balance channels better.
+                        */
+                  if (par.image_stretching.val == 'Auto STF'
+                        || par.image_stretching.val == 'Histogram stretch')
+                  {
+                        console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", do not use linear fit.");
+                        narrowband_linear_fit = "None";
+                  } else {
+                        console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", use linear fit.");
+                  }
+            }
+            var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
+
+            if (narrowband_linear_fit != "None") {
+                  /* Do a linear fit of images before PixelMath and before possible
+                  * stretching. We do this on both cases, linear and stretched.
+                  */
+                  var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
+                  linearFitArray(refimage, images);
+            }
+            if (checkNoiseReduction('RGB', 'channel')) {
+                  // Do noise reduction after linear fit.
                   flowchartParentBegin("Channels");
                   for (var i = 0; i < images.length; i++) {
                         flowchartChildBegin(findChannelFromName(images[i]));
-
-                        CropImageIf(images[i]);
-                        processChannelImage(images[i], false);
-                        
+                        channelNoiseReduction(images[i]);
                         flowchartChildEnd(findChannelFromName(images[i]));
                   }
                   flowchartParentEnd("Channels");
-
-                  var narrowband_linear_fit = par.narrowband_linear_fit.val;
-                  if (narrowband_linear_fit == "Auto") {
-                        /* By default we do not do linear fit
-                         * if we stretch with STF. If we stretch
-                         * with MaskedStretch we use linear
-                         * fit to balance channels better.
-                         */
-                        if (par.image_stretching.val == 'Auto STF'
-                            || par.image_stretching.val == 'Histogram stretch')
-                        {
-                              console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", do not use linear fit.");
-                              narrowband_linear_fit = "None";
-                        } else {
-                              console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", use linear fit.");
-                        }
-                  }
-                  var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
-
-                  if (narrowband_linear_fit != "None") {
-                        /* Do a linear fit of images before PixelMath and before possible
-                        * stretching. We do this on both cases, linear and stretched.
-                        */
-                        var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
-                        linearFitArray(refimage, images);
-                  }
-                  if (checkNoiseReduction('RGB', 'channel')) {
-                        // Do noise reduction after linear fit.
-                        flowchartParentBegin("Channels");
-                        for (var i = 0; i < images.length; i++) {
-                              flowchartChildBegin(findChannelFromName(images[i]));
-                              channelNoiseReduction(images[i]);
-                              flowchartChildEnd(findChannelFromName(images[i]));
-                        }
-                        flowchartParentEnd("Channels");
-                        RGBmapping.channel_noise_reduction = true;
-                  }
-                  for (var i = 0; i < images.length; i++) {
-                        saveProcessedChannelImage(images[i]);
-                  }
+                  RGBmapping.channel_noise_reduction = true;
             }
+
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
                    */
@@ -4851,12 +4818,14 @@ function customMapping(RGBmapping, check_allfilesarr)
 
             /* Run PixelMath to create a combined RGB image.
              */
-            RGB_win_id = runPixelMathRGBMappingFindRef(ppar.win_prefix + "Integration_RGB", red_mapping, green_mapping, blue_mapping);
+            RGB_win_id = runPixelMathRGBMappingFindRef(ppar.win_prefix + "Integration_RGB_combined", red_mapping, green_mapping, blue_mapping);
 
             RGBmapping.combined = true;
 
             RGB_win = util.findWindow(RGB_win_id);
             guiUpdatePreviewWin(RGB_win);
+
+            util.setFITSKeywordNoOverwrite(RGB_win, "AutoIntegrateNarrowband", "true", "If true then this is a narrowband image");
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
                   RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
@@ -4877,9 +4846,6 @@ function customMapping(RGBmapping, check_allfilesarr)
             // them before PixelMath.
             flowchartParentBegin("RGB+Narroband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
-            if (autocontinue_processed_channel_images.rgb) {
-                  util.throwFatalError("Never should have RGB+Narrowband with mapped images.");
-            }
             if (par.custom_L_mapping.val != '') {
                   luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping, true, 'L');
                   guiUpdatePreviewId(luminance_id);
@@ -4916,13 +4882,15 @@ function copyToMapIf(id)
       }
 }
 
-/* Copy Integration_RGB_color to Integration_RGB so we do not
+/* Copy integration_RGB to Integration_RGB_map so we do not
  * modify the original image.
+ * Global variable RGB_win_id is set to the new image id and
+ * RGB_win is set to the new image window.
  */ 
-function mapColorImage(name)
+function mapColorImage(oldname, newname)
 {
-      console.writeln("mapColorImage " + name);
-      RGB_win_id = util.ensure_win_prefix(name);
+      console.writeln("mapColorImage " + oldname + " to " + newname);
+      RGB_win_id = util.ensure_win_prefix(newname);
       util.copyWindow(util.findWindow(RGB_color_id), RGB_win_id);
       RGB_win = ImageWindow.windowById(RGB_win_id);
       RGB_win.show();
@@ -4932,9 +4900,9 @@ function mapColorImage(name)
  */
 function mapLRGBchannels(RGBmapping)
 {
-      var rgb = R_id != null || G_id != null || B_id != null || autocontinue_processed_channel_images.rgb;
+      var rgb = R_id != null || G_id != null || B_id != null;
       process_narrowband = H_id != null || S_id != null || O_id != null || 
-                           par.force_narrowband_mapping.val || autocontinue_processed_channel_images.narrowband;
+                           par.force_narrowband_mapping.val;
       var custom_mapping = isCustomMapping(process_narrowband);
 
       if (rgb && process_narrowband && !par.force_narrowband_mapping.val) {
@@ -4953,50 +4921,37 @@ function mapLRGBchannels(RGBmapping)
 
       } else {
             util.addProcessingStep("Normal RGB processing");
-
-            if (autocontinue_processed_channel_images.rgb) {
-                  /* Use already mapped images. */
-                  console.writeln("Use processed channel images");
-                  luminance_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.luminance_id);
-                  red_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.image_ids[0]);
-                  green_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.image_ids[1]);
-                  blue_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.image_ids[2]);
-
-                  RGBmapping.channel_noise_reduction = true;
-
-            } else {
-                  console.writeln("Make a copy of original windows.");
-                  
-                  flowchartParentBegin("Channels");
-                  flowchartChildBegin("L");
-                  if (luminance_id == null) {
-                        // We may already have copied L_id so we do it
-                        // here only if it is not copied yet.
-                        luminance_id = copyToMapIf(L_id);
-                        CropImageIf(luminance_id);
-                  }
-                  processChannelImage(luminance_id, true, 'L');
-                  flowchartChildEnd("L");
-
-                  flowchartChildBegin("R");
-                  red_id = copyToMapIf(R_id);
-                  CropImageIf(red_id);
-                  processChannelImage(red_id, false);
-                  flowchartChildEnd("R");
-                  
-                  flowchartChildBegin("G");
-                  green_id = copyToMapIf(G_id);
-                  CropImageIf(green_id);
-                  processChannelImage(green_id, false);
-                  flowchartChildEnd("G");
-                  
-                  flowchartChildBegin("B");
-                  blue_id = copyToMapIf(B_id);
-                  CropImageIf(blue_id);
-                  processChannelImage(blue_id, false);
-                  flowchartChildEnd("B");
-                  flowchartParentEnd("Channels");
+            console.writeln("Make a copies of original windows.");
+            
+            flowchartParentBegin("Channels");
+            flowchartChildBegin("L");
+            if (luminance_id == null) {
+                  // We may already have copied L_id so we do it
+                  // here only if it is not copied yet.
+                  luminance_id = copyToMapIf(L_id);
+                  CropImageIf(luminance_id);
             }
+            processChannelImage(luminance_id, true, 'L');
+            flowchartChildEnd("L");
+
+            flowchartChildBegin("R");
+            red_id = copyToMapIf(R_id);
+            CropImageIf(red_id);
+            processChannelImage(red_id, false);
+            flowchartChildEnd("R");
+            
+            flowchartChildBegin("G");
+            green_id = copyToMapIf(G_id);
+            CropImageIf(green_id);
+            processChannelImage(green_id, false);
+            flowchartChildEnd("G");
+            
+            flowchartChildBegin("B");
+            blue_id = copyToMapIf(B_id);
+            CropImageIf(blue_id);
+            processChannelImage(blue_id, false);
+            flowchartChildEnd("B");
+            flowchartParentEnd("Channels");
       }
       return RGBmapping;
 }
@@ -5699,7 +5654,7 @@ function runImageIntegration(channel_images, name, save_to_file)
             var image_id = runImageIntegrationNormalized(images, channel_images.best_image, name);
       }
       if (save_to_file) {
-            saveProcessedWindow(global.outputRootDir, image_id);
+            saveProcessedWindow(image_id);
       }
       util.runGarbageCollection();
       flowchartChildEnd(name);
@@ -5829,17 +5784,17 @@ function runImageIntegrationForCrop(images)
 
       // Depending on integration options, some useless maps may be generated, especially low rejection map,
       // With the current integration parameters, these images are not generated,
-      if (global.ai_debug || par.cropinfo_only.val || par.crop_use_rejection_low.val) {
+      if (par.debug.val || par.cropinfo_only.val || par.crop_use_rejection_low.val) {
             util.windowShowif(P.lowRejectionMapImageId);
       } else {
             util.closeOneWindow(P.lowRejectionMapImageId);
       }
-      if (global.ai_debug || par.cropinfo_only.val) {
+      if (par.debug.val || par.cropinfo_only.val) {
             util.windowShowif(P.highRejectionMapImageId);
       } else {
             util.closeOneWindow(P.highRejectionMapImageId);
       }
-      if (global.ai_debug || par.cropinfo_only.val) {
+      if (par.debug.val || par.cropinfo_only.val) {
             util.windowShowif(P.slopeMapImageId);
       } else {
             util.closeOneWindow(P.slopeMapImageId);
@@ -5883,18 +5838,9 @@ function noGradientCorrectionCopyWin(win)
       var fix_postfix = "_map_pm";
       if (new_win_id.endsWith(fix_postfix)) {
             new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
-      } else {
-            var fix_postfix = "_map";
-            if (new_win_id.endsWith(fix_postfix)) {
-                  new_win_id = new_win_id.substring(0, new_win_id.length - fix_postfix.length);
-            }
       }
-      if (par.use_GC_on_L_RGB_stretched.val) {
-            var noGC_id = util.ensure_win_prefix(new_win_id + "_GC");
-      } else {
-            var noGC_id = util.ensure_win_prefix(new_win_id + "_noGC");
-      }
-      util.addProcessingStep("No gradient correction for " + win.mainView.id);
+      var noGC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(new_win_id, ["_map", "_combined"], "_processed"));
+      util.addProcessingStep("No gradient correction for " + win.mainView.id + ", copy to " + noGC_id);
       util.addScriptWindow(noGC_id);
       util.copyWindow(win, noGC_id);
       return noGC_id;
@@ -5973,7 +5919,7 @@ function runGraXpert(win, replaceTarget, postfix)
             util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
             var GC_id = win.mainView.id;
       } else {
-            var GC_id = util.ensure_win_prefix(win.mainView.id + postfix);
+            var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
             util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + GC_id);
       }
       console.writeln("GraXpert using correction " + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
@@ -6006,7 +5952,7 @@ function runABEex(win, replaceTarget, postfix)
             util.addProcessingStepAndStatusInfo("Run ABE on image " + win.mainView.id);
             var GC_id = win.mainView.id;
       } else {
-            var GC_id = util.ensure_win_prefix(win.mainView.id + postfix);
+            var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
             util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + GC_id);
       }
       console.writeln("ABE using function degree " + par.ABE_degree.val + ' and correction ' + par.ABE_correction.val);
@@ -6024,7 +5970,7 @@ function runABEex(win, replaceTarget, postfix)
       }
       P.polyDegree = par.ABE_degree.val;
 
-      if (global.ai_debug) {
+      if (par.debug.val) {
             console.writeln("DEBUG: ABE parameters:");
             console.writeln(P.toSource());
       }
@@ -6055,10 +6001,10 @@ function runGradientCorrection(win, replaceTarget)
 {
       if (par.use_graxpert.val) {
             flowchartOperation("GraXpert");
-            return runGraXpert(win, replaceTarget, "_GC");
+            return runGraXpert(win, replaceTarget, "_processed");
       } else {
             flowchartOperation("AutomaticBackgroundExtractor");
-            return runABEex(win, replaceTarget, "_GC");
+            return runABEex(win, replaceTarget, "_processed");
       }
 }
 
@@ -8140,7 +8086,7 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
 // Find window and optionally search without a prefix
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
-      console.writeln("findWindowCheckBaseNameIf: " + id);
+      // console.writeln("findWindowCheckBaseNameIf: " + id);
       var win = util.findWindow(util.ensure_win_prefix(id));
       if (win == null && check_base_name && ppar.win_prefix != "") {
             // Try to find without prefix so we can autocontinue
@@ -8181,40 +8127,6 @@ function findWindowNoPrefixIf(id, check_base)
             var win = util.findWindow(id.substring(ppar.win_prefix.length));
       }
       return win;
-}
-
-function findProcessedChannelImages(check_base_name)
-{
-      autocontinue_processed_channel_images.luminance_id = null;
-      autocontinue_processed_channel_images.rgb = false;
-      autocontinue_processed_channel_images.narrowband = false;
-      autocontinue_processed_channel_images.image_ids = [];
-
-      if (!par.save_processed_channel_images) {
-            return;
-      }
-
-      for (var i = 0; i < autocontinue_processed_channel_images.lrgb_channels.length; i++) {
-            var id = findWindowIdCheckBaseNameIf("Integration_" + autocontinue_processed_channel_images.lrgb_channels[i] + "_processed", check_base_name);
-            if (id) {
-                  if (i == 0) {
-                        autocontinue_processed_channel_images.luminance_id = id;
-                  } else {
-                        autocontinue_processed_channel_images.rgb = true;
-                        autocontinue_processed_channel_images.image_ids[autocontinue_processed_channel_images.image_ids.length] = id;
-                  }
-            }
-      }
-      if (autocontinue_processed_channel_images.rgb && autocontinue_processed_channel_images.image_ids.length < 3) {
-            util.throwFatalError("Not all RGB processed channel images found");
-      }
-      for (var i = 0; i < autocontinue_processed_channel_images.narrowband_channels.length; i++) {
-            var id = findWindowIdCheckBaseNameIf("Integration_" + autocontinue_processed_channel_images.narrowband_channels[i] + "_processed", check_base_name);
-            if (id) {
-                  autocontinue_processed_channel_images.narrowband = true;
-                  autocontinue_processed_channel_images.image_ids[autocontinue_processed_channel_images.image_ids.length] = id;
-            }
-      }
 }
 
 // Try to find window with file name. 
@@ -8280,21 +8192,15 @@ function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
 
 function findIntegratedRGBImage(check_base_name, filtered_lights)
 {
-      var id = findIntegratedChannelImage("RGB_color", check_base_name, null);
-      if (id == null) {
-            // Try with old name
-            id = findWindowIdCheckBaseNameIf("RGBcolor", check_base_name, null);
-      }
+      var id = findIntegratedChannelImage("RGB", check_base_name, null);
       if (id == null && filtered_lights != null) {
-            id = findIntegratedLightImage('C', filtered_lights, "Integration_RGB_color");
+            id = findIntegratedLightImage('C', filtered_lights, "Integration_RGB");
       }
       return id;
 }
 
-function findChannelImages(check_base_name)
+function findIntegratedChannelAndRGBImages(check_base_name)
 {
-      findProcessedChannelImages(check_base_name);
-
       if (global.lightFileNames != null && par.integrated_lights.val) {
             var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
       } else {
@@ -8500,7 +8406,7 @@ function findGCStartWindowCheckBaseNameIf(id, check_base_name)
       var cropextensions = [ '', '_crop' ];
       var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
 
-      console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
+      // console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
 
       for (var i = 0; i < cropextensions.length; i++) {
             for (var j = 0; j < extensions.length; j++) {
@@ -8542,10 +8448,10 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
       }
 
       /* Check if we have manually done histogram transformation. */
-      L_HT_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
-      RGB_HT_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
+      L_HT_start_win = findStartWindowCheckBaseNameIf("L_HT", check_base_name);
+      RGB_HT_start_win = findStartWindowCheckBaseNameIf("RGB_HT", check_base_name);
 
-      /* Check if we have manual background extracted files. */
+      /* Check if we have manual gradient corrected files. */
       L_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_L", check_base_name);
       R_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_R", check_base_name);
       G_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_G", check_base_name);
@@ -8555,16 +8461,7 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
       O_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_O", check_base_name);
       RGB_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_RGB", check_base_name);
 
-      /* Check for base images. We cannot use original image name because they are generated
-       * during the processing and would be overwritten or processing would fail.
-       */
-      L_start_win = findStartWindowCheckBaseNameIf("Integration_L_start", check_base_name);
-      RGB_start_win = findStartWindowCheckBaseNameIf("Integration_RGB_start", check_base_name);
-      if (RGB_start_win == null) {
-            RGB_start_win = findStartWindowCheckBaseNameIf("Integration_RGB_narrowband", check_base_name);
-      }
-
-      findChannelImages(check_base_name);
+      findIntegratedChannelAndRGBImages(check_base_name);
 
       if (util.is_extra_option() || util.is_narrowband_option()) {
             for (var i = 0; i < global.final_windows.length; i++) {
@@ -8574,7 +8471,7 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
                   }
             }
       }
-      if (L_GC_start_win != null || L_HT_win != null || L_id != null) {
+      if (L_GC_start_win != null || L_HT_start_win != null || L_id != null) {
             is_luminance_images = true;
       } else {
             is_luminance_images = false;
@@ -8583,68 +8480,64 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
       var preview_id = null;
 
       if (final_win != null) {
-            util.addProcessingStep("Final image " + final_win.mainView.id);
+            /*
+             * Final image.
+             */
+            util.addProcessingStep("Start from final image " + final_win.mainView.id);
             preview_id = final_win.mainView.id;
             preprocessed_images = global.start_images.FINAL;
-      } else if (checkAutoCont(L_HT_win) && checkAutoCont(RGB_HT_win)) {      /* L,RGB HistogramTransformation */
-            util.addProcessingStep("L,RGB HistogramTransformation");
-            preview_id = L_HT_win.mainView.id;
+
+      } else if (checkAutoCont(L_HT_start_win) && checkAutoCont(RGB_HT_start_win)) {
+            /* 
+             * L,RGB HistogramTransformation / stretched 
+             */
+            util.addProcessingStep("Start from L,RGB HistogramTransformation");
+            preview_id = L_HT_start_win.mainView.id;
             preprocessed_images = global.start_images.L_RGB_HT;
-      } else if (checkAutoCont(RGB_HT_win)) {                                 /* RGB (color) HistogramTransformation */
-            util.addProcessingStep("RGB (color) HistogramTransformation " + RGB_HT_win.mainView.id);
-            preview_id = RGB_HT_win.mainView.id;
+            if (util.getKeywordValue(RGB_HT_start_win, "AutoIntegrateNarrowband") == "true") {
+                  process_narrowband = true;
+            }
+
+      } else if (checkAutoCont(RGB_HT_start_win)) {
+            /* 
+             * RGB (color) HistogramTransformation / stretched 
+             */
+            util.addProcessingStep("Start from RGB (color) HistogramTransformation " + RGB_HT_start_win.mainView.id);
+            preview_id = RGB_HT_start_win.mainView.id;
             preprocessed_images = global.start_images.RGB_HT;
-      } else if (checkAutoCont(L_GC_start_win) && checkAutoCont(RGB_GC_start_win)) {      /* L,RGB background extracted */
-            util.addProcessingStep("L,RGB background extracted");
-            preview_id = L_GC_start_win.mainView.id;
-            preprocessed_images = global.start_images.L_RGB_GC;
-      } else if (checkAutoCont(RGB_GC_start_win)) {                                 /* RGB (color) background extracted */
-            util.addProcessingStep("RGB (color) background extracted " + RGB_GC_start_win.mainView.id);
-            preview_id = RGB_GC_start_win.mainView.id;
-            preprocessed_images = global.start_images.RGB_GC;
+            if (util.getKeywordValue(RGB_HT_start_win, "AutoIntegrateNarrowband") == "true") {
+                  process_narrowband = true;
+            }
+
       } else if ((checkAutoCont(R_GC_start_win) && checkAutoCont(G_GC_start_win) && checkAutoCont(B_GC_start_win)) ||
-                  (checkAutoCont(H_GC_start_win) && checkAutoCont(O_GC_start_win))) {     /* L,R,G,B background extracted */
-            util.addProcessingStep("L,R,G,B background extracted");
+                 (checkAutoCont(H_GC_start_win) && checkAutoCont(O_GC_start_win))) 
+      {
+            /* 
+             * L,R,G,B,H,S,O integrated, gradient corrected 
+             */
+            util.addProcessingStep("Start from L,R,G,B,H,S,O integrated, gradient corrected");
             preview_id = checkAutoCont(R_GC_start_win) ? R_GC_start_win.mainView.id : H_GC_start_win.mainView.id;
             preprocessed_images = global.start_images.L_R_G_B_GC;
             process_narrowband = checkAutoCont(H_GC_start_win) || checkAutoCont(O_GC_start_win);
-      } else if (RGB_color_id != null 
-                  && H_id == null && O_id == null && L_id == null) {          /* RGB (color) integrated image */
-            util.addProcessingStep("RGB (color) integrated image " + RGB_color_id);
-            preview_id = RGB_color_id;
-            var check_name = ppar.win_prefix + "Integration_RGB";
-            if (auto_continue && util.findWindow(check_name + "_GC")) {
-                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                       "Close previously processed images or use a different window prefix.")
+
+      } else if (checkAutoCont(RGB_GC_start_win)) {
+            /* 
+             * RGB (color) integrated, gradient corrected 
+             */
+            util.addProcessingStep("Start from RGB (color) integrated, gradient corrected " + RGB_GC_start_win.mainView.id);
+            preview_id = RGB_GC_start_win.mainView.id;
+            preprocessed_images = global.start_images.RGB_GC;
+            if (util.getKeywordValue(RGB_GC_start_win, "AutoIntegrateNarrowband") == "true") {
+                  process_narrowband = true;
             }
-            var check_name = ppar.win_prefix + "Integration_RGB_noGC";
-            if (auto_continue && util.findWindow(check_name)) {
-                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                       "Close previously processed images or use a different window prefix.")
-            }
-            checkAutoCont(util.findWindow(RGB_color_id));
-            preprocessed_images = global.start_images.RGB_COLOR;
-      } else if (autocontinue_processed_channel_images.image_ids.length > 0) {                           /* L,R,G,B,H,S,O map images */
-            util.addProcessingStep("L,R,G,B processed channel images");
-            preview_id = autocontinue_processed_channel_images.image_ids[0];
-            var check_name = ppar.win_prefix + "Integration_RGB";
-            if (auto_continue && util.findWindow(check_name)) {
-                  util.throwFatalError("Cannot start AutoContinue, processed image " + check_name + " already exists. " +
-                                    "Close previously processed images or use a different window prefix.")
-            }
-            checkAutoCont(util.findWindow(autocontinue_processed_channel_images.image_ids[0]));
-            process_narrowband = autocontinue_processed_channel_images.narrowband;
-            preprocessed_images = global.start_images.L_R_G_B_PROCESSED;
-            if (autocontinue_processed_channel_images.luminance_id != null) {
-                  is_luminance_images = true;
-            }
-            // Clear possible narrowband images because we use already processed and mapped images
-            H_id = null; 
-            S_id = null; 
-            O_id != null;
+      
       } else if ((R_id != null && G_id != null && B_id != null) ||
-                  (H_id != null && O_id != null)) {                           /* L,R,G,B,H,S,O integrated images */
-            util.addProcessingStep("L,R,G,B,H,S,O integrated images");
+                 (H_id != null && O_id != null)) 
+      {
+            /* 
+             * L,R,G,B,H,S,O integrated images 
+             */
+            util.addProcessingStep("Start from L,R,G,B,H,S,O integrated images");
             preview_id = R_id != null ? R_id : H_id;
             var check_name = ppar.win_prefix + "Integration_RGB";
             if (auto_continue && util.findWindow(check_name)) {
@@ -8655,19 +8548,22 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
             checkAutoCont(util.findWindow(H_id));
             process_narrowband = H_id != null || S_id != null || O_id != null;
             preprocessed_images = global.start_images.L_R_G_B;
-      } else if (checkAutoCont(L_start_win) && checkAutoCont(RGB_start_win)) {      /* L and RGB images */
-            util.addProcessingStep("L and RGB images " + L_start_win.mainView.id + " and " + RGB_start_win.mainView.id);
-            preview_id = L_start_win.mainView.id;
-            is_luminance_images = true;
-            preprocessed_images = global.start_images.L_RGB;
-      } else if (checkAutoCont(RGB_start_win)) {                                    /* RGB image */
-            util.addProcessingStep("RGB image " + RGB_start_win.mainView.id);
-            preview_id = RGB_start_win.mainView.id;
-            if (RGB_start_win.mainView.id.indexOf("narrowband") != -1) {
+
+      } else if (RGB_color_id != null) {
+            /* 
+             * RGB (color) integrated image 
+             */
+            util.addProcessingStep("Start from RGB (color) integrated image " + RGB_color_id);
+            preview_id = RGB_color_id;
+            if (util.getKeywordValue(util.findWindow(RGB_color_id), "AutoIntegrateNarrowband") == "true") {
                   process_narrowband = true;
             }
             preprocessed_images = global.start_images.RGB;
+
       } else {
+            /*
+             * No start image.
+             */
             console.writeln("No start image");
             preprocessed_images = global.start_images.NONE;
       }
@@ -8722,25 +8618,17 @@ function preprocessedName(pi)
             case global.start_images.NONE:
                   return "None";
             case global.start_images.L_R_G_B_GC:
-                  return "Background extracted channel images";
-            case global.start_images.L_RGB_GC:
-                  return "Background extracted L and RGB images";
+                  return "Background extracted and integrated channel images";
             case global.start_images.RGB_GC:
-                  return "Background extracted RGB image";
+                  return "Background extracted and integrated RGB image";
             case global.start_images.L_RGB_HT:
                   return "Stretched L and RGB images";
             case global.start_images.RGB_HT:
                   return "Stretched RGB image";
-            case global.start_images.RGB_COLOR:
-                  return "Integrated RGB image";
-            case global.start_images.L_R_G_B_PROCESSED:
-                  return "Processed channel images";
             case global.start_images.L_R_G_B:
                   return "Integrated channel images";
             case global.start_images.RGB:
-                  return "RGB image";
-            case global.start_images.L_RGB:
-                  return "L and RGB image";
+                  return "Integrated RGB image";
             case global.start_images.FINAL:
                   return "Final image";
             case global.start_images.CALIBRATE_ONLY:
@@ -8770,7 +8658,7 @@ function preprocessedName(pi)
  */
 function CreateChannelImages(parent, auto_continue)
 {
-      util.addProcessingStepAndStatusInfo("Create channel images");
+      util.addProcessingStepAndStatusInfo("Find start images");
 
       final_win = null;
       global.write_processing_log_file = false;  // do not write the log file if we fail very early
@@ -8811,17 +8699,16 @@ function CreateChannelImages(parent, auto_continue)
             util.addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
             console.writeln("L_GC_start_win="+L_GC_start_win);
             console.writeln("RGB_GC_start_win="+RGB_GC_start_win);
-            console.writeln("L_HT_win="+L_HT_win);
-            console.writeln("RGB_HT_win="+RGB_HT_win);
+            console.writeln("L_HT_start_win="+L_HT_start_win);
+            console.writeln("RGB_HT_start_win="+RGB_HT_start_win);
             if (preprocessed_images == global.start_images.RGB_GC ||
-                preprocessed_images == global.start_images.RGB_HT ||
-                preprocessed_images == global.start_images.RGB_COLOR) 
+                preprocessed_images == global.start_images.RGB_HT) 
             {
                   if (process_narrowband) {
                         util.addProcessingStep("Processing as narrowband images");
                   } else {
                         /* No L files, assume color. */
-                        util.addProcessingStep("Processing as color image from preprocessewd RGB image");
+                        util.addProcessingStep("Processing as color image from preprocessed RGB image");
                   }
                   is_color_files = true;
             }
@@ -8835,6 +8722,8 @@ function CreateChannelImages(parent, auto_continue)
                   range_mask_win = util.findWindow(mask_win_id);
             }
       } else {
+            util.addProcessingStepAndStatusInfo("Create channel images");
+
             /* Open dialog files and run SubframeSelector on them
              * to assigns SSWEIGHT.
              */
@@ -9232,7 +9121,7 @@ function CreateChannelImages(parent, auto_continue)
                   /* We have color files. */
                   util.addProcessingStepAndStatusInfo("Processing as color files");
                   flowchartParentBegin("RGB");
-                  RGB_color_id = runImageIntegration(C_images, 'RGB_color', true);
+                  RGB_color_id = runImageIntegration(C_images, 'RGB', true);
                   flowchartParentEnd("RGB");
             }
       }
@@ -9292,20 +9181,15 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
                   }
             } else if (preprocessed_images == global.start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
-                  util.addProcessingStep("Using image " + L_HT_win.mainView.id + " for a mask");
-                  L_win = util.copyWindow(L_HT_win, ppar.win_prefix + "L_win_mask");
+                  util.addProcessingStep("Using image " + L_HT_start_win.mainView.id + " for a mask");
+                  L_win = util.copyWindow(L_HT_start_win, ppar.win_prefix + "L_win_mask");
             } else {
-                  if (preprocessed_images == global.start_images.L_RGB_GC ||
-                             preprocessed_images == global.start_images.L_R_G_B_GC) 
-                  {
-                        /* We have background extracted from L. */
+                  if (preprocessed_images == global.start_images.L_R_G_B_GC) {
+                        /* We have gradient corrected from L. */
                         util.addProcessingStep("Using image " + L_GC_start_win.mainView.id + " for a mask");
                         L_win = ImageWindow.windowById(L_GC_start_win.mainView.id);
                   } else {
-                        if (preprocessed_images == global.start_images.L_RGB) {
-                              util.addProcessingStep("Using image " + L_start_win.mainView.id + " for a mask");
-                              L_win = L_start_win;
-                        } else if (luminance_id) {
+                        if (luminance_id) {
                               util.addProcessingStep("Using image " + luminance_id + " for a mask");
                               L_win = ImageWindow.windowById(luminance_id);
                         } else {
@@ -9394,122 +9278,104 @@ function ProcessLimage(RGBmapping)
       /* LRGB files */
       if (preprocessed_images == global.start_images.L_RGB_HT) {
             /* We have run HistogramTransformation. */
-            util.addProcessingStep("Start from image " + L_HT_win.mainView.id);
-            L_GC_HT_win = L_HT_win;
-            L_GC_HT_id = L_HT_win.mainView.id;
+            util.addProcessingStep("Start from image " + L_HT_start_win.mainView.id);
+            L_processed_HT_win = util.copyWindow(L_HT_start_win, ppar.win_prefix + "Integration_L_HT");
+            L_processed_HT_id = L_processed_HT_win.mainView.id;
       } else {
-            if (preprocessed_images == global.start_images.L_R_G_B_PROCESSED) {
-                  console.writeln("Use processed channel image for L");
-                  if (autocontinue_processed_channel_images.luminance_id == null) {
-                        util.throwFatalError("Missing processed luminance channel image");
-                  }
-                  if (luminance_id == null) {
-                        luminance_id = copyOneProcessedToMapImage(autocontinue_processed_channel_images.luminance_id);
-                  }
-                  var L_win = ImageWindow.windowById(luminance_id);
-                  L_GC_id = noGradientCorrectionCopyWin(L_win);
-            } else if (preprocessed_images == global.start_images.L_RGB_GC ||
-                       preprocessed_images == global.start_images.L_R_G_B_GC) 
-            {
-                  /* We have background extracted from L. */
-                  util.addProcessingStep("Start from image " + L_GC_id);
-                  L_GC_id = L_GC_start_win.mainView.id;
+            if (preprocessed_images == global.start_images.L_R_G_B_GC) {
+                  /* We have gradient corrected from L. */
+                  util.addProcessingStep("Start from image " + L_processed_id);
+                  let win = util.copyWindow(L_GC_start_win, ppar.win_prefix + "Integration_L_processed");
+                  L_processed_id = win.mainView.id;
             } else {
-                  if (preprocessed_images == global.start_images.L_RGB) {
-                        util.addProcessingStep("Start from image " + L_start_win.mainView.id);
-                        var L_win = util.copyWindow(L_start_win, "Integration_L");
-                  } else {
-                        var L_win = ImageWindow.windowById(luminance_id);
-                  }
+                  var L_win = ImageWindow.windowById(luminance_id);
                   if (!RGBmapping.stretched) {
                         /* Optionally run GC on L
                         */
                         if (par.GC_before_channel_combination.val) {
                               // GC already done
-                              L_GC_id = noGradientCorrectionCopyWin(L_win);
+                              L_processed_id = noGradientCorrectionCopyWin(L_win);
                         } else if (par.use_GC_on_L_RGB.val) {
                               // run GC
                               console.writeln("GC L");
-                              L_GC_id = runGradientCorrection(L_win, false);
+                              L_processed_id = runGradientCorrection(L_win, false);
                         } else {
                               // no GC
-                              L_GC_id = noGradientCorrectionCopyWin(L_win);
+                              L_processed_id = noGradientCorrectionCopyWin(L_win);
                         }
                   }
                   if (par.use_RGBNB_Mapping.val) {
                         flowchartParentBegin("RGB Narrowband mapping");
-                        var mapped_L_GC_id = RGBNB_Channel_Mapping(L_GC_id, 'L', par.RGBNB_L_bandwidth.val, par.RGBNB_L_mapping.val, par.RGBNB_L_BoostFactor.val);
-                        mapped_L_GC_id = util.windowRename(mapped_L_GC_id, L_GC_id + "_NB");
-                        util.closeOneWindow(L_GC_id);
-                        L_GC_id = mapped_L_GC_id;
+                        var mapped_L_GC_id = RGBNB_Channel_Mapping(L_processed_id, 'L', par.RGBNB_L_bandwidth.val, par.RGBNB_L_mapping.val, par.RGBNB_L_BoostFactor.val);
+                        mapped_L_GC_id = util.windowRename(mapped_L_GC_id, L_processed_id + "_NB");
+                        util.closeOneWindow(L_processed_id);
+                        L_processed_id = mapped_L_GC_id;
                         flowchartParentEnd("RGB Narrowband mapping");
                   }
             }
 
-            if (preprocessed_images != global.start_images.L_R_G_B_PROCESSED) {
-                  if (!RGBmapping.combined && !RGBmapping.channel_noise_reduction) {
-                        if (checkNoiseReduction('L', 'channel')) {
-                              /* Noise reduction for L. */
-                              luminanceNoiseReduction(ImageWindow.windowById(L_GC_id), mask_win);
-                        }
-                  }
-                  if (L_GC_id && luminance_id) {
-                        saveProcessedChannelImage(L_GC_id, luminance_id);
+            if (!RGBmapping.combined && !RGBmapping.channel_noise_reduction) {
+                  if (checkNoiseReduction('L', 'channel')) {
+                        /* Noise reduction for L. */
+                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
             }
             /* On L image run HistogramTransform to stretch image to non-linear
             */
-            L_GC_HT_id = util.ensure_win_prefix(L_GC_id + "_HT");
+            L_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_HT"));
             if (!RGBmapping.stretched) {
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(L_GC_id));
+                        runBlurXTerminator(ImageWindow.windowById(L_processed_id));
                   }
                   if (par.remove_stars_before_stretch.val) {
                         removeStars(
-                              ImageWindow.windowById(L_GC_id), 
+                              ImageWindow.windowById(L_processed_id), 
                               true,
                               false,
                               null,
                               null,
                               par.unscreen_stars.val);
                         // use starless L image as mask
-                        LRGBEnsureMask(L_GC_id);
+                        LRGBEnsureMask(L_processed_id);
                   }
                   if (checkNoiseReduction('L', 'linear')) {
-                        luminanceNoiseReduction(ImageWindow.windowById(L_GC_id), mask_win);
+                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
+                  }
+                  if (save_processed_images) {
+                        saveProcessedImage(L_processed_id, L_processed_id);
                   }
                   runHistogramTransform(
-                              util.copyWindow(ImageWindow.windowById(L_GC_id), L_GC_HT_id), 
+                              util.copyWindow(ImageWindow.windowById(L_processed_id), L_processed_HT_id), 
                               null,
                               false,
                               'L');
                   if (par.remove_stars_stretched.val) {
                         removeStars(
-                              ImageWindow.windowById(L_GC_HT_id), 
+                              ImageWindow.windowById(L_processed_HT_id), 
                               false,
                               false,
                               null,
                               null,
                               par.unscreen_stars.val);
                         // use starless L image as mask
-                        LRGBEnsureMaskEx(L_GC_HT_id, true);
+                        LRGBEnsureMaskEx(L_processed_HT_id, true);
                   }
             } else {
                   if (checkNoiseReduction('L', 'linear')) {
-                        luminanceNoiseReduction(ImageWindow.windowById(L_GC_id), mask_win);
+                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
-                  util.copyWindow(ImageWindow.windowById(L_GC_id), L_GC_HT_id);
+                  util.copyWindow(ImageWindow.windowById(L_processed_id), L_processed_HT_id);
             }
 
-            L_GC_HT_win = ImageWindow.windowById(L_GC_HT_id);
+            L_processed_HT_win = ImageWindow.windowById(L_processed_HT_id);
       }
       if (par.use_GC_on_L_RGB_stretched.val) {
             console.writeln("GC L stretched");
-            smoothBackgroundAfterStretch(L_GC_HT_win);
-            runGradientCorrection(L_GC_HT_win, true);
+            smoothBackgroundAfterStretch(L_processed_HT_win);
+            runGradientCorrection(L_processed_HT_win, true);
       }
       if (checkNoiseReduction('L', 'nonlinear')) {
-            runNoiseReduction(L_GC_HT_win, mask_win, false);
+            runNoiseReduction(L_processed_HT_win, mask_win, false);
       }
 }
 
@@ -9586,21 +9452,17 @@ function CombineRGBimageEx(target_name, images)
 {
       util.addProcessingStepAndStatusInfo("Combine RGB image");
 
-      if (autocontinue_processed_channel_images.image_ids.length == 0) {
-            if (checkNoiseReduction('RGB', 'channel') && !process_narrowband) {
-                  util.addProcessingStep("Noise reduction on channel images");
-                  flowchartParentBegin("Channels");
-                  for (var i = 0; i < images.length; i++) {
-                        flowchartChildBegin(findChannelFromName(images[i]));
-                        channelNoiseReduction(images[i]);
-                        flowchartChildEnd(findChannelFromName(images[i]));
-                  }
-                  flowchartParentEnd("Channels");
-            }
+      if (checkNoiseReduction('RGB', 'channel') && !process_narrowband) {
+            util.addProcessingStep("Noise reduction on channel images");
+            flowchartParentBegin("Channels");
             for (var i = 0; i < images.length; i++) {
-                  saveProcessedChannelImage(images[i]);
+                  flowchartChildBegin(findChannelFromName(images[i]));
+                  channelNoiseReduction(images[i]);
+                  flowchartChildEnd(findChannelFromName(images[i]));
             }
+            flowchartParentEnd("Channels");
       }
+
       /* ChannelCombination
        */
       util.addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
@@ -9666,7 +9528,7 @@ function combineRGBStars(RGB_stars)
  */
 function CombineRGBimage()
 {
-      RGB_win = CombineRGBimageEx("Integration_RGB", [red_id, green_id, blue_id]);
+      RGB_win = CombineRGBimageEx("Integration_RGB_combined", [red_id, green_id, blue_id]);
 
       RGB_win_id = RGB_win.mainView.id;
       util.addScriptWindow(RGB_win_id);
@@ -9895,7 +9757,7 @@ this.testRGBNBmapping = function()
 
       util.addProcessingStep("Test narrowband mapping to RGB");
 
-      findChannelImages(false);
+      findIntegratedChannelAndRGBImages(false);
 
       if (RGB_color_id == null) {
             // Try to create color image from channel images
@@ -9951,33 +9813,33 @@ function ProcessRGBimage(RGBmapping)
 {
       util.addProcessingStepAndStatusInfo("Process RGB image, RGB stretched is " + RGBmapping.stretched);
 
-      var RGB_GC_HT_id;
+      var RGB_processed_HT_id;
 
       if (preprocessed_images == global.start_images.L_RGB_HT ||
             preprocessed_images == global.start_images.RGB_HT) 
       {
             /* We already have run HistogramTransformation. */
-            RGB_GC_HT_id = RGB_HT_win.mainView.id;
-            util.addProcessingStep("Start from image " + RGB_GC_HT_id);
+            util.addProcessingStep("Start from image " + RGB_HT_start_win.mainView.id);
+            let win = util.copyWindow(RGB_HT_start_win, ppar.win_prefix + "Integration_RGB_HT");
+            RGB_processed_HT_id = win.mainView.id;
             if (preprocessed_images == global.start_images.RGB_HT) {
-                  ColorEnsureMask(RGB_GC_HT_id, true, false);
+                  ColorEnsureMask(RGB_processed_HT_id, true, false);
             }
             RGBmapping.stretched = true;
       } else {
-            if (preprocessed_images == global.start_images.L_RGB_GC ||
-                preprocessed_images == global.start_images.RGB_GC) 
-            {
-                  /* We already have background extracted. */
-                  RGB_GC_id = RGB_GC_start_win.mainView.id;
-                  util.addProcessingStep("Start from image " + RGB_GC_id);
+            if (preprocessed_images == global.start_images.RGB_GC) {
+                  /* We have gradient corrected integrated image. */
+                  util.addProcessingStep("Start from image " + RGB_GC_start_win.mainView.id);
+                  let win = util.copyWindow(RGB_GC_start_win, ppar.win_prefix + "Integration_RGB_processed");
+                  RGB_processed_id = win.mainView.id;
                   if (par.solve_image.val || par.use_spcc.val) {
-                        runImageSolver(RGB_GC_id, true);
+                        runImageSolver(RGB_processed_id, true);
                   }
             } else {
-                  if (preprocessed_images == global.start_images.RGB ||
-                        preprocessed_images == global.start_images.L_RGB) 
-                  {
-                        RGB_win = util.copyWindow(RGB_start_win, "Integration_RGB");
+                  if (preprocessed_images == global.start_images.RGB) {
+                        // start from integrated RGB image
+                        util.addProcessingStep("Start from image " + RGB_color_id);
+                        RGB_win = util.copyWindow(util.findWindow(RGB_color_id), ppar.win_prefix + "Integration_RGB_map");
                   }
                   if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_win.mainView.id, true);
@@ -9996,34 +9858,34 @@ function ProcessRGBimage(RGBmapping)
                   }
                   if (par.use_GC_on_L_RGB.val) {
                         console.writeln("GC RGB");
-                        RGB_GC_id = runGradientCorrection(RGB_win, false);
+                        RGB_processed_id = runGradientCorrection(RGB_win, false);
                   } else {
                         console.writeln("No GC for RGB");
-                        RGB_GC_id = noGradientCorrectionCopyWin(RGB_win);
+                        RGB_processed_id = noGradientCorrectionCopyWin(RGB_win);
                   }
             }
 
             if (!par.color_calibration_before_GC.val) {
                   if (par.use_background_neutralization.val && !par.use_spcc.val) {
                         /* With SPCC, do not rum background neutralization before SPCC. */
-                        runBackgroundNeutralization(ImageWindow.windowById(RGB_GC_id).mainView);
+                        runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id).mainView);
                   }
                   /* Color calibration on RGB
                   */
-                  runColorCalibration(ImageWindow.windowById(RGB_GC_id), 'linear');
+                  runColorCalibration(ImageWindow.windowById(RGB_processed_id), 'linear');
                   if (par.use_background_neutralization.val && par.use_spcc.val) {
-                        runBackgroundNeutralization(ImageWindow.windowById(RGB_GC_id).mainView);
+                        runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id).mainView);
                   }
             }
 
             if (par.use_RGBNB_Mapping.val) {
                   /* Do RGBNB mapping on combined and color calibrated RGB image. */
-                  RGB_GC_id = doRGBNBmapping(RGB_GC_id);
+                  RGB_processed_id = doRGBNBmapping(RGB_processed_id);
             }
 
             if (is_color_files || !is_luminance_images) {
                   /* Color or narrowband or RGB. */
-                  ColorEnsureMask(RGB_GC_id, RGBmapping.stretched, false);
+                  ColorEnsureMask(RGB_processed_id, RGBmapping.stretched, false);
             }
             if (process_narrowband && par.linear_increase_saturation.val > 0) {
                   /* Default 1 means no increase with narrowband. */
@@ -10036,63 +9898,67 @@ function ProcessRGBimage(RGBmapping)
                   */
                   console.writeln("Add saturation to linear RGB, " + linear_increase_saturation + " steps");
                   for (var i = 0; i < linear_increase_saturation; i++) {
-                        increaseSaturation(ImageWindow.windowById(RGB_GC_id), mask_win);
+                        increaseSaturation(ImageWindow.windowById(RGB_processed_id), mask_win);
                   }
             }
 
             if (!RGBmapping.stretched) {
                   if (par.remove_stars_before_stretch.val) {
-                        RGB_stars_win = removeStars(util.findWindow(RGB_GC_id), true, true, null, null, par.unscreen_stars.val);
+                        RGB_stars_win = removeStars(util.findWindow(RGB_processed_id), true, true, null, null, par.unscreen_stars.val);
                         util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
-                              ColorEnsureMask(RGB_GC_id, false, true);
+                              ColorEnsureMask(RGB_processed_id, false, true);
                         }
                   }
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(RGB_GC_id));
+                        runBlurXTerminator(ImageWindow.windowById(RGB_processed_id));
                   }
                   /* Check noise reduction only after BlurXTerminator. */
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
-                        runNoiseReduction(ImageWindow.windowById(RGB_GC_id), mask_win, !RGBmapping.stretched);
+                        runNoiseReduction(ImageWindow.windowById(RGB_processed_id), mask_win, !RGBmapping.stretched);
+                  }
+
+                  if (save_processed_images) {
+                        saveProcessedImage(RGB_processed_id, RGB_processed_id);
                   }
 
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
-                  RGB_GC_HT_id = util.ensure_win_prefix(RGB_GC_id + "_HT");
+                  RGB_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(RGB_processed_id, ["_processed"], "_HT"));
                   var stf = runHistogramTransform(
                               util.copyWindow(
-                                    ImageWindow.windowById(RGB_GC_id), 
-                                    RGB_GC_HT_id), 
+                                    ImageWindow.windowById(RGB_processed_id), 
+                                    RGB_processed_HT_id), 
                               null,
                               true,
                               'RGB');
                   RGBmapping.stretched = true;
 
                   if (par.remove_stars_stretched.val) {
-                        RGB_stars_HT_win = removeStars(util.findWindow(RGB_GC_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        RGB_stars_HT_win = removeStars(util.findWindow(RGB_processed_HT_id), false, true, null, null, par.unscreen_stars.val);
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
-                              ColorEnsureMask(RGB_GC_HT_id, true, true);
+                              ColorEnsureMask(RGB_processed_HT_id, true, true);
                         }
                   }
             } else {
                   /* Image is not really linear any more but anyway check for noise reduction. */
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
-                        runNoiseReduction(ImageWindow.windowById(RGB_GC_id), mask_win, !RGBmapping.stretched);
+                        runNoiseReduction(ImageWindow.windowById(RGB_processed_id), mask_win, !RGBmapping.stretched);
                   }
-                  RGB_GC_HT_id = RGB_GC_id;
+                  RGB_processed_HT_id = RGB_processed_id;
                  
             }
       }
       if (par.use_GC_on_L_RGB_stretched.val) {
-            smoothBackgroundAfterStretch(util.findWindow(RGB_GC_HT_id));
-            runGradientCorrection(util.findWindow(RGB_GC_HT_id), true);
+            smoothBackgroundAfterStretch(util.findWindow(RGB_processed_HT_id));
+            runGradientCorrection(util.findWindow(RGB_processed_HT_id), true);
       }
       /* If we have non-stretched stars image stretch it.
        */
       if (RGB_stars_win != null)  {
-            let stars_id = RGB_GC_HT_id + "_stars";
+            let stars_id = util.ensure_win_prefix(RGB_processed_HT_id + "_stars");
             runHistogramTransform(
                   util.copyWindow(RGB_stars_win, stars_id), 
                   stf,
@@ -10100,7 +9966,7 @@ function ProcessRGBimage(RGBmapping)
                   'stars');
             RGB_stars_HT_win = util.findWindow(stars_id);
       } else if (RGB_stars_HT_win != null)  {
-            RGB_stars_HT_win.mainView.id =  RGB_GC_HT_id + "_stars";
+            RGB_stars_HT_win.mainView.id =  RGB_processed_HT_id + "_stars";
       }
 
       if (process_narrowband && par.non_linear_increase_saturation.val > 0) {
@@ -10113,11 +9979,11 @@ function ProcessRGBimage(RGBmapping)
             /* Add saturation on RGB
             */
             for (var i = 0; i < non_linear_increase_saturation; i++) {
-                  increaseSaturation(ImageWindow.windowById(RGB_GC_HT_id), mask_win);
+                  increaseSaturation(ImageWindow.windowById(RGB_processed_HT_id), mask_win);
             }
       }
       console.writeln("ProcessRGBimage done");
-      return RGB_GC_HT_id;
+      return RGB_processed_HT_id;
 }
 
 function invertImage(targetView)
@@ -11656,7 +11522,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       setFinalImageKeyword(ImageWindow.windowById(palette_image));
       // save image
       console.writeln("narrowbandPaletteBatchFinalImage:save image " + palette_image);
-      saveProcessedWindow(global.outputRootDir, palette_image);
+      saveProcessedWindow(palette_image);
       util.addProcessingStep("Narrowband palette batch final image " + palette_image);
 }
 
@@ -12176,10 +12042,10 @@ function extraProcessing(parent, id, apply_directly)
             guiUpdatePreviewWin(final_win);
             saveExtraProcessingHistoryToImage(final_win);
             setFinalImageKeyword(final_win);
-            saveProcessedWindow(global.outputRootDir, extra_id); /* Extra window */
+            saveProcessedWindow(extra_id); /* Extra window */
             if (par.extra_remove_stars.val) {
-                  saveProcessedWindow(global.outputRootDir, extra_starless_id);      /* Extra starless window */
-                  saveProcessedWindow(global.outputRootDir, extra_stars_id);         /* Extra stars window */
+                  saveProcessedWindow(extra_starless_id);      /* Extra starless window */
+                  saveProcessedWindow(extra_stars_id);         /* Extra stars window */
             }
       }
 }
@@ -12741,13 +12607,9 @@ function CropImageIf(id)
 
       if (par.save_cropped_images.val) {
             var win_id = window.mainView.id;
-            if (win_id.endsWith("_map")) {
-                  var crop_id = win_id.replace(/_map$/, "_crop");
-            } else {
-                  var crop_id = win_id + "_crop";
-            }
+            util.replacePostfixOrAppend(win_id, ["_map"], "_crop");
             console.writeln("Save cropped image " + win_id + " as " + crop_id);
-            saveProcessedWindow(global.outputRootDir, win_id, crop_id);
+            saveProcessedWindow(win_id, crop_id);
       }
 
       return true;
@@ -12926,7 +12788,7 @@ function createCropInformationEx()
             false,
             false);
       
-      saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
+      saveProcessedWindow(crop_lowClipImageName);  /* LowRejectionMap_ALL */
       crop_lowClipImage_changed = false;
 
       console.noteln("Generated data for cropping");
@@ -12945,8 +12807,12 @@ function createCropInformation()
             flowchartParentBegin("L");
             flowchartChildBegin("L");
             if (CropImageIf(luminance_id)) {
-                  let L_win_crop = util.copyWindow(util.findWindow(luminance_id), util.ensure_win_prefix("Integration_L_crop"));
-                  luminance_crop_id = L_win_crop.mainView.id;
+                  if (0) {
+                        // Do not save cropped luminance image, it can be saved with Save cropped images option.
+                        // For stretching, it is better to use _processed images.
+                        let L_win_crop = util.copyWindow(util.findWindow(luminance_id), util.ensure_win_prefix("Integration_L_crop"));
+                        luminance_crop_id = L_win_crop.mainView.id;
+                  }
             }
             flowchartChildEnd("L");
             flowchartParentEnd("L");
@@ -12955,7 +12821,7 @@ function createCropInformation()
 
 function createCropInformationAutoContinue()
 {
-      if (preprocessed_images != global.start_images.RGB_COLOR
+      if (preprocessed_images != global.start_images.RGB
           && preprocessed_images != global.start_images.L_R_G_B)
       {
             console.writeln("Crop ignored in AutoContinue, only integrated channel images can be cropped.") ;
@@ -13290,8 +13156,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        global.is_processing = true;
        global.cancel_processing = false;
  
-       var LRGB_GC_HT_id = null;
-       var RGB_GC_HT_id = null;
+       var LRGB_processed_HT_id = null;
+       var RGB_processed_HT_id = null;
        var LRGB_Combined = null;
  
        is_color_files = false;
@@ -13308,9 +13174,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        O_id = null;
        RGBNB_image_ids = [];
        RGB_color_id = null;
-       R_GC_id = null;
-       G_GC_id = null;
-       B_GC_id = null;
        RGB_win_id = null;
        start_time = Date.now();
        mask_win = null;
@@ -13421,8 +13284,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        } else if (preprocessed_images == global.start_images.FINAL) {
              // We have a final image, just run run possible extra processing steps
              do_extra_processing = true;
-             LRGB_GC_HT_id = final_win.mainView.id;
-             guiUpdatePreviewId(LRGB_GC_HT_id);
+             LRGB_processed_HT_id = final_win.mainView.id;
+             guiUpdatePreviewId(LRGB_processed_HT_id);
        } else if (!par.image_weight_testing.val 
                   && !par.debayer_only.val 
                   && !par.binning_only.val
@@ -13437,7 +13300,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                               !par.monochrome_image.val &&
                               (preprocessed_images == global.start_images.NONE ||
                                preprocessed_images == global.start_images.L_R_G_B_GC ||
-                               preprocessed_images == global.start_images.L_R_G_B_PROCESSED ||
                                preprocessed_images == global.start_images.L_R_G_B);
              var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false };
  
@@ -13455,17 +13317,15 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                     * mapLRGBchannels -> customMapping.
                     */
                    mapLRGBchannels(RGBmapping);
-                   if (!RGBmapping.combined && preprocessed_images != global.start_images.L_R_G_B_PROCESSED) {
+                   if (!RGBmapping.combined) {
                          // We have not yet combined the RGB image
                          LinearFitLRGBchannels();
                    }
              } else if (is_color_files && 
                         (preprocessed_images == global.start_images.NONE ||
-                         preprocessed_images == global.start_images.RGB_COLOR ||
-                         preprocessed_images == global.start_images.L_RGB ||
                          preprocessed_images == global.start_images.RGB))
             {
-                   mapColorImage("Integration_RGB");
+                   mapColorImage("Integration_RGB", "Integration_RGB_map");
                    CropImageIf(RGB_win_id);
              }
  
@@ -13490,7 +13350,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              }
 
              if (processRGB && !RGBmapping.combined) {
-                   CombineRGBimage(RGB_GC_HT_id);
+                   CombineRGBimage(RGB_processed_HT_id);
                    RGBmapping.combined = true;
              }
              if (RGB_stars.length > 0) {
@@ -13499,8 +13359,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
              if (par.monochrome_image.val) {
                    console.writeln("monochrome image, rename windows")
-                   LRGB_GC_HT_id = util.windowRename(L_GC_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
-                   guiUpdatePreviewId(LRGB_GC_HT_id);
+                   LRGB_processed_HT_id = util.windowRename(L_processed_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
+                   guiUpdatePreviewId(LRGB_processed_HT_id);
                    if (processed_l_image) {
                         flowchartChildEnd("RGB");
                         flowchartParentEnd("LRGB");
@@ -13510,10 +13370,10 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
                    /* Process and stretch RGB image from linear to non-linear.
                     */
-                   RGB_GC_HT_id = ProcessRGBimage(RGBmapping);
+                   RGB_processed_HT_id = ProcessRGBimage(RGBmapping);
 
                    if (checkNoiseReduction('RGB', 'nonlinear')) {
-                         runNoiseReduction(ImageWindow.windowById(RGB_GC_HT_id), mask_win, false);
+                         runNoiseReduction(ImageWindow.windowById(RGB_processed_HT_id), mask_win, false);
                    }
                    if (processed_l_image) {
                         flowchartChildEnd("RGB");
@@ -13521,25 +13381,25 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    }
        
                    if (is_color_files || !is_luminance_images) {
-                         /* Keep RGB_GC_HT_id separate from LRGB_GC_HT_id which
+                         /* Keep RGB_processed_HT_id separate from LRGB_processed_HT_id which
                           * will be the final result file.
                           */
-                         console.writeln("Color file or no luminance, make a copy of " + RGB_GC_HT_id);
-                         LRGB_GC_HT_id = "copy_" + RGB_GC_HT_id;
+                         console.writeln("Color file or no luminance, make a copy of " + RGB_processed_HT_id);
+                         LRGB_processed_HT_id = "copy_" + RGB_processed_HT_id;
                          util.copyWindow(
-                               ImageWindow.windowById(RGB_GC_HT_id), 
-                               LRGB_GC_HT_id);
+                               ImageWindow.windowById(RGB_processed_HT_id), 
+                               LRGB_processed_HT_id);
                    } else {
                          /* LRGB files. Combine L and RGB images.
                          */
-                         LRGB_GC_HT_id = runLRGBCombination(
-                                           RGB_GC_HT_id,
-                                           L_GC_HT_id);
-                         LRGB_Combined = LRGB_GC_HT_id;
+                         LRGB_processed_HT_id = runLRGBCombination(
+                                                      RGB_processed_HT_id,
+                                                      L_processed_HT_id);
+                         LRGB_Combined = LRGB_processed_HT_id;
                          util.copyWindow(
-                               ImageWindow.windowById(LRGB_GC_HT_id), 
-                               "copy_" + LRGB_GC_HT_id);
-                         LRGB_GC_HT_id = "copy_" + LRGB_GC_HT_id;
+                               ImageWindow.windowById(LRGB_processed_HT_id), 
+                               "copy_" + LRGB_processed_HT_id);
+                         LRGB_processed_HT_id = "copy_" + LRGB_processed_HT_id;
                    }
                    if (RGB_stars_HT_win != null) {
                          stars_id = RGB_stars_HT_win.mainView.id;
@@ -13548,12 +13408,12 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    /* Optional ACDNR noise reduction for RGB. Used mostly to reduce black
                     * spots left from previous noise reduction.
                     */
-                   runACDNRReduceNoise(ImageWindow.windowById(LRGB_GC_HT_id), mask_win);
+                   runACDNRReduceNoise(ImageWindow.windowById(LRGB_processed_HT_id), mask_win);
  
                    /* Optional color noise reduction for RGB.
                     */
                    if (par.use_color_noise_reduction.val) {
-                         runColorReduceNoise(ImageWindow.windowById(LRGB_GC_HT_id));
+                         runColorReduceNoise(ImageWindow.windowById(LRGB_processed_HT_id));
                    }
  
                    if (stars_id != null && !par.skip_star_noise_reduction.val) {
@@ -13563,7 +13423,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    if (!process_narrowband && !par.use_RGBNB_Mapping.val && !par.skip_SCNR.val && !par.comet_align.val) {
                          /* Remove green cast, run SCNR
                           */
-                         runSCNR(ImageWindow.windowById(LRGB_GC_HT_id).mainView, false);
+                         runSCNR(ImageWindow.windowById(LRGB_processed_HT_id).mainView, false);
                          if (stars_id != null) {
                                runSCNR(ImageWindow.windowById(stars_id).mainView, false);
                          }
@@ -13572,12 +13432,12 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    /* Sharpen image, use mask to sharpen mostly the light parts of image.
                    */
                    if (par.skip_sharpening.val) {
-                         console.writeln("No sharpening on " + LRGB_GC_HT_id);
+                         console.writeln("No sharpening on " + LRGB_processed_HT_id);
                    } else if (par.use_blurxterminator.val) {
                         /* We have already applied BlurXTerminator on linear image. */
                   } else {
                          runMultiscaleLinearTransformSharpen(
-                               ImageWindow.windowById(LRGB_GC_HT_id),
+                               ImageWindow.windowById(LRGB_processed_HT_id),
                                mask_win);
                          if (stars_id != null) {
                                runMultiscaleLinearTransformSharpen(
@@ -13589,7 +13449,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                   if (!par.use_RGBNB_Mapping.val) {
                         /* Color calibration on RGB
                          */
-                        runColorCalibration(ImageWindow.windowById(LRGB_GC_HT_id), 'nonlinear');
+                        runColorCalibration(ImageWindow.windowById(LRGB_processed_HT_id), 'nonlinear');
                         if (stars_id != null) {
                               runColorCalibration(ImageWindow.windowById(stars_id), 'nonlinear');
                         }
@@ -13599,15 +13459,15 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    if (!is_color_files && is_luminance_images) {
                          /* LRGB files */
                          if (par.RRGB_image.val) {
-                               LRGB_GC_HT_id = util.windowRename(LRGB_GC_HT_id, ppar.win_prefix + "AutoRRGB");
+                               LRGB_processed_HT_id = util.windowRename(LRGB_processed_HT_id, ppar.win_prefix + "AutoRRGB");
                          } else {
-                               LRGB_GC_HT_id = util.windowRename(LRGB_GC_HT_id, ppar.win_prefix + "AutoLRGB");
+                               LRGB_processed_HT_id = util.windowRename(LRGB_processed_HT_id, ppar.win_prefix + "AutoLRGB");
                          }
                    } else {
                          /* Color or narrowband or RGB files */
-                         LRGB_GC_HT_id = util.windowRename(LRGB_GC_HT_id, ppar.win_prefix + "AutoRGB");
+                         LRGB_processed_HT_id = util.windowRename(LRGB_processed_HT_id, ppar.win_prefix + "AutoRGB");
                    }
-                   guiUpdatePreviewId(LRGB_GC_HT_id);
+                   guiUpdatePreviewId(LRGB_processed_HT_id);
              } else {
                    if (processed_l_image) {
                         flowchartChildEnd("RGB");
@@ -13617,70 +13477,70 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              if (stars_id != null) {
                    console.writeln("Stars image is " + stars_id);
                    setFinalImageKeyword(ImageWindow.windowById(stars_id));
-                   stars_id = util.windowRename(stars_id, LRGB_GC_HT_id + "_stars");
+                   stars_id = util.windowRename(stars_id, LRGB_processed_HT_id + "_stars");
        
-                   var starless_id = LRGB_GC_HT_id + "_starless";
-                   console.writeln("Rename " + LRGB_GC_HT_id + " as " + starless_id);
-                   util.windowRename(LRGB_GC_HT_id, starless_id);
+                   var starless_id = LRGB_processed_HT_id + "_starless";
+                   console.writeln("Rename " + LRGB_processed_HT_id + " as " + starless_id);
+                   util.windowRename(LRGB_processed_HT_id, starless_id);
                    var new_image = combineStarsAndStarless(
                                      par.stars_combine.val,
                                      starless_id, 
                                      stars_id);
                    // restore original final image name
-                   console.writeln("Rename " + new_image + " as " + LRGB_GC_HT_id);
-                   util.windowRename(new_image, LRGB_GC_HT_id);
-                   ImageWindow.windowById(LRGB_GC_HT_id).show();
+                   console.writeln("Rename " + new_image + " as " + LRGB_processed_HT_id);
+                   util.windowRename(new_image, LRGB_processed_HT_id);
+                   ImageWindow.windowById(LRGB_processed_HT_id).show();
        
                    setFinalImageKeyword(ImageWindow.windowById(starless_id));
        
-                   saveProcessedWindow(global.outputRootDir, stars_id);
-                   saveProcessedWindow(global.outputRootDir, starless_id);
+                   saveProcessedWindow(stars_id);
+                   saveProcessedWindow(starless_id);
 
-                   guiUpdatePreviewId(LRGB_GC_HT_id);
+                   guiUpdatePreviewId(LRGB_processed_HT_id);
              }
        }
  
        console.writeln("Basic processing completed");
  
        if (do_extra_processing && (util.is_extra_option() || util.is_narrowband_option())) {
-             extraProcessing(parent, LRGB_GC_HT_id, false);
+             extraProcessing(parent, LRGB_processed_HT_id, false);
        }
  
        util.ensureDialogFilePath("processed files");
  
        if (crop_lowClipImage_changed) {
-             saveProcessedWindow(global.outputRootDir, crop_lowClipImageName);  /* LowRejectionMap_ALL */
+             saveProcessedWindow(crop_lowClipImageName);  /* LowRejectionMap_ALL */
        }
        if (preprocessed_images < global.start_images.L_R_G_B_GC) {
              // We have generated integrated images, save them
              console.writeln("Save processed windows");
-             saveProcessedWindow(global.outputRootDir, L_id);                    /* Integration_L */
-             saveProcessedWindow(global.outputRootDir, R_id);                    /* Integration_R */
-             saveProcessedWindow(global.outputRootDir, G_id);                    /* Integration_G */
-             saveProcessedWindow(global.outputRootDir, B_id);                    /* Integration_B */
-             saveProcessedWindow(global.outputRootDir, H_id);                    /* Integration_H */
-             saveProcessedWindow(global.outputRootDir, S_id);                    /* Integration_S */
-             saveProcessedWindow(global.outputRootDir, O_id);                    /* Integration_O */
-             saveProcessedWindow(global.outputRootDir, RGB_color_id);            /* Integration_RGB_color */
+             saveProcessedWindow(L_id);                    /* Integration_L */
+             saveProcessedWindow(R_id);                    /* Integration_R */
+             saveProcessedWindow(G_id);                    /* Integration_G */
+             saveProcessedWindow(B_id);                    /* Integration_B */
+             saveProcessedWindow(H_id);                    /* Integration_H */
+             saveProcessedWindow(S_id);                    /* Integration_S */
+             saveProcessedWindow(O_id);                    /* Integration_O */
+             saveProcessedWindow(RGB_color_id);            /* Integration_RGB */
              if (luminance_crop_id != null) {
-                   saveProcessedWindow(global.outputRootDir, luminance_crop_id); /* Integration_L_crop */
+                   saveProcessedWindow(luminance_crop_id); /* Integration_L_crop */
              }
        }
-       if (preprocessed_images <= global.start_images.L_R_G_B_GC) {
+       if (preprocessed_images <= global.start_images.L_R_G_B_GC && RGB_win_id != null && !RGB_win_id.endsWith("_map")) {
              // We have generated RGB image, save it
              console.writeln("Save generated RGB image");
-             saveProcessedWindow(global.outputRootDir, RGB_win_id);              /* Integration_RGB */
+             saveProcessedWindow(RGB_win_id);              /* Integration_RGB_combined */
        }
-       if (preprocessed_images < global.start_images.FINAL && LRGB_GC_HT_id != null) {
+       if (preprocessed_images < global.start_images.FINAL && LRGB_processed_HT_id != null) {
              console.writeln("Save final image");
              // set final image keyword so it easy to save all file e.g. as 16 bit TIFF
-             setFinalImageKeyword(ImageWindow.windowById(LRGB_GC_HT_id));
+             setFinalImageKeyword(ImageWindow.windowById(LRGB_processed_HT_id));
              // save processing options
-             saveProcessingHistoryToImage(ImageWindow.windowById(LRGB_GC_HT_id));
+             saveProcessingHistoryToImage(ImageWindow.windowById(LRGB_processed_HT_id));
              // We have generated final image, save it
-             global.run_results.final_image_file = saveProcessedWindow(global.outputRootDir, LRGB_GC_HT_id);  /* Final image. */
+             global.run_results.final_image_file = saveProcessedWindow(LRGB_processed_HT_id);  /* Final image. */
              if (global.flowchart) {
-                  util.closeOneWindow(LRGB_GC_HT_id);
+                  util.closeOneWindow(LRGB_processed_HT_id);
              }
        }
  
@@ -13700,11 +13560,17 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        util.windowIconizeAndKeywordif(H_id);                    /* Integration_H */
        util.windowIconizeAndKeywordif(S_id);                    /* Integration_S */
        util.windowIconizeAndKeywordif(O_id);                    /* Integration_O */
-       util.windowIconizeAndKeywordif(RGB_color_id);            /* Integration_RGB_color */
+       util.windowIconizeAndKeywordif(RGB_color_id);            /* Integration_RGB */
        if (crop_lowClipImageName != null) {
              util.windowIconizeif(crop_lowClipImageName);       /* LowRejectionMap_ALL */
        }
-       util.windowIconizeAndKeywordif(RGB_win_id);              /* Integration_RGB */
+       if (RGB_win_id != null && RGB_win_id.endsWith("_map")) {
+            // close map window
+            util.closeOneWindow(RGB_win_id);
+            RGB_win_id = null;
+       } else {
+            util.windowIconizeAndKeywordif(RGB_win_id);         /* Integration_RGB_combined */
+       }
        util.windowIconizeAndKeywordif(luminance_crop_id);       /* Integration_L_crop */
  
        if (RGB_stars_win != null) {
@@ -13722,16 +13588,13 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              util.windowIconizeAndKeywordif(global.processed_channel_images[i]);
        }
  
-       util.windowIconizeAndKeywordif(L_GC_id);
-       util.windowIconizeAndKeywordif(R_GC_id);
-       util.windowIconizeAndKeywordif(G_GC_id);
-       util.windowIconizeAndKeywordif(B_GC_id);
-       util.windowIconizeAndKeywordif(RGB_GC_id);
+       util.windowIconizeAndKeywordif(L_processed_id);
+       util.windowIconizeAndKeywordif(RGB_processed_id);
  
        closeAllWindowsFromArray(RGB_stars);
  
-       util.windowIconizeAndKeywordif(RGB_GC_HT_id);
-       util.windowIconizeAndKeywordif(L_GC_HT_id);
+       util.windowIconizeAndKeywordif(RGB_processed_HT_id);
+       util.windowIconizeAndKeywordif(L_processed_HT_id);
        util.windowIconizeAndKeywordif(LRGB_Combined);           /* LRGB Combined image */
        util.windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
        util.windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
@@ -13762,9 +13625,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    fname = 'P' + fname;
              }
              fname = util.ensure_win_prefix(fname);
-             util.addProcessingStep("Batch mode, rename " + LRGB_GC_HT_id + " to " + fname);
-             LRGB_GC_HT_id = util.windowRenameKeepifEx(LRGB_GC_HT_id, fname, true, true);
-             saveProcessedWindow(global.outputRootDir, LRGB_GC_HT_id);          /* Final renamed batch image. */
+             util.addProcessingStep("Batch mode, rename " + LRGB_processed_HT_id + " to " + fname);
+             LRGB_processed_HT_id = util.windowRenameKeepifEx(LRGB_processed_HT_id, fname, true, true);
+             saveProcessedWindow(LRGB_processed_HT_id);          /* Final renamed batch image. */
        }
  
        if (preprocessed_images == global.start_images.NONE 
