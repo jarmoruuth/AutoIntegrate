@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65.2";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65.2 test1";       // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -50,6 +50,8 @@ this.autointegrate_version_info = [
       "- Support for GraXpert",
       "- Print a Flowchart from the current workflow",
       "- User settable startup image",
+      "- Intermediate image naming changes",
+      "- AutoContinue changes",
       "- Bug fixes"
 ];
 
