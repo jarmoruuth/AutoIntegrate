@@ -5684,7 +5684,8 @@ function newHistogramControl(parent, side_preview)
                   graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
                   graphics.end();
             };
-            histogramViewControl.onClick = function(x, y, buttonState, modifiers) {
+            histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
+                  // console.writeln("histogramViewControl.onMousePress " + x + ", " + y);
                   if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
                         this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
                         this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
