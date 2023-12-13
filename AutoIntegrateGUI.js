@@ -7792,11 +7792,21 @@ function AutoIntegrateDialog()
             "- Test the mapping with a test button" +
             "</p><p>" +
             "If there is no Luminance channel available then selections for L channel are ignored." +
-            "</p>";
+            "</p><p>" + 
+            "The following steps are used with default settings. Note that Add option uses a simplified mapping." + 
+            "</p>" +
+            "<ul>" +
+            "<li>Enhance narrowband channel using bandwidth values.</li>" +
+            "<li>Add narrowband to RGB channel using formula: RGBch + (NBch - med(NBch)) * Boost</li>" +
+            "<li>Optionally run linear fit on narrowband channel using RGB channel as a reference.</li>" +
+            "<li>For the final mapped channel tame max(narrowband channel, RGB channel)</li>" +
+            "</ul>";
             
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping, RGBNB_tooltip);
       this.RGBNB_add_CheckBox = newCheckBox(this, "Add", par.RGBNB_add, 
             "<p>Add narrowband image to the target image.</p>" + 
+            "<p>Add formula is:<br>" + 
+                  "RGBch + (NBch - med(NBch)) * Boost.</p>" + 
             "<p>With this option boost factor is used to adjust the narrowband channel but bandwidth is not used.</p>" );
       this.RGBNB_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBNB_gradient_correction, 
             "<p>Do gradient correction on narrowband image before mapping.</p>" );

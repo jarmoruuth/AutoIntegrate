@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65.2 test1";       // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65.2 test2"; // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -50,9 +50,7 @@ this.autointegrate_version_info = [
       "- Support for GraXpert",
       "- Print a Flowchart from the current workflow",
       "- User settable startup image",
-      "- Intermediate image naming changes",
-      "- AutoContinue changes",
-      "- Bug fixes"
+      "- Bug fixes and small updates"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -575,22 +573,23 @@ this.integration_LRGB_windows = [
       "Integration_O"
 ];
 
-this.integration_processed_channel_windows = [
-      "Integration_L_processed",
-      "Integration_R_processed",
-      "Integration_G_processed",
-      "Integration_B_processed",
-      "Integration_H_processed",
-      "Integration_S_processed",
-      "Integration_O_processed"
-];
-
 this.integration_color_windows = [
-      "Integration_RGB_color"
+      "Integration_RGB"
 ];
 
 this.integration_crop_windows = [
       "LowRejectionMap_ALL"
+];
+
+// Intermediate windows checked before AutoContinue.
+// These should not exist before AutoContinue.
+this.intermediate_windows = [
+      "Integration_L_processed",
+      "Integration_RGB_processed",
+      "Integration_RGB_combined",
+      "Integration_L_HT",
+      "Integration_RGB_HT",
+      "Integration_LRGB_HT"
 ];
 
 this.fixed_windows = [
@@ -599,6 +598,7 @@ this.fixed_windows = [
       "Mapping_G",
       "Mapping_B",
       "Integration_RGB",
+      "Integration_L_NB",
       "Integration_R_NB",
       "Integration_G_NB",
       "Integration_B_NB",
@@ -610,20 +610,20 @@ this.fixed_windows = [
       // "Integration_RGB_start",
       "Integration_L_crop",
       "Integration_L_processed",
-      "Integration_R_processed",
-      "Integration_G_processed",
-      "Integration_B_processed",
+      "Integration_L_NB_processed",
       "Integration_RGB_processed",
+      "Integration_RGB_NB_processed",
       "Integration_RGB_combined",
       "Integration_L_HT",
+      "Integration_L_NB_HT",
       "Integration_RGB_HT",
-      "Integration_L_BE_HT",
-      "Integration_RGB_BE_HT",
+      "Integration_RGB_NB_HT",
       "copy_Integration_RGB_HT",
-      "Integration_RGB_processed_NB_HT",
-      "copy_Integration_RGB_processed_NB_HT",
+      "copy_Integration_RGB_NB_HT",
       "Integration_LRGB_HT",
+      "Integration_LRGB_NB_HT",
       "copy_Integration_LRGB_HT",
+      "copy_Integration_LRGB_NB_HT",
       "AutoMask",
       "AutoStarMask",
       "AutoStarFixMask",

@@ -281,6 +281,16 @@ this.findWindowRe = function(re)
       return null;
 }
 
+this.findWindowFromArray = function(arr)
+{
+      for (var i = 0; i < arr.length; i++) {
+            if (util.findWindow(arr[i]) != null) {
+                  return true;
+            }
+      }
+      return false;
+}
+
 this.closeAllWindowsSubstr = function(id_substr)
 {
       var images = ImageWindow.windows;
@@ -659,9 +669,9 @@ this.fixAllWindowArrays = function(new_prefix)
       }
       // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
       fixWindowArray(global.integration_LRGB_windows, old_prefix, new_prefix);
-      fixWindowArray(global.integration_processed_channel_windows, old_prefix, new_prefix);
       fixWindowArray(global.integration_color_windows, old_prefix, new_prefix);
       fixWindowArray(global.integration_crop_windows, old_prefix, new_prefix);
+      fixWindowArray(global.intermediate_windows, old_prefix, new_prefix);
       fixWindowArray(global.fixed_windows, old_prefix, new_prefix);
       fixWindowArray(global.calibrate_windows, old_prefix, new_prefix);
       fixWindowArray(global.final_windows, old_prefix, new_prefix);

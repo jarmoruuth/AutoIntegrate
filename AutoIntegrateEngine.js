@@ -732,7 +732,6 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
             closeAllWindowsFromArray(global.integration_LRGB_windows);
             closeAllWindowsFromArray(global.integration_color_windows);
             closeAllWindowsFromArray(global.integration_crop_windows);
-            closeAllWindowsFromArray(global.integration_processed_channel_windows);
       }
       closeAllWindowsFromArray(global.fixed_windows);
       closeAllWindowsFromArray(global.calibrate_windows);
@@ -838,6 +837,9 @@ function checkOptions()
                    boolToInteger(par.remove_stars_stretched.val);
       if (intval > 1) {
             util.throwFatalError("Only one remove stars option can be selected.")
+      }
+      if (par.extra_combine_stars.val && !par.extra_remove_stars.val) {
+            util.throwFatalError("Extra combine stars cannot be used during processing if extra remove stars is not set.");
       }
 }
 
@@ -8676,12 +8678,16 @@ function CreateChannelImages(parent, auto_continue)
       }
 
       if (auto_continue) {
-          if (preprocessed_images == global.start_images.NONE) {
-            util.addProcessingStep("No preprocessed images found, processing not started!");
-            return retval.ERROR;
-          }
+            if (preprocessed_images == global.start_images.NONE) {
+                  util.addProcessingStep("No preprocessed images found, processing not started!");
+                  return retval.ERROR;
+            } else if (util.findWindowFromArray(global.intermediate_windows)) {
+                  util.addProcessingStep("There are already preprocessed images, processing not started!");
+                  util.addProcessingStep("Close or rename old images before continuing.");
+                  return retval.ERROR;
+            }
       } else {
-            if (preprocessed_images != global.start_images.NONE) {
+            if (preprocessed_images != global.start_images.NONE || util.findWindowFromArray(global.fixed_windows)) {
                   util.addProcessingStep("There are already preprocessed images, processing not started!");
                   util.addProcessingStep("Close or rename old images before continuing.");
                   return retval.ERROR;
@@ -9307,7 +9313,7 @@ function ProcessLimage(RGBmapping)
                   if (par.use_RGBNB_Mapping.val) {
                         flowchartParentBegin("RGB Narrowband mapping");
                         var mapped_L_GC_id = RGBNB_Channel_Mapping(L_processed_id, 'L', par.RGBNB_L_bandwidth.val, par.RGBNB_L_mapping.val, par.RGBNB_L_BoostFactor.val);
-                        mapped_L_GC_id = util.windowRename(mapped_L_GC_id, L_processed_id + "_NB");
+                        mapped_L_GC_id = util.windowRename(mapped_L_GC_id, util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_NB_processed"));
                         util.closeOneWindow(L_processed_id);
                         L_processed_id = mapped_L_GC_id;
                         flowchartParentEnd("RGB Narrowband mapping");
@@ -9629,19 +9635,27 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
 
       CropImageIf(NB_id);
       if (par.RGBNB_add.val) {
-            if (par.RGBNB_gradient_correction.val) {
-                  NB_id = runGradientCorrection(util.findWindow(NB_id), true);
+            var continuum_id = ppar.win_prefix + "Integration_" + mapping + "_NB_continuum";
+            if (RGBNB_image_ids.indexOf(continuum_id) == -1) {
+                  console.writeln("RGBNB_Channel_Mapping, add, create new continuum image " + continuum_id);
+                  if (par.RGBNB_gradient_correction.val) {
+                        console.writeln("RGBNB_Channel_Mapping, add, run gradient correction on " + NB_id);
+                        NB_id = runGradientCorrection(util.findWindow(NB_id), true);
+                  }
+                  var medChannelId = runPixelMathSingleMapping(
+                                          NB_id,
+                                          "RGBNB:med",
+                                          "$T - med($T)");
+                  util.closeOneWindow(NB_id);
+                  NB_id = medChannelId;
+                  runNoiseReduction(util.findWindow(NB_id), util.findWindow(NB_id), true);
+                  NB_id = util.windowRename(NB_id, continuum_id);
+                  util.findWindow(NB_id).show();
+                  RGBNB_image_ids.push(NB_id);
+            } else {
+                  console.writeln("RGBNB_Channel_Mapping, add, use existing continuum image " + continuum_id);
+                  NB_id = continuum_id;
             }
-            var medChannelId = runPixelMathSingleMapping(
-                                    NB_id,
-                                    "RGBNB:med",
-                                    "$T - med($T)");
-            util.closeOneWindow(NB_id);
-            NB_id = medChannelId;
-            runNoiseReduction(util.findWindow(NB_id), util.findWindow(NB_id), true);
-            NB_id = util.windowRename(NB_id, ppar.win_prefix + "Integration_" + mapping + "_NB_continuum");
-            util.findWindow(NB_id).show();
-            RGBNB_image_ids.push(NB_id);
       } else {
             if (par.RGBNB_gradient_correction.val) {
                   NB_id = runGradientCorrection(util.findWindow(NB_id), true);
@@ -9665,9 +9679,12 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       }
 
       if (par.RGBNB_add.val) {
+            util.addProcessingStepAndStatusInfo("Run " + channel + " mapping with add option using " + NB_id +
+                                                " and boost factor " + BoostFactor);
+            console.writeln("RGBNB_Channel_Mapping, add, runPixelMathSingleMapping " + sourceChannelId);
             var mappedChannelId3 = runPixelMathSingleMapping(
                                     sourceChannelId,
-                                    "RGBNB:max",
+                                    "RGBNB:add",
                                     sourceChannelId + "+" + NB_id + "*" + BoostFactor);
             util.closeOneWindow(channelId);
 
@@ -9735,7 +9752,7 @@ function doRGBNBmapping(RGB_id)
       /* Combine RGB image from mapped channel images. */
       util.addProcessingStep("Combine mapped channel images to an RGB image");
       var RGB_mapped_id = runPixelMathRGBMapping(
-                              RGB_id + "_NB", 
+                              util.replacePostfixOrAppend(RGB_id, ["_processed"], "_NB_processed"),
                               util.findWindow(RGB_id),
                               R_mapped,
                               G_mapped,
@@ -13581,7 +13598,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        }
 
        for (var i = 0; i < RGBNB_image_ids.length; i++) {
-            util.windowIconizeAndKeywordif(RGBNB_image_ids[i]);
+            if (par.debug.val) {
+                  util.windowIconizeAndKeywordif(RGBNB_image_ids[i]);
+            } else {
+                  util.closeOneWindow(RGBNB_image_ids[i]);
+            }
       }
  
        for (var i = 0; i < global.processed_channel_images.length; i++) {
