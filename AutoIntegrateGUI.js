@@ -1417,7 +1417,7 @@ function extraProcessingGUI(parent)
       this.extra_smoothBackground_Sizer.addStretch();
 
       this.extraNormalizeChannelsCheckBox = newCheckBox(parent, "Normalize channels,", par.extra_normalize_channels, 
-                                                        "<p>Normalize back point and brightness on all channels based on a reference channel.<p>" +
+                                                        "<p>Normalize black point and brightness on all channels based on a reference channel.<p>" +
                                                         "<p>Can be useful for example on narrowband images where Halpha data (typically on channel B) is much stronger than S or O.<p>" +
                                                         "<p>Normalization uses similar PixelMath expressions as Bill Blanshan in his <i>Narrowband Normalization using Pixnsight Pixelmath</i> " + 
                                                         "script. See more information in his YouTube channel AnotherAstroChannel.</p>");
@@ -1425,6 +1425,9 @@ function extraProcessingGUI(parent)
       this.extraNormalizeChannelsReferenceComboBox = newComboBox(parent, par.extra_normalize_channels_reference, normalize_channels_reference_values, this.extraNormalizeChannelsReferenceLabel.toolTip);
       this.extraNormalizeChannelsMaskCheckBox = newCheckBox(parent, "Mask", par.extra_normalize_channels_mask, 
                                                             "<p>Use a lightness mask when normalizing. It can help to avoid overstretching dark parts of the image.</p>" + 
+                                                            this.extraNormalizeChannelsCheckBox.toolTip);
+      this.extraNormalizeChannelsRescaleCheckBox = newCheckBox(parent, "Rescale", par.extra_normalize_channels_rescale, 
+                                                            "<p>Rescales the image to [0, 1] during PixelMath operation. Can be useful if there is clipping in normalization.</p>" + 
                                                             this.extraNormalizeChannelsCheckBox.toolTip);
 
       this.extraNormalizeChannelsSizer = new HorizontalSizer;
@@ -1434,6 +1437,7 @@ function extraProcessingGUI(parent)
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceLabel );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsReferenceComboBox );
       this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsMaskCheckBox );
+      this.extraNormalizeChannelsSizer.add( this.extraNormalizeChannelsRescaleCheckBox );
       this.extraNormalizeChannelsSizer.addStretch();
 
       var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>" + 

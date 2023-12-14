@@ -964,6 +964,11 @@ function extraNormalizeImage(imgWin)
             return;
       }
 
+      /* Normalize black point and brightness on all channels based on a reference channel.
+       * Normalization uses similar PixelMath expressions as Bill Blanshan in his 
+       * Narrowband Normalization using Pixnsight Pixelmath script. See more information 
+       * in his YouTube channel AnotherAstroChannel.
+       */
       switch (par.extra_normalize_channels_reference.val) {
             case 'R':
                   var expressions = [ "$T[0]",
@@ -1005,6 +1010,10 @@ function extraNormalizeImage(imgWin)
       P.createNewImage = false;
       P.newImageId = "";
       P.newImageColorSpace = PixelMath.prototype.RGB;
+      if (par.extra_normalize_channels_rescale.val) {
+            P.rescale = true;
+            P.truncate = false;
+      }
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 

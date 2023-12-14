@@ -381,6 +381,7 @@ this.par = {
       extra_normalize_channels: { val: false, def: false, name : "Extra normalize channels", type : 'B' },
       extra_normalize_channels_reference: { val: 'G', def: 'G', name : "Extra normalize channels reference", type : 'S' },
       extra_normalize_channels_mask: { val: false, def: false, name : "Extra normalize channels mask", type : 'B' },
+      extra_normalize_channels_rescale: { val: false, def: false, name : "Extra normalize channels rescale", type : 'B' },
       extra_adjust_channels: { val: false, def: false, name : "Extra adjust channels", type : 'B' },
       extra_adjust_R: { val: 1, def: 1, name : "Extra adjust R", type : 'R' },
       extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
