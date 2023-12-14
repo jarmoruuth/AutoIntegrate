@@ -9951,7 +9951,7 @@ function ProcessRGBimage(RGBmapping)
 
             if (!RGBmapping.stretched) {
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(RGB_processed_id));
+                        runBlurXTerminator(ImageWindow.windowById(RGB_processed_id), false);
                   }
                   /* Check noise reduction only after BlurXTerminator. */
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
