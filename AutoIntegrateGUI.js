@@ -6758,8 +6758,8 @@ function AutoIntegrateDialog()
             "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
             "<p>Value is printed to the AutoIntegrate.log file with a name medianFWHM.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>" );
-      this.bxtCorrectFirst = newCheckBox(this, "Correct first", par.bxt_correct_first, 
-            "<p>Set correct first flag for BlurXTerminator.</p>" );
+      this.bxtCorrectOnlyBeforeCC = newCheckBox(this, "Correct only before CC", par.bxt_correct_only_before_cc, 
+            "<p>Run BlurXTerminator in correct only mode before color calibration.</p>" );
 
       this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
       // this.sharpeningGroupBoxSizer2.margin = 2;
@@ -6767,7 +6767,7 @@ function AutoIntegrateDialog()
       this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtMedianPSF );
-      this.sharpeningGroupBoxSizer2.add( this.bxtCorrectFirst );
+      this.sharpeningGroupBoxSizer2.add( this.bxtCorrectOnlyBeforeCC );
       this.sharpeningGroupBoxSizer2.addStretch();
 
       this.sharpeningGroupBoxSizer = new VerticalSizer;
@@ -8102,6 +8102,7 @@ function AutoIntegrateDialog()
             global.flowchartWindows = [];
             
             console.writeln("Flowchart done");
+            util.runGarbageCollection();
       };
 
       // Show Flowchart button

@@ -159,7 +159,7 @@ this.par = {
       bxt_psf: { val: 0, def: 0, name : "BlurXTerminator PSF", type : 'R' },
       bxt_image_psf: { val: false, def: false, name : "BlurXTerminator image PSF", type : 'B' },
       bxt_median_psf: { val: false, def: false, name : "BlurXTerminator median PSF", type : 'B' },
-      bxt_correct_first: { val: false, def: false, name : "BlurXTerminator correct first", type : 'B' },
+      bxt_correct_only_before_cc: { val: false, def: false, name : "BlurXTerminator correct only before CC", type : 'B' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },

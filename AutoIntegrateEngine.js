@@ -4487,6 +4487,12 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             util.addProcessingStepAndStatusInfo("Remove stars from non-linear image " + imgWin.mainView.id);
       }
 
+      flowchartOperation("Remove stars");
+
+      if (global.flowchart) {
+            return null;
+      }
+
       if (linear_data && use_unscreen) {
             console.writeln("Not using unscreen for linear data");
       }
@@ -4576,6 +4582,11 @@ function removeStarsFromLights(fileNames)
       var outputDir = global.outputRootDir + global.AutoOutputDir;
       var postfix = "_starless";
       var outputExtension = ".xisf";
+
+      flowchartOperation("Remove stars");
+      if (global.flowchart) {
+            return fileNames;
+      }
 
       for (var i = 0; i < fileNames.length; i++) {
             console.writeln("Remove stars from image " + fileNames[i]);
@@ -7139,11 +7150,16 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       imgWin.mainView.endProcess();
 }
 
-function runBlurXTerminator(imgWin)
+function runBlurXTerminator(imgWin, correct_only)
 {
       console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + par.bxt_sharpen_stars.val + 
-                      ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val);
-      flowchartOperation("BlurXTerminator");
+                      ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val +
+                      ", correct only " + correct_only);
+      if (correct_only) {
+            flowchartOperation("BlurXTerminator:correct only");
+      } else {
+            flowchartOperation("BlurXTerminator");
+      }
 
       if (global.flowchart) {
             return;
@@ -7172,8 +7188,7 @@ function runBlurXTerminator(imgWin)
 
       try {
             var P = new BlurXTerminator;
-            P.correct_only = false;
-            P.correct_first = par.bxt_correct_first.val;
+            P.correct_only = correct_only;
             P.nonstellar_then_stellar = false;
             P.sharpen_stars = par.bxt_sharpen_stars.val;
             P.adjust_halos = par.bxt_adjust_halo.val;
@@ -9331,7 +9346,10 @@ function ProcessLimage(RGBmapping)
             L_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_HT"));
             if (!RGBmapping.stretched) {
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(L_processed_id));
+                        runBlurXTerminator(ImageWindow.windowById(L_processed_id), false);
+                  }
+                  if (checkNoiseReduction('L', 'linear')) {
+                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
                   if (par.remove_stars_before_stretch.val) {
                         removeStars(
@@ -9343,9 +9361,6 @@ function ProcessLimage(RGBmapping)
                               par.unscreen_stars.val);
                         // use starless L image as mask
                         LRGBEnsureMask(L_processed_id);
-                  }
-                  if (checkNoiseReduction('L', 'linear')) {
-                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
                   if (save_processed_images) {
                         saveProcessedImage(L_processed_id, L_processed_id);
@@ -9866,6 +9881,9 @@ function ProcessRGBimage(RGBmapping)
                               /* With SPCC, do not run background neutralization before SPCC. */
                               runBackgroundNeutralization(RGB_win.mainView);
                         }
+                        if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
+                              runBlurXTerminator(RGB_win, true);
+                        }
                         /* Color calibration on RGB
                         */
                         runColorCalibration(RGB_win, 'linear');
@@ -9886,6 +9904,9 @@ function ProcessRGBimage(RGBmapping)
                   if (par.use_background_neutralization.val && !par.use_spcc.val) {
                         /* With SPCC, do not rum background neutralization before SPCC. */
                         runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id).mainView);
+                  }
+                  if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
+                        runBlurXTerminator(RGB_win, true);
                   }
                   /* Color calibration on RGB
                   */
@@ -9920,20 +9941,22 @@ function ProcessRGBimage(RGBmapping)
             }
 
             if (!RGBmapping.stretched) {
-                  if (par.remove_stars_before_stretch.val) {
-                        RGB_stars_win = removeStars(util.findWindow(RGB_processed_id), true, true, null, null, par.unscreen_stars.val);
-                        util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
-                        if (!is_luminance_images) {
-                              // use starless RGB image as mask
-                              ColorEnsureMask(RGB_processed_id, false, true);
-                        }
-                  }
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
                         runBlurXTerminator(ImageWindow.windowById(RGB_processed_id));
                   }
                   /* Check noise reduction only after BlurXTerminator. */
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
                         runNoiseReduction(ImageWindow.windowById(RGB_processed_id), mask_win, !RGBmapping.stretched);
+                  }
+                  if (par.remove_stars_before_stretch.val) {
+                        RGB_stars_win = removeStars(util.findWindow(RGB_processed_id), true, true, null, null, par.unscreen_stars.val);
+                        if (RGB_stars_win != null) {
+                              util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
+                        }
+                        if (!is_luminance_images) {
+                              // use starless RGB image as mask
+                              ColorEnsureMask(RGB_processed_id, false, true);
+                        }
                   }
 
                   if (save_processed_images) {
@@ -10831,7 +10854,7 @@ function extraSharpen(extraWin, mask_win)
 {
       if (par.use_blurxterminator.val) {
             addExtraProcessingStep("Sharpening using BlurXTerminator");
-            runBlurXTerminator(extraWin);
+            runBlurXTerminator(extraWin, false);
       } else {
             addExtraProcessingStep("Sharpening using MLT with " + par.extra_sharpen_iterations.val + " iterations");
             for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
