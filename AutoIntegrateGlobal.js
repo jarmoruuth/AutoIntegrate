@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65.2 test2"; // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65.2 test3"; // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -212,7 +212,8 @@ this.par = {
       RGBNB_O_bandwidth: { val: 3, def: 3, name : "Narrowband RGB mapping O bandwidth", type : 'R' },
 
       // Processing settings
-      channel_noise_reduction: { val: true, def: true, name : "Channel noise reduction", type : 'B' },
+      auto_noise_reduction: { val: true, def: true, name : "Auto noise reduction", type : 'B' },
+      channel_noise_reduction: { val: false, def: false, name : "Channel noise reduction", type : 'B' },
       non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
       luminance_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on luminance image", type : 'I' },

@@ -6691,10 +6691,14 @@ function AutoIntegrateDialog()
       this.noise_reduction_checkbox_label = newLabel(this, "Noise reduction on", 
                                                 "Select when noise reduction is done. Multiple options can be selected. " +
                                                 "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
+      this.auto_noise_reduction_CheckBox = newCheckBox(this, "Auto", par.auto_noise_reduction,
+            "<p>Select automatically correct time for noise reduction.</p>" + 
+            "<p>If GradientXTerminator is used, then combined image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
+            "<p>This option enables also color/OSC image noise reduction.</p>");
       this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
-            "<p>Do noise reduction on each color channels and luminance image separately. This option enables also color/OSC image noise reduction.</p>");
+            "<p>Do noise reduction on each color channels and luminance image separately.</p><p>This option enables also color/OSC image noise reduction.</p>");
       this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image", par.combined_image_noise_reduction,
-            "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately. This option enables also color/OSC image noise reduction.</p>" );
+            "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately.</p><p>This option enables also color/OSC image noise reduction.</p>" );
       this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
@@ -6725,6 +6729,7 @@ function AutoIntegrateDialog()
       // this.noiseReductionGroupBoxSizer2.margin = 2;
       this.noiseReductionGroupBoxSizer2.spacing = 4;
       this.noiseReductionGroupBoxSizer2.add( this.noise_reduction_checkbox_label );
+      this.noiseReductionGroupBoxSizer2.add( this.auto_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.combined_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.non_linear_noise_reduction_CheckBox );

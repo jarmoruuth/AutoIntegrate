@@ -4319,10 +4319,12 @@ function checkNoiseReduction(image, phase)
                   }
                   switch (phase) {
                         case 'channel':
-                              noise_reduction = par.channel_noise_reduction.val;
+                              noise_reduction = par.channel_noise_reduction.val ||
+                                                (par.auto_noise_reduction.val && !par.use_blurxterminator.val);
                               break;
                         case 'linear':
-                              noise_reduction = par.combined_image_noise_reduction.val;
+                              noise_reduction = par.combined_image_noise_reduction.val ||
+                                               (par.auto_noise_reduction.val && par.use_blurxterminator.val);
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
@@ -4338,10 +4340,12 @@ function checkNoiseReduction(image, phase)
                   }
                   switch (phase) {
                         case 'channel':
-                              noise_reduction = par.channel_noise_reduction.val;
+                              noise_reduction = par.channel_noise_reduction.val ||
+                                                (par.auto_noise_reduction.val && !par.use_blurxterminator.val);
                               break;
                         case 'linear':
-                              noise_reduction = par.combined_image_noise_reduction.val;
+                              noise_reduction = par.combined_image_noise_reduction.val ||
+                                                (par.auto_noise_reduction.val && par.use_blurxterminator.val);
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
@@ -4357,7 +4361,8 @@ function checkNoiseReduction(image, phase)
                   }
                   switch (phase) {
                         case 'linear':
-                              noise_reduction = par.channel_noise_reduction.val || par.combined_image_noise_reduction.val;
+                              noise_reduction = par.channel_noise_reduction.val || par.combined_image_noise_reduction.val ||
+                                                par.auto_noise_reduction.val;
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
