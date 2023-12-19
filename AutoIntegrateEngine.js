@@ -955,6 +955,40 @@ function extractLchannel(sourceWindow)
       return targetWindow;
 }
 
+function extraRescaleImage(imgWin)
+{
+      addExtraProcessingStep("Rescale image");
+      flowchartOperation("PixelMath:rescale");
+
+      if (global.flowchart) {
+            return;
+      }
+
+      var min = imgWin.mainView.image.minimum();
+      var max = imgWin.mainView.image.maximum();
+      //var expression = "rescale($T," + min + "," + max + ")";
+      var expression = "normalize($T)";
+
+      console.writeln("Expression " + expression + ", min " + min + ", max " + max);
+
+      var P = new PixelMath;
+
+      P.expression = expression;
+      P.useSingleExpression = true;
+      P.showNewImage = false;
+      P.createNewImage = false;
+      P.newImageId = "";
+      P.newImageColorSpace = PixelMath.prototype.RGB;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView);
+
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
 function extraNormalizeImage(imgWin)
 {
       addExtraProcessingStep("Normalize image");
@@ -3167,40 +3201,52 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
 
 function filterByFileName(filePath, filename_postfix)
 {
-      var splitname = filePath.split('.');
-      var basename = splitname[splitname.length - 2];
+      var basename = File.extractName(filePath);
       var filter = basename.slice(0, basename.length - filename_postfix.length).slice(-2);
       
-      console.writeln("filterByFileName:filePath=" + filePath + ", filter=" + filter);
+      console.writeln("filterByFileName:filePath=" + basename);
       
       // Create filter based of file name ending.
       switch (filter) {
             case '_L':
-                  return 'L';
+                  filter = 'L';
+                  break;
             case '_R':
-                  return 'R';
+                  filter = 'R';
+                  break;
             case '_G':
-                  return 'G';
+                  filter = 'G';
+                  break;
             case '_B':
-                  return 'B';
+                  filter = 'B';
+                  break;
             case '_S':
-                  return 'S';
+                  filter = 'S';
+                  break;
             case '_H':
-                  return 'H';
+                  filter = 'H';
+                  break;
             case '_O':
-                  return 'O';
+                  filter = 'O';
+                  break;
             default:
+                  filter = null;
                   break;
       }
+      if (filter != null) {
+            console.writeln("filterByFileName:file end filter=" + filter);
+            return filter;
+      }
       // Check if filter name is embedded in file name.
-      var filter = null;
       var names = [ '_Luminance_', '_Red_', '_Green_', '_Blue_', '_SII_', '_Halpha_', '_OIII_' ];
       var filters = [ 'L', 'R', 'G', 'B', 'S', 'H', 'O' ];
       for (var i = 0; i < names.length; i++) {
             if (basename.indexOf(names[i]) != -1) {
+                  console.writeln("filterByFileName:file name filter=" + filters[i]);
                   return filters[i];
             }
       }
+      console.writeln("filterByFileName:filter not found");
       return null;
 }
 
