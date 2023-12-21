@@ -339,9 +339,19 @@ function flowchartNewImage(imgWIn, targetImageName)
       return targetImageName;
 }
 
+function flowchartUpdated()
+{
+      console.writeln("flowchartUpdated");
+      if (gui) {
+            gui.flowchartUpdated();
+      }
+}
+
+
 function flowchartNewNode(type, txt)
 {
-      return { type: type, txt: txt, list: []  };
+      global.flowchartActiveId++;
+      return { type: type, txt: txt, list: [], id: global.flowchartActiveId };
 }
 
 function flowchartOperation(txt)
@@ -351,6 +361,7 @@ function flowchartOperation(txt)
       }
       // console.writeln("flowchartOperation " + txt);
       flowchartCurrent.list.push( flowchartNewNode("process", txt) );
+      flowchartUpdated();
 }
 
 function flowchartSubtaskBegin(txt, type)
@@ -398,6 +409,7 @@ function flowchartParentEnd(txt)
             return;
       }
       flowchartCurrent = flowchartStack.pop();
+      flowchartCleanup(flowchartCurrent);
 }
 
 function flowchartChildBegin(txt)
@@ -415,6 +427,7 @@ function flowchartChildBegin(txt)
       var newFlowchartCurrent = flowchartNewNode("child", txt);
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
+      flowchartUpdated();
 }
 
 function flowchartChildEnd(txt)
@@ -429,6 +442,7 @@ function flowchartChildEnd(txt)
             return;
       }
       flowchartCurrent = flowchartStack.pop();
+      flowchartUpdated();
 }
 
 // Remove empty nodes
@@ -561,6 +575,8 @@ function flowchartInit(txt)
       flowchartCurrent = flowchartNewNode("header", txt);
       flowchartStack = [];
       flowchart_active = true;
+      global.flowchartData = flowchartCurrent;
+      global.flowchartActiveId = 0;
 }
 
 function flowchartDone()
@@ -569,7 +585,7 @@ function flowchartDone()
             return;
       }
       flowchart_active = false;
-      global.flowchartData = flowchartCurrent;
+      global.flowchartActiveId = 0;
 
       // Iterate cleanup to remove empty nodes
       for (var i = 0; i < 10; i++) {
@@ -578,6 +594,7 @@ function flowchartDone()
             }
       }
       
+      flowchartUpdated();
       engine.flowchartPrint(global.flowchartData);
 }
 

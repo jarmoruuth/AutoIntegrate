@@ -269,6 +269,8 @@ var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
 
+var preview_imgwin = null;
+
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
 
@@ -367,8 +369,13 @@ var flowchart_box_margin = 4;                                                 //
 var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
 var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
 
-//                          blue        green       red         magenta     cyan        yellow      black
-var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffb3b3, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
+// light orange 0xffffd7b5
+// light orange 0xffFFD580
+// light red 0xffffb3b3
+// red       0xffff0000
+//                          blue        green       orange      magenta     cyan        yellow      black
+var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
+var flowchart_active_id_color = 0xffff0000;      // For active node, red
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -466,37 +473,6 @@ function flowchartGraphIterate(parent, font, level)
       return [ width, height ];
 }
 
-function flowchartDrawText2(graphics, x, y, node)
-{
-      if (!node.boxwidth) {
-            util.throwFatalError("flowchartDrawText: boxwidth == null");
-      }
-
-      var middle_x = x + node.boxwidth / 2;
-      var middle_y = y + (graphics.font.height + flowchart_margin) / 2;
-      var txtwidth = graphics.font.width(node.txt);
-
-      // x, y for the box top right corner
-      x = x + flowchart_box_margin;
-      y = y + flowchart_box_margin;
-
-      var width = node.boxwidth - 2 * flowchart_box_margin;
-      var height = graphics.font.height + 2 * flowchart_text_margin;
-
-      var drawbox = (node.type == "process" || node.type == "mask");
-
-      graphics.pen = new Pen(flowchart_colors[node.level % flowchart_colors.length], 1);
-
-      graphics.drawText(middle_x - txtwidth / 2, middle_y + flowchart_box_margin + flowchart_text_margin, node.txt);
-      
-      if (drawbox) {
-            graphics.drawLine(x, y, x + width, y);
-            graphics.drawLine(x, y, x, y + height);
-            graphics.drawLine(x + width, y, x + width, y + height);
-            graphics.drawLine(x, y + height, x + width, y + height);
-      }
-}
-
 function flowchartDrawText(graphics, x, y, node)
 {
       if (!node.boxwidth) {
@@ -522,11 +498,18 @@ function flowchartDrawText(graphics, x, y, node)
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
-      graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
+      if (node.id && node.id == global.flowchartActiveId) {
+            graphics.brush = new Brush( flowchart_active_id_color );
+            graphics.pen = new Pen(0xffffffff, 1);       // white
+      } else {
+            graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
+            graphics.pen = new Pen(0xff000000, 1);       // black
+      }
       if (drawbox) {
             graphics.drawRect(x0, y0, x1, y1);
       }
       graphics.drawTextRect(x0, y0, x1, y1, node.txt, TextAlign_Center | TextAlign_VertCenter);
+      graphics.pen = new Pen(0xff000000, 1);       // black
 }
 
 // draw vertical lines for each child position
@@ -662,7 +645,9 @@ function flowchartGraph(rootnode)
             return;
       }
 
-      engine.flowchartPrint(rootnode);
+      if (!global.is_processing) {
+            engine.flowchartPrint(rootnode);
+      }
 
       if (!global.use_preview) {
             return;
@@ -676,6 +661,14 @@ function flowchartGraph(rootnode)
       var margin = 50;
       var width = size[0] + margin;
       var height = size[1] + margin;
+
+      if (ppar.preview.side_preview_visible) {
+            width = Math.max(width, ppar.preview.side_preview_width / 2);
+            height = Math.max(height, ppar.preview.side_preview_height / 2);
+      } else {
+            width = Math.max(width, ppar.preview.preview_width);
+            height = Math.max(height, ppar.preview.preview_height);
+      }
 
       if (par.debug.val) {
             console.writeln("flowchartGraph:width " + width + " height " + height);
@@ -704,6 +697,14 @@ function flowchartGraph(rootnode)
 
       if (par.debug.val) {
             console.writeln("flowchartGraph:end");
+      }
+}
+
+function flowchartUpdated()
+{
+      if (par.live_flowchart.val) {
+            console.writeln("flowchartUpdated");
+            flowchartGraph(global.flowchartData);
       }
 }
 
@@ -1664,6 +1665,10 @@ function extraProcessingGUI(parent)
                         }
                         console.criticalln(err);
                         console.criticalln("Operation failed!");
+                  }
+                  if (preview_imgwin != null) {
+                        util.closeOneWindow(preview_imgwin.mainView.id);
+                        preview_imgwin = null;
                   }
                   engine.extraApply = false;
             }
@@ -3158,11 +3163,22 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   current_histogramInfo = histogramInfo;
             }
-            var bmp = getWindowBitmap(imgWin);
-            if (ppar.preview.side_preview_visible) {
-                  updatePreviewImageBmp(sidePreviewControl, imgWin, txt, bmp, sideHistogramControl, histogramInfo);
-            } else {
-                  updatePreviewImageBmp(tabPreviewControl, imgWin, txt, bmp, tabHistogramControl, histogramInfo);
+            var preview_name = imgWin.mainView.id + "_preview";
+            if (global.is_processing && 
+                (preview_imgwin == null || preview_imgwin.mainView.id != preview_name)) 
+            {
+                  if (preview_imgwin != null) {
+                        util.closeOneWindow(preview_imgwin.mainView.id);
+                  }
+                  preview_imgwin = util.copyWindow(imgWin, preview_name);
+            }
+            var preview_bmp = getWindowBitmap(imgWin);
+            if (!par.live_flowchart.val) {
+                  if (ppar.preview.side_preview_visible) {
+                        updatePreviewImageBmp(sidePreviewControl, imgWin, txt, preview_bmp, sideHistogramControl, histogramInfo);
+                  } else {
+                        updatePreviewImageBmp(tabPreviewControl, imgWin, txt, preview_bmp, tabHistogramControl, histogramInfo);
+                  }
             }
             updatePreviewTxt(txt);
             console.noteln("Preview updated");
@@ -4812,6 +4828,10 @@ function runAction(parent)
             }
             savePersistentSettings(false);
       }
+      if (preview_imgwin != null) {
+            util.closeOneWindow(preview_imgwin.mainView.id);
+            preview_imgwin = null;
+      }
 }
 
 function newRunButton(parent, toolbutton)
@@ -4940,6 +4960,10 @@ function newAutoContinueButton(parent, toolbutton)
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
+            }
+            if (preview_imgwin != null) {
+                  util.closeOneWindow(preview_imgwin.mainView.id);
+                  preview_imgwin = null;
             }
       };
 
@@ -8138,6 +8162,22 @@ function AutoIntegrateDialog()
             
             console.writeln("Flowchart done");
       };
+      this.liveFlowchartCheckBox = newCheckBoxEx(this, "Live", par.live_flowchart, 
+            "<p>Show flowchart changes live during processing.</p>" +
+            "<p>Flag can be toggled on/off to switch between flowchart and image preview.</p>",
+            function(checked) { 
+                  par.live_flowchart.val = checked;
+                  if (global.is_processing) {
+                        if (checked) {
+                              flowchartUpdated();
+                        } else {
+                              if (preview_imgwin != null) {
+                                    tabPreviewControl.SetImage(preview_imgwin, getWindowBitmap(preview_imgwin));
+                                    sidePreviewControl.SetImage(preview_imgwin, getWindowBitmap(preview_imgwin));
+                              }
+                        }
+                  }
+            });
 
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
@@ -8531,6 +8571,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.newFlowchartButton );
       this.buttons_Sizer.add( this.showFlowchartButton );
+      this.buttons_Sizer.add( this.liveFlowchartCheckBox );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
@@ -8970,6 +9011,7 @@ this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
 this.getWindowBitmap = getWindowBitmap;
+this.flowchartUpdated = flowchartUpdated;
 
 /* Exported data for testing.
  */

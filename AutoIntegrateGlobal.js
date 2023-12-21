@@ -438,6 +438,9 @@ this.par = {
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
+      // Misc settings
+      live_flowchart: { val: false, def: false, name : "Live flowchart", type : 'B' },
+
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix
       use_manual_icon_column: { val: false, def: false, name: "manualIconColumn", type: 'B' }                  // Allow manual control of icon column
@@ -497,6 +500,7 @@ this.saved_measurements = null;
 this.flowchart = false;       // true if we are running in flowchart mode
 this.flowchartWindows = [];   // array of flowchart window ids
 this.flowchartData = null;    // flowchart data
+this.flowchartActiveId = 0;   // active flowchart id
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
