@@ -439,7 +439,7 @@ this.par = {
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
       // Misc settings
-      live_flowchart: { val: false, def: false, name : "Live flowchart", type : 'B' },
+      show_flowchart: { val: false, def: false, name : "Show flowchart", type : 'B' },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix

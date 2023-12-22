@@ -5,7 +5,7 @@
  * Show image preview in max size view.,
  * 
  */
-function AutoIntegrateMaxPreviewDialog(util, global, imgWin, image, txt)
+function AutoIntegrateMaxPreviewDialog(util, global, image, txt)
 {
       this.__base__ = Dialog;
       this.__base__();
@@ -21,9 +21,9 @@ function AutoIntegrateMaxPreviewDialog(util, global, imgWin, image, txt)
 
        console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
-      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, global, preview_width, preview_height, false, true);
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, global, preview_width, preview_height, true);
 
-      this.maxPreviewControl.SetImage(imgWin, image, txt);
+      this.maxPreviewControl.SetImage(image, txt);
    
       this.sizer = new VerticalSizer;
       this.sizer.margin = 6;
@@ -53,7 +53,7 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y, is_histogram, call_from_max_preview)
+function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
@@ -67,41 +67,35 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
       }
 
        // Set image window and bitmap
-       this.SetImage = function(imgWin, image, txt)
+       this.SetImage = function(image, txt)
        {
              //console.writeln("SetImage");
-             this.image = image;
-             this.imgWin = imgWin;
-             this.metadata = image;
-             this.scaledImage = null;
+             this.image = new Image( image );
+             this.bitmap = this.image.render();
+             this.scaledBitmap = null;
              this.SetZoomOutLimit();
              this.UpdateZoom(-100);
              if (txt) {
                   this.image_name_Label.text = txt;
-             } else if (imgWin != null) {
-                  this.image_name_Label.text = imgWin.mainView.fullId;
             } else {
                   this.image_name_Label.text = "";
             }
       }
  
        // Update image window and bitmap
-       this.UpdateImage = function(imgWin, image, txt)
+       this.UpdateImage = function(image, txt)
        {
              //console.writeln("UpdateImage");
              if (this.zoom == this.zoomOutLimit) {
-                   this.SetImage(imgWin, image, txt);
+                   this.SetImage(image, txt);
              } else {
-                   this.image = image;
-                   this.imgWin = imgWin;
-                   this.metadata = image;
-                   this.scaledImage = null;
+                   this.image = new Image( image );
+                   this.bitmap = this.image.render();
+                   this.scaledBitmap = null;
                    this.SetZoomOutLimit();
                    this.UpdateZoom(this.zoom);
                    if (txt) {
                         this.image_name_Label.text = txt;
-                   } else if (imgWin != null) {
-                        this.image_name_Label.text = imgWin.mainView.fullId;
                   } else {
                         this.image_name_Label.text = "";
                   }
@@ -115,7 +109,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              } else if (newZoom >= 1) {
                    newZoom = 1;
              }
-             if (newZoom == this.zoom && this.scaledImage) {
+             if (newZoom == this.zoom && this.scaledBitmap) {
                    return;
              }
  
@@ -126,7 +120,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              if(this.scrollbox.maxHorizontalScrollPosition>0 || this.zoom == this.zoomOutLimit) {
                    imgx=(refPoint.x+this.scrollbox.horizontalScrollPosition)/this.scale;
              }
-             // imgx and imgy are in this.image coordinates (i.e. 1:1 scale)
+             // imgx and imgy are in this.bitmap coordinates (i.e. 1:1 scale)
              var imgy=null;
              if(this.scrollbox.maxVerticalScrollPosition>0 || this.zoom == this.zoomOutLimit) {
                    imgy=(refPoint.y+this.scrollbox.verticalScrollPosition)/this.scale;
@@ -134,25 +128,23 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
  
              this.zoom = newZoom;
              this.scale = this.zoom;
-             this.scaledImage = null;
-             if (!is_histogram) {
-                  if (this.zoom >= 1) {
-                        this.zoomVal_Label.text = "1:1";
-                  } else {
-                        this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
-                  }
+             this.scaledBitmap = null;
+            if (this.zoom >= 1) {
+                  this.zoomVal_Label.text = "1:1";
+            } else {
+                  this.zoomVal_Label.text = format("1:%d", Math.ceil(1 / this.zoom));
             }
-             if (this.image) {
+            if (this.bitmap) {
                    if (this.zoom > this.zoomOutLimit) {
-                         this.scaledImage = this.image.scaled(this.scale);
+                         this.scaledBitmap = this.bitmap.scaled(this.scale);
                    } else {
-                         this.scaledImage = this.image.scaled(0.98 * this.scale);
+                         this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
                    }
              } else {
-                   this.scaledImage = {width:this.metadata.width * this.scale, height:this.metadata.height * this.scale};
+                   this.scaledBitmap = {width:this.image.width * this.scale, height:this.image.height * this.scale};
              }
-             this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledImage.width - this.scrollbox.viewport.width);
-             this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledImage.height - this.scrollbox.viewport.height);
+             this.scrollbox.maxHorizontalScrollPosition = Math.max(0, this.scaledBitmap.width - this.scrollbox.viewport.width);
+             this.scrollbox.maxVerticalScrollPosition = Math.max(0, this.scaledBitmap.height - this.scrollbox.viewport.height);
  
              if(this.scrollbox.maxHorizontalScrollPosition>0 && imgx!=null) {
                    this.scrollbox.horizontalScrollPosition = (imgx*this.scale)-refPoint.x;
@@ -164,119 +156,118 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              this.scrollbox.viewport.update();
        }
  
-       if (!is_histogram) {
-            this.zoomIn_Button = new ToolButton( this );
-            this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
-            this.zoomIn_Button.setScaledFixedSize( 20, 20 );
-            this.zoomIn_Button.toolTip = "Zoom in";
-            this.zoomIn_Button.onClick = function()
-            {
-                  this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
-            };
-      
-            this.zoomOut_Button = new ToolButton( this );
-            this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
-            this.zoomOut_Button.setScaledFixedSize( 20, 20 );
-            this.zoomOut_Button.toolTip = "Zoom out";
-            this.zoomOut_Button.onClick = function()
-            {
-                  this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
-            };
-      
-            this.zoom11_Button = new ToolButton( this );
-            this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
-            this.zoom11_Button.setScaledFixedSize( 20, 20 );
-            this.zoom11_Button.toolTip = "Zoom 1:1";
-            this.zoom11_Button.onClick = function()
-            {
-                  this.parent.UpdateZoom(1);
-            };
-      
-            this.zoomFit_Button = new ToolButton( this );
-            this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
-            this.zoomFit_Button.setScaledFixedSize( 20, 20 );
-            this.zoomFit_Button.toolTip = "Zoom fit";
-            this.zoomFit_Button.onClick = function()
-            {
-                  this.parent.UpdateZoom(-100);
-            };
+      this.zoomIn_Button = new ToolButton( this );
+      this.zoomIn_Button.icon = this.scaledResource( ":/icons/zoom-in.png" );
+      this.zoomIn_Button.setScaledFixedSize( 20, 20 );
+      this.zoomIn_Button.toolTip = "Zoom in";
+      this.zoomIn_Button.onClick = function()
+      {
+            this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
+      };
 
-            if (this.normalPreview) {
-                  this.save_Button = new ToolButton( this );
-                  this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
-                  this.save_Button.setScaledFixedSize( 20, 20 );
-                  this.save_Button.toolTip = "Save image to a file.";
-                  this.save_Button.onClick = function()
-                  {
-                        if (!this.parent.image) {
-                              console.noteln("No image to save");
-                              return;
-                        }
-                        let saveFileDialog = new SaveFileDialog();
-                        saveFileDialog.caption = "Save As TIFF";
-                        if (global.outputRootDir == "") {
-                              var path = global.ppar.lastDir;
-                        } else {
-                              var path = global.outputRootDir;
-                        }
-                        if (path != "") {
-                              path = util.ensurePathEndSlash(path);
-                        }
-                        saveFileDialog.initialPath = path + "preview" + ".tif";
-                        saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
-                        if (!saveFileDialog.execute()) {
-                              console.noteln("Preview image not saved");
-                              return;
-                        }
-                        var copy_win = util.createWindowFromBitmap(this.parent.image, "AutoIntegrate_preview_savetmp");
-                        console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
-                        if (copy_win.bitsPerSample != 16) {
-                              console.writeln("set bits to 16");
-                              copy_win.setSampleFormat(16, false);
-                        }
-                        // Save image. No format options, no warning messages, 
-                        // no strict mode, no overwrite checks.
-                        if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
-                              console.criticalln("Failed to save image: " + saveFileDialog.fileName);
-                        } else {
-                              console.writeln("Saved image: " + saveFileDialog.fileName);
-                        }
-                        util.forceCloseOneWindow(copy_win);
-                  };
-            }
-            if (this.normalPreview) {
-                  this.maxPreview_Button = new ToolButton( this );
-                  this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
-                  this.maxPreview_Button.setScaledFixedSize( 20, 20 );
-                  this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
-                  this.maxPreview_Button.onClick = function()
-                  {
-                        let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, par, this.parent.imgWin, this.parent.image, this.parent.image_name_Label.text);
-                        maxPreviewDialog.execute();
-                        gc(false);
-                  };
-            }
-            this.image_name_Label = new Label( this );
-            this.image_name_Label.text = "";
-            this.image_name_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+      this.zoomOut_Button = new ToolButton( this );
+      this.zoomOut_Button.icon = this.scaledResource( ":/icons/zoom-out.png" );
+      this.zoomOut_Button.setScaledFixedSize( 20, 20 );
+      this.zoomOut_Button.toolTip = "Zoom out";
+      this.zoomOut_Button.onClick = function()
+      {
+            this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
+      };
 
-            this.buttons_Sizer = new HorizontalSizer;
-            this.buttons_Sizer.add( this.zoomIn_Button );
-            this.buttons_Sizer.add( this.zoomOut_Button );
-            this.buttons_Sizer.add( this.zoom11_Button );
-            this.buttons_Sizer.add( this.zoomFit_Button );
-            if (this.normalPreview) {
-                  this.buttons_Sizer.addSpacing( 12 );
-                  this.buttons_Sizer.add( this.maxPreview_Button );
-            }
-            if (this.normalPreview) {
-                  this.buttons_Sizer.addSpacing( 24 );
-                  this.buttons_Sizer.add( this.save_Button );
-            }
-            this.buttons_Sizer.addStretch();
+      this.zoom11_Button = new ToolButton( this );
+      this.zoom11_Button.icon = this.scaledResource( ":/icons/zoom-1-1.png" );
+      this.zoom11_Button.setScaledFixedSize( 20, 20 );
+      this.zoom11_Button.toolTip = "Zoom 1:1";
+      this.zoom11_Button.onClick = function()
+      {
+            this.parent.UpdateZoom(1);
+      };
+
+      this.zoomFit_Button = new ToolButton( this );
+      this.zoomFit_Button.icon = this.scaledResource( ":/icons/zoom.png" );
+      this.zoomFit_Button.setScaledFixedSize( 20, 20 );
+      this.zoomFit_Button.toolTip = "Zoom fit";
+      this.zoomFit_Button.onClick = function()
+      {
+            this.parent.UpdateZoom(-100);
+      };
+
+      if (this.normalPreview) {
+            this.save_Button = new ToolButton( this );
+            this.save_Button.icon = this.scaledResource( ":/icons/save-as.png" );
+            this.save_Button.setScaledFixedSize( 20, 20 );
+            this.save_Button.toolTip = "Save image to a file.";
+            this.save_Button.onClick = function()
+            {
+                  if (!this.parent.bitmap) {
+                        console.noteln("No image to save");
+                        return;
+                  }
+                  let saveFileDialog = new SaveFileDialog();
+                  saveFileDialog.caption = "Save As TIFF";
+                  if (global.outputRootDir == "") {
+                        var path = global.ppar.lastDir;
+                  } else {
+                        var path = global.outputRootDir;
+                  }
+                  if (path != "") {
+                        path = util.ensurePathEndSlash(path);
+                  }
+                  saveFileDialog.initialPath = path + "preview" + ".tif";
+                  saveFileDialog.filters = [["TIFF files", "*.tif"], ["JPEG files", "*.jpg"]];
+                  if (!saveFileDialog.execute()) {
+                        console.noteln("Preview image not saved");
+                        return;
+                  }
+                  var copy_win = util.createWindowFromBitmap(this.parent.bitmap, "AutoIntegrate_preview_savetmp");
+                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.bitmap.width + ", height ", copy_win.mainView.bitmap.height + ", id ", copy_win.mainView.id);
+                  if (copy_win.bitsPerSample != 16) {
+                        console.writeln("set bits to 16");
+                        copy_win.setSampleFormat(16, false);
+                  }
+                  // Save image. No format options, no warning messages, 
+                  // no strict mode, no overwrite checks.
+                  if (!copy_win.saveAs(saveFileDialog.fileName, false, false, false, false)) {
+                        console.criticalln("Failed to save image: " + saveFileDialog.fileName);
+                  } else {
+                        console.writeln("Saved image: " + saveFileDialog.fileName);
+                  }
+                  util.forceCloseOneWindow(copy_win);
+            };
+      }
+      if (this.normalPreview) {
+            this.maxPreview_Button = new ToolButton( this );
+            this.maxPreview_Button.icon = this.scaledResource( ":/real-time-preview/full-view.png" );
+            this.maxPreview_Button.setScaledFixedSize( 20, 20 );
+            this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
+            this.maxPreview_Button.onClick = function()
+            {
+                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, par, this.parent.bitmap, this.parent.image_name_Label.text);
+                  maxPreviewDialog.execute();
+                  gc(false);
+            };
+      }
+      this.image_name_Label = new Label( this );
+      this.image_name_Label.text = "";
+      this.image_name_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
+      this.buttons_Sizer = new HorizontalSizer;
+      this.buttons_Sizer.add( this.zoomIn_Button );
+      this.buttons_Sizer.add( this.zoomOut_Button );
+      this.buttons_Sizer.add( this.zoom11_Button );
+      this.buttons_Sizer.add( this.zoomFit_Button );
+      if (this.normalPreview) {
             this.buttons_Sizer.addSpacing( 12 );
-            this.buttons_Sizer.add( this.image_name_Label );
-       } 
+            this.buttons_Sizer.add( this.maxPreview_Button );
+      }
+      if (this.normalPreview) {
+            this.buttons_Sizer.addSpacing( 24 );
+            this.buttons_Sizer.add( this.save_Button );
+      }
+      this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.addSpacing( 12 );
+      this.buttons_Sizer.add( this.image_name_Label );
+
        this.zoom = 1;
        this.scale = 1;
        this.zoomOutLimit = -100;
@@ -290,8 +281,8 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
  
        this.SetZoomOutLimit = function()
        {
-             var scaleX = this.scrollbox.viewport.width/this.metadata.width;
-             var scaleY = this.scrollbox.viewport.height/this.metadata.height;
+             var scaleX = this.scrollbox.viewport.width/this.image.width;
+             var scaleY = this.scrollbox.viewport.height/this.image.height;
              var scale = Math.min(scaleX,scaleY);
              this.zoomOutLimit = scale;
              //console.writeln("scale ", scale, ", this.zoomOutLimit ", this.zoomOutLimit);
@@ -338,27 +329,27 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
        {
              var preview = this.parent.parent;
              var p =  preview.transform(x, y, preview);
-             if (!is_histogram) {
-                  var val = Math.floor(p.x);
-                  if (val < 0) {
-                        val = 0;
-                  } else if (val >= preview.metadata.width) {
-                        val = preview.metadata.width - 1;
-                  }
-                  preview.Xval_Label.text = val.toString();
-                  var val = Math.floor(p.y);
-                  if (val < 0) {
-                        val = 0;
-                  } else if (val >= preview.metadata.height) {
-                        val = preview.metadata.height - 1;
-                  }
-                  preview.Yval_Label.text = val.toString();
-                  try {
-                        var val = preview.imgWin.mainView.image.sample(Math.floor(p.x), Math.floor(p.y));
-                        preview.SampleVal_Label.text = val.toFixed(5);
-                  } catch(err) {
-                  }
+
+            var val = Math.floor(p.x);
+            if (val < 0) {
+                  val = 0;
+            } else if (val >= preview.image.width) {
+                  val = preview.image.width - 1;
             }
+            preview.Xval_Label.text = val.toString();
+            var val = Math.floor(p.y);
+            if (val < 0) {
+                  val = 0;
+            } else if (val >= preview.image.height) {
+                  val = preview.image.height - 1;
+            }
+            preview.Yval_Label.text = val.toString();
+            try {
+                  var val = preview.image.sample(Math.floor(p.x), Math.floor(p.y));
+                  preview.SampleVal_Label.text = val.toFixed(5);
+            } catch(err) {
+            }
+
              if(preview.onCustomMouseMove)
              {
                    preview.onCustomMouseMove.call(this, p.x, p.y, buttonState, modifiers )
@@ -384,10 +375,10 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
        this.scrollbox.viewport.onResize = function (wNew, hNew, wOld, hOld)
        {
              var preview = this.parent.parent;
-             if(preview.metadata && preview.scaledImage != null)
+             if(preview.image && preview.scaledBitmap != null)
              {
-                   this.parent.maxHorizontalScrollPosition = Math.max(0, preview.scaledImage.width - wNew);
-                   this.parent.maxVerticalScrollPosition = Math.max(0, preview.scaledImage.height - hNew);
+                   this.parent.maxHorizontalScrollPosition = Math.max(0, preview.scaledBitmap.width - wNew);
+                   this.parent.maxVerticalScrollPosition = Math.max(0, preview.scaledBitmap.height - hNew);
                    preview.SetZoomOutLimit();
                    preview.UpdateZoom(preview.zoom);
              }
@@ -400,16 +391,16 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              var graphics = new VectorGraphics(this);
  
              graphics.fillRect(x0,y0, x1, y1, new Brush(0xff202020));
-             if (preview.scaledImage != null) {
-                   var offsetX = this.parent.maxHorizontalScrollPosition>0 ? -this.parent.horizontalScrollPosition : (this.width-preview.scaledImage.width)/2;
-                   var offsetY = this.parent.maxVerticalScrollPosition>0 ? -this.parent.verticalScrollPosition: (this.height-preview.scaledImage.height)/2;
+             if (preview.scaledBitmap != null) {
+                   var offsetX = this.parent.maxHorizontalScrollPosition>0 ? -this.parent.horizontalScrollPosition : (this.width-preview.scaledBitmap.width)/2;
+                   var offsetY = this.parent.maxVerticalScrollPosition>0 ? -this.parent.verticalScrollPosition: (this.height-preview.scaledBitmap.height)/2;
                    graphics.translateTransformation(offsetX, offsetY);
-                   if(preview.image)
-                         graphics.drawBitmap(0, 0, preview.scaledImage);
+                   if(preview.bitmap)
+                         graphics.drawBitmap(0, 0, preview.scaledBitmap);
                    else
-                         graphics.fillRect(0, 0, preview.scaledImage.width, preview.scaledImage.height, new Brush(0xff000000));
+                         graphics.fillRect(0, 0, preview.scaledBitmap.width, preview.scaledBitmap.height, new Brush(0xff000000));
                    graphics.pen = new Pen(0xffffffff,0);
-                   graphics.drawRect(-1, -1, preview.scaledImage.width + 1, preview.scaledImage.height + 1);
+                   graphics.drawRect(-1, -1, preview.scaledBitmap.width + 1, preview.scaledBitmap.height + 1);
              }
  
              if(preview.onCustomPaint)
@@ -426,8 +417,8 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              var scrollbox = preview.scrollbox;
              var ox = 0;
              var oy = 0;
-             ox = scrollbox.maxHorizontalScrollPosition>0 ? -scrollbox.horizontalScrollPosition : (scrollbox.viewport.width-preview.scaledImage.width)/2;
-             oy = scrollbox.maxVerticalScrollPosition>0 ? -scrollbox.verticalScrollPosition: (scrollbox.viewport.height-preview.scaledImage.height)/2;
+             ox = scrollbox.maxHorizontalScrollPosition>0 ? -scrollbox.horizontalScrollPosition : (scrollbox.viewport.width-preview.scaledBitmap.width)/2;
+             oy = scrollbox.maxVerticalScrollPosition>0 ? -scrollbox.verticalScrollPosition: (scrollbox.viewport.height-preview.scaledBitmap.height)/2;
              var coordPx = new Point((x - ox) / preview.scale, (y - oy) / preview.scale);
              return new Point(coordPx.x, coordPx.y);
        }
@@ -442,107 +433,96 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              return p;
        }
 
-       if (is_histogram) {
-            this.histLabel =new Label(this);
-            this.histLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.histLabel.text = "Histogram";
-       } else {
-            this.zoomLabel_Label =new Label(this);
-            this.zoomLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.zoomLabel_Label.text = "Zoom:";
-            this.zoomVal_Label =new Label(this);
-            this.zoomVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.zoomVal_Label.text = "1:1";
-      
-            this.Xlabel_Label = new Label(this);
-            this.Xlabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.Xlabel_Label .text = "X:";
-            this.Xval_Label = new Label(this);
-            this.Xval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.Xval_Label.text = "---";
-            this.Ylabel_Label = new Label(this);
-            this.Ylabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.Ylabel_Label.text = "Y:";
-            this.Yval_Label = new Label(this);
-            this.Yval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.Yval_Label.text = "---";
-            this.SampleLabel_Label = new Label(this);
-            this.SampleLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.SampleLabel_Label.text = "Val:";
-            this.SampleVal_Label = new Label(this);
-            this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.SampleVal_Label.text = "---";
+      this.zoomLabel_Label =new Label(this);
+      this.zoomLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.zoomLabel_Label.text = "Zoom:";
+      this.zoomVal_Label =new Label(this);
+      this.zoomVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.zoomVal_Label.text = "1:1";
 
-            if (this.normalPreview) {
-                  this.coordinatesLabel = new Label(this);
-                  this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-                  this.coordinatesLabel.text = "X,Y:";
-                  this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-                  this.coordinatesEdit = new Edit(this);
-                  this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
-                  
-                  this.coordinatesCopyFirstButton = new ToolButton( this );
-                  this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
-                  this.coordinatesCopyFirstButton.onClick = function () {
-                        var preview = this.parent.parent;
-                        if (preview.coordinatesEdit.text != "") {
-                              parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
-                              par.comet_first_xy.val = preview.coordinatesEdit.text;
-                        }
-                  };
-                  this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+      this.Xlabel_Label = new Label(this);
+      this.Xlabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.Xlabel_Label .text = "X:";
+      this.Xval_Label = new Label(this);
+      this.Xval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.Xval_Label.text = "---";
+      this.Ylabel_Label = new Label(this);
+      this.Ylabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.Ylabel_Label.text = "Y:";
+      this.Yval_Label = new Label(this);
+      this.Yval_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.Yval_Label.text = "---";
+      this.SampleLabel_Label = new Label(this);
+      this.SampleLabel_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.SampleLabel_Label.text = "Val:";
+      this.SampleVal_Label = new Label(this);
+      this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.SampleVal_Label.text = "---";
 
-                  this.coordinatesCopyLastButton = new ToolButton( this );
-                  this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
-                  this.coordinatesCopyLastButton.onClick = function () {
-                        var preview = this.parent.parent;
-                        if (preview.coordinatesEdit.text != "") {
-                              parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
-                              par.comet_last_xy.val = preview.coordinatesEdit.text;
-                        }
-                  };
-                  this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
-            }
-      } 
+      if (this.normalPreview) {
+            this.coordinatesLabel = new Label(this);
+            this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.coordinatesLabel.text = "X,Y:";
+            this.coordinatesLabel.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            this.coordinatesEdit = new Edit(this);
+            this.coordinatesEdit.toolTip = "Zoom to 1:1 view and click left mouse button to fill coordinates to the coordinates box.";
+            
+            this.coordinatesCopyFirstButton = new ToolButton( this );
+            this.coordinatesCopyFirstButton.icon = parentDialog.scaledResource( ":/icons/left.png" );
+            this.coordinatesCopyFirstButton.onClick = function () {
+                  var preview = this.parent.parent;
+                  if (preview.coordinatesEdit.text != "") {
+                        parentDialog.cometAlignFirstXY.text = preview.coordinatesEdit.text;
+                        par.comet_first_xy.val = preview.coordinatesEdit.text;
+                  }
+            };
+            this.coordinatesCopyFirstButton.toolTip = "Copy coordinates to comet first image X₀,Y₀ coordinates.";
+
+            this.coordinatesCopyLastButton = new ToolButton( this );
+            this.coordinatesCopyLastButton.icon = parentDialog.scaledResource( ":/icons/right.png" );
+            this.coordinatesCopyLastButton.onClick = function () {
+                  var preview = this.parent.parent;
+                  if (preview.coordinatesEdit.text != "") {
+                        parentDialog.cometAlignLastXY.text = preview.coordinatesEdit.text;
+                        par.comet_last_xy.val = preview.coordinatesEdit.text;
+                  }
+            };
+            this.coordinatesCopyLastButton.toolTip = "Copy coordinates to comet last image X₁,Y₁ coordinates.";
+      }
+
       this.coords_Frame = new Frame(this);
       this.coords_Frame.backgroundColor = 0xffffffff;
       this.coords_Frame.sizer = new HorizontalSizer;
       this.coords_Frame.sizer.margin = 2;
       this.coords_Frame.sizer.spacing = 4;
-      if (is_histogram) {
-            this.coords_Frame.sizer.add(this.histLabel);
-      } else {
-            this.coords_Frame.sizer.add(this.zoomLabel_Label);
-            this.coords_Frame.sizer.add(this.zoomVal_Label);
-            this.coords_Frame.sizer.addSpacing(6);
-            this.coords_Frame.sizer.add(this.Xlabel_Label);
-            this.coords_Frame.sizer.add(this.Xval_Label);
-            this.coords_Frame.sizer.addSpacing(6);
-            this.coords_Frame.sizer.add(this.Ylabel_Label);
-            this.coords_Frame.sizer.add(this.Yval_Label);
-            this.coords_Frame.sizer.addSpacing(6);
-            this.coords_Frame.sizer.add(this.SampleLabel_Label);
-            this.coords_Frame.sizer.add(this.SampleVal_Label);
-            if (this.normalPreview) {
-                  this.coords_Frame.sizer.addStretch();
-                  this.coords_Frame.sizer.add(this.coordinatesLabel);
-                  this.coords_Frame.sizer.add(this.coordinatesEdit);
-                  this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
-                  this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
-            }
-       }
-       this.coords_Frame.sizer.addStretch();
-       this.sizer = new VerticalSizer;
-       if (!is_histogram) {
-            this.sizer.add(this.buttons_Sizer);
-       }
-       this.sizer.add(this.scroll_Sizer);
-       this.sizer.add(this.coords_Frame);
- 
-       var width_overhead = this.scrollbox.viewport.width;
-       var heigth_overhead = this.scrollbox.viewport.height;
- 
-       this.setScaledMinSize(size_x + width_overhead + 6, size_y + heigth_overhead + 6);
+      this.coords_Frame.sizer.add(this.zoomLabel_Label);
+      this.coords_Frame.sizer.add(this.zoomVal_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.Xlabel_Label);
+      this.coords_Frame.sizer.add(this.Xval_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.Ylabel_Label);
+      this.coords_Frame.sizer.add(this.Yval_Label);
+      this.coords_Frame.sizer.addSpacing(6);
+      this.coords_Frame.sizer.add(this.SampleLabel_Label);
+      this.coords_Frame.sizer.add(this.SampleVal_Label);
+      if (this.normalPreview) {
+            this.coords_Frame.sizer.addStretch();
+            this.coords_Frame.sizer.add(this.coordinatesLabel);
+            this.coords_Frame.sizer.add(this.coordinatesEdit);
+            this.coords_Frame.sizer.add(this.coordinatesCopyFirstButton);
+            this.coords_Frame.sizer.add(this.coordinatesCopyLastButton);
+      }
+      this.coords_Frame.sizer.addStretch();
+      this.sizer = new VerticalSizer;
+      this.sizer.add(this.buttons_Sizer);
+      this.sizer.add(this.scroll_Sizer);
+      this.sizer.add(this.coords_Frame);
+
+      var width_overhead = this.scrollbox.viewport.width;
+      var heigth_overhead = this.scrollbox.viewport.height;
+
+      this.setScaledMinSize(size_x + width_overhead + 6, size_y + heigth_overhead + 6);
 }
  
 AutoIntegratePreviewControl.prototype = new Frame;

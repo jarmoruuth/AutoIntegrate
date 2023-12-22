@@ -935,6 +935,19 @@ this.copyWindow = function(sourceWindow, name)
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
+this.createImageFromBitmap = function(bitmap)
+{
+      var image = new Image(
+                        bitmap.width, 
+                        bitmap.height,
+                        3,
+                        ColorSpace_RGB);
+
+      image.blend(bitmap);
+                  
+      return image;
+}
+
 this.createWindowFromBitmap = function(bitmap, id)
 {
       var win = new ImageWindow(

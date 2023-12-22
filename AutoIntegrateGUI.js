@@ -245,8 +245,6 @@ var dialog_mode = 1;    // 0 = minimized, 1 = normal, 2 = maximized
 var dialog_old_position = null;
 var dialog_min_position = null;
 
-var histogramUsePreviewControl = false;
-
 var infoLabel;
 var imageInfoLabel;
 var windowPrefixHelpTips;              // For updating tooTip
@@ -269,7 +267,7 @@ var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
 
-var preview_imgwin = null;
+var preview_image = null;
 
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
@@ -688,12 +686,10 @@ function flowchartGraph(rootnode)
       if (par.debug.val) {
             console.writeln("flowchartGraph:show bitmap");
       }
-      var flowchartWindow = util.createWindowFromBitmap(bitmap, "AutoIntegrate_flowchart");
+      var flowchartImage = util.createImageFromBitmap(bitmap);
 
-      tabPreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
-      sidePreviewControl.SetImage(flowchartWindow, getWindowBitmap(flowchartWindow));
-
-      flowchartWindow.forceClose();
+      tabPreviewControl.SetImage(flowchartImage);
+      sidePreviewControl.SetImage(flowchartImage);
 
       if (par.debug.val) {
             console.writeln("flowchartGraph:end");
@@ -702,7 +698,7 @@ function flowchartGraph(rootnode)
 
 function flowchartUpdated()
 {
-      if (par.live_flowchart.val) {
+      if (par.show_flowchart.val) {
             console.writeln("flowchartUpdated");
             flowchartGraph(global.flowchartData);
       }
@@ -1665,10 +1661,6 @@ function extraProcessingGUI(parent)
                         }
                         console.criticalln(err);
                         console.criticalln("Operation failed!");
-                  }
-                  if (preview_imgwin != null) {
-                        util.closeOneWindow(preview_imgwin.mainView.id);
-                        preview_imgwin = null;
                   }
                   engine.extraApply = false;
             }
@@ -2996,23 +2988,19 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImageBmp(updPreviewControl, imgWin, txt, bmp, histogramControl, histogramInfo)
+function updatePreviewImage(updPreviewControl, imgWin, txt, histogramControl, histogramInfo)
 {
       if (updPreviewControl == null) {
             return;
       }
       if ((is_some_preview && !global.is_processing) || preview_keep_zoom) {
-            updPreviewControl.UpdateImage(imgWin, bmp, txt);
+            updPreviewControl.UpdateImage(imgWin.mainView.image, txt);
       } else {
-            updPreviewControl.SetImage(imgWin, bmp, txt);
+            updPreviewControl.SetImage(imgWin.mainView.image, txt);
       }
       if (histogramControl != null && histogramInfo != null) {
-            if (histogramUsePreviewControl) {
-                  histogramControl.SetImage(null, histogramInfo.bitmap);
-            } else {
-                  histogramControl.aiInfo = histogramInfo;
-                  histogramControl.repaint();
-            }
+            histogramControl.aiInfo = histogramInfo;
+            histogramControl.repaint();
       }
 }
 
@@ -3163,21 +3151,12 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   current_histogramInfo = histogramInfo;
             }
-            var preview_name = imgWin.mainView.id + "_preview";
-            if (global.is_processing && 
-                (preview_imgwin == null || preview_imgwin.mainView.id != preview_name)) 
-            {
-                  if (preview_imgwin != null) {
-                        util.closeOneWindow(preview_imgwin.mainView.id);
-                  }
-                  preview_imgwin = util.copyWindow(imgWin, preview_name);
-            }
-            var preview_bmp = getWindowBitmap(imgWin);
-            if (!par.live_flowchart.val) {
+            preview_image = new Image( imgWin.mainView.image );
+            if (!par.show_flowchart.val) {
                   if (ppar.preview.side_preview_visible) {
-                        updatePreviewImageBmp(sidePreviewControl, imgWin, txt, preview_bmp, sideHistogramControl, histogramInfo);
+                        updatePreviewImage(sidePreviewControl, imgWin, txt, sideHistogramControl, histogramInfo);
                   } else {
-                        updatePreviewImageBmp(tabPreviewControl, imgWin, txt, preview_bmp, tabHistogramControl, histogramInfo);
+                        updatePreviewImage(tabPreviewControl, imgWin, txt, tabHistogramControl, histogramInfo);
                   }
             }
             updatePreviewTxt(txt);
@@ -3361,11 +3340,9 @@ function updatePreviewNoImageInControl(control)
             }
       }
       
-      var startupWindow = util.createWindowFromBitmap(bitmap, "AutoIntegrate_startup_preview");
+      var startupImage = util.createImageFromBitmap(bitmap);
 
-      control.SetImage(startupWindow, getWindowBitmap(startupWindow));
-
-      startupWindow.forceClose();
+      control.SetImage(startupImage);
 }
 
 function updatePreviewNoImage()
@@ -4828,10 +4805,6 @@ function runAction(parent)
             }
             savePersistentSettings(false);
       }
-      if (preview_imgwin != null) {
-            util.closeOneWindow(preview_imgwin.mainView.id);
-            preview_imgwin = null;
-      }
 }
 
 function newRunButton(parent, toolbutton)
@@ -4960,10 +4933,6 @@ function newAutoContinueButton(parent, toolbutton)
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
-            }
-            if (preview_imgwin != null) {
-                  util.closeOneWindow(preview_imgwin.mainView.id);
-                  preview_imgwin = null;
             }
       };
 
@@ -5640,9 +5609,9 @@ function getWindowBitmap(imgWin)
 function newPreviewObj(parent, side_preview)
 {
       if (side_preview) {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height, false);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
       } else {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.preview_width, ppar.preview.preview_height, false);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
       }
 
       var previewImageSizer = new Sizer();
@@ -5688,61 +5657,52 @@ function newHistogramControl(parent, side_preview)
             var width = ppar.preview.preview_width;
             var height = ppar.preview.histogram_height;
       }
-      if (histogramUsePreviewControl) {
-            var histogramViewControl = new AutoIntegratePreviewControl(parent, util, global, width, height, true);
-            var bitmap = new Bitmap(width, height);
-            var graphics = new VectorGraphics(bitmap);
-            setHistogramBitmapBackground(graphics, side_preview);
-            graphics.end();
-            histogramViewControl.SetImage(null, bitmap);
+      var histogramViewControl = new Control(parent);
+      histogramViewControl.scaledMinWidth = width;
+      histogramViewControl.scaledMinHeight = height;
 
-      } else {
-            var histogramViewControl = new Control(parent);
-		histogramViewControl.scaledMinWidth = width;
-		histogramViewControl.scaledMinHeight = height;
-
-            var bitmap = new Bitmap(width, height);
-            var graphics = new VectorGraphics(bitmap);
-            setHistogramBitmapBackground(graphics, side_preview);
+      var bitmap = new Bitmap(width, height);
+      var graphics = new VectorGraphics(bitmap);
+      setHistogramBitmapBackground(graphics, side_preview);
+      graphics.end();
+      histogramViewControl.aiInfo = { bitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null };
+      histogramViewControl.onPaint = function(x0, y0, x1, y1) {
+            var graphics = new VectorGraphics(this);
+            graphics.antialiasing = true;
+            graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
             graphics.end();
-            histogramViewControl.aiInfo = { bitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null };
-            histogramViewControl.onPaint = function(x0, y0, x1, y1) {
-                  var graphics = new VectorGraphics(this);
-		      graphics.antialiasing = true;
-                  graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
-                  graphics.end();
-            };
-            histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
-                  // console.writeln("histogramViewControl.onMousePress " + x + ", " + y);
-                  if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
-                        this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
-                        this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
-                        this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.bitmap.height).toFixed(4);
-                        this.aiLabelY.toolTip = "<p>Y coordinate value.</p>";
-                        if (this.aiInfo.cumulativeValues) {
-                              this.aiLabelCnt.text = "Cnt: " + this.aiInfo.cumulativeValues[x];
-                              this.aiLabelCnt.toolTip = "<p>Cumulative number of pixels with values less than or equal to the X coordinate value.</p>";
-                              this.aiLabelPrc.text = "%: " + this.aiInfo.percentageValues[x].toFixed(4);
-                              this.aiLabelPrc.toolTip = "<p>Percentage of pixels with values less than or equal to the X coordinate value.</p>";
-                        }
+      };
+      histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
+            // console.writeln("histogramViewControl.onMousePress " + x + ", " + y);
+            if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
+                  this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
+                  this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
+                  this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.bitmap.height).toFixed(4);
+                  this.aiLabelY.toolTip = "<p>Y coordinate value.</p>";
+                  if (this.aiInfo.cumulativeValues) {
+                        this.aiLabelCnt.text = "Cnt: " + this.aiInfo.cumulativeValues[x];
+                        this.aiLabelCnt.toolTip = "<p>Cumulative number of pixels with values less than or equal to the X coordinate value.</p>";
+                        this.aiLabelPrc.text = "%: " + this.aiInfo.percentageValues[x].toFixed(4);
+                        this.aiLabelPrc.toolTip = "<p>Percentage of pixels with values less than or equal to the X coordinate value.</p>";
                   }
-            };
+            }
+      };
 
-            histogramViewControl.aiLabelX = newLabel(parent, "x:", "Click on histogram to get values");
-            histogramViewControl.aiLabelY = newLabel(parent, "y:", "Click on histogram to get values");
-            histogramViewControl.aiLabelCnt = newLabel(parent, "Cnt:", "Click on histogram to get values");
-            histogramViewControl.aiLabelPrc = newLabel(parent, "%:", "Click on histogram to get values");
-            histogramViewControl.sizer = new VerticalSizer;
-            histogramViewControl.sizer.margin = 6;
-            histogramViewControl.sizer.spacing = 4;
-            histogramViewControl.sizer.add( histogramViewControl.aiLabelX );
-            histogramViewControl.sizer.add( histogramViewControl.aiLabelY );
-            histogramViewControl.sizer.add( histogramViewControl.aiLabelCnt );
-            histogramViewControl.sizer.add( histogramViewControl.aiLabelPrc );
-            histogramViewControl.sizer.addStretch();
+      histogramViewControl.aiLabelX = newLabel(parent, "x:", "Click on histogram to get values");
+      histogramViewControl.aiLabelY = newLabel(parent, "y:", "Click on histogram to get values");
+      histogramViewControl.aiLabelCnt = newLabel(parent, "Cnt:", "Click on histogram to get values");
+      histogramViewControl.aiLabelPrc = newLabel(parent, "%:", "Click on histogram to get values");
+      histogramViewControl.sizer = new VerticalSizer;
+      histogramViewControl.sizer.margin = 6;
+      histogramViewControl.sizer.spacing = 4;
+      histogramViewControl.sizer.add( histogramViewControl.aiLabelX );
+      histogramViewControl.sizer.add( histogramViewControl.aiLabelY );
+      histogramViewControl.sizer.add( histogramViewControl.aiLabelCnt );
+      histogramViewControl.sizer.add( histogramViewControl.aiLabelPrc );
+      histogramViewControl.sizer.addStretch();
 
-            histogramViewControl.repaint();
-      }
+      histogramViewControl.repaint();
+
       return histogramViewControl;
 }
 
@@ -8138,43 +8098,20 @@ function AutoIntegrateDialog()
             util.runGarbageCollection();
       };
 
-      // Show Flowchart button
-      this.showFlowchartButton = new PushButton( this );
-      this.showFlowchartButton.text = "Show Flowchart";
-      this.showFlowchartButton.toolTip = "<p>Show a previously generated AutoIntegrate workflow flowchart if one is available.</p>" +
-                                         flowchartToolTip;
-      this.showFlowchartButton.onClick = function()
-      {
-            global.flowchart = true;
-            try {
-                  if (global.flowchartData != null) {
-                        flowchartGraph(global.flowchartData);
-                  } else {
-                        console.noteln("No flowchart data available");
-                  }
-            } catch (x) {
-                  console.writeln( x );
-            }
-            global.flowchart = false;
-
-            engine.closeAllWindowsFromArray(global.flowchartWindows);
-            global.flowchartWindows = [];
-            
-            console.writeln("Flowchart done");
-      };
-      this.liveFlowchartCheckBox = newCheckBoxEx(this, "Live", par.live_flowchart, 
-            "<p>Show flowchart changes live during processing.</p>" +
-            "<p>Flag can be toggled on/off to switch between flowchart and image preview.</p>",
+      this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
+            "<p>Show flowchart changes live during processing, or switch between preview and flowchart view when flowchart is available.</p>",
             function(checked) { 
-                  par.live_flowchart.val = checked;
-                  if (global.is_processing) {
-                        if (checked) {
+                  par.show_flowchart.val = checked;
+                  if (checked) {
+                        if (global.flowchartData != null) {
                               flowchartUpdated();
                         } else {
-                              if (preview_imgwin != null) {
-                                    tabPreviewControl.SetImage(preview_imgwin, getWindowBitmap(preview_imgwin));
-                                    sidePreviewControl.SetImage(preview_imgwin, getWindowBitmap(preview_imgwin));
-                              }
+                              console.noteln("No flowchart data available");
+                        }
+                  } else {
+                        if (preview_image != null) {
+                              tabPreviewControl.SetImage(preview_image);
+                              sidePreviewControl.SetImage(preview_image);
                         }
                   }
             });
@@ -8570,8 +8507,7 @@ function AutoIntegrateDialog()
       }
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.newFlowchartButton );
-      this.buttons_Sizer.add( this.showFlowchartButton );
-      this.buttons_Sizer.add( this.liveFlowchartCheckBox );
+      this.buttons_Sizer.add( this.showFlowchartCheckBox );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
