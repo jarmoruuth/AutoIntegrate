@@ -273,7 +273,7 @@ var current_selected_file_name = null;
 var current_selected_file_filter = null;
 
 var extra_gui_info = { 
-      undo_images: [],        // undo_images[0] == original image, { id: <image id>, histogramInfo: <see getHistogramInfo>, extra_processing_info: [] }, see add_undo_image
+      undo_images: [],        // undo_images[0] == original image, { image: <Image>, keywords: <image keywords>, histogramInfo: <see getHistogramInfo>, extra_processing_info: [] }, see add_undo_image
       undo_images_pos: -1, 
       undo_button: null, 
       redo_button: null, 
@@ -1635,10 +1635,10 @@ function extraProcessingGUI(parent)
                               // make copy of the original image
                               global.extra_target_image = copy_new_edit_image(global.extra_target_image);
                         }
-                        var first_undo_image_id = create_undo_image(global.extra_target_image);
-                        var first_undo_image_id_histogramInfo = current_histogramInfo;
+                        var first_undo_image = create_undo_image(global.extra_target_image);
+                        var first_undo_image_histogramInfo = current_histogramInfo;
                   } else {
-                        var first_undo_image_id = null;
+                        var first_undo_image = null;
                   }
                   console.writeln("Apply extra processing edits on " + global.extra_target_image);
                   try {
@@ -1646,17 +1646,16 @@ function extraProcessingGUI(parent)
                         engine.extraProcessingEngine(parent.dialog, global.extra_target_image, util.is_narrowband_option());
                         if (extra_gui_info.undo_images.length == 0) {
                               // add first/original undo image
-                              add_undo_image(global.extra_target_image, first_undo_image_id, first_undo_image_id_histogramInfo);
+                              add_undo_image(first_undo_image, first_undo_image_histogramInfo);
                               // save copy of original image to the window list and make is current
                               update_extra_target_image_window_list(global.extra_target_image);
                         }
-                        let undo_image_id = create_undo_image(global.extra_target_image);
-                        add_undo_image(global.extra_target_image, undo_image_id, current_histogramInfo);
+                        let undo_image = create_undo_image(global.extra_target_image);
+                        add_undo_image(undo_image, current_histogramInfo);
                         console.noteln("Apply completed (" + extra_gui_info.undo_images.length + "/" + extra_gui_info.undo_images.length + ")");
                   } 
                   catch(err) {
-                        if (first_undo_image_id != null) {
-                              remove_undo_image(first_undo_image_id);
+                        if (first_undo_image != null) {
                               global.extra_target_image = saved_extra_target_image;
                         }
                         console.criticalln(err);
@@ -2201,32 +2200,27 @@ function print_extra_processing_info(txt, info)
 
 function create_undo_image(id)
 {
-      var undo_id = id + "_undo_tmp";
-      var undo_win = util.copyWindowEx(ImageWindow.windowById(id), undo_id, true);
-      //console.writeln("Create undo image " + undo_win.mainView.id);
-      return undo_win.mainView.id;
+      var undo_win = ImageWindow.windowById(id);
+      return { image: new Image( undo_win.mainView.image ), keywords: util.copyKeywords(undo_win) };
 }
 
-function remove_undo_image(id)
-{
-      //console.writeln("Remove undo image " + id);
-      util.closeOneWindow(id);
-}
-
-function add_undo_image(original_id, undo_id, histogramInfo)
+function add_undo_image(undo_image, histogramInfo)
 {
       //console.writeln("add_undo_image");
       while (extra_gui_info.undo_images.length > extra_gui_info.undo_images_pos + 1) {
-            var removed = extra_gui_info.undo_images.pop();
-            console.writeln("Remove undo image " + removed.id);
-            util.closeOneWindow(removed.id);
+            extra_gui_info.undo_images.pop();
+            console.writeln("Remove undo image " + extra_gui_info.undo_images.length);
       }
       extra_gui_info.undo_images_pos++;
       // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
-      var new_undo_id = original_id + "_undo_" + (extra_gui_info.undo_images_pos+1);
-      util.windowRenameKeepifEx(undo_id, new_undo_id, false, true);
-      //console.writeln("Add undo image " + new_undo_id);
-      extra_gui_info.undo_images[extra_gui_info.undo_images_pos] = { id: new_undo_id, histogramInfo: histogramInfo, extra_processing_info: global.extra_processing_info };
+      extra_gui_info.undo_images[extra_gui_info.undo_images_pos] = 
+            { 
+                  image: undo_image.image, 
+                  keywords: undo_image.keywords,
+                  histogramInfo: histogramInfo, 
+                  extra_processing_info: global.extra_processing_info 
+            };
+
       update_undo_buttons();
 
       print_extra_processing_info("Applied extra processing:", global.extra_processing_info);
@@ -2234,7 +2228,7 @@ function add_undo_image(original_id, undo_id, histogramInfo)
 
 function apply_undo()
 {
-      // console.writeln("apply_undo");
+       console.writeln("apply_undo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -2249,32 +2243,31 @@ function apply_undo()
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].id);
-      if (source_win == null) {
-            console.criticalln("Failed to find undo image " + extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].id);
-            return;
-      }
-      var source_histogramInfo = extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].histogramInfo;
+      let undo_pos = extra_gui_info.undo_images_pos - 1;
+      let source_image = extra_gui_info.undo_images[undo_pos].image;
+      let source_keywords = extra_gui_info.undo_images[undo_pos].keywords;
+      let source_histogramInfo = extra_gui_info.undo_images[undo_pos].histogramInfo;
+      let source_extra_processing_info = extra_gui_info.undo_images[undo_pos].extra_processing_info;
+
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      target_win.mainView.image.assign( source_win.mainView.image );
+      target_win.mainView.image.assign( source_image );
       target_win.mainView.endProcess();
 
       print_extra_processing_info("Undo extra processing:", global.extra_processing_info);
 
-      target_win.keywords = source_win.keywords;
-      global.extra_processing_info = extra_gui_info.undo_images[extra_gui_info.undo_images_pos - 1].extra_processing_info;
+      target_win.keywords = source_keywords;
+      global.extra_processing_info = source_extra_processing_info;
 
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       extra_gui_info.undo_images_pos--;
-      // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+       console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
       update_undo_buttons();
-
 }
 
 function apply_redo()
 {
-      //console.writeln("apply_redo");
+       console.writeln("apply_redo");
       if (global.extra_target_image == null || global.extra_target_image == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -2289,24 +2282,23 @@ function apply_redo()
             console.criticalln("Failed to find target image " + global.extra_target_image);
             return;
       }
-      var source_win = ImageWindow.windowById(extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].id);
-      if (source_win == null) {
-            console.criticalln("Failed to find redo image " + extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].id);
-            return;
-      }
-      //console.writeln("redo hist");
-      var source_histogramInfo = extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].histogramInfo;
+      let undo_pos = extra_gui_info.undo_images_pos + 1;
+      let source_image = extra_gui_info.undo_images[undo_pos].image;
+      let source_keywords = extra_gui_info.undo_images[undo_pos].keywords;
+      let source_histogramInfo = extra_gui_info.undo_images[undo_pos].histogramInfo;
+      let source_extra_processing_info = extra_gui_info.undo_images[undo_pos].extra_processing_info;
+
       target_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      target_win.mainView.image.assign( source_win.mainView.image );
+      target_win.mainView.image.assign( source_image );
       target_win.mainView.endProcess();
 
-      target_win.keywords = source_win.keywords;
-      global.extra_processing_info = extra_gui_info.undo_images[extra_gui_info.undo_images_pos + 1].extra_processing_info;
+      target_win.keywords = source_keywords;
+      global.extra_processing_info = source_extra_processing_info;
       
       updatePreviewIdReset(global.extra_target_image, true, source_histogramInfo);
       
       extra_gui_info.undo_images_pos++;
-      // console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
+       console.writeln("undo_images_pos " + extra_gui_info.undo_images_pos);
       update_undo_buttons();
 
       print_extra_processing_info("Redo extra processing:", global.extra_processing_info);
@@ -2385,9 +2377,6 @@ function close_undo_images()
 {
       if (extra_gui_info.undo_images.length > 0) {
             console.writeln("Close undo images");
-            for (var i = 0; i < extra_gui_info.undo_images.length; i++) {
-                  util.closeOneWindow(extra_gui_info.undo_images[i].id);
-            }
             extra_gui_info.undo_images = [];
             extra_gui_info.undo_images_pos = -1;
             update_undo_buttons();

@@ -416,6 +416,16 @@ this.filterKeywords = function(imageWindow, keywordname)
       return oldKeywords;
 }
 
+this.copyKeywords = function(imageWindow) 
+{
+      var newKeywords = [];
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            newKeywords[newKeywords.length] = new FITSKeyword(keywords[i]);
+      }
+      return newKeywords;
+}
+
 // Overwrite an old keyword or add a new one
 this.setFITSKeyword = function(imageWindow, name, value, comment) 
 {
