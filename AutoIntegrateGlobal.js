@@ -50,7 +50,8 @@ this.autointegrate_version_info = [
       "- Support for GraXpert",
       "- Print a Flowchart from the current workflow",
       "- User settable startup image",
-      "- Bug fixes and small updates"
+      "- Bug fixes and small updates",
+      "- Optionally print live Flowchart during procerssing"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

@@ -8058,7 +8058,9 @@ function AutoIntegrateDialog()
                                         flowchartToolTip;
       this.newFlowchartButton.onClick = function()
       {
-            
+            if (global.is_processing) {
+                  return;
+            }
             // Use prefix when running flowchart to avoid name conflicts
             var saved_win_prefix = ppar.win_prefix;
             ppar.win_prefix = "AutoIntegrateFlowchart_";
@@ -8088,7 +8090,8 @@ function AutoIntegrateDialog()
       };
 
       this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
-            "<p>Show flowchart changes live during processing, or switch between preview and flowchart view when flowchart is available.</p>",
+            "<p>Switch between flowchart and image view if flowchart is available.</p>" +
+            "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>",
             function(checked) { 
                   par.show_flowchart.val = checked;
                   if (checked) {
