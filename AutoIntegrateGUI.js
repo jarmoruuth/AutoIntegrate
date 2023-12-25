@@ -374,6 +374,7 @@ var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    //
 //                          blue        green       orange      magenta     cyan        yellow      black
 var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
 var flowchart_active_id_color = 0xffff0000;      // For active node, red
+var flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -496,9 +497,21 @@ function flowchartDrawText(graphics, x, y, node)
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
-      if (node.id && node.id == global.flowchartActiveId) {
+      if (node.id && drawbox && global.flowchartActiveId > 0) {
+            var check_special_color = true;
+      } else {
+            var check_special_color = false;
+      }
+
+      if (par.debug.val) {
+            console.writeln("flowchartDrawText: node.id " + node.id + ", global.flowchartActiveId " + global.flowchartActiveId);
+      }
+      if (check_special_color && node.id == global.flowchartActiveId) {
             graphics.brush = new Brush( flowchart_active_id_color );
             graphics.pen = new Pen(0xffffffff, 1);       // white
+      } else if (check_special_color && node.id > global.flowchartActiveId) {
+            graphics.brush = new Brush( flowchart_inactive_id_color );
+            graphics.pen = new Pen(0xff000000, 1);       // black
       } else {
             graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
             graphics.pen = new Pen(0xff000000, 1);       // black
@@ -698,10 +711,90 @@ function flowchartGraph(rootnode)
 
 function flowchartUpdated()
 {
-      if (par.show_flowchart.val) {
+      if (par.show_flowchart.val && !global.get_flowchart_data) {
             console.writeln("flowchartUpdated");
-            flowchartGraph(global.flowchartData);
+            try {
+                  flowchartGraph(global.flowchartData);
+            } catch (ex) {
+                  console.writeln("flowchartUpdated: " + ex);
+            }
       }
+}
+
+function copyFileNames(fileNames)
+{
+      if (fileNames == null) {
+            return null;
+      }
+
+      var copy = [];
+      for (var i = 0; i < fileNames.length; i++) {
+            copy[i] = fileNames[i];
+      }
+      return copy;
+}
+
+function generateNewFlowchartData(parent)
+{
+      console.writeln("generateNewFlowchartData");
+
+      getFilesFromTreebox(parent.dialog);
+
+      if (global.lightFileNames == null) {
+            console.criticalln("No files, cannot generate flowchart data");
+            return false;
+      }
+
+      var succp = true;
+
+      engine.flowchartReset();
+
+      console.writeln("generateNewFlowchartData: copy file names");
+      var lightFileNamesCopy = copyFileNames(global.lightFileNames);
+      var darkFileNamesCopy = copyFileNames(global.darkFileNames);
+      var biasFileNamesCopy = copyFileNames(global.biasFileNames);
+      var flatdarkFileNamesCopy = copyFileNames(global.flatdarkFileNames);
+      var flatFileNamesCopy = copyFileNames(global.flatFileNames);
+
+      // Use prefix when running flowchart to avoid name conflicts
+      var saved_win_prefix = ppar.win_prefix;
+      ppar.win_prefix = "AutoIntegrateFlowchart_";
+
+      util.fixAllWindowArrays(ppar.win_prefix);
+      engine.closeAllWindows(false, false);
+
+      global.get_flowchart_data = true;
+      try {
+            engine.autointegrateProcessingEngine(parent.dialog, false, false);
+      } catch (x) {
+            console.writeln( x );
+            global.flowchartData = null;
+            succp = false;
+      }
+      global.get_flowchart_data = false;
+
+      // Close all windows with flowchart prefix
+      util.fixAllWindowArrays(ppar.win_prefix);
+      engine.closeAllWindows(false, false);
+
+      // restore original prefix
+      ppar.win_prefix = saved_win_prefix;
+      util.fixAllWindowArrays(ppar.win_prefix);
+
+      engine.closeAllWindowsFromArray(global.flowchartWindows);
+      global.flowchartWindows = [];
+
+      console.writeln("generateNewFlowchartData: restore original file names");
+      global.lightFileNames = lightFileNamesCopy;
+      global.darkFileNames = darkFileNamesCopy;
+      global.biasFileNames = biasFileNamesCopy;
+      global.flatdarkFileNames = flatdarkFileNamesCopy;
+      global.flatFileNames = flatFileNamesCopy;
+      
+      console.writeln("generateNewFlowchartData done");
+      util.runGarbageCollection();
+
+      return succp;
 }
 
 function newVerticalSizer(margin, addStretch, items)
@@ -2512,6 +2605,10 @@ function Autorun(parent)
                   } else {
                         global.user_selected_reference_image = [];
                   }
+                  engine.flowchartReset();
+                  if (!batch_narrowband_palette_mode && par.run_get_flowchart_data.val) {
+                        generateNewFlowchartData(parent);
+                  }
                   try {
                         if (batch_narrowband_palette_mode) {
                             engine.autointegrateNarrowbandPaletteBatch(parent.dialog, false);
@@ -3116,7 +3213,7 @@ function getHistogramInfo(imgWin, side_preview)
 
 function updatePreviewWinTxt(imgWin, txt, histogramInfo)
 {
-      if (global.use_preview && imgWin != null && !global.flowchart) {
+      if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
@@ -3164,7 +3261,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
 {
       console.writeln("updatePreviewFilenameAndInfo ", filename);
 
-      if (!global.use_preview || global.flowchart) {
+      if (!global.use_preview || global.get_flowchart_data) {
             return;
       }
       var imageWindows = ImageWindow.open(filename);
@@ -3202,7 +3299,7 @@ function updatePreviewId(id)
 
 function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 {
-      if (global.use_preview && !global.flowchart) {
+      if (global.use_preview && !global.get_flowchart_data) {
             preview_keep_zoom = keep_zoom;
             var win = ImageWindow.windowById(id);
             updatePreviewWinTxt(win, id, histogramInfo);
@@ -4800,7 +4897,7 @@ function newRunButton(parent, toolbutton)
 {
       var local_run_action = function()
       {
-            if (!global.flowchart) {
+            if (!global.get_flowchart_data) {
                   runAction(parent);
             }
       };
@@ -4902,6 +4999,7 @@ function newAutoContinueButton(parent, toolbutton)
                               global.iconStartRow = 11;
                               console.writeln('Using user icon column ' + global.columnCount);
                         }
+                        engine.flowchartReset();
                         engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option());
                   }
                   global.run_auto_continue = false;
@@ -6116,6 +6214,11 @@ function AutoIntegrateDialog()
       this.resetOnSetupLoadCheckBox = newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
             "<p>Reset parameters toi default values before loading a setup. This ensures that only parameters from the setup file are set " + 
             "and user saved default parameters are not set.</p>" );
+      this.runGetFlowchartDataCheckBox = newCheckBox(this, "Run get flowchart data", par.run_get_flowchart_data, 
+            "<p>Get the full flowchart data when Run button is used.</p>" +
+            "<p>When a normal processing is done get the full flowchart data before processing. This makes it possible to follow progress " +
+            "in the complete flowchart.</p>" +
+            "<p>If this option is not checked or AutoConinue or batch processing is done, flowchart data is generated during processing.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
@@ -6505,6 +6608,7 @@ function AutoIntegrateDialog()
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
       this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
+      this.systemParamsSet2.add( this.runGetFlowchartDataCheckBox );
 
       this.systemParamsSet = new HorizontalSizer;
       this.systemParamsSet.margin = 6;
@@ -8061,32 +8165,11 @@ function AutoIntegrateDialog()
             if (global.is_processing) {
                   return;
             }
-            // Use prefix when running flowchart to avoid name conflicts
-            var saved_win_prefix = ppar.win_prefix;
-            ppar.win_prefix = "AutoIntegrateFlowchart_";
 
-            global.flowchart = true;
-            try {
-                  runAction(this.parent);
+            console.writeln("New flowchart");
+            if (generateNewFlowchartData(this.parent)) {
                   flowchartGraph(global.flowchartData);
-            } catch (x) {
-                  console.writeln( x );
             }
-            global.flowchart = false;
-
-            // Close all windows with flowchart prefix
-            util.fixAllWindowArrays(ppar.win_prefix);
-            engine.closeAllWindows(false, false);
-
-            // restore original prefix
-            ppar.win_prefix = saved_win_prefix;
-            util.fixAllWindowArrays(ppar.win_prefix);
-
-            engine.closeAllWindowsFromArray(global.flowchartWindows);
-            global.flowchartWindows = [];
-            
-            console.writeln("Flowchart done");
-            util.runGarbageCollection();
       };
 
       this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 

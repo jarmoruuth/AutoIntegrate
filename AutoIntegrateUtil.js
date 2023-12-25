@@ -364,7 +364,7 @@ this.windowIconizeif = function(id)
       if (id == null) {
             return null;
       }
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             util.closeOneWindow(id);
             return null;
       }
@@ -519,7 +519,7 @@ this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate
       if (par.debug.val) {
             console.writeln("windowRenameKeepifEx " + old_name + " to " + new_name + ", keepif " + keepif + ", allow_duplicate_name " + allow_duplicate_name);
       }
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
       if (old_name == new_name) {
@@ -536,7 +536,7 @@ this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate
       if (!allow_duplicate_name && w.mainView.id != new_name) {
             util.fatalWindowNameFailed("Window rename from " + old_name + " to " + new_name + " failed, name is " + w.mainView.id);
       }
-      if (global.flowchart && w.mainView.id != new_name) {
+      if (global.get_flowchart_data && w.mainView.id != new_name) {
             global.flowchartWindows[global.flowchartWindows.length] = w.mainView.id;
       }
       return w.mainView.id;
@@ -767,7 +767,7 @@ this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id)
             console.writeln("saveWindowEx " + fname);
       }
 
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             return fname;
       }
 
@@ -901,7 +901,7 @@ this.fatalWindowNameFailed = function(txt)
 
 this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 {
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
       if (sourceWindow == null) {
@@ -933,7 +933,7 @@ this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 
       console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
 
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
       }
 
@@ -984,7 +984,7 @@ this.addProcessingStep = function(txt)
 
 this.updateStatusInfoLabel = function(txt)
 {
-      if (global.flowchart) {
+      if (global.get_flowchart_data) {
             return;
       }
       if (txt.length > 100) {
