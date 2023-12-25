@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65.3 test2"; // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.65.3 test3"; // Version, also updated into updates.xri
 this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
 
 this.autointegrate_version_info = [
@@ -152,7 +152,7 @@ this.par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
-      run_get_flowchart_data: { val: true, def: true, name : "Run get flowchart data", type : 'B' },
+      run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B' },
 
       use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },

@@ -562,6 +562,7 @@ this.forceCloseOneWindow = function(w)
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
       } else if (use_force_close) {
+            // Force close will close the window without asking
             console.writeln("Force close " + w.mainView.id);
             w.forceClose();
       } else {

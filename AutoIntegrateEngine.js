@@ -262,19 +262,16 @@ var telescope_info = [
 ];
 
 // Filter files for global.get_flowchart_data.
-// Pick just three files for each channel
+// Pick just one or two files for each channel
 // and use IntegerResample to make files really small.
 function flowchartFilterFiles(fileNames, filetype)
 {
-
       if (filetype == global.pages.FLATS) {
             console.writeln("flowchartFilterFiles, " + fileNames.length + " flats");
-            var basename = "AutoFlowChartFlat";
-            var stop_on_image = 1;
+            var stop_on_image = 1;  // Pick two flats for each channel
       } else if (filetype == global.pages.LIGHTS) {
             console.writeln("flowchartFilterFiles, " + fileNames.length + " lights");
-            var basename = "AutoFlowChart";
-            var stop_on_image = 0;
+            var stop_on_image = 0;  // Pick one light for each channel
       } else {
             util.throwFatalError("flowchartFilterFiles, unknown filetype " + filetype);
       }
@@ -293,29 +290,25 @@ function flowchartFilterFiles(fileNames, filetype)
                   console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files[j].name);
                   var name = allfilesarr[i].files[j].name;
                   newFileNames[newFileNames.length] = name;
-                  renamedFileNames[renamedFileNames.length] = util.ensurePathEndSlash(global.outputRootDir) + 
-                                                              util.ensurePathEndSlash(global.AutoOutputDir) +
-                                                              basename + "_" + j + "_" +
-                                                              allfilesarr[i].filter +
-                                                              ".xisf";
-                  console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + name, ', ' + renamedFileNames[renamedFileNames.length - 1]);
+                  console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + name);
                   if (j == stop_on_image) {
                         break;
                   }
             }
       }
-      console.writeln("flowchartFilterFiles, maxsize " + maxsize);
-      var binning = 1;
-      var binned_size = maxsize;
-      while (binned_size > 1024) {
-            binning++;
-            binned_size = maxsize / binning;
+      if (0) {
+            console.writeln("flowchartFilterFiles, maxsize " + maxsize);
+            var binning = 1;
+            var binned_size = maxsize;
+            while (binned_size > 1024) {
+                  binning++;
+                  binned_size = maxsize / binning;
+            }
+            console.writeln("flowchartFilterFiles, binning " + binning);
+
+            // Shrink the files and write renamed files to disk
+            newFileNames = runBinningOnFiles(newFileNames, 2, binning, null, renamedFileNames, "");
       }
-      console.writeln("flowchartFilterFiles, binning " + binning);
-
-      // Shrink the files and write renamed files to disk
-      newFileNames = runBinning(newFileNames, 2, binning, null, renamedFileNames, "");
-
       return newFileNames;
 }
 
@@ -326,6 +319,17 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
       var imgWin = engine.openImageWindowFromFile(fileName);
       // rename image
       imgWin.mainView.id = targetImageName;
+
+      // Do binning to ensure we work on small images
+      var minsize = Math.min(imgWin.mainView.image.width, imgWin.mainView.image.height);
+      var binning = 1;
+      var binned_size = minsize;
+      while (binned_size > 1024) {
+            binning++;
+            binned_size = minsize / binning;
+      }
+      console.writeln("flowchartFilterFiles, binning " + binning);
+      runBinning(imgWin, binning);
 
       return targetImageName;
 }
@@ -2357,7 +2361,20 @@ function getBinningPostfix()
       return '_b' + par.binning_resample.val;
 }
 
-function runBinning(fileNames, binning_val, resample_val, filtered_files, renamedFileNames, postfix)
+function runBinning(imageWindow, resample_val)
+{
+      var P = new IntegerResample;
+      P.zoomFactor = -resample_val;
+      P.noGUIMessages = true;
+
+      imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imageWindow.mainView, false);
+      
+      imageWindow.mainView.endProcess();
+}
+
+function runBinningOnFiles(fileNames, binning_val, resample_val, filtered_files, renamedFileNames, postfix)
 {
       var newFileNames = [];
       var outputDir = global.outputRootDir + global.AutoOutputDir;
@@ -2367,7 +2384,7 @@ function runBinning(fileNames, binning_val, resample_val, filtered_files, rename
             postfix = getBinningPostfix();
       }
       
-      console.writeln("runBinning input[0] " + fileNames[0]);
+      console.writeln("runBinningOnFiles input[0] " + fileNames[0]);
 
       for (var i = 0; i < fileNames.length; i++) {
             var do_binning = true;
@@ -2381,22 +2398,14 @@ function runBinning(fileNames, binning_val, resample_val, filtered_files, rename
                   // Open source image window from a file
                   var imageWindows = ImageWindow.open(fileNames[i]);
                   if (!imageWindows || imageWindows.length == 0) {
-                        util.throwFatalError("*** runBinning Error: imageWindows.length: " + imageWindows.length);
+                        util.throwFatalError("*** runBinningOnFiles Error: imageWindows.length: " + imageWindows.length);
                   }
                   var imageWindow = imageWindows[0];
                   if (imageWindow == null) {
-                        util.throwFatalError("*** runBinning Error: Can't read file: " + fileNames[i]);
+                        util.throwFatalError("*** runBinningOnFiles Error: Can't read file: " + fileNames[i]);
                   }
 
-                  var P = new IntegerResample;
-                  P.zoomFactor = -resample_val;
-                  P.noGUIMessages = true;
-
-                  imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-                  P.executeOn(imageWindow.mainView, false);
-                  
-                  imageWindow.mainView.endProcess();
+                  runBinning(imageWindow, resample_val);
 
                   checkCancel();
 
@@ -2410,7 +2419,7 @@ function runBinning(fileNames, binning_val, resample_val, filtered_files, rename
 
                   // Save window
                   if (!writeImage(filePath, imageWindow)) {
-                        util.throwFatalError("*** runBinning Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+                        util.throwFatalError("*** runBinningOnFiles Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
                   }
                   // Close window
                   util.forceCloseOneWindow(imageWindow);   
@@ -2422,7 +2431,7 @@ function runBinning(fileNames, binning_val, resample_val, filtered_files, rename
             newFileNames[newFileNames.length] = filePath;
       }
 
-      console.writeln("runBinning output[0] " + newFileNames[0]);
+      console.writeln("runBinningOnFiles output[0] " + newFileNames[0]);
 
       return newFileNames;
 }
@@ -2433,7 +2442,7 @@ function runBinningOnLights(fileNames, filtered_files)
       util.addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + getBinningPostfix() + ".xisf");
       flowchartOperation("Binning");
 
-      var newFileNames = runBinning(fileNames, par.binning.val, par.binning_resample.val, filtered_files);
+      var newFileNames = runBinningOnFiles(fileNames, par.binning.val, par.binning_resample.val, filtered_files);
 
       return newFileNames;
 }
