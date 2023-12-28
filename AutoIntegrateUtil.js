@@ -237,7 +237,7 @@ this.throwFatalError = function(txt)
 {
       util.addProcessingStepAndStatusInfo(txt);
       global.run_results.fatal_error = txt;
-      global.is_processing = false;
+      global.is_processing = global.processing_state.none;
       throw new Error(txt);
 }
 
@@ -1173,7 +1173,7 @@ function getSettingsFromJson(settings)
                   } else {
                         var name_found = false;
                   }
-                  if (name_found) {
+                  if (name_found && !param.skip_reset) {
                         param.val = settings[i][1];
                         if (param.reset != undefined) {
                               param.reset();
@@ -1227,14 +1227,17 @@ this.readJsonFile = function(fname, lights_only)
       }
 
       let saveDir = File.extractDrive(fname) + File.extractDirectory(fname);
+      console.writeln("Restored saveDir " + saveDir + " from Json file path");
 
       if (saveInfo.output_dir != null && saveInfo.output_dir != undefined) {
+            // in saveInfo.output_dir replace text "$(setupDir)" with saveDir
+            console.writeln("Restored output directory " + saveInfo.output_dir);
             var outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
-            outputDir = saveInfo.output_dir.replace("$(saveDir)", saveDir);   // for compatibility
+            outputDir = outputDir.replace("$(saveDir)", saveDir);   // for compatibility check also saveDir
+            console.writeln("Updated output directory " + outputDir);
             if (gui) {
                   gui.updateOutputDirEdit(outputDir);
             }
-            console.writeln("Restored output directory " + outputDir);
       }
 
       saveInfoMakeFullPaths(saveInfo, saveDir);
@@ -1337,7 +1340,7 @@ function getChangedSettingsAsJson()
       console.writeln("getChangedSettingsAsJson");
       for (let x in par) {
             var param = par[x];
-            if (param.val != param.def) {
+            if (param.val != param.def && !param.skip_reset) {
                   console.writeln("getChangedSettingsAsJson, save " + param.name + "=" + param.val);
                   settings[settings.length] = [ param.name, param.val ];
             }

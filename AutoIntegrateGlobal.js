@@ -42,22 +42,25 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.65.3 test3"; // Version, also updated into updates.xri
-this.autointegrate_info = "Flowchart, GraXpert";            // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.66 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Live Flowchart, Ha to RGB mapping";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Support for GraXpert",
-      "- Print a Flowchart from the current workflow",
-      "- User settable startup image",
-      "- Bug fixes and small updates",
-      "- Optionally print live Flowchart during procerssing"
+      "- Live Flowchart",
+      "- Ha to RGB mapping"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 
 this.processingDate = null;
+
+this.processing_state = {
+      none: 0,
+      processing: 1,
+      extra_processing: 2
+}
 
 // GUI variables
 this.tabStatusInfoLabel = null;         // For update processing status
@@ -66,7 +69,7 @@ this.sideStatusInfoLabel = null;        // For update processing status
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
 this.use_preview = true;
-this.is_processing = false;
+this.is_processing = this.processing_state.none;
 
 this.cancel_processing = false;
 
@@ -152,7 +155,7 @@ this.par = {
       force_file_name_filter: { val: false, def: false, name : "Use file name for filters", type : 'B' },
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
-      run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B' },
+      run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B', skip_reset: true },
 
       use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },
@@ -191,12 +194,17 @@ this.par = {
       use_narrowband_multiple_mappings: { val: false, def: false, name : "Use narrowband multiple mappings", type : 'B' },
       narrowband_multiple_mappings_list: { val: "", def: "", name : "Narrowband multiple mappings list", type : 'S' },
 
+      // Ha to RGB mapping
+      RGBHa_method: { val: 'None', def: 'None', name : "Ha RGB mapping method", type : 'S' },
+      RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B' },
+      RGBHa_Subtract_BoostFactor: { val: 0.2, def: 0.2, name : "Ha RGB mapping subtract boost factor", type : 'R' },
+      RGBHa_Combine_BoostFactor: { val: 2.0, def: 2.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
+      
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
       RGBNB_use_RGB_image: { val: false, def: false, name : "Narrowband RGB mapping use RGB", type : 'B' },
       RGBNB_gradient_correction: { val: false, def: false, name : "Narrowband RGB mapping gradient correction", type : 'B' },
       RGBNB_linear_fit: { val: false, def: false, name : "Narrowband RGB mapping linear fit", type : 'B' },
-      RGBNB_add: { val: false, def: false, name : "Narrowband RGB mapping add", type : 'B' },
       RGBNB_L_mapping: { val: '',  def: '',  name : "Narrowband RGB mapping for L", type : 'S' },
       RGBNB_R_mapping: { val: 'H', def: 'H', name : "Narrowband RGB mapping for R", type : 'S' },
       RGBNB_G_mapping: { val: '', def: '', name : "Narrowband RGB mapping for G", type : 'S' },
@@ -441,7 +449,7 @@ this.par = {
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
       // Misc settings
-      show_flowchart: { val: false, def: false, name : "Show flowchart", type : 'B' },
+      show_flowchart: { val: false, def: false, name : "Show flowchart", type : 'B', skip_reset: true },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix

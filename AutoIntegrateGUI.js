@@ -324,6 +324,7 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
+var RGBHa_method_values = [ 'None', 'Med Subtract', 'Night Photons HRR', 'Night Photons Subtract', 'Galactic Hunter Subtract', 'Max' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -580,7 +581,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type != "child") {
-                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child");
+                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + node.txt);
             }
             if (node.list.length == 0) {
                   continue;
@@ -656,7 +657,7 @@ function flowchartGraph(rootnode)
             return;
       }
 
-      if (!global.is_processing) {
+      if (global.is_processing == global.processing_state.none) {
             engine.flowchartPrint(rootnode);
       }
 
@@ -3079,7 +3080,7 @@ function updatePreviewImage(updPreviewControl, imgWin, txt, histogramControl, hi
       if (updPreviewControl == null) {
             return;
       }
-      if ((is_some_preview && !global.is_processing) || preview_keep_zoom) {
+      if ((is_some_preview && global.is_processing == global.processing_state.none) || preview_keep_zoom) {
             updPreviewControl.UpdateImage(imgWin.mainView.image, txt);
       } else {
             updPreviewControl.SetImage(imgWin.mainView.image, txt);
@@ -3238,7 +3239,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   current_histogramInfo = histogramInfo;
             }
             preview_image = new Image( imgWin.mainView.image );
-            if (!par.show_flowchart.val) {
+            if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
                         updatePreviewImage(sidePreviewControl, imgWin, txt, sideHistogramControl, histogramInfo);
                   } else {
@@ -3305,7 +3306,7 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
             updatePreviewWinTxt(win, id, histogramInfo);
             util.updateStatusInfoLabel("Size: " + win.mainView.image.width + "x" + win.mainView.image.height);
             is_some_preview = false;
-            global.is_processing = false;
+            global.is_processing = global.processing_state.none;
       }
 }
 
@@ -4940,7 +4941,7 @@ function newCancelButton(parent, toolbutton)
 {
       var cancel_action = function()
       {
-            if (global.is_processing) {
+            if (global.is_processing != global.processing_state.none) {
                   console.noteln("Cancel requested...");
                   global.cancel_processing = true;
             }
@@ -6214,11 +6215,10 @@ function AutoIntegrateDialog()
       this.resetOnSetupLoadCheckBox = newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
             "<p>Reset parameters toi default values before loading a setup. This ensures that only parameters from the setup file are set " + 
             "and user saved default parameters are not set.</p>" );
-      this.runGetFlowchartDataCheckBox = newCheckBox(this, "Run get flowchart data", par.run_get_flowchart_data, 
-            "<p>Get the full flowchart data when Run button is used.</p>" +
-            "<p>When a normal processing is done get the full flowchart data before processing. This makes it possible to follow progress " +
-            "in the complete flowchart.</p>" +
-            "<p>If this option is not checked or AutoConinue or batch processing is done, flowchart data is generated during processing.</p>" );
+      this.runGetFlowchartDataCheckBox = newCheckBox(this, "Get flowchart data before processing", par.run_get_flowchart_data, 
+            "<p>Get the full flowchart data before processing when a normal processing is done using the Run button. This makes it possible to follow progress " +
+            "in the complete flowchart if Show Flowchart is checked.</p>" +
+            "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
@@ -7857,9 +7857,20 @@ function AutoIntegrateDialog()
       this.narrowbandSelectMultipleSizer.add( this.narrowbandSelectMultipleEdit );
       this.narrowbandSelectMultipleSizer.addStretch();
 
+      this.narrowbandControl = new Control( this );
+      this.narrowbandControl.sizer = new VerticalSizer;
+      this.narrowbandControl.sizer.margin = 6;
+      this.narrowbandControl.sizer.spacing = 4;
+      this.narrowbandControl.sizer.add( this.narrowbandColorPaletteLabel );
+      this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
+      this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
+      this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
+      this.narrowbandControl.sizer.add( this.narrowbandSelectMultipleSizer );
+      this.narrowbandControl.visible = false;
+
       /* RGBNB mapping.
        */
-      var RGBNB_tooltip = 
+            var RGBNB_tooltip = 
             "<p>" +
             "A special processing is used for narrowband to (L)RGB image " +
             "mapping. It is used to enhance (L)RGB channels with narrowband data. " + 
@@ -7890,11 +7901,6 @@ function AutoIntegrateDialog()
             "</ul>";
             
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping, RGBNB_tooltip);
-      this.RGBNB_add_CheckBox = newCheckBox(this, "Add", par.RGBNB_add, 
-            "<p>Add narrowband image to the target image.</p>" + 
-            "<p>Add formula is:<br>" + 
-                  "RGBch + (NBch - med(NBch)) * Boost.</p>" + 
-            "<p>With this option boost factor is used to adjust the narrowband channel but bandwidth is not used.</p>" );
       this.RGBNB_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBNB_gradient_correction, 
             "<p>Do gradient correction on narrowband image before mapping.</p>" );
       this.RGBNB_linear_fit_CheckBox = newCheckBox(this, "Linear fit", par.RGBNB_linear_fit, 
@@ -7908,7 +7914,6 @@ function AutoIntegrateDialog()
       this.useRGBNBmappingSizer.margin = 6;
       this.useRGBNBmappingSizer.spacing = 4;
       this.useRGBNBmappingSizer.add( this.useRGBNBmapping_CheckBox );
-      this.useRGBNBmappingSizer.add( this.RGBNB_add_CheckBox );
       this.useRGBNBmappingSizer.add( this.RGBNB_gradient_correction_CheckBox );
       this.useRGBNBmappingSizer.add( this.RGBNB_linear_fit_CheckBox );
       this.useRGBNBmappingSizer.add( this.useRGBbandwidth_CheckBox );
@@ -8031,17 +8036,6 @@ function AutoIntegrateDialog()
       this.RGBNB_Sizer.add(this.RGBNB_BandwidthSizer);
       this.RGBNB_Sizer.addStretch();
 
-      this.narrowbandControl = new Control( this );
-      this.narrowbandControl.sizer = new VerticalSizer;
-      this.narrowbandControl.sizer.margin = 6;
-      this.narrowbandControl.sizer.spacing = 4;
-      this.narrowbandControl.sizer.add( this.narrowbandColorPaletteLabel );
-      this.narrowbandControl.sizer.add( this.narrowbandCustomPalette_Sizer );
-      this.narrowbandControl.sizer.add( this.NbLuminanceSizer );
-      this.narrowbandControl.sizer.add( this.mapping_on_nonlinear_data_Sizer );
-      this.narrowbandControl.sizer.add( this.narrowbandSelectMultipleSizer );
-      this.narrowbandControl.visible = false;
-
       this.narrowbandRGBmappingControl = new Control( this );
       //this.narrowbandRGBmappingControl.title = "Narrowband to RGB mapping";
       this.narrowbandRGBmappingControl.sizer = new VerticalSizer;
@@ -8051,6 +8045,90 @@ function AutoIntegrateDialog()
       //this.narrowbandRGBmappingControl.sizer.add( this.narrowbandAutoContinue_sizer );
       // hide this section by default
       this.narrowbandRGBmappingControl.visible = false;
+
+      /* RGBHa mapping.
+       */
+      var RGBHa_tooltip = 
+            "<p>" +
+            "A special processing is used to add Ha to RGB image." +
+            "</p><p>" +
+            "If Ha to RGB mapping is used then narrowband Color palette is not used." +
+            "</p>";
+
+      this.RGBHaMethodComboBox = newComboBox(this, par.RGBHa_method, RGBHa_method_values, RGBHa_tooltip);
+      this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
+            "<p>Do gradient correction on Ha image before mapping.</p>" );
+      this.useRGBHamappingSizer = new HorizontalSizer;
+      this.useRGBHamappingSizer.margin = 6;
+      this.useRGBHamappingSizer.spacing = 4;
+      this.useRGBHamappingSizer.add( this.RGBHaMethodComboBox );
+      this.useRGBHamappingSizer.add( this.RGBHa_gradient_correction_CheckBox );
+      this.useRGBHamappingSizer.addStretch();
+
+      // Button to test narrowband mapping
+      this.testRGBHaMappingButton = new PushButton( this );
+      this.testRGBHaMappingButton.text = "Test";
+      this.testRGBHaMappingButton.toolTip = 
+            "<p>" +
+            "Test Ha RGB mapping. This requires that you have opened:" +
+            "</p><p>" +
+            "- RGB files Integration_[channel], channel = R, G and B.<br>" +
+            "- Integration_H that is used in the mapping." +
+            "</p><p>" +
+            "To get required Integration_[R|G|B] and Integration_H files you can run a full workflow first." +
+            "</p>" ;
+      this.testRGBHaMappingButton.onClick = function()
+      {
+            console.writeln("Test Ha mapping");
+            util.clearDefaultDirs();
+            try {
+                  engine.testRGBHaMapping();
+                  util.setDefaultDirs();
+            } 
+            catch(err) {
+                  console.criticalln(err);
+                  console.criticalln("Processing stopped!");
+                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBHa", true);
+                  console.endLog();
+                  util.setDefaultDirs();
+            }
+      };   
+
+      // Boost factor for RGB
+      var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
+      this.RGBHa_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor.");
+      this.RGBHa_SubtractBoostValue = newRGBNBNumericEdit(this, 'Night Photons Subtract', par.RGBHa_Subtract_BoostFactor, "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + RGBHa_boost_common_tooltip);
+      this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + RGBHa_boost_common_tooltip);
+
+      this.RGBHa_BoostSizer = new HorizontalSizer;
+      // this.RGBHa_BoostSizer.margin = 6;
+      this.RGBHa_BoostSizer.spacing = 4;
+      this.RGBHa_BoostSizer.add( this.RGBHa_BoostLabel );
+      this.RGBHa_BoostSizer.add( this.RGBHa_SubtractBoostValue );
+      this.RGBHa_BoostSizer.add( this.RGBHa_CombineBoostValue );
+      this.RGBHa_BoostSizer.add( this.testRGBHaMappingButton );
+      this.RGBHa_BoostSizer.addStretch();
+
+      this.RGBHa_Sizer1 = new HorizontalSizer;
+      this.RGBHa_Sizer1.spacing = 4;
+      this.RGBHa_Sizer1.add(this.RGBHa_BoostSizer);
+      this.RGBHa_Sizer1.addStretch();
+
+      this.RGBHa_Sizer = new VerticalSizer;
+      // this.RGBHa_Sizer.margin = 6;
+      this.RGBHa_Sizer.spacing = 4;
+      this.RGBHa_Sizer.toolTip = RGBHa_tooltip;
+      this.RGBHa_Sizer.add(this.useRGBHamappingSizer);
+      this.RGBHa_Sizer.add(this.RGBHa_Sizer1);
+      this.RGBHa_Sizer.addStretch();
+
+      this.RGBHaMappingControl = new Control( this );
+      this.RGBHaMappingControl.sizer = new VerticalSizer;
+      this.RGBHaMappingControl.sizer.margin = 6;
+      this.RGBHaMappingControl.sizer.spacing = 4;
+      this.RGBHaMappingControl.sizer.add( this.RGBHa_Sizer );
+      // hide this section by default
+      this.RGBHaMappingControl.visible = false;
 
       // Narrowband extra processing
 
@@ -8162,7 +8240,7 @@ function AutoIntegrateDialog()
                                         flowchartToolTip;
       this.newFlowchartButton.onClick = function()
       {
-            if (global.is_processing) {
+            if (global.is_processing != global.processing_state.none) {
                   return;
             }
 
@@ -8306,11 +8384,11 @@ function AutoIntegrateDialog()
 
       this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
             "<p>File listing is in a separate tab instead of on top of the window.</p>",
-            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.files_in_tab = checked; });
+            function(checked) { this.dialog.files_in_tab_CheckBox.aiParam.files_in_tab = checked; });
 
       this.show_startup_image_CheckBox = newGenericCheckBox(this, "Startup image", ppar, ppar.show_startup_image, 
             "<p>Show startup image in preview window.</p>",
-            function(checked) { this.dialog.show_histogram_CheckBox.aiParam.show_startup_image = checked; });
+            function(checked) { this.dialog.show_startup_image_CheckBox.aiParam.show_startup_image = checked; });
       this.startup_image_name_Edit = newGenericTextEdit(this, ppar, ppar.startup_image_name, 
             "<p>Startup image name.</p>" +
             "<p>You can set your own startup image here.</p>" + 
@@ -8659,6 +8737,7 @@ function AutoIntegrateDialog()
               this.spccGroupBoxLabel,
               this.spccGroupBoxSizer ]);
       newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      newSectionBarAdd(this, this.rightProcessingGroupBox, this.RGBHaMappingControl, "Ha to RGB mapping", "NarrowbandRGB2");
       this.rightProcessingGroupBox.sizer.addStretch();
         
       // Extra processing group box
