@@ -8097,7 +8097,7 @@ function AutoIntegrateDialog()
       // Boost factor for RGB
       var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
       this.RGBHa_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor.");
-      this.RGBHa_SubtractBoostValue = newRGBNBNumericEdit(this, 'Night Photons Subtract', par.RGBHa_Subtract_BoostFactor, "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + RGBHa_boost_common_tooltip);
+      this.RGBHa_SubtractBoostValue = newRGBNBNumericEdit(this, 'Subtract', par.RGBHa_Subtract_BoostFactor, "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + RGBHa_boost_common_tooltip);
       this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + RGBHa_boost_common_tooltip);
 
       this.RGBHa_BoostSizer = new HorizontalSizer;
