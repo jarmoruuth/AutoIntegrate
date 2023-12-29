@@ -4107,7 +4107,9 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       if (createNewImage) {
             var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
       }
-      flowchartOperation("PixelMath:" + reason);
+      if (reason != "from_lights") {
+            flowchartOperation("PixelMath:" + reason);
+      }
 
       var P = new PixelMath;
       P.expression = mapping;
@@ -4558,9 +4560,11 @@ function channelNoiseReduction(image_id)
       }
 }
 
-function createNewStarXTerminator(star_mask, linear_data)
+function createNewStarXTerminator(star_mask, linear_data, from_lights)
 {
-      flowchartOperation("StarXTerminator");
+      if (!from_lights) {
+            flowchartOperation("StarXTerminator");
+      }
       try {
             console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask);
             var P = new StarXTerminator;
@@ -4575,9 +4579,11 @@ function createNewStarXTerminator(star_mask, linear_data)
       return P;
 }
 
-function createNewStarNet(star_mask)
+function createNewStarNet(star_mask, from_lights)
 {
-      flowchartOperation("StarNet");
+      if (!from_lights) {
+            flowchartOperation("StarNet");
+      }
       try {
             var P = new StarNet;
             P.stride = StarNet.prototype.Stride_128;
@@ -4591,9 +4597,11 @@ function createNewStarNet(star_mask)
       return P;
 }
 
-function createNewStarNet2(star_mask)
+function createNewStarNet2(star_mask, from_lights)
 {
-      flowchartOperation("StarNet2");
+      if (!from_lights) {
+            flowchartOperation("StarNet2");
+      }
       try {
             var P = new StarNet2;
             P.mask = star_mask;
@@ -4627,7 +4635,7 @@ function getStarMaskWin(imgWin, name)
 
 // Remove stars from an image. We save star mask for later processing and combining
 // for star image.
-function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_unscreen)
+function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_name, use_unscreen, from_lights)
 {
       if (linear_data) {
             util.addProcessingStepAndStatusInfo("Remove stars from linear image " + imgWin.mainView.id);
@@ -4635,7 +4643,9 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             util.addProcessingStepAndStatusInfo("Remove stars from non-linear image " + imgWin.mainView.id);
       }
 
-      flowchartOperation("Remove stars");
+      if (!from_lights) {
+            flowchartOperation("Remove stars");
+      }
 
       if (global.get_flowchart_data) {
             return null;
@@ -4653,10 +4663,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 
       if (par.use_starxterminator.val) {
             util.addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(create_star_mask, linear_data);
+            var P = createNewStarXTerminator(create_star_mask, linear_data, from_lights);
       } else if (par.use_starnet2.val) {
             util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
-            var P = createNewStarNet2(create_star_mask);
+            var P = createNewStarNet2(create_star_mask, from_lights);
       } else {
             util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
       }
@@ -4664,7 +4674,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       if (par.use_starnet2.val && linear_data) {
             var median = imgWin.mainView.computeOrFetchProperty("Median");
             console.writeln("removeStars with StarNet2, median " + median);
-            runPixelMathSingleMappingEx(imgWin.mainView.id, "median", "mtf(" + median.at(0) + ", $T)", false, null, false, true);
+            runPixelMathSingleMappingEx(imgWin.mainView.id, from_lights ? "from_lights" : "linearize", "mtf(" + median.at(0) + ", $T)", false, null, false, true);
       }
 
       if (!global.get_flowchart_data) {
@@ -4680,7 +4690,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 
       if (par.use_starnet2.val && linear_data) {
-            runPixelMathSingleMappingEx(imgWin.mainView.id, "median", "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
+            runPixelMathSingleMappingEx(imgWin.mainView.id, from_lights ? "from_lights" : "delinearize", "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
       }
 
       checkCancel();
@@ -4749,7 +4759,14 @@ function removeStarsFromLights(fileNames)
                   util.throwFatalError("*** removeStarsFromLights Error: Can't read file: " + fileNames[i]);
             }
 
-            removeStars(imageWindow, true, false, null, null, false);
+            removeStars(
+                  imageWindow,      // imgWin
+                  true,             // linear_data
+                  false,            // save_stars
+                  null,             // save_array
+                  null,             // stars_image_name
+                  false,            // use_unscreen
+                  true);            // from_lights
             
             var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
 
@@ -9916,6 +9933,9 @@ this.testRGBNBmapping = function()
 {
       var test_RGB_color_id = null;
 
+      engine.flowchartReset();
+      flowchartInit();
+
       console.beginLog();
 
       util.addProcessingStep("Test narrowband mapping to RGB");
@@ -9961,16 +9981,15 @@ this.testRGBNBmapping = function()
       engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
 
       console.endLog();
+      flowchartDone();
 }
 
 function RGBHa_max_Ha(RGB_id)
 {
       console.writeln("RGBHa max(Ha, R) channel on image " + RGB_id + " using using boost factor " + par.RGBHa_Combine_BoostFactor.val);
 
-      flowchartOperation("RGBHa max");
-      if (global.get_flowchart_data) {
-            return;
-      }
+      flowchartParentBegin("RGBHa_max_Ha");
+      flowchartChildBegin("RGBHa max");
 
       var nb_channel_id = H_id;
       if (nb_channel_id == null) {
@@ -10012,6 +10031,9 @@ function RGBHa_max_Ha(RGB_id)
             "iif($T[0]<"+ nb_channel_id + ",$T[2]+0.05*" + nb_channel_id + ",$T[2])");
 
       util.closeOneWindow(nb_channel_id);
+
+      flowchartChildEnd("RGBHa max");
+      flowchartParentEnd("RGBHa_max_Ha");
 }
 
 // Create Ha image in linear stage
@@ -10033,8 +10055,8 @@ function RGBHa_init(RGB_id, testmode)
                                                 " and boost factor " + par.RGBHa_Subtract_BoostFactor.val);
       }
 
-      flowchartParentBegin("RGBHa_init init");
-      flowchartChildBegin("RGBHa Ha");
+      flowchartParentBegin("RGBHa init");
+      flowchartChildBegin("RGBHa init H");
 
       var rgb_channel_id = extractRGBchannel(RGB_id, 'R');
 
@@ -10069,13 +10091,8 @@ function RGBHa_init(RGB_id, testmode)
             var hrr_win = util.findWindow(hrr_id);
 
             console.writeln("RGBHa_init, HRR, background neutralization and colot calibration");
-            if (par.use_spcc.val) {
-                  runImageSolver(hrr_id, true);
-                  runColorCalibration(hrr_win, 'linear');
-            } else {   
-                  runBackgroundNeutralization(hrr_win.mainView);
-                  runColorCalibrationProcess(hrr_win);
-            }
+            runBackgroundNeutralization(hrr_win.mainView);
+            runColorCalibrationProcess(hrr_win);
 
             runHistogramTransform(hrr_win, null, false, 'H');
             clipShadows(hrr_win, 1);
@@ -10090,7 +10107,7 @@ function RGBHa_init(RGB_id, testmode)
                   removeStars(hrr_win, true, false, null, null, false);
             }
 
-            flowchartCheckOperationList("Pixelmath:RGBHa:HRR subtract");
+            flowchartOperation("Pixelmath:RGBHa:HRR subtract");
 
             var P = new PixelMath;
 
@@ -10128,18 +10145,30 @@ function RGBHa_init(RGB_id, testmode)
             clipShadows(enhanced_channel_win, 1);
 
       } else if (par.RGBHa_method.val == 'Med Subtract') {
+            flowchartParentBegin("RGBHa Med Subtract");
+            flowchartChildBegin("H");
+
             if (par.use_starxterminator.val || par.use_starnet2.val) {
                   console.writeln("RGBHa_init, Med Subtract, remove stars on " + nb_channel_id);
                   removeStars(util.findWindow(nb_channel_id), true, false, null, null, false);
-                  console.writeln("RGBHa_init, Med Subtract, remove stars on " + rgb_channel_id);
-                  removeStars(util.findWindow(rgb_channel_id), true, false, null, null, false);
             }
 
             console.writeln("RGBHa_init, Med Subtract, stretch image " + nb_channel_id);
             runHistogramTransform(util.findWindow(nb_channel_id), null, false, 'H');
 
+            flowchartChildEnd("H");
+            flowchartChildBegin("R");
+
+            if (par.use_starxterminator.val || par.use_starnet2.val) {
+                  console.writeln("RGBHa_init, Med Subtract, remove stars on " + rgb_channel_id);
+                  removeStars(util.findWindow(rgb_channel_id), true, false, null, null, false);
+            }
+
             console.writeln("RGBHa_init, Med Subtract, stretch image " + rgb_channel_id);
             runHistogramTransform(util.findWindow(rgb_channel_id), null, false, 'R');
+
+            flowchartChildEnd("R");
+            flowchartParentEnd("RGBHa Med Subtract");
 
             console.writeln("RGBHa_init, Med Subtract from " + nb_channel_id);
             var nb_channel_med_subtract_id = runPixelMathSingleMapping(
@@ -10180,8 +10209,8 @@ function RGBHa_init(RGB_id, testmode)
 
       RGBHa_image_ids.push(enhanced_channel_id);
 
-      flowchartChildEnd("RGBHa Ha");
-      flowchartParentEnd("RGBHa continuum init");
+      flowchartChildEnd("RGBHa init H");
+      flowchartParentEnd("RGBHa init");
 }
 
 // Do the actual mapping using combined non-linear image
@@ -10197,7 +10226,7 @@ function RGBHa_mapping(RGB_id)
       util.addProcessingStepAndStatusInfo("Run Ha mapping on R using " + nb_channel_id);
       
       flowchartParentBegin("RGBHa mapping");
-      flowchartChildBegin("RGBHa add Ha");
+      flowchartChildBegin("RGBHa add H");
 
       // console.writeln("RGBHa_Channel_Mapping, stretch image " + nb_channel_id);
       // runHistogramTransform(util.findWindow(nb_channel_id), null, false, 'H');
@@ -10241,7 +10270,7 @@ function RGBHa_mapping(RGB_id)
             util.throwFatalError("Invalid RGBHa method " + par.RGBHa_method.val + " for RGBHa mapping");
       }
 
-      flowchartChildEnd("RGBHa R+Ha");
+      flowchartChildEnd("RGBHa add H");
       flowchartParentEnd("RGBHa mapping");
 }
 
