@@ -242,7 +242,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
             this.maxPreview_Button.onClick = function()
             {
-                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, par, this.parent.bitmap, this.parent.image_name_Label.text);
+                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, global, this.parent.image, this.parent.image_name_Label.text);
                   maxPreviewDialog.execute();
                   gc(false);
             };
