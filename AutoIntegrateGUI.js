@@ -2312,7 +2312,7 @@ function add_undo_image(undo_image, histogramInfo)
                   image: undo_image.image, 
                   keywords: undo_image.keywords,
                   histogramInfo: histogramInfo, 
-                  extra_processing_info: global.extra_processing_info 
+                  extra_processing_info: global.extra_processing_info.concat() 
             };
 
       update_undo_buttons();

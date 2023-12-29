@@ -11235,7 +11235,7 @@ function autoContrast(win, contrast_limit_low, contrast_limit_high)
 
 function extraAutoContrastChannel(imgWin, channel, contrast_limit_low, contrast_limit_high)
 {
-      addExtraProcessingStep("Auto contrast on channel " + channel + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
+      console.writeln("Auto contrast on channel " + channel + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
       // extract channel data
       var ch_id = extractRGBchannel(imgWin.mainView.id, channel);
@@ -11249,6 +11249,8 @@ function extraAutoContrastChannel(imgWin, channel, contrast_limit_low, contrast_
 function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channels)
 {
       if (channels) {
+            addExtraProcessingStep("Auto contrast channels with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
+
             var R_id = extraAutoContrastChannel(win, 'R', contrast_limit_low, contrast_limit_high);
             var G_id = extraAutoContrastChannel(win, 'G', contrast_limit_low, contrast_limit_high);
             var B_id = extraAutoContrastChannel(win, 'B', contrast_limit_low, contrast_limit_high);
@@ -11884,30 +11886,49 @@ this.extraColorizedNarrowbandImages = function(imgWin)
 
 function extraColorizedNarrowband(imgWin)
 {
+      var stepinfo = "";
       if (par.narrowband_colorized_R_hue.val != par.narrowband_colorized_R_hue.def 
           || par.narrowband_colorized_G_hue.val != par.narrowband_colorized_G_hue.def
           || par.narrowband_colorized_B_hue.val != par.narrowband_colorized_B_hue.def) 
       {
-            addExtraProcessingStep("Colorized hue R " + par.narrowband_colorized_R_hue.val + ", G " + par.narrowband_colorized_G_hue.val + ", B " + par.narrowband_colorized_B_hue.val);
+            if (stepinfo != "") {
+                  stepinfo = stepinfo + ", ";
+            }
+            stepinfo = stepinfo + "hue R " + par.narrowband_colorized_R_hue.val + ", G " + par.narrowband_colorized_G_hue.val + ", B " + par.narrowband_colorized_B_hue.val;
       }
       if (par.narrowband_colorized_R_sat.val != par.narrowband_colorized_R_sat.def
           || par.narrowband_colorized_G_sat.val != par.narrowband_colorized_G_sat.def
           || par.narrowband_colorized_B_sat.val != par.narrowband_colorized_B_sat.def)
       {
-            addExtraProcessingStep("Colorized sat R " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_sat.val);
+            if (stepinfo != "") {
+                  stepinfo = stepinfo + ", ";
+            }
+            stepinfo = stepinfo + "sat R " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_sat.val;
       }
       if (par.narrowband_colorized_R_weight.val != par.narrowband_colorized_R_weight.def
           || par.narrowband_colorized_G_weight.val != par.narrowband_colorized_G_weight.def
           || par.narrowband_colorized_B_weight.val != par.narrowband_colorized_B_weight.def)
       {
-            addExtraProcessingStep("Colorized weight R " + par.narrowband_colorized_R_weight.val + ", G " + par.narrowband_colorized_G_weight.val + ", B " + par.narrowband_colorized_B_weight.val);
+            if (stepinfo != "") {
+                  stepinfo = stepinfo + ", ";
+            }
+            stepinfo = stepinfo + "weight R " + par.narrowband_colorized_R_weight.val + ", G " + par.narrowband_colorized_G_weight.val + ", B " + par.narrowband_colorized_B_weight.val;
       }
       if (par.narrowband_colorized_mapping.val != par.narrowband_colorized_mapping.def
           || par.narrowband_colorized_combine.val != par.narrowband_colorized_combine.def
           || par.narrowband_colorized_method.val != par.narrowband_colorized_method.def)
       {
-            addExtraProcessingStep("Colorized " + par.narrowband_colorized_mapping.val + ", " + par.narrowband_colorized_combine.val + ", " + par.narrowband_colorized_method.val + ", linear fit " + par.narrowband_colorized_linear_fit.val);
+            if (stepinfo != "") {
+                  stepinfo = stepinfo + ", ";
+            }
+            stepinfo = stepinfo + "mapping " + par.narrowband_colorized_mapping.val + ", " + par.narrowband_colorized_combine.val + ", " + par.narrowband_colorized_method.val + ", linear fit " + par.narrowband_colorized_linear_fit.val;
       }
+      if (stepinfo != "") {
+            stepinfo = "Colorize " + stepinfo;
+      } else {
+            stepinfo = "Colorize defaults";
+      }
+      addExtraProcessingStep(stepinfo);
 
       var channel_images = engine.extraColorizedNarrowbandImages(imgWin);
 
