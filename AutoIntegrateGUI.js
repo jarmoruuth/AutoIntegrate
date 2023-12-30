@@ -359,7 +359,7 @@ var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a lu
 
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
-
+var skip_reset_tooltip =                  "<p>Note that this parameter is not reset or saved to Json file.</p>";   
 
 
 // Settings for flowchart graph
@@ -6218,7 +6218,8 @@ function AutoIntegrateDialog()
       this.runGetFlowchartDataCheckBox = newCheckBox(this, "Get flowchart data before processing", par.run_get_flowchart_data, 
             "<p>Get the full flowchart data before processing when a normal processing is done using the Run button. This makes it possible to follow progress " +
             "in the complete flowchart if Show Flowchart is checked.</p>" +
-            "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" );
+            "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" +
+            skip_reset_tooltip);
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
@@ -7272,7 +7273,8 @@ function AutoIntegrateDialog()
       this.graxpertPathLabel = newLabel(this, "Path", 
             "<p>Path to GraXpert executable.</p>" +
             "<p><b>NOTE!</b> Remember to use the tools button on lower left corner to save the path to " + 
-            "the persistent module settings. Then the value is automatically restored when the script starts.</p>");
+            "the persistent module settings. Then the value is automatically restored when the script starts.</p>" + 
+            skip_reset_tooltip);
       this.graxpertPathEdit = newTextEdit(this, par.graxpert_path, this.graxpertPathLabel.toolTip);
       this.graxpertPathButton = new ToolButton( this );
       this.graxpertPathButton.icon = this.scaledResource(":/icons/select-file.png");
@@ -8252,7 +8254,8 @@ function AutoIntegrateDialog()
 
       this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
             "<p>Switch between flowchart and image view if flowchart is available.</p>" +
-            "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>",
+            "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
+            skip_reset_tooltip,
             function(checked) { 
                   par.show_flowchart.val = checked;
                   if (checked) {
