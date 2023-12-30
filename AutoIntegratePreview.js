@@ -220,7 +220,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                         return;
                   }
                   var copy_win = util.createWindowFromBitmap(this.parent.bitmap, "AutoIntegrate_preview_savetmp");
-                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.bitmap.width + ", height ", copy_win.mainView.bitmap.height + ", id ", copy_win.mainView.id);
+                  console.writeln("save image to ", saveFileDialog.fileName + ", bits ", copy_win.bitsPerSample + ", width ", copy_win.mainView.image.width + ", height ", copy_win.mainView.image.height + ", id ", copy_win.mainView.id);
                   if (copy_win.bitsPerSample != 16) {
                         console.writeln("set bits to 16");
                         copy_win.setSampleFormat(16, false);
