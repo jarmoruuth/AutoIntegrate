@@ -1012,8 +1012,11 @@ function extractIchannel(sourceWindow)
       return intensityWindow;
 }
 
-function extractLchannel(sourceWindow)
+function extractLchannel(sourceWindow, from_lights)
 {
+      if (!from_lights) {
+            flowchartOperation("ChannelExtraction L");
+      }
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.CIELab;
       P.channels = [ // enabled, id
@@ -2191,10 +2194,16 @@ function getLDDgroups(fileNames)
                   switch (keywords[j].name) {
                         case "TELESCOP":
                               console.writeln("telescop=" + value);
+                              if (groupname != "") {
+                                    groupname = groupname + " ";
+                              }
                               groupname = groupname + value;
                               break;
                         case "NAXIS1":
                               console.writeln("naxis1=" + value);
+                              if (groupname != "") {
+                                    groupname = groupname + " ";
+                              }
                               groupname = groupname + value;
                               naxis1 = parseInt(value);
                               break;
@@ -2203,7 +2212,7 @@ function getLDDgroups(fileNames)
                   }
             }
             for (var j = 0; j < groups.length; j++) {
-                  if (groups[j].name == groupname) {
+                  if (groups[j].groupname == groupname) {
                         // found, add to existing group
                         groups[j].groupfiles[groups[j].groupfiles.length] = fileNames[i];
                         break;
@@ -2212,7 +2221,7 @@ function getLDDgroups(fileNames)
             if (j == groups.length) {
                   // not found, add a new group
                   console.writeln("getLDDgroups, add a new group " + groupname);
-                  groups[groups.length] = { name: groupname, groupfiles: [ fileNames[i] ]};
+                  groups[groups.length] = { groupname: groupname, groupfiles: [ fileNames[i] ]};
             }
       }
       console.writeln("getLDDgroups found " + groups.length + " groups");
@@ -2247,9 +2256,9 @@ function getDefects(LDD_win, detectColumns)
 }
 
 // Run ImageIntegration and then get row/col defects
-function getDefectInfo(fileNames)
+function getDefectInfo(fileNames, groupname)
 {
-      console.writeln("getDefectInfo, fileNames[0]=" + fileNames[0]);
+      console.writeln("getDefectInfo, fileNames[0]=" + fileNames[0] + ", groupname=" + groupname);
       var LDD_images = init_images();
       for (var i = 0; i < fileNames.length; i++) {
             append_image_for_integrate(LDD_images.images, fileNames[i]);
@@ -2257,9 +2266,9 @@ function getDefectInfo(fileNames)
       // Run image integration as-is to make line defects more visible
       console.writeln("getDefectInfo, runImageIntegration");
 
-      flowchartParentBegin("Fix linear defects");
-      var LDD_id = runImageIntegration(LDD_images, "LDD", false);
-      flowchartParentEnd("Fix linear defects");
+      flowchartParentBegin("Fix linear defects " + groupname);
+      var LDD_id = runImageIntegration(LDD_images, "LDD", false, groupname ? "Group " + groupname : null);
+      flowchartParentEnd("Fix linear defects " + groupname);
 
       var LDD_win = util.findWindow(LDD_id);
       var defects = [];
@@ -2300,7 +2309,7 @@ function runLinearDefectDetection(fileNames)
 
       // For each group, generate own defect information
       for (var i = 0; i < LDD_groups.length; i++) {
-            console.writeln("runLinearDefectDetection, group " + i);
+            console.writeln("runLinearDefectDetection, group " + i + ", " + LDD_groups[i].groupname);
             if (par.use_processed_files.val) {
                   for (var j = 0; j < global.LDDDefectInfo.length; j++) {
                         if (global.LDDDefectInfo[j].groupname == LDD_groups[i].groupname) {
@@ -2312,7 +2321,7 @@ function runLinearDefectDetection(fileNames)
             }
             if (!par.use_processed_files.val || j == global.LDDDefectInfo.length) {
                   // generate new defect info
-                  var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles);
+                  var ccGroupInfo = getDefectInfo(LDD_groups[i].groupfiles, LDD_groups.length > 1 ? LDD_groups[i].groupname : null);
                   global.LDDDefectInfo[global.LDDDefectInfo.length] = { groupname: LDD_groups[i].groupname, defects: ccGroupInfo.ccDefects }
             } else {
                   // use existing defect info
@@ -5796,14 +5805,14 @@ function runImageIntegrationNormalized(images, best_image, name)
       return runImageIntegrationEx(norm_images, name, true);
 }
 
-function runImageIntegration(channel_images, name, save_to_file)
+function runImageIntegration(channel_images, name, save_to_file, flowchartname)
 {
       var images = channel_images.images;
       if (images == null || images.length == 0) {
             return null;
       }
       util.addProcessingStepAndStatusInfo("Image " + name + " integration on " + images.length + " files");
-      flowchartChildBegin(name);
+      flowchartChildBegin(flowchartname ? flowchartname : name);
       if (!global.get_flowchart_data) {
             ensureThreeImages(images);
       }
@@ -5835,7 +5844,7 @@ function runImageIntegration(channel_images, name, save_to_file)
             saveProcessedWindow(image_id);
       }
       util.runGarbageCollection();
-      flowchartChildEnd(name);
+      flowchartChildEnd(flowchartname ? flowchartname : name);
       return image_id;
 }
 
@@ -8526,6 +8535,7 @@ function extractChannels(fileNames)
 
       util.addStatusInfo("Extract channels, " + par.extract_channel_mapping.val);
       util.addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
+      flowchartOperation("ChannelExtraction");
       
       for (var i = 0; i < fileNames.length; i++) {
             // Open source image window from a file
@@ -8540,7 +8550,7 @@ function extractChannels(fileNames)
 
             // Extract channels and save each channel to a separate file.
             if (par.extract_channel_mapping.val == 'LRGB') {
-                  var targetWindow = extractLchannel(imageWindow);
+                  var targetWindow = extractLchannel(imageWindow, true);
                   var filePath = generateNewFileName(fileNames[i], outputDir, "_L", outputExtension);
                   util.setFITSKeyword(targetWindow, "FILTER", "L", "AutoIntegrate extracted channel")
                   // Save window
@@ -8551,7 +8561,7 @@ function extractChannels(fileNames)
                   util.forceCloseOneWindow(targetWindow);
             }
 
-            var rId = extractRGBchannel(imageWindow.mainView.id, 'R');
+            var rId = extractRGBchannel(imageWindow.mainView.id, 'R', true);
             var rWin = util.findWindow(rId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[0], outputExtension);
             util.setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
@@ -8561,7 +8571,7 @@ function extractChannels(fileNames)
             newFileNames[newFileNames.length] = filePath;
             util.forceCloseOneWindow(rWin);
 
-            var gId = extractRGBchannel(imageWindow.mainView.id, 'G');
+            var gId = extractRGBchannel(imageWindow.mainView.id, 'G', true);
             var gWin = util.findWindow(gId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[1], outputExtension);
             util.setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
@@ -8571,7 +8581,7 @@ function extractChannels(fileNames)
             newFileNames[newFileNames.length] = filePath;
             util.forceCloseOneWindow(gWin);
 
-            var bId = extractRGBchannel(imageWindow.mainView.id, 'B');
+            var bId = extractRGBchannel(imageWindow.mainView.id, 'B', true);
             var bWin = util.findWindow(bId);
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[2], outputExtension);
             util.setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
@@ -9740,10 +9750,12 @@ function CombineRGBimage()
       return RGB_win;
 }
 
-function extractRGBchannel(RGB_id, channel)
+function extractRGBchannel(RGB_id, channel, from_lights)
 {
       util.addProcessingStepAndStatusInfo("Extract " + channel + " from " + RGB_id);
-      flowchartOperation("ChannelExtraction");
+      if (!from_lights) {
+            flowchartOperation("ChannelExtraction " + channel);
+      }
 
       var sourceWindow = util.findWindow(RGB_id);
       var P = new ChannelExtraction;
