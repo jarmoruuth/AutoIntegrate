@@ -195,10 +195,11 @@ this.par = {
       narrowband_multiple_mappings_list: { val: "", def: "", name : "Narrowband multiple mappings list", type : 'S' },
 
       // Ha to RGB mapping
-      RGBHa_method: { val: 'None', def: 'None', name : "Ha RGB mapping method", type : 'S' },
+      use_RGBHa_Mapping: { val: false, def: false, name : "Ha RGB mapping", type : 'B' },
+      RGBHa_method: { val: 'Med Subtract', def: 'Med Subtract', name : "Ha RGB mapping method", type : 'S' },
       RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B' },
       RGBHa_Subtract_BoostFactor: { val: 0.2, def: 0.2, name : "Ha RGB mapping subtract boost factor", type : 'R' },
-      RGBHa_Combine_BoostFactor: { val: 2.0, def: 2.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
+      RGBHa_Combine_BoostFactor: { val: 1.0, def: 1.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
       
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -428,6 +429,7 @@ this.par = {
       extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
       extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
       extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
+      extra_ha_mapping: { val: false, def: false, name : "Extra ha mapping", type : 'B' },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },

@@ -1061,6 +1061,7 @@ function is_non_starless_option()
              par.extra_gamma.val ||
              par.extra_auto_contrast.val ||
              par.extra_color_calibration.val ||
+             par.extra_ha_mapping.val ||
              par.extra_solve_image.val ||
              par.extra_annotate_image.val ||
              par.extra_rotate.val;

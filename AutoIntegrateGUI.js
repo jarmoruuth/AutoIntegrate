@@ -324,7 +324,7 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
-var RGBHa_method_values = [ 'None', 'Med Subtract', 'Night Photons HRR', 'Night Photons Subtract', 'Galactic Hunter Subtract', 'Max' ];
+var RGBHa_method_values = [ 'Med Subtract', 'Med Screen', 'Max', 'Screen', 'Night Photons HRR', 'Night Photons Subtract', 'Galactic Hunter Subtract', 'None' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -1339,6 +1339,8 @@ function extraProcessingGUI(parent)
       this.extraCombineStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
       this.extraCombineStars_Sizer.addStretch();
 
+      this.extraRGBHamapping_CheckBox = newCheckBox(parent, "Ha to RGB mapping", par.extra_ha_mapping, 
+            "<p>Run Ha to RGB mapping on the image.</p>" );
       this.extraDarkerBackground_CheckBox = newCheckBox(parent, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker using a lightness mask.</p>" );
       this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
@@ -1900,6 +1902,7 @@ function extraProcessingGUI(parent)
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
       this.extra1.add( this.extraRemoveStars_Sizer );
+      this.extra1.add( this.extraRGBHamapping_CheckBox );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraBandinReduction_CheckBox );
       this.extra1.add( this.extra_GC_CheckBox );
@@ -1913,6 +1916,7 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
+      this.extra1.addStretch();
 
       this.extra2 = new VerticalSizer;
       this.extra2.margin = 6;
@@ -8055,14 +8059,18 @@ function AutoIntegrateDialog()
             "A special processing is used to add Ha to RGB image." +
             "</p><p>" +
             "If Ha to RGB mapping is used then narrowband Color palette is not used." +
+            "</p><p>" +
+            "Option None is useful if doing Ha mapping using extra processing options." +
             "</p>";
 
+      this.useRGBHamapping_CheckBox = newCheckBox(this, "Use Ha RGB mapping", par.use_RGBHa_Mapping, RGBHa_tooltip);
       this.RGBHaMethodComboBox = newComboBox(this, par.RGBHa_method, RGBHa_method_values, RGBHa_tooltip);
       this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
             "<p>Do gradient correction on Ha image before mapping.</p>" );
       this.useRGBHamappingSizer = new HorizontalSizer;
       this.useRGBHamappingSizer.margin = 6;
       this.useRGBHamappingSizer.spacing = 4;
+      this.useRGBHamappingSizer.add( this.useRGBHamapping_CheckBox );
       this.useRGBHamappingSizer.add( this.RGBHaMethodComboBox );
       this.useRGBHamappingSizer.add( this.RGBHa_gradient_correction_CheckBox );
       this.useRGBHamappingSizer.addStretch();
@@ -8099,8 +8107,13 @@ function AutoIntegrateDialog()
       // Boost factor for RGB
       var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
       this.RGBHa_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor.");
-      this.RGBHa_SubtractBoostValue = newRGBNBNumericEdit(this, 'Subtract', par.RGBHa_Subtract_BoostFactor, "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + RGBHa_boost_common_tooltip);
-      this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + RGBHa_boost_common_tooltip);
+      this.RGBHa_SubtractBoostValue = newNumericEdit(this, 'Subtract', par.RGBHa_Subtract_BoostFactor, 0, 999,
+                                                          "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + 
+                                                          "<p>A bigger value will subtract more red channel from Ha channel. Zero value keeps full Ha channel.</p>" +
+                                                          "<p>The idea of subtracting red from Ha is to leave just pure Ha data to Ha channel./p>");
+      this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, 
+                                                         "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + 
+                                                         "<p>A bigger value will make the mapping more visible by increasing the amount of Ha.</p>");
 
       this.RGBHa_BoostSizer = new HorizontalSizer;
       // this.RGBHa_BoostSizer.margin = 6;
@@ -8604,6 +8617,21 @@ function AutoIntegrateDialog()
       {
             util.setParameterDefaults();
       };
+      this.changedParametersButton = new ToolButton(this);
+      this.changedParametersButton.icon = new Bitmap( ":/icons/document-edit.png" );
+      this.changedParametersButton.toolTip = "<p>Print non-default parameter values to the Process Console.</p>";
+      this.changedParametersButton.onClick = function()
+      {
+            var processingOptions = engine.getChangedProcessingOptions();
+            if (processingOptions.length > 0) {
+                  console.noteln("Changhed processing options:");
+                  for (var i = 0; i < processingOptions.length; i++) {
+                        console.writeln(processingOptions[i][0] + ": " + processingOptions[i][1]);
+                  }
+            } else {
+                  console.noteln("Using default processing options");
+            }
+      };
       this.website_Button = new ToolButton(this);
       this.website_Button.icon = new Bitmap( ":/icons/internet.png" );
       this.website_Button.toolTip = "<p>Browse documentation on AutoIntegrate web site.</p>";
@@ -8654,6 +8682,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.newInstance_Button );
       this.buttons_Sizer.add( this.savedefaults_Button );
       this.buttons_Sizer.add( this.reset_Button );
+      this.buttons_Sizer.add( this.changedParametersButton );
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.adjusttocontent_Button );
