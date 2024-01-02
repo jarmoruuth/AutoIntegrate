@@ -6059,7 +6059,7 @@ function AutoIntegrateDialog()
       "For more details see:" +
       "</p>" +
       "<ul>" +
-      '<li>Web site: <a href="https://ruuth.xyz/AutoIntegrateInfo.html">https://ruuth.xyz/AutoIntegrateInfo.html</a></li>' +
+      '<li>Web site: <a href="' + global.autointegrateinfo_link + '">' + global.autointegrateinfo_link + '</a></li>' +
       '<li>Discussion forums: <a href="https://forums.ruuth.xyz">https://forums.ruuth.xyz</a></li>' +
       '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></li>' +
       "</ul>" +
@@ -8637,7 +8637,7 @@ function AutoIntegrateDialog()
       this.website_Button.toolTip = "<p>Browse documentation on AutoIntegrate web site.</p>";
       this.website_Button.onClick = function()
       {
-            Dialog.openBrowser("https://ruuth.xyz/AutoIntegrateInfo.html");
+            Dialog.openBrowser(global.autointegrateinfo_link);
       };
 
       this.adjusttocontent_Button = newAdjustToContentButton(this);

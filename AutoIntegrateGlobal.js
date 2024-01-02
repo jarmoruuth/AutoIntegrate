@@ -726,6 +726,12 @@ this.ai_get_process_defaults = false;           // temp setting to print process
 
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 
+if (this.autointegrate_version.indexOf("test") > 0) {
+      this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";
+} else {
+      this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
+}
+
 }   /* AutoIntegrateGlobal*/
 
 AutoIntegrateGlobal.prototype = new Object;
