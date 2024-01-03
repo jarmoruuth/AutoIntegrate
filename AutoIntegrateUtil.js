@@ -1025,7 +1025,7 @@ this.addWarningStatus = function(txt)
             txt = txt.substring(8);
       }
       txt = txt.trim();
-      console.noteln("Warning: " + txt);
+      console.warningln("Warning: " + txt);
       if (global.processing_warnings == "") {
             global.processing_warnings = "Warning: " + txt;
       } else {

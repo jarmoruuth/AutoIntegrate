@@ -8270,9 +8270,9 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
             file.outTextLn(global.processing_steps);
             if (global.processing_warnings.length > 0) {
                   file.outTextLn("Processing warnings:");
-                  file.criticalln(global.processing_warnings);
-                  console.noteln("Processing warnings:");
-                  console.noteln(global.processing_warnings);
+                  file.outTextLn(global.processing_warnings);
+                  console.warningln("Processing warnings:");
+                  console.warningln(global.processing_warnings);
             }
             if (global.processing_errors.length > 0) {
                   file.outTextLn("Processing errors:");
@@ -13815,8 +13815,8 @@ function createCropInformationAutoContinue()
        console.writeln(global.processing_steps);
        console.writeln("");
        if (global.processing_warnings.length > 0) {
-            console.criticalln("Processing warnings:");
-            console.noteln(global.processing_warnings);
+            console.warningln("Processing warnings:");
+            console.warningln(global.processing_warnings);
             console.writeln("");
        }
        if (global.processing_errors.length > 0) {
@@ -14468,8 +14468,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        }
        console.writeln("--------------------------------------");
        if (global.processing_warnings.length > 0) {
-            console.criticalln("Processing warnings:");
-            console.noteln(global.processing_warnings);
+            console.warningln("Processing warnings:");
+            console.warningln(global.processing_warnings);
             console.writeln("");
        }
        if (global.processing_errors.length > 0) {
