@@ -1004,7 +1004,11 @@ this.addCriticalStatus = function(txt)
       if (txt == null || txt == undefined || txt == "") {
             return;
       }
-      console.criticalln(txt);
+      if (txt.startsWith("Error:")) {
+            txt = txt.substring(6);
+      }
+      txt = txt.trim();
+      console.criticalln("Error: " + txt);
       if (global.processing_errors == "") {
             global.processing_errors = "Error: " + txt;
       } else {
@@ -1017,7 +1021,11 @@ this.addWarningStatus = function(txt)
       if (txt == null || txt == undefined || txt == "") {
             return;
       }
-      console.noteln(txt);
+      if (txt.startsWith("Warning:")) {
+            txt = txt.substring(8);
+      }
+      txt = txt.trim();
+      console.noteln("Warning: " + txt);
       if (global.processing_warnings == "") {
             global.processing_warnings = "Warning: " + txt;
       } else {
