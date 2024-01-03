@@ -7309,14 +7309,18 @@ function AutoIntegrateDialog()
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.cropUseRejectionLowCheckBox = newCheckBox(this, "Use rejection low", par.crop_use_rejection_low, "Use rejection_low from ImageIntegration instead of integrated data to calculate crop amount.");
-      this.cropRejectionLowLimitControl = newNumericEdit(this, "Limit", par.crop_rejection_low_limit, 0, 1, 
+      this.cropRejectionLowLimitEdit = newNumericEdit(this, "Limit", par.crop_rejection_low_limit, 0, 1, 
             "<p>Limit value for detecting crop edge. Values below the limit are considered to be inside the cropped area.</p>" +
             "<p>This value is used only if rejection low is selected.</p>");
+      this.cropCheckLimitEdit = newNumericEdit(this, "Warning limit", par.crop_check_limit, 0, 100, 
+            "<p>Warning limit value in percentages. If image is cropped more than the warning limit percentage a warning message is printed at the end of processing.</p>" +
+            "<p>After a warning you should manually check the cropping area.</p>");
 
       this.CropToleranceSizer = newHorizontalSizer(0, true, [this.CropToleranceLabel, this.CropToleranceSpinBox]);
 
       this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
-      this.CropSizer = newVerticalSizer(6, true, [this.CropToleranceGroupBoxLabel, this.cropUseRejectionLowCheckBox, this.CropToleranceSizer, this.cropRejectionLowLimitControl]);
+      this.CropSizer = newVerticalSizer(6, true, [this.CropToleranceGroupBoxLabel, this.cropUseRejectionLowCheckBox, 
+                                                  this.CropToleranceSizer, this.cropRejectionLowLimitEdit, this.cropCheckLimitEdit]);
 
       this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 

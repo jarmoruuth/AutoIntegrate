@@ -140,7 +140,7 @@ var crop_lowClipImage_changed = false; // changed flag for saving to disk
 
 var save_processed_images = true;     // save processed L+RGB images to disk while they still are linear
 
-var crop_suggestion_txt = "Adjust adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
+var crop_suggestion_txt = "Adjust crop parameters, or adjust the crop manually and run again using AutoContinue."; 
 
 this.extraApply = false;
 
@@ -439,7 +439,7 @@ function flowchartParentEnd(txt)
             console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
       }
       if (flowchartCurrent.type != "parent") {
-            util.addCriticalStatus("flowchartParentEnd, current node type " + flowchartCurrent.type + " is not parent, node txt:" + flowchartCurrent.txt);
+            util.addWarningStatus("flowchartParentEnd, current node type " + flowchartCurrent.type + " is not parent, node txt:" + flowchartCurrent.txt);
             flowchartCancel();
             return;
       }
@@ -456,7 +456,7 @@ function flowchartChildBegin(txt)
             console.writeln("flowchartChildBegin " + txt);
       }
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
-            util.addCriticalStatus("flowchartChildBegin, current node type " + flowchartCurrent.type + " is not parent or child, node txt:" + flowchartCurrent.txt);
+            util.addWarningStatus("flowchartChildBegin, current node type " + flowchartCurrent.type + " is not parent or child, node txt:" + flowchartCurrent.txt);
             flowchartCancel();
             return;
       }
@@ -476,7 +476,7 @@ function flowchartChildEnd(txt)
             console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
       }
       if (flowchartCurrent.type != "child") {
-            util.addCriticalStatus("flowchartChildEnd, current node type " + flowchartCurrent.type + " is not child, node txt:" + flowchartCurrent.txt);
+            util.addWarningStatus("flowchartChildEnd, current node type " + flowchartCurrent.type + " is not child, node txt:" + flowchartCurrent.txt);
             flowchartCancel();
             return;
       }
@@ -498,13 +498,13 @@ function flowchartCleanupChilds(parent)
                   console.writeln("flowchartCleanupChilds: " + node.txt);
             }
             if (node.type != "child") {
-                  util.addCriticalStatus("flowchartCleanupChilds: node.type " + node.type + " is not child, node txt:" + node.txt);
+                  util.addWarningStatus("flowchartCleanupChilds: node.type " + node.type + " is not child, node txt:" + node.txt);
                   parent.list = [];
                   return false;
             }
             if (node.list.length == 0) {
                   if (node.type == "process") {
-                        util.addCriticalStatus("flowchartCleanupChilds: node.type == process, node txt:" + node.txt);
+                        util.addWarningStatus("flowchartCleanupChilds: node.type == process, node txt:" + node.txt);
                         parent.list = [];
                         return false;
                   }
@@ -5797,7 +5797,7 @@ function runImageIntegrationNormalized(images, best_image, name)
             if (global.get_flowchart_data || checkFilesExist(imagearray)) {
                   norm_images[norm_images.length] = oneimage;
             } else {
-                  util.addCriticalStatus("ImageIntegration with LocalNormalization skipping image " + imagearray[0]);
+                  util.addWarningStatus("ImageIntegration with LocalNormalization skipping image " + imagearray[0]);
             }
       }
       console.writeln("runImageIntegrationNormalized, " + norm_images[0][1] + ", " + norm_images[0][3]);
@@ -8268,6 +8268,12 @@ this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserr
                   }
             }
             file.outTextLn(global.processing_steps);
+            if (global.processing_warnings.length > 0) {
+                  file.outTextLn("Processing warnings:");
+                  file.criticalln(global.processing_warnings);
+                  console.noteln("Processing warnings:");
+                  console.noteln(global.processing_warnings);
+            }
             if (global.processing_errors.length > 0) {
                   file.outTextLn("Processing errors:");
                   file.outTextLn(global.processing_errors);
@@ -13395,11 +13401,13 @@ function calculate_crop_amount(lowClipImageName, integratedImageName, crop_auto_
       let new_area = (right_col-left_col+1) * (bottom_row-top_row+1);
       let full_area = full_image.width*full_image.height;
       let area_truncate_percent = 100*((full_area-new_area) / full_area);
-      var crop_check_limit = 5;
       var txt = "Truncate percentages: width by " + x_truncate_percent.toFixed(1) +"%, height by " + y_truncate_percent.toFixed(1) + 
                 "%, area by " + area_truncate_percent.toFixed(1) + "%";
-      if (x_truncate_percent > crop_check_limit || y_truncate_percent > crop_check_limit || area_truncate_percent > crop_check_limit) {
-            crop_errors = crop_errors + "\n" + "Warning: Cropped more than " + crop_check_limit + "% of the image, please check the crop preview. " + crop_suggestion_txt;
+      if (x_truncate_percent > par.crop_check_limit.val || y_truncate_percent > par.crop_check_limit.val || area_truncate_percent > par.crop_check_limit.val) {
+            if (crop_errors != "") {
+                  crop_errors = crop_errors + "\n";
+            }      
+            crop_errors = crop_errors + "Warning: Cropped more than " + par.crop_check_limit.val + "% of the image, please check the crop preview. " + crop_suggestion_txt;
             crop_errors = crop_errors + "\n" + "Warning: " + txt;
       } else {
             console.noteln(txt);
@@ -13440,10 +13448,10 @@ function createCropInformationEx()
                   util.throwFatalError("Crop failed to find image " + lowClipImageName);
             }
             var res = calculate_crop_amount(lowClipImageName, integratedImageName, false);
-            if (res.crop_errors != "")  {
+            if (res.success) {
+                  util.addWarningStatus(res.crop_errors);
+            } else {      
                   util.addCriticalStatus(res.crop_errors);
-            }
-            if (!res.success) {
                   util.addCriticalStatus("No cropping done. "+ crop_suggestion_txt); 
             }
 
@@ -13480,13 +13488,13 @@ function createCropInformationEx()
                   // Crop again
                   res = calculate_crop_amount(lowClipImageWindowCopy.mainView.id, lowClipImageWindowCopy.mainView.id, false);
                   if (res.success) {
-                        util.addCriticalStatus("Crop succeeded after noise reduction but please check the crop amount in file " + lowClipImageName + ". If needed, adjust the crop manually and rerun the script using AutoContinue.");
+                        util.addWarningStatus("Crop succeeded after noise reduction but please check the crop amount in file " + lowClipImageName + ". If needed, adjust the crop manually and rerun the script using AutoContinue.");
                   }
             }
-            if (res.crop_errors != "")  {
+            if (res.success) {
+                  util.addWarningStatus(res.crop_errors);
+            } else {      
                   util.addCriticalStatus(res.crop_errors);
-            }
-            if (!res.success) {
                   util.addCriticalStatus("No cropping done. " + crop_suggestion_txt); 
             }
 
@@ -13551,7 +13559,9 @@ function createCropInformationAutoContinue()
       crop_lowClipImageName = lowClipImageName;       // save the name for minimizing
       var res = calculate_crop_amount(lowClipImageName, lowClipImageName, true);
       crop_truncate_amount = res.truncate_amount;
-      if (res.crop_errors != "")  {
+      if (res.success) {
+            util.addWarningStatus(res.crop_errors);
+      } else {
             util.addCriticalStatus(res.crop_errors);
       }
 }
@@ -13787,6 +13797,7 @@ function createCropInformationAutoContinue()
        star_fix_mask_win_id = null;
        global.processing_steps = "";
        global.processing_errors = "";
+       global.processing_warnings = "";
  
        console.noteln("Start extra processing...");
        guiUpdatePreviewId(extra_target_image);
@@ -13803,6 +13814,11 @@ function createCropInformationAutoContinue()
        console.noteln("Processing steps:");
        console.writeln(global.processing_steps);
        console.writeln("");
+       if (global.processing_warnings.length > 0) {
+            console.criticalln("Processing warnings:");
+            console.noteln(global.processing_warnings);
+            console.writeln("");
+       }
        if (global.processing_errors.length > 0) {
             console.criticalln("Processing errors:");
             console.criticalln(global.processing_errors);
@@ -13923,6 +13939,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        global.processingDate = new Date;
        global.processing_steps = "";
        global.processing_errors = "";
+       global.processing_warnings = "";
        global.all_windows = [];
        global.iconPoint = null;
        linear_fit_done = false;
@@ -14450,6 +14467,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        }
        console.writeln("--------------------------------------");
+       if (global.processing_warnings.length > 0) {
+            console.criticalln("Processing warnings:");
+            console.noteln(global.processing_warnings);
+            console.writeln("");
+       }
        if (global.processing_errors.length > 0) {
             console.criticalln("Processing errors:");
             console.criticalln(global.processing_errors);

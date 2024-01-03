@@ -1001,11 +1001,27 @@ this.updateStatusInfoLabel = function(txt)
 
 this.addCriticalStatus = function(txt)
 {
+      if (txt == null || txt == undefined || txt == "") {
+            return;
+      }
       console.criticalln(txt);
       if (global.processing_errors == "") {
             global.processing_errors = "Error: " + txt;
       } else {
             global.processing_errors = global.processing_errors + "\n" + "Error: " + txt;
+      }
+}
+
+this.addWarningStatus = function(txt)
+{
+      if (txt == null || txt == undefined || txt == "") {
+            return;
+      }
+      console.noteln(txt);
+      if (global.processing_warnings == "") {
+            global.processing_warnings = "Warning: " + txt;
+      } else {
+            global.processing_warnings = global.processing_warnings + "\n" + "Warning: " + txt;
       }
 }
 

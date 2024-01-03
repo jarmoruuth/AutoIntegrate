@@ -255,6 +255,7 @@ this.par = {
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
+      crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
       image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
@@ -537,6 +538,7 @@ this.extra_target_image = null;
 
 this.processing_steps = "";
 this.processing_errors = "";
+this.processing_warnings = "";
 this.extra_processing_info = [];    // extra processing info steps from last Apply, array of [ txt]
 this.all_windows = [];
 this.iconPoint = null;
