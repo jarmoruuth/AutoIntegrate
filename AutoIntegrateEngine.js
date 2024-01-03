@@ -13332,7 +13332,7 @@ function CropImageIf(id)
 
       if (par.save_cropped_images.val) {
             var win_id = window.mainView.id;
-            util.replacePostfixOrAppend(win_id, ["_map"], "_crop");
+            var crop_id = util.replacePostfixOrAppend(win_id, ["_map"], "_crop");
             console.writeln("Save cropped image " + win_id + " as " + crop_id);
             saveProcessedWindow(win_id, crop_id);
       }
