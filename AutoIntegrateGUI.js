@@ -8272,6 +8272,7 @@ function AutoIntegrateDialog()
       this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
             "<p>Switch between flowchart and image view if flowchart is available.</p>" +
             "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
+            "<p>If System setting <i>Get flowchart data before processing</i> is checked then the live flowchart view uses full processing flowchart.</p>" + 
             skip_reset_tooltip,
             function(checked) { 
                   par.show_flowchart.val = checked;
