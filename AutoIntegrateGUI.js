@@ -355,7 +355,15 @@ var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a lu
                                           "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
                                           "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
                                           "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
-                                          "and detail: 1=0.60 0.10, 2=0.70 0.15 3=0.80 0.15 4=0.90 0.15, 5=0.90 0.20 and 6=0.95 0.20.t</p>";
+                                          "and detail:</p>" + 
+                                          "<ul>" +
+                                          "<li>Value: 1, Denoise: 0.60, Detail: 0.10</li>" +
+                                          "<li>Value: 2, Denoise: 0.70, Detail: 0.15</li>" +
+                                          "<li>Value: 3, Denoise: 0.80, Detail: 0.15</li>" +
+                                          "<li>Value: 4, Denoise: 0.90, Detail: 0.15</li>" +
+                                          "<li>Value: 5, Denoise: 0.90, Detail: 0.20</li>" +
+                                          "<li>Value: 6, Denoise: 0.95, Detail: 0.20</li>" +
+                                          "</ul>";
 
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
@@ -2611,8 +2619,12 @@ function Autorun(parent)
                         global.user_selected_reference_image = [];
                   }
                   engine.flowchartReset();
-                  if (!batch_narrowband_palette_mode && par.run_get_flowchart_data.val) {
-                        generateNewFlowchartData(parent);
+                  if (par.run_get_flowchart_data.val) {
+                        if (batch_narrowband_palette_mode || par.batch_mode.val) {
+                              console.writeln("Do not get flowchart data for batch mode");
+                        } else {
+                              generateNewFlowchartData(parent);
+                        }
                   }
                   try {
                         if (batch_narrowband_palette_mode) {
@@ -6183,8 +6195,8 @@ function AutoIntegrateDialog()
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
             "<p>Do not run SubframeSelector to get image weights</p>" );
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
-            "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing</i> tab.</p>" +
-            comet_alignment_toolTip);
+            "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing 2</i> tab.</p>" +
+            "<p>For more details see the help icon in <i>CometAlignment settings</i> section.</p>");
       this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.fast_integration, 
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
@@ -8290,6 +8302,44 @@ function AutoIntegrateDialog()
                   }
             });
 
+      var showFlowchartToolTip = 
+            "<h4>Generate Flowchart</h4>" +
+            "<p>" +
+            "Using the New Flowchart button the script will generate a flowchart of the processing workflow. " +
+            "Flowchart uses the current settings and images. A partially simulated minimal workflow is run to " +
+            "generate the flowchart information. To run the simulated workflow all relevant files must be loaded " +
+            "to the <i>Files</i> tab. A graphical version of the flowchart is printed to the preview window and " +
+            "a text version is printed to the process console." +
+            "</p>" +
+            "<p>" +
+            "Full Flowchart is available after processing. It is saved to the AutosaveSetup file and also to the setup file when available " +
+            "so it can be loaded later. A text version of flowchart is also printed to the AutoIntegrate log file." +
+            "</p>" +
+            "<p>" +
+            "Note that with a preview save button is it possible to save the flowchart image to a file." +
+            "</p>" +
+            "<h4>Live Flowchart</h4>" +
+            "<p>" +
+            "Flowchart information is always generated during processing. It can viewed using <i>Show Flowchart</i> " +
+            "checkbox. During processing Flowchart is updated after each step. By checking and unchecking the <i>Show Flowchart</i> " +
+            "checkbox it is possible to switch between the current preview image and flowchart." +
+            "</p>" +
+            "<p>" +
+            "If <i>System setting</i> option <i>Get flowchart data before processing</i> is selected then flowchart data is collected " +
+            "before processing. This is useful if you want to see the full flowchart during processing. Note that this option is not " +
+            "selected by default. Full flowchart is not available with AutoContinue or " +
+            "batch processing. " +
+            "</p>";
+
+      this.showFlowchartHelpTips = new ToolButton( this );
+      this.showFlowchartHelpTips.icon = this.scaledResource( ":/icons/help.png" );
+      this.showFlowchartHelpTips.setScaledFixedSize( 20, 20 );
+      this.showFlowchartHelpTips.toolTip = showFlowchartToolTip;
+      this.showFlowchartHelpTips.onClick = function()
+      {
+            new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon_Information ).execute();
+      }
+      
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -8698,6 +8748,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.newFlowchartButton );
       this.buttons_Sizer.add( this.showFlowchartCheckBox );
+      this.buttons_Sizer.add( this.showFlowchartHelpTips );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
