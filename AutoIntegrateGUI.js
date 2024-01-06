@@ -1134,6 +1134,8 @@ function extraProcessingGUI(parent)
             "image and mapped again to create a dynamic Foraxx palette image.</p>" +
             "<p>After Foraxx SHO mapping <i>Remove green cast</i> and <i>Orange/blue colors</i> are run for the image.</p>" +
             "<p>To run basic Foraxx SHO mapping use <i>SHO mapping</i> and select <i>Dynamic SHO</i>.</p>" +
+            "<p>To run Foraxx palette during the normal processing you need to select Dynamic narrowband palatte like Dynamic SHO and " +
+            "check the option <i>Narrowband mapping using non-linear data</i>.</p>" +
             "<p>" + Foraxx_credit + "</p>" );
       this.narrowband_Foraxx_palette_ComboBox = newComboBox(parent, par.foraxx_palette, Foraxx_palette_values, this.narrowband_Foraxx_CheckBox.toolTip);
 
@@ -7692,8 +7694,8 @@ function AutoIntegrateDialog()
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Dynamic palettes are the same as Foraxx options in Extra processing section. Usually it is better to use " + 
-            "Foraxx options since they are run after other processing is completed. With Dynamic palettes it is recommended to use non-linear " + 
+            "Dynamic palettes are the same as Foraxx options in Extra processing section. " + 
+            "With Dynamic palettes it is recommended to use non-linear " + 
             "images by checking the option <i>Narrowband mapping using non-linear data</i>." +
             "</p><p>" +
             Foraxx_credit + 
