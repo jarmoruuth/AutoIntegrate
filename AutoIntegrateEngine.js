@@ -4359,7 +4359,7 @@ function copyToMapImages(images)
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
             var copyname = util.ensure_win_prefix(images[i] + "_map");
-            if (util.findWindow(copyname) == null) {
+            if (!images[i].endsWith("_map") && util.findWindow(copyname) == null) {
                   console.writeln("copy from " + images[i] + " to " + copyname);
                   util.copyWindow(
                         findWindowNoPrefixIf(images[i], global.run_auto_continue), 
@@ -4991,15 +4991,19 @@ function customMapping(RGBmapping, check_allfilesarr)
                   if (par.remove_stars_before_stretch.val) {
                         util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
                   }
-                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        /* For now, we support BlurXTerminator only for linear data. For non-linear data
-                         * extra processing option can be used.
-                         */
-                        util.throwFatalError("Narrowband mapping using non-linear data is not compatible with BlurXTerminator");
-                  }
+                  flowchartParentBegin("Stretch channels");
                   for (var i = 0; i < images.length; i++) {
+                        flowchartChildBegin(findChannelFromName(images[i]));
+                        if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
+                              /* Run BlurXTerminator separately for each channel since
+                               * we want to run it on linear data.
+                               */
+                              runBlurXTerminator(ImageWindow.windowById(images[i]), false);
+                        }
                         runHistogramTransform(util.findWindow(images[i]), null, false, findChannelFromName(images[i]));
+                        flowchartChildEnd(findChannelFromName(images[i]));
                   }
+                  flowchartParentEnd("Stretch channels");
                   RGBmapping.stretched = true;
             }
 
@@ -5060,8 +5064,14 @@ function isCustomMapping(narrowband)
 function copyToMapIf(id)
 {
       if (id != null) {
-            var new_id = util.ensure_win_prefix(id + "_map");
-            util.copyWindow(util.findWindow(id), new_id);
+            if (id.endsWith("_map")) {
+                  new_id = id;
+            } else {
+                  var new_id = util.ensure_win_prefix(id + "_map");
+                  if (util.findWindow(new_id) == null) {
+                        util.copyWindow(util.findWindow(id), new_id);
+                  }
+            }
             global.temporary_windows[global.temporary_windows.length] = new_id;
             return new_id;
       } else {
@@ -5091,6 +5101,15 @@ function mapLRGBchannels(RGBmapping)
       process_narrowband = H_id != null || S_id != null || O_id != null || 
                            par.force_narrowband_mapping.val;
       var custom_mapping = isCustomMapping(process_narrowband);
+
+      if (H_id != null) {
+            console.writeln("mapLRGBchannels, H_id " + H_id);
+      } else if (R_id != null) {
+            console.writeln("mapLRGBchannels, R_id " + R_id);
+      } else if (L_id != null) {
+            console.writeln("mapLRGBchannels, L_id " + L_id);
+      }
+
 
       if (rgb && process_narrowband && !par.force_narrowband_mapping.val) {
             util.addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
@@ -8605,7 +8624,7 @@ function extractChannels(fileNames)
 
 function findGCStartWindowCheckBaseNameIf(id, check_base_name)
 {
-      var cropextensions = [ '', '_crop' ];
+      var cropextensions = [ '_crop', '' ];
       var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
 
       // console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
@@ -8721,6 +8740,13 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
             preview_id = checkAutoCont(R_GC_start_win) ? R_GC_start_win.mainView.id : H_GC_start_win.mainView.id;
             preprocessed_images = global.start_images.L_R_G_B_GC;
             process_narrowband = checkAutoCont(H_GC_start_win) || checkAutoCont(O_GC_start_win);
+            L_id = null;
+            R_id = null;
+            G_id = null;
+            B_id = null;
+            H_id = null;
+            S_id = null;
+            O_id = null;
 
       } else if (checkAutoCont(RGB_GC_start_win)) {
             /* 
@@ -8903,10 +8929,6 @@ function CreateChannelImages(parent, auto_continue)
             return true;
       } else if (preprocessed_images != global.start_images.NONE) {
             util.addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
-            console.writeln("L_GC_start_win="+L_GC_start_win);
-            console.writeln("RGB_GC_start_win="+RGB_GC_start_win);
-            console.writeln("L_HT_start_win="+L_HT_start_win);
-            console.writeln("RGB_HT_start_win="+RGB_HT_start_win);
             if (preprocessed_images == global.start_images.RGB_GC ||
                 preprocessed_images == global.start_images.RGB_HT) 
             {
@@ -12775,33 +12797,47 @@ function extraProcessing(parent, id, apply_directly)
       }
 }
 
+/* Copy gradient corrected channel images to map images.
+ */
+function copyGCtoMapImage(win, base_id)
+{
+      if (win == null) {
+            return;
+      }
+      var map_id = ppar.win_prefix + base_id + "_map";
+      console.writeln("copyGCtoMapImage: " + win.mainView.id + " to " + map_id);
+      util.copyWindow(win, map_id);
+      global.temporary_windows[global.temporary_windows.length] = map_id;
+      return map_id;
+}
+
 /* Map gradient corrected channel images to start images.
  */
 function mapGCchannels()
 {
       if (L_GC_start_win != null) {
-            L_id = L_GC_start_win.mainView.id;
+            L_id = copyGCtoMapImage(L_GC_start_win, "Integration_L");
       }
       if (R_GC_start_win != null) {
-            R_id = R_GC_start_win.mainView.id;
+            R_id = copyGCtoMapImage(R_GC_start_win, "Integration_R");
       }
       if (G_GC_start_win != null) {
-            G_id = G_GC_start_win.mainView.id;
+            G_id = copyGCtoMapImage(G_GC_start_win, "Integration_G");
       }
       if (B_GC_start_win != null) {
-            B_id = B_GC_start_win.mainView.id;
+            B_id = copyGCtoMapImage(B_GC_start_win, "Integration_B");
       }
       if (H_GC_start_win != null) {
-            H_id = H_GC_start_win.mainView.id;
+            H_id = copyGCtoMapImage(H_GC_start_win, "Integration_H");
       }
       if (S_GC_start_win != null) {
-            S_id = S_GC_start_win.mainView.id;
+            S_id = copyGCtoMapImage(S_GC_start_win, "Integration_S");
       }
       if (O_GC_start_win != null) {
-            O_id = O_GC_start_win.mainView.id;
+            O_id = copyGCtoMapImage(O_GC_start_win, "Integration_O");
       }
       if (RGB_GC_start_win != null) {
-            RGB_color_id = RGB_GC_start_win.mainView.id;
+            RGB_id = copyGCtoMapImage(RGB_GC_start_win, "Integration_RGB");
       }
 }
 

@@ -692,6 +692,7 @@ this.getOutputDir = function(filePath)
 {
       var outputDir = global.outputRootDir;
       if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
+            console.writeln("getOutputDir, filePath ", filePath);
             if (filePath != null && filePath != "") {
                   outputDir = util.parseNewOutputDir(filePath, global.outputRootDir);
                   console.writeln("getOutputDir, outputDir ", outputDir);
@@ -1049,6 +1050,9 @@ this.addProcessingStepAndStatusInfo = function(txt)
 
 this.ensure_win_prefix = function(id)
 {
+      if (id == null) {
+            return null;
+      }
       if (ppar.win_prefix != "" && !id.startsWith(ppar.win_prefix)) {
             return ppar.win_prefix + id;
       } else {
