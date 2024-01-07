@@ -344,13 +344,6 @@ var unscreen_tooltip =                    "<p>Use unscreen method to get stars i
                                           "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
                                           "recommended to use Screen method when combining star and starless images back together.<p>";
 
-var smoothBackgroundTooltipGeneric =      "<p>A limit value specifies below which the smoothing is done. " + 
-                                          "The value should be selected so that no foreground data is lost.</p>" + 
-                                          "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
-                                          "The new pixel values will be slightly higher than the old values.</p>" +
-                                          "<p>Smoothening can also help gradient correction to clean up the background better in case of " + 
-                                          "very uneven background.</p>";
-
 var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
                                           "Bigger strength value means stronger noise reduction. Noise reduction uses MultiscaleLinerTransform or NoiseXTerminator.</p>" + 
                                           "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
@@ -1548,14 +1541,23 @@ function extraProcessingGUI(parent)
       var smoothBackgroundTooltip = 
             "<p>Smoothen background below a given pixel value. Pixel value can be found for example " +
             "from the preview image using a mouse.</p>" +
-            smoothBackgroundTooltipGeneric;
+            "<p>A limit value specifies below which the smoothing is done. " + 
+            "The value should be selected so that no foreground data is lost.</p>" + 
+            "<p>Smoothing sets a new relative value for pixels that are below the given limit value. " +
+            "If factor is below 1, new pixel values will be higher than the old values. " +
+            "If factor is above 1, new pixel values will be lower than the old values.</p>" +
+            "<p>With a factor value below 1, smoothening can help gradient correction to clean up the background better in case of " + 
+            "very uneven background.</p>" +
+            "<p>With a factor value above 1, smoothening can make dark parts of the imake darker.</p>";
 
       this.extra_smoothBackground_CheckBox = newCheckBox(parent, "Smoothen background,", par.extra_smoothbackground, smoothBackgroundTooltip);
-      this.extra_smoothBackground_edit = newNumericEditPrecision(parent, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 4);
+      this.extra_smoothBackgroundval_edit = newNumericEditPrecision(parent, 'value', par.extra_smoothbackgroundval, 0, 100, smoothBackgroundTooltip, 4);
+      this.extra_smoothBackgroundfactor_edit = newNumericEditPrecision(parent, 'factor', par.extra_smoothbackgroundfactor, 0, 10, smoothBackgroundTooltip, 2);
       this.extra_smoothBackground_Sizer = new HorizontalSizer;
       this.extra_smoothBackground_Sizer.spacing = 4;
       this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_CheckBox );
-      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackground_edit );
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackgroundval_edit );
+      this.extra_smoothBackground_Sizer.add( this.extra_smoothBackgroundfactor_edit );
       this.extra_smoothBackground_Sizer.toolTip = smoothBackgroundTooltip;
       this.extra_smoothBackground_Sizer.addStretch();
 
@@ -7538,7 +7540,8 @@ function AutoIntegrateDialog()
             "and before optional <i>Gradient correction on stretched image</i> is done.</p>" +
             "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
             "Zero values does not do smoothing.</p>" +
-            smoothBackgroundTooltipGeneric,
+            "<p>Smoothening should be used only in extreme cases with very uneven background " + 
+            "because a lot of shadow detail is lost.</p>",
             4);
       this.logarithmicTargetValue_Control = newNumericEdit(this, "Logarithmic target value", par.logarithmic_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +

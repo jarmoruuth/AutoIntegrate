@@ -9493,6 +9493,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
       console.writeln("ColorEnsureMask done");
 }
 
+// Optionally smoothen background after stretch and before gradient correction
 function smoothBackgroundAfterStretch(win)
 {
       if (par.smoothbackground.val == 0) {
@@ -9502,7 +9503,7 @@ function smoothBackgroundAfterStretch(win)
       var clip = getClipShadowsValue(win, par.smoothbackground.val);
       var val = clip.normalizedShadowClipping;
       console.writeln("smoothBackgroundAfterStretch, value " + val);
-      smoothBackground(win, val);
+      smoothBackground(win, val, 0.5);
 }
 
 /* Process L image
@@ -11394,18 +11395,18 @@ function extraShadowClipping(win, perc)
       // guiUpdatePreviewWin(win);
 }
 
-function smoothBackground(win, val)
+function smoothBackground(win, val, factor)
 {
-      var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)/2,$T)";
+      var mapping = "iif($T<" + val + "," + val + "-(" + val + "-$T)*" + factor + ",$T)";
 
       runPixelMathSingleMappingEx(win.mainView.id, "smooth background", mapping, false, null);
 }
 
-function extraSmoothBackground(win, val)
+function extraSmoothBackground(win, val, factor)
 {
-      addExtraProcessingStep("Background smoothing with value " + val);
+      addExtraProcessingStep("Background smoothing with value " + val + " and factor " + factor);
 
-      smoothBackground(win, val);
+      smoothBackground(win, val, factor);
 
       // guiUpdatePreviewWin(win);
 }
@@ -12671,7 +12672,7 @@ function extraProcessing(parent, id, apply_directly)
             extraOptionCompleted(par.extra_ha_mapping);
       }
       if (par.extra_smoothbackground.val) {
-            extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val);
+            extraSmoothBackground(extraWin, par.extra_smoothbackgroundval.val, par.extra_smoothbackgroundfactor.val);
             extraOptionCompleted(par.extra_smoothbackground);
       }
       if (par.extra_banding_reduction.val) {

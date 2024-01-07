@@ -394,6 +394,7 @@ this.par = {
       extra_shadowclippingperc: { val: 0.0001, def: 0.0001, name : "Extra shadow clipping percentage", type : 'R' },
       extra_smoothbackground: { val: false, def: false, name : "Extra smooth background", type : 'B' },
       extra_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Extra smooth background value", type : 'R' },
+      extra_smoothbackgroundfactor: { val: 0.5, def: 0.5, name : "Extra smooth background factor", type : 'R' },
       extra_normalize_channels: { val: false, def: false, name : "Extra normalize channels", type : 'B' },
       extra_normalize_channels_reference: { val: 'G', def: 'G', name : "Extra normalize channels reference", type : 'S' },
       extra_normalize_channels_mask: { val: false, def: false, name : "Extra normalize channels mask", type : 'B' },
