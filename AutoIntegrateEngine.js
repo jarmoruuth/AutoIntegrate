@@ -21,7 +21,7 @@ Interface functions:
       closeAllWindows
       getProcessDefaultValues
 
-Copyright (c) 2018-2023 Jarmo Ruuth.
+Copyright (c) 2018-2024 Jarmo Ruuth.
 
 Crop to common area code
 

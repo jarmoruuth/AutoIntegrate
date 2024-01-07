@@ -12,7 +12,7 @@ Interface objects:
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2023 Jarmo Ruuth.
+Copyright (c) 2018-2024 Jarmo Ruuth.
 
 Window name prefix and icon location code
 
@@ -6123,7 +6123,7 @@ function AutoIntegrateDialog()
       "by Pleiades Astrophoto and its contributors (" +
       '<a href="https://pixinsight.com/">https://pixinsight.com/</a>)' + 
       "</p><p>" +
-      "Copyright (c) 2018-2023 Jarmo Ruuth<br>" +
+      "Copyright (c) 2018-2024 Jarmo Ruuth<br>" +
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2013 Andres del Pozo<br>" +
