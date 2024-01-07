@@ -11060,18 +11060,44 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       var P = new LocalHistogramEqualization;
       P.radius = par.extra_LHE_kernelradius.val;
-      P.slopeLimit = 1.3;
+      P.slopeLimit = par.extra_LHE_contrastlimit.val;
       P.amount = 1.000;
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      /* Transform only light parts of the image. */
-      setMaskChecked(imgWin, maskWin);
-      imgWin.maskInverted = false;
+      var adjusttype = par.extra_LHE_adjusttype.val;
+      if (par.extra_range_mask.val) {
+            adjusttype = 'range_mask';
+      }
+
+      switch (adjusttype) {
+            case 'All':
+                  /* Transform whole image. */
+                  break;
+            case 'Lights':
+                  /* Transform only light parts of the image. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = false;
+                  break;
+            case 'Darks':
+                  /* Transform only dark parts of the image. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = true;
+                  break;
+            case 'range_mask':
+                  /* User created mask. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = false;
+                  break;
+            default:
+                  util.throwFatalError("Invalid LocalHistogramEqualization mask type " + par.extra_LHE_adjusttype.val);
+      }
       
       P.executeOn(imgWin.mainView, false);
 
-      imgWin.removeMask();
+      if (par.extra_LHE_adjusttype.val != 'All') {
+            imgWin.removeMask();
+      }
 
       imgWin.mainView.endProcess();
 
@@ -11089,17 +11115,44 @@ function extraExponentialTransformation(imgWin, maskWin)
       P.functionType = ExponentialTransformation.prototype.PIP;
       P.order = par.extra_ET_order.val;
       P.sigma = 0.00;
-      P.useLightnessMask = true;
       
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
-      /* Transform only light parts of the image. */
-      setMaskChecked(imgWin, maskWin);
-      imgWin.maskInverted = false;
-      
+      var adjusttype = par.extra_ET_adjusttype.val;
+      if (par.extra_range_mask.val) {
+            adjusttype = 'range_mask';
+      }
+
+      switch (adjusttype) {
+            case 'All':
+                  /* Transform whole image. */
+                  break;
+            case 'Lights':
+                  /* Transform only light parts of the image. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = false;
+                  P.useLightnessMask = true;
+                  break;
+            case 'Darks':
+                  /* Transform only dark parts of the image. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = true;
+                  P.useLightnessMask = false;
+                  break;
+            case 'range_mask':
+                  /* User created mask. */
+                  setMaskChecked(imgWin, maskWin);
+                  imgWin.maskInverted = false;
+                  break;
+            default:
+                  util.throwFatalError("Invalid ExponentialTransformation mask type " + par.extra_LHE_adjusttype.val);
+      }
+
       P.executeOn(imgWin.mainView, false);
 
-      imgWin.removeMask();
+      if (par.extra_ET_adjusttype.val != 'All') {
+            imgWin.removeMask();
+      }
 
       imgWin.mainView.endProcess();
 
@@ -12488,6 +12541,15 @@ function extraRotate(imgWin)
       imgWin.mainView.endProcess();
 }
 
+function find_range_mask()
+{
+      var mask_win = util.findWindow('range_mask');
+      if (mask_win == null) {
+            util.throwFatalError("Could not find range_mask");
+      }
+      return mask_win;
+}
+
 function extraOptionCompleted(param)
 {
       console.writeln("extraOptionCompleted " + param.name);
@@ -12625,7 +12687,9 @@ function extraProcessing(parent, id, apply_directly)
             // Try find mask window
             // If we need to create a mask do it after we
             // have removed the stars
-            if (par.extra_force_new_mask.val) {
+            if (par.extra_range_mask.val) {
+                  mask_win = find_range_mask();
+            } else if (par.extra_force_new_mask.val) {
                   mask_win = null;
             } else {
                   mask_win = maskIsCompatible(extraWin, mask_win);
@@ -12801,9 +12865,6 @@ function extraProcessing(parent, id, apply_directly)
  */
 function copyGCtoMapImage(win, base_id)
 {
-      if (win == null) {
-            return;
-      }
       var map_id = ppar.win_prefix + base_id + "_map";
       console.writeln("copyGCtoMapImage: " + win.mainView.id + " to " + map_id);
       util.copyWindow(win, map_id);

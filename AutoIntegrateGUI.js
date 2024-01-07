@@ -325,6 +325,7 @@ var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
 var RGBHa_method_values = [ 'Med Subtract', 'Med Screen', 'Max', 'Screen', 'Night Photons HRR', 'Night Photons Subtract', 'Galactic Hunter Subtract', 'None' ];
+var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
@@ -368,6 +369,11 @@ var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a lu
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
 var skip_reset_tooltip =                  "<p>Note that this parameter is not reset or saved to Json file.</p>";   
+var adjust_type_toolTip =                 "<ul>" +
+                                          "<li>Lights adjust only light parts of the image.</li>" +
+                                          "<li>Darks adjust only dark parts of the image.</li>" +
+                                          "<li>All adjust the whole image.</li>" +
+                                          "</ul>";
 
 
 // Settings for flowchart graph
@@ -1362,11 +1368,18 @@ function extraProcessingGUI(parent)
 
       var extra_ET_tooltip = "<p>Run ExponentialTransform on image using a mask.</p>";
       this.extra_ET_CheckBox = newCheckBox(parent, "ExponentialTransform,", par.extra_ET, extra_ET_tooltip);
-      this.extra_ET_edit = newNumericEdit(parent, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
+      this.extra_ET_order_edit = newNumericEdit(parent, 'Order', par.extra_ET_order, 0.1, 6, "Order value for ExponentialTransform.");
+      this.extra_ET_adjust_label = newLabel(parent, "Adjust", "<p>Adjust type to be used with ExponentialTransform.</p>" +
+                                                              "<p>Lightness mask is used to get the desired adjustment.</p>" +
+                                                              adjust_type_toolTip);
+      this.extra_ET_adjust_Combobox = newComboBox(parent, par.extra_ET_adjusttype, adjust_type_values, this.extra_ET_adjust_label.toolTip);
+
       this.extra_ET_Sizer = new HorizontalSizer;
       this.extra_ET_Sizer.spacing = 4;
       this.extra_ET_Sizer.add( this.extra_ET_CheckBox );
-      this.extra_ET_Sizer.add( this.extra_ET_edit );
+      this.extra_ET_Sizer.add( this.extra_ET_order_edit );
+      this.extra_ET_Sizer.add( this.extra_ET_adjust_label );
+      this.extra_ET_Sizer.add( this.extra_ET_adjust_Combobox );
       this.extra_ET_Sizer.toolTip = extra_ET_tooltip;
       this.extra_ET_Sizer.addStretch();
 
@@ -1421,14 +1434,37 @@ function extraProcessingGUI(parent)
             
       var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
       this.extra_LHE_CheckBox = newCheckBox(parent, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
-      this.extra_LHE_edit = newNumericEdit(parent, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "Kernel radius value for LocalHistogramEqualization.");
-      this.extra_LHE_sizer = new HorizontalSizer;
+      this.extra_LHE_kernelradius_edit = newNumericEdit(parent, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "<p>Kernel radius value for LocalHistogramEqualization.</p>");
+      this.extra_LHE_contrastlimit_edit = newNumericEdit(parent, 'Contrast limit', par.extra_LHE_contrastlimit, 1, 64, "<p>Contrast limit value for LocalHistogramEqualization.</p>");
+      this.extra_LHE_adjust_label = newLabel(parent, "Adjust", "<p>Mask type to be used with LocalHistogramEqualization.</p>" +
+                                                               "<p>Lightness mask is used to get the desired adjustment.</p>" +
+                                                               adjust_type_toolTip +
+                                                               "<p>With darks adjust usually you should increase the contrast limit value.</p>");
+      this.extra_LHE_adjust_Combobox = newComboBox(parent, par.extra_LHE_adjusttype, adjust_type_values, this.extra_LHE_adjust_label.toolTip);
+
+      this.extra_LHE_sizer1 = new HorizontalSizer;
+      this.extra_LHE_sizer1.spacing = 4;
+      this.extra_LHE_sizer1.add( this.extra_LHE_CheckBox );
+      this.extra_LHE_sizer1.add( this.extra_LHE_adjust_label );
+      this.extra_LHE_sizer1.add( this.extra_LHE_adjust_Combobox );
+      this.extra_LHE_sizer1.toolTip = extra_LHE_tooltip;
+      this.extra_LHE_sizer1.addStretch();
+
+      this.extra_LHE_sizer2 = new HorizontalSizer;
+      this.extra_LHE_sizer2.spacing = 4;
+      this.extra_LHE_sizer2.addSpacing(20);
+      this.extra_LHE_sizer2.add( this.extra_LHE_kernelradius_edit );
+      this.extra_LHE_sizer2.add( this.extra_LHE_contrastlimit_edit );
+      this.extra_LHE_sizer2.toolTip = extra_LHE_tooltip;
+      this.extra_LHE_sizer2.addStretch();
+
+      this.extra_LHE_sizer = new VerticalSizer;
       this.extra_LHE_sizer.spacing = 4;
-      this.extra_LHE_sizer.add( this.extra_LHE_CheckBox );
-      this.extra_LHE_sizer.add( this.extra_LHE_edit );
+      this.extra_LHE_sizer.add( this.extra_LHE_sizer1 );
+      this.extra_LHE_sizer.add( this.extra_LHE_sizer2 );
       this.extra_LHE_sizer.toolTip = extra_LHE_tooltip;
       this.extra_LHE_sizer.addStretch();
-      
+
       this.extra_Contrast_CheckBox = newCheckBox(parent, "Add contrast", par.extra_contrast, 
             "<p>Run slight S shape curves transformation on image to add contrast.</p>" );
       this.contrastIterationsSpinBox = newSpinBox(parent, par.extra_contrast_iterations, 1, 5, "Number of iterations for contrast enhancement");
@@ -1465,6 +1501,10 @@ function extraProcessingGUI(parent)
 
       this.extra_force_new_mask_CheckBox = newCheckBox(parent, "New mask", par.extra_force_new_mask, 
             "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
+      this.extra_range_mask_CheckBox = newCheckBox(parent, "range_mask", par.extra_range_mask, 
+            "<p>Use a user created range mask. It is used as is, it is not for example inverted.</p>" +
+            "<p>White selects, black protects.</p>" +
+            "<p>Note that this option overwrites any adjust settings selected for an option.</p>");
       this.extra_auto_reset_CheckBox = newCheckBox(parent, "Auto reset", par.extra_auto_reset, 
             "<p>If using Apply button, uncheck options when they are applied.</p>" );
 
@@ -1887,6 +1927,7 @@ function extraProcessingGUI(parent)
       this.extraImageOptionsSizer1.spacing = 4;
       this.extraImageOptionsSizer1.add( this.extra_image_no_copy_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_force_new_mask_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_range_mask_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_auto_reset_CheckBox );
       this.extraImageOptionsSizer1.addStretch();
 
