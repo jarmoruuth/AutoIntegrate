@@ -3653,6 +3653,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                   case 'NO FILTER':
                   case 'L_EN':
                   case 'LC':   // Seestar
+                  case 'LP':   // Seestar
                   case 'C':
                         filter = 'C';
                         break;
