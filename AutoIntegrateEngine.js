@@ -191,6 +191,7 @@ var RGB_processed_id;
 var is_color_files = false;
 var preprocessed_images;
 
+var save_id_list = []; // list of images to save to disk
 
 var luminance_id = null;      // These are working images and copies of 
 var red_id = null;            // original integrated images
@@ -838,7 +839,7 @@ function saveProcessedImage(id, save_id)
 
       console.writeln("Save processed image " + id + " as " + save_id);
 
-      saveProcessedWindow(save_id);
+      save_id_list.push([save_id, save_id]);
 }
 
 function saveProcessedWindow(id, optional_save_id)
@@ -3975,15 +3976,43 @@ function add_missing_image(images, to)
 
 function ensureLightImages(ch, check_allfilesarr)
 {
+      var errors = false;
+
       for (var i = 0; i < check_allfilesarr.length; i++) {
             var filterFiles = check_allfilesarr[i].files;
             var filterName = check_allfilesarr[i].filter;
             if (filterName == ch) {
                   if (filterFiles.length == 0) {
-                        util.throwFatalError("No " + ch + " images that are needed for PixelMath mapping");
+                        errors = true;
                   }
                   break;
             }
+      }
+      if (errors) {
+            var filter_files = "";
+            for (var i = 0; i < check_allfilesarr.length; i++) {
+                  var filterFiles = check_allfilesarr[i].files;
+                  if (filterFiles.length > 0) {
+                        filter_files += check_allfilesarr[i].filter + " ";
+                  }
+            }
+            util.closeTempWindows();
+            console.criticalln("There are narrowband files so narrowband mapping is used");
+            console.criticalln("Selected narrowband mapping is: R:" + par.custom_R_mapping.val + ", G:" + par.custom_G_mapping.val + ", B:" + par.custom_B_mapping.val);
+            console.criticalln("There are no " + ch + " images, but there are " + filter_files + " images");
+            util.throwFatalError("There are no " + ch + " images that are needed for PixelMath mapping");
+      }
+}
+
+function ensureLightImageWindow(to_id, ext)
+{
+      if (findWindowNoPrefixIf(to_id, global.run_auto_continue) == null
+          && findWindowNoPrefixIf(to_id + ext, global.run_auto_continue) == null)
+      {
+            util.closeTempWindows();
+            console.criticalln("There are narrowband files so narrowband mapping is used");
+            console.criticalln("Selected narrowband mapping is: R:" + par.custom_R_mapping.val + ", G:" + par.custom_G_mapping.val + ", B:" + par.custom_B_mapping.val);
+            util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
       }
 }
 
@@ -4006,6 +4035,7 @@ function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfi
             if (check_allfilesarr != null) {
                   ensureLightImages(from, check_allfilesarr);
             } else if (images != null) {
+                  ensureLightImageWindow(to, ext);
                   add_missing_image(images, to);
             }
             return to + ext;
@@ -4031,9 +4061,7 @@ function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfi
                                     ensureLightImages(from, check_allfilesarr);
                               } else if (images != null) {
                                     var to_id = to;
-                                    if (findWindowNoPrefixIf(to_id, global.run_auto_continue) == null) {
-                                          util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
-                                    }
+                                    ensureLightImageWindow(to_id, ext);
                                     add_missing_image(images, to_id);
                               }
                               mapping = mapping.substring(0, n) + to + ext + mapping.substring(n+1);
@@ -5861,7 +5889,7 @@ function runImageIntegration(channel_images, name, save_to_file, flowchartname)
             var image_id = runImageIntegrationNormalized(images, channel_images.best_image, name);
       }
       if (save_to_file) {
-            saveProcessedWindow(image_id);
+            save_id_list.push([image_id, image_id]);
       }
       util.runGarbageCollection();
       flowchartChildEnd(flowchartname ? flowchartname : name);
@@ -13433,7 +13461,7 @@ function CropImageIf(id)
             var win_id = window.mainView.id;
             var crop_id = util.replacePostfixOrAppend(win_id, ["_map"], "_crop");
             console.writeln("Save cropped image " + win_id + " as " + crop_id);
-            saveProcessedWindow(win_id, crop_id);
+            save_id_list.push([win_id, crop_id]);
       }
 
       return true;
@@ -13614,7 +13642,7 @@ function createCropInformationEx()
             false,
             false);
       
-      saveProcessedWindow(crop_lowClipImageName);  /* LowRejectionMap_ALL */
+      save_id_list.push([crop_lowClipImageName, crop_lowClipImageName]);  /* LowRejectionMap_ALL */
       crop_lowClipImage_changed = false;
 
       console.noteln("Generated data for cropping");
@@ -14025,6 +14053,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        RGB_stars_win = null;
        RGB_stars_HT_win = null;
        RGB_stars = [];
+
+       save_id_list = [];
  
        global.processed_channel_images = [];
  
@@ -14344,6 +14374,10 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        console.writeln("Basic processing completed");
        flowchartDone();
+
+       for (var i = 0; i < save_id_list.length; i++) {
+            saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
+       }
  
        if (do_extra_processing && (util.is_extra_option() || util.is_narrowband_option())) {
              extraProcessing(parent, LRGB_processed_HT_id, false);
