@@ -3998,7 +3998,10 @@ function ensureLightImages(ch, check_allfilesarr)
             }
             util.closeTempWindows();
             console.criticalln("There are narrowband files so narrowband mapping is used");
-            console.criticalln("Selected narrowband mapping is: R:" + par.custom_R_mapping.val + ", G:" + par.custom_G_mapping.val + ", B:" + par.custom_B_mapping.val);
+            console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
+            console.criticalln("- R: " + par.custom_R_mapping.val);
+            console.criticalln("- G: " + par.custom_G_mapping.val);
+            console.criticalln("- B: " + par.custom_B_mapping.val);
             console.criticalln("There are no " + ch + " images, but there are " + filter_files + " images");
             util.throwFatalError("There are no " + ch + " images that are needed for PixelMath mapping");
       }
@@ -4011,7 +4014,10 @@ function ensureLightImageWindow(to_id, ext)
       {
             util.closeTempWindows();
             console.criticalln("There are narrowband files so narrowband mapping is used");
-            console.criticalln("Selected narrowband mapping is: R:" + par.custom_R_mapping.val + ", G:" + par.custom_G_mapping.val + ", B:" + par.custom_B_mapping.val);
+            console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
+            console.criticalln("- R: " + par.custom_R_mapping.val);
+            console.criticalln("- G: " + par.custom_G_mapping.val);
+            console.criticalln("- B: " + par.custom_B_mapping.val);
             util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
       }
 }
@@ -6107,7 +6113,7 @@ function runGraXpertExternal(win)
 
       util.closeOneWindow(copy_win.mainView.id);
 
-      var command = '"' + par.graxpert_path.val + '"' + " " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      var command = '"' + par.graxpert_path.val + '"' + " -cli " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
 
       console.writeln("GraXpert command " + command);
 
@@ -6129,7 +6135,7 @@ function runGraXpertExternal(win)
             }
             console.writeln("GraXpert finished");
       }
-      var graxpert_fname = fname.replace(".xisf", "_GraXpert.fits");
+      var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
       console.writeln("GraXpert output file " + graxpert_fname);
 
       var imgWin = engine.openImageWindowFromFile(graxpert_fname);
