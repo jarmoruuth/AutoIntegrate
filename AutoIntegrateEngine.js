@@ -189,6 +189,8 @@ var L_processed_HT_id;
 var RGB_processed_id;
 
 var is_color_files = false;
+var is_rgb_files = false;
+var is_narrowband_files = false;
 var preprocessed_images;
 
 var save_id_list = []; // list of images to save to disk
@@ -3865,7 +3867,9 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
       is_color_files = filter_info.color_files;
 
       // update global variables
-      process_narrowband = filter_info.narrowband;
+      is_narrowband_files = filter_info.narrowband;
+      is_rgb_files = filter_info.rgb;
+      process_narrowband = is_narrowband_files;
       ssweight_set = filter_info.ssweight_set;
 
       // Check for synthetic images
@@ -3974,6 +3978,20 @@ function add_missing_image(images, to)
       }
 }
 
+function printMissingNarrowbandMappingError()
+{
+      if (is_rgb_files && is_narrowband_files) {
+            console.criticalln("There are both RGB and narrowband files");
+            console.criticalln("Specify narrowband mapping or use Ha or Narrowband to RGB mapping");
+      } else {
+            console.criticalln("There are narrowband files so narrowband mapping is used");
+      }
+      console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
+      console.criticalln("- R: " + par.custom_R_mapping.val);
+      console.criticalln("- G: " + par.custom_G_mapping.val);
+      console.criticalln("- B: " + par.custom_B_mapping.val);
+}
+
 function ensureLightImages(ch, check_allfilesarr)
 {
       var errors = false;
@@ -3997,11 +4015,7 @@ function ensureLightImages(ch, check_allfilesarr)
                   }
             }
             util.closeTempWindows();
-            console.criticalln("There are narrowband files so narrowband mapping is used");
-            console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
-            console.criticalln("- R: " + par.custom_R_mapping.val);
-            console.criticalln("- G: " + par.custom_G_mapping.val);
-            console.criticalln("- B: " + par.custom_B_mapping.val);
+            printMissingNarrowbandMappingError();
             console.criticalln("There are no " + ch + " images, but there are " + filter_files + " images");
             util.throwFatalError("There are no " + ch + " images that are needed for PixelMath mapping");
       }
@@ -4013,11 +4027,7 @@ function ensureLightImageWindow(to_id, ext)
           && findWindowNoPrefixIf(to_id + ext, global.run_auto_continue) == null)
       {
             util.closeTempWindows();
-            console.criticalln("There are narrowband files so narrowband mapping is used");
-            console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
-            console.criticalln("- R: " + par.custom_R_mapping.val);
-            console.criticalln("- G: " + par.custom_G_mapping.val);
-            console.criticalln("- B: " + par.custom_B_mapping.val);
+            printMissingNarrowbandMappingError();
             util.throwFatalError("Could not find image window " + to_id + " that is needed for PixelMath mapping");
       }
 }
@@ -4908,13 +4918,19 @@ function mapSPCCAutoNarrowband()
 
 /* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
+ * If filtered_lights != null we do not do any processing, just check
+ * that all files exist.
  */
-function customMapping(RGBmapping, check_allfilesarr)
+function customMapping(RGBmapping, filtered_lights)
 {
-      if (check_allfilesarr != null) {
+      if (filtered_lights != null) {
             util.addProcessingStep("Check custom mapping");
+            is_rgb_files = filtered_lights.rgb;
+            is_narrowband_files = filtered_lights.narrowband;
+            var check_allfilesarr = filtered_lights.allfilesarr;
       } else {
             util.addProcessingStepAndStatusInfo("Custom mapping");
+            var check_allfilesarr = null;
       }
 
       if (check_allfilesarr == null) {
@@ -4939,6 +4955,7 @@ function customMapping(RGBmapping, check_allfilesarr)
       var blue_mapping = mapCustomAndReplaceImageNames('B', B_images, check_allfilesarr);
 
       if (check_allfilesarr != null) {
+            /* Just checking that all files exist. */
             return null;
       }
 
@@ -5132,8 +5149,10 @@ function mapColorImage(oldname, newname)
  */
 function mapLRGBchannels(RGBmapping)
 {
-      var rgb = R_id != null || G_id != null || B_id != null;
-      process_narrowband = H_id != null || S_id != null || O_id != null || 
+      is_rgb_files = R_id != null || G_id != null || B_id != null;
+      is_narrowband_files = H_id != null || S_id != null || O_id != null;
+      var rgb = is_rgb_files;
+      process_narrowband = is_narrowband_files || 
                            par.force_narrowband_mapping.val;
       var custom_mapping = isCustomMapping(process_narrowband);
 
@@ -6144,7 +6163,7 @@ function runGraXpertExternal(win)
       var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
       if (processed_image_id != image_id) {
             util.closeOneWindow(imgWin.mainView.id);
-            util.throwFatalError("GraXpert did not run, maybe path is incorrect. Processed image id mismatch: " + processed_image_id + " != " + image_id);
+            util.throwFatalError("GraXpert did not run, maybe GraXpert path is incorrect or GraXpert version is incompatible with GraXpert version 2.2.0. Processed image id mismatch: " + processed_image_id + " != " + image_id);
       }
 
       console.writeln("GraXpert output window " + imgWin.mainView.id);
@@ -8809,7 +8828,9 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
             }
             checkAutoCont(util.findWindow(R_id));
             checkAutoCont(util.findWindow(H_id));
-            process_narrowband = H_id != null || S_id != null || O_id != null;
+            is_rgb_files = R_id != null && G_id != null && B_id != null;
+            is_narrowband_files = H_id != null || O_id != null;
+            process_narrowband = is_narrowband_files;
             preprocessed_images = global.start_images.L_R_G_B;
 
       } else if (RGB_color_id != null) {
@@ -9048,7 +9069,7 @@ function CreateChannelImages(parent, auto_continue)
                         // channels have files.
                         // We exit with fatal error if some files are missing
                         global.write_processing_log_file = false;
-                        customMapping(null, filtered_lights.allfilesarr);
+                        customMapping(null, filtered_lights);
                         global.write_processing_log_file = true;
                   }
             }
@@ -14029,6 +14050,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        var RGB_processed_HT_id = null;
        var LRGB_Combined = null;
  
+       is_rgb_files = false;
+       is_narrowband_files = false;
        is_color_files = false;
        luminance_id = null;
        red_id = null;

@@ -48,7 +48,8 @@ this.autointegrate_info = "Live Flowchart, Ha to RGB mapping";    // For updates
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Live Flowchart",
-      "- Ha to RGB mapping"
+      "- Ha to RGB mapping",
+      "- GraXpert 2.2.0 support"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
