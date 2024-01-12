@@ -7351,17 +7351,22 @@ function AutoIntegrateDialog()
             this.dialog.graxpertPathEdit.text = ofd.fileName;
             par.graxpert_path.val = ofd.fileName;
       };
-
       this.graxpertPathSizer = newHorizontalSizer(0, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
+
+      this.graxpert_old_version_CheckBox = newCheckBox(this, "Old version", par.graxpert_old_version, "<p>Use old version of GraXpert before version 2.2.0.</p>");
+      this.graxpertSizer1 = newVerticalSizer(0, true, [ this.graxpertPathSizer, this.graxpert_old_version_CheckBox ]);
       
-      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert.");
       this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXpert.", true);
       this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
-
       this.graxpertCorrectionSizer = newHorizontalSizer(0, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox]);
 
+      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert.");
+      this.graxpertSizer2 = newVerticalSizer(0, true, [ this.graxpertSmoothingEdit, this.graxpertCorrectionSizer ]);
+
+      this.graxpertSizer = newHorizontalSizer(0, true, [ this.graxpertSizer1, this.graxpertSizer2 ]);
+
       this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
-      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertPathSizer, this.graxpertSmoothingEdit, this.graxpertCorrectionSizer]);
+      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertSizer]);
 
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);

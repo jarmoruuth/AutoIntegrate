@@ -6132,8 +6132,11 @@ function runGraXpertExternal(win)
 
       util.closeOneWindow(copy_win.mainView.id);
 
-      var command = '"' + par.graxpert_path.val + '"' + " -cli " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
-
+      if (par.graxpert_old_version.val) {
+            var command = '"' + par.graxpert_path.val + '"' + " " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      } else {
+            var command = '"' + par.graxpert_path.val + '"' + " -cli " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      }
       console.writeln("GraXpert command " + command);
 
       if (0) {
@@ -6154,7 +6157,11 @@ function runGraXpertExternal(win)
             }
             console.writeln("GraXpert finished");
       }
-      var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
+      if (par.graxpert_old_version.val) {
+            var graxpert_fname = fname.replace(".xisf", "_GraXpert.fits");
+      } else {
+            var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
+      }
       console.writeln("GraXpert output file " + graxpert_fname);
 
       var imgWin = engine.openImageWindowFromFile(graxpert_fname);
@@ -6163,7 +6170,7 @@ function runGraXpertExternal(win)
       var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
       if (processed_image_id != image_id) {
             util.closeOneWindow(imgWin.mainView.id);
-            util.throwFatalError("GraXpert did not run, maybe GraXpert path is incorrect or GraXpert version is incompatible with GraXpert version 2.2.0. Processed image id mismatch: " + processed_image_id + " != " + image_id);
+            util.throwFatalError("GraXpert did not run, maybe path is incorrect or GraXpert version is incompatible. Processed image id mismatch: " + processed_image_id + " != " + image_id);
       }
 
       console.writeln("GraXpert output window " + imgWin.mainView.id);
