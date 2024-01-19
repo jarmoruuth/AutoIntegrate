@@ -324,7 +324,8 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
-var RGBHa_method_values = [ 'Med Subtract', 'Med Screen', 'Max', 'Screen', 'Night Photons HRR', 'Night Photons Subtract', 'Galactic Hunter Subtract', 'None' ];
+var RGBHa_method_values = [ 'Med Subtract', 'SPCC', 'SPCC Continuum Subtract', 'SPCC Med Subtract', 'Med Screen', 'Max', 'Screen', 
+                            'Night Photons Continuum Subtract', 'Night Photons Med Subtract', 'Galactic Hunter Med Subtract', 'None' ];
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
@@ -404,7 +405,7 @@ function flowchartGraphIterateChilds(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.debug.val) {
+            if (global.flowchart_debug) {
                   console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node.txt);
             }
             node.width = font.width(node.txt) + flowchart_margin;
@@ -438,7 +439,7 @@ function flowchartGraphIterate(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.debug.val) {
+            if (global.flowchart_debug) {
                   console.writeln("flowchartGraphIterate: " + node.type + " " + node.txt);
             }
             node.width = font.width(node.txt) + flowchart_margin;
@@ -486,7 +487,7 @@ function flowchartDrawText(graphics, x, y, node)
             util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " in: " + x + " " + y);
       }
 
@@ -501,7 +502,7 @@ function flowchartDrawText(graphics, x, y, node)
             var y1 = y + graphics.font.height + 2 * flowchart_text_margin;
       }
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
@@ -511,7 +512,7 @@ function flowchartDrawText(graphics, x, y, node)
             var check_special_color = false;
       }
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartDrawText: node.id " + node.id + ", global.flowchartActiveId " + global.flowchartActiveId);
       }
       if (check_special_color && node.id == global.flowchartActiveId) {
@@ -540,7 +541,7 @@ function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (par.debug.val) {
+            if (global.flowchart_debug) {
                   console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node.txt + " " + p.x + " " + p.y);
             }
             graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
@@ -596,7 +597,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
-            if (par.debug.val) {
+            if (global.flowchart_debug) {
                   console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
             }
             flowchartDrawText(graphics, x, y, node);
@@ -617,14 +618,14 @@ function flowchartGraphDraw(parent, pos, graphics)
                   if (node.list.length > 0) {
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
-                        if (par.debug.val) {
+                        if (global.flowchart_debug) {
                               console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
                         }
                         flowchartDrawText(graphics, x, y, node);
                         flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
-                  if (par.debug.val) {
+                  if (global.flowchart_debug) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node.txt);
                   }
                   if (node.list.length > 0) {
@@ -643,7 +644,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                   // process or mask
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
-                  if (par.debug.val) {
+                  if (global.flowchart_debug) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
                   }
                   flowchartDrawText(graphics, x, y, node);
@@ -655,7 +656,7 @@ function flowchartGraphDraw(parent, pos, graphics)
 // Draw a graphical version of the workflow
 function flowchartGraph(rootnode)
 {
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchart Graph");
       }
 
@@ -689,7 +690,7 @@ function flowchartGraph(rootnode)
             height = Math.max(height, ppar.preview.preview_height);
       }
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartGraph:width " + width + " height " + height);
       }
 
@@ -704,7 +705,7 @@ function flowchartGraph(rootnode)
 
       graphics.end();
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartGraph:show bitmap");
       }
       var flowchartImage = util.createImageFromBitmap(bitmap);
@@ -712,7 +713,7 @@ function flowchartGraph(rootnode)
       tabPreviewControl.SetImage(flowchartImage);
       sidePreviewControl.SetImage(flowchartImage);
 
-      if (par.debug.val) {
+      if (global.flowchart_debug) {
             console.writeln("flowchartGraph:end");
       }
 }
@@ -720,7 +721,7 @@ function flowchartGraph(rootnode)
 function flowchartUpdated()
 {
       if (par.show_flowchart.val && !global.get_flowchart_data) {
-            console.writeln("flowchartUpdated");
+            // console.writeln("flowchartUpdated");
             try {
                   flowchartGraph(global.flowchartData);
             } catch (ex) {
@@ -7313,8 +7314,8 @@ function AutoIntegrateDialog()
 
       this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, 
             "<p>Choose how to do linear fit of images.</p>" +
-            "<p>Default for linear fit is to use the luminance channel. If the luminance channel is not present then RGB images use a red channel and narrowband images do not do linear fit.</p>" +
-            "<p>In case of narrowband images, note that if luminance image is generated and luminance is used for linear fit then in auto mode the channels will be linked by default.</p>"
+            "<p>Default for linear fit is to use the luminance channel. If the luminance channel is not present then RGB images use a red channel.</p>" +
+            "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>"
       );
 
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
@@ -8132,14 +8133,11 @@ function AutoIntegrateDialog()
 
       this.useRGBHamapping_CheckBox = newCheckBox(this, "Use Ha RGB mapping", par.use_RGBHa_Mapping, RGBHa_tooltip);
       this.RGBHaMethodComboBox = newComboBox(this, par.RGBHa_method, RGBHa_method_values, RGBHa_tooltip);
-      this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
-            "<p>Do gradient correction on Ha image before mapping.</p>" );
       this.useRGBHamappingSizer = new HorizontalSizer;
       this.useRGBHamappingSizer.margin = 6;
       this.useRGBHamappingSizer.spacing = 4;
       this.useRGBHamappingSizer.add( this.useRGBHamapping_CheckBox );
       this.useRGBHamappingSizer.add( this.RGBHaMethodComboBox );
-      this.useRGBHamappingSizer.add( this.RGBHa_gradient_correction_CheckBox );
       this.useRGBHamappingSizer.addStretch();
 
       // Button to test narrowband mapping
@@ -8173,14 +8171,20 @@ function AutoIntegrateDialog()
 
       // Boost factor for RGB
       var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
-      this.RGBHa_BoostLabel = newLabel(this, 'Boost', "Select boost, or multiplication factor.");
-      this.RGBHa_SubtractBoostValue = newNumericEdit(this, 'Subtract', par.RGBHa_Subtract_BoostFactor, 0, 999,
+      this.RGBHa_BoostLabel = newLabel(this, 'Boost:', "Select boost, or multiplication factor.");
+      this.RGBHa_SubtractBoostValue = newNumericEdit(this, 'Med Subtract', par.RGBHa_Subtract_BoostFactor, 0, 999,
                                                           "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + 
                                                           "<p>A bigger value will subtract more red channel from Ha channel. Zero value keeps full Ha channel.</p>" +
-                                                          "<p>The idea of subtracting red from Ha is to leave just pure Ha data to Ha channel./p>");
+                                                          "<p>The idea of subtracting red from Ha is to leave just pure Ha data to Ha channel./p>" +
+                                                          "<p>This value is used with Med Subtract methods./p>");
       this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, 
                                                          "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + 
-                                                         "<p>A bigger value will make the mapping more visible by increasing the amount of Ha.</p>");
+                                                         "<p>A bigger value will make the mapping more visible by increasing the amount of Ha.</p>" +
+                                                         "<p>This value uses with all other methods except SPCC.</p>");
+      this.RGBHa_SPCCBoostValue = newRGBNBNumericEdit(this, 'SPCC', par.RGBHa_SPCC_BoostFactor, 
+                                                         "<p>Boost, or multiplication factor, for Ha channel with SPCC method.</p>" + 
+                                                         "<p>For R channel a value 1 - SPCC boost will be used.</p>" +
+                                                         "<p>This value is used with SPCC methods.</p>");
 
       this.RGBHa_BoostSizer = new HorizontalSizer;
       // this.RGBHa_BoostSizer.margin = 6;
@@ -8188,6 +8192,7 @@ function AutoIntegrateDialog()
       this.RGBHa_BoostSizer.add( this.RGBHa_BoostLabel );
       this.RGBHa_BoostSizer.add( this.RGBHa_SubtractBoostValue );
       this.RGBHa_BoostSizer.add( this.RGBHa_CombineBoostValue );
+      this.RGBHa_BoostSizer.add( this.RGBHa_SPCCBoostValue );
       this.RGBHa_BoostSizer.add( this.testRGBHaMappingButton );
       this.RGBHa_BoostSizer.addStretch();
 
@@ -8196,12 +8201,24 @@ function AutoIntegrateDialog()
       this.RGBHa_Sizer1.add(this.RGBHa_BoostSizer);
       this.RGBHa_Sizer1.addStretch();
 
+      this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
+            "<p>Do gradient correction on Ha image before mapping.</p>" );
+      this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen background", par.RGBHa_smoothen_background, 
+            "<p>Smoothen background which may help with gradient correction.</p>" );
+
+      this.RGBHa_Sizer2 = new HorizontalSizer;
+      this.RGBHa_Sizer2.spacing = 4;
+      this.RGBHa_Sizer2.add( this.RGBHa_gradient_correction_CheckBox );
+      this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_CheckBox );
+      this.RGBHa_Sizer2.addStretch();
+
       this.RGBHa_Sizer = new VerticalSizer;
       // this.RGBHa_Sizer.margin = 6;
       this.RGBHa_Sizer.spacing = 4;
       this.RGBHa_Sizer.toolTip = RGBHa_tooltip;
       this.RGBHa_Sizer.add(this.useRGBHamappingSizer);
       this.RGBHa_Sizer.add(this.RGBHa_Sizer1);
+      this.RGBHa_Sizer.add(this.RGBHa_Sizer2);
       this.RGBHa_Sizer.addStretch();
 
       this.RGBHaMappingControl = new Control( this );

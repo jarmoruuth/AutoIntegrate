@@ -199,8 +199,10 @@ this.par = {
       use_RGBHa_Mapping: { val: false, def: false, name : "Ha RGB mapping", type : 'B' },
       RGBHa_method: { val: 'Med Subtract', def: 'Med Subtract', name : "Ha RGB mapping method", type : 'S' },
       RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B' },
+      RGBHa_smoothen_background: { val: false, def: false, name : "Ha RGB mapping smoothen background", type : 'B' },
       RGBHa_Subtract_BoostFactor: { val: 0.2, def: 0.2, name : "Ha RGB mapping subtract boost factor", type : 'R' },
       RGBHa_Combine_BoostFactor: { val: 1.0, def: 1.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
+      RGBHa_SPCC_BoostFactor: { val: 0.5, def: 0.5, name : "Ha RGB mapping SPCC boost factor", type : 'R' },
       
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -522,6 +524,7 @@ this.flowchartWindows = [];   // array of flowchart window ids
 this.flowchartData = null;    // flowchart data
 this.flowchartActiveId = 0;   // active flowchart id
 this.flowchartOperationList = []; // array of flowchart operations
+this.flowchart_debug = false; // true if we are debugging flowchart
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
