@@ -197,12 +197,16 @@ this.par = {
 
       // Ha to RGB mapping
       use_RGBHa_Mapping: { val: false, def: false, name : "Ha RGB mapping", type : 'B' },
-      RGBHa_method: { val: 'Med Subtract', def: 'Med Subtract', name : "Ha RGB mapping method", type : 'S' },
+      RGBHa_preset: { val: 'Combine Continuum Subtract', def: 'Combine Continuum Subtract', name : "Ha RGB mapping preset", type : 'S' },
+      RGBHa_prepare_method: { val: 'Continuum Subtract', def: 'Continuum Subtract', name : "Ha RGB mapping prepare method", type : 'S' },
+      RGBHa_combine_time: { val: 'Stretched', def: 'Stretched', name : "Ha RGB mapping combine time", type : 'S' },
+      RGBHa_combine_method: { val: 'Bright structure add', def: 'Bright structure add', name : "Ha RGB mapping combine method", type : 'S' },
       RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B' },
       RGBHa_smoothen_background: { val: false, def: false, name : "Ha RGB mapping smoothen background", type : 'B' },
-      RGBHa_Subtract_BoostFactor: { val: 0.2, def: 0.2, name : "Ha RGB mapping subtract boost factor", type : 'R' },
+      RGBHa_smoothen_background_value: { val: 25, def: 25, name : "Ha RGB mapping smoothen background value", type : 'R' },
+      RGBHa_remove_stars: { val: false, def: false, name : "Ha RGB mapping remove stars", type : 'B' },
       RGBHa_Combine_BoostFactor: { val: 1.0, def: 1.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
-      RGBHa_SPCC_BoostFactor: { val: 0.5, def: 0.5, name : "Ha RGB mapping SPCC boost factor", type : 'R' },
+      RGBHa_Add_BoostFactor: { val: 0.5, def: 0.5, name : "Ha RGB mapping SPCC boost factor", type : 'R' },
       
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },

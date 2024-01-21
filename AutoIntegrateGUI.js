@@ -324,8 +324,11 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
-var RGBHa_method_values = [ 'Med Subtract', 'SPCC', 'SPCC Continuum Subtract', 'SPCC Med Subtract', 'Med Screen', 'Max', 'Screen', 
-                            'Night Photons Continuum Subtract', 'Night Photons Med Subtract', 'Galactic Hunter Med Subtract', 'None' ];
+var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
+var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
+var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
+var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add' ];
+
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
@@ -8126,19 +8129,66 @@ function AutoIntegrateDialog()
             "<p>" +
             "A special processing is used to add Ha to RGB image." +
             "</p><p>" +
-            "If Ha to RGB mapping is used then narrowband Color palette is not used." +
+            "If Ha to RGB mapping is used then narrowband color palette is not used." +
             "</p><p>" +
-            "Option None is useful if doing Ha mapping using extra processing options." +
+            "Also a user processed Ha image can be used. " + 
+            "In case of linear Ha image processing, if image Integration_H_enhanced_linear exists it use used. " +
+            "In case of non-linear (stretched) Ha image processing, if image Integration_H_enhanced exists it use used." +
             "</p>";
 
       this.useRGBHamapping_CheckBox = newCheckBox(this, "Use Ha RGB mapping", par.use_RGBHa_Mapping, RGBHa_tooltip);
-      this.RGBHaMethodComboBox = newComboBox(this, par.RGBHa_method, RGBHa_method_values, RGBHa_tooltip);
-      this.useRGBHamappingSizer = new HorizontalSizer;
-      this.useRGBHamappingSizer.margin = 6;
-      this.useRGBHamappingSizer.spacing = 4;
-      this.useRGBHamappingSizer.add( this.useRGBHamapping_CheckBox );
-      this.useRGBHamappingSizer.add( this.RGBHaMethodComboBox );
-      this.useRGBHamappingSizer.addStretch();
+
+      this.RGBHaPresetLabel = newLabel(this, "Preset", "<p>Some useful combinations to try.</p>" + RGBHa_tooltip);
+      this.RGBHaPresetComboBox = newComboBox(this, par.RGBHa_preset, RGBHa_preset_values, this.RGBHaPresetLabel.toolTip);
+      this.RGBHaPresetComboBox.onItemSelected = function( itemIndex )
+      {
+            switch (RGBHa_preset_values[itemIndex]) {
+                  case 'Combine Continuum Subtract':
+                        par.RGBHa_prepare_method.val = 'Continuum Subtract';
+                        par.RGBHa_combine_time.val = 'Stretched';
+                        par.RGBHa_combine_method.val = 'Bright structure add';
+                        break;
+                  case 'SPCC Continuum Subtract':
+                        par.RGBHa_prepare_method.val = 'Continuum Subtract';
+                        par.RGBHa_combine_time.val = 'SPCC linear';
+                        par.RGBHa_combine_method.val = 'Add';
+                        break;
+                  default:
+                        util.throwFatalError("Unknown preset " + RGBHa_preset_values[itemIndex]);
+                        break;
+            }
+            par.RGBHa_prepare_method.reset();
+            par.RGBHa_combine_time.reset();
+            par.RGBHa_combine_method.reset();
+      }
+
+      this.RGBHaPrepareMethodLabel = newLabel(this, "Prepare Ha", RGBHa_tooltip);
+      this.RGBHaPrepareMethodComboBox = newComboBox(this, par.RGBHa_prepare_method, RGBHa_prepare_method_values, RGBHa_tooltip);
+      this.RGBHaCombineTimeLabel = newLabel(this, "Combine time", RGBHa_tooltip);
+      this.RGBHaCombineTimeComboBox = newComboBox(this, par.RGBHa_combine_time, RGBHa_combine_time_values, RGBHa_tooltip);
+      this.RGBHaCombineMethodLabel = newLabel(this, "Combine method", RGBHa_tooltip);
+      this.RGBHaCombineMethodComboBox = newComboBox(this, par.RGBHa_combine_method, RGBHa_combine_method_values, RGBHa_tooltip);
+      
+      this.useRGBHaMappingSizer = new HorizontalSizer;
+      // this.useRGBHaMappingSizer.margin = 6;
+      this.useRGBHaMappingSizer.spacing = 4;
+      this.useRGBHaMappingSizer.add( this.useRGBHamapping_CheckBox );
+      this.useRGBHaMappingSizer.addSpacing( 8 );
+      this.useRGBHaMappingSizer.add( this.RGBHaPresetLabel );
+      this.useRGBHaMappingSizer.add( this.RGBHaPresetComboBox );
+      this.useRGBHaMappingSizer.addStretch();
+
+      this.useRGBHaMethodSizer = new HorizontalSizer;
+      // this.useRGBHaMethodSizer.margin = 6;
+      this.useRGBHaMethodSizer.spacing = 4;
+      this.useRGBHaMethodSizer.addSpacing( 8 );
+      this.useRGBHaMethodSizer.add( this.RGBHaPrepareMethodLabel );
+      this.useRGBHaMethodSizer.add( this.RGBHaPrepareMethodComboBox );
+      this.useRGBHaMethodSizer.add( this.RGBHaCombineTimeLabel );
+      this.useRGBHaMethodSizer.add( this.RGBHaCombineTimeComboBox );
+      this.useRGBHaMethodSizer.add( this.RGBHaCombineMethodLabel );
+      this.useRGBHaMethodSizer.add( this.RGBHaCombineMethodComboBox );
+      this.useRGBHaMethodSizer.addStretch();
 
       // Button to test narrowband mapping
       this.testRGBHaMappingButton = new PushButton( this );
@@ -8172,52 +8222,50 @@ function AutoIntegrateDialog()
       // Boost factor for RGB
       var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
       this.RGBHa_BoostLabel = newLabel(this, 'Boost:', "Select boost, or multiplication factor.");
-      this.RGBHa_SubtractBoostValue = newNumericEdit(this, 'Med Subtract', par.RGBHa_Subtract_BoostFactor, 0, 999,
-                                                          "<p>Boost, or multiplication factor, for subtracting R from Ha.</p>" + 
-                                                          "<p>A bigger value will subtract more red channel from Ha channel. Zero value keeps full Ha channel.</p>" +
-                                                          "<p>The idea of subtracting red from Ha is to leave just pure Ha data to Ha channel./p>" +
-                                                          "<p>This value is used with Med Subtract methods./p>");
       this.RGBHa_CombineBoostValue = newRGBNBNumericEdit(this, 'Combine', par.RGBHa_Combine_BoostFactor, 
                                                          "<p>Boost, or multiplication factor, for combing R and Ha.</p>" + 
                                                          "<p>A bigger value will make the mapping more visible by increasing the amount of Ha.</p>" +
-                                                         "<p>This value uses with all other methods except SPCC.</p>");
-      this.RGBHa_SPCCBoostValue = newRGBNBNumericEdit(this, 'SPCC', par.RGBHa_SPCC_BoostFactor, 
-                                                         "<p>Boost, or multiplication factor, for Ha channel with SPCC method.</p>" + 
-                                                         "<p>For R channel a value 1 - SPCC boost will be used.</p>" +
-                                                         "<p>This value is used with SPCC methods.</p>");
+                                                         "<p>This value is used  with all other methods except Add.</p>");
+      this.RGBHa_SPCCBoostValue = newRGBNBNumericEdit(this, 'Add', par.RGBHa_Add_BoostFactor, 
+                                                         "<p>Boost, or multiplication factor, for Ha channel with Add method.</p>" + 
+                                                         "<p>For R channel a value 1-Boost will be used.</p>" +
+                                                         "<p>Note that Add method really works well only with SPCC color calibration.</p>");
 
       this.RGBHa_BoostSizer = new HorizontalSizer;
       // this.RGBHa_BoostSizer.margin = 6;
       this.RGBHa_BoostSizer.spacing = 4;
       this.RGBHa_BoostSizer.add( this.RGBHa_BoostLabel );
-      this.RGBHa_BoostSizer.add( this.RGBHa_SubtractBoostValue );
       this.RGBHa_BoostSizer.add( this.RGBHa_CombineBoostValue );
       this.RGBHa_BoostSizer.add( this.RGBHa_SPCCBoostValue );
       this.RGBHa_BoostSizer.add( this.testRGBHaMappingButton );
       this.RGBHa_BoostSizer.addStretch();
 
-      this.RGBHa_Sizer1 = new HorizontalSizer;
-      this.RGBHa_Sizer1.spacing = 4;
-      this.RGBHa_Sizer1.add(this.RGBHa_BoostSizer);
-      this.RGBHa_Sizer1.addStretch();
-
       this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
             "<p>Do gradient correction on Ha image before mapping.</p>" );
-      this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen background", par.RGBHa_smoothen_background, 
-            "<p>Smoothen background which may help with gradient correction.</p>" );
+      this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen background %", par.RGBHa_smoothen_background, 
+            "<p>Smoothen background which may help with gradient correction. Select a percentage value below which smoothing is done.</p>" +
+            "<p>Usually values below 50 work best. Possible values are between 0 and 100.");
+
+      this.RGBHa_smoothen_background_value_edit = newNumericEditPrecision(this, 'value', par.RGBHa_smoothen_background_value, 0, 100, this.RGBHa_smoothen_background_CheckBox.toolTip, 4);
+      this.RGBHa_remove_stars_CheckBox = newCheckBox(this, "Remove stars", par.RGBHa_remove_stars, 
+            "<p>Remove stars before combining Ha ro RGB.</p>" );
 
       this.RGBHa_Sizer2 = new HorizontalSizer;
+      // this.RGBHa_Sizer2.margin = 6;
       this.RGBHa_Sizer2.spacing = 4;
       this.RGBHa_Sizer2.add( this.RGBHa_gradient_correction_CheckBox );
       this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_CheckBox );
+      this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_value_edit );
+      this.RGBHa_Sizer2.add( this.RGBHa_remove_stars_CheckBox );
       this.RGBHa_Sizer2.addStretch();
 
       this.RGBHa_Sizer = new VerticalSizer;
       // this.RGBHa_Sizer.margin = 6;
       this.RGBHa_Sizer.spacing = 4;
       this.RGBHa_Sizer.toolTip = RGBHa_tooltip;
-      this.RGBHa_Sizer.add(this.useRGBHamappingSizer);
-      this.RGBHa_Sizer.add(this.RGBHa_Sizer1);
+      this.RGBHa_Sizer.add(this.useRGBHaMappingSizer);
+      this.RGBHa_Sizer.add(this.useRGBHaMethodSizer);
+      this.RGBHa_Sizer.add(this.RGBHa_BoostSizer);
       this.RGBHa_Sizer.add(this.RGBHa_Sizer2);
       this.RGBHa_Sizer.addStretch();
 
