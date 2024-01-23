@@ -416,6 +416,26 @@ this.filterKeywords = function(imageWindow, keywordname)
       return oldKeywords;
 }
 
+this.findDrizzleScale = function(imageWindow) 
+{
+      var scale = 0;
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == 'HISTORY') {
+                  var value = keyword.strippedValue.trim();
+                  if (value.startsWith("DrizzleIntegration.scale:")) {
+                        var parts = value.split(" ");
+                        if (parts.length > 1) {
+                              scale = parseFloat(parts[1]);
+                              break;
+                        }
+                  }
+            }
+      }
+      return scale;
+}
+
 this.copyKeywords = function(imageWindow) 
 {
       var newKeywords = [];
@@ -611,6 +631,7 @@ this.closeTempWindowsForOneImage = function(id)
 {
       util.closeOneWindow(id + "_max");
       util.closeOneWindow(id + "_map");
+      util.closeOneWindow(id + "_map_linear_fit_reference");
       util.closeOneWindow(id + "_stars");
       util.closeOneWindow(id + "_map_mask");
       util.closeOneWindow(id + "_map_stars");
@@ -899,6 +920,16 @@ this.fatalWindowNameFailed = function(txt)
       console.criticalln(txt);
       console.criticalln("Close old images or use a different window prefix.");
       util.throwFatalError("Processing stopped");
+}
+
+this.add_test_image = function(id, testid, testmode)
+{
+      if (testmode) {
+            var copy_id = ppar.win_prefix + testid;
+            util.closeOneWindow(copy_id);
+            util.copyWindowEx(util.findWindow(id), copy_id, true);
+            global.test_image_ids.push(copy_id);
+      }
 }
 
 this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)

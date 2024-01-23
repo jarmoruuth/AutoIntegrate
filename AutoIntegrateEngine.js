@@ -4369,7 +4369,7 @@ function processChannelImage(image_id, is_luminance)
       }
       if (par.GC_before_channel_combination.val) {
             if (par.smoothbackground.val > 0) {
-                  smoothBackgroundBeforeGC(image_id, par.smoothbackground.val);
+                  smoothBackgroundBeforeGC(image_id, par.smoothbackground.val, true);
             }
             // Optionally do GC on channel images
             runGradientCorrectionBeforeChannelCombination(image_id);
@@ -4738,9 +4738,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 
       if (par.use_starnet2.val && linear_data) {
-            var median = imgWin.mainView.computeOrFetchProperty("Median");
-            console.writeln("removeStars with StarNet2, median " + median);
-            runPixelMathSingleMappingEx(imgWin.mainView.id, from_lights ? "from_lights" : "linearize", "mtf(" + median.at(0) + ", $T)", false, null, false, true);
+            var median = delinearizeImage(imgWin, from_lights ? "from_lights" : "delinearize");
       }
 
       if (!global.get_flowchart_data) {
@@ -4756,7 +4754,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 
       if (par.use_starnet2.val && linear_data) {
-            runPixelMathSingleMappingEx(imgWin.mainView.id, from_lights ? "from_lights" : "delinearize", "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
+            relinearizeImage(imgWin, median, from_lights ? "from_lights" : "relinearize");
       }
 
       checkCancel();
@@ -7723,14 +7721,18 @@ function runImageSolverEx(id)
       var metadata = new ImageMetadata();
       metadata.ExtractMetadata(imgWin);
       if (metadata.projection && metadata.ref_I_G_linear) {
-            util.addProcessingStep("Image " + id + " was already plate solved.");
-            if (global.pixinsight_version_num < 1080902) {
-                  solver.metadata.Print();
+            if (par.target_forcesolve.val) {
+                  console.writeln("runImageSolverEx: image " + id + " already has been plate solved, but we are resolving it again.");
             } else {
-                  console.writeln(imgWin.astrometricSolutionSummary());
+                  util.addProcessingStep("Image " + id + " was already plate solved.");
+                  if (global.pixinsight_version_num < 1080902) {
+                        solver.metadata.Print();
+                  } else {
+                        console.writeln(imgWin.astrometricSolutionSummary());
+                  }
+                  console.writeln("runImageSolverEx: image " + id + " already has been plate solved.");
+                  return true;
             }
-            console.writeln("runImageSolverEx: image " + id + " already has been plate solved.");
-            return true;
       }
 
       util.addProcessingStepAndStatusInfo("ImageSolver on image " + imgWin.mainView.id);
@@ -7820,6 +7822,21 @@ function runImageSolverEx(id)
                               var binning = parseInt(par.target_binning.val);
                               pixel_size = binning * pixel_size;
                               console.writeln("Using user given binning " + par.target_binning.val + ", adjusted pixel size: " + pixel_size);
+                        }
+                  }
+                  if (par.target_drizzle.val != 'None') {
+                        if (par.target_drizzle.val == 'Auto') {
+                              var scale = util.findDrizzleScale(imgWin);
+                              if (scale > 1) {
+                                    pixel_size = pixel_size / scale;
+                                    console.writeln("Using drizzle scale " + scale + ", adjusted pixel size: " + pixel_size);
+                              }
+                        } else {
+                              var scale = parseInt(par.target_drizzle.val);
+                              if (scale > 1) {
+                                    pixel_size = pixel_size / scale;
+                                    console.writeln("Using user given drizzle scale " + par.target_drizzle.val + ", adjusted pixel size: " + pixel_size);
+                              }
                         }
                   }
                   solver.metadata.xpixsz = pixel_size;
@@ -7969,9 +7986,7 @@ function runColorCalibration(imgWin, phase)
                   util.addProcessingStepAndStatusInfo("Color calibration on " + imgWin.mainView.id + " using SpectrophotometricColorCalibration process");
 
                   console.writeln("Image metadata:");
-                  if (global.pixinsight_version_num < 1080902) {
-                        solver.metadata.Print();
-                  } else {
+                  if (global.pixinsight_version_num >= 1080902) {
                         console.writeln(imgWin.astrometricSolutionSummary());
                   }
 
@@ -8749,6 +8764,22 @@ function findStartWindowCheckBaseNameArrayIf(idarray, check_base_name)
       return null;
 }
 
+function findRGBHaStartWindow(check_base_name)
+{
+      var H_enhanced_win = findStartWindowCheckBaseNameIf("Integration_H_enhanced_linear", check_base_name);
+      if (H_enhanced_win != null) {
+            RGBHa_H_enhanced_info.linear_id = H_enhanced_win.mainView.id;
+      } else {
+            RGBHa_H_enhanced_info.linear_id = null;
+      }
+      var H_enhanced_win = findStartWindowCheckBaseNameIf("Integration_H_enhanced", check_base_name);
+      if (H_enhanced_win != null) {
+            RGBHa_H_enhanced_info.nonlinear_id = H_enhanced_win.mainView.id;
+      } else {
+            RGBHa_H_enhanced_info.nonlinear_id = null;
+      }
+}
+
 function findStartImages(auto_continue, check_base_name, can_update_preview)
 {
       if (global.get_flowchart_data) {
@@ -8769,14 +8800,7 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
       O_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_O", check_base_name);
       RGB_GC_start_win = findGCStartWindowCheckBaseNameIf("Integration_RGB", check_base_name);
 
-      var H_enhanced_win = findStartWindowCheckBaseNameIf("Integration_H_enhanced_linear", check_base_name);
-      if (H_enhanced_win != null) {
-            RGBHa_H_enhanced_info.linear_id = H_enhanced_win.mainView.id;
-      }
-      var H_enhanced_win = findStartWindowCheckBaseNameIf("Integration_H_enhanced", check_base_name);
-      if (H_enhanced_win != null) {
-            RGBHa_H_enhanced_info.nonlinear_id = H_enhanced_win.mainView.id;
-      }
+      findRGBHaStartWindow(check_base_name);
 
       findIntegratedChannelAndRGBImages(check_base_name);
 
@@ -9591,17 +9615,55 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
       console.writeln("ColorEnsureMask done");
 }
 
-// Optionally smoothen background after stretch and before gradient correction
-function smoothBackgroundBeforeGC(win, val_perc)
+function delinearizeImage(imgWin, txt)
 {
+      var median = imgWin.mainView.computeOrFetchProperty("Median");
+      console.writeln("delinearizeImage, median " + median.at(0));
+      runPixelMathSingleMappingEx(imgWin.mainView.id, txt != null ? txt : "delinearize", "mtf(" + median.at(0) + ", $T)", false, null, false, true);
+      var median2 = imgWin.mainView.computeOrFetchProperty("Median");
+      console.writeln("delinearizeImage, median after delinearize " + median2.at(0));
+      return median;
+}
+
+function relinearizeImage(imgWin, median, txt)
+{
+      console.writeln("relinearizeImage, median " + median.at(0));
+      runPixelMathSingleMappingEx(imgWin.mainView.id, txt != null ? txt : "relinearize", "mtf(" + (1 - median.at(0)) + ", $T)", false, null, false, true);
+}
+
+// Optionally smoothen background after stretch and before gradient correction
+function smoothBackgroundBeforeGC(win, val_perc, linear_data)
+{
+      var delinearize = false;
+
       if (val_perc == 0) {
             return;
       }
-      console.writeln("smoothBackgroundBeforeGC, percentage " + val_perc);
-      var clip = getClipShadowsValue(win, val_perc);
-      var val = clip.normalizedShadowClipping;
-      console.writeln("smoothBackgroundBeforeGC, value " + val);
+      if (val_perc < 1) {
+            console.writeln("smoothBackgroundBeforeGC, value " + val_perc + " is below 1 so using it as an absolute value");
+            if (linear_data) {
+                  console.writeln("smoothBackgroundBeforeGC, linear data so delinearize to use absolute value");
+                  var delinearize = true;
+            }
+            val = val_perc;
+      } else {
+            console.writeln("smoothBackgroundBeforeGC, percentage " + val_perc);
+            var clip = getClipShadowsValue(win, val_perc);
+            var val = clip.normalizedShadowClipping;
+            console.writeln("smoothBackgroundBeforeGC, value " + val);
+      }
+      if (delinearize) {
+            util.add_test_image(win.mainView.id, "smoothBackgroundBeforeGC_before_delinearize", par.debug.val);
+            /* Smoothing value is in scale 0..1 so use linear image for smoothing. */
+            var median = delinearizeImage(win);
+            util.add_test_image(win.mainView.id, "smoothBackgroundBeforeGC_after_delinearize", par.debug.val);
+      }
       smoothBackground(win, val, 0.5);
+      if (delinearize) {
+            util.add_test_image(win.mainView.id, "smoothBackgroundBeforeGC_after_smoothing", par.debug.val);
+            relinearizeImage(win, median);
+            util.add_test_image(win.mainView.id, "smoothBackgroundBeforeGC_after_redelinearize", par.debug.val);
+      }
 }
 
 /* Process L image
@@ -9639,7 +9701,7 @@ function ProcessLimage(RGBmapping)
                               // run GC
                               console.writeln("GC L");
                               if (par.smoothbackground.val > 0) {
-                                    smoothBackgroundBeforeGC(L_win, par.smoothbackground.val);
+                                    smoothBackgroundBeforeGC(L_win, par.smoothbackground.val, true);
                               }
                               L_processed_id = runGradientCorrection(L_win, false);
                         } else {
@@ -9715,7 +9777,7 @@ function ProcessLimage(RGBmapping)
       if (par.use_GC_on_L_RGB_stretched.val) {
             console.writeln("GC L stretched");
             if (par.smoothbackground.val > 0) {
-                  smoothBackgroundBeforeGC(L_processed_HT_win, par.smoothbackground.val);
+                  smoothBackgroundBeforeGC(L_processed_HT_win, par.smoothbackground.val, false);
             }
             runGradientCorrection(L_processed_HT_win, true);
       }
@@ -9990,7 +10052,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
 
       if (par.RGBNB_gradient_correction.val) {
             if (par.smoothbackground.val > 0) {
-                  smoothBackgroundBeforeGC(util.findWindow(NB_id), par.smoothbackground.val);
+                  smoothBackgroundBeforeGC(util.findWindow(NB_id), par.smoothbackground.val, true);
             }
             NB_id = runGradientCorrection(util.findWindow(NB_id), true);
       }
@@ -10110,7 +10172,7 @@ this.testRGBNBmapping = function()
                   if (par.use_GC_on_L_RGB.val) {
                         for (var i = 0; i < images.length; i++) {
                               if (par.smoothbackground.val > 0) {
-                                    smoothBackgroundBeforeGC(util.findWindow(images[i]), par.smoothbackground.val);
+                                    smoothBackgroundBeforeGC(util.findWindow(images[i]), par.smoothbackground.val, true);
                               }
                               images[i] = runGradientCorrection(util.findWindow(images[i]), true);
                         }
@@ -10146,16 +10208,6 @@ this.testRGBNBmapping = function()
       flowchartDone();
 }
 
-function RGBHa_add_test_image(id, testid, testmode)
-{
-      if (testmode) {
-            var copy_id = ppar.win_prefix + testid;
-            util.closeOneWindow(copy_id);
-            util.copyWindowEx(util.findWindow(id), copy_id, true);
-            RGBHa_image_ids.push(copy_id);
-      }
-}
-
 function RGBHaFindLinearFitReferenceImage(RGB_id)
 {
       if (linear_fit_rerefence_id != null) {
@@ -10166,9 +10218,10 @@ function RGBHaFindLinearFitReferenceImage(RGB_id)
       }     return id;
 }
 
-function RGBHaPrepareHa(RGB_id, testmode)
+function RGBHaPrepareHa(RGB_id, rgb_is_linear, testmode)
 {
       var nb_channel_id = H_id;
+      var H_is_linear = RGBHa_H_enhanced_info.nonlinear_id != null;
       if (nb_channel_id == null) {
             util.throwFatalError("Could not find Ha image for mapping to R");
       }
@@ -10187,22 +10240,22 @@ function RGBHaPrepareHa(RGB_id, testmode)
 
       console.writeln("RGBHaPrepareHa, linear fit");
       linearFitArray(RGBHaFindLinearFitReferenceImage(RGB_id), [ nb_channel_id ]);
-      RGBHa_add_test_image(nb_channel_id, "nb_channel_id_linearfit", testmode);
+      util.add_test_image(nb_channel_id, "nb_channel_id_linearfit", testmode);
 
       if (par.RGBHa_smoothen_background.val) {
             console.writeln("RGBHaPrepareHa, smoothen background on " + nb_channel_id);
-            smoothBackgroundBeforeGC(util.findWindow(nb_channel_id), par.RGBHa_smoothen_background_value.val);
+            smoothBackgroundBeforeGC(util.findWindow(nb_channel_id), par.RGBHa_smoothen_background_value.val, rgb_is_linear);
       }
       if (par.RGBHa_gradient_correction.val) {
             console.writeln("RGBHaPrepareHa, gradient correction on " + nb_channel_id);
             nb_channel_id = runGradientCorrection(util.findWindow(nb_channel_id), true);
-            RGBHa_add_test_image(nb_channel_id, "nb_channel_id_gc", testmode);
+            util.add_test_image(nb_channel_id, "nb_channel_id_gc", testmode);
       }
 
       console.writeln("RGBHaPrepareHa, remove noise " + nb_channel_id);
       runNoiseReduction(util.findWindow(nb_channel_id), null, true);
 
-      RGBHa_add_test_image(nb_channel_id, "nb_channel_id_prepared", testmode);
+      util.add_test_image(nb_channel_id, "nb_channel_id_prepared", testmode);
 
       return nb_channel_id;
 }
@@ -10223,7 +10276,7 @@ function RGBHa_max_Ha(RGB_id, nb_channel_id)
                         nb_channel_id + " * " + par.RGBHa_Combine_BoostFactor.val);
       H_boost = util.windowRename(H_boost, nb_channel_id + "_boosted");
       util.findWindow(H_boost).show();
-      RGBHa_add_test_image(H_boost, "RGBHa_max_Ha_boosted", testmode);
+      util.add_test_image(H_boost, "RGBHa_max_Ha_boosted", testmode);
 
       // This formula is from VisibleDark YouTube channel
       console.writeln("RGBHa_max_Ha, runPixelMathRGBMapping");
@@ -10257,7 +10310,7 @@ function RGBHa_screen_Ha(RGB_id, nb_channel_id)
                         nb_channel_id + " * " + par.RGBHa_Combine_BoostFactor.val);
       H_boost = util.windowRename(H_boost, nb_channel_id + "_boosted");
       util.findWindow(H_boost).show();
-      RGBHa_add_test_image(H_boost, "RGBHa_screen_Ha_boosted", testmode);
+      util.add_test_image(H_boost, "RGBHa_screen_Ha_boosted", testmode);
 
       // This formula is from VisibleDark YouTube channel
       console.writeln("RGBHa_screen_Ha, runPixelMathRGBMapping");
@@ -10283,7 +10336,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
       if (par.RGBHa_smoothen_background.val) {
             if (par.smoothbackground.val == 0) {
                   console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id);
-                  smoothBackgroundBeforeGC(util.findWindow(rgb_channel_id), par.RGBHa_smoothen_background_value.val);
+                  smoothBackgroundBeforeGC(util.findWindow(rgb_channel_id), par.RGBHa_smoothen_background_value.val), rgb_is_linear;
             } else {
                   console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id + " skipped because smoothbackground is " + par.smoothbackground.val);
             }
@@ -10292,7 +10345,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
             if (!par.GC_on_lights.val) {
                   console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id);
                   rgb_channel_id = runGradientCorrection(util.findWindow(rgb_channel_id), true);
-                  RGBHa_add_test_image(rgb_channel_id, "rgb_channel_id_gc", testmode);
+                  util.add_test_image(rgb_channel_id, "rgb_channel_id_gc", testmode);
             } else {
                   console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id + " skipped because GC_on_lights is enabled");
             }
@@ -10308,25 +10361,25 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
 
       var hrr_win = util.findWindow(hrr_id);
 
-      RGBHa_add_test_image(hrr_id, "Integration_HRR_uncalibrated", testmode);
+      util.add_test_image(hrr_id, "Integration_HRR_uncalibrated", testmode);
 
       console.writeln("RGBHa_ContinuumSubtract, HRR, background neutralization");
       runBackgroundNeutralization(hrr_win.mainView);
-      RGBHa_add_test_image(hrr_id, "Integration_HRR_bn", testmode);
+      util.add_test_image(hrr_id, "Integration_HRR_bn", testmode);
 
       console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration");
       runColorCalibrationProcess(hrr_win);
-      RGBHa_add_test_image(hrr_id, "Integration_HRR_bn_cc", testmode);
+      util.add_test_image(hrr_id, "Integration_HRR_bn_cc", testmode);
 
       if (!rgb_is_linear && RGBHa_H_enhanced_info.nonlinear_id == null) {
             console.writeln("RGBHa_ContinuumSubtract, HRR, stretch");
             runHistogramTransform(hrr_win, null, false, 'H');
-            RGBHa_add_test_image(hrr_id, "Integration_HRR_bn_cc_stretched", testmode);
+            util.add_test_image(hrr_id, "Integration_HRR_bn_cc_stretched", testmode);
             RGBHa_H_enhanced_info.nonlinear_id = hrr_id;
       }
       clipShadows(hrr_win, 1);
 
-      RGBHa_add_test_image(hrr_id, "Integration_HRR_calibrated", testmode);
+      util.add_test_image(hrr_id, "Integration_HRR_calibrated", testmode);
 
       var enhanced_channel_id = ppar.win_prefix + "Integration_H_NB_enhanced";
 
@@ -10336,7 +10389,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
             }
             console.writeln("RGBHa_ContinuumSubtract, remove stars on " + nb_channel_id);
             removeStars(util.findWindow(nb_channel_id), true, false, null, null, false);
-            RGBHa_add_test_image(nb_channel_id, "nb_channel_id_starless", testmode);
+            util.add_test_image(nb_channel_id, "nb_channel_id_starless", testmode);
             RGBHa_H_enhanced_info.starless = true;
       }
 
@@ -10378,7 +10431,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
 
       hrr_win.mainView.endProcess();
 
-      RGBHa_add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
+      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
       
       util.closeOneWindow(hrr_id);
 
@@ -10432,7 +10485,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
                               var rgb_channel_id = extractRGBchannel(RGB_id, 'R');
                         }
                         global.temporary_windows[global.temporary_windows.length] = rgb_channel_id;
-                        RGBHa_add_test_image(rgb_channel_id, "rgb_channel_id_init", testmode);
+                        util.add_test_image(rgb_channel_id, "rgb_channel_id_init", testmode);
                   
                         var enhanced_channel_id = RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_linear, testmode);
 
@@ -10449,10 +10502,11 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
                               }
                               console.writeln("RGBHa_init, remove stars on " + nb_channel_id);
                               removeStars(util.findWindow(nb_channel_id), true, false, null, null, false);
-                              RGBHa_add_test_image(nb_channel_id, "nb_channel_id_starless", testmode);
+                              util.add_test_image(nb_channel_id, "nb_channel_id_starless", testmode);
                               RGBHa_H_enhanced_info.starless = true;
                         }
                         var enhanced_channel_id = nb_channel_id;
+                        var enhanced_channel_win = util.findWindow(enhanced_channel_id);
                         break;
             }
 
@@ -10501,7 +10555,7 @@ function RGBHa_mapping(RGB_id)
 
       console.writeln("RGBHa_mapping, " + par.RGBHa_combine_method.val);
 
-      RGBHa_add_test_image(RGB_id, "rgb_channel_id_before_mapping", testmode);
+      util.add_test_image(RGB_id, "rgb_channel_id_before_mapping", testmode);
 
       switch (par.RGBHa_combine_method.val) {
             case 'Add':
@@ -10548,6 +10602,9 @@ function RGBHa_mapping(RGB_id)
                         "$T[0] + " + par.RGBHa_Combine_BoostFactor.val + " * (" + nb_channel_id + " - Med(" + nb_channel_id + "))",
                         "$T[1]", 
                         "$T[2] + " + (par.RGBHa_Combine_BoostFactor.val * 0.2) + " * (" + nb_channel_id + " - Med(" + nb_channel_id + "))");
+                  break;
+
+            case 'None':
                   break;
 
             default:
@@ -10599,6 +10656,7 @@ this.testRGBHaMapping = function()
       engine.flowchartReset();
       flowchartInit();
 
+      findRGBHaStartWindow(false);
       findIntegratedChannelAndRGBImages(false);
 
       if (par.use_spcc.val) {
@@ -10625,7 +10683,7 @@ this.testRGBHaMapping = function()
                   if (par.use_GC_on_L_RGB.val) {
                         for (var i = 0; i < images.length; i++) {
                               if (par.smoothbackground.val > 0) {
-                                    smoothBackgroundBeforeGC(util.findWindow(images[i]), par.smoothbackground.val);
+                                    smoothBackgroundBeforeGC(util.findWindow(images[i]), par.smoothbackground.val, true);
                               }
                               images[i] = runGradientCorrection(util.findWindow(images[i]), true);
                         }
@@ -10664,6 +10722,9 @@ this.testRGBHaMapping = function()
       for (var i = 0; i < RGBHa_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(RGBHa_image_ids[i]);
       }
+      for (var i = 0; i < global.test_image_ids.length; i++) {
+            util.windowIconizeAndKeywordif(global.test_image_ids[i]);
+      }
       
       console.endLog();
       flowchartDone();
@@ -10673,9 +10734,13 @@ this.testRGBHaMapping = function()
 
 function extraHaMapping(extraWin)
 {
-      H_id = findIntegratedChannelImage("H", true, null);
-      if (H_id == null) {
-            util.throwFatalError("Could not find integrated H image");
+      findRGBHaStartWindow(true);
+      if (RGBHa_H_enhanced_info.linear_id == null && RGBHa_H_enhanced_info.nonlinear_id == null) {
+            H_id = findIntegratedChannelImage("H", true, null);
+            if (H_id == null) {
+                  util.throwFatalError("Could not find integrated H image");
+            }
+            RGBHa_H_enhanced_info.linear_id = H_id;
       }
 
       RGBHa_init(extraWin.mainView.id, false, false);
@@ -10750,7 +10815,7 @@ function ProcessRGBimage(RGBmapping)
                   if (par.use_GC_on_L_RGB.val) {
                         console.writeln("GC RGB");
                         if (par.smoothbackground.val > 0) {
-                              smoothBackgroundBeforeGC(RGB_win, par.smoothbackground.val);
+                              smoothBackgroundBeforeGC(RGB_win, par.smoothbackground.val, true);
                         }
                         RGB_processed_id = runGradientCorrection(RGB_win, false);
                   } else {
@@ -10857,7 +10922,7 @@ function ProcessRGBimage(RGBmapping)
       }
       if (par.use_GC_on_L_RGB_stretched.val) {
             if (par.smoothbackground.val > 0) {
-                  smoothBackgroundBeforeGC(util.findWindow(RGB_processed_HT_id), par.smoothbackground.val);
+                  smoothBackgroundBeforeGC(util.findWindow(RGB_processed_HT_id), par.smoothbackground.val, false);
             }
             runGradientCorrection(util.findWindow(RGB_processed_HT_id), true);
       }
@@ -14085,8 +14150,12 @@ function createCropInformationAutoContinue()
        global.processing_steps = "";
        global.processing_errors = "";
        global.processing_warnings = "";
+
        RGBHa_H_enhanced_info.linear_id = null;
        RGBHa_H_enhanced_info.nonlinear_id = null;
+       RGBHa_image_ids = [];
+
+       global.test_image_ids = [];
 
        console.noteln("Start extra processing...");
        guiUpdatePreviewId(extra_target_image);
@@ -14222,6 +14291,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        save_id_list = [];
  
        global.processed_channel_images = [];
+       global.test_image_ids = [];
  
        luminance_crop_id = null;
        RGBHa_H_enhanced_info.linear_id = null;
@@ -14633,6 +14703,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
       }
       for (var i = 0; i < RGBHa_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(RGBHa_image_ids[i]);
+      }
+      for (var i = 0; i < global.test_image_ids.length; i++) {
+            util.windowIconizeAndKeywordif(global.test_image_ids[i]);
       }
  
        for (var i = 0; i < global.processed_channel_images.length; i++) {

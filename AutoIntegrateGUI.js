@@ -314,6 +314,7 @@ var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
+var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_correction_values = [ 'Subtraction', 'Division' ];
@@ -327,7 +328,7 @@ var rotate_degrees_values = [ '90', '180', '-90' ];
 var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
 var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
 var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
-var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add' ];
+var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -7011,9 +7012,19 @@ function AutoIntegrateDialog()
                                                             "<ul>" +
                                                             "<li>Auto uses image metadata XBINNING value when available.</li>" +
                                                             "<li>None does not modify pixel size.</li>" +
-                                                            "<li>Values 2 and 4 multiply the pizel size by those values.</li>" +
+                                                            "<li>Values 2 and 4 multiply the pixel size by those values.</li>" +
                                                             "</ul>");
       this.targetBinningComboBox = newComboBox(this, par.target_binning, target_binning_values, this.targetBinningLabel.toolTip);
+      this.targetDrizzleLabel = newLabel(this, "Drizzle", "<p>Target drizzle. Drizzle divides the pixel size by the drizzle value.</p>" + 
+                                                            "<ul>" +
+                                                            "<li>Auto uses image metadata 'DrizzleIntegration.scale:' value when available.</li>" +
+                                                            "<li>None does not modify pixel size.</li>" +
+                                                            "<li>Values 2 and 4 divide the pixel size by those values.</li>" +
+                                                            "</ul>");
+      this.targetDrizzleComboBox = newComboBox(this, par.target_drizzle, target_drizzle_values, this.targetDrizzleLabel.toolTip);
+      this.targetResolveCheckBox = newCheckBox(this, "Force solve", par.target_forcesolve, 
+                                                      "<p>Force solving images even if it already solved.</p>" +
+                                                      "<p>Can be useful for example when using old data with a newer SPCC version.</p>");
 
       this.imageSolvingGroupBoxSizer1 = new HorizontalSizer;
       // this.imageSolvingGroupBoxSizer1.margin = 6;
@@ -7023,6 +7034,7 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer1.add( this.targetRaDecLabel );
       this.imageSolvingGroupBoxSizer1.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer1.add( this.findTargetCoordinatesButton );
+      this.imageSolvingGroupBoxSizer1.add( this.targetResolveCheckBox );
       this.imageSolvingGroupBoxSizer1.addStretch();
 
       this.imageSolvingGroupBoxSizer2 = new HorizontalSizer;
@@ -7034,6 +7046,8 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer2.add( this.targetPixelSizeEdit );
       this.imageSolvingGroupBoxSizer2.add( this.targetBinningLabel );
       this.imageSolvingGroupBoxSizer2.add( this.targetBinningComboBox );
+      this.imageSolvingGroupBoxSizer2.add( this.targetDrizzleLabel );
+      this.imageSolvingGroupBoxSizer2.add( this.targetDrizzleComboBox );
       this.imageSolvingGroupBoxSizer2.addStretch();
 
       this.imageSolvingGroupBoxLabel = newSectionLabel(this, "Image solving");
@@ -7545,12 +7559,11 @@ function AutoIntegrateDialog()
 
       this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
             "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
-            "smoothing. Smoothing is done after image has been stretched to non-linear " + 
-            "and before optional <i>Gradient correction on stretched image</i> is done.</p>" +
+            "smoothing. Smoothing is done before gradient correction.</p>" +
             "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
             "Zero values does not do smoothing.</p>" +
             "<p>Smoothening should be used only in extreme cases with very uneven background " + 
-            "because a lot of shadow detail is lost.</p>",
+            "because a lot of shadow detail may get lost.</p>",
             4);
       this.logarithmicTargetValue_Control = newNumericEdit(this, "Logarithmic target value", par.logarithmic_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
@@ -7968,14 +7981,22 @@ function AutoIntegrateDialog()
             "</p><p>" +
             "If there is no Luminance channel available then selections for L channel are ignored." +
             "</p><p>" + 
-            "The following steps are used with default settings. Note that Add option uses a simplified mapping." + 
+            "The following steps are done:" + 
             "</p>" +
             "<ul>" +
             "<li>Enhance narrowband channel using bandwidth values.</li>" +
             "<li>Add narrowband to RGB channel using formula: RGBch + (NBch - med(NBch)) * Boost</li>" +
             "<li>Optionally run linear fit on narrowband channel using RGB channel as a reference.</li>" +
             "<li>For the final mapped channel tame max(narrowband channel, RGB channel)</li>" +
-            "</ul>";
+            "</ul>" +
+            "<p>" +
+            "Information for processing and formulas are collected from multiple sources, including:" +
+            "</p>" + 
+            "<ul>" +
+            "<li>Light Vortex Astronomy website</li>" +
+            "<li>NBRGBCombination script</li>" +
+            "</ul>" +
+            "";
             
       this.useRGBNBmapping_CheckBox = newCheckBox(this, "Use Narrowband RGB mapping", par.use_RGBNB_Mapping, RGBNB_tooltip);
       this.RGBNB_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBNB_gradient_correction, 
@@ -8134,7 +8155,14 @@ function AutoIntegrateDialog()
             "Also a user processed Ha image can be used. " + 
             "In case of linear Ha image processing, if image Integration_H_enhanced_linear exists it use used. " +
             "In case of non-linear (stretched) Ha image processing, if image Integration_H_enhanced exists it use used." +
-            "</p>";
+            "</p><p>" +
+            "Information for processing and formulas are collected from multiple sources, including:" +
+            "</p>" + 
+            "<ul>" +
+            "<li>Night Photons website</li>" +
+            "<li>VisibleDark YouTube channel</li>" +
+            "</ul>" +
+            "";
 
       this.useRGBHamapping_CheckBox = newCheckBox(this, "Use Ha RGB mapping", par.use_RGBHa_Mapping, RGBHa_tooltip);
 
@@ -8234,10 +8262,10 @@ function AutoIntegrateDialog()
       this.RGBHa_BoostSizer = new HorizontalSizer;
       // this.RGBHa_BoostSizer.margin = 6;
       this.RGBHa_BoostSizer.spacing = 4;
+      this.RGBHa_BoostSizer.addSpacing( 8 );
       this.RGBHa_BoostSizer.add( this.RGBHa_BoostLabel );
       this.RGBHa_BoostSizer.add( this.RGBHa_CombineBoostValue );
       this.RGBHa_BoostSizer.add( this.RGBHa_SPCCBoostValue );
-      this.RGBHa_BoostSizer.add( this.testRGBHaMappingButton );
       this.RGBHa_BoostSizer.addStretch();
 
       this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
@@ -8257,6 +8285,7 @@ function AutoIntegrateDialog()
       this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_CheckBox );
       this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_value_edit );
       this.RGBHa_Sizer2.add( this.RGBHa_remove_stars_CheckBox );
+      this.RGBHa_Sizer2.add( this.testRGBHaMappingButton );
       this.RGBHa_Sizer2.addStretch();
 
       this.RGBHa_Sizer = new VerticalSizer;

@@ -312,6 +312,8 @@ this.par = {
       target_focal: { val: '', def: '', name : "Target focal length", type : 'S' }, 
       target_pixel_size: { val: '', def: '', name : "Target pixel size", type : 'S' }, 
       target_binning: { val: 'Auto', def: 'Auto', name : "Target binning", type : 'S' }, 
+      target_drizzle: { val: 'Auto', def: 'Auto', name : "Target drizzle", type : 'S' }, 
+      target_forcesolve: { val: false, def: false, name : "Target force solve", type : 'B' }, 
       spcc_detection_scales: { val: 5, def: 5, name : "SPCC detection scales", type : 'I' }, 
       spcc_noise_scales: { val: 1, def: 1, name : "SPCC noise scales", type : 'I' }, 
       spcc_min_struct_size: { val: 0, def: 0, name : "SPCC min struct size", type : 'I' }, 
@@ -697,6 +699,8 @@ this.final_windows = [
       "AutoRGB",
       "AutoMono"
 ];
+
+this.test_image_ids = [];      // Test images
 
 this.narrowBandPalettes = [
       { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false },
