@@ -325,7 +325,7 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
-var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
+var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract', 'Max 0.7' ];
 var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
 var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
@@ -1354,7 +1354,8 @@ function extraProcessingGUI(parent)
       this.extraCombineStars_Sizer.addStretch();
 
       this.extraRGBHamapping_CheckBox = newCheckBox(parent, "Ha to RGB mapping", par.extra_ha_mapping, 
-            "<p>Run Ha to RGB mapping on the image.</p>" );
+            "<p>Run Ha to RGB mapping on the image.</p>" +
+            "<p>Integratrion_H, Integration_H_crop or Integratrion_H_enhanced image must be loaded to the desktop.</p>" );
       this.extraDarkerBackground_CheckBox = newCheckBox(parent, "Darker background", par.extra_darker_background, 
             "<p>Make image background darker using a lightness mask.</p>" );
       this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
@@ -8175,11 +8176,22 @@ function AutoIntegrateDialog()
                         par.RGBHa_prepare_method.val = 'Continuum Subtract';
                         par.RGBHa_combine_time.val = 'Stretched';
                         par.RGBHa_combine_method.val = 'Bright structure add';
+                        par.RGBHa_Combine_BoostFactor.val = par.RGBHa_Combine_BoostFactor.def;
+                        par.RGBHa_Combine_BoostFactor.reset();
                         break;
                   case 'SPCC Continuum Subtract':
                         par.RGBHa_prepare_method.val = 'Continuum Subtract';
                         par.RGBHa_combine_time.val = 'SPCC linear';
                         par.RGBHa_combine_method.val = 'Add';
+                        par.RGBHa_Add_BoostFactor.val = par.RGBHa_Add_BoostFactor.def;
+                        par.RGBHa_Add_BoostFactor.reset();
+                        break;
+                  case 'Max 0.7':
+                        par.RGBHa_prepare_method.val = 'Basic';
+                        par.RGBHa_combine_time.val = 'Stretched';
+                        par.RGBHa_combine_method.val = 'Max';
+                        par.RGBHa_Combine_BoostFactor.val = 0.7;
+                        par.RGBHa_Combine_BoostFactor.reset();
                         break;
                   default:
                         util.throwFatalError("Unknown preset " + RGBHa_preset_values[itemIndex]);

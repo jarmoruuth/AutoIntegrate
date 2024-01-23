@@ -4414,7 +4414,11 @@ function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
-            var copyname = util.ensure_win_prefix(images[i] + "_map");
+            if (images[i].endsWith("_crop")) {
+                  var copyname = util.ensure_win_prefix(util.replacePostfixOrAppend(images[i], ["_crop"], "_map"));
+            } else {
+                  var copyname = util.ensure_win_prefix(images[i] + "_map");
+            }
             if (!images[i].endsWith("_map") && util.findWindow(copyname) == null) {
                   console.writeln("copy from " + images[i] + " to " + copyname);
                   util.copyWindow(
@@ -8490,7 +8494,7 @@ function findIntegratedLightImage(channel, filtered_lights, new_id)
             if (filtered_lights.allfilesarr[i].filter == channel) {
                   if (filtered_lights.allfilesarr[i].files.length == 1) {
                         // Only one file, assume it is the integrated file
-                        id = findOrReadImage(filtered_lights.allfilesarr[i].files[0].name, new_id);
+                        var id = findOrReadImage(filtered_lights.allfilesarr[i].files[0].name, new_id);
                         if (id) {
                               console.writeln("findIntegratedChannelImage: found " + id);
                         }
@@ -8505,11 +8509,17 @@ function findIntegratedLightImage(channel, filtered_lights, new_id)
 
 function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
 {
-      var id = findWindowIdCheckBaseNameIf("Integration_" + channel, check_base_name);
-      if (id == null && filtered_lights != null) {
-            id = findIntegratedLightImage(channel, filtered_lights, "Integration_" + channel);
+      var cropextensions = [ '_crop', '' ];
+      for (var i = 0; i < cropextensions.length; i++) {
+            var id = findWindowIdCheckBaseNameIf("Integration_" + channel + cropextensions[i], check_base_name);
+            if (id == null && filtered_lights != null) {
+                  id = findIntegratedLightImage(channel, filtered_lights, "Integration_" + channel + cropextensions[i]);
+            }
+            if (id != null) {
+                  return id;
+            }
       }
-      return id;
+      return null;
 }
 
 function findIntegratedRGBImage(check_base_name, filtered_lights)
@@ -10221,7 +10231,6 @@ function RGBHaFindLinearFitReferenceImage(RGB_id)
 function RGBHaPrepareHa(RGB_id, rgb_is_linear, testmode)
 {
       var nb_channel_id = H_id;
-      var H_is_linear = RGBHa_H_enhanced_info.nonlinear_id != null;
       if (nb_channel_id == null) {
             util.throwFatalError("Could not find Ha image for mapping to R");
       }
@@ -10363,39 +10372,38 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
 
       util.add_test_image(hrr_id, "Integration_HRR_uncalibrated", testmode);
 
-      console.writeln("RGBHa_ContinuumSubtract, HRR, background neutralization");
+      console.writeln("RGBHa_ContinuumSubtract, HRR, background neutralization on " + hrr_id);
       runBackgroundNeutralization(hrr_win.mainView);
       util.add_test_image(hrr_id, "Integration_HRR_bn", testmode);
 
-      console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration");
+      console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration on " + hrr_id);
       runColorCalibrationProcess(hrr_win);
       util.add_test_image(hrr_id, "Integration_HRR_bn_cc", testmode);
 
       if (!rgb_is_linear && RGBHa_H_enhanced_info.nonlinear_id == null) {
-            console.writeln("RGBHa_ContinuumSubtract, HRR, stretch");
+            console.writeln("RGBHa_ContinuumSubtract, HRR, stretch " + hrr_id);
             runHistogramTransform(hrr_win, null, false, 'H');
             util.add_test_image(hrr_id, "Integration_HRR_bn_cc_stretched", testmode);
-            RGBHa_H_enhanced_info.nonlinear_id = hrr_id;
       }
       clipShadows(hrr_win, 1);
 
       util.add_test_image(hrr_id, "Integration_HRR_calibrated", testmode);
 
-      var enhanced_channel_id = ppar.win_prefix + "Integration_H_NB_enhanced";
-
       if (par.RGBHa_remove_stars.val && !RGBHa_H_enhanced_info.starless) {
             if (!par.use_starxterminator.val && !par.use_starnet2.val) {
                   util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
             }
-            console.writeln("RGBHa_ContinuumSubtract, remove stars on " + nb_channel_id);
-            removeStars(util.findWindow(nb_channel_id), true, false, null, null, false);
-            util.add_test_image(nb_channel_id, "nb_channel_id_starless", testmode);
+            console.writeln("RGBHa_ContinuumSubtract, remove stars on " + hrr_id);
+            removeStars(hrr_win, true, false, null, null, false);
+            util.add_test_image(hrr_id, "nb_channel_id_starless", testmode);
             RGBHa_H_enhanced_info.starless = true;
       }
 
       flowchartOperation("Pixelmath:RGBHa, HRR continuum subtract");
 
       console.writeln("RGBHa_ContinuumSubtract, PixelMath");
+
+      var enhanced_channel_id = ppar.win_prefix + "Integration_H_NB_enhanced";
 
       var P = new PixelMath;
       P.expression = "$T[0] - ($T[1] - med($T[1]))";
@@ -10434,6 +10442,12 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
       util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
       
       util.closeOneWindow(hrr_id);
+
+      if (!rgb_is_linear && RGBHa_H_enhanced_info.nonlinear_id == null) {
+            RGBHa_H_enhanced_info.nonlinear_id = enhanced_channel_id;
+      }
+
+      console.writeln("RGBHa_ContinuumSubtract, enhanced H image " + enhanced_channel_id);
 
       return enhanced_channel_id;
 }
@@ -10510,11 +10524,15 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
                         break;
             }
 
+            console.writeln("RGBHa_init, created enhanced H image " + enhanced_channel_id);
+
             guiUpdatePreviewWin(enhanced_channel_win);
             enhanced_channel_win.show();
 
             RGBHa_image_ids.push(enhanced_channel_id);
-            RGBHa_H_enhanced_info.linear_id = enhanced_channel_id;
+            if (RGBHa_H_enhanced_info.nonlinear_id == null) {
+                  RGBHa_H_enhanced_info.linear_id = enhanced_channel_id;
+            }
 
             flowchartChildEnd("RGBHa prepare H");
             flowchartParentEnd("RGBHa init");
@@ -10525,7 +10543,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
             RGBHa_mapping(RGB_id);
 
       } else if (RGBHa_H_enhanced_info.nonlinear_id == null) {
-            // If RGB is not linear, stretch also Ha
+            // Stretch Ha
             console.writeln("RGBHa_init, stretch image " + enhanced_channel_id);
             runHistogramTransform(enhanced_channel_win, null, false, 'H');
             RGBHa_H_enhanced_info.nonlinear_id = enhanced_channel_id;
@@ -10744,14 +10762,13 @@ function extraHaMapping(extraWin)
       }
 
       RGBHa_init(extraWin.mainView.id, false, false);
-      RGBHa_mapping(extraWin.mainView.id, false);
+      RGBHa_mapping(extraWin.mainView.id);
       if (!par.debug.val) {
             for (var i = 0; i < RGBHa_image_ids.length; i++) {
                   util.closeOneWindow(RGBHa_image_ids[i]);
             }
       }
 }
-
 
 /* Process RGB image
  *
@@ -13681,6 +13698,7 @@ function CropImageIf(id)
             var win_id = window.mainView.id;
             var crop_id = util.replacePostfixOrAppend(win_id, ["_map"], "_crop");
             console.writeln("Save cropped image " + win_id + " as " + crop_id);
+            util.copyWindowEx(window, crop_id, true);
             save_id_list.push([win_id, crop_id]);
       }
 
@@ -14182,6 +14200,7 @@ function createCropInformationAutoContinue()
             console.criticalln(global.processing_errors);
             console.writeln("");
        }
+       util.closeTempWindows();
        console.noteln("Extra processing completed.");
 
        global.is_processing = global.processing_state.none;
@@ -14613,7 +14632,13 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        flowchartDone();
 
        for (var i = 0; i < save_id_list.length; i++) {
-            saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
+            if (save_id_list[i][0] != save_id_list[i][1]) {
+                  // We have made a copy of the image to save_id_list[i][1]
+                  saveProcessedWindow(save_id_list[i][1]);
+                  util.closeOneWindow(save_id_list[i][1]);
+            } else {
+                  saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
+            }
        }
  
        if (do_extra_processing && (util.is_extra_option() || util.is_narrowband_option())) {
