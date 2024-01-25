@@ -7023,7 +7023,7 @@ function AutoIntegrateDialog()
                                                             "<li>Values 2 and 4 divide the pixel size by those values.</li>" +
                                                             "</ul>");
       this.targetDrizzleComboBox = newComboBox(this, par.target_drizzle, target_drizzle_values, this.targetDrizzleLabel.toolTip);
-      this.targetResolveCheckBox = newCheckBox(this, "Force solve", par.target_forcesolve, 
+      this.targetForceSolveCheckBox = newCheckBox(this, "Force solve", par.target_forcesolve, 
                                                       "<p>Force solving images even if it already solved.</p>" +
                                                       "<p>Can be useful for example when using old data with a newer SPCC version.</p>");
 
@@ -7035,7 +7035,7 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer1.add( this.targetRaDecLabel );
       this.imageSolvingGroupBoxSizer1.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer1.add( this.findTargetCoordinatesButton );
-      this.imageSolvingGroupBoxSizer1.add( this.targetResolveCheckBox );
+      this.imageSolvingGroupBoxSizer1.add( this.targetForceSolveCheckBox );
       this.imageSolvingGroupBoxSizer1.addStretch();
 
       this.imageSolvingGroupBoxSizer2 = new HorizontalSizer;

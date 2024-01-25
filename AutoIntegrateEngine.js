@@ -937,7 +937,7 @@ function setMaskChecked(imgWin, maskWin)
       try {
             imgWin.setMask(maskWin);
       } catch(err) {
-            console.criticalln("setMask failed: " + err);
+            console.criticalln("setMask failed: " + err.toString());
             console.criticalln("Image:" + imgWin.mainView.id + ", mask:" + maskWin.mainView.id);
             console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
             util.throwFatalError("Error setting the mask.");
@@ -2576,7 +2576,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       try {
             P.executeGlobal();
       } catch(err) {
-            console.criticalln(err);
+            console.criticalln(err.toString());
             util.throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
       }
 
@@ -7684,32 +7684,42 @@ function findCurrentTelescope(imgWin)
       }
 }
 
+function findDrizzle(imgWin)
+{
+      for (var i = 0; i < imgWin.keywords.length; i++) {
+            switch (imgWin.keywords[i].name) {
+                  case "AutoIntegrateDrizzle":
+                        var value = imgWin.keywords[i].strippedValue.trim();
+                        console.writeln("AutoIntegrateDrizzle=" + value);
+                        var drizzle = parseInt(value);
+                        return drizzle;
+                  default:
+                        break;
+            }
+      }
+      var scale = util.findDrizzleScale(imgWin);
+      if (scale > 1) {
+            console.writeln("Using image metadata drizzle scale " + scale);
+            return scale;
+      }
+
+      return 1;
+}
+
 function findBinning(imgWin)
 {
-      var binning = 1;
-      var drizzle = 1;
-
       for (var i = 0; i < imgWin.keywords.length; i++) {
             switch (imgWin.keywords[i].name) {
                   case "XBINNING":
                         var value = imgWin.keywords[i].strippedValue.trim();
                         console.writeln("XBINNING=" + value);
-                        binning = parseInt(value);
-                        break;
-                  case "AutoIntegrateDrizzle":
-                        var value = imgWin.keywords[i].strippedValue.trim();
-                        console.writeln("AutoIntegrateDrizzle=" + value);
-                        drizzle = parseInt(value);
-                        break
+                        var binning = parseInt(value);
+                        return binning;
                   default:
                         break;
             }
       }
-      if (binning > 1 && drizzle > 1) {
-            binning = binning / drizzle;
-            console.writeln("Drizzle is used, adjusted binning is " + binning);
-      }
-      return binning;
+      return 1;
 }
 
 function runImageSolverEx(id)
@@ -7830,7 +7840,7 @@ function runImageSolverEx(id)
                   }
                   if (par.target_drizzle.val != 'None') {
                         if (par.target_drizzle.val == 'Auto') {
-                              var scale = util.findDrizzleScale(imgWin);
+                              var scale = findDrizzle(imgWin);
                               if (scale > 1) {
                                     pixel_size = pixel_size / scale;
                                     console.writeln("Using drizzle scale " + scale + ", adjusted pixel size: " + pixel_size);
@@ -7887,7 +7897,7 @@ function runImageSolverEx(id)
             }
       } catch (err) {
                   console.writeln("runImageSolverEx: exception error, SolveImage failed on image " + id);
-                  util.addCriticalStatus(err);
+                  util.addCriticalStatus(err.toString());
       }
 
       if (!succ) {
@@ -8582,7 +8592,7 @@ function debayerImages(fileNames)
             succ = P.executeGlobal();
       } catch(err) {
             succ = false;
-            util.addCriticalStatus(err);
+            util.addCriticalStatus(err.toString());
       }
 
       checkCancel();
@@ -11306,7 +11316,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             // guiUpdatePreviewWin(imgWin);
       } catch (err) {
             failed = true;
-            util.addCriticalStatus(err);
+            util.addCriticalStatus(err.toString());
       }
       if (hsChannels != null) {
             util.forceCloseOneWindow(hsChannels[0]);

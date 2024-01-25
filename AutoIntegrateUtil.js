@@ -638,6 +638,8 @@ this.closeTempWindowsForOneImage = function(id)
       util.closeOneWindow(id + "_map_pm");
       util.closeOneWindow(id + "_mask");
       util.closeOneWindow(id + "_tmp");
+      util.closeOneWindow(id + "_solvercopy");
+      util.closeOneWindow(id + "_combined_solvercopy");
 }
 
 this.closeTempWindows = function()
