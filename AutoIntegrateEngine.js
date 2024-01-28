@@ -6186,7 +6186,7 @@ function runGraXpertExternal(win)
       var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
       if (processed_image_id != image_id) {
             util.closeOneWindow(imgWin.mainView.id);
-            util.throwFatalError("GraXpert did not run, maybe path is incorrect or GraXpert version is incompatible. Processed image id mismatch: " + processed_image_id + " != " + image_id);
+            util.throwFatalError("GraXpert did not run, maybe path is incorrect or GraXpert version is incompatible. Check GraXpert settings section. Processed image id mismatch: " + processed_image_id + " != " + image_id);
       }
 
       console.writeln("GraXpert output window " + imgWin.mainView.id);
