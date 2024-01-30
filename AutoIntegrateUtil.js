@@ -403,6 +403,21 @@ this.windowIconizeif = function(id)
       return w;
 }
 
+this.autointegrateKeywords = function(imageWindow)
+{
+      var history = []; 
+      var keywords = imageWindow.keywords;
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == 'AutoIntegrate'
+                || (keyword.name == 'HISTORY' && keyword.comment.trim().startsWith("AutoIntegrate")))
+            {
+                  history[history.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+            }
+      }
+      return history;
+}
+
 this.filterKeywords = function(imageWindow, keywordname) 
 {
       var oldKeywords = [];

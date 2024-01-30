@@ -42,14 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.66";               // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.67 test1";         // Version, also updated into updates.xri
 this.autointegrate_info = "Live Flowchart, Ha to RGB mapping";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Live Flowchart",
-      "- Ha to RGB mapping",
-      "- GraXpert 2.2.0 support"
+      "- Fixes"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -91,8 +89,8 @@ this.par = {
       local_normalization: { val: false, def: false, name : "Local normalization", type : 'B' },
       fix_column_defects: { val: false, def: false, name : "Fix column defects", type : 'B' },
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
-      skip_cosmeticcorrection: { val: false, def: false, name : "Cosmetic correction", type : 'B' },
-      skip_subframeselector: { val: false, def: false, name : "SubframeSelector", type : 'B' },
+      skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },
+      skip_subframeselector: { val: false, def: false, name : "No SubframeSelector", type : 'B', oldname : "SubframeSelector" },
       strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
       staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
       staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
@@ -397,7 +395,7 @@ this.par = {
       extra_auto_contrast: { val: false, def: false, name : "Extra auto contrast", type : 'B' },
       extra_auto_contrast_limit_low: { val: 0.0001, def: 0.0001, name : "Extra auto contrast limit", type : 'R' },
       extra_auto_contrast_limit_high: { val: 100, def: 100, name : "Extra auto contrast limit high", type : 'R' },
-      extra_auto_contrast_channels: { val: false, def: false, name : "Extra auto contrast channels", type : 'R' },
+      extra_auto_contrast_channels: { val: false, def: false, name : "Extra auto contrast channels", type : 'B' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
       extra_autostf: { val: false, def: false, name : "Extra AutoSTF", type : 'B' },
       extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },

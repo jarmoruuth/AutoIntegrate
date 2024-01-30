@@ -1881,6 +1881,28 @@ function extraProcessingGUI(parent)
                   new MessageBox(txt, "Extra processing history", StdIcon_Information ).execute();
             }
       };
+      this.metadataHistoryButton = new ToolButton(parent);
+      this.metadataHistoryButton.icon = new Bitmap( ":/icons/document-edit.png" ); // :/toolbar/file-project-metadata.png
+      this.metadataHistoryButton.toolTip = "<p>Print AutoIntegrate processing history information from image metadata to the Process Console.</p>";
+      this.metadataHistoryButton.onClick = function()
+      {
+            var win = util.findWindow(global.extra_target_image);
+            if (win == null) {
+                  console.criticalln("No image");
+                  return;
+            }
+
+            console.writeln("Image: " + win.mainView.id);
+            var history = util.autointegrateKeywords(win);
+            if (history.length > 0) {
+                  console.noteln("AutoIntegrate processing history:");
+                  for (var i = 0; i < history.length; i++) {
+                        console.writeln(history[i][0] + " - " + history[i][1]);
+                  }
+            } else {
+                  console.noteln("No AutoIntegrate processing history");
+            }
+      };
 
       var extraLabeltoolTip = 
             "<p>" +
@@ -1921,6 +1943,7 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.add( this.extraUndoButton );
       this.extraImageSizer.add( this.extraRedoButton );
       this.extraImageSizer.add( this.extraHistoryButton );
+      this.extraImageSizer.add( this.metadataHistoryButton );
       this.extraImageSizer.add( this.extraSaveButton );
       this.extraImageSizer.addStretch();
       this.extraImageSizer.add( this.extraHelpTips );
@@ -2550,7 +2573,15 @@ function close_undo_images()
        var cb = new CheckBox( parent );
        cb.text = checkboxText;
        cb.aiParam = param;
-       cb.checked = cb.aiParam.val;
+       try {
+            cb.checked = cb.aiParam.val;
+      } catch(err) {    
+            console.criticalln("newCheckBoxEx: " + err);
+            console.criticalln("Parameter name: " + param.name);
+            console.criticalln("Parameter type: " + param.type);
+            console.criticalln("Parameter value: " + param.val);
+            console.criticalln("CheckBox value not set");
+      }
        if (onClick != null) {
              cb.onClick = onClick;
        } else {
@@ -8288,7 +8319,7 @@ function AutoIntegrateDialog()
 
       this.RGBHa_smoothen_background_value_edit = newNumericEditPrecision(this, 'value', par.RGBHa_smoothen_background_value, 0, 100, this.RGBHa_smoothen_background_CheckBox.toolTip, 4);
       this.RGBHa_remove_stars_CheckBox = newCheckBox(this, "Remove stars", par.RGBHa_remove_stars, 
-            "<p>Remove stars before combining Ha ro RGB.</p>" );
+            "<p>Remove stars before combining Ha to RGB.</p>" );
 
       this.RGBHa_Sizer2 = new HorizontalSizer;
       // this.RGBHa_Sizer2.margin = 6;
@@ -8836,7 +8867,7 @@ function AutoIntegrateDialog()
       {
             var processingOptions = engine.getChangedProcessingOptions();
             if (processingOptions.length > 0) {
-                  console.noteln("Changhed processing options:");
+                  console.noteln("Changed processing options:");
                   for (var i = 0; i < processingOptions.length; i++) {
                         console.writeln(processingOptions[i][0] + ": " + processingOptions[i][1]);
                   }
