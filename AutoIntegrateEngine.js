@@ -6559,9 +6559,17 @@ function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
       return engine.runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackground, false, null);
 }
 
-function runHistogramTransformMaskedStretch(GC_win)
+function runHistogramTransformMaskedStretch(GC_win, histogram_prestretch)
 {
-      util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using MaskedStretch");
+      if (histogram_prestretch) {
+            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using MaskedStretch and Histogram prestretch");
+
+            console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
+            GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', true, par.MaskedStretch_prestretch_target.val);
+
+      } else {
+            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using MaskedStretch");
+      }
 
       var P = new MaskedStretch;
       P.targetBackground = par.MaskedStretch_targetBackground.val;
@@ -6574,6 +6582,8 @@ function runHistogramTransformMaskedStretch(GC_win)
       GC_win.mainView.endProcess();
 
       checkCancel();
+
+      return GC_win;
 }
 
 function runHistogramTransformArcsinhStretch(GC_win)
@@ -6668,23 +6678,31 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
       return res.win;
 }
 
-function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching)
+function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, rgbLinked, target_val)
 {
-      if (GC_win.mainView.image.isColor) {
-            var rgbLinked = getRgbLinked(iscolor);
-      } else {
-            var rgbLinked = true;
-      }
-
       util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + GC_win.mainView.id + " using iterations");
+
+      if (!rgbLinked) {
+            if (GC_win.mainView.image.isColor) {
+                  rgbLinked = getRgbLinked(iscolor);
+            } else {
+                  rgbLinked = true;
+            }
+      }
+      console.writeln("RGB channels linked " + rgbLinked);
+
+      if (!target_val) {
+            target_val = par.histogram_stretch_target.val;
+      }
+      console.writeln("Target value " + target_val);
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, par.histogram_stretch_target.val);
+            return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val);
       } else {
             for (var i = 0; i < 3; i++) {
                   console.writeln("Channel: " + channelText(i));
-                  GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, par.histogram_stretch_target.val, i);
+                  GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, i);
             }
             return GC_win;
       }
@@ -7214,7 +7232,10 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             stf = runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground);
 
       } else if (image_stretching == 'Masked Stretch') {
-            runHistogramTransformMaskedStretch(GC_win);
+            GC_win = runHistogramTransformMaskedStretch(GC_win, false);
+
+      } else if (image_stretching == 'Masked+Histogram Stretch') {
+            GC_win = runHistogramTransformMaskedStretch(GC_win, true);
 
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(GC_win);

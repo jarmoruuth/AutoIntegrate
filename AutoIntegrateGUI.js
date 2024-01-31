@@ -299,7 +299,7 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Histogram stretch', 'Hyperbolic', 'Arcsinh Stretch', 'Logarithmic stretch', 'None' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Hyperbolic', 'Arcsinh Stretch', 'Logarithmic stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -1943,9 +1943,9 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.add( this.extraUndoButton );
       this.extraImageSizer.add( this.extraRedoButton );
       this.extraImageSizer.add( this.extraHistoryButton );
-      this.extraImageSizer.add( this.metadataHistoryButton );
       this.extraImageSizer.add( this.extraSaveButton );
       this.extraImageSizer.addStretch();
+      this.extraImageSizer.add( this.metadataHistoryButton );
       this.extraImageSizer.add( this.extraHelpTips );
 
       this.extra_rotate_CheckBox = newCheckBox(parent, "Rotate", par.extra_rotate, 
@@ -6567,6 +6567,7 @@ function AutoIntegrateDialog()
             "<ul>" +
             "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</p></li>" +
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
+            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
             "<li><p>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process.</p>" + Hyperbolic_tips + "</li>" +
             "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Can be useful when stretching stars to keep good star color.</p></li>" +
@@ -7485,11 +7486,15 @@ function AutoIntegrateDialog()
        */
       this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
+      this.MaskedStretchPrestretchTargetEdit = newNumericEdit(this, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
+            "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
+            "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
 
       this.MaskedStretchSizer = new HorizontalSizer;
       this.MaskedStretchSizer.spacing = 4;
       // this.MaskedStretchSizer.margin = 2;
       this.MaskedStretchSizer.add( this.MaskedStretchTargetBackgroundEdit );
+      this.MaskedStretchSizer.add( this.MaskedStretchPrestretchTargetEdit );
       this.MaskedStretchSizer.addStretch();
       
       /* Arcsinh.
