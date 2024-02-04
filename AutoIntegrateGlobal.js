@@ -258,6 +258,8 @@ this.par = {
       graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },
       graxpert_smoothing: { val: 0.5, def: 0.5, name : "GraXpert smoothing", type : 'R' },
       graxpert_old_version: { val: false, def: false, name : "GraXpert old version", type : 'B' },
+      starxterminator_ai_model: { val: "", def: "", name : "StarXTerminator AI model", type : 'S', skip_reset: true },
+      starxterminator_large_overlap: { val: false, def: false, name : "StarXTerminator large overlap", type : 'B' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },

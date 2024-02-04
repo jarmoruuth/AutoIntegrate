@@ -359,19 +359,25 @@ this.windowShowif = function(id)
 
 // Iconify the window, the return value is the window,
 // only as a convenience to this.windowIconizeAndKeywordif()
-this.windowIconizeif = function(id)
+function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
 {
       if (id == null) {
             return null;
       }
       if (global.get_flowchart_data) {
-            util.closeOneWindow(id);
             return null;
       }
+
+      console.writeln("windowIconizeEx " + id + " columnCount " + columnCount + " iconStartRow " + iconStartRow + " haveIconizedCount " + haveIconizedCount);
 
       var w = util.findWindow(id);
 
       if (w != null) {
+            if (w.iconic) {
+                  console.writeln("Window " + id + " is already iconized");
+                  return null;
+            }
+      
             /* Method iconize() will put the icon at the middle position
                of the window. To get icons to the top left corner we
                first move the window middle position there to get
@@ -382,40 +388,124 @@ this.windowIconizeif = function(id)
             if (global.iconPoint == null) {
                   /* Get first icon to upper left corner. */
                   global.iconPoint = new Point(
-                                    -(w.width / 2) + 5 + global.columnCount*300,
-                                    -(w.height / 2) + 5 + global.iconStartRow * 32);
-                  //console.writeln("Icon " + id + " start from position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
+                                          -(w.width / 2) + 5 + columnCount * 300,
+                                          -(w.height / 2) + 5 + iconStartRow * 32);
+                  //console.writeln("Icon " + id + " start from position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             } else {
                   /* Put next icons in a nice row below the first icon.
                   */
                   // global.iconPoint.moveBy(0, 32);
                   global.iconPoint = new Point(
-                        -(w.width / 2) + 5 + global.columnCount*300,
-                        -(w.height / 2) + 5 + global.iconStartRow * 32 + global.haveIconized * 32);
-                  // console.writeln("Next icon " + id + " position " + global.iconPoint + ", global.iconStartRow " + global.iconStartRow + ", global.columnCount " + global.columnCount);
+                                          -(w.width / 2) + 5 + columnCount * 300,
+                                          -(w.height / 2) + 5 + iconStartRow * 32 + haveIconizedCount * 32);
+                  // console.writeln("Next icon " + id + " position " + iconPoint + ", iconStartRow " + iconStartRow + ", columnCount " + columnCount);
             }
             w.position = new Point(global.iconPoint);  // set window position to get correct icon position
             w.iconize();
             w.position = oldpos;                // restore window position
-
-            global.haveIconized++;
       }
       return w;
 }
 
-this.autointegrateKeywords = function(imageWindow)
+this.windowIconizeFindPosition = function(id, keep_iconized)
 {
-      var history = []; 
-      var keywords = imageWindow.keywords;
-      for (var i = 0; i < keywords.length; i++) {
-            var keyword = keywords[i];
-            if (keyword.name == 'AutoIntegrate'
-                || (keyword.name == 'HISTORY' && keyword.comment.trim().startsWith("AutoIntegrate")))
-            {
-                  history[history.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+      var index = 0;
+      var iconStartRow = 0;
+      var columnCount = 0;
+
+      if (id == null) {
+            return null;
+      }
+
+      console.writeln("windowIconizeFindPosition " + id);
+
+      if (global.get_flowchart_data) {
+            return null;
+      }
+
+      // See if this window has some known prefix
+      for (var i = 0; i < ppar.prefixArray.length; i++) {
+            if (ppar.prefixArray[i][1] != "" && id.startsWith(ppar.prefixArray[i][1])) {
+                  console.writeln("windowIconizeFindPosition found prefix " + ppar.prefixArray[i][1]);
+                  index = i;
+                  break;
             }
       }
-      return history;
+      columnCount = ppar.prefixArray[index][0];
+      iconStartRow = ppar.prefixArray[index][2];
+
+      console.writeln("windowIconizeFindPosition " + id + " columnCount " + columnCount + " iconStartRow " + iconStartRow);
+
+      var w = windowIconizeEx(id, columnCount, iconStartRow, global.haveIconized);
+      if (w != null) {
+            ppar.prefixArray[index][2]++;
+            global.haveIconized++;
+            if (!keep_iconized) {
+                  w.show();
+            }
+      }
+      return w;
+}
+
+// Iconify the window, the return value is the window,
+// only as a convenience to this.windowIconizeAndKeywordif()
+this.windowIconizeif = function(id, show_image)
+{
+      if (id == null) {
+            return null;
+      }
+      if (global.get_flowchart_data) {
+            util.closeOneWindow(id);
+            return null;
+      }
+
+      var w = windowIconizeEx(id, global.columnCount, global.iconStartRow, global.haveIconized);
+      if (w != null) {
+            global.haveIconized++;
+            if (show_image) {
+                  w.show();
+            }
+      }
+
+      return w;
+}
+
+this.autointegrateProcessingHistory = function(imageWindow)
+{
+      var keywords = imageWindow.keywords;
+      var history = {
+            AutoIntegrate: [],
+            info: [],
+            options: [],
+            extra: []
+      };
+      var is_history = false;
+      // AutoIntegrate keyword first
+      for (var i = 0; i < keywords.length; i++) {
+            var keyword = keywords[i];
+            if (keyword.name == 'AutoIntegrate') {
+                  history.AutoIntegrate[history.AutoIntegrate.length] = [ keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+            var trimmedComment = keyword.comment.trim();
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing info")) {
+                  history.info[history.info.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing option")) {
+                  history.options[history.options.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate extra")) {
+                  history.extra[history.extra.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+      }
+      if (is_history) {
+            return history;
+      } else {
+            return null;
+      }
 }
 
 this.filterKeywords = function(imageWindow, keywordname) 
@@ -529,9 +619,13 @@ function setProcessedImageKeyword(imageWindow)
             "AutoIntegrate processed intermediate image");
 }
 
-this.windowIconizeAndKeywordif = function(id)
+this.windowIconizeAndKeywordif = function(id, show_image, find_prefix)
 {
-      var w = util.windowIconizeif(id);
+      if (find_prefix) {
+            var w = util.windowIconizeFindPosition(id, true);
+      } else {
+            var w = util.windowIconizeif(id);
+      }
 
       if (w != null) {
  
@@ -539,6 +633,9 @@ this.windowIconizeAndKeywordif = function(id)
             // keyword. If we later set a final image keyword it will overwrite
             // this keyword.
             setProcessedImageKeyword(w);
+      }
+      if (show_image) {
+            w.show();
       }
 }
 

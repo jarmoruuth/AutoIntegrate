@@ -4640,6 +4640,16 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights)
             var P = new StarXTerminator;
             // P.linear = linear_data;    Not needed in v2.0.0
             P.stars = star_mask;
+            if (par.starxterminator_ai_model.val != "") {
+                  console.writeln("createNewStarXTerminator, AI model " + par.starxterminator_ai_model.val);
+                  P.ai_file = par.starxterminator_ai_model.val;
+            } else {
+                  console.writeln("createNewStarXTerminator, default AI model " + P.ai_file);
+            }
+            if (par.starxterminator_large_overlap.val) {
+                  console.writeln("createNewStarXTerminator, large overlap");
+                  P.overlap = 0.50;
+            }
       } catch(err) {
             console.criticalln("StarXTerminator failed");
             console.criticalln(err);
@@ -12864,7 +12874,7 @@ function extraOptionCompleted(param)
 
 function extraProcessing(parent, id, apply_directly)
 {
-      console.noteln("Extra processing");
+      console.noteln("Extra processing " + id + ", apply directly " + apply_directly);
 
       global.extra_processing_info = [];
 
@@ -13157,6 +13167,10 @@ function extraProcessing(parent, id, apply_directly)
                   saveProcessedWindow(extra_stars_id);         /* Extra stars window */
             }
       }
+      console.writeln("Extra processing done " + extra_id);
+
+      return [ extra_id, extra_starless_id, extra_stars_id ];
+
 }
 
 /* Copy gradient corrected channel images to map images.
@@ -14212,12 +14226,20 @@ function createCropInformationAutoContinue()
             gui.switchtoPreviewTab();
        }
  
-       extraProcessing(parent, extra_target_image, true);
+       var extra_wins = extraProcessing(parent, extra_target_image, true);
  
-       util.windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
-       util.windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
-       util.windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+       console.noteln("extraProcessingEngine " + extra_target_image + " completed.");
  
+       util.windowIconizeAndKeywordif(mask_win_id, false, true);             /* AutoMask window */
+       util.windowIconizeAndKeywordif(star_mask_win_id, false, true);        /* AutoStarMask or star_mask window */
+       util.windowIconizeAndKeywordif(star_fix_mask_win_id, false, true);    /* AutoStarFixMask or star_fix_mask window */
+
+       console.noteln("extraProcessingEngine " + extra_target_image + " completed2.");
+
+       for (var i = 0; i < extra_wins.length; i++) {
+            util.windowIconizeFindPosition(extra_wins[i]);
+       }
+
        console.noteln("Processing steps:");
        console.writeln(global.processing_steps);
        console.writeln("");
@@ -14712,7 +14734,10 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              if (global.get_flowchart_data) {
                   util.closeOneWindow(LRGB_processed_HT_id);
              }
-       }
+             var iconize_final_image = true;
+       } else {
+            var iconize_final_image = false;
+      }
  
        /* All done, do cleanup on windows on screen 
         */
@@ -14779,6 +14804,10 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        util.windowIconizeAndKeywordif(mask_win_id);             /* AutoMask window */
        util.windowIconizeAndKeywordif(star_mask_win_id);        /* AutoStarMask or star_mask window */
        util.windowIconizeAndKeywordif(star_fix_mask_win_id);    /* AutoStarFixMask or star_fix_mask window */
+
+       if (iconize_final_image) {
+            util.windowIconizeif(LRGB_processed_HT_id, true);
+       }
  
        if (par.batch_mode.val) {
              /* Rename image based on first file directory name. 

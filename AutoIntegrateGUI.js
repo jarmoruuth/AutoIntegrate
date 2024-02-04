@@ -1797,7 +1797,10 @@ function extraProcessingGUI(parent)
                   console.writeln("Apply extra processing edits on " + global.extra_target_image);
                   try {
                         engine.extraApply = true;
+                        global.haveIconized = 0;
+
                         engine.extraProcessingEngine(parent.dialog, global.extra_target_image, util.is_narrowband_option());
+
                         if (extra_gui_info.undo_images.length == 0) {
                               // add first/original undo image
                               add_undo_image(first_undo_image, first_undo_image_histogramInfo);
@@ -1859,7 +1862,7 @@ function extraProcessingGUI(parent)
       var extraHistoryButton = this.extraHistoryButton;
       this.extraHistoryButton.onClick = function()
       {
-            if (extra_gui_info.undo_images_pos < 1) {
+            if (extra_gui_info.undo_images.length <= 1) {
                   new MessageBox("No extra processing history", "Extra processing history", StdIcon_Information ).execute();
             } else {
                   var txt = "<p>Applied extra processing:</p><ul>";
@@ -1893,12 +1896,31 @@ function extraProcessingGUI(parent)
             }
 
             console.writeln("Image: " + win.mainView.id);
-            var history = util.autointegrateKeywords(win);
-            if (history.length > 0) {
+            var history = util.autointegrateProcessingHistory(win);
+            if (history != null) {
                   console.noteln("AutoIntegrate processing history:");
-                  for (var i = 0; i < history.length; i++) {
-                        console.writeln(history[i][0] + " - " + history[i][1]);
+                  for (var i = 0; i < history.AutoIntegrate.length; i++) {
+                        console.writeln(history.AutoIntegrate[i][0] + " - " + history.AutoIntegrate[i][1]);
                   }
+                  if (history.info.length > 0) {
+                        console.noteln("Processing info:");
+                        for (var i = 0; i < history.info.length; i++) {
+                              console.writeln(" - "  + history.info[i][1]);
+                        }
+                  }
+                  if (history.options.length > 0) {
+                        console.noteln("Processing options:");
+                        for (var i = 0; i < history.options.length; i++) {
+                              console.writeln(" - "  + history.options[i][1]);
+                        }
+                  }
+                  if (history.extra.length > 0) {
+                        console.noteln("Extra processing info:");
+                        for (var i = 0; i < history.extra.length; i++) {
+                              console.writeln(" - "  + history.extra[i][1]);
+                        }
+                  }
+
             } else {
                   console.noteln("No AutoIntegrate processing history");
             }
@@ -2577,7 +2599,8 @@ function close_undo_images()
             cb.checked = cb.aiParam.val;
       } catch(err) {    
             console.criticalln("newCheckBoxEx: " + err);
-            console.criticalln("Parameter name: " + param.name);
+            console.criticalln("Text: " + param.name);
+            console.criticalln("Parameter name: " + checkboxText);
             console.criticalln("Parameter type: " + param.type);
             console.criticalln("Parameter value: " + param.val);
             console.criticalln("CheckBox value not set");
@@ -5079,7 +5102,9 @@ function newAutoContinueButton(parent, toolbutton)
                   updateWindowPrefix();
                   global.run_auto_continue = true;
                   if (batch_narrowband_palette_mode) {
+
                         engine.autointegrateNarrowbandPaletteBatch(parent.dialog, true);
+
                   } else {
                         var index = findPrefixIndex(ppar.win_prefix);
                         if (index == -1) {
@@ -5099,7 +5124,9 @@ function newAutoContinueButton(parent, toolbutton)
                               console.writeln('Using user icon column ' + global.columnCount);
                         }
                         engine.flowchartReset();
+
                         engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option());
+
                   }
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
@@ -6452,11 +6479,9 @@ function AutoIntegrateDialog()
             "<p>Skipping SCNR can be useful when processing for example comet images.</p>");
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
-      this.use_starxterminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
+      this.use_StarXTerminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
-            "<p><b>NOTE!</b>If you are using an old version of StarXTerminator you need to start StarXTerminator manually once after PixInsight is started. " +
-            "Just a simple start and close is enough. Otherwise StarXTerminator will fail with file I/O error and " +
-            "does not remove stars.</p>" );
+            "<p>YOu can change some StarXTerminator setting in the <i>StarXTerminator settings</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
@@ -6598,7 +6623,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet1.spacing = 4;
       this.imageToolsSet1.add( this.batch_mode_CheckBox );
       this.imageToolsSet1.add( this.use_graxpert_CheckBox );
-      this.imageToolsSet1.add( this.use_starxterminator_CheckBox );
+      this.imageToolsSet1.add( this.use_StarXTerminator_CheckBox );
       this.imageToolsSet1.add( this.use_starnet2_CheckBox );
       
       // Image tools and batching set 2.
@@ -6920,7 +6945,7 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
       this.noiseReductionGroupBoxSizer.addStretch();
 
-      this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings");
+      this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings for BlurXTerminator");
 
       this.bxtLabel = newLabel(this, "BlurXTerminator,", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
@@ -6962,6 +6987,58 @@ function AutoIntegrateDialog()
       this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer1 );
       this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer2 );
       this.sharpeningGroupBoxSizer.addStretch();
+
+      function AImodelSizer(parent, name, param, toolTip) {
+            var AImodelLabel = newLabel(parent, name, "<p>Select AI model for " + name + "</p>" + toolTip);
+            var AImodelEdit = newTextEdit(parent, param, AImodelLabel.toolTip);
+            var AImodelButton = new ToolButton( parent );
+            AImodelButton.icon = parent.scaledResource(":/icons/select-file.png");
+            AImodelButton.toolTip = AImodelLabel.toolTip;
+            AImodelButton.setScaledFixedSize( 20, 20 );
+            AImodelButton.onClick = function()
+            {
+                  var ofd = new OpenFileDialog;
+                  ofd.multipleSelections = false;
+                  if (!ofd.execute()) {
+                        return;
+                  }
+                  AImodelEdit.text = File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName);
+                  param.val = AImodelEdit.text;
+            };
+            var AImodelSizer = newHorizontalSizer(0, true, [ AImodelLabel, AImodelEdit, AImodelButton ]);
+
+            return AImodelSizer
+      }
+
+      var starxterminator_default_ai_model = "unknown";
+
+      try {
+            var P = new StarXTerminator;
+            starxterminator_default_ai_model = P.ai_file
+      } catch (e) {
+      }
+
+      this.StarXTerminatorAImodeSizer = AImodelSizer(this, "StarXTerminator", par.starxterminator_ai_model, 
+                                                "<p>Select other than default AI model. Default AI model is " + starxterminator_default_ai_model + "</p>" +
+                                                "<p>AI models are stored in PixInsight installation directory and have .pb extension. " + 
+                                                "At least in Windows they are in PixInsight/library directory.</p>");
+      this.StarXTerminatorLargeOverlapCheckBox = newCheckBox(this, "Large overlap", par.starxterminator_large_overlap, 
+            "<p>Uses large overlap on tiles to avoid tiling artifacts</p>");
+
+      this.StarXTerminatorSizer = new HorizontalSizer;
+      this.StarXTerminatorSizer.margin = 6;
+      this.StarXTerminatorSizer.spacing = 4;
+      this.StarXTerminatorSizer.add( this.StarXTerminatorAImodeSizer );
+      this.StarXTerminatorSizer.add( this.StarXTerminatorLargeOverlapCheckBox );
+      this.StarXTerminatorSizer.addStretch();
+
+      this.StarXTerminatorGroupBoxLabel = newSectionLabel(this, "StarXTerminator settings");
+      this.StarXTerminatorGroupBoxSizer = new VerticalSizer;
+      this.StarXTerminatorGroupBoxSizer.margin = 6;
+      this.StarXTerminatorGroupBoxSizer.spacing = 4;
+      this.StarXTerminatorGroupBoxSizer.add( this.StarXTerminatorGroupBoxLabel );
+      this.StarXTerminatorGroupBoxSizer.add( this.StarXTerminatorSizer );
+      this.StarXTerminatorGroupBoxSizer.addStretch();
 
       this.binningLabel = new Label( this );
       this.binningLabel.text = "Binning";
@@ -7380,7 +7457,8 @@ function AutoIntegrateDialog()
       this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
 
       this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEDegreeSizer, this.ABECorrectionSizer]);
+      this.ABEGMainSizer = newHorizontalSizer(6, true, [this.ABEDegreeSizer, this.ABECorrectionSizer]);
+      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEGMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
             "<p>Path to GraXpert executable.</p>" +
@@ -7405,16 +7483,12 @@ function AutoIntegrateDialog()
       this.graxpertPathSizer = newHorizontalSizer(0, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
 
       this.graxpert_old_version_CheckBox = newCheckBox(this, "Old version", par.graxpert_old_version, "<p>Use old version of GraXpert before version 2.2.0.</p>");
-      this.graxpertSizer1 = newVerticalSizer(0, true, [ this.graxpertPathSizer, this.graxpert_old_version_CheckBox ]);
-      
       this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXpert.", true);
       this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
       this.graxpertCorrectionSizer = newHorizontalSizer(0, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox]);
-
       this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert.");
-      this.graxpertSizer2 = newVerticalSizer(0, true, [ this.graxpertSmoothingEdit, this.graxpertCorrectionSizer ]);
 
-      this.graxpertSizer = newHorizontalSizer(0, true, [ this.graxpertSizer1, this.graxpertSizer2 ]);
+      this.graxpertSizer = newHorizontalSizer(6, true, [ this.graxpertPathSizer, this.graxpertSmoothingEdit, this.graxpertCorrectionSizer, this.graxpert_old_version_CheckBox ]);
 
       this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
       this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertSizer]);
@@ -7437,7 +7511,7 @@ function AutoIntegrateDialog()
 
       this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 
-      this.ABEGraXpertSizer = newHorizontalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer]);
+      this.ABEGraXpertStarXSizer = newVerticalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
 
       //
       // Stretching parameters
@@ -7480,7 +7554,7 @@ function AutoIntegrateDialog()
       this.STFSizer.add( this.STFTargetBackgroundControl );
       this.STFSizer.add( this.STFLabel );
       this.STFSizer.add( this.STFComboBox );
-      this.STFSizer.addStretch()
+      this.STFSizer.addStretch();
 
       /* Masked.
        */
@@ -8979,8 +9053,8 @@ function AutoIntegrateDialog()
               this.StretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationCropSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "ABE and GraXpert settings", "ps_ave_graxpert",
-            [ this.ABEGraXpertSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "ABE, GraXpert and StarXTerminator settings", "ps_ave_graxpert",
+            [ this.ABEGraXpertStarXSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
@@ -8988,6 +9062,7 @@ function AutoIntegrateDialog()
               this.noiseReductionGroupBoxSizer,
               this.sharpeningGroupBoxLabel,
               this.sharpeningGroupBoxSizer ]);
+
       this.leftProcessingGroupBox.sizer.addStretch();
 
       // Right processing group box
