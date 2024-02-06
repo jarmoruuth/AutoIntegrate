@@ -42,12 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.67 test1";         // Version, also updated into updates.xri
-this.autointegrate_info = "Live Flowchart, Ha to RGB mapping";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.67 test2";         // Version, also updated into updates.xri
+this.autointegrate_info = "Small updates and fixes";              // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Fixes"
+      "- Small updates and fixes"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
