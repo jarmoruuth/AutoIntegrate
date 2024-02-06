@@ -778,7 +778,7 @@ function generateNewFlowchartData(parent)
 
       global.get_flowchart_data = true;
       try {
-            engine.autointegrateProcessingEngine(parent.dialog, false, false);
+            engine.autointegrateProcessingEngine(parent.dialog, false, false, "Generate flowchart data");
       } catch (x) {
             console.writeln( x );
             global.flowchartData = null;
@@ -2735,14 +2735,14 @@ function Autorun(parent)
                         if (batch_narrowband_palette_mode) {
                             engine.autointegrateNarrowbandPaletteBatch(parent.dialog, false);
                         } else {
-                            engine.autointegrateProcessingEngine(parent.dialog, false, false);
+                            engine.autointegrateProcessingEngine(parent.dialog, false, false, "AutoRun");
                         }
                         update_extra_target_image_window_list(null);
                   } 
                   catch(err) {
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
-                        engine.writeProcessingSteps(null, false, null, true);
+                        engine.writeProcessingStepsAndEndLog(null, false, null, true);
                   }
                   if (par.batch_mode.val) {
                         global.outputRootDir = savedOutputRootDir;
@@ -4513,7 +4513,8 @@ function addTargetType(parent)
                     "<p>If target type is given then image stretching settings are selected automatically.</p>" +
                     "<p>If no target type is given then current settings are used. They should work reasonably fine in many cases.</p>" +
                     "<p>Galaxy works well when target is a lot brighter than the background.</p>" +
-                    "<p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>";
+                    "<p>Nebula works well when target fills the whole image or is not much brighter than the background.</p>" +
+                    "<p>When non-default target type is selected then stretching option is disabled.</p>";
       
       var targetTypeComboBox = newComboBox(parent, par.target_type, target_type_values, lbl.toolTip);
       parent.rootingArr.push(targetTypeComboBox);
@@ -5125,7 +5126,7 @@ function newAutoContinueButton(parent, toolbutton)
                         }
                         engine.flowchartReset();
 
-                        engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option());
+                        engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option(), "AutoContinue");
 
                   }
                   global.run_auto_continue = false;
@@ -5142,7 +5143,7 @@ function newAutoContinueButton(parent, toolbutton)
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  engine.writeProcessingSteps(null, true, null, true);
+                  engine.writeProcessingStepsAndEndLog(null, true, null, true);
                   global.run_auto_continue = false;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
@@ -6599,9 +6600,13 @@ function AutoIntegrateDialog()
             "<li><p>Logarithmic stretch - Experimental stretch</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
             "</ul>" + 
-            "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>";
+            "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>" +
+            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       stretchingComboBox = this.stretchingComboBox;
+      if (par.target_type.val != 'Default') {
+            stretchingComboBox.enabled = false;
+      }
       this.stretchingLabel = newLabel(this, "Stretching", stretchingTootip, true);
       this.stretchingSizer = newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
 
@@ -8154,8 +8159,7 @@ function AutoIntegrateDialog()
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB", true);
-                  console.endLog();
+                  engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBNB", true);
                   util.setDefaultDirs();
             }
             par.use_RGBNB_Mapping.val = false;
@@ -8363,8 +8367,7 @@ function AutoIntegrateDialog()
             catch(err) {
                   console.criticalln(err);
                   console.criticalln("Processing stopped!");
-                  engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBHa", true);
-                  console.endLog();
+                  engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa", true);
                   util.setDefaultDirs();
             }
       };   

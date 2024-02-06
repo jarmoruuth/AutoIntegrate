@@ -17,7 +17,7 @@ Interface functions:
       runHistogramTransformSTFex
       testRGBNBmapping
       testRGBHaMapping
-      writeProcessingSteps
+      writeProcessingStepsAndEndLog
       closeAllWindows
       getProcessDefaultValues
 
@@ -4386,23 +4386,24 @@ function processChannelImage(image_id, is_luminance)
 
 function findChannelFromName(name)
 {
-      if (name.endsWith("_R_map")) {
+      if (name.indexOf("_R_map") != -1) {
             return 'R';
-      } else if (name.endsWith("_G_map")) {
+      } else if (name.indexOf("_G_map") != -1) {
             return 'G';
-      } else if (name.endsWith("_B_map")) {
+      } else if (name.indexOf("_B_map") != -1) {
             return 'B';
-      } else if (name.endsWith("_H_map")) {
+      } else if (name.indexOf("_H_map") != -1) {
             return 'H';
-      } else if (name.endsWith("_S_map")) {
+      } else if (name.indexOf("_S_map") != -1) {
             return 'S';
-      } else if (name.endsWith("_O_map")) {
+      } else if (name.indexOf("_O_map") != -1) {
             return 'O';
-      } else if (name.endsWith("_C_map")) {
+      } else if (name.indexOf("_C_map") != -1) {
             return 'C';
-      } else if (name.endsWith("_L_map")) {
+      } else if (name.indexOf("_L_map") != -1) {
             return 'L';
       } else {
+            console.writeln("findChannelFromName, unknown channel " + name);
             return 'Unknown channel';
       }
 }
@@ -8373,7 +8374,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
-this.writeProcessingSteps = function(alignedFiles, autocontinue, basename, iserror)
+this.writeProcessingStepsAndEndLog = function(alignedFiles, autocontinue, basename, iserror)
 {
       if (global.get_flowchart_data) {
             basename = "AutoFlowchart";
@@ -10253,9 +10254,8 @@ this.testRGBNBmapping = function()
       util.forceCloseWindowsFromArray(images);
 
       util.addProcessingStep("Processing completed");
-      engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBNB");
+      engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBNB");
 
-      console.endLog();
       flowchartDone();
 }
 
@@ -10776,7 +10776,7 @@ this.testRGBHaMapping = function()
       util.forceCloseWindowsFromArray(images);
 
       util.addProcessingStep("Processing completed");
-      engine.writeProcessingSteps(null, true, ppar.win_prefix + "AutoRGBHa");
+      engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa");
 
       for (var i = 0; i < RGBHa_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(RGBHa_image_ids[i]);
@@ -10785,7 +10785,6 @@ this.testRGBHaMapping = function()
             util.windowIconizeAndKeywordif(global.test_image_ids[i]);
       }
       
-      console.endLog();
       flowchartDone();
 
       global.is_processing = global.processing_state.none;
@@ -12664,13 +12663,16 @@ this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
             if (run_this) {
                   if (auto_continue) {
                         util.ensureDialogFilePath("narrowband batch result files");
+                        var txt = "Narrowband palette " + global.narrowBandPalettes[i].name + " batch autocontinue";
+                  } else {
+                        var txt = "Narrowband palette " + global.narrowBandPalettes[i].name + " batch run";
                   }
                   par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
                   par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
                   par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
                   util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
-                  var succ = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option());
+                  var succ = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option(), txt);
                   if (!succ) {
                         util.addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
@@ -14308,12 +14310,15 @@ function engineInit()
  *                Processing parameters.
  * 
  */
-this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband)
+this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband, txt)
 {
        if (global.extra_target_image != "Auto" && global.extra_target_image != null) {
              console.criticalln("Extra processing target image can be used only with Apply button!");
              return false;
        }
+
+       console.beginLog();
+       console.show();
 
       flowchartInit("AutoIntegrate");
 
@@ -14369,9 +14374,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        RGBHa_H_enhanced_info.linear_id = null;
        RGBHa_H_enhanced_info.nonlinear_id = null;
        
-       console.beginLog();
-       console.show();
-
        engineInit();
  
        global.processingDate = new Date;
@@ -14407,7 +14409,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              " : " + global.user_selected_reference_image[i][0]);
        }
        console.noteln("--------------------------------------");
-       util.addProcessingStepAndStatusInfo("Start processing...");
+       util.addProcessingStepAndStatusInfo("Start processing : " + txt);
+       console.writeln("auto_continue : " + auto_continue + ", autocontinue_narrowband : " + autocontinue_narrowband);
  
        if (gui) {
             gui.close_undo_images();
@@ -14935,7 +14938,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             console.criticalln(global.processing_errors);
        }
        if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
-            engine.writeProcessingSteps(alignedFiles, auto_continue, null, false);
+            engine.writeProcessingStepsAndEndLog(alignedFiles, auto_continue, null, false);
       }
       if (preprocessed_images != global.start_images.FINAL) {
              console.noteln("Console output is written into file " + logfname);
@@ -15015,7 +15018,7 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
       printProcessDefaultValues("new Colourise", new Colourise);
 
-      engine.writeProcessingSteps(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
+      engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }
 
 this.getChangedProcessingOptions = getChangedProcessingOptions;
