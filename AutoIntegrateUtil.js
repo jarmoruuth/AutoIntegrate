@@ -1092,6 +1092,38 @@ this.copyWindow = function(sourceWindow, name)
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
+/* Open a file as image window. */
+this.openImageWindowFromFile = function(fileName)
+{
+      var imageWindows = ImageWindow.open(fileName);
+      if (!imageWindows || imageWindows.length == 0) {
+            util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
+      }
+      var imageWindow = imageWindows[0];
+      if (imageWindow == null) {
+            util.throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
+      }
+      return imageWindow;
+}
+
+
+this.copyAstrometricSolutionFromFile = function(targetId, fname)
+{
+      console.writeln("copyAstrometricSolutionFromFile from " + fname + " to " + targetId);
+
+      var targetWindow = util.findWindow(targetId);
+      if (targetWindow == null) {
+            console.criticalln("copyAstrometricSolutionFromFile: target window not found " + targetId);
+            return;
+      }
+      
+      var imgWin = util.openImageWindowFromFile(fname);
+
+      targetWindow.copyAstrometricSolution(imgWin);
+
+      util.closeOneWindow(imgWin.mainView.id);
+}
+
 this.createImageFromBitmap = function(bitmap)
 {
       var image = new Image(

@@ -8,7 +8,6 @@ Interface functions:
       autointegrateProcessingEngine
       extraProcessingEngine
       autointegrateNarrowbandPaletteBatch
-      openImageWindowFromFile
       openImageFiles
       openDirectoryFiles
       getImagetypFiles
@@ -329,7 +328,7 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
 {
       console.writeln("flowchartNewIntegrationImage: " + fileName + ", " + targetImageName);
       // read image file
-      var imgWin = engine.openImageWindowFromFile(fileName);
+      var imgWin = util.openImageWindowFromFile(fileName);
       // rename image
       imgWin.mainView.id = targetImageName;
 
@@ -1869,20 +1868,6 @@ function runSuberBias(biasWin)
       return targetWindow.mainView.id
 }
 
-/* Open a file as image window. */
-this.openImageWindowFromFile = function(fileName)
-{
-      var imageWindows = ImageWindow.open(fileName);
-      if (!imageWindows || imageWindows.length == 0) {
-            util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
-      }
-      var imageWindow = imageWindows[0];
-      if (imageWindow == null) {
-            util.throwFatalError("*** openImageWindowFromFile Error: Can't read file: " + fileName);
-      }
-      return imageWindow;
-}
-
 /* Match a master file to images. There can be an array of
  * master files in which case we try find the best match.
  * Images is a list of [enabled, path]
@@ -1901,7 +1886,7 @@ function matchMasterToImages(images, masterPath)
       /* Try find best match from masterPath for images.
        * Pick first image file as a reference.
        */
-      var imageWin = engine.openImageWindowFromFile(images[0][1]);
+      var imageWin = util.openImageWindowFromFile(images[0][1]);
       console.writeln("matchMasterToImages, images[0][1] " + images[0][1]);
       console.writeln("matchMasterToImages, imageWin.width " + imageWin.mainView.image.width + ", imageWin.height "+ imageWin.mainView.image.height);
 
@@ -1909,7 +1894,7 @@ function matchMasterToImages(images, masterPath)
        */
       var matchingMaster = null;
       for (var i = 0; i < masterPath.length; i++) {
-            var masterWin = engine.openImageWindowFromFile(masterPath[i]);
+            var masterWin = util.openImageWindowFromFile(masterPath[i]);
             console.writeln("matchMasterToImages, check masterPath[ " + i + "] " + masterPath[i]);
             console.writeln("matchMasterToImages, masterWin.width " + masterWin.mainView.image.width + ", masterWin.height " + masterWin.mainView.image.height);
             if (masterWin.mainView.image.width == imageWin.mainView.image.width 
@@ -6191,7 +6176,7 @@ function runGraXpertExternal(win)
       }
       console.writeln("GraXpert output file " + graxpert_fname);
 
-      var imgWin = engine.openImageWindowFromFile(graxpert_fname);
+      var imgWin = util.openImageWindowFromFile(graxpert_fname);
       imgWin.show();
 
       var processed_image_id = util.getKeywordValue(imgWin, image_id_name);

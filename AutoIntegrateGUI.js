@@ -1434,11 +1434,13 @@ function extraProcessingGUI(parent)
       var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
       this.extra_LHE_CheckBox = newCheckBox(parent, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
       this.extra_LHE_kernelradius_edit = newNumericEdit(parent, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "<p>Kernel radius value for LocalHistogramEqualization.</p>");
-      this.extra_LHE_contrastlimit_edit = newNumericEdit(parent, 'Contrast limit', par.extra_LHE_contrastlimit, 1, 64, "<p>Contrast limit value for LocalHistogramEqualization.</p>");
+      this.extra_LHE_contrastlimit_edit = newNumericEdit(parent, 'Contrast limit', par.extra_LHE_contrastlimit, 1, 64, 
+                                                                  "<p>Contrast limit value for LocalHistogramEqualization.</p>" +
+                                                                  "<p>With darks adjust usually you should increase the contrast limit value, for example 2.5.</p>");
       this.extra_LHE_adjust_label = newLabel(parent, "Adjust", "<p>Mask type to be used with LocalHistogramEqualization.</p>" +
                                                                "<p>Lightness mask is used to get the desired adjustment.</p>" +
                                                                adjust_type_toolTip +
-                                                               "<p>With darks adjust usually you should increase the contrast limit value.</p>");
+                                                               "<p>With darks adjust usually you should increase the contrast limit value, for example 2.5.</p>");
       this.extra_LHE_adjust_Combobox = newComboBox(parent, par.extra_LHE_adjusttype, adjust_type_values, this.extra_LHE_adjust_label.toolTip);
 
       this.extra_LHE_sizer1 = new HorizontalSizer;
@@ -1670,6 +1672,21 @@ function extraProcessingGUI(parent)
       this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve image", par.extra_solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" + 
             "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
+
+      this.extra_solve_image_Button = new ToolButton( parent );
+      this.extra_solve_image_Button.icon = parent.scaledResource(":/icons/select-file.png");
+      this.extra_solve_image_Button.toolTip = "<p>Select file for copying astrometric solution to image.</p>";
+      this.extra_solve_image_Button.setScaledFixedSize( 20, 20 );
+      this.extra_solve_image_Button.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  return;
+            }
+            util.copyAstrometricSolutionFromFile(global.extra_target_image, ofd.fileName);
+      };
+      
       this.extra_annotate_image_CheckBox = newCheckBox(parent, "Annotate image", par.extra_annotate_image, 
             "<p>Use AnnotateImage script to annotate image.</p>" + 
             "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
@@ -1992,6 +2009,7 @@ function extraProcessingGUI(parent)
       this.extraImageOptionsSizer2.add( this.extra_autostf_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_color_calibration_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_solve_image_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_solve_image_Button );
       this.extraImageOptionsSizer2.add( this.extra_annotate_image_CheckBox );
       this.extraImageOptionsSizer2.addStretch();
 

@@ -647,7 +647,7 @@ this.set_dialog = function(dialog)
 
 this.openImageWindowFromFile = function(name)
 {
-      return engine.openImageWindowFromFile(name);
+      return util.openImageWindowFromFile(name);
 }
 
 /***************************************************************************
