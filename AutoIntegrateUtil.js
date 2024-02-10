@@ -412,12 +412,13 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
       var index = 0;
       var iconStartRow = 0;
       var columnCount = 0;
+      var prefixlen = 0;
 
       if (id == null) {
             return null;
       }
 
-      console.writeln("windowIconizeFindPosition " + id);
+      // console.writeln("windowIconizeFindPosition " + id);
 
       if (global.get_flowchart_data) {
             return null;
@@ -426,9 +427,11 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
       // See if this window has some known prefix
       for (var i = 0; i < ppar.prefixArray.length; i++) {
             if (ppar.prefixArray[i][1] != "" && id.startsWith(ppar.prefixArray[i][1])) {
-                  console.writeln("windowIconizeFindPosition found prefix " + ppar.prefixArray[i][1]);
-                  index = i;
-                  break;
+                  if (ppar.prefixArray[i][1].length > prefixlen) {
+                        // console.writeln("windowIconizeFindPosition found prefix " + ppar.prefixArray[i][1]);
+                        prefixlen = ppar.prefixArray[i][1].length;
+                        index = i;
+                  }
             }
       }
       columnCount = ppar.prefixArray[index][0];
@@ -1116,7 +1119,7 @@ this.copyAstrometricSolutionFromFile = function(targetId, fname)
             console.criticalln("copyAstrometricSolutionFromFile: target window not found " + targetId);
             return;
       }
-      
+
       var imgWin = util.openImageWindowFromFile(fname);
 
       targetWindow.copyAstrometricSolution(imgWin);
