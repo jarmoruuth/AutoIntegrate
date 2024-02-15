@@ -1836,6 +1836,7 @@ function extraProcessingGUI(parent)
                         console.criticalln("Operation failed!");
                   }
                   engine.extraApply = false;
+                  util.runGarbageCollection();
             }
       };   
 

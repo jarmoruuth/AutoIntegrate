@@ -404,6 +404,7 @@ function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
             w.iconize();
             w.position = oldpos;                // restore window position
       }
+      // console.writeln("windowIconizeEx done");
       return w;
 }
 
@@ -426,6 +427,7 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
 
       // See if this window has some known prefix
       for (var i = 0; i < ppar.prefixArray.length; i++) {
+            // console.writeln("windowIconizeFindPosition check prefix " + ppar.prefixArray[i][1]);
             if (ppar.prefixArray[i][1] != "" && id.startsWith(ppar.prefixArray[i][1])) {
                   if (ppar.prefixArray[i][1].length > prefixlen) {
                         // console.writeln("windowIconizeFindPosition found prefix " + ppar.prefixArray[i][1]);
@@ -444,9 +446,11 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
             ppar.prefixArray[index][2]++;
             global.haveIconized++;
             if (!keep_iconized) {
+                  // console.writeln("windowIconizeFindPosition show");
                   w.show();
             }
       }
+      // console.writeln("windowIconizeFindPosition done");
       return w;
 }
 
