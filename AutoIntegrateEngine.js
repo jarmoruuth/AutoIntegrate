@@ -1571,10 +1571,18 @@ this.openDirectoryFiles = function(filetype, file_filter, lights_only, filetype_
 
 function findMin(arr, idx)
 {
-      var minval = arr[0][idx];
+      var val = arr[0][idx];
+      if (isNaN(val)) {
+            val = 0;
+      }
+      var minval = val;
       for (var i = 1; i < arr.length; i++) {
-            if (arr[i][idx] < minval) {
-                  minval = arr[i][idx];
+            val = arr[i][idx];
+            if (isNaN(val)) {
+                  val = 0;
+            }
+            if (val < minval) {
+                  minval = val;
             }
       }
       return minval;
@@ -1582,10 +1590,18 @@ function findMin(arr, idx)
 
 function findMax(arr, idx)
 {
-      var maxval = arr[0][idx];
+      var val = arr[0][idx];
+      if (isNaN(val)) {
+            val = 0;
+      }
+      var maxval = val;
       for (var i = 1; i < arr.length; i++) {
-            if (arr[i][idx] > maxval) {
-                  maxval = arr[i][idx];
+            val = arr[i][idx];
+            if (isNaN(val)) {
+                  val = 0;
+            }
+            if (val > maxval) {
+                  maxval = val;
             }
       }
       return maxval;
@@ -1659,7 +1675,7 @@ function setSSWEIGHTkeyword(imageWindow, SSWEIGHT)
       imageWindow.keywords = oldKeywords.concat([
          new FITSKeyword(
             "SSWEIGHT",
-            SSWEIGHT.toFixed(5),
+            SSWEIGHT.toFixed(10),
             "Image weight"
          )
       ]);
@@ -2588,7 +2604,15 @@ function findOutlierMinMax(measurements, indexvalue)
             var values = measurements.concat();
       
             values.sort( function(a, b) {
-                  return a[indexvalue] - b[indexvalue];
+                  let a0 = a[indexvalue];
+                  let b0 = b[indexvalue];
+                  if (isNaN(a0)) {
+                        a0 = 0;
+                  }
+                  if (isNaN(b0)) {
+                        b0 = 0;
+                  }
+                  return a0 - b0;
             });
       
             var q1 = values[Math.floor((values.length / 4))][indexvalue];
@@ -2609,6 +2633,9 @@ function findOutlierMinMax(measurements, indexvalue)
             }
             var number_array = []
             for (var i = 0; i < measurements.length; i++) {
+                  if (isNaN(measurements[i][indexvalue])) {
+                        measurements[i][indexvalue] = 0;
+                  }
                   number_array[number_array.length] = measurements[i][indexvalue];
             }
             var mean_std = getStandardDeviationAndMean(number_array);
@@ -2640,6 +2667,10 @@ function filterOutliers(measurements, name, index, type, do_filtering, fileindex
 
       var newMeasurements = [];
       for (var i = 0; i < measurements.length; i++) {
+            if (isNaN(measurements[i][index])) {
+                  console.writeln(name + " NaN value, setting zero value in file " + measurements[i][fileindex]);
+                  measurements[i][index] = 0;
+            }
             if ((type == 'min' || par.outliers_minmax.val) && measurements[i][index] < minmax.minValue) {
                   console.writeln(name + " below limit " + minmax.maxValue + ", ignoring file " + measurements[i][fileindex]);
                   filtered_files[filtered_files.length] = measurements[i];
@@ -2667,6 +2698,9 @@ function filterLimit(measurements, name, index_info, limit_val, fileindex, filte
 
       var newMeasurements = [];
       for (var i = 0; i < measurements.length; i++) {
+            if (isNaN(measurements[i][index])) {
+                  measurements[i][index] = 0;
+            }
             if (filter_high) {
                   var filter_out = measurements[i][index] > limit_val;
             } else {
@@ -2747,7 +2781,7 @@ function filterBadPSFImages(fileNames)
       var measurements = getSubframeSelectorMeasurements(fileNames);
 
       for (var i = 0; i < measurements.length; i++) {
-            if (measurements[i][indexPSFSignal] >= par.ssweight_limit.val) {
+            if (measurements[i][indexPSFSignal] >= par.ssweight_limit.val && !isNaN(measurements[i][indexPSFSignal])) {
                   newFileNames[newFileNames.length] = fileNames[i];
             } else {
                   console.noteln("Skipped bad PSF " + measurements[i][indexPSFSignal] +  " in image " + fileNames[i]);
@@ -2915,8 +2949,20 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       var filter_high = false;
       for (var i = 0; i < measurements.length; i++) {
             var FWHM = measurements[i][indexFWHM];
+            if (isNaN(FWHM)) {
+                  measurements[i][indexFWHM] = 0;
+                  FWHM = 0;
+            }
             var Eccentricity = measurements[i][indexEccentricity];
+            if (isNaN(Eccentricity)) {
+                  measurements[i][indexEccentricity] = 0;
+                  Eccentricity = 0;
+            }
             var SNRWeight = measurements[i][indexSNRWeight];
+            if (isNaN(SNRWeight)) {
+                  measurements[i][indexSNRWeight] = 0;
+                  SNRWeight = 0;
+            }
             var SSWEIGHT;
             /* Defaults below for Noise, Stars and Generic options are from script Weighted Batch Preprocessing v1.4.0
              * https://www.tommasorubechi.it/2019/11/15/the-new-weighted-batchpreprocessing/
@@ -2951,6 +2997,10 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
                               util.throwFatalError("Option " + par.use_weight.val + " is not supported in this version of PixInsight");
                         }
                         SSWEIGHT = measurements[i][indexPSFSignal];
+                        if (isNaN(SSWEIGHT)) {
+                              SSWEIGHT = 0;
+                              measurements[i][indexPSFSignal] = 0;
+                        }
                         break;
                   case 'PSF Signal scaled':
                         if (global.pixinsight_version_num < 1080810) {
@@ -2974,6 +3024,9 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
                         break;
                   default:
                         util.throwFatalError("Invalid option " + par.use_weight.val);
+            }
+            if (isNaN(SSWEIGHT)) {
+                  SSWEIGHT = 0;
             }
             util.addProcessingStep("SSWEIGHT " + SSWEIGHT + ", FWHM " + FWHM + ", Ecc " + Eccentricity + ", SNR " + SNRWeight + 
                               ", Stars " + measurements[i][indexStars] + ", PSFSignal " + measurements[i][indexPSFSignal] + ", PSFPower " + measurements[i][indexPSFPower] +
@@ -5816,7 +5869,15 @@ function runBasicIntegration(images, name, local_normalization)
       P.esdAlpha = par.ESD_significance.val;
       // P.esdLowRelaxation = par.ESD_lowrelaxation.val; deprecated, use default for old version
 
-      P.executeGlobal();
+      try {
+            var succ = P.executeGlobal();
+            if (!succ) {
+                  util.throwFatalError("ImageIntegration failed");
+            }
+      } catch (e) {
+            console.criticalln("ImageIntegration failed, " + e.toString());
+            throw e;
+      }
 
       util.closeOneWindow(P.highRejectionMapImageId);
       util.closeOneWindow(P.lowRejectionMapImageId);
@@ -14688,6 +14749,18 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        util.ensureDialogFilePath("processed files");
  
+       if (global.substack_number > 0) {
+            console.writeln("Substack number " + global.substack_number);
+            /* Rename image based on substack number. */
+            let numstr = global.substack_number.toString();
+            while (numstr.length < 3) {
+                  numstr = "0" + numstr;
+            }
+            let stackname = util.ensure_win_prefix("Stack_" + numstr + "_" + RGB_color_id);
+            util.addProcessingStep("Substack mode, rename " + RGB_color_id + " to " + stackname);
+            RGB_color_id = util.windowRenameKeepifEx(RGB_color_id, stackname, true, true);
+            saveProcessedWindow(RGB_color_id);          /* Final renamed substack integrated image. */
+       }
        if (crop_lowClipImage_changed) {
              saveProcessedWindow(crop_lowClipImageName);  /* LowRejectionMap_ALL */
        }

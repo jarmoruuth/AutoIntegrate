@@ -135,6 +135,8 @@ this.par = {
       cropinfo_only: { val: false, def: false, name : "Crop info only", type : 'B' },
       RRGB_image: { val: false, def: false, name : "RRGB", type : 'B' },
       batch_mode: { val: false, def: false, name : "Batch mode", type : 'B' },
+      substack_mode: { val: false, def: false, name : "Substack mode", type : 'B' },
+      substack_count: { val: 10, def: 10, name : "Substack count", type : 'I' },
       skip_autodetect_filter: { val: false, def: false, name : "Do not autodetect FILTER keyword", type : 'B' },
       skip_autodetect_imagetyp: { val: false, def: false, name : "Do not autodetect IMAGETYP keyword", type : 'B' },
       select_all_files: { val: false, def: false, name : "Select all files", type : 'B' },
@@ -237,7 +239,7 @@ this.par = {
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
-      ssweight_limit: { val: 0, def: 0, name : "SSWEIGHT limit", type : 'R' },
+      ssweight_limit: { val: 0.0000000001, def: 0.0000000001, name : "SSWEIGHT limit", type : 'R' },
       filter_limit1_type: { val: 'None', def: 'None', name : "Filter limit 1 type", type : 'S' },
       filter_limit1_val: { val: 0, def: 0, name : "Filter limit 1 value", type : 'R' },
       filter_limit2_type: { val: 'None', def: 'None', name : "Filter limit 2 type", type : 'S' },
@@ -548,6 +550,8 @@ this.best_image = null;
 this.user_selected_best_image = null;
 this.user_selected_reference_image = [];  // array of [image, filter]
 this.star_alignment_image = null;
+
+this.substack_number = 0;
 
 this.processed_channel_images = [];
 

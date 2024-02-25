@@ -2678,6 +2678,21 @@ function Autorun(parent)
       var savedOutputRootDir = global.outputRootDir;
       var batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
       var batch_files = [];
+      var substack_mode = par.substack_mode.val;
+      var substack_files = [];
+      var substack_size = global.lightFileNames.length / par.substack_count.val;
+      var substack_saved_lightFileNames = global.lightFileNames;
+      var saved_integrate_only = par.integrate_only.val;
+
+      if (substack_mode) {
+            console.writeln("AutoRun substack size " + substack_size);
+            for (var i = 0; i < global.lightFileNames.length; i += substack_size) {
+                  substack_files[substack_files.length] = global.lightFileNames.slice(i, i + substack_size);
+            }
+            par.integrate_only.val = true;
+      }
+      global.substack_number = 0;
+
       if (par.batch_mode.val) {
             stopped = false;
             // Ask files before processing
@@ -2723,6 +2738,21 @@ function Autorun(parent)
                         updateInfoLabel(parent.dialog);
                   }
             }
+            if (substack_mode) {
+                  console.writeln("Get next substack");
+                  if (substack_files.length == 0) {
+                        console.writeln("AutoRun substack completed");
+                        break;
+                  }
+                  global.lightFileNames = substack_files.shift();
+                  console.writeln("AutoRun substack length " + global.lightFileNames.length + " files.");
+                  if (global.lightFileNames == null || global.lightFileNames.length == 0) {
+                        console.writeln("AutoRun substack completed");
+                        break;
+                  } else {
+                        stopped = false;
+                  }
+            }  
             if (global.lightFileNames != null) {
                   if (batch_narrowband_palette_mode) {
                         var filteredFiles = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
@@ -2731,7 +2761,10 @@ function Autorun(parent)
                         }
                   }
                   if (first_step) {
-                        if (par.batch_mode.val) {
+                        if (substack_mode) {
+                              global.substack_number = 1;
+                              console.writeln("AutoRun in substack mode, substack " + global.substack_number);
+                        } else if (par.batch_mode.val) {
                               console.writeln("AutoRun in batch mode");
                         } else if (batch_narrowband_palette_mode) {
                               console.writeln("AutoRun in narrowband palette batch mode");
@@ -2741,10 +2774,16 @@ function Autorun(parent)
                         first_step = false;
                   } else {
                         global.user_selected_reference_image = [];
+                        if (substack_mode) {
+                              global.substack_number++;
+                              console.writeln("AutoRun in substack mode, substack " + global.substack_number);
+                        }
                   }
                   engine.flowchartReset();
                   if (par.run_get_flowchart_data.val) {
-                        if (batch_narrowband_palette_mode || par.batch_mode.val) {
+                        if (substack_mode) {
+                              console.writeln("Do not get flowchart data for substack mode");
+                        } else if (batch_narrowband_palette_mode || par.batch_mode.val) {
                               console.writeln("Do not get flowchart data for batch mode");
                         } else {
                               generateNewFlowchartData(parent);
@@ -2762,12 +2801,18 @@ function Autorun(parent)
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
                         engine.writeProcessingStepsAndEndLog(null, false, null, true);
+                        stopped = true;
                   }
                   if (par.batch_mode.val) {
                         global.outputRootDir = savedOutputRootDir;
                         global.lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
                         engine.closeAllWindows(par.keep_integrated_images.val, true);
+                  }
+                  if (substack_mode) {
+                        console.writeln("AutoRun in substack mode, close windows");
+                        engine.closeAllWindows(par.keep_integrated_images.val, true);
+                        console.writeln("AutoRun in substack mode, continue to next substack.");
                   }
             } else {
                   stopped = true;
@@ -2777,7 +2822,11 @@ function Autorun(parent)
                   console.writeln("Processing cancelled!");
             }
       } while (!stopped);
+
       global.outputRootDir = savedOutputRootDir;
+      par.integrate_only.val = saved_integrate_only;
+      global.lightFileNames = substack_saved_lightFileNames;
+      global.substack_number = 0;
 }
 
 function newSectionLabel(parent, text)
@@ -3800,7 +3849,7 @@ function updateTreeBoxNodeToolTip(node)
 {
       var toolTip = "<p>" + node.filename + "</p><p>exptime: " + node.exptime;
       if (node.ssweight > 0) {
-            toolTip = toolTip + "<br>ssweight: " + node.ssweight;
+            toolTip = toolTip + "<br>ssweight: " + node.ssweight.toFixed(10);
       }
       if (node.best_image) {
             toolTip = toolTip + "<br>Reference image for star align";
@@ -4827,7 +4876,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               if (files_TreeBox.currentNode.ssweight == 0) {
                                     var ssweighttxt = "";
                               } else {
-                                    var ssweighttxt = ", ssweight: " + files_TreeBox.currentNode.ssweight.toFixed(5);
+                                    var ssweighttxt = ", ssweight: " + files_TreeBox.currentNode.ssweight.toFixed(10);
                               }
                         } else {
                               var ssweighttxt = "";
@@ -7336,9 +7385,11 @@ function AutoIntegrateDialog()
       this.weightLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.weightComboBox = newComboBox(this, par.use_weight, use_weight_values, weightHelpToolTips);
 
-      var weightLimitToolTip = "Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
-                               "it is not included in the set of processed images.";
-      this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 4);
+      var weightLimitToolTip = "<p>Limit value for SSWEIGHT. If value for SSWEIGHT is below the limit " +
+                               "it is not included in the set of processed images.</p>" + 
+                               "<p>Not that the value is written to FITS hedaer using 10 digits. Smaller than 10 digit limit values should not be used " + 
+                               "if using the SSWEIGHT value that is written to FITS header.</p>";
+      this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 10);
       
       var filterLimitHelpToolTips= "Choose filter measure and value. FWHM and Eccentricity are filtered for too high values, and all others are filtered for too low values.";
       this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
@@ -7826,6 +7877,20 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDSignificance );
       this.ImageIntegrationRejectionSettingsSizer3.addStretch();
 
+      this.ImageIntegrationSubstackCheckBox = newCheckBox(this, "Substack,", par.substack_mode, 
+            "<p>Divide light files into <i>Number of substacks</i> substacks and stack them separately. Stacked files are named as Stack_<i>num</i>_Integration_RGB.</p>" +
+            "<p>When this option is enabled only image integration is done and final images are not generated. The idea is to use substacks to generate the final image.</p>" +
+            "<p>Note that this works only with color (OSC) files but no checks for that are done.</p>" );
+      this.ImageIntegrationSubstackLabel = newLabel(this, 'Number of substacks', "<p>Number of substacks.</p>");
+      this.ImageIntegrationSubstackSpinbox = newSpinBox(this, par.substack_count, 2, 999, this.ImageIntegrationSubstackLabel.toolTip);
+
+      this.ImageIntegrationSubstackSettingsSizer = new HorizontalSizer;
+      this.ImageIntegrationSubstackSettingsSizer.spacing = 4;
+      this.ImageIntegrationSubstackSettingsSizer.add( this.ImageIntegrationSubstackCheckBox );
+      this.ImageIntegrationSubstackSettingsSizer.add( this.ImageIntegrationSubstackLabel );
+      this.ImageIntegrationSubstackSettingsSizer.add( this.ImageIntegrationSubstackSpinbox );
+      this.ImageIntegrationSubstackSettingsSizer.addStretch();
+
       this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration pixel rejection');
       this.clippingGroupBoxSizer = new VerticalSizer;
       this.clippingGroupBoxSizer.margin = 6;
@@ -7834,6 +7899,7 @@ function AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer1 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer2 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer3 );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationSubstackSettingsSizer );
       //this.clippingGroupBoxSizer.addStretch();
 
       this.localNormalizationMultiscaleCheckBox = newCheckBox(this, "Use multiscale analysis", par.use_localnormalization_multiscale, 
