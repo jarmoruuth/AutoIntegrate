@@ -47,6 +47,7 @@ this.autointegrate_info = "Support for GradientCorrection";       // For updates
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Support for GradientCorrection",
       "- Small updates and fixes"
 ];
 
