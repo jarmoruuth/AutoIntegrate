@@ -730,6 +730,15 @@ this.autointegrate_main = function()
                         par.use_weight.def = old_default;
                   }
             }
+            if (global.pixinsight_version_num >= 1080902 && global.pixinsight_build_num >= 1601) {
+                  // We have GradientCorrection process available
+                  global.is_gc_process = true;
+            } else {
+                  // Old versions do not have GradientCorrection process
+                  par.use_abe.val = true;
+                  par.use_abe.def = true;
+                  global.is_gc_process = false;
+            }
       }
       catch (x) {
             console.writeln( x );

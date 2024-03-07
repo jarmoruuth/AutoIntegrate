@@ -810,22 +810,24 @@ function generateNewFlowchartData(parent)
       return succp;
 }
 
-function newVerticalSizer(margin, addStretch, items)
+function newVerticalSizer(margin, add_stretch, items)
 {
       var sizer = new VerticalSizer;
       sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
-      sizer.margin = margin;
+      if (margin > 0) {
+            sizer.margin = margin;
+      }
       sizer.spacing = 4;
       for (var i = 0; i < items.length; i++) {
             sizer.add(items[i]);
       }
-      if (addStretch) {
+      if (add_stretch) {
             sizer.addStretch();
       }
       return sizer;
 }
 
-function newHorizontalSizer(margin, addStretch, items)
+function newHorizontalSizer(margin, add_stretch, items)
 {
       var sizer = new HorizontalSizer;
       sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
@@ -834,7 +836,7 @@ function newHorizontalSizer(margin, addStretch, items)
       for (var i = 0; i < items.length; i++) {
             sizer.add(items[i]);
       }
-      if (addStretch) {
+      if (add_stretch) {
             sizer.addStretch();
       }
       return sizer;
@@ -2898,7 +2900,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
             edt.setValue(edt.aiParam.val);
       };
       edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      return edt;
+      return newHorizontalSizer(0, true, [edt]);
 }
 
 function newNumericEdit(parent, txt, param, min, max, tooltip)
@@ -6419,13 +6421,14 @@ function AutoIntegrateDialog()
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
             "<p>Print some additional debug information to the log output files.</p>" );
       this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
-            "<p>Use AutomaticBackgroundExtractor or GraXpert on L, R, G and B images separately before channels are combined.</p>" );
+            "<p>Use gradient correction on L, R, G and B images separately before channels are combined.</p>" );
       this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
-            "<p>Use AutomaticBackgroundExtractor or GraXpert on all light images. It is run very early in the processing before cosmetic correction.</p>" );
+            "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.use_GC_L_RGB_CheckBox = newCheckBox(this, "Gradient correction on combined images", par.use_GC_on_L_RGB, 
-            "<p>Use AutomaticBackgroundExtractor or GraXpert on L and RGB images while image is still in linear mode.</p>" );
+            "<p>Use gradient correction on L and RGB images while image is still in linear mode.</p>" );
       this.use_GC_L_RGB_stretched_CheckBox = newCheckBox(this, "Gradient correction on stretched images", par.use_GC_on_L_RGB_stretched, 
-            "<p>Use AutomaticBackgroundExtractor or GraXpert on L and RGB images after they have been stretched to non-linear mode.</p>" );
+            "<p>Use gradient correction on L and RGB images after they have been stretched to non-linear mode.</p>" +
+            "<p>Note that thiis option should not be used with GradientCorrection process.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
@@ -6452,7 +6455,7 @@ function AutoIntegrateDialog()
             remove_stars_Tooltip);
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
       this.color_calibration_before_GC_CheckBox = newCheckBox(this, "Color calibration before gradient correction", par.color_calibration_before_GC, 
-            "<p>Run ColorCalibration before AutomaticBackgroundExtractor or GraXpert in run on RGB image</p>" );
+            "<p>Run ColorCalibration before gradient correction is run on RGB image</p>" );
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
             "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with checking this box.</p>" +
@@ -6565,12 +6568,20 @@ function AutoIntegrateDialog()
             "But it is always good to experiment what " +
             "is best for your own data.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>");
+      if (global.is_gc_process) {
+            var use_graxpert_toolTip = "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p>";
+      } else {
+            var use_graxpert_toolTip = "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>";
+      }
       this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
-            "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>" +
+            use_graxpert_toolTip + 
             "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
-
+      if (global.is_gc_process) {
+            this.use_abe_CheckBox = newCheckBox(this, "Use ABE", par.use_abe, 
+            "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>");
+      }
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -6694,7 +6705,9 @@ function AutoIntegrateDialog()
       this.imageToolsSet1 = new VerticalSizer;
       this.imageToolsSet1.margin = 6;
       this.imageToolsSet1.spacing = 4;
-      this.imageToolsSet1.add( this.batch_mode_CheckBox );
+      if (global.is_gc_process) {
+            this.imageToolsSet1.add( this.use_abe_CheckBox );
+      }
       this.imageToolsSet1.add( this.use_graxpert_CheckBox );
       this.imageToolsSet1.add( this.use_StarXTerminator_CheckBox );
       this.imageToolsSet1.add( this.use_starnet2_CheckBox );
@@ -6705,6 +6718,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet2.spacing = 4;
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
+      this.imageToolsSet2.add( this.batch_mode_CheckBox );
       this.imageToolsSet2.add( this.solve_image_CheckBox );
 
       // Image tools and batching par.
@@ -7523,6 +7537,23 @@ function AutoIntegrateDialog()
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
       this.linearFitSizer = newVerticalSizer(6, true, [this.linearFitGroupBoxLabel, this.linearFitComboBox]);
 
+      if (global.is_gc_process) {
+            this.gc_scale_Edit = newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
+            this.gc_smoothness_Edit = newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
+            this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
+            this.gc_structure_protection_CheckBox = newCheckBox(this, "Structure Protection", par.gc_automatic_convergence, "<p>Prevent overcorrecting on image structures.</p>");
+            this.gc_protection_threshold_Edit = newNumericEdit(this, "Protection threshold", par.gc_protection_threshold, 0, 1, "<p>Decreasing this value prevents overcorrecting dimmer structures.</p>");
+            this.gc_protection_amount_Edit = newNumericEdit(this, "Protection amount", par.gc_protection_amount, 0.1, 1, "<p>Increasing this value prevents overcorrecting significant structures.</p>");
+            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is output into an image with _model extension.</p>");
+
+            this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
+            this.GCGroupBoxSizer2 = newVerticalSizer(2, true, [this.gc_structure_protection_CheckBox, this.gc_protection_threshold_Edit, this.gc_protection_amount_Edit]);
+            this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2]);
+
+            this.GCGroupBoxLabel = newSectionLabel(this, "GredientCorrection settings");
+            this.GCGroupBoxSizer = newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);
+      }
+
       this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
       this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
       this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.", true);
@@ -7532,7 +7563,7 @@ function AutoIntegrateDialog()
       this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
 
       this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-      this.ABEGMainSizer = newHorizontalSizer(6, true, [this.ABEDegreeSizer, this.ABECorrectionSizer]);
+      this.ABEGMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer]);
       this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEGMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
@@ -7586,7 +7617,11 @@ function AutoIntegrateDialog()
 
       this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 
-      this.ABEGraXpertStarXSizer = newVerticalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
+      if (global.is_gc_process) {
+            this.GCStarXSizer = newVerticalSizer(0, true, [this.GCGroupBoxSizer, this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
+      } else {
+            this.GCStarXSizer = newVerticalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
+      }
 
       //
       // Stretching parameters
@@ -7652,10 +7687,10 @@ function AutoIntegrateDialog()
             "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
             "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
             "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use a different values. For less stars you can use a smaller value.</p>");
-      this.Arcsinh_black_point_Control = newNumericEdit(this, "Black point value %", par.Arcsinh_black_point, 0, 99,
+      this.Arcsinh_black_point_Control = newNumericEditPrecision(this, "Black point value %", par.Arcsinh_black_point, 0, 99,
             "<p>Arcsinh Stretch black point value.</p>" + 
-            "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>");
-      this.Arcsinh_black_point_Control.setPrecision( 4 );
+            "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>",
+            4);
       var Arcsinh_iterations_tooltip = "Number of iterations used to get the requested stretch factor."
       this.Arcsinh_iterations_Label = newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
       this.Arcsinh_iterations_SpinBox = newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
@@ -9141,8 +9176,8 @@ function AutoIntegrateDialog()
               this.StretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationCropSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "ABE, GraXpert and StarXTerminator settings", "ps_ave_graxpert",
-            [ this.ABEGraXpertStarXSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction and StarXTerminator settings", "ps_ave_graxpert",
+            [ this.GCStarXSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,

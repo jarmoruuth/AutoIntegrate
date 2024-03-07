@@ -210,14 +210,15 @@ var S_id;
 var O_id;
 var RGB_color_id;              // Integrated RGB from OSC/DSLR data
 
-var RGBNB_image_ids = [];      // Narrowband RGB images
-var RGBHa_image_ids = [];      // Ha RGB images
 var RGBHa_H_enhanced_info = {  // Ha RGB image info
                               linear_id: null, 
                               nonlinear_id: null,
                               starless: false, 
                               mapping_done: false
                          };    
+
+var iconized_image_ids = [];        // Random images that are iconized at the end of processing
+var iconized_debug_image_ids = [];  // Random images that are iconized or closed at the end of processing
 
 var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
 var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
@@ -773,7 +774,9 @@ function closeAllWindowsFromArray(arr, print_names)
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
             util.closeOneWindow(arr[i]+"_stars");
+            util.closeOneWindow(arr[i]+"_starless");
             util.closeOneWindow(arr[i]+"_map");
+            util.closeOneWindow(arr[i]+"_model");
             util.closeOneWindow(arr[i]);
             if (arr[i].indexOf("Integration_") != -1) {
                   // For possible old images
@@ -2478,13 +2481,9 @@ function runGradientCorrectionOnLights(fileNames)
       var postfix = "_GC";
       var outputExtension = ".xisf";
 
-      if (par.use_graxpert.val) {
-            util.addProcessingStepAndStatusInfo("Run gradient correction on light files using GraXpert");
-            flowchartOperation("GraXpert");
-      } else {
-            util.addProcessingStepAndStatusInfo("Run gradient correction on light files using ABE");
-            flowchartOperation("AutomaticBackgroundExtractor");
-      }
+      util.addProcessingStepAndStatusInfo("Run gradient correction on light files using " + getGradientCorrectionName());
+      flowchartOperation(getGradientCorrectionName());
+
       if (global.get_flowchart_data) {
             return fileNames;
       }
@@ -2504,11 +2503,8 @@ function runGradientCorrectionOnLights(fileNames)
             }
             
             // Run gradient correction which creates a new window with postfix extension
-            if (par.use_graxpert.val) {
-                  var new_id = runGraXpert(imageWindow, false, postfix);
-            } else {
-                  var new_id = runABEex(imageWindow, false, postfix);
-            }
+
+            var new_id = runGradientCorrectionEx(imageWindow, false, postfix, false);
             var new_win = util.findWindow(new_id);
             if (new_win == null) {
                   util.throwFatalError("*** runGradientCorrectionOnLights Error: could not find window: " + new_id);
@@ -6337,15 +6333,107 @@ function runABEex(win, replaceTarget, postfix)
       return GC_id;
 }
 
-function runGradientCorrection(win, replaceTarget)
+function runGCProcess(win, replaceTarget, postfix)
+{
+      if (replaceTarget) {
+            util.addProcessingStepAndStatusInfo("Run GradientCorrection on image " + win.mainView.id);
+            var GC_id = win.mainView.id;
+      } else {
+            var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
+            util.addProcessingStepAndStatusInfo("Run GradientCorrection from image " + win.mainView.id + ", target image " + GC_id);
+            win = util.copyWindowEx(win, GC_id, true);
+      }
+      console.writeln("GradientCorrection using Smoothness " + par.gc_smoothness.val + 
+                      ', Automatic convergence ' + par.gc_automatic_convergence.val +
+                      ", Structure Protection " + par.gc_structure_protection.val +
+                      ", Protection threshold " + par.gc_protection_threshold.val + 
+                      ", Protection amount " + par.gc_protection_amount.val);
+
+      if (global.get_flowchart_data) {
+            return GC_id;
+      }
+      if (par.gc_output_background_model.val) {
+            // Create a window for the background model from the original window
+            var model_id = util.ensure_win_prefix(util.replacePostfixOrAppend(GC_id, ["_map", "_combined", postfix], "_model"));
+            iconized_image_ids.push(model_id);
+            var model_win = util.copyWindowEx(win, model_id, true);
+            model_win.show();
+      }
+      
+      var P = new GradientCorrection;
+      P.reference = 0.50;
+      P.lowThreshold = 0.20;
+      P.lowTolerance = 0.50;
+      P.highThreshold = 0.05;
+      P.highTolerance = 0.00;
+      P.iterations = 15;
+      P.scale = par.gc_scale.val;
+      P.smoothness = par.gc_smoothness.val;
+      P.downsamplingFactor = 16;
+      P.protection = par.gc_structure_protection.val;
+      P.protectionThreshold = par.gc_protection_threshold.val;
+      P.protectionAmount = par.gc_protection_amount.val;
+      P.protectionSmoothingFactor = 16;
+      P.lowClippingLevel = 0.000076;
+      P.automaticConvergence = par.gc_automatic_convergence.val;
+      P.convergenceLimit = 0.00001000;
+      P.maxIterations = 10;
+      P.generateProtectionMasks = false;
+
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(win.mainView, false);
+
+      win.mainView.endProcess();
+
+      if (par.gc_output_background_model.val) {
+            // subtract gradient corrected image from original to get the background model
+            var P = new PixelMath;
+            P.expression = "$T - " + GC_id;
+            P.useSingleExpression = true;
+            P.createNewImage = false;
+            P.rescale = true;
+            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+
+            console.writeln("Generate greadient model image " + model_id + ", expression " + P.expression);
+
+            P.executeOn(model_win.mainView);
+      }
+
+      checkCancel();
+
+      return GC_id;
+}
+
+function getGradientCorrectionName()
 {
       if (par.use_graxpert.val) {
-            flowchartOperation("GraXpert");
-            return runGraXpert(win, replaceTarget, "_processed");
+            return "GraXpert";
+      } else if (par.use_abe.val) {
+            return "AutomaticBackgroundExtractor";
       } else {
-            flowchartOperation("AutomaticBackgroundExtractor");
-            return runABEex(win, replaceTarget, "_processed");
+            return "GradientCorrection";
       }
+}
+
+function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart)
+{
+      if (update_flowchart) {
+            flowchartOperation(getGradientCorrectionName());
+      }
+      if (par.use_graxpert.val) {
+            return runGraXpert(win, replaceTarget, postfix);
+      } else if (par.use_abe.val){
+            return runABEex(win, replaceTarget, postfix);
+      } else {
+            return runGCProcess(win, replaceTarget, postfix);
+      }
+}
+
+function runGradientCorrection(win, replaceTarget)
+{
+      return runGradientCorrectionEx(win, replaceTarget, "_processed", true);
 }
 
 // Run gradient correction and rename windows so that the final result has the same id
@@ -6355,13 +6443,7 @@ function runGradientCorrectionBeforeChannelCombination(id)
             util.throwFatalError("No image for gradient correction , maybe some previous step like star alignment failed");
       }
       var id_win = ImageWindow.windowById(id);
-      if (par.use_graxpert.val) {
-            flowchartOperation("GraXpert");
-            runGraXpert(id_win, true, "");
-      } else {
-            flowchartOperation("AutomaticBackgroundExtractor");
-            runABEex(id_win, true, "");
-      }
+      runGradientCorrectionEx(id_win, true, "", true);
       return id;
 }
 
@@ -9401,11 +9483,7 @@ function CreateChannelImages(parent, auto_continue)
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, postfix);
 
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        if (par.use_graxpert.val) {
-                              flowchartOperation("GraXpert");
-                        } else {
-                              flowchartOperation("AutomaticBackgroundExtractor");
-                        }
+                        flowchartOperation("Already gradient corrected");
                         fileNames = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = runGradientCorrectionOnLights(fileProcessedStatus.unprocessed);
@@ -10209,8 +10287,8 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       util.closeOneWindow(channelId);
       util.closeOneWindow(NB_id);
 
-      RGBNB_image_ids.push(mappedChannelId);
-      RGBNB_image_ids.push(mappedChannelId2);
+      iconized_debug_image_ids.push(mappedChannelId);
+      iconized_debug_image_ids.push(mappedChannelId2);
 
       flowchartChildEnd(channel);
       util.findWindow(mappedChannelId3).show();
@@ -10240,9 +10318,9 @@ function doRGBNBmapping(RGB_id)
                               G_mapped,
                               B_mapped);
 
-      RGBNB_image_ids.push(R_mapped);
-      RGBNB_image_ids.push(G_mapped);
-      RGBNB_image_ids.push(B_mapped);
+      iconized_debug_image_ids.push(R_mapped);
+      iconized_debug_image_ids.push(G_mapped);
+      iconized_debug_image_ids.push(B_mapped);
       util.closeOneWindow(RGB_id);
 
       return RGB_mapped_id;
@@ -10616,7 +10694,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
             guiUpdatePreviewWin(enhanced_channel_win);
             enhanced_channel_win.show();
 
-            RGBHa_image_ids.push(enhanced_channel_id);
+            iconized_image_ids.push(enhanced_channel_id);
             if (RGBHa_H_enhanced_info.nonlinear_id == null) {
                   RGBHa_H_enhanced_info.linear_id = enhanced_channel_id;
             }
@@ -10824,8 +10902,8 @@ this.testRGBHaMapping = function()
       util.addProcessingStep("Processing completed");
       engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa");
 
-      for (var i = 0; i < RGBHa_image_ids.length; i++) {
-            util.windowIconizeAndKeywordif(RGBHa_image_ids[i]);
+      for (var i = 0; i < iconized_image_ids.length; i++) {
+            util.windowIconizeAndKeywordif(iconized_image_ids[i]);
       }
       for (var i = 0; i < global.test_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(global.test_image_ids[i]);
@@ -10850,8 +10928,8 @@ function extraHaMapping(extraWin)
       RGBHa_init(extraWin.mainView.id, false, false);
       RGBHa_mapping(extraWin.mainView.id);
       if (!par.debug.val) {
-            for (var i = 0; i < RGBHa_image_ids.length; i++) {
-                  util.closeOneWindow(RGBHa_image_ids[i]);
+            for (var i = 0; i < iconized_image_ids.length; i++) {
+                  util.closeOneWindow(iconized_image_ids[i]);
             }
       }
 }
@@ -11974,9 +12052,16 @@ function extraGradientCorrection(extraWin)
 {
       if (par.use_graxpert.val) {
             addExtraProcessingStep("Extract background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
-      } else {
+      } else if (par.use_abe.val) {
             addExtraProcessingStep("Extract background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
-      }
+      } else {
+            addExtraProcessingStep("Extract background using GradientCorrection" +
+                                    (par.gc_smoothness.val != par.gc_smoothness.def ? ", Smoothness " + par.gc_smoothness.val : "") + 
+                                    (par.gc_automatic_convergence.val != par.gc_automatic_convergence.def ? ', Automatic convergence ' + par.gc_automatic_convergence.val : "") +
+                                    (par.gc_structure_protection.val != par.gc_structure_protection.def ? ", Structure Protection " + par.gc_structure_protection.val : "") +
+                                    (par.gc_protection_threshold.val != par.gc_protection_threshold.def ? ", Protection threshold " + par.gc_protection_threshold.val : "") + 
+                                    (par.gc_protection_amount.val != par.gc_protection_amount.def ? ", Protection amount " + par.gc_protection_amount.val : ""));
+}
       var id = runGradientCorrection(extraWin, true);
       // guiUpdatePreviewWin(extraWin);
       return id;
@@ -14264,7 +14349,7 @@ function createCropInformationAutoContinue()
 
        RGBHa_H_enhanced_info.linear_id = null;
        RGBHa_H_enhanced_info.nonlinear_id = null;
-       RGBHa_image_ids = [];
+       iconized_image_ids = [];
 
        global.test_image_ids = [];
 
@@ -14391,8 +14476,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        H_id = null;
        S_id = null;
        O_id = null;
-       RGBNB_image_ids = [];
-       RGBHa_image_ids = [];
+       iconized_debug_image_ids = [];
+       iconized_image_ids = [];
        RGB_color_id = null;
        RGB_win_id = null;
        start_time = Date.now();
@@ -14836,15 +14921,15 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              setFinalImageKeyword(ImageWindow.windowById(RGB_stars_HT_win.mainView.id));   /* Integration_RGB_stars (non-linear) */
        }
 
-       for (var i = 0; i < RGBNB_image_ids.length; i++) {
+       for (var i = 0; i < iconized_debug_image_ids.length; i++) {
             if (par.debug.val) {
-                  util.windowIconizeAndKeywordif(RGBNB_image_ids[i]);
+                  util.windowIconizeAndKeywordif(iconized_debug_image_ids[i]);
             } else {
-                  util.closeOneWindow(RGBNB_image_ids[i]);
+                  util.closeOneWindow(iconized_debug_image_ids[i]);
             }
       }
-      for (var i = 0; i < RGBHa_image_ids.length; i++) {
-            util.windowIconizeAndKeywordif(RGBHa_image_ids[i]);
+      for (var i = 0; i < iconized_image_ids.length; i++) {
+            util.windowIconizeAndKeywordif(iconized_image_ids[i]);
       }
       for (var i = 0; i < global.test_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(global.test_image_ids[i]);
@@ -15075,6 +15160,7 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new BlurXTerminator", new BlurXTerminator);
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
       printProcessDefaultValues("new Colourise", new Colourise);
+      printProcessDefaultValues("new GradientCorrection", new GradientCorrection);
 
       engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }

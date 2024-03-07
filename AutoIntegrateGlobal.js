@@ -52,6 +52,7 @@ this.autointegrate_version_info = [
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
+this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
 
 this.processingDate = null;
 
@@ -106,6 +107,7 @@ this.par = {
       use_GC_on_L_RGB: { val: false, def: false, name : "Use GC on L, RGB", type : 'B', oldname: "Use ABE on L, RGB" },
       use_GC_on_L_RGB_stretched: { val: false, def: false, name : "Use GC on L, RGB stretched", type : 'B', oldname: "Use ABE on L, RGB stretched" },
       use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
+      use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_GC: { val: false, def: false, name : "Color calibration before GC", type : 'B', oldname: "Color calibration before ABE" },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
@@ -254,6 +256,15 @@ this.par = {
       outliers_method: { val: 'Two sigma', def: 'Two sigma', name : "Outlier method", type : 'S' },
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
+
+      gc_scale: { val: 5, def: 5, name : "GC scale", type : 'R' },
+      gc_smoothness: { val: 0.4, def: 0.4, name : "GC smoothness", type : 'R' },
+      gc_automatic_convergence: { val: false, def: false, name : "GC automatic convergence", type : 'B' },
+      gc_structure_protection: { val: true, def: true, name : "GC structure protection", type : 'B' },
+      gc_protection_threshold: { val: 0.10, def: 0.10, name : "GC protection threshold", type : 'R' },
+      gc_protection_amount: { val: 0.50, def: 0.50, name : "GC protection amount", type : 'R' },
+      gc_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
+      
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
@@ -538,6 +549,8 @@ this.flowchart_debug = false; // true if we are debugging flowchart
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false
 this.shadow_clip_value = 0.01;
+
+this.is_gc_process = true;          // true if we have GradientCorrection process available
 
 this.outputRootDir = "";
 this.lightFileNames = null;

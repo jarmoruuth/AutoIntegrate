@@ -40,11 +40,13 @@ this.setGUI = function(aigui)
 this.init_pixinsight_version = function()
 {
       global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
-                                      CoreApplication.versionRelease + '-' + CoreApplication.versionRevision;
+                                      CoreApplication.versionRelease + '-' + CoreApplication.versionRevision +
+                                      ' build '  + CoreApplication.versionBuild;
       global.pixinsight_version_num = CoreApplication.versionMajor * 1e6 + 
                                       CoreApplication.versionMinor * 1e4 + 
                                       CoreApplication.versionRelease * 1e2 + 
-                                      CoreApplication.versionRevision;     
+                                      CoreApplication.versionRevision;
+      global.pixinsight_build_num = CoreApplication.versionBuild;
 }
 
 this.runGarbageCollection = function()
