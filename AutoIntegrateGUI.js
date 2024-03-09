@@ -7541,7 +7541,7 @@ function AutoIntegrateDialog()
             this.gc_scale_Edit = newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
             this.gc_smoothness_Edit = newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
             this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
-            this.gc_structure_protection_CheckBox = newCheckBox(this, "Structure Protection", par.gc_automatic_convergence, "<p>Prevent overcorrecting on image structures.</p>");
+            this.gc_structure_protection_CheckBox = newCheckBox(this, "Structure Protection", par.gc_structure_protection, "<p>Prevent overcorrecting on image structures.</p>");
             this.gc_protection_threshold_Edit = newNumericEdit(this, "Protection threshold", par.gc_protection_threshold, 0, 1, "<p>Decreasing this value prevents overcorrecting dimmer structures.</p>");
             this.gc_protection_amount_Edit = newNumericEdit(this, "Protection amount", par.gc_protection_amount, 0.1, 1, "<p>Increasing this value prevents overcorrecting significant structures.</p>");
             this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is output into an image with _model extension.</p>");
