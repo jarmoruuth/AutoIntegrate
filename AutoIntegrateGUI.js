@@ -773,6 +773,10 @@ function generateNewFlowchartData(parent)
       var saved_win_prefix = ppar.win_prefix;
       ppar.win_prefix = "AutoIntegrateFlowchart_";
 
+      // global.all_windows is a special case if we run the script multiple times
+      var old_all_windows = global.all_windows;
+      global.all_windows = [];
+
       util.fixAllWindowArrays(ppar.win_prefix);
       engine.closeAllWindows(false, false);
 
@@ -803,6 +807,7 @@ function generateNewFlowchartData(parent)
       global.biasFileNames = biasFileNamesCopy;
       global.flatdarkFileNames = flatdarkFileNamesCopy;
       global.flatFileNames = flatFileNamesCopy;
+      global.all_windows = old_all_windows;
       
       console.writeln("generateNewFlowchartData done");
       util.runGarbageCollection();
@@ -6275,10 +6280,10 @@ function AutoIntegrateDialog()
             "<li>Run a normal workflow to get correct stars and background objects.</li>" +
             "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
-            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i>.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i>.</li>" +
-            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i>.</li>" +
-            "<li>Go to the <i>Processing tab</i> and <i>CometAlignment</i> section.</li>" +
+            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i> in <i>Settings</i> tab.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i> in <i>Other</i> tab.</li>" +
+            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i> in <i>Other</i> tab.</li>" +
+            "<li>Go to the <i>Processing 2 tab</i> and <i>CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
                   "<i>Preview</i> button for the first or last image, go to preview, zoom " + 
                   "to 1:1 view and click the comet nucleus with the left mouse button. Note that the " + 
@@ -6553,7 +6558,7 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
-            "<p>YOu can change some StarXTerminator setting in the <i>StarXTerminator settings</i> section.</p>" );
+            "<p>You can change some StarXTerminator settings in the <i>StarXTerminator settings</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
