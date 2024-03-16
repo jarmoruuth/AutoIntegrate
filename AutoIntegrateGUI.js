@@ -786,6 +786,7 @@ function generateNewFlowchartData(parent)
       } catch (x) {
             console.writeln( x );
             global.flowchartData = null;
+            global.is_processing = global.processing_state.none;
             succp = false;
       }
       global.get_flowchart_data = false;
@@ -2808,6 +2809,7 @@ function Autorun(parent)
                         console.criticalln(err);
                         console.criticalln("Processing stopped!");
                         engine.writeProcessingStepsAndEndLog(null, false, null, true);
+                        global.is_processing = global.processing_state.none;
                         stopped = true;
                   }
                   if (par.batch_mode.val) {
@@ -5220,6 +5222,7 @@ function newAutoContinueButton(parent, toolbutton)
                   console.criticalln("Processing stopped!");
                   engine.writeProcessingStepsAndEndLog(null, true, null, true);
                   global.run_auto_continue = false;
+                  global.is_processing = global.processing_state.none;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
             }

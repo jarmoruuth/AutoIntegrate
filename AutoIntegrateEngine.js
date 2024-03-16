@@ -276,7 +276,7 @@ var telescope_info = [
 
 // Filter files for global.get_flowchart_data.
 // Pick just one or two files for each channel
-// and use IntegerResample to make files really small.
+// (Binning skipped for now: and use IntegerResample to make files really small.)
 function flowchartFilterFiles(fileNames, filetype)
 {
       if (filetype == global.pages.FLATS) {
@@ -327,13 +327,24 @@ function flowchartFilterFiles(fileNames, filetype)
 
 function flowchartNewIntegrationImage(fileName, targetImageName)
 {
+      targetImageName = util.mapBadWindowNameChars(targetImageName);
       console.writeln("flowchartNewIntegrationImage: " + fileName + ", " + targetImageName);
       // read image file
-      var imgWin = util.openImageWindowFromFile(fileName);
+      var imgWin = util.openImageWindowFromFile(fileName, true);
+      if (imgWin == null) {
+            var viewname = util.ensure_win_prefix((util.mapBadWindowNameChars(File.extractName(fileName))));
+            console.writeln("flowchartNewIntegrationImage, cannot open image file " + fileName + ", trying to find view " + viewname);
+            imgWin = util.findWindow(viewname);
+      }
+      if (imgWin == null) {
+            util.throwFatalError("flowchartNewIntegrationImage, cannot open image file " + fileName);
+      }
       // rename image
+      console.writeln("flowchartNewIntegrationImage, rename " + imgWin.mainView.id + " to " + targetImageName);
       imgWin.mainView.id = targetImageName;
 
       // Do binning to ensure we work on small images
+      console.writeln("flowchartNewIntegrationImage, binning " + targetImageName);
       var minsize = Math.min(imgWin.mainView.image.width, imgWin.mainView.image.height);
       var binning = 1;
       var binned_size = minsize;
@@ -347,12 +358,12 @@ function flowchartNewIntegrationImage(fileName, targetImageName)
       return targetImageName;
 }
 
-function flowchartNewImage(imgWIn, targetImageName)
+function flowchartNewImage(imgWin, targetImageName)
 {
       console.writeln("flowchartNewIntegrationImage");
 
       // copy image file
-      util.copyWindow(imgWIn, targetImageName);
+      util.copyWindow(imgWin, targetImageName);
 
       return targetImageName;
 }
@@ -3346,7 +3357,7 @@ function filterByFileName(filePath, filename_postfix)
       var basename = File.extractName(filePath);
       var filter = basename.slice(0, basename.length - filename_postfix.length).slice(-2);
       
-      console.writeln("filterByFileName:filePath=" + basename);
+      console.writeln("filterByFileName:filePath=" + basename + ", filename_postfix=" + filename_postfix + ", filter=" + filter);
       
       // Create filter based of file name ending.
       switch (filter) {
@@ -3464,6 +3475,10 @@ function getFileKeywords(filePath)
       console.writeln("getFileKeywords " + filePath);
       var keywords = [];
 
+      if (global.get_flowchart_data && !File.exists(filePath)) {
+            return [];
+      }
+
       var ext = '.' + filePath.split('.').pop();
       var F = new FileFormat(ext, true/*toRead*/, false/*toWrite*/);
       if (F.isNull) {
@@ -3474,6 +3489,9 @@ function getFileKeywords(filePath)
             util.throwFatalError("Unable to instantiate file format: " + F.name);
       }
       var info = f.open(filePath, "verbosity 0"); // do not fill the console with useless messages
+      if (info == null) {
+            util.throwFatalError("Unable to open input file: " + filePath);
+      }
       if (info.length <= 0) {
             util.throwFatalError("Unable to open input file: " + filePath);
       }
@@ -3648,6 +3666,9 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
             if (filter == null || par.force_file_name_filter.val) {
                   // No filter keyword. Try mapping based on file name.
                   filter = filterByFileName(filePath, filename_postfix);
+                  if (filter == null  && global.get_flowchart_data) {
+                        filter = filterByFileName(filePath, '');
+                  }
             }
             /* 3. No filter keyword or name found, default to color files
              */
@@ -8845,6 +8866,26 @@ function extractChannels(fileNames)
       flowchartOperation("ChannelExtraction");
       
       for (var i = 0; i < fileNames.length; i++) {
+            if (global.get_flowchart_data) {
+                  if (par.extract_channel_mapping.val == 'LRGB') {
+                        var filePath = generateNewFileName(fileNames[i], outputDir, "_L", outputExtension);
+                        flowchartNewIntegrationImage(fileNames[i], util.ensure_win_prefix(File.extractName(filePath)));
+                        newFileNames[newFileNames.length] = filePath;
+                  }
+                  filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[0], outputExtension);
+                  flowchartNewIntegrationImage(fileNames[i], util.ensure_win_prefix(File.extractName(filePath)));
+                  newFileNames[newFileNames.length] = filePath;
+
+                  filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[1], outputExtension);
+                  flowchartNewIntegrationImage(fileNames[i], util.ensure_win_prefix(File.extractName(filePath)));
+                  newFileNames[newFileNames.length] = filePath;
+                  
+                  filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[2], outputExtension);
+                  newFileNames[newFileNames.length] = filePath;
+                  flowchartNewIntegrationImage(fileNames[i], util.ensure_win_prefix(File.extractName(filePath)));
+
+                  continue;
+            }
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (!imageWindows || imageWindows.length == 0) {

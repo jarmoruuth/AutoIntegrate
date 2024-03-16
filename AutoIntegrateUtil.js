@@ -428,6 +428,7 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
       }
 
       // See if this window has some known prefix
+      // If not, we use position 0
       for (var i = 0; i < ppar.prefixArray.length; i++) {
             // console.writeln("windowIconizeFindPosition check prefix " + ppar.prefixArray[i][1]);
             if (ppar.prefixArray[i][1] != "" && id.startsWith(ppar.prefixArray[i][1])) {
@@ -437,6 +438,10 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
                         index = i;
                   }
             }
+      }
+      if (ppar.prefixArray.length == 0) {
+            // No prefixes, add one
+            ppar.prefixArray[0] = [ 0, "", 0 ];
       }
       columnCount = ppar.prefixArray[index][0];
       iconStartRow = ppar.prefixArray[index][2];
@@ -1102,8 +1107,11 @@ this.copyWindow = function(sourceWindow, name)
 }
 
 /* Open a file as image window. */
-this.openImageWindowFromFile = function(fileName)
+this.openImageWindowFromFile = function(fileName, allow_missing_file)
 {
+      if (allow_missing_file && !File.exists(fileName)) {
+            return null;
+      }
       var imageWindows = ImageWindow.open(fileName);
       if (!imageWindows || imageWindows.length == 0) {
             util.throwFatalError("*** openImageWindowFromFile Error: imageWindows.length: " + imageWindows.length + ", file " + fileName);
@@ -1308,6 +1316,13 @@ this.mapBadChars = function(str)
       str = str.replace(/ /g,"_");
       str = str.replace(/-/g,"_");
       str = str.replace(/,/g,"_");
+      return str;
+}
+
+this.mapBadWindowNameChars = function(str)
+{
+      str = util.mapBadChars(str);
+      str = str.replace(/\./g,"_");
       return str;
 }
 
