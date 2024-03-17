@@ -4686,13 +4686,13 @@ function channelNoiseReduction(image_id)
       }
 }
 
-function createNewStarXTerminator(star_mask, linear_data, from_lights)
+function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscreen)
 {
       if (!from_lights) {
             flowchartOperation("StarXTerminator");
       }
       try {
-            console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask);
+            console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask + ", use_unscreen " + use_unscreen);
             var P = new StarXTerminator;
             // P.linear = linear_data;    Not needed in v2.0.0
             P.stars = star_mask;
@@ -4705,6 +4705,11 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights)
             if (par.starxterminator_large_overlap.val) {
                   console.writeln("createNewStarXTerminator, large overlap");
                   P.overlap = 0.50;
+            }
+            if (use_unscreen) {
+                  P.unscreen = true;
+            } else {
+                  P.unscreen = false;
             }
       } catch(err) {
             console.criticalln("StarXTerminator failed");
@@ -4792,14 +4797,14 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 
       var create_star_mask = save_stars;
-      if (save_stars && use_unscreen) {
+      if (save_stars && use_unscreen && !par.use_starxterminator.val) {
             var originalwin_copy = util.copyWindow(imgWin, util.ensure_win_prefix(imgWin.mainView.id + "_tmp_original"));
             create_star_mask = false;
       }
 
       if (par.use_starxterminator.val) {
             util.addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
-            var P = createNewStarXTerminator(create_star_mask, linear_data, from_lights);
+            var P = createNewStarXTerminator(create_star_mask, linear_data, from_lights, use_unscreen);
       } else if (par.use_starnet2.val) {
             util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
             var P = createNewStarNet2(create_star_mask, from_lights);
@@ -4843,7 +4848,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             if (stars_image_name == null) {
                   stars_image_name = imgWin.mainView.id + "_stars";
             }
-            if (use_unscreen) {
+            if (use_unscreen && !par.use_starxterminator.val) {
                   // Use unscreen method to get stars image as described by Russell Croman
                   console.writeln("removeStars use unscreen to get star image");
                   var id = runPixelMathSingleMappingEx(
