@@ -864,7 +864,8 @@ function getNarrowbandColorizedSizer(parent)
       "<li>Optionally is it possible to run linear fit for channel images before colorizing.</li>" +
       "</ul>" +
       '<p>Colorizing is inspired by Steven Miller YouTube channel <a href="https://www.youtube.com/@enteringintospace4685">Entering Into Space</a>, ' + 
-      "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr.</p>";
+      "NBColourMapper script from Mike Cranfield and Adam Block, and CombineImages script by Dean Carr. Note that Colorizing does not replace " + 
+      "or fully replicate their work.</p>";
 
       var narrowbandColorizedtoolTip = "<hr>" + narrowbandColorizedtoolTipBase;
 
@@ -1049,9 +1050,13 @@ function getNarrowbandColorizedSizer(parent)
       var weightToolTip = "<p>Relative weight for the channel.</p>" +
                           "<p>Weight is used to adjust relative contribution of each channel to the final image when combining a colorized channel image.</p>" +
                           "<p>A smaller weight value means darker image and a bigger value means a lighter image.</p>" +
-                          "<p>In case of Colourise combine method weight is used to calculate midtones value using a formula 1-weight/2.</p>" +
+                          "<p>In case of Colourise combine method weight is used to calculate midtones value using a formula 1-weight/2. " + 
+                          "Often it is necessary to reduce the weight value for example to 0.6</p>" +
                           "<p>In case of PixelMath combine method each colorized channel is multiplied by the weight value.</p>" +
                           narrowbandColorizedtoolTip;
+
+      var SatToolTip = "<p>Color saturation for the channel.</p>" +
+                       narrowbandColorizedtoolTip;
 
       var narrowbandColorized_R_HueControl = newNumericControl3(parent, "R hue", par.narrowband_colorized_R_hue, 0, 1, hueToolTip, updateHueColors);
       narrowbandColorized_R_HueControl.setScaledFixedWidth(hue_width);
