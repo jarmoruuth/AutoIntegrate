@@ -833,12 +833,16 @@ function newVerticalSizer(margin, add_stretch, items)
       return sizer;
 }
 
-function newHorizontalSizer(margin, add_stretch, items)
+function newHorizontalSizer(margin, add_stretch, items, spacing)
 {
       var sizer = new HorizontalSizer;
       sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
       sizer.margin = margin;
-      sizer.spacing = 4;
+      if (spacing != null) {
+            sizer.spacing = spacing;
+      } else {
+            sizer.spacing = 4;
+      }
       for (var i = 0; i < items.length; i++) {
             sizer.add(items[i]);
       }
@@ -7551,17 +7555,24 @@ function AutoIntegrateDialog()
       this.linearFitSizer = newVerticalSizer(6, true, [this.linearFitGroupBoxLabel, this.linearFitComboBox]);
 
       if (global.is_gc_process) {
+            this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
+            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is output into an image with _model extension.</p>");
             this.gc_scale_Edit = newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
             this.gc_smoothness_Edit = newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
-            this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
+            this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
+            
             this.gc_structure_protection_CheckBox = newCheckBox(this, "Structure Protection", par.gc_structure_protection, "<p>Prevent overcorrecting on image structures.</p>");
             this.gc_protection_threshold_Edit = newNumericEdit(this, "Protection threshold", par.gc_protection_threshold, 0, 1, "<p>Decreasing this value prevents overcorrecting dimmer structures.</p>");
             this.gc_protection_amount_Edit = newNumericEdit(this, "Protection amount", par.gc_protection_amount, 0.1, 1, "<p>Increasing this value prevents overcorrecting significant structures.</p>");
-            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is output into an image with _model extension.</p>");
-
-            this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
             this.GCGroupBoxSizer2 = newVerticalSizer(2, true, [this.gc_structure_protection_CheckBox, this.gc_protection_threshold_Edit, this.gc_protection_amount_Edit]);
-            this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2]);
+
+            this.gc_simplified_model_CheckBox = newCheckBox(this, "Simplified Model", par.gc_simplified_model, "<p>If checked use a simplified model that is extracted before multiscale model.</p>");
+            this.gc_simplified_model_degree_Label = newLabel(this, "Simplified Model degree", "Model degree for simplified model.", true);
+            this.gc_simplified_model_degree_SpinBox = newSpinBox(this, par.gc_simplified_model_degree, 1, 8, this.gc_simplified_model_degree_Label.toolTip);
+            this.gc_simplified_model_degree_Sizer = newHorizontalSizer(2, true, [this.gc_simplified_model_degree_Label, this.gc_simplified_model_degree_SpinBox]);
+            this.GCGroupBoxSizer3 = newVerticalSizer(2, true, [this.gc_simplified_model_CheckBox, this.gc_simplified_model_degree_Sizer]);
+
+            this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
 
             this.GCGroupBoxLabel = newSectionLabel(this, "GredientCorrection settings");
             this.GCGroupBoxSizer = newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);

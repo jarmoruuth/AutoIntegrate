@@ -6387,24 +6387,16 @@ function runGCProcess(win, replaceTarget, postfix)
       }
       
       var P = new GradientCorrection;
-      P.reference = 0.50;
-      P.lowThreshold = 0.20;
-      P.lowTolerance = 0.50;
-      P.highThreshold = 0.05;
-      P.highTolerance = 0.00;
-      P.iterations = 15;
       P.scale = par.gc_scale.val;
       P.smoothness = par.gc_smoothness.val;
-      P.downsamplingFactor = 16;
       P.protection = par.gc_structure_protection.val;
       P.protectionThreshold = par.gc_protection_threshold.val;
       P.protectionAmount = par.gc_protection_amount.val;
       P.protectionSmoothingFactor = 16;
-      P.lowClippingLevel = 0.000076;
       P.automaticConvergence = par.gc_automatic_convergence.val;
-      P.convergenceLimit = 0.00001000;
-      P.maxIterations = 10;
       P.generateProtectionMasks = false;
+      P.useSimplification = par.gc_simplified_model.val;
+      P.simplificationDegree = par.gc_simplified_model_degree.val;
 
       win.mainView.beginProcess(UndoFlag_NoSwapFile);
 

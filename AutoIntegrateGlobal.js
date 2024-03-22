@@ -42,12 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.67.1 test1";       // Version, also updated into updates.xri
-this.autointegrate_info = "Support for GradientCorrection";       // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.68 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Updates";                              // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Support for GradientCorrection",
+      "- Updates for GradientCorrection",
       "- Small updates and fixes"
 ];
 
@@ -265,6 +265,8 @@ this.par = {
       gc_protection_threshold: { val: 0.10, def: 0.10, name : "GC protection threshold", type : 'R' },
       gc_protection_amount: { val: 0.50, def: 0.50, name : "GC protection amount", type : 'R' },
       gc_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
+      gc_simplified_model: { val: false, def: false, name : "GC simplified model", type : 'B' },
+      gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
       
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
