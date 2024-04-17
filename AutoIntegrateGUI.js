@@ -2690,6 +2690,7 @@ function newGroupBox( parent, title, toolTip )
 
 function Autorun(parent)
 {
+      console.writeln("AutoRun");
       var stopped = true;
       var first_step = true;
       var savedOutputRootDir = global.outputRootDir;
@@ -2697,7 +2698,7 @@ function Autorun(parent)
       var batch_files = [];
       var substack_mode = par.substack_mode.val;
       var substack_files = [];
-      var substack_size = global.lightFileNames.length / par.substack_count.val;
+      var substack_size = global.lightFileNames ? global.lightFileNames.length / par.substack_count.val : 0;
       var substack_saved_lightFileNames = global.lightFileNames;
       var saved_integrate_only = par.integrate_only.val;
 
@@ -2739,6 +2740,8 @@ function Autorun(parent)
                   return;
             }
             global.lightFileNames = null; // Use files given here
+      } else {
+            console.writeln("AutoRun in normal mode");
       }
       do {  
             if (global.lightFileNames == null) {
@@ -5064,6 +5067,7 @@ function newPushOrToolButton(parent, icon, txt, tooltip, action, toolbutton)
 
 function runAction(parent)
 {
+      console.writeln("Run button pressed");
       exitFromDialog();
       if (global.ai_get_process_defaults) {
             engine.getProcessDefaultValues();
