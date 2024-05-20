@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.69 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Fix to batch mode";              // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.69 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "GraXpert denoise";               // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- GraXpert denoise",
       "- Fix to batch mode"
 ];
 
@@ -107,6 +108,7 @@ this.par = {
       use_GC_on_L_RGB: { val: false, def: false, name : "Use GC on L, RGB", type : 'B', oldname: "Use ABE on L, RGB" },
       use_GC_on_L_RGB_stretched: { val: false, def: false, name : "Use GC on L, RGB stretched", type : 'B', oldname: "Use ABE on L, RGB stretched" },
       use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
+      use_graxpert_denoise: { val: false, def: false, name : "Use GraXpert denoise", type : 'B' },
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       color_calibration_before_GC: { val: false, def: false, name : "Color calibration before GC", type : 'B', oldname: "Color calibration before ABE" },
@@ -272,7 +274,8 @@ this.par = {
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
       graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },
       graxpert_smoothing: { val: 0.5, def: 0.5, name : "GraXpert smoothing", type : 'R' },
-      graxpert_old_version: { val: false, def: false, name : "GraXpert old version", type : 'B' },
+      graxpert_denoise_strength: { val: 0.5, def: 0.5, name : "GraXpert denoise strength", type : 'R' },
+      graxpert_denoise_batch_size: { val: '4', def: '4', name : "GraXpert denoise batch size", type : 'S' },
       starxterminator_ai_model: { val: "", def: "", name : "StarXTerminator AI model", type : 'S', skip_reset: true },
       starxterminator_large_overlap: { val: false, def: false, name : "StarXTerminator large overlap", type : 'B' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },

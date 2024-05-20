@@ -2806,19 +2806,19 @@ function getImagePSF(imgWin)
 
       console.writeln("Calculate PSF from image " + imgWin.mainView.id);
 
-      var save_id = imgWin.mainView.id + "_psf";
-      var ret = util.ensureDialogFilePath(save_id);
-      if (ret == 0) {
-            util.throwFatalError("No directory sset to save image " + save_id);
-      }
-      var savedName = saveOutputWindow(imgWin.mainView.id, save_id);
-      if (savedName == null) {
-            util.throwFatalError("Failed to save image " + save_id);
-      }
+      var copy_win = util.copyWindowEx(imgWin, "AutoIntegrateTemp", true);
 
-      console.writeln("Using saved image " + savedName);
+      var fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
+      console.writeln("getImagePSF input file " + fname);
+      if (!copy_win.saveAs(fname, false, false, false, false)) {
+            util.closeOneWindow(copy_win.mainView.id);
+            util.throwFatalError("Failed to save image to get image PSF: " + fname);
+      }
+      util.closeOneWindow(copy_win.mainView.id);
 
-      var measurements = getSubframeSelectorMeasurements([ savedName ]);
+      console.writeln("Using saved image " + fname);
+
+      var measurements = getSubframeSelectorMeasurements([ fname ]);
 
       return measurements[0][indexFWHM];
 }
@@ -4648,7 +4648,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
 
       util.addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
-      if (maskWin == null && !par.use_noisexterminator.val) {
+      if (maskWin == null && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = CreateNewTempMaskFromLinearWin(imgWin, false);
             maskWin = temp_mask_win;
@@ -4670,7 +4670,7 @@ function channelNoiseReduction(image_id)
 
       var image_win = util.findWindow(image_id);
 
-      if (!par.use_noisexterminator.val) {
+      if (!(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = CreateNewTempMaskFromLinearWin(image_win, false);
       } else {
@@ -6202,7 +6202,7 @@ function noGradientCorrectionCopyWin(win)
 }
 
 // Run GraXpert as an external process
-function runGraXpertExternal(win)
+function runGraXpertExternal(win, denoise)
 {
       if (par.graxpert_path.val == "") {
             util.throwFatalError("GraXpert path is empty");
@@ -6227,36 +6227,25 @@ function runGraXpertExternal(win)
 
       util.closeOneWindow(copy_win.mainView.id);
 
-      if (par.graxpert_old_version.val) {
-            var command = '"' + par.graxpert_path.val + '"' + " " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      if (denoise) {
+            var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd denoising -strength " + par.graxpert_denoise_strength.val + " -batch_size " + par.graxpert_denoise_batch_size.val + ' "' + fname + '"';
       } else {
             var command = '"' + par.graxpert_path.val + '"' + " -cli " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
       }
       console.writeln("GraXpert command " + command);
 
-      if (0) {
-            var P = new ExternalProcess(command);
-            P.waitForFinished();    // this does not wait correctly for some reason
-            if (P.exitCode != 0) {
-                  util.throwFatalError("GraXpert failed with exit code " + P.exitCode);
-            }
-      } else {
-            var P = new ExternalProcess();
-            console.writeln("GraXpert processing...");
-            P.start(command);
-            while (P.isStarting) {
-                  processEvents();
-            }
-            while (P.isRunning) {
-                  processEvents();
-            }
-            console.writeln("GraXpert finished");
+      var P = new ExternalProcess();
+      console.writeln("GraXpert processing...");
+      P.start(command);
+      while (P.isStarting) {
+            processEvents();
       }
-      if (par.graxpert_old_version.val) {
-            var graxpert_fname = fname.replace(".xisf", "_GraXpert.fits");
-      } else {
-            var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
+      while (P.isRunning) {
+            processEvents();
       }
+      console.writeln("GraXpert finished");
+
+      var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
       console.writeln("GraXpert output file " + graxpert_fname);
 
       var imgWin = util.openImageWindowFromFile(graxpert_fname);
@@ -6265,12 +6254,23 @@ function runGraXpertExternal(win)
       var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
       if (processed_image_id != image_id) {
             util.closeOneWindow(imgWin.mainView.id);
-            util.throwFatalError("GraXpert did not run, maybe path is incorrect or GraXpert version is incompatible. Check GraXpert settings section. Processed image id mismatch: " + processed_image_id + " != " + image_id);
+            console.criticalln("GraXpert did not run, possible reasons could be");
+            console.criticalln("- GraXpert path is incorrect.");
+            console.criticalln("- GraXpert version is not compatible.");
+            console.criticalln("- GraXpert AI model is not loaded. To load the model, run GraXpert manually once and close it. AutoIntegrate uses the default model.");
+            util.throwFatalError("GraXpert did not run, processed image id mismatch: " + processed_image_id + " != " + image_id);
       }
 
-      console.writeln("GraXpert output window " + imgWin.mainView.id);
-      imgWin.copyAstrometricSolution(win);
-
+      if (denoise) {
+            win.mainView.beginProcess(UndoFlag_NoSwapFile);
+            win.mainView.image.assign(imgWin.mainView.image);
+            win.mainView.endProcess();
+            imgWin.forceClose();
+            imgWin = win;
+      } else {
+            console.writeln("GraXpert output window " + imgWin.mainView.id);
+            imgWin.copyAstrometricSolution(win);
+      }
       return imgWin;
 }
 
@@ -6289,7 +6289,7 @@ function runGraXpert(win, replaceTarget, postfix)
       if (global.get_flowchart_data) {
             var imgWin = util.copyWindowEx(win, "AutoIntegrateTemp", true);
       } else {
-            var imgWin = runGraXpertExternal(win);
+            var imgWin = runGraXpertExternal(win, false);
       }
 
       if (replaceTarget) {
@@ -7627,7 +7627,7 @@ function runBlurXTerminator(imgWin, correct_only)
       } else if (par.bxt_image_psf.val) {
             var auto_psf = false;
             var psf = getImagePSF(imgWin);
-            console.writeln("Using PSF " + psf + " calculated from image");
+            console.writeln("BlurXTerminator using PSF " + psf + " calculated from image");
       } else {
             var auto_psf = true;
             var psf = 0.0;
@@ -7728,6 +7728,8 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
       if (global.get_flowchart_data) {
             if (par.use_noisexterminator.val) {
                   flowchartOperation("NoiseXTerminator");
+            } else if (par.use_graxpert_denoise.val) {
+                  flowchartOperation("GraXpert denoise");
             } else {
                   flowchartOperation("MultiscaleLinearTransform:noise");
             }
@@ -7738,6 +7740,8 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
       }
       if (par.use_noisexterminator.val) {
             runNoiseXTerminator(imgWin, strength, linear);
+      } else if (par.use_graxpert_denoise.val) {
+            runGraXpertExternal(imgWin, true);
       } else {
             runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength);
       }
@@ -7747,6 +7751,8 @@ function runNoiseReduction(imgWin, maskWin, linear)
 {
       if (par.use_noisexterminator.val) {
             util.addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
+      } else if (par.use_graxpert_denoise.val) {
+            util.addProcessingStepAndStatusInfo("Noise reduction using GraXpert on " + imgWin.mainView.id);
       } else {
             if (maskWin == null) {
                   util.addProcessingStepAndStatusInfo("Noise reduction using MultiscaleLinearTransform on " + imgWin.mainView.id + " without mask");
@@ -13057,7 +13063,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
-                        (par.extra_noise_reduction.val && !par.use_noisexterminator.val) ||
+                        (par.extra_noise_reduction.val && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) ||
                         par.extra_ACDNR.val ||
                         (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
                         par.extra_unsharpmask.val ||

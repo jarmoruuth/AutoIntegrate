@@ -318,6 +318,7 @@ var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_correction_values = [ 'Subtraction', 'Division' ];
+var graxpert_batch_size_values = [ '1', '2', '4', '8', '16', '32' ];
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
@@ -6597,8 +6598,11 @@ function AutoIntegrateDialog()
       this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
             use_graxpert_toolTip + 
             "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
+            "<p><b>NOTE2!</b> You may need to manually run one image to ensure correct AI model is loaded into yoiur computer.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
+      this.use_graxpert_denoise_CheckBox = newCheckBox(this, "Use GraXpert denoise", par.use_graxpert_denoise, 
+            "<p>Use GraXpert for noise reduction.</p>");
       if (global.is_gc_process) {
             this.use_abe_CheckBox = newCheckBox(this, "Use ABE", par.use_abe, 
             "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>");
@@ -6738,6 +6742,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet2.margin = 6;
       this.imageToolsSet2.spacing = 4;
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
+      this.imageToolsSet2.add( this.use_graxpert_denoise_CheckBox );
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
       this.imageToolsSet2.add( this.batch_mode_CheckBox );
       this.imageToolsSet2.add( this.solve_image_CheckBox );
@@ -7614,18 +7619,20 @@ function AutoIntegrateDialog()
             this.dialog.graxpertPathEdit.text = ofd.fileName;
             par.graxpert_path.val = ofd.fileName;
       };
-      this.graxpertPathSizer = newHorizontalSizer(0, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
+      this.graxpertPathSizer = newHorizontalSizer(2, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
 
-      this.graxpert_old_version_CheckBox = newCheckBox(this, "Old version", par.graxpert_old_version, "<p>Use old version of GraXpert before version 2.2.0.</p>");
-      this.graxpertCorrectionLabel = newLabel(this, "Correction", "Correction method for GraXpert.", true);
+      this.graxpertCorrectionLabel = newLabel(this, "Gradient correction", "Correction method for GraXpert.", true);
       this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
-      this.graxpertCorrectionSizer = newHorizontalSizer(0, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox]);
-      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert.");
+      this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert gradient correction.");
+      this.graxpertGradientCorrectionSizer = newHorizontalSizer(2, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox, this.graxpertSmoothingEdit]);
 
-      this.graxpertSizer = newHorizontalSizer(6, true, [ this.graxpertPathSizer, this.graxpertSmoothingEdit, this.graxpertCorrectionSizer, this.graxpert_old_version_CheckBox ]);
+      this.graxpertDenoiseStrengthEdit = newNumericEdit(this, "Denoise smoothing", par.graxpert_denoise_strength, 0, 1, "Strength for GraXpert denoise.");
+      this.graxpertBatchSizeLabel = newLabel(this, "Batch size", "Batch size for GraXpert denoise.", true);
+      this.graxpertDenoiseBatchSizeComboBox = newComboBox(this, par.graxpert_denoise_batch_size, graxpert_batch_size_values, this.graxpertBatchSizeLabel.toolTip);
+      this.graxpertDenoiseSizer = newHorizontalSizer(2, true, [this.graxpertDenoiseStrengthEdit, this.graxpertBatchSizeLabel, this.graxpertDenoiseBatchSizeComboBox]);
 
       this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
-      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertSizer]);
+      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertPathSizer, this.graxpertGradientCorrectionSizer, this.graxpertDenoiseSizer]);
 
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
