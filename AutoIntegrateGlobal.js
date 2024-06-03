@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.69 test2";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.69";         // Version, also updated into updates.xri
 this.autointegrate_info = "GraXpert denoise";               // For updates.xri
 
 this.autointegrate_version_info = [
@@ -429,6 +429,7 @@ this.par = {
       extra_normalize_channels_mask: { val: false, def: false, name : "Extra normalize channels mask", type : 'B' },
       extra_normalize_channels_rescale: { val: false, def: false, name : "Extra normalize channels rescale", type : 'B' },
       extra_adjust_channels: { val: false, def: false, name : "Extra adjust channels", type : 'B' },
+      extra_adjust_channels_only_k: { val: false, def: false, name : "Extra adjust channels K", type : 'B' },
       extra_adjust_R: { val: 1, def: 1, name : "Extra adjust R", type : 'R' },
       extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
       extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },

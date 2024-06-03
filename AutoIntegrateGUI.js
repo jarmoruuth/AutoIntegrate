@@ -1612,7 +1612,7 @@ function extraProcessingGUI(parent)
       this.extraNormalizeChannelsSizer.addStretch();
 
       var extraAdjustChannelsToolTip = "<p>Adjust channels in PixelMath by multiplying them with a given value.</p>" + 
-                                       "<p>If channel G and B values are zero then value R/K is used the adjust the whole image.</p>";
+                                       "<p>If option Only K is checked then value R/K is used to adjust the whole image.</p>";
 
       this.extraAdjustChannelsCheckBox = newCheckBox(parent, "Adjust channels,", par.extra_adjust_channels, extraAdjustChannelsToolTip);
       this.extraAdjustChannelR = newNumericEdit(parent, "R/K", par.extra_adjust_R, 0, 100, extraAdjustChannelsToolTip);
@@ -1628,6 +1628,7 @@ function extraProcessingGUI(parent)
             "<p>Reset channel adjust values to defaults.</p>";
       this.extraAdjustChannelDefaultsButton.onClick = function()
       {
+            console.writeln("Reset channel adjust values to defaults.");
             par.extra_adjust_R.val = par.extra_adjust_R.def;
             par.extra_adjust_G.val = par.extra_adjust_G.def;
             par.extra_adjust_B.val = par.extra_adjust_B.def;
@@ -1635,6 +1636,7 @@ function extraProcessingGUI(parent)
             extraAdjustChannelG.setValue(par.extra_adjust_G.val);
             extraAdjustChannelB.setValue(par.extra_adjust_B.val);
       };
+      this.extraAdjustChannelsOnlyKCheckBox = newCheckBox(parent, "Only K", par.extra_adjust_channels_only_k, extraAdjustChannelsToolTip);
 
       this.extraAdjustChannelsSizer = new HorizontalSizer;
       this.extraAdjustChannelsSizer.spacing = 4;
@@ -1643,6 +1645,7 @@ function extraProcessingGUI(parent)
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelR );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelG );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelB );
+      this.extraAdjustChannelsSizer.add( this.extraAdjustChannelsOnlyKCheckBox );
       this.extraAdjustChannelsSizer.add( this.extraAdjustChannelDefaultsButton );
       this.extraAdjustChannelsSizer.addStretch();
 

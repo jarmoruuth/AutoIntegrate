@@ -11417,12 +11417,16 @@ function extraDarkerHighlights(imgWin, maskWin)
 
 function extraAdjustChannels(imgWin)
 {
-      addExtraProcessingStep("Adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
+      if (par.extra_adjust_channels_only_k.val) {
+            addExtraProcessingStep("Adjust all channels, K " + par.extra_adjust_R.val);
+      } else {
+            addExtraProcessingStep("Adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
+      }
       flowchartOperation("PixelMath:adjust channels");
 
       var P = new PixelMath;
 
-      if (par.extra_adjust_G.val == 0 && par.extra_adjust_B.val == 0) {
+      if (par.extra_adjust_channels_only_k.val || (par.extra_adjust_G.val == 0 && par.extra_adjust_B.val == 0)) {
             P.expression = "$T * " + par.extra_adjust_R.val;
             P.useSingleExpression = true;
       } else {
