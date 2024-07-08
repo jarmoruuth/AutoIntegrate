@@ -1242,13 +1242,30 @@ this.addProcessingStepAndStatusInfo = function(txt)
       util.updateStatusInfoLabel(txt);
 }
 
-this.ensure_win_prefix = function(id)
+this.ensure_win_prefix_ex = function(id, prefix)
 {
       if (id == null) {
             return null;
       }
-      if (ppar.win_prefix != "" && !id.startsWith(ppar.win_prefix)) {
-            return ppar.win_prefix + id;
+      if (prefix != "" && !id.startsWith(prefix)) {
+            return prefix + id;
+      } else {
+            return id;
+      }
+}
+
+this.ensure_win_prefix = function(id)
+{
+      return util.ensure_win_prefix_ex(id, ppar.win_prefix);
+}
+
+this.remove_autocontinue_prefix = function(id)
+{
+      if (ppar.autocontinue_win_prefix != "" 
+          && ppar.autocontinue_win_prefix != par.win_prefix 
+          && id.startsWith(ppar.autocontinue_win_prefix)) 
+      {
+            return id.substring(ppar.autocontinue_win_prefix.length);
       } else {
             return id;
       }

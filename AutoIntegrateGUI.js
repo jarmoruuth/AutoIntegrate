@@ -248,8 +248,10 @@ var dialog_min_position = null;
 var infoLabel;
 var imageInfoLabel;
 var windowPrefixHelpTips;              // For updating tooTip
+var autoContinueWindowPrefixHelpTips; // For updating tooTip
 var closeAllPrefixButton;              // For updating toolTip
 var windowPrefixComboBox = null;       // For updating prefix name list
+var autoContinueWindowPrefixComboBox = null; // For updating prefix name list
 var outputDirEdit;                     // For updating output root directory
 var tabPreviewControl = null;          // For updating preview window
 var tabPreviewInfoLabel = null;        // For updating preview info text
@@ -1713,6 +1715,8 @@ function extraProcessingGUI(parent)
             "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
             "When using SPCC color calibration astrometric solution is automatically added.</p>" +
             "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
+      this.extra_annotate_scale_SpinBox = newSpinBox(parent, par.extra_annotate_image_scale, 1, 8, 
+            "<p>Graphics scale for AnnotateImage script.</p>");
 
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
@@ -2033,6 +2037,7 @@ function extraProcessingGUI(parent)
       this.extraImageOptionsSizer2.add( this.extra_solve_image_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_solve_image_Button );
       this.extraImageOptionsSizer2.add( this.extra_annotate_image_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_annotate_scale_SpinBox );
       this.extraImageOptionsSizer2.addStretch();
 
       this.extraImageOptionsSizer = new VerticalSizer;
@@ -2212,8 +2217,10 @@ function setWindowPrefixHelpTip(default_prefix)
                                      windowPrefixHelpTips.toolTip;
 
       windowPrefixComboBox.clear();
+      autoContinueWindowPrefixComboBox.clear();
       var pa = get_win_prefix_combobox_array(default_prefix);
       addArrayToComboBox(windowPrefixComboBox, pa);
+      addArrayToComboBox(autoContinueWindowPrefixComboBox, pa);
       windowPrefixComboBox.editText = validateWindowPrefix(ppar.win_prefix);
       windowPrefixComboBox.currentItem = pa.indexOf(validateWindowPrefix(ppar.win_prefix));
 }
@@ -3859,6 +3866,30 @@ function addWinPrefix(parent)
       winprefix_Sizer.add( lbl );
       winprefix_Sizer.add( windowPrefixComboBox );
       winprefix_Sizer.add( windowPrefixHelpTips );
+
+      return winprefix_Sizer;
+}
+
+function addAutoContinueWinPrefix(parent)
+{
+      autoContinueWindowPrefixComboBox = new ComboBox( parent );
+      autoContinueWindowPrefixComboBox.enabled = true;
+      autoContinueWindowPrefixComboBox.editEnabled = true;
+      autoContinueWindowPrefixComboBox.minItemCharWidth = 5;
+      autoContinueWindowPrefixComboBox.toolTip = "<p>Give window prefix for AutoContinue start images.</p>";
+      var pa = get_win_prefix_combobox_array("");
+      addArrayToComboBox(autoContinueWindowPrefixComboBox, pa);
+      autoContinueWindowPrefixComboBox.editText = "";
+      autoContinueWindowPrefixComboBox.onEditTextUpdated = function() {
+            // This function is called for every character edit so actions
+            // are moved to function updateWindowPrefix
+            ppar.autocontinue_win_prefix = validateWindowPrefixCharacters(autoContinueWindowPrefixComboBox.editText.trim());
+            autoContinueWindowPrefixComboBox.editText = ppar.autocontinue_win_prefix;
+      };
+
+      var winprefix_Sizer = new HorizontalSizer;
+      winprefix_Sizer.spacing = 4;
+      winprefix_Sizer.add( autoContinueWindowPrefixComboBox );
 
       return winprefix_Sizer;
 }
@@ -6341,6 +6372,7 @@ function AutoIntegrateDialog()
       this.exit_Button = newExitButton(this, false);
       this.cancel_Button = newCancelButton(this, false);
       this.autoContinueButton = newAutoContinueButton(this, false);
+      this.autoContinuePrefixSizer = addAutoContinueWinPrefix(this);
       
       this.filesToolTip = [];
       this.filesToolTip[global.pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
@@ -9182,6 +9214,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( this.autoContinueButton );
+      this.buttons_Sizer.add( this.autoContinuePrefixSizer);
       this.buttons_Sizer.add( this.cancel_Button );
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );

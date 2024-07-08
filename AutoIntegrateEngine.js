@@ -4470,6 +4470,7 @@ function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
+            images[i] = util.remove_autocontinue_prefix(images[i]);
             if (images[i].endsWith("_crop")) {
                   var copyname = util.ensure_win_prefix(util.replacePostfixOrAppend(images[i], ["_crop"], "_map"));
             } else {
@@ -5205,7 +5206,8 @@ function copyToMapIf(id)
             if (id.endsWith("_map")) {
                   new_id = id;
             } else {
-                  var new_id = util.ensure_win_prefix(id + "_map");
+                  var new_id = util.remove_autocontinue_prefix(id);
+                  new_id = util.ensure_win_prefix(new_id + "_map");
                   if (util.findWindow(new_id) == null) {
                         util.copyWindow(util.findWindow(id), new_id);
                   }
@@ -8604,15 +8606,16 @@ this.writeProcessingStepsAndEndLog = function(alignedFiles, autocontinue, basena
 }
 
 // Find window and optionally search without a prefix
+// Used to find AutoContinue images
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
       // console.writeln("findWindowCheckBaseNameIf: " + id);
       var win = util.findWindow(util.ensure_win_prefix(id));
-      if (win == null && check_base_name && ppar.win_prefix != "") {
+      if (win == null && check_base_name && ppar.win_prefix != ppar.autocontinue_win_prefix) {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
-            win = util.findWindow(id);
+            win = util.findWindow(util.ensure_win_prefix_ex(id, ppar.autocontinue_win_prefix));
       }
       return win;
 }
@@ -8622,12 +8625,12 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
       var id = util.findWindowId(util.ensure_win_prefix(name));
-      if (id == null && check_base_name && ppar.win_prefix != "") {
-            // Try to find without prefix so we can autocontinue
-            // from default run but will have new output
+      if (id == null && check_base_name && ppar.win_prefix != ppar.autocontinue_win_prefix) {
+            // Try to find with autocontinue prefix so we can autocontinue
+            // from other run but will have new output
             // file names.
-            id = util.findWindowId(name);
-            autocontinue_prefix = "";
+            id = util.findWindowId(util.ensure_win_prefix_ex(name, ppar.autocontinue_win_prefix));
+            autocontinue_prefix = ppar.autocontinue_win_prefix;
       } else {
             autocontinue_prefix = ppar.win_prefix;
       }
@@ -9240,8 +9243,8 @@ function CreateChannelImages(parent, auto_continue)
       if (auto_continue) {
             console.writeln("AutoContinue, find start images with prefix " + ppar.win_prefix);
             preprocessed_images = findStartImages(true, false, true);
-            if (preprocessed_images == global.start_images.NONE && ppar.win_prefix != "") {
-                  console.writeln("AutoContinue, find start images without prefix");
+            if (preprocessed_images == global.start_images.NONE && ppar.win_prefix != ppar.autocontinue_win_prefix) {
+                  console.writeln("AutoContinue, find start images with prefix '" + ppar.autocontinue_win_prefix + "'");
                   preprocessed_images = findStartImages(true, true, true);
             }
       } else {
@@ -12980,7 +12983,7 @@ function extraAnnotateImage(extraWin, apply_directly)
 
       let engine = new AnnotationEngine;
       engine.Init(extraWin);
-      engine.graphicsScale = 2.0;
+      engine.graphicsScale = par.extra_annotate_image_scale.val;
       if (apply_directly) {
             engine.outputMode = Output_Overlay;
       }

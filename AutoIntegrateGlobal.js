@@ -42,13 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.69";         // Version, also updated into updates.xri
-this.autointegrate_info = "GraXpert denoise";               // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test1";   // Version, also updated into updates.xri
+this.autointegrate_info = "Small updates";                  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- GraXpert denoise",
-      "- Fix to batch mode"
+      "- Small updates"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -465,6 +464,7 @@ this.par = {
       extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
       extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
       extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
+      extra_annotate_image_scale: { val: 4, def: 4, name : "Extra annotate image scale", type : 'B' },
       extra_ha_mapping: { val: false, def: false, name : "Extra ha mapping", type : 'B' },
 
       // Calibration settings
@@ -504,6 +504,7 @@ this.default_startup_image_name = "startup.jpg";
 */
 this.ppar = {
       win_prefix: '',         // Current active window name prefix
+      autocontinue_win_prefix: '', // AutoContinue window name prefix
       prefixArray: [],        // Array of prefix names and icon count, 
                               // every array element is [icon-column, prefix-name, icon-count]
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
