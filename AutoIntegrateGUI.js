@@ -352,8 +352,10 @@ var unscreen_tooltip =                    "<p>Use unscreen method to get stars i
                                           "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
                                           "recommended to use Screen method when combining star and starless images back together.<p>";
 
-var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
-                                          "Bigger strength value means stronger noise reduction. Noise reduction uses MultiscaleLinerTransform or NoiseXTerminator.</p>" + 
+var noiseReductionToolTipCommon =         "<p>By default noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
+                                          "AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
+                                          "<p>Bigger strength value means stronger noise reduction except with DeepSNR where is has a reverse effect. " +
+                                          "Noise reduction uses MultiscaleLinerTransform, NoiseXTerminator, GraXpert denoise or DeepSNR.</p>" + 
                                           "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
                                           "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
                                           "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
@@ -365,7 +367,18 @@ var noiseReductionToolTipCommon =         "<p>Noise reduction is done using a lu
                                           "<li>Value: 4, Denoise: 0.90, Detail: 0.15</li>" +
                                           "<li>Value: 5, Denoise: 0.90, Detail: 0.20</li>" +
                                           "<li>Value: 6, Denoise: 0.95, Detail: 0.20</li>" +
-                                          "</ul>";
+                                          "</ul>" +
+                                          "<p>With DeepSNR the strength value has the following mapping:</p>" + 
+                                          "<ul>" +
+                                          "<li>Value: 1, Strength: 1.00</li>" +
+                                          "<li>Value: 2, Strength: 0.90</li>" +
+                                          "<li>Value: 3, Strength: 0.80</li>" +
+                                          "<li>Value: 4, Strength: 0.70</li>" +
+                                          "<li>Value: 5, Strength: 0.60</li>" +
+                                          "<li>Value: 6, Strength: 0.50</li>" +
+                                          "</ul>" +
+                                          "<p>With GraXpert denoise the strength value is ignored.</p>";
+
 
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
@@ -6609,12 +6622,15 @@ function AutoIntegrateDialog()
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
-            "<p>Use StarXTerminator instead of StarNet to remove stars from an image.</p>" +
+            "<p>Use StarXTerminator to remove stars from an image.</p>" +
             "<p>You can change some StarXTerminator settings in the <i>StarXTerminator settings</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
-            "<p>Use StarNet2 instead of StarNet to remove stars from an image.</p>" );
+            "<p>Use StarNet2 to remove stars from an image.</p>" );
+      this.use_deepsnr_CheckBox = newCheckBox(this, "Use DeepSNR", par.use_deepsnr, 
+            "<p>Use DeepSNR for noise reduction.</p>" +
+            "<p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>" );
       this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
             "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Extra processing " +
@@ -6778,10 +6794,16 @@ function AutoIntegrateDialog()
       this.imageToolsSet2.spacing = 4;
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
       this.imageToolsSet2.add( this.use_graxpert_denoise_CheckBox );
+      this.imageToolsSet2.add( this.use_deepsnr_CheckBox );
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
-      this.imageToolsSet2.add( this.batch_mode_CheckBox );
-      this.imageToolsSet2.add( this.solve_image_CheckBox );
 
+      // Image tools and batching set 3.
+      this.imageToolsSet3 = new VerticalSizer;
+      this.imageToolsSet3.margin = 6;
+      this.imageToolsSet3.spacing = 4;
+      this.imageToolsSet3.add( this.batch_mode_CheckBox );
+      this.imageToolsSet3.add( this.solve_image_CheckBox );
+      
       // Image tools and batching par.
       this.imageToolsControl = new Control( this );
       this.imageToolsControl.sizer = new HorizontalSizer;
@@ -6789,6 +6811,7 @@ function AutoIntegrateDialog()
       this.imageToolsControl.sizer.spacing = 4;
       this.imageToolsControl.sizer.add( this.imageToolsSet1 );
       this.imageToolsControl.sizer.add( this.imageToolsSet2 );
+      this.imageToolsControl.sizer.add( this.imageToolsSet3 );
       this.imageToolsControl.visible = false;
       this.imageToolsControl.sizer.addStretch();
 

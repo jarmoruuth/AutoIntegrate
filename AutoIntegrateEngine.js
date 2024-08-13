@@ -4649,7 +4649,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
 
       util.addProcessingStepAndStatusInfo("Reduce noise on luminance image " + imgWin.mainView.id);
 
-      if (maskWin == null && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) {
+      if (maskWin == null && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val|| par.use_deepsnr.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = CreateNewTempMaskFromLinearWin(imgWin, false);
             maskWin = temp_mask_win;
@@ -4671,7 +4671,7 @@ function channelNoiseReduction(image_id)
 
       var image_win = util.findWindow(image_id);
 
-      if (!(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) {
+      if (!(par.use_noisexterminator.val || par.use_graxpert_denoise.val || par.use_deepsnr.val)) {
             /* Create a temporary mask. */
             var temp_mask_win = CreateNewTempMaskFromLinearWin(image_win, false);
       } else {
@@ -7712,7 +7712,64 @@ function runNoiseXTerminator(imgWin, strength, linear)
             util.throwFatalError("NoiseXTerminator failed");
       }
 
-      console.writeln("runNoiseXTerminator on " + imgWin.mainView.id + " using denoise " + denoise + ", detail " + detail, ", linear " + linear);
+      console.writeln("runNoiseXTerminator on " + imgWin.mainView.id + " using denoise " + denoise + ", detail " + detail + ", linear " + linear);
+
+      /* Execute on image.
+       */
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+      
+      imgWin.mainView.endProcess();
+
+      checkCancel();
+}
+
+function runDeepSNR(imgWin, strength, linear)
+{
+      flowchartOperation("DeepSNR");
+      if (global.get_flowchart_data) {
+            return;
+      }
+      switch (strength) {
+            case 1:
+                  var amount = 1.00;
+                  break;
+            case 2:
+                  var amount = 0.90;
+                  break;
+            case 3:
+                  var amount = 0.80;
+                  break;
+            case 4:
+                  var amount = 0.70;
+                  break;
+            case 5:
+                  var amount = 0.60;
+                  break;
+            case 6:
+                  var amount = 0.50;
+                  break;
+            default:
+                  util.throwFatalError("Bad noise reduction value " + strength);
+      }
+
+      console.writeln("Run DeepSNR using amount " + amount);
+
+      try {
+            var P = new DeepSNR;
+            P.linear = linear;
+            P.amount = amount;
+            P.shadows_clipping = -2.80;
+            P.target_background = 0.25;
+      } catch(err) {
+            console.criticalln("DeepSNR failed");
+            console.criticalln(err);
+            console.criticalln("Maybe DeepSNR is not installed, AI is missing or platform is not supported");
+            util.throwFatalError("DeepSNR failed");
+      }
+
+      console.writeln("runDeepSNR on " + imgWin.mainView.id + " using amount " + amount + ", linear " + linear);
 
       /* Execute on image.
        */
@@ -7732,6 +7789,8 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
                   flowchartOperation("NoiseXTerminator");
             } else if (par.use_graxpert_denoise.val) {
                   flowchartOperation("GraXpert denoise");
+            } else if (par.use_deepsnr.val) {
+                  flowchartOperation("DeepSNR");
             } else {
                   flowchartOperation("MultiscaleLinearTransform:noise");
             }
@@ -7744,6 +7803,8 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
             runNoiseXTerminator(imgWin, strength, linear);
       } else if (par.use_graxpert_denoise.val) {
             runGraXpertExternal(imgWin, true);
+      } else if (par.use_deepsnr.val) {
+            runDeepSNR(imgWin, strength, true);
       } else {
             runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength);
       }
@@ -7755,6 +7816,8 @@ function runNoiseReduction(imgWin, maskWin, linear)
             util.addProcessingStepAndStatusInfo("Noise reduction using NoiseXTerminator on " + imgWin.mainView.id);
       } else if (par.use_graxpert_denoise.val) {
             util.addProcessingStepAndStatusInfo("Noise reduction using GraXpert on " + imgWin.mainView.id);
+      } else if (par.use_deepsnr.val) {
+            util.addProcessingStepAndStatusInfo("Noise reduction using DeepSNR on " + imgWin.mainView.id);
       } else {
             if (maskWin == null) {
                   util.addProcessingStepAndStatusInfo("Noise reduction using MultiscaleLinearTransform on " + imgWin.mainView.id + " without mask");
@@ -13070,7 +13133,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
-                        (par.extra_noise_reduction.val && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val)) ||
+                        (par.extra_noise_reduction.val && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val || par.use_deepsnr.val)) ||
                         par.extra_ACDNR.val ||
                         (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
                         par.extra_unsharpmask.val ||

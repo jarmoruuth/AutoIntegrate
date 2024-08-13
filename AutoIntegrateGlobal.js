@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Small updates";                  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "DeepSNR denoise";                // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Support for denoise using DeepSNR",
       "- Small updates"
 ];
 
@@ -172,6 +173,7 @@ this.par = {
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
+      use_deepsnr: { val: false, def: false, name : "Use DeepSNR", type : 'B' },
       win_prefix_to_log_files: { val: false, def: false, name : "Add window prefix to log files", type : 'B' },
       start_from_imageintegration: { val: false, def: false, name : "Start from ImageIntegration", type : 'B' },
       generate_xdrz: { val: false, def: false, name : "Generate .xdrz files", type : 'B' },
