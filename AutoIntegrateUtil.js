@@ -1303,6 +1303,7 @@ function is_non_starless_option()
              par.extra_ha_mapping.val ||
              par.extra_solve_image.val ||
              par.extra_annotate_image.val ||
+             par.extra_signature.val ||
              par.extra_rotate.val;
 }
 

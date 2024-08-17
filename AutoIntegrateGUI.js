@@ -332,6 +332,7 @@ var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtra
 var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
 var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
+var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -1533,6 +1534,32 @@ function extraProcessingGUI(parent)
       this.extra_autostf_CheckBox = newCheckBox(parent, "AutoSTF", par.extra_autostf, 
             "<p>Run unlinked AutoSTF stretch on image. Can be helpful in balancing image.</p>" );
 
+      this.extra_signature_CheckBox = newCheckBox(parent, "Signature", par.extra_signature, 
+            "<p>Add signature to the image.</p>" );
+      this.extra_signature_path_Edit = newTextEdit(parent, par.extra_signature_path, "Path to signature file.");
+      this.extra_signature_path_Button = new ToolButton( parent );
+      this.extra_signature_path_Button.icon = parent.scaledResource(":/icons/select-file.png");
+      this.extra_signature_path_Button.toolTip = this.extra_signature_path_Edit.toolTip;
+      this.extra_signature_path_Button.setScaledFixedSize( 20, 20 );
+      var extra_signature_path_Edit = this.extra_signature_path_Edit;
+      this.extra_signature_path_Button.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  return;
+            }
+            extra_signature_path_Edit.text = ofd.fileName;
+            par.extra_signature_path.val = ofd.fileName;
+            console.writeln("Signature file path: " + ofd.fileName);
+      };
+      this.extra_signature_scale_Label = newLabel(parent, "Scale", 
+            "<p>Scale for signature image. Scale is the signature file height in percentages relative to main image. " +
+            "For example scale 10 means that the signature file height will be 10% of the main image height. " +
+            "Value zero means no scaling.</p>");
+      this.extra_signature_scale_SpinBox = newSpinBox(parent, par.extra_signature_scale, 0, 100, this.extra_signature_scale_Label.toolTip);
+      this.extra_signature_position_ComboBox = newComboBox(parent, par.extra_signature_position, signature_positions_values, "<p>Signature position.</p>");
+
       this.extra_force_new_mask_CheckBox = newCheckBox(parent, "New mask", par.extra_force_new_mask, 
             "<p>Do not use existing mask but create a new luminance or star mask when needed.</p>" );
       this.extra_range_mask_CheckBox = newCheckBox(parent, "range_mask", par.extra_range_mask, 
@@ -2034,23 +2061,29 @@ function extraProcessingGUI(parent)
 
       this.extraImageOptionsSizer1 = new HorizontalSizer;
       this.extraImageOptionsSizer1.spacing = 4;
+      this.extraImageOptionsSizer1.add( this.extra_rotate_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_rotate_degrees_ComboBox );
+      this.extraImageOptionsSizer1.add( this.extra_color_calibration_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_image_no_copy_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_force_new_mask_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_range_mask_CheckBox );
       this.extraImageOptionsSizer1.add( this.extra_auto_reset_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_stretch_CheckBox );
+      this.extraImageOptionsSizer1.add( this.extra_autostf_CheckBox );
       this.extraImageOptionsSizer1.addStretch();
 
       this.extraImageOptionsSizer2 = new HorizontalSizer;
       this.extraImageOptionsSizer2.spacing = 4;
-      this.extraImageOptionsSizer2.add( this.extra_rotate_CheckBox );
-      this.extraImageOptionsSizer2.add( this.extra_rotate_degrees_ComboBox );
-      this.extraImageOptionsSizer2.add( this.extra_stretch_CheckBox );
-      this.extraImageOptionsSizer2.add( this.extra_autostf_CheckBox );
-      this.extraImageOptionsSizer2.add( this.extra_color_calibration_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_solve_image_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_solve_image_Button );
       this.extraImageOptionsSizer2.add( this.extra_annotate_image_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_annotate_scale_SpinBox );
+      this.extraImageOptionsSizer2.add( this.extra_signature_CheckBox );
+      this.extraImageOptionsSizer2.add( this.extra_signature_path_Edit );
+      this.extraImageOptionsSizer2.add( this.extra_signature_path_Button );
+      this.extraImageOptionsSizer2.add( this.extra_signature_scale_Label );
+      this.extraImageOptionsSizer2.add( this.extra_signature_scale_SpinBox );
+      this.extraImageOptionsSizer2.add( this.extra_signature_position_ComboBox );
       this.extraImageOptionsSizer2.addStretch();
 
       this.extraImageOptionsSizer = new VerticalSizer;
@@ -9675,6 +9708,7 @@ this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
 this.getWindowBitmap = getWindowBitmap;
 this.flowchartUpdated = flowchartUpdated;
+this.getWindowBitmap = getWindowBitmap;
 
 /* Exported data for testing.
  */

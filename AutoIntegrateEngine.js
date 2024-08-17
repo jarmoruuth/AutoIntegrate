@@ -13068,6 +13068,73 @@ function extraAnnotateImage(extraWin, apply_directly)
       return annotatedImgWin;
 }
 
+function extraAddSignature(extraWin)
+{
+      addExtraProcessingStep("Add signature " + par.extra_signature_path.val + " to image " + extraWin.mainView.id);
+
+      if (par.extra_signature_path.val == "") {
+            util.throwFatalError("No signature path specified");
+      }
+
+      var signatureWin = util.openImageWindowFromFile(par.extra_signature_path.val, true);
+
+      var extra_bmp = gui.getWindowBitmap(extraWin);
+      console.writeln("extraAddSignature: extra_bmp " + extra_bmp.width + "x" + extra_bmp.height);
+      var extra_height = extraWin.mainView.image.height;
+      var signature_height = signatureWin.mainView.image.height;
+      var signature_width = signatureWin.mainView.image.width;
+      if (par.extra_signature_scale.val != 0) {
+            var scale = (par.extra_signature_scale.val / 100) * extra_height / signature_height;
+      } else {
+            var scale = 1;
+      }
+      console.writeln("extraAddSignature: scale " + scale);
+      var signature_bmp = gui.getWindowBitmap(signatureWin).scaledTo(scale * signature_width, scale * signature_height);
+      console.writeln("extraAddSignature: scaled signature_bmp " + signature_bmp.width + "x" + signature_bmp.height);
+
+      var graphics = new Graphics(extra_bmp);
+      switch (par.extra_signature_position.val) {
+            case 'Top left':
+                  var signature_x = 0;
+                  var signature_y = 0;
+                  break;
+            case 'Top middle':
+                  var signature_x = (extra_bmp.width - signature_bmp.width) / 2;
+                  var signature_y = 0;
+                  break;
+            case 'Top right':
+                  var signature_x = extra_bmp.width - signature_bmp.width;
+                  var signature_y = 0;
+                  break;
+            case 'Bottom left':
+                  var signature_x = 0;
+                  var signature_y = extra_height - signature_bmp.height;
+                  break;
+            case 'Bottom middle':
+                  var signature_x = (extra_bmp.width - signature_bmp.width) / 2;
+                  var signature_y = extra_height - signature_bmp.height;
+                  break;
+            case 'Bottom right':
+                  var signature_x = extra_bmp.width - signature_bmp.width;
+                  var signature_y = extra_height - signature_bmp.height;
+                  break;
+            default:
+                  util.throwFatalError("Invalid signature position " + par.extra_signature_position.val);
+                  break;
+      }
+      graphics.drawBitmap(signature_x, signature_y, signature_bmp);
+      console.writeln("extraAddSignature: drawBitmap " + signature_bmp.width + "x" + signature_bmp.height + " at 0, " + (extra_height - signature_bmp.height));
+      graphics.end();
+
+      extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+      extraWin.mainView.image.blend(extra_bmp);
+      extraWin.mainView.endProcess();
+
+      util.forceCloseOneWindow(signatureWin);
+
+      return extraWin;
+}
+
 function extraRotate(imgWin)
 {
       addExtraProcessingStep("Rotate image " + imgWin.mainView.id + " " + par.extra_rotate_degrees.val + " degrees");
@@ -13396,6 +13463,11 @@ function extraProcessing(parent, id, apply_directly)
                   extraWin = annotatedImgWin;
             }
             extraOptionCompleted(par.extra_annotate_image);
+      }
+      if (par.extra_signature.val) {
+            addExtraProcessingStep("Add signature");
+            extraAddSignature(extraWin);
+            extraOptionCompleted(par.extra_signature);
       }
       extra_id = extraWin.mainView.id;
       if (apply_directly) {
