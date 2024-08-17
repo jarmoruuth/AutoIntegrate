@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test2";   // Version, also updated into updates.xri
-this.autointegrate_info = "DeepSNR denoise";                // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test3";   // Version, also updated into updates.xri
+this.autointegrate_info = "Signature, DeepSNR denoise";     // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Add signature to the image",
       "- Support for denoise using DeepSNR",
       "- Small updates"
 ];
