@@ -1172,6 +1172,15 @@ this.createWindowFromBitmap = function(bitmap, id)
       return win;
 }
 
+this.getWindowBitmap = function(imgWin)
+{
+      var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
+      bmp.assign(imgWin.mainView.image.render());
+      return bmp;
+}
+
+
+
 this.addProcessingStep = function(txt)
 {
       console.noteln("AutoIntegrate: " + txt);

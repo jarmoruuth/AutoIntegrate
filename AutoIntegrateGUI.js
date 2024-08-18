@@ -406,6 +406,8 @@ var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xff
 var flowchart_active_id_color = 0xffff0000;      // For active node, red
 var flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
 
+var flowchart_is_background_image = false;
+
 // Node structure elements for flowchart graph
 // txt: text to be displayed
 // type: "header", "parent", "child", "process", "mask"
@@ -502,6 +504,15 @@ function flowchartGraphIterate(parent, font, level)
       return [ width, height ];
 }
 
+function flowchartLineColor()
+{
+      if (flowchart_is_background_image) {
+            return 0xffffffff;      // white
+      } else {
+            return 0xff000000;      // black
+      }
+}
+
 function flowchartDrawText(graphics, x, y, node)
 {
       if (!node.boxwidth) {
@@ -544,13 +555,13 @@ function flowchartDrawText(graphics, x, y, node)
             graphics.pen = new Pen(0xff000000, 1);       // black
       } else {
             graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
-            graphics.pen = new Pen(0xff000000, 1);       // black
+            graphics.pen = new Pen(drawbox ? 0xff000000 : flowchartLineColor(), 1);       // black
       }
       if (drawbox) {
             graphics.drawRect(x0, y0, x1, y1);
       }
       graphics.drawTextRect(x0, y0, x1, y1, node.txt, TextAlign_Center | TextAlign_VertCenter);
-      graphics.pen = new Pen(0xff000000, 1);       // black
+      graphics.pen = new Pen(flowchartLineColor(), 1);
 }
 
 // draw vertical lines for each child position
@@ -715,12 +726,18 @@ function flowchartGraph(rootnode)
             console.writeln("flowchartGraph:width " + width + " height " + height);
       }
 
-      var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
+      if (preview_image != null && par.flowchart_background_image.val) {
+            var bitmap = createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
+            flowchart_is_background_image = true;
+      } else {
+            var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
+            flowchart_is_background_image = false;
+      }
 
       var graphics = new Graphics(bitmap);
       graphics.font = font;
       graphics.transparentBackground = true;
-      graphics.pen = new Pen(0xff000000, 1);       // black
+      graphics.pen = new Pen(flowchartLineColor(), 1);
 
       flowchartGraphDraw(rootnode, { x: width / 2, y: margin / 2 }, graphics, font);
 
@@ -729,7 +746,34 @@ function flowchartGraph(rootnode)
       if (global.flowchart_debug) {
             console.writeln("flowchartGraph:show bitmap");
       }
-      var flowchartImage = util.createImageFromBitmap(bitmap);
+
+      if (flowchart_is_background_image) {
+            // Scale bitmap to image size
+            console.writeln("flowchartGraph: original bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
+            console.writeln("flowchartGraph: preview_image.width" + preview_image.width + " preview_image.height " + preview_image.height);
+            if (bitmap.height != preview_image.height) {
+                  var scale = preview_image.height / bitmap.height;
+                  bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  console.writeln("flowchartGraph: height scale " + scale);
+            }
+            console.writeln("flowchartGraph: scaled1 bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
+            if (bitmap.width > preview_image.width) {
+                  var scale = preview_image.width / bitmap.width;
+                  bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  console.writeln("flowchartGraph: width scale " + scale);
+            }
+            console.writeln("flowchartGraph: scaled2 bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
+            var background_bitmap = new Image(preview_image).render();
+            var graphics = new Graphics(background_bitmap);
+            // draw bitmnap to the middle of the image
+            var x = (preview_image.width - bitmap.width) / 2;
+            var y = (preview_image.height - bitmap.height) / 2;
+            graphics.drawBitmap(x, y, bitmap);
+            graphics.end();
+            var flowchartImage = util.createImageFromBitmap(background_bitmap);
+      } else {
+            var flowchartImage = util.createImageFromBitmap(bitmap);
+      }
 
       tabPreviewControl.SetImage(flowchartImage);
       sidePreviewControl.SetImage(flowchartImage);
@@ -776,6 +820,7 @@ function generateNewFlowchartData(parent)
       }
 
       var succp = true;
+      preview_image = null;
 
       engine.flowchartReset();
 
@@ -5158,6 +5203,7 @@ function runAction(parent)
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
       }
+      preview_image = null;
       updateWindowPrefix();
       getFilesFromTreebox(parent.dialog);
       global.haveIconized = 0;
@@ -5260,6 +5306,7 @@ function newAutoContinueButton(parent, toolbutton)
 
             // Do not create subdirectory structure with AutoContinue
 
+            preview_image = null;
             util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
             if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
@@ -5987,9 +6034,7 @@ function newSectionBarAddArray(parent, groupbox, title, name, objarray)
 
 function getWindowBitmap(imgWin)
 {
-      var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
-      bmp.assign(imgWin.mainView.image.render());
-      return bmp;
+      return util.getWindowBitmap(imgWin);
 }
 
 function newPreviewObj(parent, side_preview)
@@ -6514,11 +6559,6 @@ function AutoIntegrateDialog()
       this.resetOnSetupLoadCheckBox = newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
             "<p>Reset parameters toi default values before loading a setup. This ensures that only parameters from the setup file are set " + 
             "and user saved default parameters are not set.</p>" );
-      this.runGetFlowchartDataCheckBox = newCheckBox(this, "Get flowchart data before processing", par.run_get_flowchart_data, 
-            "<p>Get the full flowchart data before processing when a normal processing is done using the Run button. This makes it possible to follow progress " +
-            "in the complete flowchart if Show Flowchart is checked.</p>" +
-            "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" +
-            skip_reset_tooltip);
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
@@ -6937,7 +6977,6 @@ function AutoIntegrateDialog()
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
       this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
-      this.systemParamsSet2.add( this.runGetFlowchartDataCheckBox );
 
       this.systemParamsSet = new HorizontalSizer;
       this.systemParamsSet.margin = 6;
@@ -8800,7 +8839,8 @@ function AutoIntegrateDialog()
       this.showFlowchartCheckBox = newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
             "<p>Switch between flowchart and image view if flowchart is available.</p>" +
             "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
-            "<p>If System setting <i>Get flowchart data before processing</i> is checked then the live flowchart view uses full processing flowchart.</p>" + 
+            "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
+            "view uses full processing flowchart.</p>" + 
             skip_reset_tooltip,
             function(checked) { 
                   par.show_flowchart.val = checked;
@@ -8828,11 +8868,11 @@ function AutoIntegrateDialog()
             "a text version is printed to the process console." +
             "</p>" +
             "<p>" +
-            "Full Flowchart is available after processing. It is saved to the AutosaveSetup file and also to the setup file when available " +
-            "so it can be loaded later. A text version of flowchart is also printed to the AutoIntegrate log file." +
+            "Full Flowchart is available after processing. It is saved to the AutosaveSetup file and also to the setup file " + 
+            "when available so it can be loaded later. A text version of flowchart is also printed to the AutoIntegrate log file." +
             "</p>" +
             "<p>" +
-            "Note that with a preview save button is it possible to save the flowchart image to a file." +
+            "Note that using the preview save button it is possible to save the flowchart image to a file." +
             "</p>" +
             "<h4>Live Flowchart</h4>" +
             "<p>" +
@@ -8841,10 +8881,18 @@ function AutoIntegrateDialog()
             "checkbox it is possible to switch between the current preview image and flowchart." +
             "</p>" +
             "<p>" +
-            "If <i>System setting</i> option <i>Get flowchart data before processing</i> is selected then flowchart data is collected " +
+            "Flowchart settings are in the <i>Interface</i> tab. Note that Flowchart settings are saved to persistent module settings " +
+            "but values are not reset with the Set default values button." +
+            "</p>" +
+            "<p>" +
+            "By default <i>Flowchart settings</i> option <i>Flowchart show processed image</i> is selected. This options shows the processed image " +
+            "in the preview window and the flowchart data is shown on top of the image. If this option is not selected then only the flowchart data " +
+            "is shown." +
+            "</p>" +
+            "<p>" +
+            "If <i>Flowchart settings</i> option <i>Get flowchart data before processing</i> is selected then flowchart data is collected " +
             "before processing. This is useful if you want to see the full flowchart during processing. Note that this option is not " +
-            "selected by default. Full flowchart is not available with AutoContinue or " +
-            "batch processing. " +
+            "selected by default. Full flowchart is not available with AutoContinue or batch processing. " +
             "</p>";
 
       this.showFlowchartHelpTips = new ToolButton( this );
@@ -9160,6 +9208,24 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.addStretch();
       this.interfaceControl.visible = true;
 
+      this.runGetFlowchartDataCheckBox = newCheckBox(this, "Get flowchart data before processing", par.run_get_flowchart_data, 
+            "<p>Get the full flowchart data before processing when a normal processing is done using the Run button. This makes it possible to follow progress " +
+            "in the complete flowchart if Show Flowchart is checked.</p>" +
+            "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" +
+            skip_reset_tooltip);
+      this.flowchartBackgroundImageCheckBox = newCheckBox(this, "Flowchart show processed image", par.flowchart_background_image, 
+            "<p>If checked then the current processed image is shown in the flowchart background.</p>" +
+            skip_reset_tooltip);
+      
+      this.flowchartControl = new Control( this );
+      this.flowchartControl.sizer = new VerticalSizer;
+      this.flowchartControl.sizer.margin = 6;
+      this.flowchartControl.sizer.spacing = 4;
+      this.flowchartControl.sizer.add( this.runGetFlowchartDataCheckBox );
+      this.flowchartControl.sizer.add( this.flowchartBackgroundImageCheckBox );
+      this.flowchartControl.sizer.addStretch();
+      this.flowchartControl.visible = false;
+
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
       this.newInstance_Button.toolTip = "<p>New Instance</p>";
@@ -9376,6 +9442,7 @@ function AutoIntegrateDialog()
 
       this.interfaceGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
+      newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
       this.interfaceGroupBox.sizer.addStretch();
 
       /* ------------------------------- */
@@ -9706,9 +9773,7 @@ this.updateOutputDirEdit = updateOutputDirEdit;
 this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
-this.getWindowBitmap = getWindowBitmap;
 this.flowchartUpdated = flowchartUpdated;
-this.getWindowBitmap = getWindowBitmap;
 
 /* Exported data for testing.
  */

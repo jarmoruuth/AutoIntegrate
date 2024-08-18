@@ -49,6 +49,7 @@ this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Add signature to the image",
       "- Support for denoise using DeepSNR",
+      "- Flowchart with background image enabled by default",
       "- Small updates"
 ];
 
@@ -162,6 +163,7 @@ this.par = {
       unique_file_names: { val: false, def: false, name : "Unique file names", type : 'B' },
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
       run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B', skip_reset: true },
+      flowchart_background_image: { val: true, def: true, name : "Flowchart background image", type : 'B', skip_reset: true },
 
       use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },
@@ -494,7 +496,7 @@ this.par = {
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
 
       // Misc settings
-      show_flowchart: { val: false, def: false, name : "Show flowchart", type : 'B', skip_reset: true },
+      show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix

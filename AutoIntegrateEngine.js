@@ -13060,7 +13060,7 @@ function extraAnnotateImage(extraWin, apply_directly)
       
       if (apply_directly) {
             extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
-            extraWin.mainView.image.blend(gui.getWindowBitmap(annotatedImgWin));
+            extraWin.mainView.image.blend(util.getWindowBitmap(annotatedImgWin));
             extraWin.mainView.endProcess();
             util.forceCloseOneWindow(annotatedImgWin);
       }
@@ -13078,7 +13078,7 @@ function extraAddSignature(extraWin)
 
       var signatureWin = util.openImageWindowFromFile(par.extra_signature_path.val, true);
 
-      var extra_bmp = gui.getWindowBitmap(extraWin);
+      var extra_bmp = util.getWindowBitmap(extraWin);
       console.writeln("extraAddSignature: extra_bmp " + extra_bmp.width + "x" + extra_bmp.height);
       var extra_height = extraWin.mainView.image.height;
       var signature_height = signatureWin.mainView.image.height;
@@ -13089,7 +13089,7 @@ function extraAddSignature(extraWin)
             var scale = 1;
       }
       console.writeln("extraAddSignature: scale " + scale);
-      var signature_bmp = gui.getWindowBitmap(signatureWin).scaledTo(scale * signature_width, scale * signature_height);
+      var signature_bmp = util.getWindowBitmap(signatureWin).scaledTo(scale * signature_width, scale * signature_height);
       console.writeln("extraAddSignature: scaled signature_bmp " + signature_bmp.width + "x" + signature_bmp.height);
 
       var graphics = new Graphics(extra_bmp);
