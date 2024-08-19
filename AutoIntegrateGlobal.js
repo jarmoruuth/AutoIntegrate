@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test3";   // Version, also updated into updates.xri
-this.autointegrate_info = "Signature, DeepSNR denoise";     // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test4";               // Version, also updated into updates.xri
+this.autointegrate_info = "Signature, DeepSNR denoise, Flowchart";      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",

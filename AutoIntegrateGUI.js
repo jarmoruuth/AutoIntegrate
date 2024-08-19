@@ -758,20 +758,14 @@ function flowchartGraph(rootnode)
 
       if (flowchart_is_background_image) {
             // Scale bitmap to image size
-            console.writeln("flowchartGraph: original bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
-            console.writeln("flowchartGraph: preview_image.width" + preview_image.width + " preview_image.height " + preview_image.height);
             if (bitmap.height != preview_image.height) {
                   var scale = preview_image.height / bitmap.height;
                   bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
-                  console.writeln("flowchartGraph: height scale " + scale);
             }
-            console.writeln("flowchartGraph: scaled1 bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
             if (bitmap.width > preview_image.width) {
                   var scale = preview_image.width / bitmap.width;
                   bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
-                  console.writeln("flowchartGraph: width scale " + scale);
             }
-            console.writeln("flowchartGraph: scaled2 bitmap.width" + bitmap.width + " bitmap.height " + bitmap.height);
             var background_bitmap = new Image(preview_image).render();
             var graphics = new Graphics(background_bitmap);
             // draw bitmnap to the middle of the image
@@ -3560,6 +3554,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   current_histogramInfo = histogramInfo;
             }
             preview_image = new Image( imgWin.mainView.image );
+            flowchartUpdated();
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
                         updatePreviewImage(sidePreviewControl, imgWin, txt, sideHistogramControl, histogramInfo);
