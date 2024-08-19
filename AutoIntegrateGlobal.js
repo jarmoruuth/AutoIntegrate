@@ -50,6 +50,7 @@ this.autointegrate_version_info = [
       "- Add signature to the image",
       "- Support for denoise using DeepSNR",
       "- Flowchart with background image enabled by default",
+      "- Flowchart shows processing time",
       "- Small updates"
 ];
 
@@ -164,6 +165,7 @@ this.par = {
       use_starxterminator: { val: false, def: false, name : "Use StarXTerminator", type : 'B' },
       run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B', skip_reset: true },
       flowchart_background_image: { val: true, def: true, name : "Flowchart background image", type : 'B', skip_reset: true },
+      flowchart_time: { val: true, def: true, name : "Flowchart time", type : 'B', skip_reset: true },
 
       use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },

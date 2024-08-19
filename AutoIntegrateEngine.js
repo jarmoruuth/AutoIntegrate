@@ -378,36 +378,46 @@ function flowchartUpdated()
 
 function flowchartNewNode(type, txt)
 {
-      return { type: type, txt: txt, list: [], id: global.flowchartActiveId };
+      return { type: type, txt: txt, list: [], id: global.flowchartActiveId, start_time: null, end_time: null };
 }
 
-function flowchartCheckOperationList(txt)
+function flowchartCheckOperationList(type, txt)
 {
+      var node = null;
+      var nodepos = global.flowchartActiveId;
+      global.flowchartActiveId++;
       if (global.flowchartOperationList.length > 0) {
-            if (global.flowchartActiveId < global.flowchartOperationList.length
-                && txt == global.flowchartOperationList[global.flowchartActiveId]) 
+            if (nodepos < global.flowchartOperationList.length
+                && txt == global.flowchartOperationList[nodepos].txt) 
             {
                   if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:match " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
-                  global.flowchartActiveId++;
+                  // Use previously created node
+                  node = global.flowchartOperationList[nodepos];
             } else {
                   if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
             }
       } else {
             if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
-            global.flowchartActiveId++;
       }
-      flowchartOperationList.push(txt);
+      if (node == null) {
+            node = flowchartNewNode(type, txt);
+      }
+      flowchartOperationList.push(node);
+
+      return node;
 }
 
 function flowchartOperation(txt)
 {
       if (!flowchart_active) {
-            return;
+            return null;
       }
       if (global.flowchart_debug) console.writeln("flowchartOperation " + txt);
-      flowchartCheckOperationList(txt);
-      flowchartCurrent.list.push( flowchartNewNode("process", txt, global.flowchartActiveId) );
+      var node = flowchartCheckOperationList("process", txt);
+      flowchartCurrent.list.push( node );
       flowchartUpdated();
+      node.start_time = Date.now();
+      return node;
 }
 
 // Special handling for new mask since we want to
@@ -420,9 +430,9 @@ function flowchartMaskBegin(txt)
       if (global.get_flowchart_data) {
             if (global.flowchart_debug) console.writeln("flowchartMaskBegin " + txt);
       }
-      flowchartCheckOperationList(txt);
+      var node = flowchartCheckOperationList("mask", txt);
       flowchartStack.push(flowchartCurrent);
-      var newFlowchartCurrent = flowchartNewNode("mask", txt);
+      var newFlowchartCurrent = node;
       flowchartCurrent.list.push(newFlowchartCurrent);
       flowchartCurrent = newFlowchartCurrent;
 }
@@ -598,19 +608,19 @@ function flowchartPrintList(list, indent)
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
             if (item.type == "header") {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "child") {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "parent") {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
                   flowchartPrintList(item.list, indent + "  ");
             } else if (item.type == "mask") {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
                   flowchartPrintList(item.list, indent + "  ");
             } else {
-                  console.writeln(indent + item.txt);
+                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
             }
       }
 }
@@ -978,6 +988,14 @@ function checkCancel()
       }
 }
 
+function engine_end_process(node)
+{
+      if (node && !global.get_flowchart_data) {
+            node.end_time = Date.now();
+      }
+      checkCancel();
+}
+
 function extractHSchannels(sourceWindow)
 {
       var P = new ChannelExtraction;
@@ -994,7 +1012,7 @@ function extractHSchannels(sourceWindow)
       var hueWindow = ImageWindow.activeWindow;
       sourceWindow.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.HSI;
@@ -1010,7 +1028,7 @@ function extractHSchannels(sourceWindow)
       var saturationWindow = ImageWindow.activeWindow;
       sourceWindow.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       return [ hueWindow , saturationWindow ];
 }
@@ -1031,7 +1049,7 @@ function extractIchannel(sourceWindow)
       var intensityWindow = ImageWindow.activeWindow;
       sourceWindow.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       return intensityWindow;
 }
@@ -1039,7 +1057,9 @@ function extractIchannel(sourceWindow)
 function extractLchannel(sourceWindow, from_lights)
 {
       if (!from_lights) {
-            flowchartOperation("ChannelExtraction L");
+            var node = flowchartOperation("ChannelExtraction L");
+      } else {
+            var node = null;
       }
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.CIELab;
@@ -1055,15 +1075,14 @@ function extractLchannel(sourceWindow, from_lights)
       var targetWindow = ImageWindow.activeWindow;
       sourceWindow.mainView.endProcess();
 
-      checkCancel();
-
+      engine_end_process(node);
       return targetWindow;
 }
 
 function extraRescaleImage(imgWin)
 {
       addExtraProcessingStep("Rescale image");
-      flowchartOperation("PixelMath:rescale");
+      var node = flowchartOperation("PixelMath:rescale");
 
       if (global.get_flowchart_data) {
             return;
@@ -1091,13 +1110,13 @@ function extraRescaleImage(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function extraNormalizeImage(imgWin)
 {
       addExtraProcessingStep("Normalize image");
-      flowchartOperation("PixelMath:normalize");
+      var node = flowchartOperation("PixelMath:normalize");
 
       if (global.get_flowchart_data) {
             return;
@@ -1170,7 +1189,7 @@ function extraNormalizeImage(imgWin)
       }
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function addMildBlur(imgWin)
@@ -1190,7 +1209,7 @@ function addMildBlur(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 }
 
 function findHistogramPeak(win, channel)
@@ -1287,7 +1306,7 @@ function clipShadows(win, perc)
 {
       console.writeln("Clip " + perc + "% of shadows from image " + win.mainView.id);
 
-      flowchartOperation("Clip shadows");
+      var node = flowchartOperation("Clip shadows");
       if (global.get_flowchart_data) {
             return;
       }
@@ -1321,7 +1340,7 @@ function clipShadows(win, perc)
 
       view.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function channelText(channel)
@@ -1836,7 +1855,7 @@ function writeImage(filePath, imageWindow)
 function runImageIntegrationBiasDarks(images, name, type)
 {
       console.writeln("runImageIntegrationBiasDarks, images[0] " + images[0][1] + ", name " + name);
-      flowchartOperation("ImageIntegration:" + type);
+      var node = flowchartOperation("ImageIntegration:" + type);
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(images[0][1], name);
@@ -1864,7 +1883,7 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      checkCancel();
+      engine_end_process(node);
 
       console.writeln("runImageIntegrationBiasDarks, integrated image " + new_name);
 
@@ -1875,7 +1894,7 @@ function runImageIntegrationBiasDarks(images, name, type)
 function runSuberBias(biasWin)
 {
       console.writeln("runSuberBias, bias " + biasWin.mainView.id);
-      flowchartOperation("Superbias");
+      var node = flowchartOperation("Superbias");
 
       if (global.get_flowchart_data) {
             return flowchartNewImage(biasWin, ppar.win_prefix + "AutoMasterSuperBias");
@@ -1893,7 +1912,7 @@ function runSuberBias(biasWin)
 
       util.windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
 
-      checkCancel();
+      engine_end_process(node);
       
       return targetWindow.mainView.id
 }
@@ -1959,7 +1978,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       console.noteln("runCalibrateDarks, images[0] " + fileNames[0][1] + ", master bias " + masterbiasPath);
       console.writeln("runCalibrateDarks, master bias " + masterbiasPath);
-      flowchartOperation("ImageCalibration:darks");
+      var node = flowchartOperation("ImageCalibration:darks");
 
       if (global.get_flowchart_data) {
             return fileNames;
@@ -1978,7 +1997,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
 }
@@ -1993,7 +2012,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       }
 
       console.noteln("runCalibrateFlats, images[0] " + images[0][1]);
-      flowchartOperation("ImageCalibration:flats");
+      var node = flowchartOperation("ImageCalibration:flats");
 
       if (global.get_flowchart_data) {
             return imagesEnabledPathToFileList(images);
@@ -2038,7 +2057,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
 }
@@ -2050,7 +2069,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 function runImageIntegrationFlats(images, name)
 {
       console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
-      flowchartOperation("ImageIntegration:flats");
+      var node = flowchartOperation("ImageIntegration:flats");
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(images[0][1], name);
@@ -2079,7 +2098,7 @@ function runImageIntegrationFlats(images, name)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      checkCancel();
+      engine_end_process(node);
 
       console.writeln("runImageIntegrationFlats, integrated image " + new_name);
 
@@ -2094,7 +2113,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
 
       console.noteln("runCalibrateLights, images[0] " + images[0][1]);
-      flowchartOperation("ImageCalibration:lights");
+      var node = flowchartOperation("ImageCalibration:lights");
 
       if (global.get_flowchart_data) {
             return imagesEnabledPathToFileList(images);
@@ -2155,7 +2174,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
 }
@@ -2318,7 +2337,7 @@ function getDefectInfo(fileNames, groupname)
 function runLinearDefectDetection(fileNames)
 {
       util.addProcessingStepAndStatusInfo("Run Linear Defect Detection");
-      flowchartOperation("LinearDefectDetection");
+      var node = flowchartOperation("LinearDefectDetection");
       console.writeln("runLinearDefectDetection, fileNames[0]=" + fileNames[0]);
 
       if (global.get_flowchart_data) {
@@ -2355,6 +2374,7 @@ function runLinearDefectDetection(fileNames)
             }
             ccInfo[ccInfo.length] = ccGroupInfo;
       }
+      engine_end_process(node);
 
       return ccInfo;
 }
@@ -2445,7 +2465,7 @@ function runBinningOnFiles(fileNames, binning_val, resample_val, filtered_files,
 
                   runBinning(imageWindow, resample_val);
 
-                  checkCancel();
+                  engine_end_process(null);
 
                   updateBinningKeywords(imageWindow, resample_val);
             
@@ -2478,9 +2498,11 @@ function runBinningOnLights(fileNames, filtered_files)
 {
       util.addStatusInfo("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files");
       util.addProcessingStep("Do " + par.binning_resample.val + "x" + par.binning_resample.val + " binning using IntegerResample on light files, output *" + getBinningPostfix() + ".xisf");
-      flowchartOperation("Binning");
+      var node = flowchartOperation("Binning");
 
       var newFileNames = runBinningOnFiles(fileNames, par.binning.val, par.binning_resample.val, filtered_files);
+
+      engine_end_process(node);
 
       return newFileNames;
 }
@@ -2493,7 +2515,7 @@ function runGradientCorrectionOnLights(fileNames)
       var outputExtension = ".xisf";
 
       util.addProcessingStepAndStatusInfo("Run gradient correction on light files using " + getGradientCorrectionName());
-      flowchartOperation(getGradientCorrectionName());
+      var node = flowchartOperation(getGradientCorrectionName());
 
       if (global.get_flowchart_data) {
             return fileNames;
@@ -2538,6 +2560,8 @@ function runGradientCorrectionOnLights(fileNames)
 
       console.writeln("runGradientCorrectionOnLights output[0] " + newFileNames[0]);
 
+      engine_end_process(node);
+
       return newFileNames;
 }
 
@@ -2551,7 +2575,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
             util.addProcessingStep("Run CosmeticCorrection, output *_cc.xisf, no line defects to fix");
       }
       console.writeln("fileNames[0] " + fileNames[0]);
-      flowchartOperation("CosmeticCorrection");
+      var node = flowchartOperation("CosmeticCorrection");
 
       if (global.get_flowchart_data) {
             return fileNames;
@@ -2587,8 +2611,8 @@ function runCosmeticCorrection(fileNames, defects, color_images)
             console.criticalln(err.toString());
             util.throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
       }
-
-      checkCancel();
+      
+      engine_end_process(node);
 
       fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
       console.writeln("runCosmeticCorrection output[0] " + fileNames[0]);
@@ -2745,7 +2769,7 @@ function getScaledValPos(val, min, max)
 function getSubframeSelectorMeasurements(fileNames)
 {
       console.writeln("run SubframeSelector on " + fileNames.length + " files");
-      flowchartOperation("SubframeSelector");
+      var node = flowchartOperation("SubframeSelector");
 
       var P = new SubframeSelector;
       P.nonInteractive = true;
@@ -2772,7 +2796,7 @@ function getSubframeSelectorMeasurements(fileNames)
       P.executeGlobal();
 
       console.writeln("SubframeSelector completed");
-      checkCancel();
+      engine_end_process(node);
 
       return P.measurements;
 }
@@ -2861,7 +2885,7 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       var indexStars = 14;
 
       if (global.get_flowchart_data) {
-            flowchartOperation("SubframeSelector");
+            var node = flowchartOperation("SubframeSelector");
             var ssFiles = [];
             for (var i = 0; i < fileNames.length; i++) {
                   ssFiles[ssFiles.length] = [ fileNames[i], 1 ];
@@ -4225,7 +4249,9 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
             var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
       }
       if (reason != "from_lights") {
-            flowchartOperation("PixelMath:" + reason);
+            var node = flowchartOperation("PixelMath:" + reason);
+      } else {
+            var node = null;
       }
 
       var P = new PixelMath;
@@ -4244,7 +4270,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       if (createNewImage) {
             setTargetFITSKeywordsForPixelmath(util.findWindow(P.newImageId), targetFITSKeywords);
@@ -4275,7 +4301,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       if (newId != null) {
             var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
       }
-      flowchartOperation("PixelMath:combine RGB");
+      var node = flowchartOperation("PixelMath:combine RGB");
 
       var P = new PixelMath;
       P.expression = mapping_R;
@@ -4297,7 +4323,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       if (newId != null) {
             setTargetFITSKeywordsForPixelmath(util.findWindow(newId), targetFITSKeywords);
@@ -4327,7 +4353,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
       }
-      flowchartOperation("PixelMath:combine RGB");
+      var node = flowchartOperation("PixelMath:combine RGB");
 
       var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
 
@@ -4345,7 +4371,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       setTargetFITSKeywordsForPixelmath(util.findWindow(newId), targetFITSKeywords);
 
@@ -4551,9 +4577,10 @@ function mapRGBchannel(images, refimage, mapping, is_luminance, name)
       }
       if (images.length > 1) {
             // run linear fit to match images before PixelMath
-            flowchartOperation("LinearFit");
+            var node = flowchartOperation("LinearFit");
             linearFitArray(refimage, images);
             copyLinearFitReferenceImage(refimage);
+            engine_end_process(node);
       }
       // create combined image
       var target_image = runPixelMathSingleMapping(refimage, "map " + name, mapping);
@@ -4690,7 +4717,9 @@ function channelNoiseReduction(image_id)
 function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscreen)
 {
       if (!from_lights) {
-            flowchartOperation("StarXTerminator");
+            var node = flowchartOperation("StarXTerminator");
+      } else {
+            var node = null;
       }
       try {
             console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask + ", use_unscreen " + use_unscreen);
@@ -4712,6 +4741,7 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscr
             } else {
                   P.unscreen = false;
             }
+            engine_end_process(node);
       } catch(err) {
             console.criticalln("StarXTerminator failed");
             console.criticalln(err);
@@ -4724,12 +4754,15 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscr
 function createNewStarNet(star_mask, from_lights)
 {
       if (!from_lights) {
-            flowchartOperation("StarNet");
+            var node = flowchartOperation("StarNet");
+      } else {
+            var node = null;
       }
       try {
             var P = new StarNet;
             P.stride = StarNet.prototype.Stride_128;
             P.mask = star_mask;
+            engine_end_process(node);
       } catch(err) {
             console.criticalln("StarNet failed");
             console.criticalln(err);
@@ -4742,11 +4775,14 @@ function createNewStarNet(star_mask, from_lights)
 function createNewStarNet2(star_mask, from_lights)
 {
       if (!from_lights) {
-            flowchartOperation("StarNet2");
+            var node = flowchartOperation("StarNet2");
+      } else {
+            var node = null;
       }
       try {
             var P = new StarNet2;
             P.mask = star_mask;
+            engine_end_process(node);
       } catch(err) {
             console.criticalln("StarNet2 failed");
             console.criticalln(err);
@@ -4786,7 +4822,9 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       }
 
       if (!from_lights) {
-            flowchartOperation("Remove stars");
+            var node = flowchartOperation("Remove stars");
+      } else {
+            var node = null;
       }
 
       if (global.get_flowchart_data) {
@@ -4833,7 +4871,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             relinearizeImage(imgWin, median, from_lights ? "from_lights" : "relinearize");
       }
 
-      checkCancel();
+      engine_end_process(node);
 
       if (!succp) {
             util.throwFatalError("Failed to remove stars!");
@@ -4881,7 +4919,7 @@ function removeStarsFromLights(fileNames)
       var postfix = "_starless";
       var outputExtension = ".xisf";
 
-      flowchartOperation("Remove stars");
+      var node = flowchartOperation("Remove stars");
       if (global.get_flowchart_data) {
             return fileNames;
       }
@@ -4921,6 +4959,7 @@ function removeStarsFromLights(fileNames)
             newFileNames[newFileNames.length] = filePath;
       }
       console.writeln("removeStarsFromLights output[0] " + newFileNames[0]);
+      engine_end_process(node);
 
       return newFileNames;
 }
@@ -5333,7 +5372,7 @@ function runStarAlignment(imagetable, refImage)
 
       util.addProcessingStepAndStatusInfo("Star alignment reference image " + refImage);
       console.writeln("runStarAlignment input[0] " + imagetable[0]);
-      flowchartOperation("StarAlignment");
+      var node = flowchartOperation("StarAlignment");
 
       if (global.get_flowchart_data) {
             return imagetable;
@@ -5369,7 +5408,7 @@ function runStarAlignment(imagetable, refImage)
        */
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       alignedFiles = fileNamesFromOutputData(P.outputData);
 
@@ -5384,7 +5423,7 @@ function runStarAlignment(imagetable, refImage)
 function runCometAlignment(filenames, filename_postfix)
 {
       console.writeln("Comet alignment, get metadata for images.");
-      flowchartOperation("CometAlignment");
+      var node = flowchartOperation("CometAlignment");
 
       if (global.get_flowchart_data) {
             return filenames;
@@ -5522,7 +5561,7 @@ function runCometAlignment(filenames, filename_postfix)
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       var alignedFiles = [];
       for (var i = 0; i < filenames.length; i++) {
@@ -5579,7 +5618,7 @@ function runLocalNormalization(imagetable, refImage, filter)
       }
 
       util.addProcessingStepAndStatusInfo("Local normalization, filter " + filter + ", reference image " + refImage);
-      flowchartOperation("LocalNormalization");
+      var node = flowchartOperation("LocalNormalization");
 
       if (imagetable.length == 1 || global.get_flowchart_data) {
             console.writeln("runLocalNormalization, only one file or flowchart, no need for local normalization");
@@ -5649,7 +5688,7 @@ function runLocalNormalization(imagetable, refImage, filter)
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function runLinearFit(refViewId, targetId)
@@ -5673,13 +5712,13 @@ function runLinearFit(refViewId, targetId)
       P.executeOn(targetWin.mainView);
       targetWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 }
 
 function runDrizzleIntegration(images, name, local_normalization)
 {
       util.addProcessingStepAndStatusInfo("Run DrizzleIntegration");
-      flowchartOperation("DrizzleIntegration");
+      var node = flowchartOperation("DrizzleIntegration");
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(images[0][1], ppar.win_prefix + "Integration_" + name);
@@ -5704,7 +5743,7 @@ function runDrizzleIntegration(images, name, local_normalization)
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       util.closeOneWindow(P.weightImageId);
 
@@ -5788,7 +5827,7 @@ function runFastIntegration(integration_images, name, refImage)
       }
       util.addProcessingStepAndStatusInfo("FastIntegration reference image " + refImage);
       console.writeln("runFastIntegration input[0] " + integration_images[0][1]);
-      flowchartOperation("FastIntegration");
+      var node = flowchartOperation("FastIntegration");
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(integration_images[0][1], ppar.win_prefix + "Integration_" + name);
@@ -5820,7 +5859,7 @@ function runFastIntegration(integration_images, name, refImage)
 
       P.executeGlobal();
 
-      checkCancel();
+      engine_end_process(node);
 
       var new_name = util.windowRename("FastIntegrationMaster", ppar.win_prefix + "Integration_" + name);
 
@@ -5832,7 +5871,7 @@ function runFastIntegration(integration_images, name, refImage)
 
 function runBasicIntegration(images, name, local_normalization)
 {
-      flowchartOperation("ImageIntegration");
+      var node = flowchartOperation("ImageIntegration");
 
       if (global.get_flowchart_data) {
             return flowchartNewIntegrationImage(images[0][1], "Integration");
@@ -5907,7 +5946,7 @@ function runBasicIntegration(images, name, local_normalization)
       util.closeOneWindow(P.lowRejectionMapImageId);
       util.closeOneWindow(P.slopeMapImageId);
 
-      checkCancel();
+      engine_end_process(node);
 
       return P.integrationImageId;
 }
@@ -6158,7 +6197,7 @@ function runImageIntegrationForCrop(images)
       }
       // KEEP (P.integrationImageId);
 
-      checkCancel();
+      engine_end_process(null);
 
       //console.writeln("Integration for CROP complete, \n", JSON.stringify(P, null, 2));
 
@@ -6176,7 +6215,7 @@ function runImageIntegrationForCrop(images)
                   cropHandleDrizzle(P.lowRejectionMapImageId);
             }
       }
-      checkCancel();
+      engine_end_process(null);
 
       if (par.crop_use_rejection_low.val) {
             // We use the low rejection map to find the area common to all images
@@ -6345,7 +6384,7 @@ function runABEex(win, replaceTarget, postfix)
 
       win.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       util.addScriptWindow(GC_id);
 
@@ -6421,7 +6460,7 @@ function runGCProcess(win, replaceTarget, postfix)
             P.executeOn(model_win.mainView);
       }
 
-      checkCancel();
+      engine_end_process(null);
 
       return GC_id;
 }
@@ -6440,15 +6479,19 @@ function getGradientCorrectionName()
 function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart)
 {
       if (update_flowchart) {
-            flowchartOperation(getGradientCorrectionName());
+            var node = flowchartOperation(getGradientCorrectionName());
+      } else {
+            var node = null;
       }
       if (par.use_graxpert.val) {
-            return runGraXpert(win, replaceTarget, postfix);
+            var GC_id = runGraXpert(win, replaceTarget, postfix);
       } else if (par.use_abe.val){
-            return runABEex(win, replaceTarget, postfix);
+            var GC_id = runABEex(win, replaceTarget, postfix);
       } else {
-            return runGCProcess(win, replaceTarget, postfix);
+            var GC_id = runGCProcess(win, replaceTarget, postfix);
       }
+      engine_end_process(node);
+      return GC_id;
 }
 
 function runGradientCorrection(win, replaceTarget)
@@ -6599,7 +6642,7 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked, silent
 
    view.endProcess();
 
-   checkCancel();
+   engine_end_process(null);
 
    if (!silent) {
       console.writeln("<end><cbr/><br/>");
@@ -6635,7 +6678,7 @@ function applySTF(imgView, stf, iscolor)
 
       imgView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 }
 
 function getRgbLinked(iscolor)
@@ -6708,7 +6751,7 @@ this.runHistogramTransformSTFex = function(GC_win, stf_to_use, iscolor, targetBa
 
       GC_win.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       return stf_to_use;
 }
@@ -6740,7 +6783,7 @@ function runHistogramTransformMaskedStretch(GC_win, histogram_prestretch)
 
       GC_win.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 
       return GC_win;
 }
@@ -6769,7 +6812,7 @@ function runHistogramTransformArcsinhStretch(GC_win)
 
             GC_win.mainView.endProcess();
 
-            checkCancel();
+            engine_end_process(null);
 
             var peak_val = findHistogramPeak(GC_win).normalizedPeakCol;
             console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + peak_val);
@@ -6802,7 +6845,7 @@ function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_proc
             if (window_updated) {
                   guiUpdatePreviewWin(res.win);
             }
-            checkCancel();
+            engine_end_process(null);
             if (res.completed) {
                   break;
             }
@@ -6829,7 +6872,7 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
                   guiUpdatePreviewWin(res.win);
             }
             util.runGarbageCollection();
-            checkCancel();
+            engine_end_process(null);
             if (res.completed) {
                   break;
             }
@@ -6993,7 +7036,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   P.executeOn(new_win.mainView);
                   new_win.mainView.endProcess();
 
-                  checkCancel();
+                  engine_end_process(null);
 
             } else {
                   // Using PixelMath
@@ -7033,7 +7076,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
                   P.executeOn(new_win.mainView);
                   new_win.mainView.endProcess();
-                  checkCancel();
+                  engine_end_process(null);
             }
 
       } else if (image_stretching == 'Logarithmic stretch') {
@@ -7082,7 +7125,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             P.executeOn(new_win.mainView);
             new_win.mainView.endProcess();
 
-            checkCancel();
+            engine_end_process(null);
 
             if (use_median) {
                   // current_value = findSymmetryPoint(new_win, 50, channel);
@@ -7238,7 +7281,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
                   P.executeOn(new_win.mainView);
 
                   new_win.mainView.endProcess();
-                  checkCancel();
+                  engine_end_process(null);
             } catch(err) {
                   console.criticalln("GeneralizedHyperbolicStretch failed");
                   console.criticalln(err);
@@ -7303,7 +7346,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
 
             res.win.mainView.endProcess();
 
-            checkCancel();
+            engine_end_process(null);
 
             var new_win = util.findWindow(P.newImageId);
       }
@@ -7374,7 +7417,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             }
       }
       console.writeln("runHistogramTransform using " + image_stretching);
-      flowchartOperation(image_stretching + (type == 'mask' ? ':mask' : ''));
+      var node = flowchartOperation(image_stretching + (type == 'mask' ? ':mask' : ''));
       if (global.get_flowchart_data) {
             return { win: GC_win, stf: null };
       }
@@ -7417,6 +7460,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       if (par.shadow_clip.val) {
             clipShadows(GC_win, global.shadow_clip_value);
       }
+      engine_end_process(node);
       guiUpdatePreviewWin(GC_win);
       return { win: GC_win, stf: stf };
 }
@@ -7427,7 +7471,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
             return;
       }
       util.addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
-      flowchartOperation("ACDNR");
+      var node = flowchartOperation("ACDNR");
       if (global.get_flowchart_data) {
             return;
       }
@@ -7453,7 +7497,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -7552,7 +7596,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       } else {
             console.writeln("runMultiscaleLinearTransformReduceNoise on " + imgWin.mainView.id + ", strength " + strength);
       }
-      flowchartOperation("MultiscaleLinearTransform:noise");
+      var node = flowchartOperation("MultiscaleLinearTransform:noise");
 
       if (global.get_flowchart_data) {
             return;
@@ -7595,7 +7639,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
             imgWin.removeMask();
       }
 
-      checkCancel();
+      engine_end_process(node);
 
       imgWin.mainView.endProcess();
 }
@@ -7606,9 +7650,9 @@ function runBlurXTerminator(imgWin, correct_only)
                       ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val +
                       ", correct only " + correct_only);
       if (correct_only) {
-            flowchartOperation("BlurXTerminator:correct only");
+            var node = flowchartOperation("BlurXTerminator:correct only");
       } else {
-            flowchartOperation("BlurXTerminator");
+            var node = flowchartOperation("BlurXTerminator");
       }
 
       if (global.get_flowchart_data) {
@@ -7660,12 +7704,12 @@ function runBlurXTerminator(imgWin, correct_only)
       
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function runNoiseXTerminator(imgWin, strength, linear)
 {
-      flowchartOperation("NoiseXTerminator");
+      var node = flowchartOperation("NoiseXTerminator");
       if (global.get_flowchart_data) {
             return;
       }
@@ -7722,12 +7766,12 @@ function runNoiseXTerminator(imgWin, strength, linear)
       
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function runDeepSNR(imgWin, strength, linear)
 {
-      flowchartOperation("DeepSNR");
+      var node = flowchartOperation("DeepSNR");
       if (global.get_flowchart_data) {
             return;
       }
@@ -7779,20 +7823,20 @@ function runDeepSNR(imgWin, strength, linear)
       
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function runNoiseReductionEx(imgWin, maskWin, strength, linear)
 {
       if (global.get_flowchart_data) {
             if (par.use_noisexterminator.val) {
-                  flowchartOperation("NoiseXTerminator");
+                  var node = flowchartOperation("NoiseXTerminator");
             } else if (par.use_graxpert_denoise.val) {
-                  flowchartOperation("GraXpert denoise");
+                  var node = flowchartOperation("GraXpert denoise");
             } else if (par.use_deepsnr.val) {
-                  flowchartOperation("DeepSNR");
+                  var node = flowchartOperation("DeepSNR");
             } else {
-                  flowchartOperation("MultiscaleLinearTransform:noise");
+                  var node = flowchartOperation("MultiscaleLinearTransform:noise");
             }
             return;
       }
@@ -7831,7 +7875,7 @@ function runNoiseReduction(imgWin, maskWin, linear)
 function runColorReduceNoise(imgWin)
 {
       util.addProcessingStepAndStatusInfo("Color noise reduction on " + imgWin.mainView.id);
-      flowchartOperation("TGVDenoise");
+      var node = flowchartOperation("TGVDenoise");
 
       if (global.get_flowchart_data) {
             return;
@@ -7850,7 +7894,7 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -7858,7 +7902,7 @@ function runColorReduceNoise(imgWin)
 function starReduceNoise(imgWin)
 {
       util.addProcessingStepAndStatusInfo("Star noise reduction on " + imgWin.mainView.id);
-      flowchartOperation("TGVDenoise");
+      var node = flowchartOperation("TGVDenoise");
 
       if (global.get_flowchart_data) {
             return;
@@ -7894,13 +7938,13 @@ function starReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function runBackgroundNeutralization(imgView)
 {
       util.addProcessingStepAndStatusInfo("Background neutralization on " + imgView.id);
-      flowchartOperation("BackgroundNeutralization");
+      var node = flowchartOperation("BackgroundNeutralization");
 
       if (global.get_flowchart_data) {
             return;
@@ -7914,7 +7958,7 @@ function runBackgroundNeutralization(imgView)
 
       imgView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewId(imgView.id);
 }
@@ -7974,7 +8018,7 @@ function findBinning(imgWin)
 function runImageSolverEx(id)
 {
       console.writeln("runImageSolverEx: image " + id);
-      flowchartOperation("ImageSolver");
+      var node = flowchartOperation("ImageSolver");
       if (global.get_flowchart_data) {
             return true;
       }
@@ -8144,6 +8188,7 @@ function runImageSolverEx(id)
          
                   console.writeln("runImageSolverEx: SolveImage succeeded on image "+ id);
             }
+            engine_end_process(node);
       } catch (err) {
                   console.writeln("runImageSolverEx: exception error, SolveImage failed on image " + id);
                   util.addCriticalStatus(err.toString());
@@ -8195,7 +8240,7 @@ function runImageSolver(id, image_is_linear)
 
 function runColorCalibrationProcess(imgWin)
 {
-      flowchartOperation("ColorCalibration");
+      var node = flowchartOperation("ColorCalibration");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8211,7 +8256,7 @@ function runColorCalibrationProcess(imgWin)
 
             imgWin.mainView.endProcess();
 
-            checkCancel();
+            engine_end_process(node);
 
             guiUpdatePreviewId(imgWin.mainView.id);
 
@@ -8241,7 +8286,7 @@ function runColorCalibration(imgWin, phase)
                   console.writeln("SpectrophotometricColorCalibration is run only in linear mode.");
                   return;
             }
-            flowchartOperation("SpectrophotometricColorCalibration");
+            var node = flowchartOperation("SpectrophotometricColorCalibration");
             if (global.get_flowchart_data) {
                   return;
             }
@@ -8339,7 +8384,7 @@ function runColorCalibration(imgWin, phase)
                         util.throwFatalError("SpectrophotometricColorCalibration failed");
                   }
 
-                  checkCancel();
+                  engine_end_process(node);
 
                   guiUpdatePreviewId(imgWin.mainView.id);
 
@@ -8363,7 +8408,7 @@ function runColorCalibration(imgWin, phase)
 function runColorSaturation(imgWin, maskWin)
 {
       util.addProcessingStepAndStatusInfo("Color saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
-      flowchartOperation("ColorSaturation");
+      var node = flowchartOperation("ColorSaturation");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8391,7 +8436,7 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8403,7 +8448,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       } else {
             util.addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
       }
-      flowchartOperation("CurvesTransformation:saturation");
+      var node = flowchartOperation("CurvesTransformation:saturation");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8431,7 +8476,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8461,7 +8506,7 @@ function runLRGBCombination(RGB_id, L_id)
                         util.ensure_win_prefix(replaceLastString(RGB_id, "RGB", "LRGB")));
       var RGBimgView = targetWin.mainView;
       util.addProcessingStepAndStatusInfo("LRGB combination of " + RGB_id + " and luminance image " + L_id + " into " + RGBimgView.id);
-      flowchartOperation("LRGBCombination");
+      var node = flowchartOperation("LRGBCombination");
       if (global.get_flowchart_data) {
             return RGB_id;
       }
@@ -8483,7 +8528,7 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewId(RGBimgView.id);
 
@@ -8495,7 +8540,7 @@ function runSCNR(RGBimgView, fixing_stars)
       if (!fixing_stars) {
             util.addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
       }
-      flowchartOperation("SCNR");
+      var node = flowchartOperation("SCNR");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8514,7 +8559,7 @@ function runSCNR(RGBimgView, fixing_stars)
 
       RGBimgView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewId(RGBimgView.id);
 }
@@ -8523,7 +8568,7 @@ function runSCNR(RGBimgView, fixing_stars)
 function extraNarrowbandOrangeHueShift(imgView)
 {
       addExtraProcessingStep("Orange hue shift");
-      flowchartOperation("CurvesTransformation:orangehueshift");
+      var node = flowchartOperation("CurvesTransformation:orangehueshift");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8542,7 +8587,7 @@ function extraNarrowbandOrangeHueShift(imgView)
 
       imgView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewId(imgView.id);
 }
@@ -8554,7 +8599,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       } else {
             util.addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id);
       }
-      flowchartOperation("MultiscaleLinearTransform:sharpen");
+      var node = flowchartOperation("MultiscaleLinearTransform:sharpen");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8586,7 +8631,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8827,7 +8872,7 @@ function debayerImages(fileNames)
 
       util.addStatusInfo("Debayer " + fileNames.length + " images");
       util.addProcessingStep("debayerImages, fileNames[0] " + fileNames[0]);
-      flowchartOperation("Debayer");
+      var node = flowchartOperation("Debayer");
       if (global.get_flowchart_data) {
             return fileNames;
       }
@@ -8845,7 +8890,7 @@ function debayerImages(fileNames)
             util.addCriticalStatus(err.toString());
       }
 
-      checkCancel();
+      engine_end_process(node);
 
       if (!succ) {
             console.criticalln("Debayer failed");
@@ -8859,7 +8904,7 @@ function debayerImages(fileNames)
 function runBandingReduction(imageWindow)
 {
       console.writeln("runBandingReduction");
-      flowchartOperation("BandingReduction");
+      var node = flowchartOperation("BandingReduction");
       if (global.get_flowchart_data) {
             return;
       }
@@ -8871,13 +8916,14 @@ function runBandingReduction(imageWindow)
 
       bandingEngine.setTargetImage(imageWindow.mainView.image);
       bandingEngine.doit(imageWindow.mainView);
+      engine_end_process(node);
 }
 
 function bandingEngineForImages(fileNames)
 {
       util.addStatusInfo("Banding reduction for " + fileNames.length + " images");
       util.addProcessingStep("bandingEngineForImages, fileNames[0] " + fileNames[0]);
-      flowchartOperation("BandingReduction");
+      var node = flowchartOperation("BandingReduction");
       if (global.get_flowchart_data) {
             return fileNames;
       }
@@ -8913,6 +8959,7 @@ function bandingEngineForImages(fileNames)
             newFileNames[newFileNames.length] = filePath;
             util.forceCloseOneWindow(imageWindow);
       }
+      engine_end_process(node);
 
       return newFileNames;
 }
@@ -8932,7 +8979,7 @@ function extractChannels(fileNames)
 
       util.addStatusInfo("Extract channels, " + par.extract_channel_mapping.val);
       util.addProcessingStep("extractChannels, " + par.extract_channel_mapping.val + ", fileNames[0] " + fileNames[0]);
-      flowchartOperation("ChannelExtraction");
+      var node = flowchartOperation("ChannelExtraction");
       
       for (var i = 0; i < fileNames.length; i++) {
             if (global.get_flowchart_data) {
@@ -9011,6 +9058,7 @@ function extractChannels(fileNames)
             // Close window
             util.forceCloseOneWindow(imageWindow);
       }
+      engine_end_process(node);
       return newFileNames;
 }
 
@@ -9483,7 +9531,7 @@ function CreateChannelImages(parent, auto_continue)
                   } else {
                         var fileProcessedStatus = getFileProcessedStatus(fileNames, getBinningPostfix());
                         if (fileProcessedStatus.unprocessed.length == 0) {
-                              flowchartOperation("Binning");
+                              var node = flowchartOperation("Binning");
                               fileNames = fileProcessedStatus.processed;
                         } else {
                               let processedFileNames = runBinningOnLights(fileProcessedStatus.unprocessed, filtered_files);
@@ -9507,7 +9555,7 @@ function CreateChannelImages(parent, auto_continue)
                         for (var i = 0; i < ccInfo.length; i++) {
                               var fileProcessedStatus = getFileProcessedStatus(ccInfo[i].ccFileNames, '_cc');
                               if (fileProcessedStatus.unprocessed.length == 0) {
-                                    flowchartOperation("CosmeticCorrection");
+                                    var node = flowchartOperation("CosmeticCorrection");
                                     ccFileNames = ccFileNames.concat(fileProcessedStatus.processed);
                               } else {
                                     util.addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + fileProcessedStatus.unprocessed.length + " files");
@@ -9524,7 +9572,7 @@ function CreateChannelImages(parent, auto_continue)
                         */
                         var fileProcessedStatus = getFileProcessedStatus(fileNames, '_cc');
                         if (fileProcessedStatus.unprocessed.length == 0) {
-                              flowchartOperation("CosmeticCorrection");
+                              var node = flowchartOperation("CosmeticCorrection");
                               fileNames = fileProcessedStatus.processed;
                         } else {
                               let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, defects, is_color_files);
@@ -9542,7 +9590,7 @@ function CreateChannelImages(parent, auto_continue)
                    */
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_d');
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        flowchartOperation("Debayer");
+                        var node = flowchartOperation("Debayer");
                         fileNames = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = debayerImages(fileProcessedStatus.unprocessed);
@@ -9556,7 +9604,7 @@ function CreateChannelImages(parent, auto_continue)
             if (par.banding_reduction.val) {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_cb');
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        flowchartOperation("BandingReduction");
+                        var node = flowchartOperation("BandingReduction");
                         fileNames = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = bandingEngineForImages(fileProcessedStatus.unprocessed);
@@ -9593,7 +9641,7 @@ function CreateChannelImages(parent, auto_continue)
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, postfix);
 
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        flowchartOperation("Already gradient corrected");
+                        var node = flowchartOperation("Already gradient corrected");
                         fileNames = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = runGradientCorrectionOnLights(fileProcessedStatus.unprocessed);
@@ -9615,7 +9663,7 @@ function CreateChannelImages(parent, auto_continue)
                   } else {
                         var fileProcessedStatus = getFileProcessedStatus(fileNames, '_a');
                         if (fileProcessedStatus.unprocessed.length == 0) {
-                              flowchartOperation("SubframeSelector");
+                              var node = flowchartOperation("SubframeSelector");
                               var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '_a' };
                         } else {
                               var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
@@ -9662,7 +9710,7 @@ function CreateChannelImages(parent, auto_continue)
             {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_r');
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        flowchartOperation("StarAlignment");
+                        var node = flowchartOperation("StarAlignment");
                         alignedFiles = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = runStarAlignment(fileProcessedStatus.unprocessed, global.best_image);
@@ -9681,7 +9729,7 @@ function CreateChannelImages(parent, auto_continue)
             {
                   var fileProcessedStatus = getFileProcessedStatus(alignedFiles, '_starless');
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        flowchartOperation("Remove stars");
+                        var node = flowchartOperation("Remove stars");
                         alignedFiles = fileProcessedStatus.processed;
                   } else {
                         let processedFileNames = removeStarsFromLights(fileProcessedStatus.unprocessed);
@@ -10085,7 +10133,7 @@ function copyLinearFitReferenceImage(id)
 function LinearFitLRGBchannels()
 {
       util.addProcessingStepAndStatusInfo("Linear fit LRGB channels");
-      flowchartOperation("LinearFit");
+      var node = flowchartOperation("LinearFit");
       if (global.get_flowchart_data) {
             return;
       }
@@ -10146,6 +10194,7 @@ function LinearFitLRGBchannels()
       } else {
             util.addProcessingStep("No linear fit");
       }
+      engine_end_process(node);
 }
 
 /* Combine R, G and B images into one RGB image.
@@ -10171,7 +10220,7 @@ function CombineRGBimageEx(target_name, images)
       /* ChannelCombination
        */
       util.addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
-      flowchartOperation("ChannelCombination");
+      var node = flowchartOperation("ChannelCombination");
 
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.prototype.RGB;
@@ -10209,7 +10258,7 @@ function CombineRGBimageEx(target_name, images)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       guiUpdatePreviewWin(win);
 
@@ -10246,7 +10295,9 @@ function extractRGBchannel(RGB_id, channel, from_lights)
 {
       util.addProcessingStepAndStatusInfo("Extract " + channel + " from " + RGB_id);
       if (!from_lights) {
-            flowchartOperation("ChannelExtraction " + channel);
+            var node = flowchartOperation("ChannelExtraction " + channel);
+      } else {
+            var node = null;
       }
 
       var sourceWindow = util.findWindow(RGB_id);
@@ -10282,7 +10333,7 @@ function extractRGBchannel(RGB_id, channel, from_lights)
       var targetWindow = ImageWindow.activeWindow;
       sourceWindow.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       return targetWindow.mainView.id;
 }
@@ -10343,8 +10394,9 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
             NB_id = runGradientCorrection(util.findWindow(NB_id), true);
       }
       if (par.RGBNB_linear_fit.val) {
-            flowchartOperation("LinearFit");
+            var node = flowchartOperation("LinearFit");
             runLinearFit(channelId, NB_id);
+            engine_end_process(node);
       }
       if (par.use_starxterminator.val || par.use_starnet2.val) {
             // removeStars(util.findWindow(NB_id), true, false, null, null, false);
@@ -10384,8 +10436,9 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       util.findWindow(mappedChannelId2).show();
       
       if (par.RGBNB_linear_fit.val) {
-            flowchartOperation("LinearFit");
+            var node = flowchartOperation("LinearFit");
             runLinearFit(mappedChannelId2, mappedChannelId);
+            engine_end_process(node);
       }
 
       console.writeln("RGBNB_Channel_Mapping, runPixelMathSingleMapping " + mappedChannelId2);
@@ -10674,7 +10727,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
             RGBHa_H_enhanced_info.starless = true;
       }
 
-      flowchartOperation("Pixelmath:RGBHa, HRR continuum subtract");
+      var node = flowchartOperation("Pixelmath:RGBHa, HRR continuum subtract");
 
       console.writeln("RGBHa_ContinuumSubtract, PixelMath");
 
@@ -10754,7 +10807,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
 
       if (nb_channel_id != null) {
             util.addProcessingStep("Using user processed Ha image " + nb_channel_id);
-            flowchartOperation(nb_channel_id);
+            var node = flowchartOperation(nb_channel_id);
       } else {
             flowchartParentBegin("RGBHa init");
             flowchartChildBegin("RGBHa prepare H");
@@ -11251,7 +11304,7 @@ function ProcessRGBimage(RGBmapping)
 function invertImage(targetView)
 {
       console.writeln("invertImage");
-      flowchartOperation("Invert");
+      var node = flowchartOperation("Invert");
 
       var P = new Invert;
 
@@ -11259,7 +11312,7 @@ function invertImage(targetView)
       P.executeOn(targetView, true);
       targetView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 // Mask used when fixing star colors in narrowband images.
@@ -11280,7 +11333,7 @@ function createStarFixMask(imgView)
             }
       }
       util.closeOneWindow("AutoStarFixMask");
-      flowchartOperation("StarMask");
+      var node = flowchartOperation("StarMask");
 
       var P = new StarMask;
       P.midtonesBalance = 0.80000;        // default: 0.50000
@@ -11291,7 +11344,7 @@ function createStarFixMask(imgView)
       P.executeOn(imgView, false);
       imgView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       star_fix_mask_win = ImageWindow.activeWindow;
 
@@ -11424,7 +11477,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
 function extraDarkerBackground(imgWin, maskWin)
 {
       addExtraProcessingStep("Darker background");
-      flowchartOperation("CurvesTransformation");
+      var node = flowchartOperation("CurvesTransformation");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -11445,7 +11498,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
 }
@@ -11453,7 +11506,7 @@ function extraDarkerBackground(imgWin, maskWin)
 function extraDarkerHighlights(imgWin, maskWin)
 {
       addExtraProcessingStep("Darker highlights");
-      flowchartOperation("CurvesTransformation");
+      var node = flowchartOperation("CurvesTransformation");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -11475,7 +11528,7 @@ function extraDarkerHighlights(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
 }
@@ -11488,7 +11541,7 @@ function extraAdjustChannels(imgWin)
       } else {
             addExtraProcessingStep("Adjust channels, R " + par.extra_adjust_R.val + ", G " + par.extra_adjust_G.val + ", B " + par.extra_adjust_B.val);
       }
-      flowchartOperation("PixelMath:adjust channels");
+      var node = flowchartOperation("PixelMath:adjust channels");
 
       var P = new PixelMath;
 
@@ -11510,7 +11563,7 @@ function extraAdjustChannels(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 }
 
 function extraHDRMultiscaleTransform(imgWin, maskWin)
@@ -11521,7 +11574,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
       var hsChannels = null;
       var iChannel = null;
 
-      flowchartOperation("HDRMultiscaleTransform");
+      var node = flowchartOperation("HDRMultiscaleTransform");
 
       try {
             var P = new HDRMultiscaleTransform;
@@ -11559,7 +11612,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
             imgWin.mainView.endProcess();
 
-            checkCancel();
+            engine_end_process(node);
 
             if (par.extra_HDRMLT_color.val == 'Color corrected'
                 && global.pixinsight_version_num < 1080812) 
@@ -11579,7 +11632,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   win.mainView.beginProcess(UndoFlag_NoSwapFile);
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
-                  checkCancel();
+                  engine_end_process(node);
             }
             // guiUpdatePreviewWin(imgWin);
       } catch (err) {
@@ -11601,7 +11654,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 function extraLocalHistogramEqualization(imgWin, maskWin)
 {
       addExtraProcessingStep("LocalHistogramEqualization, radius " + par.extra_LHE_kernelradius.val);
-      flowchartOperation("LocalHistogramEqualization");
+      var node = flowchartOperation("LocalHistogramEqualization");
 
       var P = new LocalHistogramEqualization;
       P.radius = par.extra_LHE_kernelradius.val;
@@ -11646,7 +11699,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
 }
@@ -11654,7 +11707,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 function extraExponentialTransformation(imgWin, maskWin)
 {
       addExtraProcessingStep("ExponentialTransformation, order " + par.extra_ET_order.val);
-      flowchartOperation("ExponentialTransformation");
+      var node = flowchartOperation("ExponentialTransformation");
 
       var P = new ExponentialTransformation;
       P.functionType = ExponentialTransformation.prototype.PIP;
@@ -11701,14 +11754,14 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
 }
 
 function createNewStarMaskWin(imgWin)
 {
-      flowchartOperation("StarMask");
+      var node = flowchartOperation("StarMask");
 
       var P = new StarMask;
       P.midtonesBalance = 0.80000;        // default: 0.50000
@@ -11720,7 +11773,7 @@ function createNewStarMaskWin(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       return ImageWindow.activeWindow;
 }
@@ -11830,7 +11883,7 @@ function extraSmallerStars(imgWin, is_star_image)
       }
 
       addExtraProcessingStep("Smaller stars on stars image using " + par.extra_smaller_stars_iterations.val + " iterations");
-      flowchartOperation("MorphologicalTransformation");
+      var node = flowchartOperation("MorphologicalTransformation");
 
       if (par.extra_smaller_stars_iterations.val == 0) {
             var P = new MorphologicalTransformation;
@@ -11883,7 +11936,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
       targetWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(targetWin);
 }
@@ -11891,7 +11944,7 @@ function extraSmallerStars(imgWin, is_star_image)
 function extraContrast(imgWin)
 {
       console.writeln("Increase contrast");
-      flowchartOperation("CurvesTransformation:contrast");
+      var node = flowchartOperation("CurvesTransformation:contrast");
 
       var P = new CurvesTransformation;
       P.K = [ // x, y
@@ -11907,7 +11960,7 @@ function extraContrast(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
 }
@@ -11987,7 +12040,7 @@ function autoContrast(win, contrast_limit_low, contrast_limit_high)
       console.writeln("autoContrast: image " + win.mainView.id + ", low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
 
       if (global.get_flowchart_data) {
-            flowchartOperation("PixelMath:autocontrast");
+            var node = flowchartOperation("PixelMath:autocontrast");
             return;
       }
 
@@ -12072,7 +12125,7 @@ function extraColorNoise(extraWin)
 function extraUnsharpMask(extraWin, mask_win)
 {
       addExtraProcessingStep("UnsharpMask using StdDev " + par.extra_unsharpmask_stddev.val + ", amount " + par.extra_unsharpmask_amount.val);
-      flowchartOperation("UnsharpMask:sharpen");
+      var node = flowchartOperation("UnsharpMask:sharpen");
 
       var P = new UnsharpMask;
       P.sigma = par.extra_unsharpmask_stddev.val;
@@ -12089,7 +12142,7 @@ function extraUnsharpMask(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       if (mask_win != null) {
             extraWin.removeMask();
@@ -12105,7 +12158,7 @@ function extraClarity(extraWin, mask_win)
       if (!par.extra_clarity_mask.val) {
             mask_win = null;
       }
-      flowchartOperation("UnsharpMask:clarity");
+      var node = flowchartOperation("UnsharpMask:clarity");
 
       var P = new UnsharpMask;
       P.sigma = par.extra_clarity_stddev.val;
@@ -12122,7 +12175,7 @@ function extraClarity(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       if (mask_win != null) {
             extraWin.removeMask();
@@ -12184,7 +12237,7 @@ function extraGradientCorrection(extraWin)
 function extraSHOHueShift(imgWin)
 {
       addExtraProcessingStep("SHO hue shift");
-      flowchartOperation("CurvesTransformation:SHOhueshift");
+      var node = flowchartOperation("CurvesTransformation:SHOhueshift");
 
       // Hue 1
       var P = new CurvesTransformation;
@@ -12199,7 +12252,7 @@ function extraSHOHueShift(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // Hue 2
       var P = new CurvesTransformation;
@@ -12216,7 +12269,7 @@ function extraSHOHueShift(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(node);
 
       // Hue 3
       var P = new CurvesTransformation;
@@ -12232,7 +12285,7 @@ function extraSHOHueShift(imgWin)
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
-      checkCancel();
+      engine_end_process(node);
       // guiUpdatePreviewWin(imgWin);
 }
 
@@ -12243,7 +12296,7 @@ function extraColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, 
       var ch_win = util.findWindow(ch_id); 
       var ch_mask_win = newMaskWindow(ch_win, "auto_tmp_mask_" + channel, true);
 
-      flowchartOperation("ConvertToRGBColor");
+      var node = flowchartOperation("ConvertToRGBColor");
 
       // convert to RGB
       var P = new ConvertToRGBColor;
@@ -12251,9 +12304,11 @@ function extraColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, 
       P.executeOn(ch_win.mainView);
       ch_win.mainView.endProcess();
 
+      engine_end_process(node);
+
       runNoiseReductionEx(ch_win, ch_mask_win, 4, false);
 
-      flowchartOperation("CurvesTransformation");
+      var node = flowchartOperation("CurvesTransformation");
 
       // run curves transformation with a mask
       var P = new CurvesTransformation;
@@ -12279,6 +12334,8 @@ function extraColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, 
 
       ch_win.removeMask();
       ch_win.mainView.endProcess();
+
+      engine_end_process(node);
 
       guiUpdatePreviewWin(ch_win);
 
@@ -12395,7 +12452,7 @@ function getColorizeChannels(imgWin)
 
 function extraColorizeChannelUsingColourise(ch_win, channel)
 {
-      flowchartOperation("Colourise");
+      var node = flowchartOperation("Colourise");
 
       var P = new Colourise;
 
@@ -12456,7 +12513,7 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel)
                   break;
       }
 
-      flowchartOperation("PixelMath:colorize");
+      var node = flowchartOperation("PixelMath:colorize");
 
       var P = new PixelMath;
       P.expression = ch_win.mainView.id + "*" + rgb[0];
@@ -12473,6 +12530,8 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel)
       console.writeln("extraColorizeChannelUsingPixelMath: mean before " + ch_win.mainView.image.mean());
 
       P.executeOn(ch_win.mainView);
+
+      engine_end_process(node);
 
       util.forceCloseOneWindow(ch_win);
 
@@ -12518,7 +12577,7 @@ function extraColorizePixelMathChannelsWeightedMapping(channel)
 this.extraColorizedNarrowbandImages = function(imgWin)
 {
       console.writeln("extraColorizedNarrowbandImages " + imgWin.mainView.id + ", mapping " + par.narrowband_colorized_mapping.val + ", combine " + par.narrowband_colorized_combine.val);
-      flowchartOperation("Colorize");
+      let node = flowchartOperation("Colorize");
 
       var weighted_mapping = [];
 
@@ -12622,7 +12681,7 @@ this.extraColorizedNarrowbandImages = function(imgWin)
 
       if (formula != null) {
             console.writeln("extraColorizedNarrowbandImages, PixelMath formula " + formula);
-            flowchartOperation("PixelMath:colorize");
+            let node = flowchartOperation("PixelMath:colorize");
             var P = new PixelMath;
             P.expression = formula;
             P.useSingleExpression = true;
@@ -12633,6 +12692,7 @@ this.extraColorizedNarrowbandImages = function(imgWin)
             P.newImageColorSpace = PixelMath.prototype.RGB;
 
             P.executeOn(imgWin.mainView);
+            engine_end_process(node);
       }
 
       var need_rescale = false;
@@ -12653,6 +12713,7 @@ this.extraColorizedNarrowbandImages = function(imgWin)
             P.mode = Rescale.prototype.RGBK;
             P.executeOn(imgWin.mainView);
       }
+      engine_end_process(node);
 
       return channel_wins;
 }
@@ -12743,7 +12804,7 @@ function narrowbandRedToOrangeHueShift(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 }
 
 // increase saturation on yellow/orange and blue
@@ -12767,7 +12828,7 @@ function narrowbandOrangeBlueSaturation(imgWin)
 
       imgWin.mainView.endProcess();
 
-      checkCancel();
+      engine_end_process(null);
 }
 
 function extraOrangeBlueColors(imgWin)
@@ -14037,7 +14098,7 @@ function CropImageIf(id)
             console.writeln("Image ", window.mainView.id, " already cropped, skipping crop");
             return true;
       }
-      flowchartOperation("Crop");
+      var node = flowchartOperation("Crop");
       if (global.get_flowchart_data) {
             util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
             return true;
@@ -14056,7 +14117,7 @@ function CropImageIf(id)
       // Add keyword to indicate that the image has been cropped
       util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
 
-      checkCancel();
+      engine_end_process(node);
 
       if (par.save_cropped_images.val) {
             var win_id = window.mainView.id;

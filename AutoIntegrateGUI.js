@@ -417,6 +417,15 @@ var flowchart_is_background_image = false;
 // level: level in the graph
 // boxwidth: width of the box, this is max box width in the level
 
+function node_get_txt(node)
+{
+      if (par.flowchart_time.val) {
+            return node.txt + util.get_node_execute_time_str(node);
+      } else {
+            return node.txt;
+      }
+}
+
 // Iterate size of the flowchart childs graph
 function flowchartGraphIterateChilds(parent, font, level)
 {
@@ -429,9 +438,9 @@ function flowchartGraphIterateChilds(parent, font, level)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (global.flowchart_debug) {
-                  console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node.txt);
+                  console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node_get_txt(node));
             }
-            node.width = font.width(node.txt) + flowchart_margin;
+            node.width = font.width(node_get_txt(node)) + flowchart_margin;
             node.height = font.height + flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
 
@@ -463,9 +472,9 @@ function flowchartGraphIterate(parent, font, level)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (global.flowchart_debug) {
-                  console.writeln("flowchartGraphIterate: " + node.type + " " + node.txt);
+                  console.writeln("flowchartGraphIterate: " + node.type + " " + node_get_txt(node));
             }
-            node.width = font.width(node.txt) + flowchart_margin;
+            node.width = font.width(node_get_txt(node)) + flowchart_margin;
             node.height = font.height + flowchart_margin;
             node_boxwidth = Math.max(node_boxwidth, node.width);
             if (node.type == "header") {
@@ -520,7 +529,7 @@ function flowchartDrawText(graphics, x, y, node)
       }
 
       if (global.flowchart_debug) {
-            console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " in: " + x + " " + y);
+            console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " in: " + x + " " + y);
       }
 
       var drawbox = (node.type == "process" || node.type == "mask");
@@ -535,7 +544,7 @@ function flowchartDrawText(graphics, x, y, node)
       }
 
       if (global.flowchart_debug) {
-            console.writeln("flowchartDrawText: " + node.type + " " + node.txt + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
+            console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
       if (node.id && drawbox && global.flowchartActiveId > 0) {
@@ -560,7 +569,7 @@ function flowchartDrawText(graphics, x, y, node)
       if (drawbox) {
             graphics.drawRect(x0, y0, x1, y1);
       }
-      graphics.drawTextRect(x0, y0, x1, y1, node.txt, TextAlign_Center | TextAlign_VertCenter);
+      graphics.drawTextRect(x0, y0, x1, y1, node_get_txt(node), TextAlign_Center | TextAlign_VertCenter);
       graphics.pen = new Pen(flowchartLineColor(), 1);
 }
 
@@ -574,7 +583,7 @@ function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (global.flowchart_debug) {
-                  console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node.txt + " " + p.x + " " + p.y);
+                  console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node_get_txt(node) + " " + p.x + " " + p.y);
             }
             graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
             p.x += node.width;
@@ -621,7 +630,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
             if (node.type != "child") {
-                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + node.txt);
+                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + node_get_txt(node));
             }
             if (node.list.length == 0) {
                   continue;
@@ -630,7 +639,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
             if (global.flowchart_debug) {
-                  console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
+                  console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
             }
             flowchartDrawText(graphics, x, y, node);
             flowchartGraphDraw(node, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
@@ -651,14 +660,14 @@ function flowchartGraphDraw(parent, pos, graphics)
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
                         if (global.flowchart_debug) {
-                              console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
+                              console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
                         }
                         flowchartDrawText(graphics, x, y, node);
                         flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
                   if (global.flowchart_debug) {
-                        console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node.txt);
+                        console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node_get_txt(node));
                   }
                   if (node.list.length > 0) {
                         if (node.list.length > 1) {
@@ -677,7 +686,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
                   if (global.flowchart_debug) {
-                        console.writeln("flowchartGraphDraw: " + node.type + " " + node.txt + " " + x + " " + y);
+                        console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
                   }
                   flowchartDrawText(graphics, x, y, node);
             }
@@ -9216,13 +9225,17 @@ function AutoIntegrateDialog()
       this.flowchartBackgroundImageCheckBox = newCheckBox(this, "Flowchart show processed image", par.flowchart_background_image, 
             "<p>If checked then the current processed image is shown in the flowchart background.</p>" +
             skip_reset_tooltip);
-      
+      this.flowchartTimeCheckBox = newCheckBox(this, "Flowchart show processing time", par.flowchart_time, 
+            "<p>If checked then the operation processing time is shown in the flowchart.</p>" +
+            skip_reset_tooltip);
+            
       this.flowchartControl = new Control( this );
       this.flowchartControl.sizer = new VerticalSizer;
       this.flowchartControl.sizer.margin = 6;
       this.flowchartControl.sizer.spacing = 4;
       this.flowchartControl.sizer.add( this.runGetFlowchartDataCheckBox );
       this.flowchartControl.sizer.add( this.flowchartBackgroundImageCheckBox );
+      this.flowchartControl.sizer.add( this.flowchartTimeCheckBox );
       this.flowchartControl.sizer.addStretch();
       this.flowchartControl.visible = false;
 

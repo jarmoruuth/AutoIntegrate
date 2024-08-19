@@ -2035,6 +2035,38 @@ this.adjustDialogToScreen = function(dialog, preview_control, maxsize, preview_w
       return { width: preview_width, height: preview_height, changes: changes };
 }
 
+this.get_execute_time_str = function (start_time, end_time) 
+{
+      var elapsed_time = (end_time - start_time) / 1000;
+      var elapsed_time_str = "";
+      if (elapsed_time >= 3600) {
+            var hours = Math.floor(elapsed_time / 3600);
+            elapsed_time_str = elapsed_time_str + hours + "h";
+            elapsed_time -= hours * 3600;
+      }
+      if (elapsed_time >= 60) {
+            var minutes = Math.floor(elapsed_time / 60);
+            elapsed_time_str = elapsed_time_str + minutes + "m";
+            elapsed_time -= minutes * 60;
+      }
+      if (elapsed_time < 59) {
+            elapsed_time = Math.round(elapsed_time);
+      } else {
+            elapsed_time = Math.floor(elapsed_time);
+      }
+      elapsed_time_str = elapsed_time_str + elapsed_time + "s";
+      return elapsed_time_str;
+}
+
+this.get_node_execute_time_str = function(node)
+{
+      if (node.end_time) {
+            return " (" + util.get_execute_time_str(node.start_time, node.end_time) + ")";
+      } else {
+            return "";
+      }
+}
+
 }  /* AutoIntegrateUtil */
 
 AutoIntegrateUtil.prototype = new Object;
