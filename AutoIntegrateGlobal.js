@@ -42,16 +42,15 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test4";               // Version, also updated into updates.xri
-this.autointegrate_info = "Signature, DeepSNR denoise, Flowchart";      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test4";         // Version, also updated into updates.xri
+this.autointegrate_info = "DeepSNR, Signature, Flowchart";        // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Add signature to the image",
       "- Support for denoise using DeepSNR",
+      "- Option to add signature to the image",
       "- Flowchart with background image enabled by default",
-      "- Flowchart shows processing time",
-      "- Small updates"
+      "- Flowchart shows processing time"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -499,6 +498,7 @@ this.par = {
 
       // Misc settings
       show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },
+      preview_autostf: { val: false, def: false, name : "Preview AutoSTF", type : 'B' },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix

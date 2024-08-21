@@ -7460,6 +7460,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       if (par.shadow_clip.val) {
             clipShadows(GC_win, global.shadow_clip_value);
       }
+      util.setFITSKeyword(GC_win, "AutoIntegrateNonLinear", image_stretching, "");
       engine_end_process(node);
       guiUpdatePreviewWin(GC_win);
       return { win: GC_win, stf: stf };
@@ -11374,7 +11375,7 @@ function extraFixNarrowbandStarColor(targetWin)
 {
       var use_mask;
 
-      if (par.skip_star_fix_mask.val) {
+      if (par.skip_star_fix_mask.val || global.get_flowchart_data) {
             use_mask = false;
       } else if (!par.run_narrowband_SCNR.val || par.leave_some_green.val) {
             // If we do not remove all green we use mask protect
@@ -11878,12 +11879,19 @@ function extraSmallerStars(imgWin, is_star_image)
       var use_mask = true;
       var targetWin = imgWin;
 
+      if (global.get_flowchart_data) {
+            use_mask = false;
+      }
       if (use_mask) {
             createStarMaskIf(imgWin);
       }
 
       addExtraProcessingStep("Smaller stars on stars image using " + par.extra_smaller_stars_iterations.val + " iterations");
       var node = flowchartOperation("MorphologicalTransformation");
+
+      if (global.get_flowchart_data) {
+            return;
+      }
 
       if (par.extra_smaller_stars_iterations.val == 0) {
             var P = new MorphologicalTransformation;

@@ -270,6 +270,7 @@ var preview_size_changed = false;
 var preview_keep_zoom = false;
 
 var preview_image = null;
+var preview_image_txt = null;
 
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
@@ -738,9 +739,11 @@ function flowchartGraph(rootnode)
       if (preview_image != null && par.flowchart_background_image.val) {
             var bitmap = createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
             flowchart_is_background_image = true;
+            var txt = preview_image_txt;
       } else {
             var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
             flowchart_is_background_image = false;
+            var txt = null;
       }
 
       var graphics = new Graphics(bitmap);
@@ -778,8 +781,8 @@ function flowchartGraph(rootnode)
             var flowchartImage = util.createImageFromBitmap(bitmap);
       }
 
-      tabPreviewControl.SetImage(flowchartImage);
-      sidePreviewControl.SetImage(flowchartImage);
+      tabPreviewControl.SetImage(flowchartImage, txt);
+      sidePreviewControl.SetImage(flowchartImage, txt);
 
       if (global.flowchart_debug) {
             console.writeln("flowchartGraph:end");
@@ -3553,7 +3556,18 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   current_histogramInfo = histogramInfo;
             }
+            if (par.preview_autostf.val && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) {
+                  // Image is linear, run AutoSTF
+                  util.closeOneWindow("AutoIntegrate_preview_tmp");
+                  var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
+                  engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false, null);
+                  imgWin = copy_win;
+                  txt = txt + " (AutoSTF)";
+            } else {
+                  var copy_win = null;
+            }
             preview_image = new Image( imgWin.mainView.image );
+            preview_image_txt = txt;
             flowchartUpdated();
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
@@ -3561,6 +3575,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   } else {
                         updatePreviewImage(tabPreviewControl, imgWin, txt, tabHistogramControl, histogramInfo);
                   }
+            }
+            if (copy_win != null) {
+                  util.forceCloseOneWindow(copy_win);
             }
             updatePreviewTxt(txt);
             console.noteln("Preview updated");
@@ -8856,8 +8873,8 @@ function AutoIntegrateDialog()
                         }
                   } else {
                         if (preview_image != null) {
-                              tabPreviewControl.SetImage(preview_image);
-                              sidePreviewControl.SetImage(preview_image);
+                              tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                              sidePreviewControl.SetImage(preview_image, preview_image_txt);
                         }
                   }
             });
@@ -8907,7 +8924,13 @@ function AutoIntegrateDialog()
       {
             new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon_Information ).execute();
       }
-      
+
+      this.previewAutoSTFCheckBox = newCheckBoxEx(this, "AutoSTF", par.preview_autostf, 
+            "<p>Show preview image always in a stretched (non-linear) format during processing. " + 
+            "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" + 
+            "<p>When unchecked preview image is shown in original format.</p>" +
+            "<p>Stretched format can be useful for visualizing the current processed image.</p>");
+
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
             this.columnCountControlLabel.text = "Icon Column ";
@@ -9339,6 +9362,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.newFlowchartButton );
       this.buttons_Sizer.add( this.showFlowchartCheckBox );
       this.buttons_Sizer.add( this.showFlowchartHelpTips );
+      this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
