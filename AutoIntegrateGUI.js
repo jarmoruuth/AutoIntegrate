@@ -271,6 +271,7 @@ var preview_keep_zoom = false;
 
 var preview_image = null;
 var preview_image_txt = null;
+var preview_images = [];
 
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
@@ -827,6 +828,7 @@ function generateNewFlowchartData(parent)
 
       var succp = true;
       preview_image = null;
+      preview_images = [];
 
       engine.flowchartReset();
 
@@ -3543,7 +3545,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   preview_size_changed = false;
             }
             if (histogramInfo) {
-                  console.writeln("updatePreviewWinTxt:use exiting histogramInfo");
+                  console.writeln("updatePreviewWinTxt:use existing histogramInfo");
                   current_histogramInfo = histogramInfo;
             } else {
                   if (tabHistogramControl != null && sideHistogramControl != null) {
@@ -3556,6 +3558,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   current_histogramInfo = histogramInfo;
             }
+            preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
             if (par.preview_autostf.val && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) {
                   // Image is linear, run AutoSTF
                   util.closeOneWindow("AutoIntegrate_preview_tmp");
@@ -3563,11 +3566,15 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false, null);
                   imgWin = copy_win;
                   txt = txt + " (AutoSTF)";
+                  preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
+                  preview_image = preview_images[1].image;
+                  preview_image_txt = preview_images[1].txt;
             } else {
+                  preview_images[1] = preview_images[0];
                   var copy_win = null;
+                  preview_image = preview_images[0].image;
+                  preview_image_txt = preview_images[0].txt;
             }
-            preview_image = new Image( imgWin.mainView.image );
-            preview_image_txt = txt;
             flowchartUpdated();
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
@@ -5225,6 +5232,7 @@ function runAction(parent)
             return;
       }
       preview_image = null;
+      preview_images = [];
       updateWindowPrefix();
       getFilesFromTreebox(parent.dialog);
       global.haveIconized = 0;
@@ -5328,6 +5336,7 @@ function newAutoContinueButton(parent, toolbutton)
             // Do not create subdirectory structure with AutoContinue
 
             preview_image = null;
+            preview_images = [];
             util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
             if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
@@ -8926,10 +8935,35 @@ function AutoIntegrateDialog()
       }
 
       this.previewAutoSTFCheckBox = newCheckBoxEx(this, "AutoSTF", par.preview_autostf, 
-            "<p>Show preview image always in a stretched (non-linear) format during processing. " + 
+            "<p>When checked preview image always shown in a stretched (non-linear) format during processing. " + 
             "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" + 
             "<p>When unchecked preview image is shown in original format.</p>" +
-            "<p>Stretched format can be useful for visualizing the current processed image.</p>");
+            "<p>Stretched format can be useful for visualizing the current processed image.</p>",
+            function(checked) { 
+                  par.preview_autostf.val = checked;
+                  if (preview_image != null) {
+                        if (checked) {
+                              preview_image = preview_images[1].image;
+                              preview_image_txt = preview_images[1].txt;
+                        } else {
+                              preview_image = preview_images[0].image;
+                              preview_image_txt = preview_images[0].txt;
+                        }
+                  }
+                  if (par.show_flowchart.val) {
+                        if (global.flowchartData != null) {
+                              flowchartUpdated();
+                        } else {
+                              // console.noteln("No flowchart data available");
+                        }
+                  } else {
+                        if (preview_image != null) {
+                              tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                              sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                        }
+                  }
+            });
+
 
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
