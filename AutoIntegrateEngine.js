@@ -6289,17 +6289,25 @@ function runGraXpertExternal(win, denoise)
       var graxpert_fname = fname.replace(".xisf", "_GraXpert.xisf");
       console.writeln("GraXpert output file " + graxpert_fname);
 
-      var imgWin = util.openImageWindowFromFile(graxpert_fname);
-      imgWin.show();
+      var imgWin = util.openImageWindowFromFile(graxpert_fname, true);
 
-      var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
-      if (processed_image_id != image_id) {
-            util.closeOneWindow(imgWin.mainView.id);
-            console.criticalln("GraXpert did not run, possible reasons could be");
+      if (imgWin != null) {
+            imgWin.show();
+            var processed_image_id = util.getKeywordValue(imgWin, image_id_name);
+      }
+      if (imgWin == null || processed_image_id != image_id) {
+            if (imgWin != null) {
+                  util.closeOneWindow(imgWin.mainView.id);
+            }
+            console.criticalln("GraXpert failed to run, possible reasons could be");
             console.criticalln("- GraXpert path is incorrect.");
             console.criticalln("- GraXpert version is not compatible.");
-            console.criticalln("- GraXpert AI model is not loaded. To load the model, run GraXpert manually once and close it. AutoIntegrate uses the default model.");
-            util.throwFatalError("GraXpert did not run, processed image id mismatch: " + processed_image_id + " != " + image_id);
+            console.criticalln("- GraXpert AI model is not loaded. To load the AI model, run GraXpert manually once and close it. AutoIntegrate uses the default model.");
+            if (imgWin == null) {
+                  util.throwFatalError("GraXpert did not run, failed to open processed image: " + graxpert_fname);
+            } else {
+                  util.throwFatalError("GraXpert did not run, processed image id mismatch: " + processed_image_id + " != " + image_id);
+            }
       }
 
       if (denoise) {
