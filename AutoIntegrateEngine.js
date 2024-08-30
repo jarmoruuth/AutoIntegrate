@@ -6821,6 +6821,7 @@ function runHistogramTransformArcsinhStretch(GC_win)
             GC_win.mainView.endProcess();
 
             engine_end_process(null);
+            util.runGarbageCollection();
 
             var peak_val = findHistogramPeak(GC_win).normalizedPeakCol;
             console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + peak_val);
@@ -6850,14 +6851,16 @@ function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_proc
       for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
             res.iteration_number = i + 1;
             var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, par.Hyperbolic_iterations.val);
-            if (window_updated) {
+            if (window_updated && i > 0 && i % 5 == 0) {
                   guiUpdatePreviewWin(res.win);
             }
             engine_end_process(null);
+            util.runGarbageCollection();
             if (res.completed) {
                   break;
             }
       }
+      guiUpdatePreviewWin(res.win);
       return res.win;
 }
 
@@ -6876,15 +6879,16 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
       for (var i = 0; i < 100; i++) {
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, image_stretching, channel);
-            if (window_updated) {
+            if (window_updated && i > 0 && i % 5 == 0) {
                   guiUpdatePreviewWin(res.win);
             }
-            util.runGarbageCollection();
             engine_end_process(null);
+            util.runGarbageCollection();
             if (res.completed) {
                   break;
             }
       }
+      guiUpdatePreviewWin(res.win);
       return res.win;
 }
 
@@ -6913,6 +6917,7 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
             for (var i = 0; i < 3; i++) {
                   console.writeln("Channel: " + channelText(i));
                   GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, i);
+                  util.runGarbageCollection();
             }
             return GC_win;
       }
@@ -6952,6 +6957,8 @@ function stretchLogarithmicIterations(GC_win, iscolor, image_stretching)
             util.closeOneWindow(R_win.mainView.id);
             util.closeOneWindow(G_win.mainView.id);
             util.closeOneWindow(B_win.mainView.id);
+
+            util.runGarbageCollection();
 
             return GC_win;
       }
@@ -6997,7 +7004,8 @@ function stretchHistogramTransform(res, image_stretching, channel)
       var target_value = res.target_value;
       var use_median = par.histogram_stretch_type.val == 'Median';
 
-      var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
+      // var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
+      var new_win = res.win;  // We now update original window
 
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
@@ -7092,9 +7100,9 @@ function stretchHistogramTransform(res, image_stretching, channel)
             if (res.forward) {
                   var mapping = "ln(1+$T)";
             } else {
-                  var mapping = "exp($T)";
+                  var mapping = "exp($T)-1";
             }
-            runPixelMathSingleMappingEx(new_win.mainView.id, mapping, "logarithmic stretch", false, null, true, true);
+            runPixelMathSingleMappingEx(new_win.mainView.id, "logarithmic stretch", mapping, false, null, true, true);
 
       } else {
             util.throwFatalError("Unknown image stretching method: " + image_stretching);
@@ -7171,7 +7179,8 @@ function stretchHistogramTransform(res, image_stretching, channel)
       if (res.forward && current_value > target_value + 0.1 * target_value) {
             // We are above the target value, ignore this iteration
             res.skipped++;
-            util.forceCloseOneWindow(new_win);
+            res.forward = false;
+            // util.forceCloseOneWindow(new_win);
             if (res.skipped > 3) {
                   console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
                   res.completed = true;
@@ -7179,11 +7188,12 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   console.writeln("*** Skip, we are past the target, skip this iteration, skipped + " + res.skipped + ", current value " + current_value + ", target value " + target_value);
             }
       } else if (!res.forward && current_value < target_value + 0.1 * target_value) {
-                  // We are below the target value, ignore this iteration
-                  res.skipped++;
-                  util.forceCloseOneWindow(new_win);
-                  console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
-                  res.completed = true;
+            // We are below the target value, ignore this iteration
+            res.skipped++;
+            res.forward = true;
+            // util.forceCloseOneWindow(new_win);
+            console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+            res.completed = true;
       } else {
             window_updated = true;
             if (current_value < target_value - 0.1 * target_value) {
@@ -7194,14 +7204,17 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   res.completed = true;
                   printImageStatistics(new_win, channel);
             }
-            // find new window and copy keywords
-            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
-            // close old image
-            var image_id = res.win.mainView.id;
-            util.forceCloseOneWindow(res.win);
-            // rename new as old
-            util.windowRename(new_win.mainView.id, image_id);
-            res.win = new_win;
+            if (0) {
+                  // We now update directly to the original window
+                  // find new window and copy keywords
+                  setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
+                  // close old image
+                  var image_id = res.win.mainView.id;
+                  util.forceCloseOneWindow(res.win);
+                  // rename new as old
+                  util.windowRename(new_win.mainView.id, image_id);
+                  res.win = new_win;
+            }
             if (clip) {
                   res.clipCount += clip.clipCount;
             }
@@ -7267,7 +7280,8 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
       if (use_GHS_process) {
 
             try {
-                  var new_win = util.copyWindow(res.win, res.win.mainView.id + "_GHStmp");
+                  // var new_win = util.copyWindow(res.win, res.win.mainView.id + "_GHStmp");
+                  var new_win = res.win;  // We now update original window
 
                   var P = new GeneralizedHyperbolicStretch;
                   P.stretchType = GeneralizedHyperbolicStretch.prototype.ST_GeneralisedHyperbolic;
@@ -7294,11 +7308,13 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
                   console.criticalln("GeneralizedHyperbolicStretch failed");
                   console.criticalln(err);
                   util.addProcessingStep("Maybe GeneralizedHyperbolicStretch is not installed");
-                  util.closeOneWindow(new_win.mainView.id);
+                  // util.closeOneWindow(new_win.mainView.id);
                   util.throwFatalError("GeneralizedHyperbolicStretch failed to run");
             }
       
       } else {
+            util.throwFatalError("Only GHS process is supported");      
+
             var P = new PixelMath;
 
             var expression = 
@@ -7374,16 +7390,16 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
       } else if (median >= 0.5 && max_iterations) {
             // We are past the median limit value, ignore this iteration and keep old image
             console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
-            util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
             // We are past the target value, ignore this iteration and keep old image
             console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val < res.peak_val) {
             console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
-            util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindow(new_win.mainView.id);
             res.skipped++;
       } else {
             // we are close enough, we are done
@@ -7393,12 +7409,15 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
       if (keep_image) {
             res.completed = true;
             window_updated = true;
-            // find new window and copy keywords
-            setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
-            // close old image
-            util.closeOneWindow(image_id);
-            // rename new as old
-            util.windowRename(new_win.mainView.id, image_id);
+            if (0) {
+                  // we now update directly to the original window
+                  // find new window and copy keywords
+                  setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
+                  // close old image
+                  util.closeOneWindow(image_id);
+                  // rename new as old
+                  util.windowRename(new_win.mainView.id, image_id);
+            }
             res.win = new_win;
             res.peak_val = peak_val;
       }
@@ -7424,7 +7443,11 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
                   return { win: GC_win, stf: null };
             }
       }
-      console.writeln("runHistogramTransform using " + image_stretching);
+      if (type == 'mask') {
+            console.writeln("runHistogramTransform for a mask using " + image_stretching);
+      } else {
+            console.writeln("runHistogramTransform using " + image_stretching);
+      }
       var node = flowchartOperation(image_stretching + (type == 'mask' ? ':mask' : ''));
       if (global.get_flowchart_data) {
             return { win: GC_win, stf: null };
@@ -7432,6 +7455,18 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
 
       var stf = null;
       var targetBackground; // to be compatible with 'use strict';
+      if (type == 'mask') {
+            switch (image_stretching) {
+                  case 'Masked+Histogram Stretch':
+                  case 'Histogram stretch':
+                  case 'Logarithmic stretch':
+                        // Iterative stretch for a mask is very slow, just use Auto STF
+                        image_stretching = 'Auto STF';
+                        break;
+                  default:
+                        break;
+            }
+      }
       //if (image_stretching == 'Auto STF' || type == 'mask') {
       if (image_stretching == 'Auto STF') {
             if (type == 'mask') {

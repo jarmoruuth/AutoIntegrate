@@ -3559,11 +3559,14 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   current_histogramInfo = histogramInfo;
             }
             preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
-            if (par.preview_autostf.val && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) {
+            if (global.is_processing == global.processing_state.processing
+                && par.preview_autostf.val 
+                && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) 
+            {
                   // Image is linear, run AutoSTF
                   util.closeOneWindow("AutoIntegrate_preview_tmp");
                   var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
-                  engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false, null);
+                  engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
                   imgWin = copy_win;
                   txt = txt + " (AutoSTF)";
                   preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
@@ -8782,6 +8785,8 @@ function AutoIntegrateDialog()
                         ppar.prefixArray[index] = [ 0, '-', 0 ];
                         fix_win_prefix_array();
                   }
+                  ppar.win_prefix = "";
+
                   savePersistentSettings(false);
                   //this.columnCountControlComboBox.currentItem = global.columnCount + 1;
             }
@@ -8935,7 +8940,7 @@ function AutoIntegrateDialog()
       }
 
       this.previewAutoSTFCheckBox = newCheckBoxEx(this, "AutoSTF", par.preview_autostf, 
-            "<p>When checked preview image always shown in a stretched (non-linear) format during processing. " + 
+            "<p>When checked preview image during processing always shown in a stretched (non-linear) format. " + 
             "Image name on top of the preview window has text AutoSTF when image is stretched for preview.</p>" + 
             "<p>When unchecked preview image is shown in original format.</p>" +
             "<p>Stretched format can be useful for visualizing the current processed image.</p>",

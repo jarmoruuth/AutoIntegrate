@@ -51,7 +51,8 @@ this.init_pixinsight_version = function()
 
 this.runGarbageCollection = function()
 {
-      gc(false);        // run soft gc
+      // gc(false);        // run soft gc
+      gc();             // run default gc
 }
 
 this.checkEvents = function()
