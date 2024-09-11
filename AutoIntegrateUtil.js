@@ -264,6 +264,26 @@ this.findWindow = function(id)
       return null;
 }
 
+this.findWindowStartsWith = function(id)
+{
+      if (id == null || id == undefined) {
+            return null;
+      }
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return null;
+      }
+      for (var i in images) {
+            if (images[i].mainView != null
+                && images[i].mainView != undefined
+                && images[i].mainView.id.startsWith(id))
+            {
+               return images[i];
+            }
+      }
+      return null;
+}
+
 this.findWindowRe = function(re)
 {
       if (re == null || re == undefined) {

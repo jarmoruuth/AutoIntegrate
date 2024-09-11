@@ -5850,6 +5850,15 @@ function runFastIntegration(integration_images, name, refImage)
       P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.outputPostfix = "_r";
       P.overwriteExistingFiles = true;
+      // Defaults from FBPP
+      P.preciseAlignmentEnabled = false;
+      P.useROI = false;
+
+      // Configuration settings
+      P.rejectionFluxRatio = par.fastintegrate_max_flux.val;
+      P.maxStarSearchIterations = par.fastintegrate_iterations.val;
+      P.medianErrorTolerance = par.fastintegrate_errortolerance.val;;
+
       /*
        * Read-only properties
        *
@@ -5857,11 +5866,28 @@ function runFastIntegration(integration_images, name, refImage)
        ];
        */
 
-      P.executeGlobal();
+      var succ = P.executeGlobal();
+
+      console.writeln("P.outputData = [ // registeredImage, outputDrizzleFile, fastAlignment, totalPairMatches, medianError, peakError, H11, H12, H13, H21, H22, H23, H31, H32, H33, referenceStarX, referenceStarY, targetStarX, targetStarY, targetStarFlux ]");
+      console.writeln("P.outputData = " + JSON.stringify(P.outputData));
 
       engine_end_process(node);
 
-      var new_name = util.windowRename("FastIntegrationMaster", ppar.win_prefix + "Integration_" + name);
+      if (!succ) {
+            util.throwFatalError("FastIntegration failed at executeGlobal");
+      }
+      if (P.outputData[0][3] == 0 && P.outputData[0][4] == 0 && P.outputData[0][5] == 0) {
+            util.throwFatalError("FastIntegration failed, empty output data");
+      }
+
+      var w = util.findWindowStartsWith("FastIntegrationMaster");
+      if (w != null) {
+            var master_name = w.mainView.id;
+      } else {
+            util.throwFatalError("FastIntegration failed, no output window found");
+      }
+
+      var new_name = util.windowRename(master_name, ppar.win_prefix + "Integration_" + name);
 
       util.addProcessingStep("runFastIntegration, " + targets.length + " files");
       console.writeln("output " + new_name);
@@ -9535,7 +9561,11 @@ function CreateChannelImages(parent, auto_continue)
                   }
             }
 
-            // Run image calibration if we have calibration frames
+            /********************************************************************
+             * Calibrate
+             *
+             * Run image calibration if we have calibration frames.
+             *********************************************************************/
             var calibrateInfo = calibrateEngine(filtered_lights);
             global.lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
@@ -9569,6 +9599,12 @@ function CreateChannelImages(parent, auto_continue)
                   var skip_early_steps = false;
             }
 
+            /********************************************************************
+             * Binning
+             * 
+             * Run binning for each file.
+             * Output is *_b<n>.xisf files.
+             ********************************************************************/
             if (par.binning.val > 0 && !skip_early_steps) {
                   if (is_color_files) {
                         util.addProcessingStep("No binning for color files");
@@ -9592,6 +9628,13 @@ function CreateChannelImages(parent, auto_continue)
                   console.writeln("Binning only, stop");
                   return retval.INCOMPLETE;
             }
+
+            /********************************************************************
+             * CosmeticCorrection
+             * 
+             * Run CosmeticCorrection for each file.
+             * Output is *_cc.xisf files.
+             ********************************************************************/
             if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
@@ -9628,6 +9671,12 @@ function CreateChannelImages(parent, auto_continue)
             }
             util.runGarbageCollection();
 
+            /********************************************************************
+             * Debayer
+             * 
+             * Debayer OSC/RAW images
+             * Output is *_d.xisf files.
+             ********************************************************************/
             if (is_color_files && par.debayer_pattern.val != 'None' && !skip_early_steps) {
                   /* After cosmetic correction we need to debayer
                    * OSC/RAW images
@@ -9645,6 +9694,12 @@ function CreateChannelImages(parent, auto_continue)
             }
             util.runGarbageCollection();
 
+            /********************************************************************
+             * Banding reduction
+             * 
+             * Banding reduction for color/OSC/DSLR files.
+             * Output is *_cb.xisf files.
+             ********************************************************************/
             if (par.banding_reduction.val) {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_cb');
                   if (fileProcessedStatus.unprocessed.length == 0) {
@@ -9663,6 +9718,12 @@ function CreateChannelImages(parent, auto_continue)
                   return retval.INCOMPLETE;
             }
 
+            /********************************************************************
+             * Extract channels
+             * 
+             * Extract channels from color/OSC/DSLR files. As a result
+             * we get a new file list with channel files.
+             ********************************************************************/
             if (par.extract_channel_mapping.val != 'None' && is_color_files && !skip_early_steps) {
                   // Extract channels from color/OSC/DSLR files. As a result
                   // we get a new file list with channel files.
@@ -9680,6 +9741,13 @@ function CreateChannelImages(parent, auto_continue)
             if (par.extract_channels_only.val) {
                   return retval.INCOMPLETE;
             }
+
+            /********************************************************************
+             * GradientCorrection
+             * 
+             * Run GradientCorrection for each file.
+             * Output is *_GC.xisf files.
+             ********************************************************************/
             if (par.GC_on_lights.val && !skip_early_steps) {
                   let postfix = '_GC';
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, postfix);
@@ -9695,6 +9763,12 @@ function CreateChannelImages(parent, auto_continue)
                   guiUpdatePreviewFilename(fileNames[0]);
             }
 
+            /********************************************************************
+             * SubframeSelector
+             * 
+             * Run SubframeSelector that assigns SSWEIGHT for each file.
+             * Output is *_a.xisf files.
+             ********************************************************************/
             if (!par.skip_subframeselector.val 
                 && !par.start_from_imageintegration.val
                 && !par.cropinfo_only.val) 
@@ -9723,10 +9797,11 @@ function CreateChannelImages(parent, auto_continue)
             }
             util.runGarbageCollection();
 
-            /* Find file with best SSWEIGHT to be used
+            /********************************************************************
+             * Find file with best SSWEIGHT to be used
              * as a reference image in StarAlign.
              * Also possible file list filtering is done.
-             */
+             ********************************************************************/
             var retarr = findBestSSWEIGHT(parent, names_and_weights, filename_postfix);
             if (par.use_processed_files.val && global.star_alignment_image != null) {
                   console.writeln("Switching best image to already used star alignment image " + global.star_alignment_image);
@@ -9745,8 +9820,12 @@ function CreateChannelImages(parent, auto_continue)
                   return retval.INCOMPLETE;
             }
 
-            /* StarAlign
-            */
+            /********************************************************************
+             * StarAlignment
+             * 
+             * Run StarAlignment for each file.
+             * Output is *_r.xisf files.
+             ********************************************************************/
             if (!par.start_from_imageintegration.val
                 && !par.cropinfo_only.val
                 && !par.comet_align.val
@@ -9767,6 +9846,12 @@ function CreateChannelImages(parent, auto_continue)
             }
             util.runGarbageCollection();
 
+            /********************************************************************
+             * Remove stars
+             * 
+             * Remove stars from light files.
+             * Output is *_starless.xisf files.
+             ********************************************************************/
             if (par.remove_stars_light.val
                 && !par.start_from_imageintegration.val
                 && !par.cropinfo_only.val)
@@ -9783,8 +9868,12 @@ function CreateChannelImages(parent, auto_continue)
                   guiUpdatePreviewFilename(alignedFiles[0]);
             }
 
-            /* CometAlign
-            */
+            /********************************************************************
+             * CometAlignment
+             * 
+             * Run CometAlignment for each file.
+             * Output is *_ca.xisf files.
+             ********************************************************************/
             if (!par.start_from_imageintegration.val
                 && !par.cropinfo_only.val
                 && par.comet_align.val) 
@@ -9795,8 +9884,9 @@ function CreateChannelImages(parent, auto_continue)
                   util.runGarbageCollection();
             }
 
-            /* Find files for each L, R, G, B, H, O and S channels, or color files.
-             */
+            /********************************************************************
+             *  Find files for each L, R, G, B, H, O and S channels, or color files.
+             ********************************************************************/
             findLRGBchannels(parent, alignedFiles, filename_postfix);
 
             if (par.start_from_imageintegration.val || par.cropinfo_only.val) {
@@ -9815,8 +9905,13 @@ function CreateChannelImages(parent, auto_continue)
             if (par.cropinfo_only.val) {
                   return retval.INCOMPLETE;
             }
-            /* ImageIntegration
-            */
+
+            /********************************************************************
+             * ImageIntegration
+             * 
+             * Run ImageIntegration for each channel.
+             * Output is Integration_*.xisf files.
+             ********************************************************************/
             if (C_images.images.length == 0) {
                   /* We have LRGB files. */
                   if (!par.monochrome_image.val) {
@@ -15417,15 +15512,27 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
       printProcessDefaultValues("new PixelMath", new PixelMath);
       if (par.use_starxterminator.val) {
-            printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+            try {
+                  printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+            } catch (e) {
+                  console.criticalln("StarXTerminator not available");
+            }
       }
       if (par.use_noisexterminator.val) {
             printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
       }
       if (par.use_starnet2.val) {
-            printProcessDefaultValues("new StarNet2", new StarNet2);
+            try {
+                  printProcessDefaultValues("new StarNet2", new StarNet2);
+            } catch (e) {
+                  console.criticalln("StarNet2 not available");
+            }
       }
-      printProcessDefaultValues("new StarNet", new StarNet);
+      try {
+            printProcessDefaultValues("new StarNet", new StarNet);
+      } catch (e) {
+            console.criticalln("StarNet not available");
+      }
       printProcessDefaultValues("new StarAlignment", new StarAlignment);
       printProcessDefaultValues("new LocalNormalization", new LocalNormalization);
       printProcessDefaultValues("new LinearFit", new LinearFit);
@@ -15452,13 +15559,30 @@ this.getProcessDefaultValues = function()
       printProcessDefaultValues("new LocalHistogramEqualization", new LocalHistogramEqualization);
       printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
       printProcessDefaultValues("new ArcsinhStretch", new ArcsinhStretch);
-      printProcessDefaultValues("new GeneralizedHyperbolicStretch", new GeneralizedHyperbolicStretch);
-      printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
-      printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
-      printProcessDefaultValues("new BlurXTerminator", new BlurXTerminator);
+      try {
+            printProcessDefaultValues("new GeneralizedHyperbolicStretch", new GeneralizedHyperbolicStretch);
+      } catch (e) {
+            console.criticalln("GeneralizedHyperbolicStretch not available");
+      }
+      try {
+            printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
+      } catch (e) {
+            console.criticalln("StarXTerminator not available");
+      }
+      try {
+            printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
+      } catch (e) {
+            console.criticalln("NoiseXTerminator not available");
+      }
+      try {
+            printProcessDefaultValues("new BlurXTerminator", new BlurXTerminator);
+      } catch (e) {
+            console.criticalln("BlurXTerminator not available");
+      }
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
       printProcessDefaultValues("new Colourise", new Colourise);
       printProcessDefaultValues("new GradientCorrection", new GradientCorrection);
+      printProcessDefaultValues("new FastIntegration", new FastIntegration);
 
       engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }

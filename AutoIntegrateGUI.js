@@ -3578,7 +3578,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   preview_image = preview_images[0].image;
                   preview_image_txt = preview_images[0].txt;
             }
-            flowchartUpdated();
+            if (global.is_processing != global.processing_state.none) {
+                  flowchartUpdated();
+            }
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
                         updatePreviewImage(sidePreviewControl, imgWin, txt, sideHistogramControl, histogramInfo);
@@ -8135,6 +8137,30 @@ function AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationSubstackSettingsSizer );
       //this.clippingGroupBoxSizer.addStretch();
 
+      this.fastIntegrationIterationsLabel = newLabel(this, 'Iterations', 
+                  "<p>Increase the value if you have a lot of drift between images.</p>");
+      this.fastIntegrationIterationsSpinbox = newSpinBox(this, par.fastintegrate_iterations, 1, 6, this.fastIntegrationIterationsLabel.toolTip);
+      this.fastIntegrationFlux = newNumericEdit(this, 'Max relative flux', par.fastintegrate_max_flux, 0, 0.5, 
+                  "<p>Increase the value if you have a dense starfield. Smaller values can be used for sparse starfields.</p>");
+      this.fastIntegrationErrorTolerance = newNumericEdit(this, 'Error tolerance', par.fastintegrate_errortolerance, 0, 4, 
+                  "<p>Alignment error tolerance. You can try increasing the value if alignment fails.</p>");
+            
+      this.fastIntegrationSettingsSizer1 = new HorizontalSizer;
+      this.fastIntegrationSettingsSizer1.spacing = 4;
+      this.fastIntegrationSettingsSizer1.toolTip = "Settings for FastIntegration.";
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationIterationsLabel );
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationIterationsSpinbox );
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationFlux );
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationErrorTolerance );
+      this.fastIntegrationSettingsSizer1.addStretch();
+
+      this.fastIntegrationGroupBoxLabel = newSectionLabel(this, 'FastIntegration settings');
+      this.fastIntegrationGroupBoxSizer = new VerticalSizer;
+      this.fastIntegrationGroupBoxSizer.margin = 6;
+      this.fastIntegrationGroupBoxSizer.spacing = 4;
+      this.fastIntegrationGroupBoxSizer.toolTip = "Settings for FastIntegration.";
+      this.fastIntegrationGroupBoxSizer.add( this.fastIntegrationSettingsSizer1 );
+
       this.localNormalizationMultiscaleCheckBox = newCheckBox(this, "Use multiscale analysis", par.use_localnormalization_multiscale, 
             "<p>During local normalization use multiscale analysis instead of PSF flux evaluation.</p>" +
             "<p>Using multiscale analysis may help if you get errors like <i>PSFScaleEstimator::EstimateScale(): Internal error: No reference image has been defined</i>.</p>" );
@@ -9457,6 +9483,8 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and local normalization settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer,
+              this.fastIntegrationGroupBoxLabel,
+              this.fastIntegrationGroupBoxSizer,
               this.localNormalizationGroupBoxLabel,
               this.localNormalizationGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",

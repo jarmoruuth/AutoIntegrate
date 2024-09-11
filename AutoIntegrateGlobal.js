@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test5";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test6";         // Version, also updated into updates.xri
 this.autointegrate_info = "DeepSNR, Signature, Flowchart";        // For updates.xri
 
 this.autointegrate_version_info = [
@@ -307,6 +307,9 @@ this.par = {
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
       use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Multiscale", type : 'B' },
+      fastintegrate_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
+      fastintegrate_max_flux: { val: 0.35, def: 0.35, name : "FastIntegration max flux", type : 'R' },
+      fastintegrate_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
@@ -314,7 +317,7 @@ this.par = {
       MaskedStretch_targetBackground: { val: 0.125, def: 0.125, name : "Masked Stretch targetBackground", type : 'R' },    
       MaskedStretch_prestretch_target: { val: 0.1, def: 0.1, name : "Masked Stretch prestretch target", type : 'R' },    
       Arcsinh_stretch_factor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
-      Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'I' }, 
+      Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'R' }, 
       Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
