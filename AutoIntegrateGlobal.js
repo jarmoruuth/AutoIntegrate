@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test6";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test7";         // Version, also updated into updates.xri
 this.autointegrate_info = "DeepSNR, Signature, Flowchart";        // For updates.xri
 
 this.autointegrate_version_info = [
@@ -50,7 +50,8 @@ this.autointegrate_version_info = [
       "- Support for denoise using DeepSNR",
       "- Option to add signature to the image",
       "- Flowchart with background image enabled by default",
-      "- Flowchart shows processing time"
+      "- Flowchart shows processing time",
+      "- FastIntegration changes"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -117,7 +118,7 @@ this.par = {
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
       solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
-      fast_integration: { val: false, def: false, name : "Use FastIntegration", type : 'B' },
+      use_fastintegration: { val: false, def: false, name : "Use FastIntegration", type : 'B' },
       use_imageintegration_ssweight: { val: false, def: false, name : "ImageIntegration use SSWEIGHT", type : 'B' },
       skip_noise_reduction: { val: false, def: false, name : "No noise reduction", type : 'B' },
       skip_star_noise_reduction: { val: false, def: false, name : "No star noise reduction", type : 'B' },
@@ -154,7 +155,10 @@ this.par = {
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       reset_on_setup_load: { val: false, def: false, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
+      keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
       debug: { val: false, def: false, name : "Debug", type : 'B' },
+      flowchart_debug: { val: false, def: false, name : "Flowchart debug", type : 'B' },
+      print_process_values: { val: false, def: false, name : "Print process values", type : 'B' },
       monochrome_image: { val: false, def: false, name : "Monochrome", type : 'B' },
       skip_imageintegration_clipping: { val: false, def: false, name : "No ImageIntegration clipping", type : 'B' },
       synthetic_l_image: { val: false, def: false, name : "Synthetic L", type : 'B' },
@@ -307,9 +311,11 @@ this.par = {
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
       use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Multiscale", type : 'B' },
-      fastintegrate_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
-      fastintegrate_max_flux: { val: 0.35, def: 0.35, name : "FastIntegration max flux", type : 'R' },
-      fastintegrate_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
+      fastintegration_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
+      fastintegration_max_flux: { val: 0.35, def: 0.35, name : "FastIntegration max flux", type : 'R' },
+      fastintegration_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
+      fastintegration_fast_subframeselector: { val: true, def: true, name : "FastIntegration fast SubframeSelector", type : 'B' },
+      fastintegration_skip_cosmeticcorrection: { val: true, def: true, name : "FastIntegration skip CosmeticCorrection", type : 'B' },
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },
@@ -565,7 +571,6 @@ this.flowchartWindows = [];   // array of flowchart window ids
 this.flowchartData = null;    // flowchart data
 this.flowchartActiveId = 0;   // active flowchart id
 this.flowchartOperationList = []; // array of flowchart operations
-this.flowchart_debug = false; // true if we are debugging flowchart
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false

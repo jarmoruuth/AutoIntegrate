@@ -439,7 +439,7 @@ function flowchartGraphIterateChilds(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (global.flowchart_debug) {
+            if (par.flowchart_debug.val) {
                   console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node_get_txt(node));
             }
             node.width = font.width(node_get_txt(node)) + flowchart_margin;
@@ -473,7 +473,7 @@ function flowchartGraphIterate(parent, font, level)
       // iterate childs to get size
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (global.flowchart_debug) {
+            if (par.flowchart_debug.val) {
                   console.writeln("flowchartGraphIterate: " + node.type + " " + node_get_txt(node));
             }
             node.width = font.width(node_get_txt(node)) + flowchart_margin;
@@ -530,7 +530,7 @@ function flowchartDrawText(graphics, x, y, node)
             util.throwFatalError("flowchartDrawText: boxwidth == null");
       }
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " in: " + x + " " + y);
       }
 
@@ -545,7 +545,7 @@ function flowchartDrawText(graphics, x, y, node)
             var y1 = y + graphics.font.height + 2 * flowchart_text_margin;
       }
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
       }
 
@@ -555,7 +555,7 @@ function flowchartDrawText(graphics, x, y, node)
             var check_special_color = false;
       }
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartDrawText: node.id " + node.id + ", global.flowchartActiveId " + global.flowchartActiveId);
       }
       if (check_special_color && node.id == global.flowchartActiveId) {
@@ -584,7 +584,7 @@ function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
       var p = pos;
       for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            if (global.flowchart_debug) {
+            if (par.flowchart_debug.val) {
                   console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node_get_txt(node) + " " + p.x + " " + p.y);
             }
             graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
@@ -640,7 +640,7 @@ function flowchartGraphDrawChilds(parent, pos, graphics)
             var middle_x = p.x + node.width / 2;
             var x = middle_x - node.boxwidth / 2;
             var y = p.y;
-            if (global.flowchart_debug) {
+            if (par.flowchart_debug.val) {
                   console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
             }
             flowchartDrawText(graphics, x, y, node);
@@ -661,14 +661,14 @@ function flowchartGraphDraw(parent, pos, graphics)
                   if (node.list.length > 0) {
                         var x = p.x - node.boxwidth / 2;
                         var y = p.y;
-                        if (global.flowchart_debug) {
+                        if (par.flowchart_debug.val) {
                               console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
                         }
                         flowchartDrawText(graphics, x, y, node);
                         flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
                   }
             } else if (node.type == "parent") {
-                  if (global.flowchart_debug) {
+                  if (par.flowchart_debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node_get_txt(node));
                   }
                   if (node.list.length > 0) {
@@ -687,7 +687,7 @@ function flowchartGraphDraw(parent, pos, graphics)
                   // process or mask
                   var x = p.x - node.boxwidth / 2;
                   var y = p.y;
-                  if (global.flowchart_debug) {
+                  if (par.flowchart_debug.val) {
                         console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
                   }
                   flowchartDrawText(graphics, x, y, node);
@@ -699,7 +699,7 @@ function flowchartGraphDraw(parent, pos, graphics)
 // Draw a graphical version of the workflow
 function flowchartGraph(rootnode)
 {
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchart Graph");
       }
 
@@ -733,7 +733,7 @@ function flowchartGraph(rootnode)
             height = Math.max(height, ppar.preview.preview_height);
       }
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartGraph:width " + width + " height " + height);
       }
 
@@ -756,7 +756,7 @@ function flowchartGraph(rootnode)
 
       graphics.end();
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartGraph:show bitmap");
       }
 
@@ -785,7 +785,7 @@ function flowchartGraph(rootnode)
       tabPreviewControl.SetImage(flowchartImage, txt);
       sidePreviewControl.SetImage(flowchartImage, txt);
 
-      if (global.flowchart_debug) {
+      if (par.flowchart_debug.val) {
             console.writeln("flowchartGraph:end");
       }
 }
@@ -6556,12 +6556,14 @@ function AutoIntegrateDialog()
             "<p>Do not run CosmeticCorrection on image files.</p>" +
             "<p>Can be useful when doing Comet align.</p>" );
       this.SubframeSelectorCheckBox = newCheckBox(this, "No SubframeSelector", par.skip_subframeselector, 
-            "<p>Do not run SubframeSelector to get image weights</p>" );
+            "<p>Do not run SubframeSelector to get image weights.</p>" +
+            "<p>When this option is used then the first image in the list is used as a reference image unless reference image is selected manually.</p>");
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
             "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing 2</i> tab.</p>" +
             "<p>For more details see the help icon in <i>CometAlignment settings</i> section.</p>");
-      this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.fast_integration, 
-            "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>");
+      this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.use_fastintegration, 
+            "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
+            "<p>In <i>Processing 2</i> tab there are some settings for FastIntegration.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
@@ -6596,8 +6598,15 @@ function AutoIntegrateDialog()
             "and user saved default parameters are not set.</p>" );
       this.keepTemporaryImagesCheckBox = newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
+      this.keepProcessedImagesCheckBox = newCheckBox(this, "Keep processed images", par.keep_processed_images, 
+            "<p>Keep processed images after every step a PixInsight process is applied to them. They will have process name prefix.</p>" +
+            "<p>Only images after image integration are kept. Images are not saved to disk.</p>" );
       this.debugCheckBox = newCheckBox(this, "Debug", par.debug, 
             "<p>Print some additional debug information to the log output files.</p>" );
+      this.flowchartDebugCheckBox = newCheckBox(this, "Flowchart debug", par.flowchart_debug, 
+            "<p>Print some additional debug information wher generating flowchart.</p>" );
+      this.printProcessValuesCheckBox = newCheckBox(this, "Print process values", par.print_process_values, 
+            "<p>Print PixInsight process values to the console and to the AutoIntegrate log file.</p>" );
       this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
             "<p>Use gradient correction on L, R, G and B images separately before channels are combined.</p>" );
       this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
@@ -6684,7 +6693,7 @@ function AutoIntegrateDialog()
             "<p>Drizzle scale 1 does not change the image size but may help with fine details like stars in the image.</p>" +
             "<p>Drizzle scale 2 doubles the image resolution and may help with small details in the image.</p>" +
             "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" );
-      this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 2, this.use_drizzle_CheckBox.toolTip);
+      this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 10, this.use_drizzle_CheckBox.toolTip);
 
       this.drizzleSizer = new HorizontalSizer;
       this.drizzleSizer.spacing = 2;
@@ -6992,12 +7001,11 @@ function AutoIntegrateDialog()
       this.systemParamsSet1.margin = 6;
       this.systemParamsSet1.spacing = 4;
       this.systemParamsSet1.add( this.keepIntegratedImagesCheckBox );
-      this.systemParamsSet1.add( this.keepTemporaryImagesCheckBox );
-      this.systemParamsSet1.add( this.debugCheckBox );
       this.systemParamsSet1.add( this.save_all_files_CheckBox );
       this.systemParamsSet1.add( this.select_all_files_CheckBox );
       this.systemParamsSet1.add( this.unique_file_names_CheckBox );
       this.systemParamsSet1.add( this.win_prefix_to_log_files_CheckBox );
+      this.systemParamsSet1.add( this.no_subdirs_CheckBox );
 
       this.systemParamsSet2 = new VerticalSizer;
       this.systemParamsSet2.margin = 6;
@@ -7005,7 +7013,6 @@ function AutoIntegrateDialog()
       if (!global.use_preview) {
             this.systemParamsSet2.add( this.blink_checkbox );
       }
-      this.systemParamsSet2.add( this.no_subdirs_CheckBox );
       this.systemParamsSet2.add( this.StartWithEmptyWindowPrefixBox );
       this.systemParamsSet2.add( this.ManualIconColumnBox );
       this.systemParamsSet2.add( this.AutoSaveSetupBox );
@@ -8139,20 +8146,33 @@ function AutoIntegrateDialog()
 
       this.fastIntegrationIterationsLabel = newLabel(this, 'Iterations', 
                   "<p>Increase the value if you have a lot of drift between images.</p>");
-      this.fastIntegrationIterationsSpinbox = newSpinBox(this, par.fastintegrate_iterations, 1, 6, this.fastIntegrationIterationsLabel.toolTip);
-      this.fastIntegrationFlux = newNumericEdit(this, 'Max relative flux', par.fastintegrate_max_flux, 0, 0.5, 
+      this.fastIntegrationIterationsSpinbox = newSpinBox(this, par.fastintegration_iterations, 1, 6, this.fastIntegrationIterationsLabel.toolTip);
+      this.fastIntegrationFlux = newNumericEdit(this, 'Max relative flux', par.fastintegration_max_flux, 0, 0.5, 
                   "<p>Increase the value if you have a dense starfield. Smaller values can be used for sparse starfields.</p>");
-      this.fastIntegrationErrorTolerance = newNumericEdit(this, 'Error tolerance', par.fastintegrate_errortolerance, 0, 4, 
+      this.fastIntegrationErrorTolerance = newNumericEdit(this, 'Error tolerance', par.fastintegration_errortolerance, 0, 4, 
                   "<p>Alignment error tolerance. You can try increasing the value if alignment fails.</p>");
-            
+      this.fastIntegrationSubframeSelectorCheckBox = newCheckBox(this, "Fast SubframeSelector", par.fastintegration_fast_subframeselector, 
+            "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p>" +
+            "<p>When this option is used then the first 10 images in the list are used to find the reference image unless reference image is selected manually.</p>");
+      this.fastIntegrationCosmeticCorrectionCheckBox = newCheckBox(this, "Skip CosmeticCorrection", par.fastintegration_skip_cosmeticcorrection, 
+            "<p>Do not run CosmeticCorrection when using FastIntegration.</p>" +
+            "<p>With a very large number of files it usually should not be necessary.</p>" );
+      
       this.fastIntegrationSettingsSizer1 = new HorizontalSizer;
       this.fastIntegrationSettingsSizer1.spacing = 4;
       this.fastIntegrationSettingsSizer1.toolTip = "Settings for FastIntegration.";
-      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationIterationsLabel );
-      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationIterationsSpinbox );
-      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationFlux );
-      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationErrorTolerance );
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationSubframeSelectorCheckBox );
+      this.fastIntegrationSettingsSizer1.add( this.fastIntegrationCosmeticCorrectionCheckBox );
       this.fastIntegrationSettingsSizer1.addStretch();
+
+      this.fastIntegrationSettingsSizer2 = new HorizontalSizer;
+      this.fastIntegrationSettingsSizer2.spacing = 4;
+      this.fastIntegrationSettingsSizer2.toolTip = "Settings for FastIntegration.";
+      this.fastIntegrationSettingsSizer2.add( this.fastIntegrationIterationsLabel );
+      this.fastIntegrationSettingsSizer2.add( this.fastIntegrationIterationsSpinbox );
+      this.fastIntegrationSettingsSizer2.add( this.fastIntegrationFlux );
+      this.fastIntegrationSettingsSizer2.add( this.fastIntegrationErrorTolerance );
+      this.fastIntegrationSettingsSizer2.addStretch();
 
       this.fastIntegrationGroupBoxLabel = newSectionLabel(this, 'FastIntegration settings');
       this.fastIntegrationGroupBoxSizer = new VerticalSizer;
@@ -8160,6 +8180,7 @@ function AutoIntegrateDialog()
       this.fastIntegrationGroupBoxSizer.spacing = 4;
       this.fastIntegrationGroupBoxSizer.toolTip = "Settings for FastIntegration.";
       this.fastIntegrationGroupBoxSizer.add( this.fastIntegrationSettingsSizer1 );
+      this.fastIntegrationGroupBoxSizer.add( this.fastIntegrationSettingsSizer2 );
 
       this.localNormalizationMultiscaleCheckBox = newCheckBox(this, "Use multiscale analysis", par.use_localnormalization_multiscale, 
             "<p>During local normalization use multiscale analysis instead of PSF flux evaluation.</p>" +
@@ -9322,6 +9343,18 @@ function AutoIntegrateDialog()
       this.flowchartControl.sizer.addStretch();
       this.flowchartControl.visible = false;
 
+      this.debugControl = new Control( this );
+      this.debugControl.sizer = new VerticalSizer;
+      this.debugControl.sizer.margin = 6;
+      this.debugControl.sizer.spacing = 4;
+      this.debugControl.sizer.add( this.printProcessValuesCheckBox );
+      this.debugControl.sizer.add( this.debugCheckBox );
+      this.debugControl.sizer.add( this.flowchartDebugCheckBox );
+      this.debugControl.sizer.add( this.keepProcessedImagesCheckBox );
+      this.debugControl.sizer.add( this.keepTemporaryImagesCheckBox );
+      this.debugControl.sizer.addStretch();
+      this.debugControl.visible = false;
+
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
       this.newInstance_Button.toolTip = "<p>New Instance</p>";
@@ -9542,6 +9575,7 @@ function AutoIntegrateDialog()
       this.interfaceGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
       newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
+      newSectionBarAdd(this, this.interfaceGroupBox, this.debugControl, "Debug settings", "debugsettings");
       this.interfaceGroupBox.sizer.addStretch();
 
       /* ------------------------------- */

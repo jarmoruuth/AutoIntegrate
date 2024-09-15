@@ -131,7 +131,8 @@ var linear_fit_done = false;
 var spcc_color_calibration_done = false;
 var H_in_R_channel = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
-var autocontinue_prefix = "";          // prefix used to find base files for autocontinue
+var autocontinue_prefix = "";       // prefix used to find base files for autocontinue
+var creating_mask = false;          // flag for creating mask
 
 var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
@@ -370,7 +371,7 @@ function flowchartNewImage(imgWin, targetImageName)
 
 function flowchartUpdated()
 {
-      if (global.flowchart_debug) console.writeln("flowchartUpdated");
+      if (par.flowchart_debug.val) console.writeln("flowchartUpdated");
       if (gui) {
             gui.flowchartUpdated();
       }
@@ -390,14 +391,14 @@ function flowchartCheckOperationList(type, txt)
             if (nodepos < global.flowchartOperationList.length
                 && txt == global.flowchartOperationList[nodepos].txt) 
             {
-                  if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:match " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
+                  if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:match " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
                   // Use previously created node
                   node = global.flowchartOperationList[nodepos];
             } else {
-                  if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
+                  if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:mismatch " + txt + ", global.flowchartOperationList[" + global.flowchartActiveId + "] " + global.flowchartOperationList[global.flowchartActiveId]);
             }
       } else {
-            if (global.flowchart_debug) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
+            if (par.flowchart_debug.val) console.writeln("flowchartCheckOperationList:flowchartOperationList is empty, txt " + txt);
       }
       if (node == null) {
             node = flowchartNewNode(type, txt);
@@ -412,7 +413,7 @@ function flowchartOperation(txt)
       if (!flowchart_active) {
             return null;
       }
-      if (global.flowchart_debug) console.writeln("flowchartOperation " + txt);
+      if (par.flowchart_debug.val) console.writeln("flowchartOperation " + txt);
       var node = flowchartCheckOperationList("process", txt);
       flowchartCurrent.list.push( node );
       flowchartUpdated();
@@ -424,11 +425,13 @@ function flowchartOperation(txt)
 // hide suboperations when creating a mask.
 function flowchartMaskBegin(txt)
 {
+      creating_mask = true;
+
       if (!flowchart_active) {
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartMaskBegin " + txt);
+            if (par.flowchart_debug.val) console.writeln("flowchartMaskBegin " + txt);
       }
       var node = flowchartCheckOperationList("mask", txt);
       flowchartStack.push(flowchartCurrent);
@@ -439,11 +442,13 @@ function flowchartMaskBegin(txt)
 
 function flowchartMaskEnd(txt)
 {
+      creating_mask = false;
+
       if (!flowchart_active) {
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartMaskEnd " + (txt != null ? txt : "null"));
+            if (par.flowchart_debug.val) console.writeln("flowchartMaskEnd " + (txt != null ? txt : "null"));
       }
       flowchartCurrent = flowchartStack.pop();
 }
@@ -454,7 +459,7 @@ function flowchartParentBegin(txt)
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartParentBegin " + txt);
+            if (par.flowchart_debug.val) console.writeln("flowchartParentBegin " + txt);
       }
       flowchartStack.push(flowchartCurrent);
       var newFlowchartCurrent = flowchartNewNode("parent", txt);
@@ -468,7 +473,7 @@ function flowchartParentEnd(txt)
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
+            if (par.flowchart_debug.val) console.writeln("flowchartParentEnd " + (txt != null ? txt : "null"));
       }
       if (flowchartCurrent.type != "parent") {
             util.addWarningStatus("flowchartParentEnd, current node type " + flowchartCurrent.type + " is not parent, node txt:" + flowchartCurrent.txt);
@@ -485,7 +490,7 @@ function flowchartChildBegin(txt)
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartChildBegin " + txt);
+            if (par.flowchart_debug.val) console.writeln("flowchartChildBegin " + txt);
       }
       if (flowchartCurrent.type != "parent" && flowchartCurrent.type != "child") {
             util.addWarningStatus("flowchartChildBegin, current node type " + flowchartCurrent.type + " is not parent or child, node txt:" + flowchartCurrent.txt);
@@ -505,7 +510,7 @@ function flowchartChildEnd(txt)
             return;
       }
       if (global.get_flowchart_data) {
-            if (global.flowchart_debug) console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
+            if (par.flowchart_debug.val) console.writeln("flowchartChildEnd " + (txt != null ? txt : "null"));
       }
       if (flowchartCurrent.type != "child") {
             util.addWarningStatus("flowchartChildEnd, current node type " + flowchartCurrent.type + " is not child, node txt:" + flowchartCurrent.txt);
@@ -988,11 +993,22 @@ function checkCancel()
       }
 }
 
-function engine_end_process(node)
+function copy_processed_image(imgWin, process_name)
+{
+      if (par.keep_processed_images.val && imgWin && process_name && !creating_mask) {
+            // Copy window to new window with process name
+            var copy_name = util.ensure_win_prefix(util.mapBadWindowNameChars(process_name) + "_" + imgWin.mainView.id);
+            console.writeln("Copy window " + imgWin.mainView.id + " to " + copy_name);
+            util.copyWindow(imgWin, copy_name);
+      }
+}
+
+function engine_end_process(node, imgWin, process_name)
 {
       if (node && !global.get_flowchart_data) {
             node.end_time = Date.now();
       }
+      copy_processed_image(imgWin, process_name);
       checkCancel();
 }
 
@@ -1209,6 +1225,7 @@ function addMildBlur(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(null);
 }
 
@@ -1340,6 +1357,7 @@ function clipShadows(win, perc)
 
       view.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 }
 
@@ -1883,6 +1901,7 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
+      printProcessValues(P);
       engine_end_process(node);
 
       console.writeln("runImageIntegrationBiasDarks, integrated image " + new_name);
@@ -1912,6 +1931,7 @@ function runSuberBias(biasWin)
 
       util.windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
 
+      printProcessValues(P);
       engine_end_process(node);
       
       return targetWindow.mainView.id
@@ -1997,6 +2017,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2057,6 +2078,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2098,6 +2120,7 @@ function runImageIntegrationFlats(images, name)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
+      printProcessValues(P);
       engine_end_process(node);
 
       console.writeln("runImageIntegrationFlats, integrated image " + new_name);
@@ -2174,6 +2197,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2612,6 +2636,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
             util.throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
       }
       
+      printProcessValues(P);
       engine_end_process(node);
 
       fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
@@ -2769,7 +2794,11 @@ function getScaledValPos(val, min, max)
 function getSubframeSelectorMeasurements(fileNames)
 {
       console.writeln("run SubframeSelector on " + fileNames.length + " files");
-      var node = flowchartOperation("SubframeSelector");
+      if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+            var node = flowchartOperation("Fast SubframeSelector");
+      } else {
+            var node = flowchartOperation("SubframeSelector");
+      }
 
       var P = new SubframeSelector;
       P.nonInteractive = true;
@@ -2796,6 +2825,8 @@ function getSubframeSelectorMeasurements(fileNames)
       P.executeGlobal();
 
       console.writeln("SubframeSelector completed");
+
+      printProcessValues(P);
       engine_end_process(node);
 
       return P.measurements;
@@ -2885,7 +2916,11 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
       var indexStars = 14;
 
       if (global.get_flowchart_data) {
-            var node = flowchartOperation("SubframeSelector");
+            if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+                  var node = flowchartOperation("Fast SubframeSelector");
+            } else {
+                  var node = flowchartOperation("SubframeSelector");
+            }
             var ssFiles = [];
             for (var i = 0; i < fileNames.length; i++) {
                   ssFiles[ssFiles.length] = [ fileNames[i], 1 ];
@@ -3157,10 +3192,21 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
 
 function runSubframeSelector(fileNames)
 {
-      util.addProcessingStepAndStatusInfo("Run SubframeSelector");
+      if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+            util.addProcessingStepAndStatusInfo("Run SubframeSelector on subset of files");
+            var fast_measure = true;
+            // Measure only 10 first images
+            var measured_files = fileNames.slice(0, 10);
+            // save rest of files
+            var rest_files = fileNames.slice(10);
+      } else {
+            util.addProcessingStepAndStatusInfo("Run SubframeSelector");
+            var fast_measure = false;
+            var measured_files = fileNames;
+      }
       console.writeln("input[0] " + fileNames[0]);
-      
-      var ssWeights = engine.subframeSelectorMeasure(fileNames, par.image_weight_testing.val, false);
+
+      var ssWeights = engine.subframeSelectorMeasure(measured_files, par.image_weight_testing.val, false);
       // SubframeSelectorOutput(P.measurements); Does not write weight keyword
 
       if (global.get_flowchart_data) {
@@ -3178,6 +3224,20 @@ function runSubframeSelector(fileNames)
                   if (filePath != null && filePath != "") {
                         newFileNames[newFileNames.length] = filePath;
                   }
+            }
+      } else if (fast_measure) {
+            // Do not generate output files
+            var postfix = "";
+            for (var i = 0; i < ssWeights.length; i++) {
+                  var filePath = ssWeights[i][0];
+                  if (filePath != null && filePath != "") {
+                        newFileNames[newFileNames.length] = filePath;
+                  }
+            }
+            // Add rest of files to newFileNames and add empty weights to ssWeights
+            for (var i = 0; i < rest_files.length; i++) {
+                  newFileNames[newFileNames.length] = rest_files[i];
+                  ssWeights[ssWeights.length] = [ rest_files[i], 0 ];
             }
       } else {
             /* Basically we could skip writing SSWEIGHT to output files as we have that
@@ -3233,6 +3293,12 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       if (names_and_weights.filenames.length < names_and_weights.ssweights.length) {
             // we have inconsistent lengths
             util.throwFatalError("Inconsistent lengths, filenames.length=" + names_and_weights.filenames.length + ", ssweights.length=" + names_and_weights.ssweights.length);
+      }
+
+      if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+            var ssweight_limit = 0;
+      } else {
+            var ssweight_limit = par.ssweight_limit.val;
       }
 
       run_HT = true;
@@ -3321,7 +3387,7 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
               }
               if (ssweight_found) {
                   ssweight_set = true;
-                  if (ssweight >= par.ssweight_limit.val) {
+                  if (ssweight >= ssweight_limit) {
                         if (!first_image && naxis1 > best_ssweight_naxis) {
                               util.addProcessingStep("Files have different resolution, using bigger NAXIS1="+naxis1+" for best SSWEIGHT");
                         }
@@ -4270,6 +4336,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (createNewImage) {
@@ -4323,6 +4390,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (newId != null) {
@@ -4371,6 +4439,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       setTargetFITSKeywordsForPixelmath(util.findWindow(newId), targetFITSKeywords);
@@ -4863,6 +4932,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             var succp = P.executeOn(imgWin.mainView, false);
             
             imgWin.mainView.endProcess();
+            printProcessValues(P);
       } else {
             var succp = true;
       }
@@ -5407,6 +5477,7 @@ function runStarAlignment(imagetable, refImage)
        ];
        */
       P.executeGlobal();
+      printProcessValues(P);
 
       engine_end_process(node);
 
@@ -5561,6 +5632,7 @@ function runCometAlignment(filenames, filename_postfix)
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       var alignedFiles = [];
@@ -5688,6 +5760,7 @@ function runLocalNormalization(imagetable, refImage, filter)
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 }
 
@@ -5712,10 +5785,11 @@ function runLinearFit(refViewId, targetId)
       P.executeOn(targetWin.mainView);
       targetWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(null);
 }
 
-function runDrizzleIntegration(images, name, local_normalization)
+function runDrizzleIntegration(images, name, local_normalization, drizzle_extension)
 {
       util.addProcessingStepAndStatusInfo("Run DrizzleIntegration");
       var node = flowchartOperation("DrizzleIntegration");
@@ -5728,7 +5802,7 @@ function runDrizzleIntegration(images, name, local_normalization)
       for (var i = 0; i < images.length; i++) {
             drizzleImages[i] = [];
             drizzleImages[i][0] = images[i][0];                                 // enabled
-            drizzleImages[i][1] = images[i][1].replace(".xisf", ".xdrz");       // drizzlePath
+            drizzleImages[i][1] = images[i][1].replace(".xisf", drizzle_extension);       // drizzlePath
             if (local_normalization) {
                   drizzleImages[i][2] = images[i][1].replace(".xisf", ".xnml"); // localNormalizationDataPath
             } else {
@@ -5740,9 +5814,16 @@ function runDrizzleIntegration(images, name, local_normalization)
       P.inputData = drizzleImages; // [ enabled, path, localNormalizationDataPath ]
       P.enableLocalNormalization = local_normalization;
       P.scale = par.drizzle_scale.val;
+      if (is_color_files) {
+            P.dropShrink = 1.0;
+      } else {
+            P.dropShrink = 0.9;
+      }
+      // P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
 
       P.executeGlobal();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       util.closeOneWindow(P.weightImageId);
@@ -5842,6 +5923,7 @@ function runFastIntegration(integration_images, name, refImage)
       P.referenceImage = refImage;
       P.targets = targets;
       if (par.use_drizzle.val) {
+            console.writeln("generate drizzle data");
             P.generateDrizzleData = true; /* Generate .xdrz files. */
       } else {
             P.generateDrizzleData = false;
@@ -5854,10 +5936,13 @@ function runFastIntegration(integration_images, name, refImage)
       P.preciseAlignmentEnabled = false;
       P.useROI = false;
 
+      // Other useful settings
+      P.weightingEnabled = true;
+
       // Configuration settings
-      P.rejectionFluxRatio = par.fastintegrate_max_flux.val;
-      P.maxStarSearchIterations = par.fastintegrate_iterations.val;
-      P.medianErrorTolerance = par.fastintegrate_errortolerance.val;;
+      P.rejectionFluxRatio = par.fastintegration_max_flux.val;
+      P.maxStarSearchIterations = par.fastintegration_iterations.val;
+      P.medianErrorTolerance = par.fastintegration_errortolerance.val;;
 
       /*
        * Read-only properties
@@ -5868,9 +5953,12 @@ function runFastIntegration(integration_images, name, refImage)
 
       var succ = P.executeGlobal();
 
-      console.writeln("P.outputData = [ // registeredImage, outputDrizzleFile, fastAlignment, totalPairMatches, medianError, peakError, H11, H12, H13, H21, H22, H23, H31, H32, H33, referenceStarX, referenceStarY, targetStarX, targetStarY, targetStarFlux ]");
-      console.writeln("P.outputData = " + JSON.stringify(P.outputData));
+      if (par.debug.val) {
+            console.writeln("P.outputData = [ // registeredImage, outputDrizzleFile, fastAlignment, totalPairMatches, medianError, peakError, H11, H12, H13, H21, H22, H23, H31, H32, H33, referenceStarX, referenceStarY, targetStarX, targetStarY, targetStarFlux ]");
+            console.writeln("P.outputData = " + JSON.stringify(P.outputData));
+      }
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (!succ) {
@@ -5887,12 +5975,25 @@ function runFastIntegration(integration_images, name, refImage)
             util.throwFatalError("FastIntegration failed, no output window found");
       }
 
+      console.writeln("Rename FastIntegration master " + master_name + " to " + ppar.win_prefix + "Integration_" + name);  
+
       var new_name = util.windowRename(master_name, ppar.win_prefix + "Integration_" + name);
 
       util.addProcessingStep("runFastIntegration, " + targets.length + " files");
       console.writeln("output " + new_name);
 
       return new_name;
+}
+
+function runFastIntegrationEx(integration_images, name, refImage)
+{
+      var id = runFastIntegration(integration_images, name, refImage)
+      if (par.use_drizzle.val && name != 'LDD') {
+            guiUpdatePreviewId(id);
+            util.closeOneWindow(id);
+            id = runDrizzleIntegration(integration_images, name, false, "_r.xdrz");
+      }
+      return id;
 }
 
 function runBasicIntegration(images, name, local_normalization)
@@ -5972,6 +6073,7 @@ function runBasicIntegration(images, name, local_normalization)
       util.closeOneWindow(P.lowRejectionMapImageId);
       util.closeOneWindow(P.slopeMapImageId);
 
+      printProcessValues(P);
       engine_end_process(node);
 
       return P.integrationImageId;
@@ -5984,7 +6086,7 @@ function runImageIntegrationEx(images, name, local_normalization)
       if (par.use_drizzle.val && name != 'LDD') {
             guiUpdatePreviewId(integrationImageId);
             util.closeOneWindow(integrationImageId);
-            return runDrizzleIntegration(images, name, local_normalization);
+            return runDrizzleIntegration(images, name, local_normalization, ".xdrz");
       } else {
             var new_name = util.windowRename(integrationImageId, ppar.win_prefix + "Integration_" + name);
             console.writeln("runImageIntegrationEx completed, new name " + new_name);
@@ -6066,8 +6168,8 @@ function runImageIntegration(channel_images, name, save_to_file, flowchartname)
                   var integration_images = images;
             }
 
-            if (par.fast_integration.val) {
-                  var image_id = runFastIntegration(integration_images, name, global.best_image);
+            if (par.use_fastintegration.val) {
+                  var image_id = runFastIntegrationEx(integration_images, name, global.best_image);
             } else {
                   var image_id = runImageIntegrationEx(integration_images, name, false);
             }
@@ -6271,6 +6373,8 @@ function noGradientCorrectionCopyWin(win)
 // Run GraXpert as an external process
 function runGraXpertExternal(win, denoise)
 {
+      var node = flowchartOperation("GraXpert denoise");
+
       if (par.graxpert_path.val == "") {
             util.throwFatalError("GraXpert path is empty");
       }
@@ -6346,6 +6450,8 @@ function runGraXpertExternal(win, denoise)
             console.writeln("GraXpert output window " + imgWin.mainView.id);
             imgWin.copyAstrometricSolution(win);
       }
+      engine_end_process(node, imgWin, "GraXpert");
+
       return imgWin;
 }
 
@@ -6418,6 +6524,7 @@ function runABEex(win, replaceTarget, postfix)
 
       win.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(null);
 
       util.addScriptWindow(GC_id);
@@ -6478,6 +6585,7 @@ function runGCProcess(win, replaceTarget, postfix)
       P.executeOn(win.mainView, false);
 
       win.mainView.endProcess();
+      printProcessValues(P);
 
       if (par.gc_output_background_model.val) {
             // subtract gradient corrected image from original to get the background model
@@ -6817,6 +6925,7 @@ function runHistogramTransformMaskedStretch(GC_win, histogram_prestretch)
 
       GC_win.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(null);
 
       return GC_win;
@@ -6846,6 +6955,7 @@ function runHistogramTransformArcsinhStretch(GC_win)
 
             GC_win.mainView.endProcess();
 
+            printProcessValues(P);
             engine_end_process(null);
             util.runGarbageCollection();
 
@@ -7532,6 +7642,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       util.setFITSKeyword(GC_win, "AutoIntegrateNonLinear", image_stretching, "");
       engine_end_process(node);
       guiUpdatePreviewWin(GC_win);
+      copy_processed_image(GC_win, image_stretching);
       return { win: GC_win, stf: stf };
 }
 
@@ -7567,7 +7678,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      engine_end_process(node, imgWin, "ACDNR");
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -7709,7 +7820,8 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
             imgWin.removeMask();
       }
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "MultiscaleLinearTransform_noise");
 
       imgWin.mainView.endProcess();
 }
@@ -7774,7 +7886,8 @@ function runBlurXTerminator(imgWin, correct_only)
       
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "BlurXTerminator");
 }
 
 function runNoiseXTerminator(imgWin, strength, linear)
@@ -7836,7 +7949,8 @@ function runNoiseXTerminator(imgWin, strength, linear)
       
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "NoiseXTerminator");
 }
 
 function runDeepSNR(imgWin, strength, linear)
@@ -7893,7 +8007,8 @@ function runDeepSNR(imgWin, strength, linear)
       
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "DeepSNR");
 }
 
 function runNoiseReductionEx(imgWin, maskWin, strength, linear)
@@ -7964,7 +8079,8 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "TGVDenoise");
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8008,7 +8124,8 @@ function starReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "TGVDenoise");
 }
 
 function runBackgroundNeutralization(imgView)
@@ -8028,6 +8145,7 @@ function runBackgroundNeutralization(imgView)
 
       imgView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       guiUpdatePreviewId(imgView.id);
@@ -8326,7 +8444,8 @@ function runColorCalibrationProcess(imgWin)
 
             imgWin.mainView.endProcess();
 
-            engine_end_process(node);
+            printProcessValues(P);
+            engine_end_process(node, imgWin, "ColorCalibration");
 
             guiUpdatePreviewId(imgWin.mainView.id);
 
@@ -8454,6 +8573,7 @@ function runColorCalibration(imgWin, phase)
                         util.throwFatalError("SpectrophotometricColorCalibration failed");
                   }
 
+                  printProcessValues(P);
                   engine_end_process(node);
 
                   guiUpdatePreviewId(imgWin.mainView.id);
@@ -8506,6 +8626,7 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
@@ -8546,7 +8667,8 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "CurvesTransformation:saturation");
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8598,15 +8720,17 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, targetWin, "LRGBCombination");
 
       guiUpdatePreviewId(RGBimgView.id);
 
       return RGBimgView.id;
 }
 
-function runSCNR(RGBimgView, fixing_stars)
+function runSCNR(imgWin, fixing_stars)
 {
+      var RGBimgView = imgWin.mainView
       if (!fixing_stars) {
             util.addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
       }
@@ -8629,7 +8753,8 @@ function runSCNR(RGBimgView, fixing_stars)
 
       RGBimgView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "SCNR");
 
       guiUpdatePreviewId(RGBimgView.id);
 }
@@ -8701,7 +8826,8 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "MultiscaleLinearTransform_sharpen");
 
       guiUpdatePreviewWin(imgWin);
 }
@@ -8960,6 +9086,7 @@ function debayerImages(fileNames)
             util.addCriticalStatus(err.toString());
       }
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (!succ) {
@@ -9635,7 +9762,16 @@ function CreateChannelImages(parent, auto_continue)
              * Run CosmeticCorrection for each file.
              * Output is *_cc.xisf files.
              ********************************************************************/
-            if (!par.skip_cosmeticcorrection.val && !skip_early_steps) {
+            if (par.skip_cosmeticcorrection.val) {
+                  var do_cosmeticcorrection = false;
+            } else if (skip_early_steps) {
+                  var do_cosmeticcorrection = false;
+            } else if (par.use_fastintegration.val && par.fastintegration_skip_cosmeticcorrection.val) {
+                  var do_cosmeticcorrection = false;
+            } else {
+                  var do_cosmeticcorrection = true;
+            }
+            if (do_cosmeticcorrection) {
                   if (par.fix_column_defects.val || par.fix_row_defects.val) {
                         var ccFileNames = [];
                         var ccInfo = runLinearDefectDetection(fileNames);
@@ -9779,15 +9915,17 @@ function CreateChannelImages(parent, auto_continue)
                   if (par.image_weight_testing.val) {
                         var names_and_weights = runSubframeSelector(fileNames);
                   } else {
-                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_a');
+                        if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+                              // Cannot use previously processed files.
+                              var fileProcessedStatus = { processed: [], unprocessed: fileNames };
+                        } else {
+                              var fileProcessedStatus = getFileProcessedStatus(fileNames, '_a');
+                        }
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               var node = flowchartOperation("SubframeSelector");
                               var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '_a' };
                         } else {
                               var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
-                              if (names_and_weights.postfix != '_a') {
-                                    util.throwFatalError("Incorrect postfix " + names_and_weights.postfix + " returned from runSubframeSelector");
-                              }
                               names_and_weights.filenames = names_and_weights.filenames.concat(fileProcessedStatus.processed);
                         }
                   }
@@ -9829,7 +9967,7 @@ function CreateChannelImages(parent, auto_continue)
             if (!par.start_from_imageintegration.val
                 && !par.cropinfo_only.val
                 && !par.comet_align.val
-                && !par.fast_integration.val) 
+                && !par.use_fastintegration.val) 
             {
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, '_r');
                   if (fileProcessedStatus.unprocessed.length == 0) {
@@ -10397,6 +10535,7 @@ function CombineRGBimageEx(target_name, images)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       guiUpdatePreviewWin(win);
@@ -11451,6 +11590,7 @@ function invertImage(targetView)
       P.executeOn(targetView, true);
       targetView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 }
 
@@ -11483,6 +11623,7 @@ function createStarFixMask(imgView)
       P.executeOn(imgView, false);
       imgView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       star_fix_mask_win = ImageWindow.activeWindow;
@@ -11498,7 +11639,7 @@ function extraRemoveMagentaColor(targetWin)
       addExtraProcessingStep("Remove magenta color");
 
       invertImage(targetWin.mainView);
-      runSCNR(targetWin.mainView, true);
+      runSCNR(targetWin, true);
       invertImage(targetWin.mainView);
 
       guiUpdatePreviewWin(targetWin);
@@ -11539,7 +11680,7 @@ function extraFixNarrowbandStarColor(targetWin)
             targetWin.maskInverted = false;
       }      
 
-      runSCNR(targetWin.mainView, true);
+      runSCNR(targetWin, true);
 
       if (use_mask) {
             targetWin.removeMask();
@@ -11637,6 +11778,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -11667,6 +11809,7 @@ function extraDarkerHighlights(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -11702,6 +11845,7 @@ function extraAdjustChannels(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 }
 
@@ -11751,6 +11895,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
             imgWin.mainView.endProcess();
 
+            printProcessValues(P);
             engine_end_process(node);
 
             if (par.extra_HDRMLT_color.val == 'Color corrected'
@@ -11838,6 +11983,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -11893,6 +12039,7 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -11912,6 +12059,7 @@ function createNewStarMaskWin(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       return ImageWindow.activeWindow;
@@ -12082,6 +12230,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
       targetWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(targetWin);
@@ -12106,6 +12255,7 @@ function extraContrast(imgWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -12288,6 +12438,7 @@ function extraUnsharpMask(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (mask_win != null) {
@@ -12321,6 +12472,7 @@ function extraClarity(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
+      printProcessValues(P);
       engine_end_process(node);
 
       if (mask_win != null) {
@@ -13045,7 +13197,7 @@ function extraForaxx(imgWin, source_palette_name)
       runExtraNarrowbandMapping(imgWin, source_palette_name, dynamic_palette);
 
       if (source_palette_name == 'SHO') {
-            runSCNR(imgWin.mainView, false);
+            runSCNR(imgWin, false);
             extraOrangeBlueColors(imgWin);
       }
 }
@@ -13468,12 +13620,12 @@ function extraProcessing(parent, id, apply_directly)
             }
             if (par.leave_some_green.val) {
                   addExtraProcessingStep("Leave some green, amount " + par.leave_some_green_amount.val);
-                  runSCNR(extraWin.mainView, false);
+                  runSCNR(extraWin, false);
                   extraOptionCompleted(par.run_narrowband_SCNR);
                   extraOptionCompleted(par.leave_some_green);
             } else if (par.run_narrowband_SCNR.val) {
                   addExtraProcessingStep("Remove green cast");
-                  runSCNR(extraWin.mainView, false);
+                  runSCNR(extraWin, false);
                   extraOptionCompleted(par.run_narrowband_SCNR);
                   extraOptionCompleted(par.leave_some_green);
             }
@@ -14263,7 +14415,7 @@ function CropImageIf(id)
       // Add keyword to indicate that the image has been cropped
       util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
 
-      engine_end_process(node);
+      engine_end_process(node, window, "Crop");
 
       if (par.save_cropped_images.val) {
             var win_id = window.mainView.id;
@@ -14794,8 +14946,23 @@ function engineInit()
             util.setDefaultDirs();
       }
       initSPCCvalues();
+      creating_mask = false;
 }
- 
+
+// Check possible conflicting options before stating the processing
+function check_engine_processing_options()
+{
+      if (global.extra_target_image != "Auto" && global.extra_target_image != null) {
+            console.criticalln("Extra processing target image can be used only with Apply button!");
+            return false;
+      }
+      if (par.local_normalization.val && par.use_fastintegration.val) {
+            console.criticalln("Local normalization and fast integration cannot be used together.");
+            return false;
+      }
+      return true;
+}
+
 /***************************************************************************
  * 
  *    autointegrateProcessingEngine
@@ -14836,9 +15003,8 @@ function engineInit()
  */
 this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband, txt)
 {
-       if (global.extra_target_image != "Auto" && global.extra_target_image != null) {
-             console.criticalln("Extra processing target image can be used only with Apply button!");
-             return false;
+       if (!check_engine_processing_options()) {
+            return false;
        }
 
        console.beginLog();
@@ -14943,7 +15109,11 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        targetTypeSetup();
        checkOptions();
  
-       /* Create images for each L, R, G and B channels, or Color image. */
+      /********************************************************************
+       * CreateChannelImages
+       * 
+       * Create images for each L, R, G and B channels, or Color image. 
+       ********************************************************************/
        let create_channel_images_ret = CreateChannelImages(parent, auto_continue);
        if (create_channel_images_ret == retval.ERROR) {
              console.criticalln("Failed!");
@@ -14952,6 +15122,12 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              return false;
        }
  
+       /********************************************************************
+        * Crop information
+        * 
+        * Crop all channel support images (the *_map images) to an area
+        * covered by all source images.
+        ********************************************************************/
        if (create_channel_images_ret == retval.SUCCESS || 
            (par.cropinfo_only.val && create_channel_images_ret == retval.INCOMPLETE)) 
        {
@@ -14973,19 +15149,22 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              }
        }
  
-       /* Now we have L (Gray) and R, G and B images, or just RGB image
-        * in case of color files.
-        *
-        * We keep integrated L and RGB images so it is
-        * possible to continue manually if automatic
-        * processing is not good enough.
-        */
+      /********************************************************************
+       * Now we have integrated L (Gray) and R, G and B images, or 
+       * just RGB image in case of color files.
+       *
+       * We keep integrated L and RGB images so it is
+       * possible to continue manually if automatic
+       * processing is not good enough.
+       ********************************************************************/
  
        var do_extra_processing = false;
        if (par.calibrate_only.val) {
              preprocessed_images = global.start_images.CALIBRATE_ONLY;
        } else if (preprocessed_images == global.start_images.FINAL) {
-             // We have a final image, just run run possible extra processing steps
+            /********************************************************************
+             * We have a final image, just run run possible extra processing steps
+             ********************************************************************/
              do_extra_processing = true;
              LRGB_processed_HT_id = final_win.mainView.id;
              guiUpdatePreviewId(LRGB_processed_HT_id);
@@ -14997,6 +15176,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                   && !par.cropinfo_only.val 
                   && preprocessed_images != global.start_images.FINAL) 
        {
+            /********************************************************************
+             * Process RGB image.
+             ********************************************************************/
              do_extra_processing = true;
              /* processRGB flag means we have channel images from LRGBHSO */
              var processRGB = !is_color_files && 
@@ -15049,7 +15231,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
 
              } else {
                   var processed_l_image = false;
-
              }
 
              if (processRGB && !RGBmapping.combined) {
@@ -15126,9 +15307,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    if (!process_narrowband && !par.use_RGBNB_Mapping.val  && !par.skip_SCNR.val && !par.comet_align.val) {
                          /* Remove green cast, run SCNR
                           */
-                         runSCNR(ImageWindow.windowById(LRGB_processed_HT_id).mainView, false);
+                         runSCNR(ImageWindow.windowById(LRGB_processed_HT_id), false);
                          if (stars_id != null) {
-                               runSCNR(ImageWindow.windowById(stars_id).mainView, false);
+                               runSCNR(ImageWindow.windowById(stars_id), false);
                          }
                    }
            
@@ -15489,9 +15670,19 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        return true;
 }
  
+function printProcessValues(obj)
+{
+      if (par.print_process_values.val 
+          && !global.get_flowchart_data
+          && global.is_processing != global.processing_state.none)
+      {
+            console.writeln(obj.toSource());
+      }
+}
+
 function printProcessDefaultValues(name, obj)
 {
-      console.writeln(name);
+      console.writeln("Default values for " + name);
       console.writeln(obj.toSource());
 }
 
