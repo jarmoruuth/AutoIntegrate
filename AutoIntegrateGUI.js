@@ -1800,7 +1800,11 @@ function extraProcessingGUI(parent)
             if (!ofd.execute()) {
                   return;
             }
-            util.copyAstrometricSolutionFromFile(global.extra_target_image, ofd.fileName);
+            if (util.copyAstrometricSolutionFromFile(global.extra_target_image, ofd.fileName)) {
+                  console.noteln("Astrometric solution copied from file: " + ofd.fileName);
+            } else {
+                  console.criticalln("Astrometric solution not copied from file: " + ofd.fileName);
+            }
       };
       
       this.extra_annotate_image_CheckBox = newCheckBox(parent, "Annotate image", par.extra_annotate_image, 

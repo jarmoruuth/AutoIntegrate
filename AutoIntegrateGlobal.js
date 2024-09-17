@@ -42,16 +42,15 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.70 test7";         // Version, also updated into updates.xri
-this.autointegrate_info = "DeepSNR, Signature, Flowchart";        // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.70 test7";                      // Version, also updated into updates.xri
+this.autointegrate_info = "DeepSNR, Signature, FastIntegration, Flowchart";   // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Support for denoise using DeepSNR",
       "- Option to add signature to the image",
-      "- Flowchart with background image enabled by default",
-      "- Flowchart shows processing time",
-      "- FastIntegration changes"
+      "- FastIntegration changes",
+      "- Flowchart changes"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

@@ -1152,14 +1152,24 @@ this.copyAstrometricSolutionFromFile = function(targetId, fname)
       var targetWindow = util.findWindow(targetId);
       if (targetWindow == null) {
             console.criticalln("copyAstrometricSolutionFromFile: target window not found " + targetId);
-            return;
+            return false;
       }
+      targetWindow.show();
 
+      console.writeln("copyAstrometricSolutionFromFile: open " + fname);
       var imgWin = util.openImageWindowFromFile(fname);
+      imgWin.show();
 
-      targetWindow.copyAstrometricSolution(imgWin);
-
+      if (imgWin.mainView.image.width != targetWindow.mainView.image.width || imgWin.mainView.image.height != targetWindow.mainView.image.height) {
+            console.criticalln("copyAstrometricSolutionFromFile: image size mismatch " + imgWin.mainView.id + " " + targetWindow.mainView.id);
+            var succ = false;
+      } else {
+            console.writeln("copyAstrometricSolutionFromFile: copy from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
+            targetWindow.copyAstrometricSolution(imgWin);
+            var succ = true;
+      }
       util.closeOneWindow(imgWin.mainView.id);
+      return succ;
 }
 
 this.createImageFromBitmap = function(bitmap)
