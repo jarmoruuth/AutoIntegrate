@@ -2988,6 +2988,13 @@ this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_fil
             console.writeln("subframeSelectorMeasure, collect measurements");
             global.saved_measurements = getSubframeSelectorMeasurements(fileNames);
             measurements = global.saved_measurements;
+      } else {
+            if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+                  var node = flowchartOperation("Fast SubframeSelector");
+            } else {
+                  var node = flowchartOperation("SubframeSelector");
+            }
+            engine_end_process(node);     // Update procesing time
       }
 
       // Close measurements and expressions windows
@@ -9792,6 +9799,7 @@ function CreateChannelImages(parent, auto_continue)
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               var node = flowchartOperation("Binning");
                               fileNames = fileProcessedStatus.processed;
+                              engine_end_process(node);     // Update procesing time
                         } else {
                               let processedFileNames = runBinningOnLights(fileProcessedStatus.unprocessed, filtered_files);
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
@@ -9832,6 +9840,7 @@ function CreateChannelImages(parent, auto_continue)
                               if (fileProcessedStatus.unprocessed.length == 0) {
                                     var node = flowchartOperation("CosmeticCorrection");
                                     ccFileNames = ccFileNames.concat(fileProcessedStatus.processed);
+                                    engine_end_process(node);     // Update procesing time
                               } else {
                                     util.addProcessingStep("run CosmeticCorrection for linear defect file group " + i + ", " + fileProcessedStatus.unprocessed.length + " files");
                                     let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, ccInfo[i].ccDefects, is_color_files);
@@ -9849,6 +9858,7 @@ function CreateChannelImages(parent, auto_continue)
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               var node = flowchartOperation("CosmeticCorrection");
                               fileNames = fileProcessedStatus.processed;
+                              engine_end_process(node);     // Update procesing time
                         } else {
                               let processedFileNames = runCosmeticCorrection(fileProcessedStatus.unprocessed, defects, is_color_files);
                               fileNames = processedFileNames.concat(fileProcessedStatus.processed);
@@ -9873,6 +9883,7 @@ function CreateChannelImages(parent, auto_continue)
                   if (fileProcessedStatus.unprocessed.length == 0) {
                         var node = flowchartOperation("Debayer");
                         fileNames = fileProcessedStatus.processed;
+                        engine_end_process(node);     // Update procesing time
                   } else {
                         let processedFileNames = debayerImages(fileProcessedStatus.unprocessed);
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
@@ -9893,6 +9904,7 @@ function CreateChannelImages(parent, auto_continue)
                   if (fileProcessedStatus.unprocessed.length == 0) {
                         var node = flowchartOperation("BandingReduction");
                         fileNames = fileProcessedStatus.processed;
+                        engine_end_process(node);     // Update procesing time
                   } else {
                         let processedFileNames = bandingEngineForImages(fileProcessedStatus.unprocessed);
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
@@ -9941,8 +9953,9 @@ function CreateChannelImages(parent, auto_continue)
                   var fileProcessedStatus = getFileProcessedStatus(fileNames, postfix);
 
                   if (fileProcessedStatus.unprocessed.length == 0) {
-                        var node = flowchartOperation("Already gradient corrected");
+                        var node = flowchartOperation(getGradientCorrectionName());
                         fileNames = fileProcessedStatus.processed;
+                        engine_end_process(node);     // Update procesing time
                   } else {
                         let processedFileNames = runGradientCorrectionOnLights(fileProcessedStatus.unprocessed);
                         fileNames = processedFileNames.concat(fileProcessedStatus.processed);
@@ -9976,6 +9989,7 @@ function CreateChannelImages(parent, auto_continue)
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               var node = flowchartOperation("SubframeSelector");
                               var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '_a' };
+                              engine_end_process(node);     // Update procesing time
                         } else {
                               var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
                               names_and_weights.filenames = names_and_weights.filenames.concat(fileProcessedStatus.processed);
@@ -10025,6 +10039,7 @@ function CreateChannelImages(parent, auto_continue)
                   if (fileProcessedStatus.unprocessed.length == 0) {
                         var node = flowchartOperation("StarAlignment");
                         alignedFiles = fileProcessedStatus.processed;
+                        engine_end_process(node);     // Update procesing time
                   } else {
                         let processedFileNames = runStarAlignment(fileProcessedStatus.unprocessed, global.best_image);
                         alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
@@ -10050,6 +10065,7 @@ function CreateChannelImages(parent, auto_continue)
                   if (fileProcessedStatus.unprocessed.length == 0) {
                         var node = flowchartOperation("Remove stars");
                         alignedFiles = fileProcessedStatus.processed;
+                        engine_end_process(node);     // Update procesing time
                   } else {
                         let processedFileNames = removeStarsFromLights(fileProcessedStatus.unprocessed);
                         alignedFiles = processedFileNames.concat(fileProcessedStatus.processed);
@@ -11104,6 +11120,7 @@ function RGBHa_ContinuumSubtract(RGB_id, nb_channel_id, rgb_channel_id, rgb_is_l
       if (!rgb_is_linear && RGBHa_H_enhanced_info.nonlinear_id == null) {
             RGBHa_H_enhanced_info.nonlinear_id = enhanced_channel_id;
       }
+      engine_end_process(node);
 
       console.writeln("RGBHa_ContinuumSubtract, enhanced H image " + enhanced_channel_id);
 
@@ -11139,6 +11156,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
             util.addProcessingStep("Using user processed Ha image " + nb_channel_id);
             var node = flowchartOperation(nb_channel_id);
       } else {
+            var node = null;
             flowchartParentBegin("RGBHa init");
             flowchartChildBegin("RGBHa prepare H");
 
@@ -11195,6 +11213,8 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
             flowchartChildEnd("RGBHa prepare H");
             flowchartParentEnd("RGBHa init");
       }
+
+      engine_end_process(node);
 
       if (par.RGBHa_combine_time.val == 'SPCC linear') {
             console.writeln("RGBHa_init, " + par.RGBHa_combine_time.val + ", do RGBHa_mapping");
@@ -11967,7 +11987,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
                   win.mainView.beginProcess(UndoFlag_NoSwapFile);
                   P.executeOn(win.mainView);
                   win.mainView.endProcess();
-                  engine_end_process(node);
+                  engine_end_process(null);
             }
             // guiUpdatePreviewWin(imgWin);
       } catch (err) {
@@ -12601,7 +12621,7 @@ function extraSHOHueShift(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      engine_end_process(null);
 
       // Hue 2
       var P = new CurvesTransformation;
@@ -12618,7 +12638,7 @@ function extraSHOHueShift(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      engine_end_process(node);
+      engine_end_process(null);
 
       // Hue 3
       var P = new CurvesTransformation;
@@ -12834,6 +12854,8 @@ function extraColorizeChannelUsingColourise(ch_win, channel)
       P.executeOn(ch_win.mainView);
       ch_win.mainView.endProcess();
 
+      engine_end_process(node);
+
       return ch_win;
 }
 
@@ -13030,7 +13052,6 @@ this.extraColorizedNarrowbandImages = function(imgWin)
 
       if (formula != null) {
             console.writeln("extraColorizedNarrowbandImages, PixelMath formula " + formula);
-            let node = flowchartOperation("PixelMath:colorize");
             var P = new PixelMath;
             P.expression = formula;
             P.useSingleExpression = true;
@@ -13041,7 +13062,7 @@ this.extraColorizedNarrowbandImages = function(imgWin)
             P.newImageColorSpace = PixelMath.prototype.RGB;
 
             P.executeOn(imgWin.mainView);
-            engine_end_process(node);
+            engine_end_process(null);
       }
 
       var need_rescale = false;
@@ -14893,7 +14914,9 @@ function createCropInformationAutoContinue()
                    // optionally master dark can be left out
                    let fileProcessedStatus = getFileProcessedStatusCalibrated(fileNamesFromFilearr(filterFiles), '_c');
                    if (fileProcessedStatus.unprocessed.length == 0) {
-                         calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
+                        var node = flowchartOperation("ImageCalibration:lights");
+                        calibratedLightFileNames = calibratedLightFileNames.concat(fileProcessedStatus.processed);
+                        engine_end_process(node);
                    } else {
                          util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
                          let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
