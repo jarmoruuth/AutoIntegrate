@@ -928,16 +928,16 @@ this.combinePath = function(p1, p2)
       }
 }
 
-this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id)
+this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id, optional_extension = ".xisf")
 {
       if (path == null || id == null) {
             return null;
       }
       if (optional_save_id) {
-            var fname = path + optional_save_id + optional_unique_part + ".xisf";
+            var fname = path + optional_save_id + optional_unique_part + optional_extension;
             console.writeln("saveWindowEx " + id + " as " + fname);
       } else {
-            var fname = path + id + optional_unique_part + ".xisf";
+            var fname = path + id + optional_unique_part + optional_extension;
             console.writeln("saveWindowEx " + fname);
       }
 

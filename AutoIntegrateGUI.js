@@ -781,6 +781,7 @@ function flowchartGraph(rootnode)
       } else {
             var flowchartImage = util.createImageFromBitmap(bitmap);
       }
+      global.flowchart_image = flowchartImage;
 
       tabPreviewControl.SetImage(flowchartImage, txt);
       sidePreviewControl.SetImage(flowchartImage, txt);
@@ -9342,7 +9343,10 @@ function AutoIntegrateDialog()
       this.flowchartTimeCheckBox = newCheckBox(this, "Flowchart show processing time", par.flowchart_time, 
             "<p>If checked then the operation processing time is shown in the flowchart.</p>" +
             skip_reset_tooltip);
-            
+      this.flowchartSaveImageCheckBox = newCheckBox(this, "Flowchart save image", par.flowchart_saveimage, 
+            "<p>If checked then the flowchart image is saved into AutoProcessing directory after processing is complete.</p>" +
+            skip_reset_tooltip);
+                  
       this.flowchartControl = new Control( this );
       this.flowchartControl.sizer = new VerticalSizer;
       this.flowchartControl.sizer.margin = 6;
@@ -9350,6 +9354,7 @@ function AutoIntegrateDialog()
       this.flowchartControl.sizer.add( this.runGetFlowchartDataCheckBox );
       this.flowchartControl.sizer.add( this.flowchartBackgroundImageCheckBox );
       this.flowchartControl.sizer.add( this.flowchartTimeCheckBox );
+      this.flowchartControl.sizer.add( this.flowchartSaveImageCheckBox );
       this.flowchartControl.sizer.addStretch();
       this.flowchartControl.visible = false;
 

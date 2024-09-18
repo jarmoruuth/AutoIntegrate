@@ -168,6 +168,7 @@ this.par = {
       run_get_flowchart_data: { val: false, def: false, name : "Run get flowchart data", type : 'B', skip_reset: true },
       flowchart_background_image: { val: true, def: true, name : "Flowchart background image", type : 'B', skip_reset: true },
       flowchart_time: { val: true, def: true, name : "Flowchart time", type : 'B', skip_reset: true },
+      flowchart_saveimage: { val: false, def: false, name : "Flowchart save image", type : 'B', skip_reset: true },
 
       use_blurxterminator: { val: false, def: false, name : "Use BlurXTerminator", type : 'B' },
       bxt_sharpen_stars: { val: 0.25, def: 0.25, name : "BlurXTerminator sharpen stars", type : 'R' },
@@ -570,6 +571,7 @@ this.flowchartWindows = [];   // array of flowchart window ids
 this.flowchartData = null;    // flowchart data
 this.flowchartActiveId = 0;   // active flowchart id
 this.flowchartOperationList = []; // array of flowchart operations
+this.flowchart_image = null;  // flowchart image to save to file
 
 this.run_auto_continue = false;
 this.write_processing_log_file = true;  // if we fail very early we set this to false

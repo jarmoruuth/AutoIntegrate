@@ -882,7 +882,7 @@ function saveProcessedImage(id, save_id)
       save_id_list.push([save_id, save_id]);
 }
 
-function saveProcessedWindow(id, optional_save_id)
+function saveProcessedWindow(id, optional_save_id, optional_extension)
 {
       if (id == null) {
             return null;
@@ -902,7 +902,7 @@ function saveProcessedWindow(id, optional_save_id)
             var processedPath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
             util.ensureDir(processedPath);
       }
-      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id);
+      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id, optional_extension);
 }
 
 function saveOutputWindow(id, save_id)
@@ -15074,6 +15074,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        global.is_processing = global.processing_state.processing;
        global.cancel_processing = false;
+       global.flowchart_image = null;
  
        var LRGB_processed_HT_id = null;
        var RGB_processed_HT_id = null;
@@ -15663,8 +15664,18 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        console.noteln("======================================");
 
        console.writeln("--------------------------------------");
-       // Print flowchart
-       engine.flowchartPrint(global.flowchartData);
+       if (global.flowchartData != null) {
+            // Print flowchart
+            engine.flowchartPrint(global.flowchartData);
+            if (par.flowchart_saveimage.val && global.flowchart_image != null && gui) {
+                  // Save flowchart image
+                  var flowchart_imagename = util.ensure_win_prefix("AutoIntegrateFlowchart");
+                  var flowchart_win = util.createWindowFromBitmap(global.flowchart_image.render(), flowchart_imagename);
+                  saveProcessedWindow(flowchart_win.mainView.id, null, ".jpg");
+                  util.forceCloseOneWindow(flowchart_win);
+                  global.flowchart_image = null;
+            }
+       }
  
        if (preprocessed_images != global.start_images.FINAL
            && par.autosave_setup.val 
