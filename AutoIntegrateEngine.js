@@ -4299,7 +4299,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
                   return null;
       }
-      if (check_allfilesarr == null) {
+      if (check_allfilesarr == null && !global.get_flowchart_data) {
             console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
       }
       /* Replace letters with actual image identifiers. */
@@ -4311,7 +4311,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
       mapping = replaceMappingImageNames(mapping, "S", ppar.win_prefix + "Integration_S", images, check_allfilesarr);
       mapping = replaceMappingImageNames(mapping, "O", ppar.win_prefix + "Integration_O", images, check_allfilesarr);
 
-      if (check_allfilesarr == null) {
+      if (check_allfilesarr == null && !global.get_flowchart_data) {
             console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping);
       }
 
@@ -4598,7 +4598,9 @@ function copyToMapImages(images)
                   var copyname = util.ensure_win_prefix(images[i] + "_map");
             }
             if (!images[i].endsWith("_map") && util.findWindow(copyname) == null) {
-                  console.writeln("copy from " + images[i] + " to " + copyname);
+                  if (!global.get_flowchart_data) {
+                        console.writeln("copy from " + images[i] + " to " + copyname);
+                  }
                   util.copyWindow(
                         findWindowNoPrefixIf(images[i], global.run_auto_continue), 
                         copyname);
@@ -6401,7 +6403,12 @@ function noGradientCorrectionCopyWin(win)
 // Run GraXpert as an external process
 function runGraXpertExternal(win, denoise)
 {
-      var node = flowchartOperation("GraXpert denoise");
+      if (denoise) {
+            var node = flowchartOperation("GraXpert denoise");
+      } else {
+            // Weird but flochart is handled differently here
+            var node = null;
+      }
 
       if (par.graxpert_path.val == "") {
             util.throwFatalError("GraXpert path is empty");
@@ -6478,7 +6485,9 @@ function runGraXpertExternal(win, denoise)
             console.writeln("GraXpert output window " + imgWin.mainView.id);
             imgWin.copyAstrometricSolution(win);
       }
-      engine_end_process(node, imgWin, "GraXpert:denoise");
+      if (denoise) {
+            engine_end_process(node, imgWin, "GraXpert:denoise");
+      }
 
       return imgWin;
 }
@@ -6487,13 +6496,19 @@ function runGraXpertExternal(win, denoise)
 function runGraXpert(win, replaceTarget, postfix)
 {
       if (replaceTarget) {
-            util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
+            if (!global.get_flowchart_data || par.debug.val) {
+                  util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
+            }
             var GC_id = win.mainView.id;
       } else {
             var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
-            util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + GC_id);
+            if (!global.get_flowchart_data || par.debug.val) {
+                  util.addProcessingStepAndStatusInfo("Run GraXpert from image " + win.mainView.id + ", target image " + GC_id);
+            }
       }
-      console.writeln("GraXpert using correction " + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
+      if (!global.get_flowchart_data) {
+            console.writeln("GraXpert using correction " + par.graxpert_correction.val + ' and smoothing ' + par.graxpert_smoothing.val);
+      }
 
       if (global.get_flowchart_data) {
             var imgWin = util.copyWindowEx(win, "AutoIntegrateTemp", true);
@@ -6502,17 +6517,23 @@ function runGraXpert(win, replaceTarget, postfix)
       }
 
       if (replaceTarget) {
-            console.writeln("GraXpert replace target " + GC_id);
+            if (!global.get_flowchart_data || par.debug.val) {
+                  console.writeln("GraXpert replace target " + GC_id);
+            }
             util.closeOneWindow(win.mainView.id);
             var copyWin = util.copyWindowEx(imgWin, GC_id, true);
       } else {
-            console.writeln("GraXpert create target " + GC_id);
+            if (!global.get_flowchart_data || par.debug.val) {
+                  console.writeln("GraXpert create target " + GC_id);
+            }
             var copyWin = util.copyWindowEx(imgWin, GC_id, true);
       }
       util.closeOneWindow(imgWin.mainView.id);
       copyWin.show();
 
-      console.writeln("GraXpert output window " + copyWin.mainView.id);
+      if (!global.get_flowchart_data || par.debug.val) {
+            console.writeln("GraXpert output window " + copyWin.mainView.id);
+      }
 
       return GC_id;
 }
@@ -6663,7 +6684,7 @@ function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart)
             var GC_id = runGCProcess(win, replaceTarget, postfix);
             var process = "GradientCorrection";
       }
-      engine_end_process(node, win, process);
+      engine_end_process(node, util.findWindow(GC_id), process);
       return GC_id;
 }
 

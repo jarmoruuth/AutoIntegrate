@@ -8919,6 +8919,9 @@ function AutoIntegrateDialog()
             console.writeln("New flowchart");
             if (generateNewFlowchartData(this.parent)) {
                   flowchartGraph(global.flowchartData);
+                  console.noteln("Flowchart updated");
+            } else {
+                  console.noteln("No flowchart data available");
             }
       };
 

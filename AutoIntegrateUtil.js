@@ -730,7 +730,9 @@ this.forceCloseOneWindow = function(w)
             console.writeln("Rename window to " + w.mainView.id);
       } else if (use_force_close) {
             // Force close will close the window without asking
-            console.writeln("Force close " + w.mainView.id);
+            if (!global.get_flowchart_data) {
+                  console.writeln("Force close " + w.mainView.id);
+            }
             w.forceClose();
       } else {
             // PixInsight will ask if file is changed but not saved
@@ -1113,7 +1115,9 @@ this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
             util.fatalWindowNameFailed("Failed to copy window to name " + name + ", copied window name is " + targetWindow.mainView.id);
       }
 
-      console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
+      if (!global.get_flowchart_data || par.debug.val) {
+            console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
+      }
 
       if (global.get_flowchart_data) {
             global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
