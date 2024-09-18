@@ -4709,6 +4709,9 @@ function loadJsonFile(parent)
             }
       }
       updateInfoLabel(parent);
+      if (par.show_flowchart.val && global.flowchartData != null) {
+            flowchartUpdated();
+      }
 }
 
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)

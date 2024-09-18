@@ -1558,6 +1558,8 @@ this.readJsonFile = function(fname, lights_only)
       if (saveInfo.flowchartData != null && saveInfo.flowchartData != undefined) {
             console.writeln("Restored flowchart data");
             global.flowchartData = saveInfo.flowchartData;
+      } else {
+            global.flowchartData = null;
       }
 
       var pagearray = [];
