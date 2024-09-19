@@ -317,7 +317,7 @@ var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
 var extra_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
 var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
-var target_binning_values = [ 'Auto', 'None',  '1', '2', '4' ];
+var target_binning_values = [ 'Auto', 'None',  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ];
 var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
@@ -7422,7 +7422,7 @@ function AutoIntegrateDialog()
                                                             "<ul>" +
                                                             "<li>Auto uses image metadata 'DrizzleIntegration.scale:' value when available.</li>" +
                                                             "<li>None does not modify pixel size.</li>" +
-                                                            "<li>Values 2 and 4 divide the pixel size by those values.</li>" +
+                                                            "<li>Numeric values divide the pixel size by those values.</li>" +
                                                             "</ul>");
       this.targetDrizzleComboBox = newComboBox(this, par.target_drizzle, target_drizzle_values, this.targetDrizzleLabel.toolTip);
       this.targetForceSolveCheckBox = newCheckBox(this, "Force solve", par.target_forcesolve, 

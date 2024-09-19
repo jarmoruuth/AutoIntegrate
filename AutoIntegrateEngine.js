@@ -118,6 +118,7 @@ var flowchart_active = false;
 var flowchartCurrent = null;
 var flowchartStack = [];
 var flowchartOperationList = [];
+var flowchart_operation_level = 0;
 
 /* Set optional GUI object to update GUI components.
  */
@@ -415,7 +416,8 @@ function flowchartOperation(txt)
       if (!flowchart_active) {
             return null;
       }
-      if (par.flowchart_debug.val) console.writeln("flowchartOperation " + txt);
+      flowchart_operation_level++;
+      if (par.flowchart_debug.val) console.writeln("flowchartOperation " + txt + ", flowchart_operation_level: " + flowchart_operation_level);
       var node = flowchartCheckOperationList("process", txt);
       flowchartCurrent.list.push( node );
       flowchartUpdated();
@@ -653,6 +655,8 @@ this.flowchartReset = function()
       global.flowchartData = null;
       global.flowchartActiveId = 0;
       global.flowchartOperationList = [];
+
+      flowchart_operation_level = 0;
 }
 
 function flowchartCancel()
@@ -673,6 +677,7 @@ function flowchartInit(txt)
       }
 
       global.flowchartActiveId = 0;
+      flowchart_operation_level = 0;
 
       flowchart_active = true;
 }
@@ -1012,6 +1017,8 @@ function copy_processed_image(imgWin, process_name)
 function engine_end_process(node, imgWin = null, process_name = null, copy_image = true)
 {
       if (node && !global.get_flowchart_data) {
+            if (par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart_operation_level: " + flowchart_operation_level);
+            flowchart_operation_level--;
             node.end_time = Date.now();
       }
       if (imgWin && global.is_processing == global.processing_state.processing) {
@@ -5826,7 +5833,7 @@ function runLinearFit(refViewId, targetId)
       engine_end_process(null, targetWin, "LinearFit", false);
 }
 
-function runDrizzleIntegration(images, name, local_normalization, drizzle_extension)
+function runDrizzleIntegration(integrationImageId, images, name, local_normalization, drizzle_extension)
 {
       util.addProcessingStepAndStatusInfo("Run DrizzleIntegration");
       var node = flowchartOperation("DrizzleIntegration");
@@ -5866,8 +5873,10 @@ function runDrizzleIntegration(images, name, local_normalization, drizzle_extens
       util.closeOneWindow(P.weightImageId);
 
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
+      var new_win = ImageWindow.windowById(new_name);
 
-      setDrizzleKeyword(ImageWindow.windowById(new_name), par.drizzle_scale.val);
+      util.copyKeywordsFromWindow(new_win, ImageWindow.windowById(integrationImageId));
+      setDrizzleKeyword(new_win, par.drizzle_scale.val);
 
       guiUpdatePreviewId(new_name);
       //util.addScriptWindow(new_name);
@@ -6019,6 +6028,8 @@ function runFastIntegration(integration_images, name, refImage)
       util.addProcessingStep("runFastIntegration, " + targets.length + " files");
       console.writeln("output " + new_name);
 
+      util.copyKeywordsFromFile(new_name, refImage);
+
       return new_name;
 }
 
@@ -6027,8 +6038,10 @@ function runFastIntegrationEx(integration_images, name, refImage)
       var id = runFastIntegration(integration_images, name, refImage)
       if (par.use_drizzle.val && name != 'LDD') {
             guiUpdatePreviewId(id);
+            id = util.windowRename(id, id + "_tmp");
+            var new_id = runDrizzleIntegration(id, integration_images, name, false, "_r.xdrz");
             util.closeOneWindow(id);
-            id = runDrizzleIntegration(integration_images, name, false, "_r.xdrz");
+            id = new_id;
       }
       return id;
 }
@@ -6113,6 +6126,8 @@ function runBasicIntegration(images, name, local_normalization)
       printProcessValues(P);
       engine_end_process(node);
 
+      util.copyKeywordsFromFile(P.integrationImageId, images[0][1]);
+
       return P.integrationImageId;
 }
 
@@ -6122,8 +6137,10 @@ function runImageIntegrationEx(images, name, local_normalization)
 
       if (par.use_drizzle.val && name != 'LDD') {
             guiUpdatePreviewId(integrationImageId);
+            integrationImageId = util.windowRename(integrationImageId, integrationImageId + "_tmp");
+            var new_id = runDrizzleIntegration(integrationImageId, images, name, local_normalization, ".xdrz");
             util.closeOneWindow(integrationImageId);
-            return runDrizzleIntegration(images, name, local_normalization, ".xdrz");
+            return new_id;
       } else {
             var new_name = util.windowRename(integrationImageId, ppar.win_prefix + "Integration_" + name);
             console.writeln("runImageIntegrationEx completed, new name " + new_name);
@@ -8327,6 +8344,8 @@ function runImageSolverEx(id)
             console.writeln("  useFocal: " + solver.metadata.useFocal);
             console.writeln("  topocentric: " + solver.metadata.topocentric);
 
+            console.writeln("  solver.metadata: " + JSON.stringify(solver.metadata, null, 2));
+
             solver.metadata.referenceSystem = "ICRS";
             solver.metadata.useFocal = true;
             solver.metadata.topocentric = false;
@@ -8364,7 +8383,13 @@ function runImageSolverEx(id)
                   }
             } else {
                   var pixel_size = find_pixel_size();
-                  console.writeln("Using telescope name based pixel size: " + pixel_size);
+                  if (pixel_size != 0) {
+                        console.writeln("Using telescope name based pixel size: " + pixel_size);
+                  }
+            }
+            if (pixel_size == 0) {
+                  console.writeln("Using image metadata pixel size: " + solver.metadata.xpixsz);
+                  pixel_size = solver.metadata.xpixsz;
             }
             if (pixel_size != 0) {
                   if (par.target_binning.val != 'None') {
@@ -8394,8 +8419,6 @@ function runImageSolverEx(id)
                         }
                   }
                   solver.metadata.xpixsz = pixel_size;
-            } else {
-                  console.writeln("Using image metadata pixel size: " + solver.metadata.xpixsz);
             }
             if (solver.metadata.xpixsz && solver.metadata.focal) {
                   solver.metadata.resolution = solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI;
@@ -8451,37 +8474,11 @@ function runImageSolverEx(id)
       }
 }
 
-function runImageSolver(id, image_is_linear)
+function runImageSolver(id)
 {
       var solved = runImageSolverEx(id);
       if (!solved) {
-            if (image_is_linear) {
-                  /* For linear image, try again with a stretched image
-                   */
-                  console.writeln("runImageSolver:try again using a stretched image");
-
-                  /* Make a copy of the image to run ImageSolver on. 
-                   */
-                  var imgWin = ImageWindow.windowById(id);
-                  var copyWin = util.copyWindowEx(imgWin, id + "_solvercopy", true);
-                  console.writeln("runImageSolver: using a copied image " + copyWin.mainView.id);
-
-                  /* Apply auto stretch on image, maybe it helps image solver to find stars. */
-                  console.writeln("runImageSolver: stretch image " + copyWin.mainView.id);
-                  engine.runHistogramTransformSTFex(copyWin, null, copyWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
-
-                  if (!runImageSolverEx(copyWin.mainView.id)) {
-                        util.throwFatalError("ImageSolver retry with stretched image " + copyWin.mainView.id + " failed");
-                  }
-
-                  /* Copy astrometric solution generated on copyWin to the imgWin.
-                   */
-                  imgWin.copyAstrometricSolution(copyWin);
-
-                  util.forceCloseOneWindow(copyWin);
-            } else {
-                  util.throwFatalError("ImageSolver failed on image " + id);
-            }
+            util.throwFatalError("ImageSolver failed on image " + id);
       }
 }
 
@@ -11390,7 +11387,7 @@ this.testRGBHaMapping = function()
                         runBackgroundNeutralization(color_win);
                   }
                   if (par.use_spcc.val) {
-                        runImageSolver(color_win.mainView.id, true);
+                        runImageSolver(color_win.mainView.id);
                   }
                   runColorCalibration(color_win, 'linear');
             } else {
@@ -11480,7 +11477,7 @@ function ProcessRGBimage(RGBmapping)
                   let win = util.copyWindow(RGB_GC_start_win, ppar.win_prefix + "Integration_RGB_processed");
                   RGB_processed_id = win.mainView.id;
                   if (par.solve_image.val || par.use_spcc.val) {
-                        runImageSolver(RGB_processed_id, true);
+                        runImageSolver(RGB_processed_id);
                   }
             } else {
                   if (preprocessed_images == global.start_images.RGB) {
@@ -11489,7 +11486,7 @@ function ProcessRGBimage(RGBmapping)
                         RGB_win = util.copyWindow(util.findWindow(RGB_color_id), ppar.win_prefix + "Integration_RGB_map");
                   }
                   if (par.solve_image.val || par.use_spcc.val) {
-                        runImageSolver(RGB_win.mainView.id, true);
+                        runImageSolver(RGB_win.mainView.id);
                   }
                   if (par.color_calibration_before_GC.val) {
                         if (par.use_background_neutralization.val && !par.use_spcc.val) {
@@ -13883,7 +13880,7 @@ function extraProcessing(parent, id, apply_directly)
       }
       if (par.extra_solve_image.val) {
             addExtraProcessingStep("Image solver");
-            runImageSolver(extraWin.mainView.id, false);
+            runImageSolver(extraWin.mainView.id);
             extraOptionCompleted(par.extra_solve_image);
       }
       if (par.extra_annotate_image.val) {

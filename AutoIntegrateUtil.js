@@ -1148,6 +1148,23 @@ this.openImageWindowFromFile = function(fileName, allow_missing_file)
       return imageWindow;
 }
 
+this.copyAstrometricSolutionFromWindow = function(targetWindow, imgWin)
+{
+      console.writeln("copyAstrometricSolutionFromWindow from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
+
+      if (imgWin.astrometricSolutionSummary().length == 0) {
+            console.criticalln("copyAstrometricSolutionFromFile: no astrometric solution in " + imgWin.mainView.id);
+            var succ = false;
+      } else if (imgWin.mainView.image.width != targetWindow.mainView.image.width || imgWin.mainView.image.height != targetWindow.mainView.image.height) {
+            console.criticalln("copyAstrometricSolutionFromFile: image size mismatch " + imgWin.mainView.id + " " + targetWindow.mainView.id);
+            var succ = false;
+      } else {
+            console.writeln("copyAstrometricSolutionFromFile: copy from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
+            targetWindow.copyAstrometricSolution(imgWin);
+            var succ = true;
+      }
+      return succ;
+}
 
 this.copyAstrometricSolutionFromFile = function(targetId, fname)
 {
@@ -1164,16 +1181,143 @@ this.copyAstrometricSolutionFromFile = function(targetId, fname)
       var imgWin = util.openImageWindowFromFile(fname);
       imgWin.show();
 
-      if (imgWin.mainView.image.width != targetWindow.mainView.image.width || imgWin.mainView.image.height != targetWindow.mainView.image.height) {
-            console.criticalln("copyAstrometricSolutionFromFile: image size mismatch " + imgWin.mainView.id + " " + targetWindow.mainView.id);
-            var succ = false;
-      } else {
-            console.writeln("copyAstrometricSolutionFromFile: copy from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
-            targetWindow.copyAstrometricSolution(imgWin);
-            var succ = true;
-      }
+      var succ = util.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
+
       util.closeOneWindow(imgWin.mainView.id);
       return succ;
+}
+
+// Update keywords in target window with keywords from source window
+// using a list of keywords to update
+function updateWindowKeywords(target_keywords, source_keywords, keyword_list)
+{
+      console.writeln("updateWindowKeywords");
+
+      var new_keywords = [];
+
+      // We keep all current target keywords so make a copy of target keywords
+      for (var i = 0; i < target_keywords.length; i++) {
+            new_keywords[new_keywords.length] = new FITSKeyword(target_keywords[i]);
+      }
+      target_keywords = null;
+
+      for (var i = 0; i < keyword_list.length; i++) {
+            // Find keyword in source_keywords
+            for (var j = 0; j < source_keywords.length; j++) {
+                  if (source_keywords[j].name == keyword_list[i]) {
+                        break;
+                  }
+            }
+            if (j == source_keywords.length) {
+                  // Keyword not in source, skip
+                  continue;
+            }
+            // Find keyword in new_keywords (target)
+            for (var k = 0; k < new_keywords.length; k++) {
+                  if (new_keywords[k].name == keyword_list[i]) {
+                        break;
+                  }
+            }
+            if (k == new_keywords.length) {
+                  // Keyword not in target, append a new one
+                  new_keywords[new_keywords.length] = new FITSKeyword(source_keywords[j]);
+            } else {
+                  // Keyword already in target, overwrite
+                  new_keywords[k] = new FITSKeyword(source_keywords[j]);
+            }
+      }
+      return new_keywords;
+}
+
+this.copyKeywordsFromWindow = function(targetWindow, imgWin)
+{
+      console.writeln("copyKeywordsFromWindow from " + targetWindow.mainView.id + " to " + imgWin.mainView.id);
+
+      var source_metadata = new ImageMetadata();
+      source_metadata.ExtractMetadata(imgWin);
+      console.writeln("copyKeywordsFromWindow source metadata: " + JSON.stringify(source_metadata, null, 2));
+
+      if (1) {
+            var keyword_list = [
+                  "RADESYS",
+                  "RA",
+                  "DEC",
+                  "OBJCTRA",
+                  "OBJCTDEC",
+                  "DATE-OBS",
+                  "DATE-BEG",
+                  "DATE-END",
+                  "OBSGEO-L",
+                  "OBSGEO-B",
+                  "OBSGEO-H",
+                  "FOCALLEN",
+                  "FOCAL",
+                  "XPIXSZ",
+                  "YPIXSZ",
+                  "EXPTIME",
+                  "SITELONG",
+                  "SITELAT",
+                  "LAT-OBS",
+                  "LONG-OBS",
+                  "ALT-OBS",
+                  "TELESCOP",
+                  "INSTRUME",
+                  "OBJECT",
+                  "OBSERVER",
+                  "OWNER",
+                  "NAXIS1",
+                  "NAXIS2",
+                  "BSCALE",
+                  "BZERO",
+                  "CREATOR",
+                  "OBSERVAT",
+                  "TIMESYS"
+            ];
+            targetWindow.keywords = updateWindowKeywords(targetWindow.keywords, imgWin.keywords, keyword_list);
+      } else {
+            var old_target_metadata = new ImageMetadata();
+            old_target_metadata.ExtractMetadata(targetWindow);
+            console.writeln("copyKeywordsFromWindow old target metadata: " + JSON.stringify(old_target_metadata, null, 2));
+
+            source_metadata.UpdateBasicKeywords(targetWindow.keywords);
+
+            if (imgWin.astrometricSolutionSummary().length > 0) {
+                  util.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
+            }
+
+      }
+      var new_target_metadata = new ImageMetadata();
+      new_target_metadata.ExtractMetadata(targetWindow);
+      console.writeln("copyKeywordsFromWindow new target metadata: " + JSON.stringify(new_target_metadata, null, 2));
+
+      if (source_metadata.focal != new_target_metadata.focal) {
+            util.throwFatalError("Focal length mismatch: " + source_metadata.focal + " != " + new_target_metadata.focal);
+      }
+}
+
+this.copyKeywordsFromFile = function(targetId, fname)
+{
+      console.writeln("copyKeywordsFromFile from " + fname + " to " + targetId);
+
+      var targetWindow = util.findWindow(targetId);
+      if (targetWindow == null) {
+            console.criticalln("copyKeywordsFromFile: target window not found " + targetId);
+            return false;
+      }
+      targetWindow.show();
+
+      console.writeln("copyKeywordsFromFile: open " + fname);
+      var imgWin = util.openImageWindowFromFile(fname);
+      if (imgWin == null) {
+            console.criticalln("copyKeywordsFromFile: failed to open " + fname);
+            return false;
+      }
+      imgWin.show();
+
+      util.copyKeywordsFromWindow(targetWindow, imgWin);
+
+      imgWin.forceClose();
+      return true;
 }
 
 this.createImageFromBitmap = function(bitmap)
