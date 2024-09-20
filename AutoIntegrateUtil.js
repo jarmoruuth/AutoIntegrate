@@ -1289,10 +1289,6 @@ this.copyKeywordsFromWindow = function(targetWindow, imgWin)
       var new_target_metadata = new ImageMetadata();
       new_target_metadata.ExtractMetadata(targetWindow);
       console.writeln("copyKeywordsFromWindow new target metadata: " + JSON.stringify(new_target_metadata, null, 2));
-
-      if (source_metadata.focal != new_target_metadata.focal) {
-            util.throwFatalError("Focal length mismatch: " + source_metadata.focal + " != " + new_target_metadata.focal);
-      }
 }
 
 this.copyKeywordsFromFile = function(targetId, fname)
