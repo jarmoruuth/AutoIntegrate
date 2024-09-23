@@ -955,6 +955,8 @@ function boolToInteger(b)
       b == true ? 1 : 0;
 }
 
+// Check options for possible conflicting settings
+// Nete that function check_engine_processing does similar things a bit earlier
 function checkOptions()
 {
       var intval = boolToInteger(par.remove_stars_before_stretch.val) + boolToInteger(par.remove_stars_channel.val) + 
@@ -964,6 +966,9 @@ function checkOptions()
       }
       if (par.extra_combine_stars.val && !par.extra_remove_stars.val) {
             util.throwFatalError("Extra combine stars cannot be used during processing if extra remove stars is not set.");
+      }
+      if (par.local_normalization.val && par.use_fastintegration.val) {
+            util.throwFatalError("Local normalization and fast integration cannot be used together.");
       }
 }
 
@@ -15020,8 +15025,9 @@ function engineInit()
       creating_mask = false;
 }
 
-// Check possible conflicting options before stating the processing
-function check_engine_processing_options()
+// Check possible conflicting settings before stating the processing
+// Nete that function checkOptions does similar things a bit later
+function check_engine_processing()
 {
       if (global.extra_target_image != "Auto" && global.extra_target_image != null) {
             console.criticalln("Extra processing target image can be used only with Apply button!");
@@ -15029,11 +15035,6 @@ function check_engine_processing_options()
       }
       if (util.findWindowStartsWith("FastIntegrationMaster") != null) {
             console.criticalln("FastIntegrationMaster window found, please close it before running AutoIntegrate.");
-            return false;
-      }
-
-      if (par.local_normalization.val && par.use_fastintegration.val) {
-            console.criticalln("Local normalization and fast integration cannot be used together.");
             return false;
       }
       return true;
@@ -15079,7 +15080,7 @@ function check_engine_processing_options()
  */
 this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband, txt)
 {
-       if (!check_engine_processing_options()) {
+       if (!check_engine_processing()) {
             return false;
        }
 
@@ -15268,6 +15269,12 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false };
  
              util.runGarbageCollection();
+
+             if (is_color_files) {
+                  if (par.GC_before_channel_combination.val) {
+                        util.addCriticalStatus("Option <i>Gradient correction on channel images</i> is not supported for color images."); 
+                  }
+             }
  
              if (preprocessed_images == global.start_images.L_R_G_B_GC) {
                    mapGCchannels();

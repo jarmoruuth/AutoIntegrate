@@ -512,6 +512,7 @@ this.autointegrateProcessingHistory = function(imageWindow)
             AutoIntegrate: [],
             info: [],
             options: [],
+            steps: [],
             extra: []
       };
       var is_history = false;
@@ -523,11 +524,19 @@ this.autointegrateProcessingHistory = function(imageWindow)
                   is_history = true;
             }
             var trimmedComment = keyword.comment.trim();
-            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing info")) {
+            if (keyword.name == 'HISTORY' && trimmedComment == "AutoIntegrate processing" && keyword.strippedValue.startsWith("Step")) {
+                  history.steps[history.steps.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+                  is_history = true;
+            }
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing info")
+                && keyword.strippedValue != "Processing options:") 
+            {
                   history.info[history.info.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }
-            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing option")) {
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate processing option")
+                && keyword.strippedValue != "Processing options:") 
+            {
                   history.options[history.options.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }

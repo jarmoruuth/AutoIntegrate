@@ -2055,6 +2055,12 @@ function extraProcessingGUI(parent)
                               console.writeln(" - "  + history.options[i][1]);
                         }
                   }
+                  if (history.steps.length > 0) {
+                        console.noteln("Processing steps:");
+                        for (var i = 0; i < history.steps.length; i++) {
+                              console.writeln(" - "  + history.steps[i][1]);
+                        }
+                  }
                   if (history.extra.length > 0) {
                         console.noteln("Extra processing info:");
                         for (var i = 0; i < history.extra.length; i++) {
@@ -5463,6 +5469,38 @@ function newAdjustToContentButton(parent)
       return button;
 }
 
+
+var sectionBarControls = [];
+var sectionBars = [];
+
+function newCollapeSectionsButton(parent)
+{
+      var button = new ToolButton(parent);
+      button.icon = new Bitmap( ":/process-interface/contract-vert.png" );
+      button.toolTip = "<p>Collapse all sections.</p>" + 
+                       "<p>Useful when you have trouble to fit the dialog to the screen.</p>" + 
+                       "<p>Note that to adjust script window to content you may need to click  " + 
+                       "the separate Adjust button.</p>";
+      button.onClick = function()
+      {
+            if (0) {
+                  for (var i = 0; i < sectionBarControls.length; i++) {
+                        sectionBarControls[i].hide();
+                  }
+                  parent.adjustToContents();
+            } else {
+                  for (var i = 0; i < sectionBars.length; i++) {
+                        sectionBars[i].aiControl.hide();
+                        if (!global.do_not_write_settings) {
+                              Settings.write(sectionBars[i].aiName, DataType_Boolean, sectionBars[i].aiControl.visible);
+                        }
+                        parent.adjustToContents();
+                  }
+            }
+      };
+      return button;
+}
+
 function blinkArrowButton(parent, icon, x, y)
 {
       var blinkArrowButton = new ToolButton( parent );
@@ -5718,6 +5756,11 @@ function newActionSizer(parent)
       parent.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
+
+      obj = newCollapeSectionsButton(parent);
+      parent.rootingArr.push(obj);
+      actionsSizer.add( obj );
+      actionsSizer.addSpacing( 6 );
 
       obj = newAdjustToContentButton(parent);
       parent.rootingArr.push(obj);
@@ -6050,12 +6093,17 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
             }
             parent.adjustToContents();
       };
+      sb.aiControl = control;
+      sb.aiName = name;
       parent.rootingArr.push(sb);
 
       getSectionVisible(name, control);
 
       groupbox.sizer.add( sb );
       groupbox.sizer.add( control );
+
+      sectionBarControls.push(control);
+      sectionBars.push(sb);
 }
 
 function newSectionBarAddArray(parent, groupbox, title, name, objarray)
