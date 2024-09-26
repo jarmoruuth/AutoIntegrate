@@ -6819,17 +6819,23 @@ function AutoIntegrateDialog()
       } else {
             var use_graxpert_toolTip = "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>";
       }
+      use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
+                              "the gradient correction options in the <i>Image processing parameters</i> section.</p>";
+      
       this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
             use_graxpert_toolTip + 
             "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
-            "<p><b>NOTE2!</b> You may need to manually run one image to ensure correct AI model is loaded into yoiur computer.</p>" +
+            "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
       this.use_graxpert_denoise_CheckBox = newCheckBox(this, "Use GraXpert denoise", par.use_graxpert_denoise, 
-            "<p>Use GraXpert for noise reduction.</p>");
+            "<p>Use GraXpert for noise reduction.</p>" +
+            "<p>In the GraXpert section it is possible to set smoothing values and batch size.</p>");
       if (global.is_gc_process) {
             this.use_abe_CheckBox = newCheckBox(this, "Use ABE", par.use_abe, 
-            "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>");
+            "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
+            "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
+            "the gradient correction options in the <i>Image processing parameters</i> section.</p>");
       }
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
@@ -9181,7 +9187,7 @@ function AutoIntegrateDialog()
             "<p>Can be useful when using the side preview.</p>",
             function(checked) { this.dialog.use_more_tabs_CheckBox.aiParam.use_more_tabs = checked; });
 
-      this.use_large_preview_CheckBox = newGenericCheckBox(this, "Large preview", ppar, ppar.preview.use_large_preview, 
+      this.use_large_preview_CheckBox = newGenericCheckBox(this, "Side preview", ppar, ppar.preview.use_large_preview, 
             "<p>Use a large preview window on the side of the main dialog.</p>",
             function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
 
@@ -9562,9 +9568,9 @@ function AutoIntegrateDialog()
               this.StretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationCropSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction and StarXTerminator settings", "ps_ave_graxpert",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, GraXpert, ABE and StarXTerminator settings", "ps_ave_graxpert",
             [ this.GCStarXSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and sharpening settings", "ps_saturation_noise",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and BlurXTerminator settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
               this.noiseReductionGroupBoxLabel,

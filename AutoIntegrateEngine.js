@@ -6440,7 +6440,7 @@ function runGraXpertExternal(win, denoise)
       }
 
       if (par.graxpert_path.val == "") {
-            util.throwFatalError("GraXpert path is empty");
+            util.throwFatalError("GraXpert path is empty, please add path to GraXpert binary in Gradient correction section");
       }
       if (!File.exists(par.graxpert_path.val)) {
             console.noteln("GraXpert path does not exist: " + par.graxpert_path.val);
