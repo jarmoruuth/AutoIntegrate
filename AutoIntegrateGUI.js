@@ -262,6 +262,9 @@ var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 var stretchingComboBox = null;         // For disabling stretching method if Target type is selected
 
+var use_hyperbolic = false;           // Use hyperbolic stretch, does not really work here so disbled
+                                      // If enabled, add it to image_stretching_values and documentation
+
 var current_histogramInfo = null;
 
 var tab_preview_index = 1;
@@ -303,7 +306,8 @@ var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Hyperbolic', 'Arcsinh Stretch', 'Logarithmic stretch', 'None' ];
+var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
+                                'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -6913,14 +6917,19 @@ function AutoIntegrateDialog()
       var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
                                     "Works best with images that are processed with the Crop to common area option.";
 
-      var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
-                            "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
-                            "the implementation in AutoIntegrate does not work that well.</p>" + 
-                            "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
-                            "Consider using ABE or GraXpert on combined images and maybe also BackgroundNeutralization to clean image background. Local Normalization can be useful too.</p>" +
-                            "<p>It is also recommended that Crop to common are option is used. It cleans the image from bad data and makes " + 
-                            "finding the symmetry point more robust.</p>" + 
-                            "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
+      if (use_hyperbolic) {
+            var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
+                              "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
+                              "the implementation in AutoIntegrate does not work that well.</p>" + 
+                              "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
+                              "Consider using ABE or GraXpert on combined images and maybe also BackgroundNeutralization to clean image background. Local Normalization can be useful too.</p>" +
+                              "<p>It is also recommended that Crop to common are option is used. It cleans the image from bad data and makes " + 
+                              "finding the symmetry point more robust.</p>" + 
+                              "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
+            var Hyperbolic_li = "<li><p>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process.</p>" + Hyperbolic_tips + "</li>";
+      } else {
+            var Hyperbolic_li = "";
+      }
 
       var stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
@@ -6929,7 +6938,7 @@ function AutoIntegrateDialog()
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
             "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
-            "<li><p>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process.</p>" + Hyperbolic_tips + "</li>" +
+            Hyperbolic_li +
             "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Can be useful when stretching stars to keep good star color.</p></li>" +
             "<li><p>Logarithmic stretch - Experimental stretch</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
@@ -7973,62 +7982,64 @@ function AutoIntegrateDialog()
       this.ArcsinhSizer.add( this.Arcsinh_iterations_SpinBox );
       this.ArcsinhSizer.addStretch();
 
-      /* Hyperbolic.
-       */
-      this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 1, 15,
-            "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + 
-            "<p>This value is a starting value that we use for iteration. The value is decreased until histogram " +
-            "target is below the given limit.</p>" + Hyperbolic_tips);
-      this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 1, 15,
-            "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
-            "focused around a single intensity, while a lower b will spread the stretch around.</p>" + Hyperbolic_tips);
-      this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 99,
-            "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
-            "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + 
-            "<p>As a general rule for small targets you should use relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
-            "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 40 and 50).</p>" +
-            Hyperbolic_tips);
-      this.Hyperbolic_target_Control = newNumericEdit(this, "Hyperbolic histogram target", par.Hyperbolic_target, 0, 1,
-            "<p>Experimental, Hyperbolic Stretch histogram target value. Stops stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
-      this.hyperbolicIterationsLabel = new Label(this);
-      this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.hyperbolicIterationsLabel.text = "Iterations";
-      this.hyperbolicIterationsLabel.toolTip = "<p>Experimental, Hyperbolic Stretch number of iterations.</p>" + Hyperbolic_tips;
-      this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 20, this.hyperbolicIterationsLabel.toolTip);
-      this.hyperbolicModeLabel = new Label(this);
-      this.hyperbolicModeLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.hyperbolicModeLabel.text = "Mode";
-      this.hyperbolicModeLabel.toolTip = "<p>Experimental, Hyperbolic Stretch test mode.</p>" +
-                                         "<ul>" +
-                                         "<li>1 - Decrease D for every iteration</li>" +
-                                         "<li>2 - Decrease D for every iteration, use histogram peak as symmetry point (ignore SP value %)</li>" +
-                                         "</ul>" + Hyperbolic_tips;
-      this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 1, 2, this.hyperbolicModeLabel.toolTip);
-      
-      this.hyperbolicSizer1 = new HorizontalSizer;
-      this.hyperbolicSizer1.spacing = 4;
-      // this.hyperbolicSizer1.margin = 2;
-      this.hyperbolicSizer1.add( this.Hyperbolic_D_Control );
-      this.hyperbolicSizer1.add( this.Hyperbolic_b_Control );
-      this.hyperbolicSizer1.add( this.Hyperbolic_SP_Control );
-      this.hyperbolicSizer1.addStretch();
-      
-      this.hyperbolicSizer2 = new HorizontalSizer;
-      this.hyperbolicSizer2.spacing = 4;
-      // this.hyperbolicSizer2.margin = 2;
-      this.hyperbolicSizer2.add( this.Hyperbolic_target_Control );
-      this.hyperbolicSizer2.add( this.hyperbolicIterationsLabel );
-      this.hyperbolicSizer2.add( this.hyperbolicIterationsSpinBox );
-      this.hyperbolicSizer2.add( this.hyperbolicModeLabel );
-      this.hyperbolicSizer2.add( this.hyperbolicModeSpinBox );
-      this.hyperbolicSizer2.addStretch();
-      
-      this.hyperbolicSizer = new VerticalSizer;
-      this.hyperbolicSizer.spacing = 4;
-      // this.hyperbolicSizer.margin = 2;
-      this.hyperbolicSizer.add( this.hyperbolicSizer1 );
-      this.hyperbolicSizer.add( this.hyperbolicSizer2 );
-      this.hyperbolicSizer.addStretch();
+      if (use_hyperbolic) {
+            /* Hyperbolic.
+            */
+            this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 1, 15,
+                  "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + 
+                  "<p>This value is a starting value that we use for iteration. The value is decreased until histogram " +
+                  "target is below the given limit.</p>" + Hyperbolic_tips);
+            this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 1, 15,
+                  "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
+                  "focused around a single intensity, while a lower b will spread the stretch around.</p>" + Hyperbolic_tips);
+            this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 99,
+                  "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
+                  "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + 
+                  "<p>As a general rule for small targets you should use relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
+                  "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 40 and 50).</p>" +
+                  Hyperbolic_tips);
+            this.Hyperbolic_target_Control = newNumericEdit(this, "Hyperbolic histogram target", par.Hyperbolic_target, 0, 1,
+                  "<p>Experimental, Hyperbolic Stretch histogram target value. Stops stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
+            this.hyperbolicIterationsLabel = new Label(this);
+            this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.hyperbolicIterationsLabel.text = "Iterations";
+            this.hyperbolicIterationsLabel.toolTip = "<p>Experimental, Hyperbolic Stretch number of iterations.</p>" + Hyperbolic_tips;
+            this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 20, this.hyperbolicIterationsLabel.toolTip);
+            this.hyperbolicModeLabel = new Label(this);
+            this.hyperbolicModeLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+            this.hyperbolicModeLabel.text = "Mode";
+            this.hyperbolicModeLabel.toolTip = "<p>Experimental, Hyperbolic Stretch test mode.</p>" +
+                                          "<ul>" +
+                                          "<li>1 - Decrease D for every iteration</li>" +
+                                          "<li>2 - Decrease D for every iteration, use histogram peak as symmetry point (ignore SP value %)</li>" +
+                                          "</ul>" + Hyperbolic_tips;
+            this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 1, 2, this.hyperbolicModeLabel.toolTip);
+            
+            this.hyperbolicSizer1 = new HorizontalSizer;
+            this.hyperbolicSizer1.spacing = 4;
+            // this.hyperbolicSizer1.margin = 2;
+            this.hyperbolicSizer1.add( this.Hyperbolic_D_Control );
+            this.hyperbolicSizer1.add( this.Hyperbolic_b_Control );
+            this.hyperbolicSizer1.add( this.Hyperbolic_SP_Control );
+            this.hyperbolicSizer1.addStretch();
+            
+            this.hyperbolicSizer2 = new HorizontalSizer;
+            this.hyperbolicSizer2.spacing = 4;
+            // this.hyperbolicSizer2.margin = 2;
+            this.hyperbolicSizer2.add( this.Hyperbolic_target_Control );
+            this.hyperbolicSizer2.add( this.hyperbolicIterationsLabel );
+            this.hyperbolicSizer2.add( this.hyperbolicIterationsSpinBox );
+            this.hyperbolicSizer2.add( this.hyperbolicModeLabel );
+            this.hyperbolicSizer2.add( this.hyperbolicModeSpinBox );
+            this.hyperbolicSizer2.addStretch();
+            
+            this.hyperbolicSizer = new VerticalSizer;
+            this.hyperbolicSizer.spacing = 4;
+            // this.hyperbolicSizer.margin = 2;
+            this.hyperbolicSizer.add( this.hyperbolicSizer1 );
+            this.hyperbolicSizer.add( this.hyperbolicSizer2 );
+            this.hyperbolicSizer.addStretch();
+      }
 
       this.histogramShadowClip_Control = newNumericEditPrecision(this, "Histogram stretch shadow clip", par.histogram_shadow_clip, 0, 99,
                                           "Percentage of shadows that are clipped with Histogram stretch.", 3);
@@ -8084,7 +8095,9 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
       this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
       this.StretchingOptionsSizer.add( this.histogramStretchingSizer );
-      this.StretchingOptionsSizer.add( this.hyperbolicSizer );
+      if (use_hyperbolic) {
+            this.StretchingOptionsSizer.add( this.hyperbolicSizer );
+      }
       this.StretchingOptionsSizer.add( this.smoothBackgroundSizer );
       this.StretchingGroupBoxSizer.addStretch();
 

@@ -1094,6 +1094,9 @@ this.add_test_image = function(id, testid, testmode)
 
 this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
 {
+      if (par.debug.val) {
+            console.writeln("copyWindowEx " + sourceWindow.mainView.id + " to " + name + ", allow_duplicate_name " + allow_duplicate_name);
+      }
       if (global.get_flowchart_data) {
             allow_duplicate_name = true;
       }
@@ -1528,6 +1531,7 @@ this.mapBadChars = function(str)
       str = str.replace(/-/g,"_");
       str = str.replace(/,/g,"_");
       str = str.replace(/:/g,"_");
+      str = str.replace(/\+/g,"_");
       return str;
 }
 

@@ -4343,6 +4343,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       if (!no_status_info) {
             util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
       }
+      console.writeln("runPixelMathSingleMapping " + mapping);
 
       var idWin = util.findWindow(id);
       if (idWin == null) {
@@ -6984,16 +6985,19 @@ function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
       return engine.runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackground, false, null);
 }
 
-function runHistogramTransformMaskedStretch(GC_win, histogram_prestretch)
+function histogramPrestretch(GC_win, target_val)
 {
+      console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
+      GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', true, target_val);
+      return GC_win;
+}
+
+function runHistogramTransformMaskedStretch(GC_win, image_stretching, histogram_prestretch)
+{
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using " + image_stretching);
+      
       if (histogram_prestretch) {
-            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using MaskedStretch and Histogram prestretch");
-
-            console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
-            GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', true, par.MaskedStretch_prestretch_target.val);
-
-      } else {
-            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using MaskedStretch");
+            GC_win = histogramPrestretch(GC_win, par.MaskedStretch_prestretch_target.val);
       }
 
       var P = new MaskedStretch;
@@ -7081,7 +7085,29 @@ function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_proc
       return res.win;
 }
 
-function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel)
+function stretchHistogramTransformChannel(GC_win, image_stretching, target_value, degree, channel)
+{
+      var res = { 
+            win: GC_win, 
+            iteration_number: 1, 
+            completed: false, 
+            skipped: 0,
+            clipCount: 0,
+            target_value: target_value,
+            forward: true,
+            degree: degree
+      };
+
+      var window_updated = stretchHistogramTransform(res, image_stretching, channel);
+      if (window_updated) {
+            guiUpdatePreviewWin(res.win);
+      }
+      engine_end_process(null);
+      util.runGarbageCollection();
+      return res.win;
+}
+
+function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel, degree)
 {
       var res = { 
             win: GC_win, 
@@ -7090,7 +7116,8 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
             skipped: 0,
             clipCount: 0,
             target_value: target_value,
-            forward: true
+            forward: true,
+            degree: degree
       };
 
       for (var i = 0; i < 100; i++) {
@@ -7140,8 +7167,16 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
       }
 }
 
-function stretchLogarithmicIterations(GC_win, iscolor, image_stretching)
+function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_target_val, degree)
 {
+      var debug = true;
+
+      if (!GC_win.mainView.image.isColor) {
+            util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
+      }
+      if (!iscolor) {
+            util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
+      }
       if (GC_win.mainView.image.isColor) {
             var rgbLinked = getRgbLinked(iscolor);
       } else {
@@ -7149,22 +7184,40 @@ function stretchLogarithmicIterations(GC_win, iscolor, image_stretching)
       }
       util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + GC_win.mainView.id + " using iterations");
 
+      if (image_stretching == 'Asinh+Histogram stretch') {
+            GC_win = histogramPrestretch(GC_win, par.MaskedStretch_prestretch_target.val);
+            if (debug) {
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_prestretch"), true);
+            }
+      }
+
+      // Run the stretch function on the image
+      GC_win = stretchHistogramTransformChannel(GC_win, image_stretching, stretch_target_val, degree);
+      if (debug) {
+            util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching), true);
+      }
+
+      // Finalize using Histogram stretch iterations
+      var post_image_stretching = 'Histogram stretch';
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, par.logarithmic_stretch_target.val);
-
+            GC_win = stretchHistogramTransformIterationsChannel(GC_win, post_image_stretching, stretch_target_val);
+            if (debug) {
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_linked_final"), true);
+            }
+      
       } else {
             var R_id = extractRGBchannel(GC_win.mainView.id, 'R');
             console.writeln("Channel: R");
-            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), image_stretching, par.logarithmic_stretch_target.val);
+            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), post_image_stretching, stretch_target_val);
 
             var G_id = extractRGBchannel(GC_win.mainView.id, 'G');
             console.writeln("Channel: G");
-            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), image_stretching, par.logarithmic_stretch_target.val);
+            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), post_image_stretching, stretch_target_val);
 
             var B_id = extractRGBchannel(GC_win.mainView.id, 'B');
             console.writeln("Channel: B");
-            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), image_stretching, par.logarithmic_stretch_target.val);
+            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), post_image_stretching, stretch_target_val);
 
             runPixelMathRGBMapping(null, GC_win, R_id, G_id, B_id);
 
@@ -7176,9 +7229,12 @@ function stretchLogarithmicIterations(GC_win, iscolor, image_stretching)
             util.closeOneWindow(B_win.mainView.id);
 
             util.runGarbageCollection();
-
-            return GC_win;
+            if (debug) {
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_unlinked_final"), true);
+            }
       }
+
+      return GC_win;
 }
 
 function printImageStatistics(win, channel)
@@ -7189,6 +7245,7 @@ function printImageStatistics(win, channel)
       } else {
             var stat_channel = 0;
       }
+      console.writeln("Image statistics for " + view.id + ", stat_channel " + stat_channel);
 
       console.writeln(channelText(channel) + " Median " + view.computeOrFetchProperty("Median").at(stat_channel) + 
                                              " MAD " + view.computeOrFetchProperty("MAD").at(stat_channel) +
@@ -7203,6 +7260,10 @@ function printImageStatistics(win, channel)
  */
 function stretchHistogramTransform(res, image_stretching, channel)
 {
+      console.writeln(image_stretching + " on " + res.win.mainView.id + ", iteration " + res.iteration_number + ", channel " + channel);
+      console.writeln("\n****************************************************************");
+      console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
+
       if (channel >= 0) {
             var channel_number = channel;
             var median_channel = channel;
@@ -7210,9 +7271,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             var channel_number = 3;
             var median_channel = 0;
       }
-
-      console.writeln("\n****************************************************************");
-      console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
+      console.writeln("channel_number " + channel_number + ", median_channel " + median_channel);
 
       if (res.iteration_number == 1) {
             printImageStatistics(res.win, channel);
@@ -7315,11 +7374,39 @@ function stretchHistogramTransform(res, image_stretching, channel)
       } else if (image_stretching == 'Logarithmic stretch') {
 
             if (res.forward) {
-                  var mapping = "ln(1+$T)";
+                  // stretched_pixel = log(1 + pixel * constant) / log(1 + constant)
+                  // constant range from 500 to 5000
+                  // start with 1000, large values will loose contrast
+                  var mapping = "log(1+$T*" + res.degree + ")/log(1+" + res.degree + ")";
             } else {
-                  var mapping = "exp($T)-1";
+                  // (Math.pow(1 + k, stretchedPixel) - 1) / k
+                  var mapping = "(((1 + " + res.degree + ") ^ $T) - 1) / " + res.degree;
             }
             runPixelMathSingleMappingEx(new_win.mainView.id, "logarithmic stretch", mapping, false, null, true, true);
+
+      } else if (image_stretching == 'Asinh+Histogram stretch') {
+
+            if (res.forward) {
+                  // stretched_pixel = scale_factor * arcsinh(pixel / scale_factor)
+                  // Typical scale_factor values range from 0.001 to 0.1.
+                  // Start with 0.01
+                  var mapping = res.degree + " * arcsinh($T / " + res.degree + ")";
+            } else {
+                  // pixel = k * Math.sinh(stretchedPixel / k)
+                  var mapping = res.degree + " * sinh($T / " + res.degree + ")";
+            }
+            runPixelMathSingleMappingEx(new_win.mainView.id, "asinh stretch", mapping, false, null, true, true);
+
+      } else if (image_stretching == 'Square root stretch') {
+
+            if (res.forward) {
+                  // stretched_pixel = sqrt(pixel)
+                  var mapping = "sqrt($T)";
+            } else {
+                  // pixel = Math.pow(stretchedPixel, 2)
+                  var mapping = "$T ^ 2";
+            }
+            runPixelMathSingleMappingEx(new_win.mainView.id, "sqrt stretch", mapping, false, null, true, true);
 
       } else {
             util.throwFatalError("Unknown image stretching method: " + image_stretching);
@@ -7677,6 +7764,8 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
                   case 'Masked+Histogram Stretch':
                   case 'Histogram stretch':
                   case 'Logarithmic stretch':
+                  case 'Asinh+Histogram':
+                  case 'Square root stretch':
                         // Iterative stretch for a mask is very slow, just use Auto STF
                         image_stretching = 'Auto STF';
                         break;
@@ -7694,10 +7783,10 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             stf = runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground);
 
       } else if (image_stretching == 'Masked Stretch') {
-            GC_win = runHistogramTransformMaskedStretch(GC_win, false);
+            GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, false);
 
       } else if (image_stretching == 'Masked+Histogram Stretch') {
-            GC_win = runHistogramTransformMaskedStretch(GC_win, true);
+            GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, true);
 
       } else if (image_stretching == 'Arcsinh Stretch') {
             runHistogramTransformArcsinhStretch(GC_win);
@@ -7709,10 +7798,16 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
-            GC_win = stretchHistogramTransformIterations(GC_win, iscolor, image_stretching);
+            GC_win = stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val);
 
       } else if (image_stretching == 'Logarithmic stretch') {
-            GC_win = stretchLogarithmicIterations(GC_win, iscolor, image_stretching);
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val, 1000);
+
+      } else if (image_stretching == 'Asinh+Histogram stretch') {
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val, 0.1);
+
+      } else if (image_stretching == 'Square root stretch') {
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val);
 
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
