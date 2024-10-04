@@ -51,7 +51,8 @@ this.init_pixinsight_version = function()
 
 this.runGarbageCollection = function()
 {
-      gc(true);
+      console.writeln("runGarbageCollection");
+      gc();
 }
 
 this.checkEvents = function()

@@ -768,27 +768,38 @@ function flowchartGraph(rootnode)
             // Scale bitmap to image size
             if (bitmap.height != preview_image.height) {
                   var scale = preview_image.height / bitmap.height;
-                  bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  bitmap = scaled_bitmap;
             }
             if (bitmap.width > preview_image.width) {
                   var scale = preview_image.width / bitmap.width;
-                  bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
+                  bitmap = scaled_bitmap;
             }
-            var background_bitmap = new Image(preview_image).render();
-            var graphics = new Graphics(background_bitmap);
+            var background_image = new Image(preview_image);
+            var background_bitmap = background_image.render();
+            graphics = new Graphics(background_bitmap);
             // draw bitmnap to the middle of the image
             var x = (preview_image.width - bitmap.width) / 2;
             var y = (preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
             var flowchartImage = util.createImageFromBitmap(background_bitmap);
+            background_image.free();
+            background_image = null;
       } else {
             var flowchartImage = util.createImageFromBitmap(bitmap);
+      }
+      if (global.flowchart_image != null) {
+            global.flowchart_image.free();
+            global.flowchart_image = null;
       }
       global.flowchart_image = flowchartImage;
 
       tabPreviewControl.SetImage(flowchartImage, txt);
       sidePreviewControl.SetImage(flowchartImage, txt);
+
+      util.runGarbageCollection();
 
       if (par.flowchart_debug.val) {
             console.writeln("flowchartGraph:end");
@@ -3790,6 +3801,8 @@ function updatePreviewNoImageInControl(control)
       var startupImage = util.createImageFromBitmap(bitmap);
 
       control.SetImage(startupImage);
+
+      startupImage.free();
 }
 
 function updatePreviewNoImage()

@@ -70,6 +70,9 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
        this.SetImage = function(image, txt)
        {
              //console.writeln("SetImage");
+             if (this.image) {
+                  this.image.free();
+             }
              this.image = new Image( image );
              this.bitmap = this.image.render();
              this.scaledBitmap = null;
@@ -89,7 +92,10 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
              if (this.zoom == this.zoomOutLimit) {
                    this.SetImage(image, txt);
              } else {
-                   this.image = new Image( image );
+                  if (this.image) {
+                        this.image.free();
+                   }
+                  this.image = new Image( image );
                    this.bitmap = this.image.render();
                    this.scaledBitmap = null;
                    this.SetZoomOutLimit();
