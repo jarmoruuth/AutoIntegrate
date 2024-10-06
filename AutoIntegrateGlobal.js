@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.71 test2";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.71";         // Version, also updated into updates.xri
 this.autointegrate_info = "Fix to memory usage";            // For updates.xri
 
 this.autointegrate_version_info = [
