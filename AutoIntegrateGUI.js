@@ -339,6 +339,7 @@ var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
 var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
+var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -7542,10 +7543,26 @@ function AutoIntegrateDialog()
       this.colorCalibrationNarrowbandCheckBox = newCheckBox(this, "Use for narrowband", par.color_calibration_narrowband, 
             "Enable ColorCalibration for narrowband images.");
 
-      this.colorCalibrationSizer = new HorizontalSizer;
+      this.colorCalibrationTimeLabel = newLabel(this, "When to run color calibration", 
+                        "<p>When to run color calibration</p>" +
+                        "<ul>" +
+                        "<li>With auto when using ColorCalibation process color calibration run for linear and nonlinear phase. When using SPCC process color calibration run only in linear phase.</li>" + 
+                        "<li>With linear color calibration is run only in linear phase.</li>" + 
+                        "<li>With nonlinear color calibration is run only in nonlinear phase.</li>" + 
+                        "</ul>");
+      this.colorCalibrationTimeComboBox = newComboBox(this, par.color_calibration_time, color_calibration_time_values, this.colorCalibrationTimeLabel.toolTip);
+      this.colorCalibrationTimeSizer = new HorizontalSizer;
+      this.colorCalibrationTimeSizer.margin = 6;
+      this.colorCalibrationTimeSizer.spacing = 4;
+      this.colorCalibrationTimeSizer.add( this.colorCalibrationTimeLabel );
+      this.colorCalibrationTimeSizer.add( this.colorCalibrationTimeComboBox );
+      this.colorCalibrationTimeSizer.addStretch();
+
+      this.colorCalibrationSizer = new VerticalSizer;
       this.colorCalibrationSizer.margin = 6;
       this.colorCalibrationSizer.spacing = 4;
       this.colorCalibrationSizer.add( this.colorCalibrationNarrowbandCheckBox );
+      this.colorCalibrationSizer.add( this.colorCalibrationTimeSizer );
       this.colorCalibrationSizer.addStretch();
 
       this.spccDetectionScalesLabel = newLabel(this, "Detection scales", "Number of layers used for structure detection. Larger value detects larger stars for signal evaluation. If SPCC fails you can try increasing the value.");

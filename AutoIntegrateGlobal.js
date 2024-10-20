@@ -42,12 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.71";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.72 test1";   // Version, also updated into updates.xri
 this.autointegrate_info = "Fix to memory usage";            // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Fix to memory usage"
+      "- Small changes"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -361,6 +361,7 @@ this.par = {
       spcc_saturation_threshold: { val: 0.75, def: 0.75, name : "SPCC saturation threshold", type : 'R' },
       spcc_min_SNR: { val: 40, def: 40, name : "SPCC min SNR", type : 'R' },
       color_calibration_narrowband: { val: false, def: false, name : "ColorCalibration narrowband", type : 'B' },
+      color_calibration_time: { val: 'auto', def: 'auto', name : "ColorCalibration time", type : 'S' },
 
       // Extra processing for narrowband
       run_foraxx_mapping: { val: false, def: false, name : "Extra Foraxx mapping", type : 'B' },

@@ -265,7 +265,9 @@ var channels = {
       C: 7
 };
 
-var telescope_info = [
+var telescope_info = [];
+
+var not_used_telescope_info = [     // Problems with this info, just use image metadata
       [ 'AUS-2-CMOS', 382, 3.76 ],
       [ 'SPA-1-CMOS', 382, 3.76 ],
       [ 'SPA-2-CMOS', 5600, 3.76 ],
@@ -5091,8 +5093,12 @@ function initSPCCvalues()
             spcc_params.bandhwidths = [ par.spcc_red_bandwidth.val, par.spcc_green_bandwidth.val, par.spcc_blue_bandwidth.val ];
             spcc_params.white_reference = par.spcc_white_reference.val;
             spcc_params.narrowband_mode = par.spcc_narrowband_mode.val;
+      } else {
+            spcc_params.wavelengths = [ ];
+            spcc_params.bandhwidths = [ ];
+            spcc_params.white_reference = "";
+            spcc_params.narrowband_mode = false;
       }
-
 }
 
 // Return default Wavelength and BandWidth for SPCC
@@ -5745,6 +5751,18 @@ function runLocalNormalization(imagetable, refImage, filter)
       if (imagetable.length == 1 || global.get_flowchart_data) {
             console.writeln("runLocalNormalization, only one file or flowchart, no need for local normalization");
             return;
+      }
+
+      if (par.use_processed_files.val) {
+            var fileNames = [];
+            for (var i = 0; i < imagetable.length; i++) {
+                  fileNames[i] = imagetable[i][1];
+            }
+            var fileProcessedStatus = getFileProcessedStatusEx(fileNames, "", global.outputRootDir + global.AutoOutputDir, ".xnml");
+            if (fileProcessedStatus.processed.length == fileNames.length) {
+                  util.addProcessingStep("Using existing local normalization files");
+                  return;
+            }
       }
 
       var targets = [];
@@ -8528,13 +8546,55 @@ function runImageSolverEx(id)
             }
 
             console.writeln("Image metadata for SolveImage:");
-            console.writeln("  coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
-            console.writeln("  focal length: " + solver.metadata.focal);
-            console.writeln("  resolution: " + solver.metadata.resolution);
-            console.writeln("  xpixsz: " + solver.metadata.xpixsz);
-            console.writeln("  referenceSystem: " + solver.metadata.referenceSystem);
-            console.writeln("  useFocal: " + solver.metadata.useFocal);
-            console.writeln("  topocentric: " + solver.metadata.topocentric);
+
+            console.writeln("metadata.focal: " + metadata.focal);
+            console.writeln("metadata.useFocal: " + metadata.useFocal);
+            console.writeln("metadata.xpixsz: " + metadata.xpixsz);
+            console.writeln("metadata.resolution: " + metadata.resolution);
+            console.writeln("metadata.referenceSystem: " + metadata.referenceSystem);
+            console.writeln("metadata.ra: " + metadata.ra);
+            console.writeln("metadata.dec: " + metadata.dec);
+            console.writeln("metadata.epoch: " + metadata.epoch);
+            console.writeln("metadata.observationTime: " + metadata.observationTime);
+            console.writeln("metadata.topocentric: " + metadata.topocentric);
+
+            console.writeln("solverCfg.version: " + solver.solverCfg.version);
+            console.writeln("solverCfg.magnitude: " + solver.solverCfg.magnitude);
+            console.writeln("solverCfg.autoMagnitude: " + solver.solverCfg.autoMagnitude);
+            console.writeln("solverCfg.generateErrorImg: " + solver.solverCfg.generateErrorImg);
+            console.writeln("solverCfg.structureLayers: " + solver.solverCfg.structureLayers);
+            console.writeln("solverCfg.minStructureSize: " + solver.solverCfg.minStructureSize);
+            console.writeln("solverCfg.hotPixelFilterRadius: " + solver.solverCfg.hotPixelFilterRadius);
+            console.writeln("solverCfg.noiseReductionFilterRadius: " + solver.solverCfg.noiseReductionFilterRadius);
+            console.writeln("solverCfg.sensitivity: " + solver.solverCfg.sensitivity);
+            console.writeln("solverCfg.peakResponse: " + solver.solverCfg.peakResponse); // row 20
+            console.writeln("solverCfg.brightThreshold: " + solver.solverCfg.brightThreshold);
+            console.writeln("solverCfg.maxStarDistortion: " + solver.solverCfg.maxStarDistortion);
+            console.writeln("solverCfg.autoPSF: " + solver.solverCfg.autoPSF);
+            console.writeln("solverCfg.catalogMode: " + solver.solverCfg.catalogMode);
+            console.writeln("solverCfg.vizierServer: " + solver.solverCfg.vizierServer);
+            console.writeln("solverCfg.showStars: " + solver.solverCfg.showStars);
+            console.writeln("solverCfg.showStarMatches: " + solver.solverCfg.showStarMatches);
+            console.writeln("solverCfg.showSimplifiedSurfaces: " + solver.solverCfg.showSimplifiedSurfaces);
+            console.writeln("solverCfg.showDistortion: " + solver.solverCfg.showDistortion);
+            console.writeln("solverCfg.generateDistortModel: " + solver.solverCfg.generateDistortModel); // row 30
+            console.writeln("solverCfg.catalog: " + solver.solverCfg.catalog);
+            console.writeln("solverCfg.distortionCorrection: " + solver.solverCfg.distortionCorrection);
+            console.writeln("solverCfg.splineOrder: " + solver.solverCfg.splineOrder);
+            console.writeln("solverCfg.splineSmoothing: " + solver.solverCfg.splineSmoothing);
+            console.writeln("solverCfg.enableSimplifier: " + solver.solverCfg.enableSimplifier);
+            console.writeln("solverCfg.simplifierRejectFraction: " + solver.solverCfg.simplifierRejectFraction);
+            console.writeln("solverCfg.outlierDetectionRadius: " + solver.solverCfg.outlierDetectionRadius);
+            console.writeln("solverCfg.outlierDetectionMinThreshold: " + solver.solverCfg.outlierDetectionMinThreshold);
+            console.writeln("solverCfg.outlierDetectionSigma: " + solver.solverCfg.outlierDetectionSigma);
+            console.writeln("solverCfg.useDistortionModel: " + solver.solverCfg.useDistortionModel); // row 40
+            console.writeln("solverCfg.useActive: " + solver.solverCfg.useActive);
+            console.writeln("solverCfg.outSuffix: " + solver.solverCfg.outSuffix);
+            console.writeln("solverCfg.projection: " + solver.solverCfg.projection);
+            console.writeln("solverCfg.projectionOriginMode: " + solver.solverCfg.projectionOriginMode);
+            console.writeln("solverCfg.restrictToHQStars: " + solver.solverCfg.restrictToHQStars);
+            console.writeln("solverCfg.tryApparentCoordinates: " + solver.solverCfg.tryApparentCoordinates);
+            console.writeln("solverCfg.tryExhaustiveInitialAlignment: " + solver.solverCfg.tryExhaustiveInitialAlignment);
 
             /*
              * Solve image
@@ -8615,6 +8675,8 @@ function runColorCalibrationProcess(imgWin)
 
 function runColorCalibration(imgWin, phase)
 {
+      console.writeln("runColorCalibration on " + imgWin.mainView.id + " in phase " + phase);
+      console.writeln("  process_narrowband: " + process_narrowband + ", narrowband_mode: " + spcc_params.narrowband_mode + ", color_calibration_narrowband: " + par.color_calibration_narrowband.val);
       if (process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
             util.addProcessingStep("No color calibration for narrowband");
             return;
@@ -8623,10 +8685,14 @@ function runColorCalibration(imgWin, phase)
             util.addProcessingStep("Color calibration was disabled");
             return;
       }
+      if (par.color_calibration_time.val != 'auto' && par.color_calibration_time.val != phase) {
+            util.addProcessingStep("Color calibration was disabled for this phase");
+            return;
+      }
       if (par.use_spcc.val) {
             /* Use SPCC.
              */
-            if (phase == 'nonlinear') {
+            if (par.color_calibration_time.val == 'auto' && phase == 'nonlinear') {
                   /* SPCC is run only in linear phase. */
                   console.writeln("SpectrophotometricColorCalibration is run only in linear mode.");
                   return;
@@ -9621,7 +9687,7 @@ this.autocontinueHasNarrowband = function()
       return process_narrowband;
 }
 
-function getFileProcessedStatusEx(fileNames, postfix, outputDir)
+function getFileProcessedStatusEx(fileNames, postfix, outputDir, outputExtension = ".xisf")
 {
       if (!par.use_processed_files.val) {
             return { processed: [], unprocessed: fileNames };
@@ -9629,7 +9695,6 @@ function getFileProcessedStatusEx(fileNames, postfix, outputDir)
       var processed = [];
       var unprocessed = [];
       for (var i = 0; i < fileNames.length; i++) {
-            var outputExtension = ".xisf";
             var processedName = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
             if (File.exists(processedName)) {
                   console.writeln("getFileProcessedStatus, found processed file " + processedName);
