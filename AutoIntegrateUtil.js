@@ -1390,6 +1390,8 @@ this.updateStatusInfoLabel = function(txt)
       }
 }
 
+// Add critical status message to a list of messages
+// and update status info label
 this.addCriticalStatus = function(txt)
 {
       if (txt == null || txt == undefined || txt == "") {

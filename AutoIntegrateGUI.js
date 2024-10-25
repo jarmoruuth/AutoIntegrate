@@ -871,7 +871,8 @@ function generateNewFlowchartData(parent)
       try {
             engine.autointegrateProcessingEngine(parent.dialog, false, false, "Generate flowchart data");
       } catch (x) {
-            console.writeln( x );
+            util.addCriticalStatus("generateNewFlowchartData failed:" + x);
+            console.criticalln( x );
             global.flowchartData = null;
             global.is_processing = global.processing_state.none;
             succp = false;
@@ -2943,8 +2944,13 @@ function Autorun(parent)
                         } else if (batch_narrowband_palette_mode || par.batch_mode.val) {
                               console.writeln("Do not get flowchart data for batch mode");
                         } else {
-                              generateNewFlowchartData(parent);
+                              let succ = generateNewFlowchartData(parent);
+                              if (par.debug.val) {
+                                    util.throwFatalError("Debug stop");
+                              }
                         }
+                  } else {
+                        console.writeln("Do not get flowchart data");
                   }
                   try {
                         if (batch_narrowband_palette_mode) {
@@ -6865,6 +6871,16 @@ function AutoIntegrateDialog()
             "<p>This option is also useful when doing comet alignment. Then input files should be comet aligned *_ca.xisf files.</p>" +
             "<p>If filter type is not included in the file keywords it cannot be detected from the file name. In that case " + 
             "filter files must be added manually to the file list.</p>" );
+      this.save_processed_channel_images_CheckBox = newCheckBox(this, "Save processed channel images", par.save_processed_channel_images,
+            "<p>For mono RGB images, channel images are saved before channel combination.</p>" +
+            "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>");
+      this.save_stretched_starless_channel_images_CheckBox = newCheckBox(this, "Save stretched starless channel images", par.save_stretched_starless_channel_images,
+            "<p>Save stretched starless channel images. Images are saved as .xisf and .tif files.</p>" +
+            "<p>These can be used for example for color mapping in Photoshop. For a great example see " + 
+            "Utah Desert Remote Observatories YouTube channel.</p>" +
+            "<p>For mono RGB images, channel images are saved before channel combination.</p>" +
+            "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>" +
+            "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>");
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
@@ -7062,11 +7078,13 @@ function AutoIntegrateDialog()
       this.otherParamsSet11.add( this.CropInfoOnlyCheckBox );
       this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
       this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
+      this.otherParamsSet11.add( this.start_from_imageintegration_CheckBox );
 
       this.otherParamsSet12 = new VerticalSizer;
       this.otherParamsSet12.margin = 6;
       this.otherParamsSet12.spacing = 4;
-      this.otherParamsSet12.add( this.start_from_imageintegration_CheckBox );
+      this.otherParamsSet12.add( this.save_processed_channel_images_CheckBox );
+      this.otherParamsSet12.add( this.save_stretched_starless_channel_images_CheckBox );
       this.otherParamsSet12.add( this.RRGB_image_CheckBox );
       this.otherParamsSet12.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet12.add( this.synthetic_missing_images_CheckBox );
@@ -7265,15 +7283,16 @@ function AutoIntegrateDialog()
                                                 "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
       this.auto_noise_reduction_CheckBox = newCheckBox(this, "Auto", par.auto_noise_reduction,
             "<p>Select automatically correct time for noise reduction.</p>" + 
-            "<p>If GradientXTerminator is used, then combined image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
+            "<p>If BlurXTerminator is not used, then combined image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
             "<p>This option enables also color/OSC image noise reduction.</p>");
       this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
-            "<p>Do noise reduction on each color channels and luminance image separately.</p><p>This option enables also color/OSC image noise reduction.</p>");
+            "<p>Do noise reduction on each color channels and luminance image separately.</p>" + 
+            "<p>This option enables also color/OSC image noise reduction.</p>");
       this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image", par.combined_image_noise_reduction,
             "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately.</p><p>This option enables also color/OSC image noise reduction.</p>" );
       this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
-      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
+      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction,", par.use_color_noise_reduction, 
             "<p>Do color noise reduction.</p>" );
 
       this.ACDNR_noise_reduction_Control = newNumericEdit(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 

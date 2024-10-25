@@ -189,7 +189,7 @@ var L_processed_HT_win;
 var L_processed_HT_id;
 var RGB_processed_id;
 
-var is_color_files = false;
+var is_color_files = false;    // Are we processing color/OSC files
 var is_rgb_files = false;
 var is_narrowband_files = false;
 var preprocessed_images;
@@ -818,6 +818,7 @@ function closeAllWindowsFromArray(arr, print_names)
                   util.closeOneWindow(arr[i] + "_NB_enhanced");
                   util.closeOneWindow(arr[i] + "_NB_combine");
                   util.closeOneWindow(arr[i] + "_NB_max");
+                  util.closeOneWindow(arr[i] + "_processed_starless");
             }
       }
 }
@@ -4582,6 +4583,53 @@ function processChannelImage(image_id, is_luminance)
       }
 }
 
+function findChannelFromName3(name)
+{
+      if (name.endsWith("_R")) {
+            return 'R';
+      } else if (name.endsWith("_G")) {
+            return 'G';
+      } else if (name.endsWith("_B")) {
+            return 'B';
+      } else if (name.endsWith("_H")) {
+            return 'H';
+      } else if (name.endsWith("_S")) {
+            return 'S';
+      } else if (name.endsWith("_O")) {
+            return 'O';
+      } else if (name.endsWith("_C")) {
+            return 'C';
+      } else if (name.endsWith("_L")) {
+            return 'L';
+      } else {
+            console.writeln("findChannelFromName, unknown channel " + name);
+            return name;
+      }
+
+}
+function findChannelFromName2(name)
+{
+      if (name.indexOf("_R_") != -1) {
+            return 'R';
+      } else if (name.indexOf("_G_") != -1) {
+            return 'G';
+      } else if (name.indexOf("_B_") != -1) {
+            return 'B';
+      } else if (name.indexOf("_H_") != -1) {
+            return 'H';
+      } else if (name.indexOf("_S_") != -1) {
+            return 'S';
+      } else if (name.indexOf("_O_") != -1) {
+            return 'O';
+      } else if (name.indexOf("_C_") != -1) {
+            return 'C';
+      } else if (name.indexOf("_L_") != -1) {
+            return 'L';
+      } else {
+            return findChannelFromName3(name);
+      }
+}
+
 function findChannelFromName(name)
 {
       if (name.indexOf("_R_map") != -1) {
@@ -4601,8 +4649,7 @@ function findChannelFromName(name)
       } else if (name.indexOf("_L_map") != -1) {
             return 'L';
       } else {
-            console.writeln("findChannelFromName, unknown channel " + name);
-            return 'Unknown channel';
+            return findChannelFromName2(name);
       }
 }
 
@@ -4946,10 +4993,6 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             var node = null;
       }
 
-      if (global.get_flowchart_data) {
-            return null;
-      }
-
       if (linear_data && use_unscreen) {
             console.writeln("Not using unscreen for linear data");
       }
@@ -5001,6 +5044,10 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
 
       if (par.use_starxterminator.val) {
             console.writeln("StarXTerminator completed");
+      }
+
+      if (global.get_flowchart_data) {
+            return  null;
       }
 
       guiUpdatePreviewWin(imgWin);
@@ -5167,6 +5214,145 @@ function mapSPCCAutoNarrowband()
       }
 }
 
+// basename should not have an extension
+function save_id_as_xisf_and_tif(id, basename)
+{
+      // Find source window
+      var image_win = util.findWindow(id);
+      if (image_win == null) {
+            util.throwFatalError("save_id_as_xisf_and_tif:could not find image " + id);
+      }
+
+      // Copy image to temporary name
+      console.writeln("save_id_as_xisf_and_tif, copy image " + id);
+      image_win = util.copyWindow(image_win, id + "_tmp");
+
+      var filePath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
+      filePath = util.ensurePathEndSlash(filePath) + basename;
+
+      // Save as .xisf
+      console.writeln("createStarlessChannelImages, save starless image " + filePath + ".xisf");
+      if (!image_win.saveAs(filePath + ".xisf", false, false, false, false)) {
+            util.throwFatalError("createStarlessChannelImages:failed to save image: " + filePath + ".xisf");
+      }
+      
+      // Save as .tif
+      console.writeln("createStarlessChannelImages, save starless image " + filePath + ".tif");
+      if (image_win.bitsPerSample != 16) {
+            console.writeln("createStarlessChannelImages:set bits to 16");
+            image_win.setSampleFormat(16, false);
+      }
+      if (!image_win.saveAs(filePath + ".tif", false, false, false, false)) {
+            util.throwFatalError("createStarlessChannelImages:failed to save image: " + filePath + ".tif");
+      }
+
+      util.forceCloseOneWindow(image_win);
+}
+
+// Stretch channel images, remove stars and save images
+// Called when par.save_stretched_starless_channel_images.val is true
+function createStarlessChannelImages(images)
+{
+      flowchartParentBegin("Starless channels");
+
+      for (var i = 0; i < images.length; i++) {
+            flowchartChildBegin(findChannelFromName(images[i]));
+
+            var id = images[i];
+            console.writeln("createStarlessChannelImages, image " + id);
+            var image_win = util.findWindow(id);
+            if (image_win == null) {
+                  util.throwFatalError("createStarlessChannelImages:could not find image " + id);
+            }
+
+            // Copy image to temporary name
+            var copy_id = id + "_tmp";
+            console.writeln("createStarlessChannelImages, copy image " + images[i]);
+            image_win = util.copyWindow(image_win, copy_id);
+            
+            // Stretch image
+            image_win = runHistogramTransform(image_win, null, false, 'channel').win;
+
+            // Remove stars
+            removeStars(image_win, false, false, null, null, false, false);
+
+            // Rename starless image
+            image_win.mainView.id = util.ensure_win_prefix(images[i].replace(/_map.*/g, "_processed") + "_starless");
+
+            // Save image in .xisf and .tif format
+            save_id_as_xisf_and_tif(image_win.mainView.id, image_win.mainView.id);
+
+            global.processed_channel_images[global.processed_channel_images.length] = image_win.mainView.id;
+
+            if (copy_id != image_win.mainView.id) {
+                  util.closeOneWindow(copy_id);
+            }
+
+            flowchartChildEnd(findChannelFromName(images[i]));
+      }
+      flowchartParentEnd("Starless channels");
+}
+
+function createStarsImageFromFinalImage(id)
+{
+      var starless_name = id + "_stars";
+      var image_win = util.findWindow(starless_name);
+      if (image_win != null) {
+            // We already have starless image
+            console.writeln("createStarsImageFromFinalImage, already stars image " + id);
+            return;
+      }
+
+      console.writeln("createStarsImageFromFinalImage, image " + id);
+
+      // Create temporary copy of image
+      var image_win = util.findWindow(id);
+      image_win = util.copyWindow(image_win, id + "_tmp");
+
+      // Create starless image
+      var stars_win = removeStars(image_win, false, true, null, null, true, false);
+
+      if (stars_win != null) {
+            stars_win.mainView.id = starless_name;
+
+            // Save stars image in .xisf and .tif format
+            save_id_as_xisf_and_tif(stars_win.mainView.id, starless_name);
+
+            // Add to channel images as this is often used with channel images
+            global.processed_channel_images[global.processed_channel_images.length] = starless_name;
+      } else {
+            if (!global.get_flowchart_data) {
+                  util.throwFatalError("createStarsImageFromFinalImage:failed to create stars image " + id);
+            }
+      }
+
+      guiUpdatePreviewWin(util.findWindow(id)); // Undo previwe update from removeStars
+
+      util.forceCloseOneWindow(image_win);
+}
+
+// Extract channels to separate images and save stretched starless images
+// Called when par.save_stretched_starless_channel_images.val is true
+function extractChannelsAndSaveStarlessImages(RGB_win_id)
+{
+      let channels = [ "R", "G", "B" ];
+      let images = [];
+      flowchartParentBegin("Extract channels");
+      for (var i = 0; i < channels.length; i++) {
+            flowchartChildBegin(channels[i]);
+            let id = extractRGBchannel(RGB_win_id, channels[i], false);
+            images[images.length] = id;
+            flowchartChildEnd(channels[i]);
+      }
+      flowchartParentEnd("Extract channels");
+
+      createStarlessChannelImages(images);
+      
+      for (var i = 0; i < images.length; i++) {
+            util.closeOneWindow(images[i]);
+      }
+}
+
 /* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
  * If filtered_lights != null we do not do any processing, just check
@@ -5311,6 +5497,16 @@ function customMapping(RGBmapping, filtered_lights)
                   RGBmapping.stretched = true;
             }
 
+            if (par.save_processed_channel_images.val) {
+                  // Save processed channel images before we combine them
+                  for (var i = 0; i < images.length; i++) {
+                        saveProcessedImage(images[i], images[i]);
+                  }
+            }
+            if (par.save_stretched_starless_channel_images.val) {
+                  createStarlessChannelImages(images);
+            }
+      
             /* Run PixelMath to create a combined RGB image.
              */
             RGB_win_id = runPixelMathRGBMappingFindRef(ppar.win_prefix + "Integration_RGB_combined", red_mapping, green_mapping, blue_mapping);
@@ -10590,6 +10786,9 @@ function ProcessLimage(RGBmapping)
                   if (save_processed_images) {
                         saveProcessedImage(L_processed_id, L_processed_id);
                   }
+                  if (par.save_stretched_starless_channel_images.val) {
+                        createStarlessChannelImages([L_processed_id]);
+                  }
                   runHistogramTransform(
                               util.copyWindow(ImageWindow.windowById(L_processed_id), L_processed_HT_id), 
                               null,
@@ -10722,6 +10921,16 @@ function CombineRGBimageEx(target_name, images)
                   flowchartChildEnd(findChannelFromName(images[i]));
             }
             flowchartParentEnd("Channels");
+      }
+
+      if (par.save_processed_channel_images.val) {
+            // Save processed channel images before we combine them
+            for (var i = 0; i < images.length; i++) {
+                  saveProcessedImage(images[i], images[i]);
+            }
+      }
+      if (par.save_stretched_starless_channel_images.val) {
+            createStarlessChannelImages(images);
       }
 
       /* ChannelCombination
@@ -11747,7 +11956,10 @@ function ProcessRGBimage(RGBmapping)
                   if (save_processed_images) {
                         saveProcessedImage(RGB_processed_id, RGB_processed_id);
                   }
-
+                  if (par.save_stretched_starless_channel_images.val && is_color_files) {
+                        extractChannelsAndSaveStarlessImages(RGB_processed_id);
+                  }
+            
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(RGB_processed_id, ["_processed"], "_HT"));
@@ -15634,6 +15846,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    saveProcessedWindow(starless_id);
 
                    guiUpdatePreviewId(LRGB_processed_HT_id);
+             }
+             if (par.save_stretched_starless_channel_images.val) {
+                  createStarsImageFromFinalImage(LRGB_processed_HT_id);
              }
        }
  
