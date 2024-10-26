@@ -5285,7 +5285,9 @@ function createStarlessChannelImages(images, basenames = null)
             removeStars(image_win, false, false, null, null, false, false);
 
             // Rename starless image
-            image_win.mainView.id = util.ensure_win_prefix(basenames[i].replace(/_map.*/g, "_processed") + "_starless");
+            var new_name = util.ensure_win_prefix(basenames[i].replace(/_map.*/g, "_processed") + "_starless")
+            console.writeln("createStarlessChannelImages, rename image " + image_win.mainView.id + " to " + new_name);
+            image_win.mainView.id = new_name;
 
             // Save image in .xisf and .tif format
             save_id_as_xisf_and_tif(image_win.mainView.id, image_win.mainView.id);
@@ -5334,7 +5336,9 @@ function createStarsImageFromFinalImage(id)
             }
       }
 
-      guiUpdatePreviewWin(util.findWindow(id)); // Undo previwe update from removeStars
+      if (!global.get_flowchart_data) {
+            guiUpdatePreviewWin(util.findWindow(id)); // Undo preview update from removeStars
+      }
 
       util.forceCloseOneWindow(image_win);
 }
@@ -5354,7 +5358,7 @@ function extractChannelsAndSaveStarlessImages(RGB_win_id)
       }
       flowchartParentEnd("Extract channels");
 
-      createStarlessChannelImages(images, "[ Integration_R_processed, Integration_G_processed, Integration_B_processed ]");
+      createStarlessChannelImages(images, [ 'Integration_R_processed', 'Integration_G_processed', 'Integration_B_processed' ]);
       
       for (var i = 0; i < images.length; i++) {
             util.closeOneWindow(images[i]);
