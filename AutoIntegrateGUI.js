@@ -6537,9 +6537,10 @@ function AutoIntegrateDialog()
             "<li>Run a normal workflow to get correct stars and background objects.</li>" +
             "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
-            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i> in <i>Settings</i> tab.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i> in <i>Other</i> tab.</li>" +
-            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i> in <i>Other</i> tab.</li>" +
+            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i> section in <i>Settings</i> tab.</li>" +
+            "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Tools and batching</i> section in <i>Settings</i> tab.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i> section in <i>Other</i> tab.</li>" +
+            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i> section in <i>Other</i> tab.</li>" +
             "<li>Go to the <i>Processing 2 tab</i> and <i>CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
                   "<i>Preview</i> button for the first or last image, go to preview, zoom " + 

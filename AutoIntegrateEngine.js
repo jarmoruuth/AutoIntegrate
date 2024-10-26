@@ -5217,6 +5217,10 @@ function mapSPCCAutoNarrowband()
 // basename should not have an extension
 function save_id_as_xisf_and_tif(id, basename)
 {
+      if (global.get_flowchart_data) {
+            return;
+      }
+
       // Find source window
       var image_win = util.findWindow(id);
       if (image_win == null) {
@@ -5251,12 +5255,16 @@ function save_id_as_xisf_and_tif(id, basename)
 
 // Stretch channel images, remove stars and save images
 // Called when par.save_stretched_starless_channel_images.val is true
-function createStarlessChannelImages(images)
+function createStarlessChannelImages(images, basenames = null)
 {
       flowchartParentBegin("Starless channels");
 
+      if (basenames == null) {
+            basenames = images;
+      }
+
       for (var i = 0; i < images.length; i++) {
-            flowchartChildBegin(findChannelFromName(images[i]));
+            flowchartChildBegin(findChannelFromName(basenames[i]));
 
             var id = images[i];
             console.writeln("createStarlessChannelImages, image " + id);
@@ -5277,7 +5285,7 @@ function createStarlessChannelImages(images)
             removeStars(image_win, false, false, null, null, false, false);
 
             // Rename starless image
-            image_win.mainView.id = util.ensure_win_prefix(images[i].replace(/_map.*/g, "_processed") + "_starless");
+            image_win.mainView.id = util.ensure_win_prefix(basenames[i].replace(/_map.*/g, "_processed") + "_starless");
 
             // Save image in .xisf and .tif format
             save_id_as_xisf_and_tif(image_win.mainView.id, image_win.mainView.id);
@@ -5288,7 +5296,7 @@ function createStarlessChannelImages(images)
                   util.closeOneWindow(copy_id);
             }
 
-            flowchartChildEnd(findChannelFromName(images[i]));
+            flowchartChildEnd(findChannelFromName(basenames[i]));
       }
       flowchartParentEnd("Starless channels");
 }
@@ -5346,7 +5354,7 @@ function extractChannelsAndSaveStarlessImages(RGB_win_id)
       }
       flowchartParentEnd("Extract channels");
 
-      createStarlessChannelImages(images);
+      createStarlessChannelImages(images, "[ Integration_R_processed, Integration_G_processed, Integration_B_processed ]");
       
       for (var i = 0; i < images.length; i++) {
             util.closeOneWindow(images[i]);
