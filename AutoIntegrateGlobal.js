@@ -43,7 +43,7 @@ this.__base__();
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.72 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Fix to memory usage";            // For updates.xri
+this.autointegrate_info = "Small changes";                  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
@@ -176,6 +176,7 @@ this.par = {
       bxt_image_psf: { val: false, def: false, name : "BlurXTerminator image PSF", type : 'B' },
       bxt_median_psf: { val: false, def: false, name : "BlurXTerminator median PSF", type : 'B' },
       bxt_correct_only_before_cc: { val: false, def: false, name : "BlurXTerminator correct only before CC", type : 'B' },
+      bxt_correct_channels: { val: false, def: false, name : "BlurXTerminator correct only channels", type : 'B' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },

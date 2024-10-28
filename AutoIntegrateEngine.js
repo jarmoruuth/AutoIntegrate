@@ -5482,6 +5482,7 @@ function customMapping(RGBmapping, filtered_lights)
                   RGBmapping.channel_noise_reduction = true;
             }
 
+            var bxt_run = false;
             if (!mapping_on_nonlinear_data) {
                   /* We run PixelMath using linear images. 
                    */
@@ -5501,6 +5502,7 @@ function customMapping(RGBmapping, filtered_lights)
                                * we want to run it on linear data.
                                */
                               runBlurXTerminator(ImageWindow.windowById(images[i]), false);
+                              bxt_run = true;
                         }
                         runHistogramTransform(util.findWindow(images[i]), null, false, findChannelFromName(images[i]));
                         flowchartChildEnd(findChannelFromName(images[i]));
@@ -5509,6 +5511,16 @@ function customMapping(RGBmapping, filtered_lights)
                   RGBmapping.stretched = true;
             }
 
+            if (par.bxt_correct_channels.val && !bxt_run) {
+                  // Run BlurXTerminator on all channels if we did not run it earlier
+                  flowchartParentBegin("Channels");
+                  for (var i = 0; i < images.length; i++) {
+                        flowchartChildBegin(findChannelFromName(images[i]));
+                        runBlurXTerminator(ImageWindow.windowById(images[i]), true);
+                        flowchartChildEnd(findChannelFromName(images[i]));
+                  }
+                  flowchartParentEnd("Channels");
+            }
             if (par.save_processed_channel_images.val) {
                   // Save processed channel images before we combine them
                   for (var i = 0; i < images.length; i++) {
@@ -10795,7 +10807,11 @@ function ProcessLimage(RGBmapping)
                         // use starless L image as mask
                         LRGBEnsureMask(L_processed_id);
                   }
-                  if (save_processed_images) {
+                  if (par.bxt_correct_channels.val) {
+                        // Run BlurXTerminator on L channel
+                        runBlurXTerminator(ImageWindow.windowById(L_processed_id), true);
+                  }
+                        if (save_processed_images) {
                         saveProcessedImage(L_processed_id, L_processed_id);
                   }
                   if (par.save_stretched_starless_channel_images.val) {
@@ -10935,6 +10951,16 @@ function CombineRGBimageEx(target_name, images)
             flowchartParentEnd("Channels");
       }
 
+      if (par.bxt_correct_channels.val) {
+            // Run BlurXTerminator on all channels
+            flowchartParentBegin("Channels");
+            for (var i = 0; i < images.length; i++) {
+                  flowchartChildBegin(findChannelFromName(images[i]));
+                  runBlurXTerminator(ImageWindow.windowById(images[i]), true);
+                  flowchartChildEnd(findChannelFromName(images[i]));
+            }
+            flowchartParentEnd("Channels");
+      }
       if (par.save_processed_channel_images.val) {
             // Save processed channel images before we combine them
             for (var i = 0; i < images.length; i++) {

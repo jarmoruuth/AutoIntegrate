@@ -6877,11 +6877,13 @@ function AutoIntegrateDialog()
             "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>");
       this.save_stretched_starless_channel_images_CheckBox = newCheckBox(this, "Save stretched starless channel images", par.save_stretched_starless_channel_images,
             "<p>Save stretched starless channel images. Images are saved as .xisf and .tif files.</p>" +
-            "<p>These can be used for example for color mapping in Photoshop. For a great example see " + 
+            "<p>These can be used for example for narrowband color mapping in Photoshop. For a great example see " + 
             "Utah Desert Remote Observatories YouTube channel.</p>" +
             "<p>For mono RGB images, channel images are saved before channel combination.</p>" +
             "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>" +
-            "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>");
+            "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>" +
+            "<p>When using this options is is often useful to select <i>Gradient correction on channel images</i> in <i>settings tab</i>, " + 
+            "Noise reduction on <i>Channel image</i> in <i>Processing 1</i> tab and BlurXTerminator option <i>Correct only on channel images</i> in <i>Processing 1</i> tab.</p>");
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
@@ -7361,21 +7363,30 @@ function AutoIntegrateDialog()
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectOnlyBeforeCC = newCheckBox(this, "Correct only before CC", par.bxt_correct_only_before_cc, 
             "<p>Run BlurXTerminator in correct only mode before color calibration.</p>" );
-
+      this.bxtCorrectOnlyChannel = newCheckBox(this, "Correct only on channel images", par.bxt_correct_channels, 
+            "<p>Run BlurXTerminator in correct only mode on channel images.</p>" );
+      
       this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
       // this.sharpeningGroupBoxSizer2.margin = 2;
       this.sharpeningGroupBoxSizer2.spacing = 4;
       this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
       this.sharpeningGroupBoxSizer2.add( this.bxtMedianPSF );
-      this.sharpeningGroupBoxSizer2.add( this.bxtCorrectOnlyBeforeCC );
       this.sharpeningGroupBoxSizer2.addStretch();
+
+      this.sharpeningGroupBoxSizer3 = new HorizontalSizer;
+      // this.sharpeningGroupBoxSizer3.margin = 2;
+      this.sharpeningGroupBoxSizer3.spacing = 4;
+      this.sharpeningGroupBoxSizer3.add( this.bxtCorrectOnlyBeforeCC );
+      this.sharpeningGroupBoxSizer3.add( this.bxtCorrectOnlyChannel );
+      this.sharpeningGroupBoxSizer3.addStretch();
 
       this.sharpeningGroupBoxSizer = new VerticalSizer;
       this.sharpeningGroupBoxSizer.margin = 6;
       this.sharpeningGroupBoxSizer.spacing = 4;
       this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer1 );
       this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer2 );
+      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer3 );
       this.sharpeningGroupBoxSizer.addStretch();
 
       function AImodelSizer(parent, name, param, toolTip) {
