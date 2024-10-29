@@ -6884,6 +6884,8 @@ function AutoIntegrateDialog()
             "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>" +
             "<p>When using this options is is often useful to select <i>Gradient correction on channel images</i> in <i>settings tab</i>, " + 
             "Noise reduction on <i>Channel image</i> in <i>Processing 1</i> tab and BlurXTerminator option <i>Correct only on channel images</i> in <i>Processing 1</i> tab.</p>");
+      this.stretched_channel_auto_contrast_CheckBox = newCheckBox(this, "Auto contrast on channel images", par.stretched_channel_auto_contrast, 
+            "<p>Run auto contrast on stretched channel images.</p>");
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
@@ -7083,11 +7085,16 @@ function AutoIntegrateDialog()
       this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
       this.otherParamsSet11.add( this.start_from_imageintegration_CheckBox );
 
+      this.otherParamsSet121 = new HorizontalSizer;
+      this.otherParamsSet121.addSpacing( 20 );
+      this.otherParamsSet121.add( this.stretched_channel_auto_contrast_CheckBox );
+
       this.otherParamsSet12 = new VerticalSizer;
       this.otherParamsSet12.margin = 6;
       this.otherParamsSet12.spacing = 4;
       this.otherParamsSet12.add( this.save_processed_channel_images_CheckBox );
       this.otherParamsSet12.add( this.save_stretched_starless_channel_images_CheckBox );
+      this.otherParamsSet12.add( this.otherParamsSet121 );
       this.otherParamsSet12.add( this.RRGB_image_CheckBox );
       this.otherParamsSet12.add( this.synthetic_l_image_CheckBox );
       this.otherParamsSet12.add( this.synthetic_missing_images_CheckBox );

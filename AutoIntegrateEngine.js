@@ -802,7 +802,7 @@ function checkAutoCont(w)
 }
 
 // close all windows from an array
-function closeAllWindowsFromArray(arr, print_names)
+function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
 {
       for (var i = 0; i < arr.length; i++) {
             if (print_names) {
@@ -812,7 +812,9 @@ function closeAllWindowsFromArray(arr, print_names)
             util.closeOneWindow(arr[i]+"_starless");
             util.closeOneWindow(arr[i]+"_map");
             util.closeOneWindow(arr[i]+"_model");
-            util.closeOneWindow(arr[i]);
+            if (!keep_base_image) {
+                  util.closeOneWindow(arr[i]);
+            }
             if (arr[i].indexOf("Integration_") != -1) {
                   // For possible old images
                   util.closeOneWindow(arr[i] + "_NB_enhanced");
@@ -832,19 +834,21 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
 
       if (keep_integrated_imgs) {
             var isLRGB = false;
-            var integration_windows = global.integration_LRGB_windows;
-            for (var i = 0; i < integration_windows.length; i++) {
-                  if (util.findWindow(integration_windows[i]) != null) {
+            for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
+                  if (util.findWindow(global.integration_LRGB_windows[i]) != null) {
                         // we have LRGB images
-                        closeAllWindowsFromArray(global.integration_color_windows);
                         isLRGB = true;
                         break;
                   }
             }
-            if (!isLRGB) {
-                  // we have color image
-                  closeAllWindowsFromArray(integration_windows);
-                  integration_windows = global.integration_color_windows;
+            if (isLRGB) {
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, true);        // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_color_windows, false);
+                  var integration_windows = global.integration_LRGB_windows;
+            } else {
+                  closeAllWindowsFromArray(global.integration_color_windows, true);       // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, false);
+                  var integration_windows = global.integration_color_windows;
             }
             for (var i = 0; i < global.all_windows.length; i++) {
                   // check that we do not close integration windows
@@ -5289,6 +5293,10 @@ function createStarlessChannelImages(images, basenames = null)
             console.writeln("createStarlessChannelImages, rename image " + image_win.mainView.id + " to " + new_name);
             image_win.mainView.id = new_name;
 
+            if (par.stretched_channel_auto_contrast.val) {
+                  autoContrast(image_win, 0, 1);
+            }
+
             // Save image in .xisf and .tif format
             save_id_as_xisf_and_tif(image_win.mainView.id, image_win.mainView.id);
 
@@ -6124,6 +6132,7 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
 
       guiUpdatePreviewId(new_name);
       //util.addScriptWindow(new_name);
+      console.writeln("runDrizzleIntegration new_name " + new_name);
       return new_name;
 }
 
@@ -6383,6 +6392,7 @@ function runImageIntegrationEx(images, name, local_normalization)
             guiUpdatePreviewId(integrationImageId);
             integrationImageId = util.windowRename(integrationImageId, integrationImageId + "_tmp");
             var new_id = runDrizzleIntegration(integrationImageId, images, name, local_normalization, ".xdrz");
+            console.writeln("runImageIntegrationEx completed, new name " + new_id);
             util.closeOneWindow(integrationImageId);
             return new_id;
       } else {
@@ -6480,6 +6490,7 @@ function runImageIntegration(channel_images, name, save_to_file, flowchartname)
       }
       util.runGarbageCollection();
       flowchartChildEnd(flowchartname ? flowchartname : name);
+      console.writeln("runImageIntegration completed, new name " + image_id);
       return image_id;
 }
 
@@ -10811,7 +10822,7 @@ function ProcessLimage(RGBmapping)
                         // Run BlurXTerminator on L channel
                         runBlurXTerminator(ImageWindow.windowById(L_processed_id), true);
                   }
-                        if (save_processed_images) {
+                  if (save_processed_images) {
                         saveProcessedImage(L_processed_id, L_processed_id);
                   }
                   if (par.save_stretched_starless_channel_images.val) {

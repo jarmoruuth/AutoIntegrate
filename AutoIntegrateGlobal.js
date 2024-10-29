@@ -146,6 +146,7 @@ this.par = {
       save_all_files: { val: false, def: false, name : "Save all files", type : 'B' },
       save_processed_channel_images: { val: false, def: false, name : "Save processed channel images", type : 'B' },
       save_stretched_starless_channel_images: { val: false, def: false, name: "Save starless channel images", type: 'B' },
+      stretched_channel_auto_contrast: { val: false, def: false, name : "Stretched channel auto contrast", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
