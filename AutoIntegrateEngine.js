@@ -11328,6 +11328,7 @@ function RGBHaPrepareHa(RGB_id, rgb_is_linear, testmode)
       if (nb_channel_id == null) {
             util.throwFatalError("Could not find Ha image for mapping to R");
       }
+      console.writeln("RGBHaPrepareHa, Ha image " + nb_channel_id);
 
       /* Make a copy of narrowband image so we do not change the original image.
        */
