@@ -862,7 +862,7 @@ this.fixAllWindowArrays = function(new_prefix)
       // console.writeln("fixAllWindowArrays set new prefix '" + new_prefix + "'");
       fixWindowArray(global.integration_LRGB_windows, old_prefix, new_prefix);
       fixWindowArray(global.integration_color_windows, old_prefix, new_prefix);
-      fixWindowArray(global.integration_crop_windows, old_prefix, new_prefix);
+      fixWindowArray(global.integration_data_windows, old_prefix, new_prefix);
       fixWindowArray(global.intermediate_windows, old_prefix, new_prefix);
       fixWindowArray(global.fixed_windows, old_prefix, new_prefix);
       fixWindowArray(global.calibrate_windows, old_prefix, new_prefix);
@@ -1087,6 +1087,7 @@ this.add_test_image = function(id, testid, testmode)
       if (testmode) {
             var copy_id = ppar.win_prefix + testid;
             util.closeOneWindow(copy_id);
+            console.writeln("add_test_image " + id + " as " + copy_id);
             util.copyWindowEx(util.findWindow(id), copy_id, true);
             global.test_image_ids.push(copy_id);
       }

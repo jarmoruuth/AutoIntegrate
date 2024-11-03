@@ -110,6 +110,7 @@ this.par = {
       use_graxpert_denoise: { val: false, def: false, name : "Use GraXpert denoise", type : 'B' },
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
+      skip_auto_background: { val: false, def: false, name : "No auto background", type : 'B' },
       color_calibration_before_GC: { val: false, def: false, name : "Color calibration before GC", type : 'B', oldname: "Color calibration before ABE" },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
       solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
@@ -214,12 +215,15 @@ this.par = {
       RGBHa_prepare_method: { val: 'Continuum Subtract', def: 'Continuum Subtract', name : "Ha RGB mapping prepare method", type : 'S' },
       RGBHa_combine_time: { val: 'Stretched', def: 'Stretched', name : "Ha RGB mapping combine time", type : 'S' },
       RGBHa_combine_method: { val: 'Bright structure add', def: 'Bright structure add', name : "Ha RGB mapping combine method", type : 'S' },
+      RGBHa_noise_reduction: { val: true, def: true, name : "Ha RGB mapping noise reduction", type : 'B' },
+      RGBHa_boost: { val: 1.0, def: 1.0, name : "Ha RGB boost", type : 'R' },
       RGBHa_gradient_correction: { val: false, def: false, name : "Ha RGB mapping gradient correction", type : 'B' },
       RGBHa_smoothen_background: { val: false, def: false, name : "Ha RGB mapping smoothen background", type : 'B' },
       RGBHa_smoothen_background_value: { val: 25, def: 25, name : "Ha RGB mapping smoothen background value", type : 'R' },
       RGBHa_remove_stars: { val: false, def: false, name : "Ha RGB mapping remove stars", type : 'B' },
       RGBHa_Combine_BoostFactor: { val: 1.0, def: 1.0, name : "Ha RGB mapping combine boost factor", type : 'R' },
       RGBHa_Add_BoostFactor: { val: 0.5, def: 0.5, name : "Ha RGB mapping SPCC boost factor", type : 'R' },
+      RGBHa_test_value: { val: 'Mapping', def: 'Mapping', name : "Narrowband RGB mapping O bandwidth", type : 'R' },
       
       // Narrowband to RGB mapping
       use_RGBNB_Mapping: { val: false, def: false, name : "Narrowband RGB mapping", type : 'B' },
@@ -660,8 +664,9 @@ this.integration_color_windows = [
       "Integration_RGB"
 ];
 
-this.integration_crop_windows = [
-      "LowRejectionMap_ALL"
+this.integration_data_windows = [
+      "LowRejectionMap_ALL",
+      "AutoBackgroundModel"
 ];
 
 // Intermediate windows checked before AutoContinue.

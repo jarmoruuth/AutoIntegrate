@@ -340,6 +340,7 @@ var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
+var RGBHa_test_values = [ 'Mapping', 'Continuum' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -872,7 +873,6 @@ function generateNewFlowchartData(parent)
             engine.autointegrateProcessingEngine(parent.dialog, false, false, "Generate flowchart data");
       } catch (x) {
             util.addCriticalStatus("generateNewFlowchartData failed:" + x);
-            console.criticalln( x );
             global.flowchartData = null;
             global.is_processing = global.processing_state.none;
             succp = false;
@@ -6736,7 +6736,12 @@ function AutoIntegrateDialog()
             "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
             "<p>SPCC settings can be updated at Color calibration section in the Processing tab.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
-            "<p>Run BackgroundNeutralization before ColorCalibration</p>" );
+            "<p>Run BackgroundNeutralization before ColorCalibration.</p>" +
+            "<p>By default the script tries automatically detect an area with true background. If it finds one, an image with name AutoBackgroundModel is created.</p>" +
+            "<p>AutoBackgroundModel image has a preview that shows the background area.<p>" + 
+            "<p>If AutoBackgroundModel image already exists then the background preview coordinates from there are used. " +
+            "The preview in AutoBackgroundModel image can be edited to use a different area as a background reference.</p>" + 
+            "<p>Automatic background detect can be turned off using option <i>No auto background</i> in <i>Other</i> tab.</p>");
       this.batch_mode_CheckBox = newCheckBox(this, "Batch/mosaic mode", par.batch_mode, 
             "<p>Run in batch mode, continue until all selected files are processed.</p>" +
             "<p>In batch mode, just click the Run button and the script will ask for files to process before starting.</p>" +
@@ -6819,6 +6824,8 @@ function AutoIntegrateDialog()
             "<p>Skipping SCNR can be useful when processing for example comet images.</p>");
       this.skip_color_calibration_CheckBox = newCheckBox(this, "No color calibration", par.skip_color_calibration, 
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
+      this.skip_auto_background_CheckBox = newCheckBox(this, "No auto background", par.skip_auto_background, 
+            "<p>Do not try to find background area.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
             "<p>You can change some StarXTerminator settings in the <i>StarXTerminator settings</i> section.</p>" );
@@ -6969,7 +6976,8 @@ function AutoIntegrateDialog()
       var stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
-            "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.</p></li>" +
+            "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.<br>" + 
+                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Processing 1</i> tab to a smaller valiue, like 0.10</pi></li>" +
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
             "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
@@ -7062,6 +7070,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_color_calibration_CheckBox );
+      this.otherParamsSet02.add( this.skip_auto_background_CheckBox );
       this.otherParamsSet02.add( this.GC_on_lights_CheckBox );
 
       this.otherParamsSet0 = new HorizontalSizer;
@@ -8648,13 +8657,11 @@ function AutoIntegrateDialog()
             "<p>" +
             "Test narrowband RGB mapping. This requires that you have opened:" +
             "</p><p>" +
-            "- RGB files Integration_[RGB].<br>" +
-            "- Those narrowband files Integration_[SHO] that are used in the mapping." +
+            "- Separate RGB channel files Integration_[RGB].<br>" +
+            "- Those narrowband channel files Integration_[SHO] that are used in the mapping." +
             "</p><p>" +
-            "To get required Integration_[RGB] and Integration_[SHO] files you can run a full workflow first." +
-            "</p><p>" +
-            "Result image will be in linear mode. " +
-            "</p>" ;
+            "To get required Integration_[RGB] and Integration_[SHO] channel files you can run a full workflow first." +
+            "</p>";
       this.testNarrowbandMappingButton.onClick = function()
       {
             console.writeln("Test narrowband mapping");
@@ -8671,7 +8678,7 @@ function AutoIntegrateDialog()
                   util.setDefaultDirs();
             }
             par.use_RGBNB_Mapping.val = false;
-      };   
+      };
 
       // channel mapping
       this.RGBNB_MappingLabel = newLabel(this, 'Mapping', "Select mapping of narrowband channels to (L)RGB channels.");
@@ -8879,6 +8886,7 @@ function AutoIntegrateDialog()
                   util.setDefaultDirs();
             }
       };   
+      this.testRGBHaMappingOptions = newComboBox(this, par.RGBHa_test_value, RGBHa_test_values, this.testRGBHaMappingButton.toolTip);
 
       // Boost factor for RGB
       var RGBHa_boost_common_tooltip = "<p>A bigger value will make the mapping more visible.</p>";
@@ -8901,13 +8909,17 @@ function AutoIntegrateDialog()
       this.RGBHa_BoostSizer.add( this.RGBHa_SPCCBoostValue );
       this.RGBHa_BoostSizer.addStretch();
 
+      this.RGBHa_noise_reduction_CheckBox = newCheckBox(this, "Noise reduction,", par.RGBHa_noise_reduction, 
+            "<p>Do noise reduction on Ha image after mapping.</p>" );
+      this.RGBHa_boost_edit = newNumericEdit(this, 'Continuum boost', par.RGBHa_boost, 0, 6, 
+            "<b>Boost value for continuum subtracted image using ExponentialTransformation.</b>");
       this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
             "<p>Do gradient correction on Ha image before mapping.</p>" );
-      this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen background %", par.RGBHa_smoothen_background, 
+      this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen", par.RGBHa_smoothen_background, 
             "<p>Smoothen background which may help with gradient correction. Select a percentage value below which smoothing is done.</p>" +
             "<p>Usually values below 50 work best. Possible values are between 0 and 100.");
 
-      this.RGBHa_smoothen_background_value_edit = newNumericEditPrecision(this, 'value', par.RGBHa_smoothen_background_value, 0, 100, this.RGBHa_smoothen_background_CheckBox.toolTip, 4);
+      this.RGBHa_smoothen_background_value_edit = newNumericEditPrecision(this, 'value', par.RGBHa_smoothen_background_value, 0, 100, this.RGBHa_smoothen_background_CheckBox.toolTip, 2);
       this.RGBHa_remove_stars_CheckBox = newCheckBox(this, "Remove stars", par.RGBHa_remove_stars, 
             "<p>Remove stars before combining Ha to RGB.</p>" );
 
@@ -8918,8 +8930,15 @@ function AutoIntegrateDialog()
       this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_CheckBox );
       this.RGBHa_Sizer2.add( this.RGBHa_smoothen_background_value_edit );
       this.RGBHa_Sizer2.add( this.RGBHa_remove_stars_CheckBox );
-      this.RGBHa_Sizer2.add( this.testRGBHaMappingButton );
       this.RGBHa_Sizer2.addStretch();
+
+      this.RGBHa_Sizer3 = new HorizontalSizer;
+      // this.RGBHa_Sizer2.margin = 6;
+      this.RGBHa_Sizer3.spacing = 4;
+      this.RGBHa_Sizer3.add( this.RGBHa_noise_reduction_CheckBox );
+      this.RGBHa_Sizer3.add( this.RGBHa_boost_edit );
+      this.RGBHa_Sizer3.add( this.testRGBHaMappingButton );
+      this.RGBHa_Sizer3.addStretch();
 
       this.RGBHa_Sizer = new VerticalSizer;
       // this.RGBHa_Sizer.margin = 6;
@@ -8929,6 +8948,7 @@ function AutoIntegrateDialog()
       this.RGBHa_Sizer.add(this.useRGBHaMethodSizer);
       this.RGBHa_Sizer.add(this.RGBHa_BoostSizer);
       this.RGBHa_Sizer.add(this.RGBHa_Sizer2);
+      this.RGBHa_Sizer.add(this.RGBHa_Sizer3);
       this.RGBHa_Sizer.addStretch();
 
       this.RGBHaMappingControl = new Control( this );
@@ -10057,6 +10077,7 @@ this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
 this.flowchartUpdated = flowchartUpdated;
+this.createEmptyBitmap = createEmptyBitmap;
 
 /* Exported data for testing.
  */
