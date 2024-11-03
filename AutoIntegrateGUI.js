@@ -8937,8 +8937,9 @@ function AutoIntegrateDialog()
       this.RGBHa_Sizer3.spacing = 4;
       this.RGBHa_Sizer3.add( this.RGBHa_noise_reduction_CheckBox );
       this.RGBHa_Sizer3.add( this.RGBHa_boost_edit );
-      this.RGBHa_Sizer3.add( this.testRGBHaMappingButton );
       this.RGBHa_Sizer3.addStretch();
+      this.RGBHa_Sizer3.add( this.testRGBHaMappingButton );
+      this.RGBHa_Sizer3.add( this.testRGBHaMappingOptions );
 
       this.RGBHa_Sizer = new VerticalSizer;
       // this.RGBHa_Sizer.margin = 6;

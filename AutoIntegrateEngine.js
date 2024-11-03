@@ -11629,55 +11629,8 @@ function RGBHa_screen_Ha(RGB_id, nb_channel_id)
       flowchartParentEnd("RGBHa_screen_Ha");
 }
 
-var continuum_nonlinear = 3;
-
-// Continuum Subtract for linear images
-// Sort of support non-linear too bvut I guess result are no good
-// For the meyhod is describe in website https://www.nightphotons.com/guides/advanced-narrowband-combination
-// Some help and ideas also from ContinuumSubtraction.js script by Franklin Marek
-function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
+function create_HRR(nb_channel_id, rgb_channel_id)
 {
-      var nb_channel_win = util.findWindow(nb_channel_id);
-      var rgb_channel_win = util.findWindow(rgb_channel_id);
-      var nb_channel_nonlinear = util.getKeywordValue(nb_channel_win, "AutoIntegrateNonLinear");
-      var rgb_channel_nonlinear = util.getKeywordValue(rgb_channel_win, "AutoIntegrateNonLinear");
-
-      if (rgb_is_linear && nb_channel_nonlinear != null) {
-            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
-            util.throwFatalError("RGBHa_ContinuumSubtract, no AutoIntegrateNonLinear keyword found for Ha channel");
-      }
-      if (rgb_is_linear && rgb_channel_nonlinear != null) {
-            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
-            util.throwFatalError("RGBHa_ContinuumSubtract, RGB channel is linear but no AutoIntegrateNonLinear keyword found");
-      }
-      if ((nb_channel_nonlinear == null) != (rgb_channel_nonlinear == null)) {
-            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
-            util.throwFatalError("RGBHa_ContinuumSubtract, Ha and RGB images are not in the same state");
-      }
-
-      /* Check for smoothing and gradient correction for RGB channel.
-       * It is already checked for Ha channel.
-       */
-      if (par.RGBHa_smoothen_background.val) {
-            if (par.smoothbackground.val == 0) {
-                  console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id);
-                  smoothBackgroundBeforeGC(util.findWindow(rgb_channel_id), par.RGBHa_smoothen_background_value.val), rgb_is_linear;
-            } else {
-                  console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id + " skipped because smoothbackground is " + par.smoothbackground.val);
-            }
-      }
-      if (par.RGBHa_gradient_correction.val) {
-            if (!par.GC_on_lights.val) {
-                  console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id);
-                  rgb_channel_id = runGradientCorrection(rgb_channel_win, true);
-                  util.add_test_image(rgb_channel_id, "rgb_channel_id_gc", testmode);
-            } else {
-                  // We have already done gradient correction on lights
-                  console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id + " skipped because GC_on_lights is enabled");
-            }
-      }
-
-      console.writeln("RGBHa_ContinuumSubtract, create HRR");
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.prototype.RGB;
       P.channels = [ // enabled, id
@@ -11685,69 +11638,15 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
             [true, rgb_channel_id],
             [true, rgb_channel_id]
       ];
+
       P.executeGlobal();
-      var hrr_win = ImageWindow.activeWindow;
-      var hrr_id = ppar.win_prefix + "Integration_HRR";
-      hrr_win.mainView.id = hrr_id;
-
       printProcessValues(P);
+      
+      return ImageWindow.activeWindow;
+}
 
-      if (!rgb_is_linear) {
-            util.setFITSKeyword(hrr_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
-      }
-
-      util.add_test_image(hrr_id, "Integration_HRR_uncalibrated", testmode);
-
-      console.writeln("RGBHa_ContinuumSubtract, HRR, background neutralization on " + hrr_id);
-      var roi = runBackgroundNeutralization(hrr_win);
-      util.add_test_image(hrr_id, "Integration_HRR_bn", testmode);
-
-      if (rgb_is_linear && continuum_nonlinear == 1) {
-            // Stretch image to make it non-linear
-            console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + hrr_id);
-            engine.runHistogramTransformSTFex(hrr_win, null, true, par.STF_targetBackground.val, false, true);
-            rgb_channel_nonlinear = "Auto STF";
-            util.setFITSKeyword(hrr_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
-            util.add_test_image(hrr_id, "Integration_HRR_bn_stretched", testmode);
-            rgb_is_linear = false;
-      }
-
-      console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration on " + hrr_id);
-      runColorCalibrationProcess(hrr_win, roi);
-      util.add_test_image(hrr_id, "Integration_HRR_bn_stretched_cc", testmode);
-
-      if (rgb_is_linear && continuum_nonlinear == 2) {
-            // Stretch image to make it non-linear
-            console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + hrr_id);
-            engine.runHistogramTransformSTFex(hrr_win, null, true, par.STF_targetBackground.val, false, true);
-            rgb_channel_nonlinear = "Auto STF";
-            util.setFITSKeyword(hrr_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
-            util.add_test_image(hrr_id, "Integration_HRR_bn_stretched", testmode);
-            rgb_is_linear = false;
-      }
-
-      // clipShadows(hrr_win, 1);
-
-      util.add_test_image(hrr_id, "Integration_HRR_calibrated", testmode);
-
-      if (par.RGBHa_remove_stars.val && !RGBHa_H_enhanced_info.starless) {
-            if (!par.use_starxterminator.val && !par.use_starnet2.val) {
-                  util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
-            }
-            console.writeln("RGBHa_ContinuumSubtract, remove stars on " + hrr_id);
-            removeStars(hrr_win, true, false, null, null, false);
-            util.add_test_image(hrr_id, "Integration_HRR_starless", testmode);
-            RGBHa_H_enhanced_info.starless = true;
-      }
-
-      var node = flowchartOperation("Pixelmath:RGBHa, HRR continuum subtract");
-
-      console.writeln("RGBHa_ContinuumSubtract, continuum subtraction using PixelMath");
-
-      var enhanced_channel_id = ppar.win_prefix + "Integration_H_NB_enhanced";
-
-      /* Create a new grayscale image by subtracting the R channel from the Ha channel.
-       */
+function create_continuum_subtracted_image(hrr_win)
+{
       var P = new PixelMath;
       P.expression = "$T[0] - ($T[1] - med($T[1]))";
       P.expression1 = "";
@@ -11776,34 +11675,12 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
       P.newImageColorSpace = PixelMath.prototype.Gray;
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
-      hrr_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(hrr_win.mainView);
-      hrr_win.mainView.endProcess();
       printProcessValues(P);
-      // util.closeOneWindow(hrr_id);
+}
 
-      console.writeln("RGBHa_ContinuumSubtract, convert enhanced H image to grayscale" + enhanced_channel_id);
-      var P = new ConvertToGrayscale;
-      P.executeOn(hrr_win.mainView);
-      console.writeln(P.toSource());
-
-      var enhanced_channel_win = hrr_win;
-      enhanced_channel_win.mainView.id = enhanced_channel_id;
-      
-      if (rgb_is_linear) {
-            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
-            // Stretch image to make it non-linear
-            console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + enhanced_channel_id);
-            engine.runHistogramTransformSTFex(enhanced_channel_win, null, false, par.STF_targetBackground.val, false, true);
-            rgb_channel_nonlinear = "Auto STF";
-            rgb_is_linear = false;
-      }
-
-      util.setFITSKeyword(enhanced_channel_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
-      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_nonlinear", testmode);
-
-      console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
-
+function normalize_image(imgWin)
+{
       var P = new PixelMath;
       P.expression = "($T - med($T)) / ~med($T)";
       P.expression1 = "";
@@ -11832,38 +11709,181 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
       P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
-      enhanced_channel_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(enhanced_channel_win.mainView);
-      enhanced_channel_win.mainView.endProcess();
+      P.executeOn(imgWin.mainView);
       printProcessValues(P);
+}
+
+function convert_to_grayscale(imgWin)
+{
+      var P = new ConvertToGrayscale;
+
+      P.executeOn(imgWin.mainView);
+      printProcessValues(P);
+}
+
+function boost_Ha(imgWin, boost_factor)
+{
+      var P = new ExponentialTransformation;
+      P.functionType = ExponentialTransformation.prototype.PIP;
+      P.order = par.RGBHa_boost.val;
+      P.sigma = 0.00;
+      P.useLightnessMask = true;
+
+      P.executeOn(imgWin.mainView);
+      printProcessValues(P);
+}
+
+function HRR_stretch(imgWin, targetBackground)
+{
+      engine.runHistogramTransformSTFex(imgWin, null, false, targetBackground, false, true);
+}
+
+// Continuum Subtract for linear images
+// Sort of support non-linear too bvut I guess result are no good
+// For the meyhod is describe in website https://www.nightphotons.com/guides/advanced-narrowband-combination
+// Some help and ideas also from ContinuumSubtraction.js script by Franklin Marek
+function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, testmode)
+{
+      var nb_channel_win = util.findWindow(nb_channel_id);
+      var rgb_channel_win = util.findWindow(rgb_channel_id);
+      var nb_channel_nonlinear = util.getKeywordValue(nb_channel_win, "AutoIntegrateNonLinear");
+      var rgb_channel_nonlinear = util.getKeywordValue(rgb_channel_win, "AutoIntegrateNonLinear");
+
+      if (rgb_is_linear && nb_channel_nonlinear != null) {
+            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            util.throwFatalError("RGBHa_ContinuumSubtract, no AutoIntegrateNonLinear keyword found for Ha channel");
+      }
+      if (rgb_is_linear && rgb_channel_nonlinear != null) {
+            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            util.throwFatalError("RGBHa_ContinuumSubtract, RGB channel is linear but no AutoIntegrateNonLinear keyword found");
+      }
+      if ((nb_channel_nonlinear == null) != (rgb_channel_nonlinear == null)) {
+            console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            util.throwFatalError("RGBHa_ContinuumSubtract, Ha and RGB images are not in the same state");
+      }
+
+      /* Check for smoothing for RGB channel.
+       * It is already checked for Ha channel.
+       */
+      if (par.RGBHa_smoothen_background.val) {
+            if (par.smoothbackground.val == 0) {
+                  console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id);
+                  smoothBackgroundBeforeGC(util.findWindow(rgb_channel_id), par.RGBHa_smoothen_background_value.val), rgb_is_linear;
+            } else {
+                  console.writeln("RGBHa_ContinuumSubtract, smoothen background on " + rgb_channel_id + " skipped because smoothbackground is " + par.smoothbackground.val);
+            }
+      }
+
+      /* Check for gradient correction  for RGB channel.
+       * It is already checked for Ha channel.
+       */
+      if (par.RGBHa_gradient_correction.val) {
+            if (!par.GC_on_lights.val) {
+                  console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id);
+                  rgb_channel_id = runGradientCorrection(rgb_channel_win, true);
+                  util.add_test_image(rgb_channel_id, "rgb_channel_id_gc", testmode);
+            } else {
+                  // We have already done gradient correction on lights
+                  console.writeln("RGBHa_ContinuumSubtract, gradient correction on " + rgb_channel_id + " skipped because GC_on_lights is enabled");
+            }
+      }
+
+      /* Create HRR.
+       */
+      console.writeln("RGBHa_ContinuumSubtract, create HRR");
+      var hrr_win = create_HRR(nb_channel_id, rgb_channel_id);
+
+      var hrr_id = ppar.win_prefix + "Integration_HRR";
+      hrr_win.mainView.id = hrr_id;
+      if (!rgb_is_linear) {
+            util.setFITSKeyword(hrr_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
+      }
+      util.add_test_image(hrr_id, "Integration_HRR_uncalibrated", testmode);
+
+      /* Do BackgroundNeutralization.
+       */
+      console.writeln("RGBHa_ContinuumSubtract, HRR, background neutralization on " + hrr_id);
+      var roi = runBackgroundNeutralization(hrr_win);
+      util.add_test_image(hrr_id, "Integration_HRR_bn", testmode);
+
+      /* Do color calibration.
+       */
+      console.writeln("RGBHa_ContinuumSubtract, HRR, color calibration on " + hrr_id);
+      runColorCalibrationProcess(hrr_win, roi);
+      util.add_test_image(hrr_id, "Integration_HRR_cc", testmode);
+
+      /* Now we have calibrated HRR image.
+       */
+      util.add_test_image(hrr_id, "Integration_HRR_calibrated", testmode);
+
+      /* Optionally remove stars.
+       */
+      if (par.RGBHa_remove_stars.val && !RGBHa_H_enhanced_info.starless) {
+            if (!par.use_starxterminator.val && !par.use_starnet2.val) {
+                  util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
+            }
+            console.writeln("RGBHa_ContinuumSubtract, remove stars on " + hrr_id);
+            removeStars(hrr_win, true, false, null, null, false);
+            util.add_test_image(hrr_id, "Integration_HRR_starless", testmode);
+            RGBHa_H_enhanced_info.starless = true;
+      }
+
+      /* Do continuum subtraction.
+       */
+      var node = flowchartOperation("Pixelmath:RGBHa, HRR continuum subtract");
+      console.writeln("RGBHa_ContinuumSubtract, continuum subtraction using PixelMath");
+      var enhanced_channel_id = ppar.win_prefix + "Integration_H_NB_enhanced";
+
+      create_continuum_subtracted_image(hrr_win);
+
+      /* Convert to grayscale.
+       */
+      console.writeln("RGBHa_ContinuumSubtract, convert enhanced H image to grayscale" + enhanced_channel_id);
+      convert_to_grayscale(hrr_win);
+
+      var enhanced_channel_win = hrr_win;
+      enhanced_channel_win.mainView.id = enhanced_channel_id;
+      
+      /* Stretch image to make it non-linear.
+       */
+      if (rgb_is_linear) {
+            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
+            // Stretch image to make it non-linear
+            console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + enhanced_channel_id);
+            HRR_stretch(enhanced_channel_win, par.STF_targetBackground.val);
+            rgb_channel_nonlinear = "Auto STF";
+            rgb_is_linear = false;
+      }
+
+      util.setFITSKeyword(enhanced_channel_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
+      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_nonlinear", testmode);
+
+      /* Normalize image.
+       */
+      console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
+      normalize_image(enhanced_channel_win);
+
+      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized_1st", testmode);
 
       // It is totally unclear to me why this needs to be done twice to get proper results???
       // When running on desktop it works with only one run.
-      enhanced_channel_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(enhanced_channel_win.mainView);
-      enhanced_channel_win.mainView.endProcess();
-      printProcessValues(P);
+      normalize_image(enhanced_channel_win);
 
       util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized", testmode);
 
+      /* Optionally do noise reduction.
+       */
       if (par.RGBHa_noise_reduction.val) {
             console.writeln("RGBHa_ContinuumSubtract, remove noise");
             runNoiseReduction(enhanced_channel_win, null, true);
             util.add_test_image(nb_channel_id, "Integration_H_NB_enhanced_denoise", testmode);
       }
 
+      /* Optionally boost image.
+       */
       if (par.RGBHa_boost.val > 0) {
             console.writeln("RGBHa_ContinuumSubtract, boost image using value " + par.RGBHa_boost.val);
-            var P = new ExponentialTransformation;
-            P.functionType = ExponentialTransformation.prototype.PIP;
-            P.order = par.RGBHa_boost.val;
-            P.sigma = 0.00;
-            P.useLightnessMask = true;
-
-            enhanced_channel_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(enhanced_channel_win.mainView);
-            enhanced_channel_win.mainView.endProcess();
-            printProcessValues(P);
+            boost_Ha(enhanced_channel_win, par.RGBHa_boost.val);
 
             util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_boosted", testmode);
       }
@@ -12088,6 +12108,7 @@ this.testRGBHaMapping = function()
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_linear");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_nonlinear");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized");
+      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized_1st");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_mapped");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_original_HT");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_med");
@@ -12105,10 +12126,8 @@ this.testRGBHaMapping = function()
       util.closeOneWindow(ppar.win_prefix + "nb_channel_id_stretched");
       util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_init");
       util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn_cc");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn_cc_stretched");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn_stretched");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn_stretched_cc");
+      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_cc");
+      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_stretched");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_max_Ha_boosted");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_screen_Ha_boosted");
       util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_gc");
