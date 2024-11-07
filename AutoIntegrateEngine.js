@@ -11529,28 +11529,38 @@ function RGBHaPrepareHa(rgb_is_linear, testmode)
       nb_channel_id = mapimages[0];
       util.add_test_image(nb_channel_id, "nb_channel_id_init", testmode);
 
-      /* Prepare narrowband image for mapping.
+      /* Optionally crop narrowband image.
+       * Normally this should be already done.
        */
       if (par.crop_to_common_area.val) {
             console.writeln("RGBHaPrepareHa, crop image " + nb_channel_id);
             CropImageIf(nb_channel_id);
       }
 
-      //console.writeln("RGBHaPrepareHa, linear fit");
-      //linearFitArray(RGBHaFindLinearFitReferenceImage(RGB_id), [ nb_channel_id ]);
-      //util.add_test_image(nb_channel_id, "nb_channel_id_linearfit", testmode);
-
+      /* Optionally smoothen background. In extreme cases coulod be useful for example when using ABE.
+       */
       if (par.RGBHa_smoothen_background.val) {
             console.writeln("RGBHaPrepareHa, smoothen background on " + nb_channel_id);
             smoothBackgroundBeforeGC(util.findWindow(nb_channel_id), par.RGBHa_smoothen_background_value.val, rgb_is_linear);
             util.add_test_image(nb_channel_id, "nb_channel_id_crop", testmode);
       }
+
+      /* Optionally remove gradients.
+       */
       if (par.RGBHa_gradient_correction.val) {
-            console.writeln("RGBHaPrepareHa, gradient correction on " + nb_channel_id);
-            nb_channel_id = runGradientCorrection(util.findWindow(nb_channel_id), true);
-            util.add_test_image(nb_channel_id, "nb_channel_id_gc", testmode);
+            if (!par.GC_on_lights.val) {
+                  console.writeln("RGBHaPrepareHa, gradient correction on " + nb_channel_id);
+                  nb_channel_id = runGradientCorrection(util.findWindow(nb_channel_id), true);
+                  util.add_test_image(nb_channel_id, "nb_channel_id_gc", testmode);
+            } else {
+                  // We have already done gradient correction on lights
+                  console.writeln("RGBHaPrepareHa, gradient correction on " + nb_channel_id + " skipped because GC_on_lights is enabled");
+            }
       }
 
+      /* If RGB is stretched (non-linear) then stretch also narrowband image.
+       * Normally we should use linear images here.
+       */
       if (!rgb_is_linear) {
             console.writeln("RGBHaPrepareHa, runHistogramTransform on " + nb_channel_id);
             var win = runHistogramTransform(util.findWindow(nb_channel_id), null, false, 'RGB').win;
@@ -11843,49 +11853,50 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
 
       var enhanced_channel_win = hrr_win;
       enhanced_channel_win.mainView.id = enhanced_channel_id;
-      
-      /* Stretch image to make it non-linear.
-       */
-      if (rgb_is_linear) {
-            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
-            // Stretch image to make it non-linear
-            console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + enhanced_channel_id);
-            HRR_stretch(enhanced_channel_win, par.STF_targetBackground.val);
-            rgb_channel_nonlinear = "Auto STF";
-            rgb_is_linear = false;
-      }
 
-      util.setFITSKeyword(enhanced_channel_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
-      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_nonlinear", testmode);
+      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_linear", testmode);
 
-      /* Normalize image.
-       */
-      console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
-      normalize_image(enhanced_channel_win);
+      if (par.RGBHa_combine_time.val != 'SPCC linear') {
+            /* Stretch image to make it non-linear.
+             */
+            if (rgb_is_linear) {
+                  // Stretch image to make it non-linear
+                  console.writeln("RGBHa_ContinuumSubtract, linked AutoSTF on " + enhanced_channel_id);
+                  HRR_stretch(enhanced_channel_win, par.STF_targetBackground.val);
+                  rgb_channel_nonlinear = "Auto STF";
+                  rgb_is_linear = false;
+                  util.setFITSKeyword(enhanced_channel_win, "AutoIntegrateNonLinear", rgb_channel_nonlinear, "");
+                  util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_nonlinear", testmode);
+            }
 
-      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized_1st", testmode);
+            /* Normalize image.
+             */
+            console.writeln("RGBHa_ContinuumSubtract, normalize image using PixelMath");
+            normalize_image(enhanced_channel_win);
 
-      // It is totally unclear to me why this needs to be done twice to get proper results???
-      // When running on desktop it works with only one run.
-      normalize_image(enhanced_channel_win);
+            // It is totally unclear to me why this needs to be done twice to get proper results???
+            // When running on desktop it works with only one run.
+            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized_1st", testmode);
+            normalize_image(enhanced_channel_win);
 
-      util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized", testmode);
+            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_normalized", testmode);
 
-      /* Optionally do noise reduction.
-       */
-      if (par.RGBHa_noise_reduction.val) {
-            console.writeln("RGBHa_ContinuumSubtract, remove noise");
-            runNoiseReduction(enhanced_channel_win, null, true);
-            util.add_test_image(nb_channel_id, "Integration_H_NB_enhanced_denoise", testmode);
-      }
+            /* Optionally do noise reduction.
+             */
+            if (par.RGBHa_noise_reduction.val) {
+                  console.writeln("RGBHa_ContinuumSubtract, remove noise");
+                  runNoiseReduction(enhanced_channel_win, null, true);
+                  util.add_test_image(nb_channel_id, "Integration_H_NB_enhanced_denoise", testmode);
+            }
 
-      /* Optionally boost image.
-       */
-      if (par.RGBHa_boost.val > 0) {
-            console.writeln("RGBHa_ContinuumSubtract, boost image using value " + par.RGBHa_boost.val);
-            boost_Ha(enhanced_channel_win, par.RGBHa_boost.val);
+            /* Optionally boost image.
+             */
+            if (par.RGBHa_boost.val > 0) {
+                  console.writeln("RGBHa_ContinuumSubtract, boost image using value " + par.RGBHa_boost.val);
+                  boost_Ha(enhanced_channel_win, par.RGBHa_boost.val);
 
-            util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_boosted", testmode);
+                  util.add_test_image(enhanced_channel_id, "Integration_H_NB_enhanced_boostHa", testmode);
+            }
       }
 
       engine_end_process(node);
@@ -11966,7 +11977,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
                   var enhanced_channel_id = nb_channel_id;
                   var enhanced_channel_win = util.findWindow(enhanced_channel_id);
                   if (rgb_is_linear && par.RGBHa_combine_time.val != 'SPCC linear') {
-                        enhanced_channel_win = runHistogramTransform(enhanced_channel_win, null, false, 'H');
+                        enhanced_channel_win = runHistogramTransform(enhanced_channel_win, null, false, 'H').win;
                         enhanced_channel_id = enhanced_channel_win.mainView.id;
                   }
                   break;
@@ -12014,7 +12025,7 @@ function RGBHa_mapping(RGB_id)
             console.writeln("nb_channel_nonlinear " + nb_channel_nonlinear + ", RGB_nonlinear " + RGB_nonlinear); 
             util.throwFatalError("RGBHa_mapping, Ha and RGB images are not in the same linear/non-linear state");
       }
-      if (par.RGBHa_combine_time.val == 'SPCC linear'&& nb_channel_nonlinear == null && !global.get_flowchart_data) {
+      if (par.RGBHa_combine_time.val == 'SPCC linear' && nb_channel_nonlinear != null && !global.get_flowchart_data) {
             util.throwFatalError("RGBHa_mapping, Ha image is not linear but RGBHa_combine_time is SPCC linear");
       }
 
@@ -12090,9 +12101,11 @@ function RGBHa_mapping(RGB_id)
       flowchartParentEnd("RGBHa mapping");
 }
 
-this.testRGBHaMapping = function()
+function testRGBHaMapping1(savelog)
 {
-      console.beginLog();
+      if (savelog) {
+            console.beginLog();
+      }
 
       util.addProcessingStep("Test Ha mapping to RGB");
 
@@ -12109,6 +12122,8 @@ this.testRGBHaMapping = function()
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_nonlinear");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized_1st");
+      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_boostHa");
+      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_denoise");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_mapped");
       util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_original_HT");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_med");
@@ -12135,6 +12150,8 @@ this.testRGBHaMapping = function()
       util.closeOneWindow(ppar.win_prefix + "H_to_B_boost");
       util.closeOneWindow(ppar.win_prefix + "Integration_H_map");
       util.closeOneWindow(ppar.win_prefix + "Integration_R_map");
+      util.closeOneWindow(ppar.win_prefix + "Integration_G_map");
+      util.closeOneWindow(ppar.win_prefix + "Integration_B_map");
       
       engine.flowchartReset();
       flowchartInit();
@@ -12216,7 +12233,9 @@ this.testRGBHaMapping = function()
       }
 
       util.addProcessingStep("Processing completed");
-      engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa");
+      if (savelog) {
+            engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa");
+      }
 
       for (var i = 0; i < iconized_image_ids.length; i++) {
             util.windowIconizeAndKeywordif(iconized_image_ids[i]);
@@ -12228,6 +12247,31 @@ this.testRGBHaMapping = function()
       flowchartDone();
 
       global.is_processing = global.processing_state.none;
+
+      console.noteln("Testing completed");
+}
+
+this.testRGBHaMapping = function()
+{
+      if (par.RGBHa_test_value.val == 'All mappings') {
+            console.beginLog();
+            for (var i = 0; i < gui.RGBHa_prepare_method_values.length; i++) {
+                  par.RGBHa_prepare_method.val = gui.RGBHa_prepare_method_values[i];
+                  for (var j = 0; j < gui.RGBHa_combine_method_values.length; j++) {
+                        par.RGBHa_combine_method.val = gui.RGBHa_combine_method_values[j];
+                        console.noteln("Testing RGBHa mapping with prepare method " + par.RGBHa_prepare_method.val + " and combine method " + par.RGBHa_combine_method.val);
+                        // Run test
+                        testRGBHaMapping1(false);
+                        // Rename final result based on methods
+                        var test_win = util.findWindow(ppar.win_prefix + "RGBHa_RGB_mapped");
+                        test_win.mainView.id = ppar.win_prefix + "RGBHa_RGB_mapped_" + util.mapBadWindowNameChars(par.RGBHa_prepare_method.val) + "_" + util.mapBadWindowNameChars(par.RGBHa_combine_method.val);
+                        checkCancel();
+                  }
+            }
+            engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa_AllMappings");
+      } else {
+            testRGBHaMapping1(true);
+      }
 }
 
 function extraHaMapping(extraWin)

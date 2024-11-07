@@ -334,13 +334,13 @@ var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean',
 var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
-var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract', 'Max 0.7' ];
-var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic',  ];
-var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear', ];
-var RGBHa_combine_method_values = [ 'Bright structure add', 'Max', 'Screen', 'Med subtract add', 'Add', 'None' ];
+var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
+var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic' ];
+var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear' ];
+var RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtract add', 'Max', 'Add', 'None' ];
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
-var RGBHa_test_values = [ 'Mapping', 'Continuum' ];
+var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -8781,8 +8781,13 @@ function AutoIntegrateDialog()
             "A special processing is used to add Ha to RGB image." +
             "</p><p>" +
             "If Ha to RGB mapping is used then narrowband color palette is not used." +
-            "</p><p>" +
-            "Also a user processed Ha image can be used. " + 
+            "</p>" +
+            "<p>Some good combinations are:</p>" + 
+            "<ul>" +
+            "<li>Continuum Subtract - Bright structure add</li>" +
+            "<li>Continuum Subtract - Med subtract add</li>" +
+            "<li>Continuum Subtract - Screen</li>" +
+            "</ul>" +
             "In case of linear Ha image processing, if image Integration_H_enhanced_linear exists it use used. " +
             "In case of non-linear (stretched) Ha image processing, if image Integration_H_enhanced exists it use used." +
             "</p><p>" +
@@ -8815,7 +8820,7 @@ function AutoIntegrateDialog()
                         par.RGBHa_Add_BoostFactor.val = par.RGBHa_Add_BoostFactor.def;
                         par.RGBHa_Add_BoostFactor.reset();
                         break;
-                  case 'Max 0.7':
+                  case 'Max 0.7':   // Not used
                         par.RGBHa_prepare_method.val = 'Basic';
                         par.RGBHa_combine_time.val = 'Stretched';
                         par.RGBHa_combine_method.val = 'Max';
@@ -8916,8 +8921,8 @@ function AutoIntegrateDialog()
       this.RGBHa_gradient_correction_CheckBox = newCheckBox(this, "Gradient correction", par.RGBHa_gradient_correction, 
             "<p>Do gradient correction on Ha image before mapping.</p>" );
       this.RGBHa_smoothen_background_CheckBox = newCheckBox(this, "Smoothen", par.RGBHa_smoothen_background, 
-            "<p>Smoothen background which may help with gradient correction. Select a percentage value below which smoothing is done.</p>" +
-            "<p>Usually values below 50 work best. Possible values are between 0 and 100.");
+            "<p>Smoothen background which may help with gradient correction. It may sometimes help with extreme cases for example when using ABE.</p>" +
+            "<p>Select a percentage value below which smoothing is done. Usually values below 50 work best. Possible values are between 0 and 100.</p>");
 
       this.RGBHa_smoothen_background_value_edit = newNumericEditPrecision(this, 'value', par.RGBHa_smoothen_background_value, 0, 100, this.RGBHa_smoothen_background_CheckBox.toolTip, 2);
       this.RGBHa_remove_stars_CheckBox = newCheckBox(this, "Remove stars", par.RGBHa_remove_stars, 
@@ -10079,6 +10084,9 @@ this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
 this.flowchartUpdated = flowchartUpdated;
 this.createEmptyBitmap = createEmptyBitmap;
+
+this.RGBHa_prepare_method_values = RGBHa_prepare_method_values;
+this.RGBHa_combine_method_values = RGBHa_combine_method_values;
 
 /* Exported data for testing.
  */
