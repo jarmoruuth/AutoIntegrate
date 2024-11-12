@@ -293,8 +293,9 @@ function flowchartFilterFiles(fileNames, filetype)
       } else {
             util.throwFatalError("flowchartFilterFiles, unknown filetype " + filetype);
       }
+      console.flush();
 
-      var flowchar_filtered_files = engine.getFilterFiles(fileNames, filetype, '');
+      var flowchar_filtered_files = engine.getFilterFiles(fileNames, filetype, '', true);
       var allfilesarr = flowchar_filtered_files.allfilesarr;
       var newFileNames = [];
       var renamedFileNames = [];
@@ -302,6 +303,7 @@ function flowchartFilterFiles(fileNames, filetype)
 
       // Pick first files for each channel
       console.writeln("flowchartFilterFiles, " + allfilesarr.length + " channels");
+      console.flush();
       for (var i = 0; i < allfilesarr.length; i++) {
             console.writeln("flowchartFilterFiles, " + allfilesarr[i].filter + ", " + allfilesarr[i].files.length);
             for (var j = 0; j < allfilesarr[i].files.length; j++) {
@@ -807,20 +809,22 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
             if (print_names) {
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
-            util.closeOneWindow(arr[i]+"_stars");
-            util.closeOneWindow(arr[i]+"_starless");
-            util.closeOneWindow(arr[i]+"_map");
-            util.closeOneWindow(arr[i]+"_model");
-            if (!keep_base_image) {
-                  util.closeOneWindow(arr[i]);
-            }
-            if (arr[i].indexOf("Integration_") != -1) {
-                  // For possible old images
-                  util.closeOneWindow(arr[i] + "_NB_enhanced");
-                  util.closeOneWindow(arr[i] + "_NB_combine");
-                  util.closeOneWindow(arr[i] + "_NB_max");
-                  util.closeOneWindow(arr[i] + "_processed_starless");
-                  util.closeOneWindow(arr[i] + "_background");
+            if (util.findWindowStartsWith(arr[i])) {
+                  util.closeOneWindow(arr[i]+"_stars");
+                  util.closeOneWindow(arr[i]+"_starless");
+                  util.closeOneWindow(arr[i]+"_map");
+                  util.closeOneWindow(arr[i]+"_model");
+                  if (!keep_base_image) {
+                        util.closeOneWindow(arr[i]);
+                  }
+                  if (arr[i].indexOf("Integration_") != -1) {
+                        // For possible old images
+                        util.closeOneWindow(arr[i] + "_NB_enhanced");
+                        util.closeOneWindow(arr[i] + "_NB_combine");
+                        util.closeOneWindow(arr[i] + "_NB_max");
+                        util.closeOneWindow(arr[i] + "_processed_starless");
+                        util.closeOneWindow(arr[i] + "_background");
+                  }
             }
       }
 }
@@ -3641,7 +3645,7 @@ function getFileKeywords(filePath)
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
 // or treeboxfiles array having [ filename, checked, weight ] members
-this.getFilterFiles = function(files, pageIndex, filename_postfix)
+this.getFilterFiles = function(files, pageIndex, filename_postfix, flochart_files = false)
 {
       var luminance = false;
       var rgb = false;
@@ -3937,6 +3941,14 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix)
                         allfiles.C[allfiles.C.length] = file_info;
                         color_files = true;
                         break;
+            }
+            if (flochart_files) {
+                  // Stop as soon as we have collected enough files for flowchart
+                  if (allfiles.C.length >= 3) {
+                        break;
+                  }
+                  // Harder for channel files as we may have random order
+                  // We just select all files
             }
       }
 
@@ -4776,6 +4788,9 @@ function checkNoiseReduction(image, phase)
       }
       switch (image) {
             case 'L':
+                  if (is_color_files) {
+                        util.throwFatalError("checkNoiseReduction bad combination, L+color/OSC");
+                  }
                   if (par.luminance_noise_reduction_strength.val == 0) {
                         console.writeln("checkNoiseReduction, " + image + ", " + phase, ", luminance_noise_reduction_strength == 0");
                         return false;
@@ -4785,53 +4800,87 @@ function checkNoiseReduction(image, phase)
                               noise_reduction = par.channel_noise_reduction.val ||
                                                 (par.auto_noise_reduction.val && !par.use_blurxterminator.val);
                               break;
-                        case 'linear':
-                              noise_reduction = par.combined_image_noise_reduction.val ||
-                                               (par.auto_noise_reduction.val && par.use_blurxterminator.val);
+                        case 'integrated':
+                              noise_reduction = par.integrated_image_noise_reduction.val;
                               break;
-                        case 'nonlinear':
-                              noise_reduction = par.non_linear_noise_reduction.val;
-                              break;
-                        default:
-                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
-                  }
-                  break;
-            case 'RGB':
-                  if (par.noise_reduction_strength.val == 0) {
-                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
-                        return false;
-                  }
-                  switch (phase) {
-                        case 'channel':
-                              noise_reduction = par.channel_noise_reduction.val ||
-                                                (par.auto_noise_reduction.val && !par.use_blurxterminator.val);
-                              break;
-                        case 'linear':
-                              noise_reduction = par.combined_image_noise_reduction.val ||
+                        case 'processed':
+                              noise_reduction = par.processed_image_noise_reduction.val ||
                                                 (par.auto_noise_reduction.val && par.use_blurxterminator.val);
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
                               break;
                         default:
-                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
+                              util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
-            case 'color':
+            case 'RGB':
+                  if (is_color_files) {
+                        util.throwFatalError("checkNoiseReduction bad combination, RGB+color/OSC");
+                  }
                   if (par.noise_reduction_strength.val == 0) {
                         console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
                         return false;
                   }
                   switch (phase) {
-                        case 'linear':
-                              noise_reduction = par.channel_noise_reduction.val || par.combined_image_noise_reduction.val ||
-                                                par.auto_noise_reduction.val;
+                        case 'channel':
+                              if (par.channel_noise_reduction.val) {
+                                    noise_reduction = true;
+                              } else if (par.auto_noise_reduction.val) {
+                                    // Auto select noise reduction
+                                    if (par.use_blurxterminator.val) {
+                                          // Skip noise reduction on channel images if BlurXterminator is used
+                                          noise_reduction = false;
+                                    } else {
+                                          // Do noise reduction on channel images if BlurXterminator is not used
+                                          noise_reduction = true;
+                                    }
+                              }
+                              break;
+                        case 'integrated':
+                              noise_reduction = par.integrated_image_noise_reduction.val;
+                              break;
+                        case 'processed':
+                              if (par.processed_image_noise_reduction.val) {
+                                    noise_reduction = true;
+                              } else if (par.auto_noise_reduction.val) {
+                                    // Auto select noise reduction
+                                    if (par.use_blurxterminator.val) {
+                                          // Do noise reduction on combined images if BlurXterminator is used
+                                          noise_reduction = true;
+                                    } else {
+                                          // Skip noise reduction on combined images if BlurXterminator is not used
+                                          noise_reduction = false;
+                                    }
+                              }
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
                               break;
                         default:
-                              util.throwFatalError("checkNoiseReduction bad phase " + phase + " for " + image + " image");
+                              util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
+                  }
+                  break;
+            case 'color':
+                  if (!is_color_files) {
+                        util.throwFatalError("checkNoiseReduction bad combination, color/OSC and nor color files");
+                  }
+                  if (par.noise_reduction_strength.val == 0) {
+                        console.writeln("checkNoiseReduction, " + image + ", " + phase, ", noise_reduction_strength == 0");
+                        return false;
+                  }
+                  switch (phase) {
+                        case 'integrated':
+                              noise_reduction = par.integrated_image_noise_reduction.val;
+                              break;
+                        case 'processed':
+                              noise_reduction = par.processed_image_noise_reduction.val || par.auto_noise_reduction.val;
+                              break;
+                        case 'nonlinear':
+                              noise_reduction = par.non_linear_noise_reduction.val;
+                              break;
+                        default:
+                              util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
             default:
@@ -8440,6 +8489,11 @@ function runDeepSNR(imgWin, strength, linear)
 
 function runNoiseReductionEx(imgWin, maskWin, strength, linear)
 {
+      if (maskWin != null) {
+            console.writeln("runNoiseReductionEx on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength + ", linear " + linear);
+      } else {
+            console.writeln("runNoiseReductionEx on " + imgWin.mainView.id + ", strength " + strength + ", linear " + linear);
+      }
       if (global.get_flowchart_data) {
             if (par.use_noisexterminator.val) {
                   var node = flowchartOperation("NoiseXTerminator");
@@ -8747,7 +8801,7 @@ function runBackgroundNeutralization(imgWin)
 
       var node = flowchartOperation("BackgroundNeutralization");
       if (global.get_flowchart_data) {
-            return;
+            return null;
       }
 
       var P = new BackgroundNeutralization;
@@ -9493,9 +9547,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
 this.writeProcessingStepsAndEndLog = function(alignedFiles, autocontinue, basename, iserror)
 {
-      if (global.get_flowchart_data) {
-            basename = "AutoFlowchart";
-      } else if (basename == null) {
+      if (basename == null) {
             if (autocontinue) {
                   basename = "AutoContinue";
             } else {
@@ -10990,10 +11042,13 @@ function ProcessLimage(RGBmapping)
             */
             L_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_HT"));
             if (!RGBmapping.stretched) {
+                  if (checkNoiseReduction('L', 'integrated')) {
+                        luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
+                  }
                   if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
                         runBlurXTerminator(ImageWindow.windowById(L_processed_id), false);
                   }
-                  if (checkNoiseReduction('L', 'linear')) {
+                  if (checkNoiseReduction('L', 'processed')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
                   if (par.remove_stars_before_stretch.val) {
@@ -11034,7 +11089,7 @@ function ProcessLimage(RGBmapping)
                         LRGBEnsureMaskEx(L_processed_HT_id, true);
                   }
             } else {
-                  if (checkNoiseReduction('L', 'linear')) {
+                  if (checkNoiseReduction('L', 'processed')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
                   util.copyWindow(ImageWindow.windowById(L_processed_id), L_processed_HT_id);
@@ -11497,7 +11552,7 @@ this.testRGBNBmapping = function()
 
       util.forceCloseWindowsFromArray(images);
 
-      util.addProcessingStep("Processing completed");
+      util.addProcessingStep("Narrowband mapping to RGB processing completed");
       engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBNB");
 
       flowchartDone();
@@ -12232,7 +12287,7 @@ function testRGBHaMapping1(savelog)
             util.forceCloseWindowsFromArray(images);
       }
 
-      util.addProcessingStep("Processing completed");
+      util.addProcessingStep("Ha mapping to RGB processing completed");
       if (savelog) {
             engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBHa");
       }
@@ -12331,6 +12386,9 @@ function ProcessRGBimage(RGBmapping)
                         util.addProcessingStep("Start from image " + RGB_color_id);
                         RGB_win = util.copyWindow(util.findWindow(RGB_color_id), ppar.win_prefix + "Integration_RGB_map");
                   }
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'integrated')) {
+                        runNoiseReduction(RGB_win, mask_win, !RGBmapping.stretched);
+                  }
                   if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_win.mainView.id);
                   }
@@ -12349,7 +12407,9 @@ function ProcessRGBimage(RGBmapping)
                               runBackgroundNeutralization(RGB_win);
                         }
                   }
-                  if (par.use_GC_on_L_RGB.val) {
+                  if (par.use_GC_on_L_RGB.val
+                      || (is_color_files && par.GC_before_channel_combination.val && !par.use_GC_on_L_RGB_stretched.val)) 
+                  {
                         console.writeln("GC RGB");
                         if (par.smoothbackground.val > 0) {
                               smoothBackgroundBeforeGC(RGB_win, par.smoothbackground.val, true);
@@ -12406,7 +12466,7 @@ function ProcessRGBimage(RGBmapping)
                         runBlurXTerminator(ImageWindow.windowById(RGB_processed_id), false);
                   }
                   /* Check noise reduction only after BlurXTerminator. */
-                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'processed')) {
                         runNoiseReduction(ImageWindow.windowById(RGB_processed_id), mask_win, !RGBmapping.stretched);
                   }
                   if (par.use_RGBHa_Mapping.val) {
@@ -12453,7 +12513,7 @@ function ProcessRGBimage(RGBmapping)
                   }
             } else {
                   /* Image is not really linear any more but anyway check for noise reduction. */
-                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'linear')) {
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'processed')) {
                         runNoiseReduction(ImageWindow.windowById(RGB_processed_id), mask_win, !RGBmapping.stretched);
                   }
                   RGB_processed_HT_id = RGB_processed_id;
@@ -15926,7 +15986,9 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             return false;
        }
 
-       console.beginLog();
+       if (!global.get_flowchart_data) {
+            console.beginLog();
+       }
        console.show();
 
        stepno = 1;
@@ -16184,7 +16246,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                     */
                    RGB_processed_HT_id = ProcessRGBimage(RGBmapping);
 
-                   if (checkNoiseReduction('RGB', 'nonlinear')) {
+                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'nonlinear')) {
                          runNoiseReduction(ImageWindow.windowById(RGB_processed_HT_id), mask_win, false);
                    }
                    if (processed_l_image) {
@@ -16392,7 +16454,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        /* All done, do cleanup on windows on screen 
         */
-       util.addProcessingStepAndStatusInfo("Processing completed");
+       util.addProcessingStepAndStatusInfo("Engine processing completed");
  
        util.closeTempWindows();
        if (!par.calibrate_only.val) {
@@ -16554,8 +16616,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
  
        if (preprocessed_images != global.start_images.FINAL
            && par.autosave_setup.val 
-           // && !auto_continue 
-           && !global.ai_get_process_defaults
            && full_run
            && create_channel_images_ret == retval.SUCCESS
            && !global.get_flowchart_data)
@@ -16598,17 +16658,17 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             console.criticalln("Processing errors:");
             console.criticalln(global.processing_errors);
        }
-       if (preprocessed_images != global.start_images.FINAL || global.ai_get_process_defaults) {
-            engine.writeProcessingStepsAndEndLog(alignedFiles, auto_continue, null, false);
-      }
-      if (preprocessed_images != global.start_images.FINAL) {
-             console.noteln("Console output is written into file " + logfname);
-       }
 
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();
  
-       console.noteln("Processing completed.");
+       console.noteln("Engine processing completed.");
+
+       if (!global.get_flowchart_data && preprocessed_images != global.start_images.FINAL) {
+            engine.writeProcessingStepsAndEndLog(alignedFiles, auto_continue, null, false);
+            console.noteln("Console output is written into file " + logfname);
+      }
+
        global.is_processing = global.processing_state.none;
 
        return true;

@@ -252,7 +252,8 @@ this.par = {
       non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
       luminance_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on luminance image", type : 'I' },
-      combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on combined image", type : 'B' },
+      integrated_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on integrated image", type : 'B' },
+      processed_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on processed image", type : 'B', oldname : "Do noise reduction on combined image" },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
@@ -791,9 +792,6 @@ this.getDirectoryInfo = function(simple_text) {
             return "<p>" + header + "</p>" + "<ul><li>" + info.join('</li><li>') + "</li></ul>";
       }
 }
-
-// variables for temporary debugging and testing
-this.ai_get_process_defaults = false;           // temp setting to print process defaults
 
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 

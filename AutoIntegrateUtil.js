@@ -51,8 +51,10 @@ this.init_pixinsight_version = function()
 
 this.runGarbageCollection = function()
 {
-      console.writeln("runGarbageCollection");
+      var start_time = Date.now();
       gc();
+      var end_time = Date.now();
+      console.writeln("runGarbageCollection, " + (end_time-start_time)/1000+ " sec");
 }
 
 this.checkEvents = function()
@@ -249,6 +251,7 @@ this.findWindow = function(id)
       if (id == null || id == undefined) {
             return null;
       }
+      //return ImageWindow.windowById(id);
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
             return null;

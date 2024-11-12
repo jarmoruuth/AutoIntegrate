@@ -835,12 +835,16 @@ function copyFileNames(fileNames)
 
 function generateNewFlowchartData(parent)
 {
+      console.beginLog();
+
       console.writeln("generateNewFlowchartData");
+      console.flush();
 
       getFilesFromTreebox(parent.dialog);
 
       if (global.lightFileNames == null) {
             console.criticalln("No files, cannot generate flowchart data");
+            console.endLog();
             return false;
       }
 
@@ -898,8 +902,15 @@ function generateNewFlowchartData(parent)
       global.flatFileNames = flatFileNamesCopy;
       global.all_windows = old_all_windows;
       
-      console.writeln("generateNewFlowchartData done");
       util.runGarbageCollection();
+      console.flush();
+
+      console.writeln("generateNewFlowchartData done");
+      console.flush();
+
+      engine.writeProcessingStepsAndEndLog(null, false, "AutoFlowchart", false);
+      console.writeln("AutoFlowchart log written");
+      console.flush();
 
       return succp;
 }
@@ -5266,10 +5277,6 @@ function runAction(parent)
 {
       console.writeln("Run button pressed");
       exitFromDialog();
-      if (global.ai_get_process_defaults) {
-            engine.getProcessDefaultValues();
-            return;
-      }
       if (par.integrated_lights.val) {
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
@@ -6689,7 +6696,8 @@ function AutoIntegrateDialog()
       this.printProcessValuesCheckBox = newCheckBox(this, "Print process values", par.print_process_values, 
             "<p>Print PixInsight process values to the console and to the AutoIntegrate log file.</p>" );
       this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
-            "<p>Use gradient correction on L, R, G and B images separately before channels are combined.</p>" );
+            "<p>Use gradient correction on L, R, G and B images separately before channels are combined.</p>" +
+            "<p>With color/OSC images this does the same thing as <i>Gradient correction on combined images</i>.</p>" );
       this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
             "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.use_GC_L_RGB_CheckBox = newCheckBox(this, "Gradient correction on combined images", par.use_GC_on_L_RGB, 
@@ -7306,9 +7314,13 @@ function AutoIntegrateDialog()
             "<p>This option enables also color/OSC image noise reduction.</p>");
       this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
             "<p>Do noise reduction on each color channels and luminance image separately.</p>" + 
-            "<p>This option enables also color/OSC image noise reduction.</p>");
-      this.combined_noise_reduction_CheckBox = newCheckBox(this, "Combined image", par.combined_image_noise_reduction,
-            "<p>Do noise reduction on combined image and luminance image in linear stage instead of each color channels separately.</p><p>This option enables also color/OSC image noise reduction.</p>" );
+            "<p>This option does nothing with color/OSC images.</p>");
+      this.integrated_noise_reduction_CheckBox = newCheckBox(this, "Integrated image", par.integrated_image_noise_reduction,
+            "<p>Do noise reduction on integreated image. Image can be from channel combination or from integrated color/OSC image.</p>" +
+            "<p>On L image noise reduction is done before processing which is the same as channel noise reduction.</p>");
+      this.processed_noise_reduction_CheckBox = newCheckBox(this, "Processed linear image", par.processed_image_noise_reduction,
+            "<p>Do noise reduction on processed RGB image and possible luminance image in linear stage.</p>" + 
+            "<p>This option enables also color/OSC image noise reduction.</p>" );
       this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction,", par.use_color_noise_reduction, 
@@ -7341,7 +7353,8 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer2.add( this.noise_reduction_checkbox_label );
       this.noiseReductionGroupBoxSizer2.add( this.auto_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer2.add( this.combined_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.integrated_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.processed_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.add( this.non_linear_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer2.addStretch();
 
@@ -8788,9 +8801,7 @@ function AutoIntegrateDialog()
             "<li>Continuum Subtract - Med subtract add</li>" +
             "<li>Continuum Subtract - Screen</li>" +
             "</ul>" +
-            "In case of linear Ha image processing, if image Integration_H_enhanced_linear exists it use used. " +
-            "In case of non-linear (stretched) Ha image processing, if image Integration_H_enhanced exists it use used." +
-            "</p><p>" +
+            "<p>" +
             "Information for processing and formulas are collected from multiple sources, including:" +
             "</p>" + 
             "<ul>" +
@@ -9081,7 +9092,7 @@ function AutoIntegrateDialog()
                   return;
             }
 
-            console.writeln("New flowchart");
+            console.noteln("New flowchart");
             if (generateNewFlowchartData(this.parent)) {
                   flowchartGraph(global.flowchartData);
                   console.noteln("Flowchart updated");
