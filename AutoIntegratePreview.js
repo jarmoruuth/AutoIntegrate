@@ -238,7 +238,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   } else {
                         console.writeln("Saved image: " + saveFileDialog.fileName);
                   }
-                  util.forceCloseOneWindow(copy_win);
+                  util.closeOneWindow(copy_win);
             };
       }
       if (this.normalPreview) {

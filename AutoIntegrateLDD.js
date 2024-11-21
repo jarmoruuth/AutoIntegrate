@@ -176,9 +176,9 @@ function LDDEngine( win, detectColumns, detectPartialLines,
     WI.lineDetectionImage.free();
     if ( detectPartialLines )
         WI.referenceImageCopy.free();
-    util.closeOneWindow(WI.lineModelWindow.mainView.id);
-    util.closeOneWindow(WI.lineDetectionWindow.mainView.id);
-    util.closeOneWindow("partial_line_detection");
+    util.closeOneWindowById(WI.lineModelWindow.mainView.id);
+    util.closeOneWindowById(WI.lineDetectionWindow.mainView.id);
+    util.closeOneWindowById("partial_line_detection");
 }
 
 // ----------------------------------------------------------------------------

@@ -810,20 +810,20 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                   console.writeln("closeAllWindowsFromArray: " + arr[i]);
             }
             if (util.findWindowStartsWith(arr[i])) {
-                  util.closeOneWindow(arr[i]+"_stars");
-                  util.closeOneWindow(arr[i]+"_starless");
-                  util.closeOneWindow(arr[i]+"_map");
-                  util.closeOneWindow(arr[i]+"_model");
+                  util.closeOneWindowById(arr[i]+"_stars");
+                  util.closeOneWindowById(arr[i]+"_starless");
+                  util.closeOneWindowById(arr[i]+"_map");
+                  util.closeOneWindowById(arr[i]+"_model");
                   if (!keep_base_image) {
-                        util.closeOneWindow(arr[i]);
+                        util.closeOneWindowById(arr[i]);
                   }
                   if (arr[i].indexOf("Integration_") != -1) {
                         // For possible old images
-                        util.closeOneWindow(arr[i] + "_NB_enhanced");
-                        util.closeOneWindow(arr[i] + "_NB_combine");
-                        util.closeOneWindow(arr[i] + "_NB_max");
-                        util.closeOneWindow(arr[i] + "_processed_starless");
-                        util.closeOneWindow(arr[i] + "_background");
+                        util.closeOneWindowById(arr[i] + "_NB_enhanced");
+                        util.closeOneWindowById(arr[i] + "_NB_combine");
+                        util.closeOneWindowById(arr[i] + "_NB_max");
+                        util.closeOneWindowById(arr[i] + "_processed_starless");
+                        util.closeOneWindowById(arr[i] + "_background");
                   }
             }
       }
@@ -859,7 +859,7 @@ this.closeAllWindows = function(keep_integrated_imgs, force_close)
                   if (!util.findFromArray(integration_windows, global.all_windows[i]) &&
                       !util.findFromArray(global.integration_data_windows, global.all_windows[i]))
                   {
-                        util.closeOneWindow(global.all_windows[i]);
+                        util.closeOneWindowById(global.all_windows[i]);
                   }
             }
       } else {
@@ -941,7 +941,7 @@ function saveOutputWindow(id, save_id)
 
       var saved_name = util.saveWindowEx(util.ensurePathEndSlash(outputPath), save_id, util.getOptionalUniqueFilenamePart());
 
-      util.closeOneWindow(save_id);
+      util.closeOneWindowById(save_id);
 
       return saved_name;
 }
@@ -1203,7 +1203,7 @@ function extraNormalizeImage(imgWin)
       }
 
       if (par.extra_normalize_channels_mask.val) {
-            util.closeOneWindow("AutoNormalizeMask");
+            util.closeOneWindowById("AutoNormalizeMask");
             var mask_win = newMaskWindow(imgWin, "AutoNormalizeMask", false, true);
       }
 
@@ -1236,7 +1236,7 @@ function extraNormalizeImage(imgWin)
 
       if (par.extra_normalize_channels_mask.val) {
             imgWin.removeMask();
-            util.forceCloseOneWindow(mask_win);
+            util.closeOneWindow(mask_win);
       }
       imgWin.mainView.endProcess();
 
@@ -1467,7 +1467,7 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_mo
             targetWindow = extractLchannel(sourceWindow);
 
             if (par.force_new_mask.val) {
-                  util.closeOneWindow(name);
+                  util.closeOneWindowById(name);
             }
       
             util.windowRenameKeepifEx(targetWindow.mainView.id, name, true, allow_duplicate_name);
@@ -1937,9 +1937,9 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       P.executeGlobal();
 
-      util.closeOneWindow(P.highRejectionMapImageId);
-      util.closeOneWindow(P.lowRejectionMapImageId);
-      util.closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindowById(P.highRejectionMapImageId);
+      util.closeOneWindowById(P.lowRejectionMapImageId);
+      util.closeOneWindowById(P.slopeMapImageId);
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
@@ -2015,12 +2015,12 @@ function matchMasterToImages(images, masterPath)
                   matchingMaster = masterPath[i];
                   console.writeln("matchMasterToImages, found match " + matchingMaster);
             }
-            util.forceCloseOneWindow(masterWin);
+            util.closeOneWindow(masterWin);
             if (matchingMaster != null) {
                   break;
             }
       }
-      util.forceCloseOneWindow(imageWin);
+      util.closeOneWindow(imageWin);
 
       if (matchingMaster == null) {
             util.throwFatalError("*** matchMasterToImages Error: Can't find matching master file");
@@ -2156,9 +2156,9 @@ function runImageIntegrationFlats(images, name)
 
       P.executeGlobal();
 
-      util.closeOneWindow(P.highRejectionMapImageId);
-      util.closeOneWindow(P.lowRejectionMapImageId);
-      util.closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindowById(P.highRejectionMapImageId);
+      util.closeOneWindowById(P.lowRejectionMapImageId);
+      util.closeOneWindowById(P.slopeMapImageId);
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
@@ -2395,7 +2395,7 @@ function getDefectInfo(fileNames, groupname)
             defects = defects.concat(rowDefects);
       }
 
-      util.closeOneWindow(LDD_id);
+      util.closeOneWindowById(LDD_id);
 
       return { ccFileNames: fileNames, ccDefects: defects };
 }
@@ -2546,7 +2546,7 @@ function runBinningOnFiles(fileNames, binning_val, resample_val, filtered_files,
                         util.throwFatalError("*** runBinningOnFiles Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
                   }
                   // Close window
-                  util.forceCloseOneWindow(imageWindow);   
+                  util.closeOneWindow(imageWindow);   
             } else {
                   // keep the old file name
                   var filePath = fileNames[i];
@@ -2610,7 +2610,7 @@ function runGradientCorrectionOnLights(fileNames)
             }
             
             // Source image window is not needed any more
-            util.forceCloseOneWindow(imageWindow);
+            util.closeOneWindow(imageWindow);
 
             var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
 
@@ -2619,7 +2619,7 @@ function runGradientCorrectionOnLights(fileNames)
                   util.throwFatalError("*** runGradientCorrectionOnLights Error: Can't write output image: " + new_id);
             }
             // Close GC window
-            util.forceCloseOneWindow(new_win);
+            util.closeOneWindow(new_win);
 
             newFileNames[newFileNames.length] = filePath;
       }
@@ -2908,10 +2908,10 @@ function getImagePSF(imgWin)
       var fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
       console.writeln("getImagePSF input file " + fname);
       if (!copy_win.saveAs(fname, false, false, false, false)) {
-            util.closeOneWindow(copy_win.mainView.id);
+            util.closeOneWindowById(copy_win.mainView.id);
             util.throwFatalError("Failed to save image to get image PSF: " + fname);
       }
-      util.closeOneWindow(copy_win.mainView.id);
+      util.closeOneWindowById(copy_win.mainView.id);
 
       console.writeln("Using saved image " + fname);
 
@@ -3315,13 +3315,13 @@ function runSubframeSelector(fileNames)
                         }
                         setSSWEIGHTkeyword(imageWindow, SSWEIGHT);
                         if (!writeImage(newFilePath, imageWindow)) {
-                              util.forceCloseOneWindow(imageWindow);
+                              util.closeOneWindow(imageWindow);
                               console.writeln(
                               "*** Error: Can't write output image: ", newFilePath
                               );
                               continue;
                         }         
-                        util.forceCloseOneWindow(imageWindow);
+                        util.closeOneWindow(imageWindow);
                   }
                   newFileNames[newFileNames.length] = newFilePath;
             }
@@ -4910,7 +4910,7 @@ function luminanceNoiseReduction(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 
       if (temp_mask_win != null) {
-            util.forceCloseOneWindow(temp_mask_win);
+            util.closeOneWindow(temp_mask_win);
       }
 }
 
@@ -4932,7 +4932,7 @@ function channelNoiseReduction(image_id)
       guiUpdatePreviewWin(image_win);
 
       if (temp_mask_win != null) {
-            util.forceCloseOneWindow(temp_mask_win);
+            util.closeOneWindow(temp_mask_win);
       }
 }
 
@@ -5123,7 +5123,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
                   var star_win = util.findWindow(id);
                   console.writeln("removeStars, rename " + id + " to " + stars_image_name);
                   util.windowRename(id, stars_image_name);
-                  util.forceCloseOneWindow(originalwin_copy);
+                  util.closeOneWindow(originalwin_copy);
             } else {
                   var star_win = getStarMaskWin(imgWin, stars_image_name);
             }
@@ -5179,7 +5179,7 @@ function removeStarsFromLights(fileNames)
                   util.throwFatalError("*** removeStarsFromLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
             }
             // Close window
-            util.forceCloseOneWindow(imageWindow);   
+            util.closeOneWindow(imageWindow);   
 
             newFileNames[newFileNames.length] = filePath;
       }
@@ -5306,7 +5306,7 @@ function save_id_as_xisf_and_tif(id, basename)
             util.throwFatalError("createStarlessChannelImages:failed to save image: " + filePath + ".tif");
       }
 
-      util.forceCloseOneWindow(image_win);
+      util.closeOneWindow(image_win);
 }
 
 // Stretch channel images, remove stars and save images
@@ -5355,7 +5355,7 @@ function createStarlessChannelImages(images, basenames = null)
             global.processed_channel_images[global.processed_channel_images.length] = image_win.mainView.id;
 
             if (copy_id != image_win.mainView.id) {
-                  util.closeOneWindow(copy_id);
+                  util.closeOneWindowById(copy_id);
             }
 
             flowchartChildEnd(findChannelFromName(basenames[i]));
@@ -5400,7 +5400,7 @@ function createStarsImageFromFinalImage(id)
             guiUpdatePreviewWin(util.findWindow(id)); // Undo preview update from removeStars
       }
 
-      util.forceCloseOneWindow(image_win);
+      util.closeOneWindow(image_win);
 }
 
 // Extract channels to separate images and save stretched starless images
@@ -5421,7 +5421,7 @@ function extractChannelsAndSaveStarlessImages(RGB_win_id)
       createStarlessChannelImages(images, [ 'Integration_R_processed', 'Integration_G_processed', 'Integration_B_processed' ]);
       
       for (var i = 0; i < images.length; i++) {
-            util.closeOneWindow(images[i]);
+            util.closeOneWindowById(images[i]);
       }
 }
 
@@ -6174,7 +6174,7 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
       printProcessValues(P);
       engine_end_process(node);
 
-      util.closeOneWindow(P.weightImageId);
+      util.closeOneWindowById(P.weightImageId);
 
       var new_name = util.windowRename(P.integrationImageId, ppar.win_prefix + "Integration_" + name);
       var new_win = ImageWindow.windowById(new_name);
@@ -6345,7 +6345,7 @@ function runFastIntegrationEx(integration_images, name, refImage)
             guiUpdatePreviewId(id);
             id = util.windowRename(id, id + "_tmp");
             var new_id = runDrizzleIntegration(id, integration_images, name, false, "_r.xdrz");
-            util.closeOneWindow(id);
+            util.closeOneWindowById(id);
             id = new_id;
       }
       return id;
@@ -6424,9 +6424,9 @@ function runBasicIntegration(images, name, local_normalization)
             throw e;
       }
 
-      util.closeOneWindow(P.highRejectionMapImageId);
-      util.closeOneWindow(P.lowRejectionMapImageId);
-      util.closeOneWindow(P.slopeMapImageId);
+      util.closeOneWindowById(P.highRejectionMapImageId);
+      util.closeOneWindowById(P.lowRejectionMapImageId);
+      util.closeOneWindowById(P.slopeMapImageId);
 
       printProcessValues(P);
       engine_end_process(node);
@@ -6445,7 +6445,7 @@ function runImageIntegrationEx(images, name, local_normalization)
             integrationImageId = util.windowRename(integrationImageId, integrationImageId + "_tmp");
             var new_id = runDrizzleIntegration(integrationImageId, images, name, local_normalization, ".xdrz");
             console.writeln("runImageIntegrationEx completed, new name " + new_id);
-            util.closeOneWindow(integrationImageId);
+            util.closeOneWindowById(integrationImageId);
             return new_id;
       } else {
             var new_name = util.windowRename(integrationImageId, ppar.win_prefix + "Integration_" + name);
@@ -6672,17 +6672,17 @@ function runImageIntegrationForCrop(images)
       if (par.debug.val || par.cropinfo_only.val || par.crop_use_rejection_low.val) {
             util.windowShowif(P.lowRejectionMapImageId);
       } else {
-            util.closeOneWindow(P.lowRejectionMapImageId);
+            util.closeOneWindowById(P.lowRejectionMapImageId);
       }
       if (par.debug.val || par.cropinfo_only.val) {
             util.windowShowif(P.highRejectionMapImageId);
       } else {
-            util.closeOneWindow(P.highRejectionMapImageId);
+            util.closeOneWindowById(P.highRejectionMapImageId);
       }
       if (par.debug.val || par.cropinfo_only.val) {
             util.windowShowif(P.slopeMapImageId);
       } else {
-            util.closeOneWindow(P.slopeMapImageId);
+            util.closeOneWindowById(P.slopeMapImageId);
       }
       // KEEP (P.integrationImageId);
 
@@ -6758,11 +6758,11 @@ function runGraXpertExternal(win, denoise)
       var fname = File.systemTempDirectory + "/AutoIntegrateTemp.xisf";
       console.writeln("GraXpert input file " + fname);
       if (!copy_win.saveAs(fname, false, false, false, false)) {
-            util.closeOneWindow(copy_win.mainView.id);
+            util.closeOneWindowById(copy_win.mainView.id);
             util.throwFatalError("Failed to save image for GraXpert: " + fname);
       }
 
-      util.closeOneWindow(copy_win.mainView.id);
+      util.closeOneWindowById(copy_win.mainView.id);
 
       if (denoise) {
             var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd denoising -strength " + par.graxpert_denoise_strength.val + " -batch_size " + par.graxpert_denoise_batch_size.val + ' "' + fname + '"';
@@ -6793,7 +6793,7 @@ function runGraXpertExternal(win, denoise)
       }
       if (imgWin == null || processed_image_id != image_id) {
             if (imgWin != null) {
-                  util.closeOneWindow(imgWin.mainView.id);
+                  util.closeOneWindowById(imgWin.mainView.id);
             }
             console.criticalln("GraXpert failed to run, possible reasons could be");
             console.criticalln("- GraXpert path is incorrect.");
@@ -6851,7 +6851,7 @@ function runGraXpert(win, replaceTarget, postfix)
             if (!global.get_flowchart_data || par.debug.val) {
                   console.writeln("GraXpert replace target " + GC_id);
             }
-            util.closeOneWindow(win.mainView.id);
+            util.closeOneWindowById(win.mainView.id);
             var copyWin = util.copyWindowEx(imgWin, GC_id, true);
       } else {
             if (!global.get_flowchart_data || par.debug.val) {
@@ -6859,7 +6859,7 @@ function runGraXpert(win, replaceTarget, postfix)
             }
             var copyWin = util.copyWindowEx(imgWin, GC_id, true);
       }
-      util.closeOneWindow(imgWin.mainView.id);
+      util.closeOneWindowById(imgWin.mainView.id);
       copyWin.show();
 
       if (!global.get_flowchart_data || par.debug.val) {
@@ -7567,12 +7567,12 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
 
             runPixelMathRGBMapping(null, GC_win, R_id, G_id, B_id);
 
-            util.closeOneWindow(R_id);
-            util.closeOneWindow(G_id);
-            util.closeOneWindow(B_id);
-            util.closeOneWindow(R_win.mainView.id);
-            util.closeOneWindow(G_win.mainView.id);
-            util.closeOneWindow(B_win.mainView.id);
+            util.closeOneWindowById(R_id);
+            util.closeOneWindowById(G_id);
+            util.closeOneWindowById(B_id);
+            util.closeOneWindowById(R_win.mainView.id);
+            util.closeOneWindowById(G_win.mainView.id);
+            util.closeOneWindowById(B_win.mainView.id);
 
             util.runGarbageCollection();
             if (debug) {
@@ -7905,7 +7905,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             if (!copy_window) {
                   res.forward = false;
             }
-            // util.forceCloseOneWindow(new_win);
+            // util.closeOneWindow(new_win);
             if (res.skipped > res.maxskipped) {
                   console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
                   res.completed = true;
@@ -7919,7 +7919,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             // We are below the target value, ignore this iteration
             res.skipped++;
             res.forward = true;
-            // util.forceCloseOneWindow(new_win);
+            // util.closeOneWindow(new_win);
             console.writeln("*** Skip, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
             // res.completed = true;
             if (copy_window) {
@@ -8040,7 +8040,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
                   console.criticalln("GeneralizedHyperbolicStretch failed");
                   console.criticalln(err);
                   util.addProcessingStep("Maybe GeneralizedHyperbolicStretch is not installed");
-                  // util.closeOneWindow(new_win.mainView.id);
+                  // util.closeOneWindowById(new_win.mainView.id);
                   util.throwFatalError("GeneralizedHyperbolicStretch failed to run");
             }
       
@@ -8122,16 +8122,16 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
       } else if (median >= 0.5 && max_iterations) {
             // We are past the median limit value, ignore this iteration and keep old image
             console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
-            // util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindowById(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
             // We are past the target value, ignore this iteration and keep old image
             console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            // util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindowById(new_win.mainView.id);
             res.skipped++;
       } else if (peak_val < res.peak_val) {
             console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
-            // util.closeOneWindow(new_win.mainView.id);
+            // util.closeOneWindowById(new_win.mainView.id);
             res.skipped++;
       } else {
             // we are close enough, we are done
@@ -8146,7 +8146,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
                   // find new window and copy keywords
                   setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
                   // close old image
-                  util.closeOneWindow(image_id);
+                  util.closeOneWindowById(image_id);
                   // rename new as old
                   util.windowRename(new_win.mainView.id, image_id);
             }
@@ -10001,7 +10001,7 @@ function bandingEngineForImages(fileNames)
                   util.throwFatalError("*** bandingEngineForImages Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            util.forceCloseOneWindow(imageWindow);
+            util.closeOneWindow(imageWindow);
       }
       engine_end_process(node);
 
@@ -10066,7 +10066,7 @@ function extractChannels(fileNames)
                         util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
                   }
                   newFileNames[newFileNames.length] = filePath;
-                  util.forceCloseOneWindow(targetWindow);
+                  util.closeOneWindow(targetWindow);
             }
 
             var rId = extractRGBchannel(imageWindow.mainView.id, 'R', true);
@@ -10077,7 +10077,7 @@ function extractChannels(fileNames)
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            util.forceCloseOneWindow(rWin);
+            util.closeOneWindow(rWin);
 
             var gId = extractRGBchannel(imageWindow.mainView.id, 'G', true);
             var gWin = util.findWindow(gId);
@@ -10087,7 +10087,7 @@ function extractChannels(fileNames)
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            util.forceCloseOneWindow(gWin);
+            util.closeOneWindow(gWin);
 
             var bId = extractRGBchannel(imageWindow.mainView.id, 'B', true);
             var bWin = util.findWindow(bId);
@@ -10097,10 +10097,10 @@ function extractChannels(fileNames)
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
-            util.forceCloseOneWindow(bWin);
+            util.closeOneWindow(bWin);
 
             // Close window
-            util.forceCloseOneWindow(imageWindow);
+            util.closeOneWindow(imageWindow);
       }
       engine_end_process(node);
       return newFileNames;
@@ -10426,7 +10426,7 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = true;
             }
             if (par.force_new_mask.val) {
-                  util.closeOneWindow(ppar.win_prefix + "AutoMask");
+                  util.closeOneWindowById(ppar.win_prefix + "AutoMask");
                   mask_win_id = null;
                   range_mask_win = null;
             } else {
@@ -10956,7 +10956,7 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
        */
       var maskWin = newMaskWindow(winCopy, imgWin.mainView.id + "_mask", true);
 
-      util.forceCloseOneWindow(winCopy);
+      util.closeOneWindow(winCopy);
       flowchartMaskEnd("New mask");
 
       return maskWin;
@@ -10975,7 +10975,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
                   console.writeln("Close old mask " + mask_win_id);
             }
             range_mask_win = null;
-            util.closeOneWindow(mask_win_id);
+            util.closeOneWindowById(mask_win_id);
       }
       if (winIsValid(range_mask_win)) {
             /* We already have a mask. */
@@ -11016,7 +11016,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(L_win, mask_win_id, false);
-            util.closeOneWindow(L_win.mainView.id);
+            util.closeOneWindowById(L_win.mainView.id);
             flowchartMaskEnd("New mask");
       }
 }
@@ -11035,7 +11035,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 
       if (force_new_mask) {
             range_mask_win = null;
-            util.closeOneWindow(mask_win_id);
+            util.closeOneWindowById(mask_win_id);
       }
 
       if (winIsValid(range_mask_win)) {
@@ -11057,7 +11057,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
              */
             mask_win_id = ppar.win_prefix + "AutoMask";
             mask_win = newMaskWindow(color_win_copy, mask_win_id, false);
-            util.closeOneWindow(color_win_copy.mainView.id);
+            util.closeOneWindowById(color_win_copy.mainView.id);
             flowchartMaskEnd("New mask");
       }
       console.writeln("ColorEnsureMask done");
@@ -11161,7 +11161,7 @@ function ProcessLimage(RGBmapping)
                         flowchartParentBegin("RGB Narrowband mapping");
                         var mapped_L_GC_id = RGBNB_Channel_Mapping(L_processed_id, 'L', par.RGBNB_L_bandwidth.val, par.RGBNB_L_mapping.val, par.RGBNB_L_BoostFactor.val);
                         mapped_L_GC_id = util.windowRename(mapped_L_GC_id, util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_NB_processed"));
-                        util.closeOneWindow(L_processed_id);
+                        util.closeOneWindowById(L_processed_id);
                         L_processed_id = mapped_L_GC_id;
                         flowchartParentEnd("RGB Narrowband mapping");
                   }
@@ -11247,7 +11247,7 @@ function ProcessLimage(RGBmapping)
 function copyLinearFitReferenceImage(id)
 {
       linear_fit_rerefence_id = util.ensure_win_prefix(id + "_linear_fit_reference");
-      util.closeOneWindow(linear_fit_rerefence_id);
+      util.closeOneWindowById(linear_fit_rerefence_id);
       util.copyWindow(util.findWindow(id), linear_fit_rerefence_id);
       global.temporary_windows[global.temporary_windows.length] = linear_fit_rerefence_id;
 }
@@ -11592,8 +11592,8 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
                                     "RGBNB:max",
                                     "max(" + mappedChannelId + ", " + mappedChannelId2 + ")");
 
-      util.closeOneWindow(channelId);
-      util.closeOneWindow(NB_id);
+      util.closeOneWindowById(channelId);
+      util.closeOneWindowById(NB_id);
 
       iconized_debug_image_ids.push(mappedChannelId);
       iconized_debug_image_ids.push(mappedChannelId2);
@@ -11629,7 +11629,7 @@ function doRGBNBmapping(RGB_id)
       iconized_debug_image_ids.push(R_mapped);
       iconized_debug_image_ids.push(G_mapped);
       iconized_debug_image_ids.push(B_mapped);
-      util.closeOneWindow(RGB_id);
+      util.closeOneWindowById(RGB_id);
 
       return RGB_mapped_id;
 }
@@ -11685,7 +11685,7 @@ this.testRGBNBmapping = function()
 
       doRGBNBmapping(test_win.mainView.id);
 
-      util.forceCloseWindowsFromArray(images);
+      util.closeWindowsFromArray(images);
 
       util.addProcessingStep("Narrowband mapping to RGB processing completed");
       engine.writeProcessingStepsAndEndLog(null, true, ppar.win_prefix + "AutoRGBNB");
@@ -11788,8 +11788,8 @@ function RGBHa_max_Ha(RGB_id, nb_channel_id)
             "$T[1]", 
             "iif($T[0]<"+ H_boost + ",$T[2]+0.05*" + H_boost + ",$T[2])");
 
-      util.closeOneWindow(nb_channel_id);
-      util.closeOneWindow(H_boost);
+      util.closeOneWindowById(nb_channel_id);
+      util.closeOneWindowById(H_boost);
 
       flowchartChildEnd("RGBHa max");
       flowchartParentEnd("RGBHa_max_Ha");
@@ -11822,8 +11822,8 @@ function RGBHa_screen_Ha(RGB_id, nb_channel_id)
             "$T[1]", 
             "iif($T[0]<"+ H_boost + ",$T[2]+0.05*" + H_boost + ",$T[2])");
 
-      util.closeOneWindow(nb_channel_id);
-      util.closeOneWindow(H_boost);
+      util.closeOneWindowById(nb_channel_id);
+      util.closeOneWindowById(H_boost);
 
       flowchartChildEnd("RGBHa max");
       flowchartParentEnd("RGBHa_screen_Ha");
@@ -12150,8 +12150,8 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
 
                   var enhanced_channel_win = util.findWindow(enhanced_channel_id);
 
-                  util.closeOneWindow(nb_channel_id);
-                  util.closeOneWindow(rgb_channel_id);
+                  util.closeOneWindowById(nb_channel_id);
+                  util.closeOneWindowById(rgb_channel_id);
                   break;
 
             default:
@@ -12301,47 +12301,47 @@ function testRGBHaMapping1(savelog)
 
       global.is_processing = global.processing_state.extra_processing;
 
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_uncalibrated");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_calibrated");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_background");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced");
-      util.closeOneWindow(ppar.win_prefix + "RGBHa_ContinuumSubtractTemp");
-      util.closeOneWindow(ppar.win_prefix + "IntegratiIntegration_HRR_starlessT_medT");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_linear");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_nonlinear");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_normalized_1st");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_boostHa");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_enhanced_denoise");
-      util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_mapped");
-      util.closeOneWindow(ppar.win_prefix + "RGBHa_RGB_original_HT");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_NB_med");
-      util.closeOneWindow(ppar.win_prefix + "Integration_R_NB_med");
-      util.closeOneWindow(ppar.win_prefix + "Integration_R_RGBHa");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_prepared");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_starless");
-      util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_gc");
-      util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_stretched");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_init");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_crop");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_linearfit");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_gc");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_denoise");
-      util.closeOneWindow(ppar.win_prefix + "nb_channel_id_stretched");
-      util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_init");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_bn");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_cc");
-      util.closeOneWindow(ppar.win_prefix + "Integration_HRR_stretched");
-      util.closeOneWindow(ppar.win_prefix + "RGBHa_max_Ha_boosted");
-      util.closeOneWindow(ppar.win_prefix + "RGBHa_screen_Ha_boosted");
-      util.closeOneWindow(ppar.win_prefix + "rgb_channel_id_gc");
-      util.closeOneWindow(ppar.win_prefix + "H_to_R_boost");
-      util.closeOneWindow(ppar.win_prefix + "H_to_B_boost");
-      util.closeOneWindow(ppar.win_prefix + "Integration_H_map");
-      util.closeOneWindow(ppar.win_prefix + "Integration_R_map");
-      util.closeOneWindow(ppar.win_prefix + "Integration_G_map");
-      util.closeOneWindow(ppar.win_prefix + "Integration_B_map");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_uncalibrated");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_calibrated");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_background");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced");
+      util.closeOneWindowById(ppar.win_prefix + "RGBHa_ContinuumSubtractTemp");
+      util.closeOneWindowById(ppar.win_prefix + "IntegratiIntegration_HRR_starlessT_medT");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_linear");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_nonlinear");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_normalized");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_normalized_1st");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_boostHa");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_enhanced_denoise");
+      util.closeOneWindowById(ppar.win_prefix + "RGBHa_RGB_mapped");
+      util.closeOneWindowById(ppar.win_prefix + "RGBHa_RGB_original_HT");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_NB_med");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_R_NB_med");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_R_RGBHa");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_prepared");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_starless");
+      util.closeOneWindowById(ppar.win_prefix + "rgb_channel_id_gc");
+      util.closeOneWindowById(ppar.win_prefix + "rgb_channel_id_stretched");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_init");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_crop");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_linearfit");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_gc");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_denoise");
+      util.closeOneWindowById(ppar.win_prefix + "nb_channel_id_stretched");
+      util.closeOneWindowById(ppar.win_prefix + "rgb_channel_id_init");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_bn");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_cc");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_HRR_stretched");
+      util.closeOneWindowById(ppar.win_prefix + "RGBHa_max_Ha_boosted");
+      util.closeOneWindowById(ppar.win_prefix + "RGBHa_screen_Ha_boosted");
+      util.closeOneWindowById(ppar.win_prefix + "rgb_channel_id_gc");
+      util.closeOneWindowById(ppar.win_prefix + "H_to_R_boost");
+      util.closeOneWindowById(ppar.win_prefix + "H_to_B_boost");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_H_map");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_R_map");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_G_map");
+      util.closeOneWindowById(ppar.win_prefix + "Integration_B_map");
       
       engine.flowchartReset();
       flowchartInit();
@@ -12419,7 +12419,7 @@ function testRGBHaMapping1(savelog)
             
             RGBHa_mapping(test_win.mainView.id);
 
-            util.forceCloseWindowsFromArray(images);
+            util.closeWindowsFromArray(images);
       }
 
       util.addProcessingStep("Ha mapping to RGB processing completed");
@@ -12475,7 +12475,7 @@ function extraHaMapping(extraWin)
       RGBHa_mapping(extraWin.mainView.id);
       if (!par.debug.val) {
             for (var i = 0; i < iconized_image_ids.length; i++) {
-                  util.closeOneWindow(iconized_image_ids[i]);
+                  util.closeOneWindowById(iconized_image_ids[i]);
             }
       }
 }
@@ -12724,7 +12724,7 @@ function createStarFixMask(imgView)
                   return;
             }
       }
-      util.closeOneWindow("AutoStarFixMask");
+      util.closeOneWindowById("AutoStarFixMask");
       var node = flowchartOperation("StarMask");
 
       var P = new StarMask;
@@ -12823,7 +12823,7 @@ function extraRemoveStars(parent, imgWin, apply_directly)
       /* Close old star mask. If needed we create a new one from
        * the stars image.
        */
-      util.closeOneWindow(util.ensure_win_prefix("AutoStarMask"));
+      util.closeOneWindowById(util.ensure_win_prefix("AutoStarMask"));
 
       let stars_win = removeStars(imgWin, false, true, null, util.ensure_win_prefix(imgWin.mainView.id + "_stars_tmp"), par.extra_unscreen_stars.val);
       let stars_win_id = util.ensure_win_prefix(imgWin.mainView.id + "_stars");
@@ -13036,11 +13036,11 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
             util.addCriticalStatus(err.toString());
       }
       if (hsChannels != null) {
-            util.forceCloseOneWindow(hsChannels[0]);
-            util.forceCloseOneWindow(hsChannels[1]);
+            util.closeOneWindow(hsChannels[0]);
+            util.closeOneWindow(hsChannels[1]);
       }
       if (iChannel != null) {
-            util.forceCloseOneWindow(iChannel);
+            util.closeOneWindow(iChannel);
       }
       if (failed) {
             util.throwFatalError("HDRMultiscaleTransform failed");
@@ -13194,7 +13194,7 @@ function createStarMaskIf(imgWin)
                   return;
             }
       }
-      util.closeOneWindow("AutoStarMask");
+      util.closeOneWindowById("AutoStarMask");
 
       star_mask_win = createNewStarMaskWin(imgWin);
 
@@ -13484,9 +13484,9 @@ function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channel
 
             runPixelMathRGBMapping(null, win, R_id, G_id, B_id);
 
-            util.closeOneWindow(R_id);
-            util.closeOneWindow(G_id);
-            util.closeOneWindow(B_id);
+            util.closeOneWindowById(R_id);
+            util.closeOneWindowById(G_id);
+            util.closeOneWindowById(B_id);
 
       } else {
             addExtraProcessingStep("Auto contrast with low limit " + contrast_limit_low + ", high limit " + contrast_limit_high);
@@ -13754,7 +13754,7 @@ function extraColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, 
 
       guiUpdatePreviewWin(ch_win);
 
-      util.closeOneWindow(ch_mask_win.mainView.id);
+      util.closeOneWindowById(ch_mask_win.mainView.id);
 
       return ch_win;
 }
@@ -13950,7 +13950,7 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel)
 
       engine_end_process(node);
 
-      util.forceCloseOneWindow(ch_win);
+      util.closeOneWindow(ch_win);
 
       ch_win = util.findWindow(P.newImageId);
 
@@ -14184,7 +14184,7 @@ function extraColorizedNarrowband(imgWin)
 
       // close channel images
       for (var i = 0; i < channel_images.length; i++) {
-            util.forceCloseOneWindow(channel_images[i]);
+            util.closeOneWindow(channel_images[i]);
       }
 }
 
@@ -14292,7 +14292,7 @@ function runExtraNarrowbandMapping(imgWin, source_palette_name, target_palette)
       runPixelMathRGBMapping(null, imgWin, RGBNB_R_mapping, RGBNB_G_mapping, RGBNB_B_mapping);
 
       for (var i = 0; i < mappings.length; i++) {
-            util.closeOneWindow(mappings[i][1]);
+            util.closeOneWindowById(mappings[i][1]);
       }
       util.addProcessingStepAndStatusInfo("runExtraNarrowbandMapping, mapping complete");
 }
@@ -14539,7 +14539,7 @@ function extraAnnotateImage(extraWin, apply_directly)
             extraWin.mainView.beginProcess(UndoFlag_NoSwapFile);
             extraWin.mainView.image.blend(util.getWindowBitmap(annotatedImgWin));
             extraWin.mainView.endProcess();
-            util.forceCloseOneWindow(annotatedImgWin);
+            util.closeOneWindow(annotatedImgWin);
       }
 
       return annotatedImgWin;
@@ -14607,7 +14607,7 @@ function extraAddSignature(extraWin)
       extraWin.mainView.image.blend(extra_bmp);
       extraWin.mainView.endProcess();
 
-      util.forceCloseOneWindow(signatureWin);
+      util.closeOneWindow(signatureWin);
 
       return extraWin;
 }
@@ -14798,7 +14798,7 @@ function extraProcessing(parent, id, apply_directly)
             }
             if (mask_win == null) {
                   mask_win_id = ppar.win_prefix + "AutoMask";
-                  util.closeOneWindow(mask_win_id);
+                  util.closeOneWindowById(mask_win_id);
                   flowchartMaskBegin("New mask:extra");
                   mask_win = newMaskWindow(extraWin, mask_win_id, false);
                   flowchartMaskEnd("New mask:extra");
@@ -14913,7 +14913,7 @@ function extraProcessing(parent, id, apply_directly)
                                     extraWin.mainView.id, // starless
                                     extra_stars_id);
             // Close original window that was created before stars were removed
-            util.closeOneWindow(extra_id);
+            util.closeOneWindowById(extra_id);
             // restore original final image name
             var new_name = extra_id;
             console.writeln("Rename " + new_image_id + " as " + new_name);
@@ -15663,7 +15663,7 @@ function createCropInformationEx()
 
             if (!par.cropinfo_only.val) {
                   // Close low rejection map window
-                  util.forceCloseOneWindow(lowClipImageWindow);
+                  util.closeOneWindow(lowClipImageWindow);
             }
 
             crop_truncate_amount = res.truncate_amount;
@@ -15686,7 +15686,7 @@ function createCropInformationEx()
                   // Try with noise reduction
                   console.noteln("Crop failed, trying with noise reduction for cropped image");
                   // Close copy image since we have added crop preview into image
-                  util.forceCloseOneWindow(lowClipImageWindowCopy);
+                  util.closeOneWindow(lowClipImageWindowCopy);
                   // Make a new copy
                   lowClipImageWindowCopy = util.copyWindowEx(lowClipImageWindow, util.ensure_win_prefix(lowClipImageName + "_tmp2"), true);
                   // Run noise reduction
@@ -15705,7 +15705,7 @@ function createCropInformationEx()
             }
 
             // Close original window
-            util.forceCloseOneWindow(lowClipImageWindow);
+            util.closeOneWindow(lowClipImageWindow);
 
             // Rename copy to original name
             lowClipImageWindowCopy.mainView.id = lowClipImageName;
@@ -16531,7 +16531,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             if (save_id_list[i][0] != save_id_list[i][1]) {
                   // We have made a copy of the image to save_id_list[i][1]
                   saveProcessedWindow(save_id_list[i][1]);
-                  util.closeOneWindow(save_id_list[i][1]);
+                  util.closeOneWindowById(save_id_list[i][1]);
             } else {
                   saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
             }
@@ -16587,7 +16587,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
              // We have generated final image, save it
              global.run_results.final_image_file = saveProcessedWindow(LRGB_processed_HT_id);  /* Final image. */
              if (global.get_flowchart_data) {
-                  util.closeOneWindow(LRGB_processed_HT_id);
+                  util.closeOneWindowById(LRGB_processed_HT_id);
              }
              var iconize_final_image = true;
        } else {
@@ -16616,7 +16616,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        }
        if (RGB_win_id != null && RGB_win_id.endsWith("_map")) {
             // close map window
-            util.closeOneWindow(RGB_win_id);
+            util.closeOneWindowById(RGB_win_id);
             RGB_win_id = null;
        } else {
             util.windowIconizeAndKeywordif(RGB_win_id);         /* Integration_RGB_combined */
@@ -16634,7 +16634,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             if (par.debug.val) {
                   util.windowIconizeAndKeywordif(iconized_debug_image_ids[i]);
             } else {
-                  util.closeOneWindow(iconized_debug_image_ids[i]);
+                  util.closeOneWindowById(iconized_debug_image_ids[i]);
             }
       }
       for (var i = 0; i < iconized_image_ids.length; i++) {
@@ -16753,7 +16753,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                   var flowchart_imagename = util.ensure_win_prefix("AutoIntegrateFlowchart");
                   var flowchart_win = util.createWindowFromBitmap(global.flowchart_image.render(), flowchart_imagename);
                   saveProcessedWindow(flowchart_win.mainView.id, null, ".jpg");
-                  util.forceCloseOneWindow(flowchart_win);
+                  util.closeOneWindow(flowchart_win);
                   global.flowchart_image = null;
             }
        }

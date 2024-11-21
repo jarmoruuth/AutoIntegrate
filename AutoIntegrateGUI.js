@@ -1075,12 +1075,12 @@ function getNarrowbandColorizedSizer(parent)
             if (1) {
                   // Close windows
                   if (extraWin == null) {
-                        util.forceCloseOneWindow(originalWin);
+                        util.closeOneWindow(originalWin);
                   }
-                  util.forceCloseOneWindow(copyWin);
-                  util.forceCloseOneWindow(previewWin);
+                  util.closeOneWindow(copyWin);
+                  util.closeOneWindow(previewWin);
                   for (var i = 0; i < channel_images.length; i++) {
-                        util.forceCloseOneWindow(channel_images[i]);
+                        util.closeOneWindow(channel_images[i]);
                   }
             }
             util.runGarbageCollection();
@@ -2744,7 +2744,7 @@ function save_as_undo()
       if (!copy_win.saveAs(filename, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + filename);
       }
-      util.forceCloseOneWindow(copy_win);
+      util.closeOneWindow(copy_win);
 
       /* Save as XISF.
        */
@@ -2756,7 +2756,7 @@ function save_as_undo()
       if (!copy_win.saveAs(filename, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + filename);
       }
-      util.forceCloseOneWindow(copy_win);
+      util.closeOneWindow(copy_win);
 
       util.saveLastDir(save_dir);
       update_undo_buttons();
@@ -3619,7 +3619,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                 && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) 
             {
                   // Image is linear, run AutoSTF
-                  util.closeOneWindow("AutoIntegrate_preview_tmp");
+                  util.closeOneWindowById("AutoIntegrate_preview_tmp");
                   var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
                   engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
                   imgWin = copy_win;
@@ -3644,7 +3644,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
             }
             if (copy_win != null) {
-                  util.forceCloseOneWindow(copy_win);
+                  util.closeOneWindow(copy_win);
             }
             updatePreviewTxt(txt);
             console.noteln("Preview updated");

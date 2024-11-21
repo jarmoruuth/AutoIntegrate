@@ -28,8 +28,6 @@ var gui = null;
 var par = global.par;
 var ppar = global.ppar;
 
-var use_force_close = true;   // We use this to disable force close in some cases
-
 /* Set optional GUI object to update GUI components.
  */
 this.setGUI = function(aigui)
@@ -493,7 +491,7 @@ this.windowIconizeif = function(id, show_image)
             return null;
       }
       if (global.get_flowchart_data) {
-            util.closeOneWindow(id);
+            util.closeOneWindowById(id);
             return null;
       }
 
@@ -731,7 +729,7 @@ this.windowRename = function(old_name, new_name)
       return util.windowRenameKeepif(old_name, new_name, false);
 }
 
-this.forceCloseOneWindow = function(w)
+this.closeOneWindow = function(w, force_close = true)
 {
       if (w == null) {
             return;
@@ -740,7 +738,7 @@ this.forceCloseOneWindow = function(w)
             w.mainView.id = "tmp_" + w.mainView.id;
             w.show();
             console.writeln("Rename window to " + w.mainView.id);
-      } else if (use_force_close) {
+      } else if (force_close) {
             // Force close will close the window without asking
             if (!global.get_flowchart_data) {
                   // console.writeln("Force close " + w.mainView.id);
@@ -754,18 +752,18 @@ this.forceCloseOneWindow = function(w)
 }
 
 // close one window
-this.closeOneWindow = function(id)
+this.closeOneWindowById = function(id, force_close = true)
 {
       var w = util.findWindow(id);
       if (w != null) {
-            util.forceCloseOneWindow(w);
+            util.closeOneWindow(w, force_close);
       }
 }
 
-this.forceCloseWindowsFromArray = function(arr)
+this.closeWindowsFromArray = function(arr)
 {
       for (var i = 0; i < arr.length; i++) {
-            util.closeOneWindow(arr[i]);
+            util.closeOneWindowById(arr[i]);
       }
 }
 
@@ -773,34 +771,30 @@ this.forceCloseWindowsFromArray = function(arr)
 // both prefix or postfix added
 this.closeFinalWindowsFromArray = function(arr, force_close)
 {
-      use_force_close = force_close;      // use_force_close is true by default
-
       for (var i = 0; i < arr.length; i++) {
-            util.closeOneWindow(arr[i]);
-            util.closeOneWindow(arr[i]+"_stars");
-            util.closeOneWindow(arr[i]+"_starless");
-            util.closeOneWindow(arr[i]+"_extra");
-            util.closeOneWindow(arr[i]+"_extra_starless");
-            util.closeOneWindow(arr[i]+"_extra_stars");
-            util.closeOneWindow(arr[i]+"_extra_combined");
+            util.closeOneWindowById(arr[i], force_close);
+            util.closeOneWindowById(arr[i]+"_stars", force_close);
+            util.closeOneWindowById(arr[i]+"_starless", force_close);
+            util.closeOneWindowById(arr[i]+"_extra", force_close);
+            util.closeOneWindowById(arr[i]+"_extra_starless", force_close);
+            util.closeOneWindowById(arr[i]+"_extra_stars", force_close);
+            util.closeOneWindowById(arr[i]+"_extra_combined", force_close);
       }
-
-      use_force_close = true;
 }
 
 this.closeTempWindowsForOneImage = function(id)
 {
-      util.closeOneWindow(id + "_max");
-      util.closeOneWindow(id + "_map");
-      util.closeOneWindow(id + "_map_linear_fit_reference");
-      util.closeOneWindow(id + "_stars");
-      util.closeOneWindow(id + "_map_mask");
-      util.closeOneWindow(id + "_map_stars");
-      util.closeOneWindow(id + "_map_pm");
-      util.closeOneWindow(id + "_mask");
-      util.closeOneWindow(id + "_tmp");
-      util.closeOneWindow(id + "_solvercopy");
-      util.closeOneWindow(id + "_combined_solvercopy");
+      util.closeOneWindowById(id + "_max");
+      util.closeOneWindowById(id + "_map");
+      util.closeOneWindowById(id + "_map_linear_fit_reference");
+      util.closeOneWindowById(id + "_stars");
+      util.closeOneWindowById(id + "_map_mask");
+      util.closeOneWindowById(id + "_map_stars");
+      util.closeOneWindowById(id + "_map_pm");
+      util.closeOneWindowById(id + "_mask");
+      util.closeOneWindowById(id + "_tmp");
+      util.closeOneWindowById(id + "_solvercopy");
+      util.closeOneWindowById(id + "_combined_solvercopy");
 }
 
 this.closeTempWindows = function()
@@ -813,7 +807,7 @@ this.closeTempWindows = function()
             util.closeTempWindowsForOneImage(global.integration_color_windows[i]);
             util.closeTempWindowsForOneImage(global.integration_color_windows[i] + "_BE");
       }
-      util.forceCloseWindowsFromArray(global.temporary_windows);
+      util.closeWindowsFromArray(global.temporary_windows);
       global.temporary_windows = [];
 }
 
@@ -1016,7 +1010,7 @@ this.saveFinalImageWindow = function(win, dir, name, bits)
       if (!copy_win.saveAs(save_name, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + save_name);
       }
-      util.forceCloseOneWindow(copy_win);
+      util.closeOneWindow(copy_win);
 }
 
 this.saveAllFinalImageWindows = function(bits)
@@ -1089,7 +1083,7 @@ this.add_test_image = function(id, testid, testmode)
 {
       if (testmode) {
             var copy_id = ppar.win_prefix + testid;
-            util.closeOneWindow(copy_id);
+            util.closeOneWindowById(copy_id);
             console.writeln("add_test_image " + id + " as " + copy_id);
             util.copyWindowEx(util.findWindow(id), copy_id, true);
             global.test_image_ids.push(copy_id);
@@ -1199,7 +1193,7 @@ this.copyAstrometricSolutionFromFile = function(targetId, fname)
 
       var succ = util.copyAstrometricSolutionFromWindow(targetWindow, imgWin);
 
-      util.closeOneWindow(imgWin.mainView.id);
+      util.closeOneWindowById(imgWin.mainView.id);
       return succ;
 }
 
