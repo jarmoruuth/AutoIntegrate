@@ -307,7 +307,7 @@ var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPow
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
-                                'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'None' ];
+                                'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -341,6 +341,7 @@ var RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtr
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
+var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -1476,8 +1477,18 @@ function extraProcessingGUI(parent)
             "<p>Make image background darker using a lightness mask.</p>" );
       this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
             "<p>Make image highlights darker using a lightness mask.</p>" );
+
       this.extra_GC_CheckBox = newCheckBox(parent, "Gradient correction", par.extra_GC, 
             "<p>Do gradient correction to the image using ABE or GraXpert.</p>" );
+      this.extra_GC_values_ComboBox = newComboBox(parent, par.extra_GC_method, extra_gradient_correction_values, 
+            "<p>Gradient correction method to be used.</p>" +
+            "<p>Auto uses the selected gradient correction method from <i>Setting</i> tab.</p>");
+      this.extra_GC_Sizer = new HorizontalSizer;
+      this.extra_GC_Sizer.spacing = 4;
+      this.extra_GC_Sizer.add( this.extra_GC_CheckBox );
+      this.extra_GC_Sizer.add( this.extra_GC_values_ComboBox );
+      this.extra_GC_Sizer.addStretch();
+      
       this.extraBandinReduction_CheckBox = newCheckBox(parent, "Banding reduction", par.extra_banding_reduction, 
             "<p>Run banding reduction on the image.</p>" );
 
@@ -2192,7 +2203,7 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraRGBHamapping_CheckBox );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraBandinReduction_CheckBox );
-      this.extra1.add( this.extra_GC_CheckBox );
+      this.extra1.add( this.extra_GC_Sizer );
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
       this.extra1.add( this.extraDarkerHighlights_CheckBox );
@@ -6897,7 +6908,7 @@ function AutoIntegrateDialog()
             "<p>For mono RGB images, channel images are saved before channel combination.</p>" +
             "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>" +
             "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>" +
-            "<p>When using this options is is often useful to select <i>Gradient correction on channel images</i> in <i>settings tab</i>, " + 
+            "<p>When using this options is is often useful to select <i>Gradient correction on channel images</i> in <i>Settings</i> tab, " + 
             "Noise reduction on <i>Channel image</i> in <i>Processing 1</i> tab and BlurXTerminator option <i>Correct only on channel images</i> in <i>Processing 1</i> tab.</p>");
       this.stretched_channel_auto_contrast_CheckBox = newCheckBox(this, "Auto contrast on channel images", par.stretched_channel_auto_contrast, 
             "<p>Run auto contrast on stretched channel images.</p>");
@@ -7928,8 +7939,23 @@ function AutoIntegrateDialog()
       this.ABEDegreeSizer = newHorizontalSizer(0, true, [this.ABEDegreeLabel, this.ABEDegreeSpinBox]);
       this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
 
+      this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
+            "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
+            "smoothing. Smoothing is done before gradient correction.</p>" +
+            "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
+            "Zero values does not do smoothing.</p>" +
+            "<p>Smoothening should be used only in extreme cases with very uneven background " + 
+            "because a lot of shadow detail may get lost.</p>",
+            4);
+      this.smoothBackgroundSizer = new HorizontalSizer;
+      this.smoothBackgroundSizer.spacing = 4;
+      // this.smoothBackgroundSizer.margin = 2;
+      this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
+      this.smoothBackgroundSizer.addStretch();
+      
+      
       this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-      this.ABEGMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer]);
+      this.ABEGMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.smoothBackgroundSizer]);
       this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEGMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
@@ -8001,47 +8027,57 @@ function AutoIntegrateDialog()
       this.starsCombineLabel = newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = newComboBox(this, par.stars_combine, starless_and_stars_combine_values, stars_combine_Tooltip);
       
-      this.stretchingChoiceSizer = new HorizontalSizer;
-      //this.stretchingChoiceSizer.margin = 6;
-      this.stretchingChoiceSizer.spacing = 4;
-      this.stretchingChoiceSizer.add( this.starsStretchingLabel );
-      this.stretchingChoiceSizer.add( this.starsStretchingComboBox );
-      this.stretchingChoiceSizer.add( this.starsCombineLabel );
-      this.stretchingChoiceSizer.add( this.starsCombineComboBox );
-      this.stretchingChoiceSizer.addStretch();
+      this.starStretchingChoiceSizer = new HorizontalSizer;
+      //this.starStretchingChoiceSizer.margin = 6;
+      this.starStretchingChoiceSizer.spacing = 4;
+      this.starStretchingChoiceSizer.add( this.starsStretchingLabel );
+      this.starStretchingChoiceSizer.add( this.starsStretchingComboBox );
+      this.starStretchingChoiceSizer.add( this.starsCombineLabel );
+      this.starStretchingChoiceSizer.add( this.starsCombineComboBox );
+      this.starStretchingChoiceSizer.addStretch();
 
-      this.STFLabel = new Label( this );
-      this.STFLabel.text = "Link RGB channels";
-      this.STFLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.STFLabel.toolTip = 
+      this.STFLinkLabel = new Label( this );
+      this.STFLinkLabel.text = "Link RGB channels";
+      this.STFLinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.STFLinkLabel.toolTip = 
       "<p>" +
-      "RGB channel linking in Screen Transfer Function and Histogram stretch." +
+      "RGB channel linking in image stretching." +
+      "</p><p>" +
+      "Note that not all stretching mehods support unlinked channels." +
       "</p><p>" +
       "With Auto the default for true RGB images is to use linked channels. For narrowband and OSC/DSLR images the default " +
       "is to use unlinked channels. But if linear fit or color calibration is done with narrowband images, then linked channels are used." +
       "</p>";
-      this.STFComboBox = newComboBox(this, par.STF_linking, STF_linking_values, this.STFLabel.toolTip);
+      this.STFComboBox = newComboBox(this, par.STF_linking, STF_linking_values, this.STFLinkLabel.toolTip);
 
-      this.STFTargetBackgroundControl = newNumericEdit(this, "Auto STF targetBackground", par.STF_targetBackground, 0, 1,
-                                          "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
-                                          "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+      this.STFLinkSectionLabel = newSectionLabel(this, "RGB channel linking");
+      this.STFLinkSizer = new HorizontalSizer;
+      this.STFLinkSizer.spacing = 4;
+      this.STFLinkSizer.toolTip = this.STFLinkLabel.toolTip;
+      this.STFLinkSizer.add( this.STFLinkLabel );
+      this.STFLinkSizer.add( this.STFComboBox );
+      this.STFLinkSizer.addStretch();
+                                    
+      this.STFTargetBackgroundControl = newNumericEdit(this, "targetBackground", par.STF_targetBackground, 0, 1,
+            "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
 
+      this.STFSectionLabel = newSectionLabel(this, "Auto STF settings");
       this.STFSizer = new HorizontalSizer;
       this.STFSizer.spacing = 4;
-      this.STFSizer.toolTip = this.STFLabel.toolTip;
+      this.STFSizer.toolTip = this.STFTargetBackgroundControl.toolTip;
       this.STFSizer.add( this.STFTargetBackgroundControl );
-      this.STFSizer.add( this.STFLabel );
-      this.STFSizer.add( this.STFComboBox );
       this.STFSizer.addStretch();
 
       /* Masked.
        */
-      this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "Masked Stretch targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+      this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "targetBackground", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
       this.MaskedStretchPrestretchTargetEdit = newNumericEdit(this, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
             "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
 
+      this.MaskedStretchSectionLabel = newSectionLabel(this, "Masked Stretch settings");
       this.MaskedStretchSizer = new HorizontalSizer;
       this.MaskedStretchSizer.spacing = 4;
       // this.MaskedStretchSizer.margin = 2;
@@ -8051,7 +8087,7 @@ function AutoIntegrateDialog()
       
       /* Arcsinh.
        */
-      this.Arcsinh_stretch_factor_Edit = newNumericEdit(this, "Arcsinh Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
+      this.Arcsinh_stretch_factor_Edit = newNumericEdit(this, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
             "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
             "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
             "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use a different values. For less stars you can use a smaller value.</p>");
@@ -8063,6 +8099,7 @@ function AutoIntegrateDialog()
       this.Arcsinh_iterations_Label = newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
       this.Arcsinh_iterations_SpinBox = newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
 
+      this.ArcsinhSectionLabel = newSectionLabel(this, "Arcsinh Stretch settings");
       this.ArcsinhSizer = new HorizontalSizer;
       this.ArcsinhSizer.spacing = 4;
       // this.ArcsinhSizer.margin = 2;
@@ -8131,14 +8168,17 @@ function AutoIntegrateDialog()
             this.hyperbolicSizer.addStretch();
       }
 
-      this.histogramShadowClip_Control = newNumericEditPrecision(this, "Histogram stretch shadow clip", par.histogram_shadow_clip, 0, 99,
+      this.histogramShadowClip_Control = newNumericEditPrecision(this, "Shadow clip", par.histogram_shadow_clip, 0, 99,
                                           "Percentage of shadows that are clipped with Histogram stretch.", 3);
       this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
       this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
-            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
+            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
+            "like large nebulas or dust you should try with 0.25.</p>");
 
+      this.histogramStretchingSectionLabel = newSectionLabel(this, "Histogram stretching settings");
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
       // this.histogramStretchingSizer.margin = 2;
@@ -8148,48 +8188,38 @@ function AutoIntegrateDialog()
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
       this.histogramStretchingSizer.addStretch();
 
-      this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
-            "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
-            "smoothing. Smoothing is done before gradient correction.</p>" +
-            "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
-            "Zero values does not do smoothing.</p>" +
-            "<p>Smoothening should be used only in extreme cases with very uneven background " + 
-            "because a lot of shadow detail may get lost.</p>",
-            4);
-      this.logarithmicTargetValue_Control = newNumericEdit(this, "Logarithmic target value", par.logarithmic_stretch_target, 0, 1, 
-            "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
-            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+      this.otherStretchingSectionLabel = newSectionLabel(this, "Other stretching settings");
+      this.otherStrechingTargetValue_Control = newNumericEdit(this, "Target value", par.other_stretch_target, 0, 1, 
+            "<p>Target value specifies where we try to get the the histogram median value.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
+            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
+            "like large nebulas or dust you should try with 0.25.</p>");
 
-      this.smoothBackgroundSizer = new HorizontalSizer;
-      this.smoothBackgroundSizer.spacing = 4;
-      // this.smoothBackgroundSizer.margin = 2;
-      this.smoothBackgroundSizer.add( this.logarithmicTargetValue_Control );
-      this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
-      this.smoothBackgroundSizer.addStretch();
-
-      /* Options.
-       */
-      this.StretchingOptionsSizer = new VerticalSizer;
-      this.StretchingOptionsSizer.spacing = 4;
-      // this.StretchingOptionsSizer.margin = 2;
-      this.StretchingOptionsSizer.add( this.STFSizer );
-      this.StretchingOptionsSizer.add( this.MaskedStretchSizer );
-      this.StretchingOptionsSizer.add( this.ArcsinhSizer );
-      this.StretchingOptionsSizer.addStretch();
-
-      this.StretchingGroupBoxLabel = newSectionLabel(this, "Image stretching settings");
-      this.StretchingGroupBoxLabel.toolTip = "<p>Settings for stretching linear image image to non-linear.</p>";
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
       this.StretchingGroupBoxSizer.spacing = 4;
-      this.StretchingGroupBoxSizer.add( this.stretchingChoiceSizer );
-      this.StretchingGroupBoxSizer.add( this.StretchingOptionsSizer );
-      this.StretchingOptionsSizer.add( this.histogramStretchingSizer );
+      this.StretchingGroupBoxSizer.add( this.STFLinkSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.STFLinkSizer );
+      this.StretchingGroupBoxSizer.add( this.STFSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.STFSizer );
+      this.StretchingGroupBoxSizer.add( this.MaskedStretchSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.MaskedStretchSizer );
+      this.StretchingGroupBoxSizer.add( this.ArcsinhSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.ArcsinhSizer );
+      this.StretchingGroupBoxSizer.add( this.histogramStretchingSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.histogramStretchingSizer );
       if (use_hyperbolic) {
-            this.StretchingOptionsSizer.add( this.hyperbolicSizer );
+            this.StretchingGroupBoxSizer.add( this.hyperbolicSizer );
       }
-      this.StretchingOptionsSizer.add( this.smoothBackgroundSizer );
+      this.StretchingGroupBoxSizer.add( this.otherStretchingSectionLabel );
+      this.StretchingGroupBoxSizer.add( this.otherStrechingTargetValue_Control );
       this.StretchingGroupBoxSizer.addStretch();
+
+      this.StarStretchingGroupBoxSizer = new VerticalSizer;
+      this.StarStretchingGroupBoxSizer.margin = 6;
+      this.StarStretchingGroupBoxSizer.spacing = 4;
+      this.StarStretchingGroupBoxSizer.add( this.starStretchingChoiceSizer );
+      this.StarStretchingGroupBoxSizer.addStretch();
 
       //
       // Image integration
@@ -9682,8 +9712,9 @@ function AutoIntegrateDialog()
       // Left processing group box
       this.leftProcessingGroupBox = newGroupBoxSizer(this);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
-            [ this.StretchingGroupBoxLabel,
-              this.StretchingGroupBoxSizer ]);
+            [ this.StretchingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Star stretching settings", "ps_starstretching",
+            [ this.StarStretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationCropSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, GraXpert, ABE and StarXTerminator settings", "ps_ave_graxpert",

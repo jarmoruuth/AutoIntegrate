@@ -743,7 +743,7 @@ this.forceCloseOneWindow = function(w)
       } else if (use_force_close) {
             // Force close will close the window without asking
             if (!global.get_flowchart_data) {
-                  console.writeln("Force close " + w.mainView.id);
+                  // console.writeln("Force close " + w.mainView.id);
             }
             w.forceClose();
       } else {

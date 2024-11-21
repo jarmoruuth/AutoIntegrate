@@ -5346,7 +5346,7 @@ function createStarlessChannelImages(images, basenames = null)
             image_win.mainView.id = new_name;
 
             if (par.stretched_channel_auto_contrast.val) {
-                  autoContrast(image_win, 0, 1);
+                  autoContrast(image_win, 0.1, 100);
             }
 
             // Save image in .xisf and .tif format
@@ -6998,17 +6998,31 @@ function getGradientCorrectionName()
       }
 }
 
-function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart)
+function getDefaultGradientCorrectionMethod()
 {
+      if (par.use_graxpert.val) {
+            return "GraXpert";
+      } else if (par.use_abe.val) {
+            return "ABE";
+      } else {
+            return "GradientCorrection";
+      }
+}
+
+function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart, gc_method = 'Auto')
+{
+      if (gc_method == 'Auto') {
+            gc_method = getDefaultGradientCorrectionMethod();
+      }
       if (update_flowchart) {
             var node = flowchartOperation(getGradientCorrectionName());
       } else {
             var node = null;
       }
-      if (par.use_graxpert.val) {
+      if (gc_method == 'GraXpert') {
             var GC_id = runGraXpert(win, replaceTarget, postfix);
             var process = "GraXpert";
-      } else if (par.use_abe.val){
+      } else if (gc_method == 'ABE') {
             var GC_id = runABEex(win, replaceTarget, postfix);
             var process = "ABE";
       } else {
@@ -7019,9 +7033,9 @@ function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart)
       return GC_id;
 }
 
-function runGradientCorrection(win, replaceTarget)
+function runGradientCorrection(win, replaceTarget, gc_method = 'Auto')
 {
-      return runGradientCorrectionEx(win, replaceTarget, "_processed", true);
+      return runGradientCorrectionEx(win, replaceTarget, "_processed", true, gc_method);
 }
 
 // Run gradient correction and rename windows so that the final result has the same id
@@ -7289,7 +7303,7 @@ function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
 function histogramPrestretch(GC_win, target_val)
 {
       console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
-      GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', true, target_val);
+      GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', target_val, true);
       return GC_win;
 }
 
@@ -7386,6 +7400,7 @@ function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_proc
       return res.win;
 }
 
+/*
 function stretchHistogramTransformChannel(GC_win, image_stretching, target_value, degree, channel)
 {
       var res = { 
@@ -7393,6 +7408,7 @@ function stretchHistogramTransformChannel(GC_win, image_stretching, target_value
             iteration_number: 1, 
             completed: false, 
             skipped: 0,
+            maxskipped: 3,
             clipCount: 0,
             target_value: target_value,
             forward: true,
@@ -7407,25 +7423,56 @@ function stretchHistogramTransformChannel(GC_win, image_stretching, target_value
       util.runGarbageCollection();
       return res.win;
 }
+*/
 
-function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel, degree)
+function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel, degree, copy_window)
 {
       var res = { 
             win: GC_win, 
             iteration_number: 0, 
             completed: false, 
             skipped: 0,
+            maxskipped: 3,
             clipCount: 0,
             target_value: target_value,
             forward: true,
-            degree: degree
+            degree: degree,
+            copy_window: copy_window
       };
 
+      var degree_update_count = 0;
       for (var i = 0; i < 100; i++) {
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, image_stretching, channel);
-            if (window_updated && i > 0 && i % 5 == 0) {
-                  guiUpdatePreviewWin(res.win);
+            if (window_updated) {
+                  if (i > 0 && i % 5 == 0) {
+                        guiUpdatePreviewWin(res.win);
+                  }
+            } else {
+                  degree_update_count++;
+                  if (degree_update_count > 10) {
+                        console.writeln("Reached max degree change, stop iterations");
+                        res.completed = true;
+                  }
+                  if (image_stretching == 'Histogram stretch') {
+                  } else if (image_stretching == 'Logarithmic stretch') {
+                        res.degree = degree + (2 * degree_update_count);
+                        res.skipped = 0;  // Reset skip counter
+                  } else if (image_stretching == 'Asinh+Histogram stretch') {
+                        res.degree = degree + degree_update_count;
+                        res.skipped = 0;  // Reset skip counter
+                  } else if (image_stretching == 'Square root stretch') {
+                        res.degree = degree + 0.1 * degree_update_count;
+                        res.skipped = 0;  // Reset skip counter
+                  } else if (image_stretching == 'Shadow stretch') {
+                        res.degree = degree - 0.1 * degree_update_count;
+                        res.skipped = 0;  // Reset skip counter
+                  } else if (image_stretching == 'Highlight stretch') {
+                        res.degree = degree - 0.1 * degree_update_count;
+                        res.skipped = 0;  // Reset skip counter
+                  } else {
+                        util.throwFatalError("Unknown image stretching " + image_stretching);
+                  }
             }
             engine_end_process(null);
             util.runGarbageCollection();
@@ -7437,11 +7484,11 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
       return res.win;
 }
 
-function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, rgbLinked, target_val)
+function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, target_val, rgbLinked)
 {
       util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + GC_win.mainView.id + " using iterations");
 
-      if (!rgbLinked) {
+      if (rgbLinked == null) {
             if (GC_win.mainView.image.isColor) {
                   rgbLinked = getRgbLinked(iscolor);
             } else {
@@ -7450,18 +7497,18 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
       }
       console.writeln("RGB channels linked " + rgbLinked);
 
-      if (!target_val) {
+      if (target_val == null) {
             target_val = par.histogram_stretch_target.val;
       }
       console.writeln("Target value " + target_val);
 
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val);
+            return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, null, null, false);
       } else {
             for (var i = 0; i < 3; i++) {
                   console.writeln("Channel: " + channelText(i));
-                  GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, i);
+                  GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, i, null, false);
                   util.runGarbageCollection();
             }
             return GC_win;
@@ -7470,7 +7517,7 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
 
 function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_target_val, degree)
 {
-      var debug = true;
+      var debug = par.debug.val;
 
       if (!GC_win.mainView.image.isColor) {
             util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
@@ -7478,47 +7525,45 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
       if (!iscolor) {
             util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
       }
-      if (GC_win.mainView.image.isColor) {
-            var rgbLinked = getRgbLinked(iscolor);
+      if (1) {
+            // For now, always use linked stretch
+            rgbLinked = true;
       } else {
-            var rgbLinked = true;
+            if (GC_win.mainView.image.isColor) {
+                  var rgbLinked = getRgbLinked(iscolor);
+            } else {
+                  var rgbLinked = true;
+            }
       }
       util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + GC_win.mainView.id + " using iterations");
 
       if (image_stretching == 'Asinh+Histogram stretch') {
-            GC_win = histogramPrestretch(GC_win, par.MaskedStretch_prestretch_target.val);
+            GC_win = histogramPrestretch(GC_win, par.histogram_stretch_target.val);
             if (debug) {
-                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_prestretch"), true);
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_prestretch_debug"), true);
             }
       }
 
       // Run the stretch function on the image
-      GC_win = stretchHistogramTransformChannel(GC_win, image_stretching, stretch_target_val, degree);
-      if (debug) {
-            util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching), true);
-      }
-
-      // Finalize using Histogram stretch iterations
-      var post_image_stretching = 'Histogram stretch';
       if (rgbLinked) {
             console.writeln("Channel: " + channelText(3));
-            GC_win = stretchHistogramTransformIterationsChannel(GC_win, post_image_stretching, stretch_target_val);
+            GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, stretch_target_val, null, degree, true);
             if (debug) {
-                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_linked_final"), true);
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_linked_final_debug"), true);
             }
       
       } else {
             var R_id = extractRGBchannel(GC_win.mainView.id, 'R');
             console.writeln("Channel: R");
-            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), post_image_stretching, stretch_target_val);
+            var R_win = stretchHistogramTransformIterationsChannel(util.findWindow(R_id), image_stretching, stretch_target_val, 0, degree, true);
 
             var G_id = extractRGBchannel(GC_win.mainView.id, 'G');
             console.writeln("Channel: G");
-            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), post_image_stretching, stretch_target_val);
+            var G_win = stretchHistogramTransformIterationsChannel(util.findWindow(G_id), image_stretching, stretch_target_val, 0, degree, true);
 
             var B_id = extractRGBchannel(GC_win.mainView.id, 'B');
             console.writeln("Channel: B");
-            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), post_image_stretching, stretch_target_val);
+            var B_win = stretchHistogramTransformIterationsChannel(util.findWindow(B_id), image_stretching, stretch_target_val, 0, degree, true);
 
             runPixelMathRGBMapping(null, GC_win, R_id, G_id, B_id);
 
@@ -7531,10 +7576,9 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
 
             util.runGarbageCollection();
             if (debug) {
-                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_unlinked_final"), true);
+                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_unlinked_final_debug"), true);
             }
       }
-
       return GC_win;
 }
 
@@ -7561,6 +7605,12 @@ function printImageStatistics(win, channel)
  */
 function stretchHistogramTransform(res, image_stretching, channel)
 {
+      var copy_window = res.copy_window;
+
+      if (channel == null) {
+            channel = undefined;
+      }
+
       console.writeln(image_stretching + " on " + res.win.mainView.id + ", iteration " + res.iteration_number + ", channel " + channel);
       console.writeln("\n****************************************************************");
       console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
@@ -7581,8 +7631,11 @@ function stretchHistogramTransform(res, image_stretching, channel)
       var target_value = res.target_value;
       var use_median = par.histogram_stretch_type.val == 'Median';
 
-      // var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
-      var new_win = res.win;  // We now update original window
+      if (copy_window) {
+            var new_win = util.copyWindowEx(res.win, "autointegrate_temp_stretch", true);
+      } else {
+            var new_win = res.win;  // Update original window
+      }
 
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
@@ -7680,8 +7733,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   // start with 1000, large values will loose contrast
                   var mapping = "log(1+$T*" + res.degree + ")/log(1+" + res.degree + ")";
             } else {
-                  // (Math.pow(1 + k, stretchedPixel) - 1) / k
-                  var mapping = "(((1 + " + res.degree + ") ^ $T) - 1) / " + res.degree;
+                  throw new Error("Logarithmic stretch does not support reverse stretching");
             }
             runPixelMathSingleMappingEx(new_win.mainView.id, "logarithmic stretch", mapping, false, null, true, true);
 
@@ -7691,10 +7743,9 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   // stretched_pixel = scale_factor * arcsinh(pixel / scale_factor)
                   // Typical scale_factor values range from 0.001 to 0.1.
                   // Start with 0.01
-                  var mapping = res.degree + " * arcsinh($T / " + res.degree + ")";
+                  var mapping = "asinh($T / " + res.degree + ") / asinh(" + res.degree + ")";
             } else {
-                  // pixel = k * Math.sinh(stretchedPixel / k)
-                  var mapping = res.degree + " * sinh($T / " + res.degree + ")";
+                  util.throwFatalError("Asinh+Histogram stretch does not support reverse stretching");
             }
             runPixelMathSingleMappingEx(new_win.mainView.id, "asinh stretch", mapping, false, null, true, true);
 
@@ -7702,12 +7753,71 @@ function stretchHistogramTransform(res, image_stretching, channel)
 
             if (res.forward) {
                   // stretched_pixel = sqrt(pixel)
-                  var mapping = "sqrt($T)";
+                  var mapping = "sqrt(" + res.degree + " * $T)";
             } else {
-                  // pixel = Math.pow(stretchedPixel, 2)
-                  var mapping = "$T ^ 2";
+                  throw new Error("Square root stretch does not support reverse stretching");
             }
             runPixelMathSingleMappingEx(new_win.mainView.id, "sqrt stretch", mapping, false, null, true, true);
+
+      } else if (image_stretching == 'Shadow stretch') {
+            if (res.forward) {
+                  var x1 = 0.15435;
+                  var x2 = 0.36782;
+                  var y1 = 0.35200;
+                  var y2 = 0.63600;
+                  y1 = res.degree * y1;
+                  if (y1 <= x1) {
+                        y1 = x1;
+                  }
+                  y2 = res.degree * y2;
+                  if (y2 <= x2) {
+                        y2 = x2;
+                  }
+                  if (y1 <= x1 && y2 <= x2) {
+                        res.completed = true;
+                  } else {
+                        var P = new CurvesTransformation;
+                        P.K = [ // x, y
+                              [0.00000, 0.00000],
+                              [x1, y1],
+                              [x2, y2],
+                              [1.00000, 1.00000]
+                        ];
+                        P.executeOn(new_win.mainView, false);
+                  }
+            } else {
+                  util.throwFatalError("Shadow stretch does not support reverse stretching");
+            }
+
+      } else if (image_stretching == 'Highlight stretch') {
+            if (res.forward) {
+                  var x1 = 0.15435;
+                  var x2 = 0.36782;
+                  var y1 = 0.25800;
+                  var y2 = 0.62200;
+                  y1 = res.degree * y1;
+                  if (y1 <= x1) {
+                        y1 = x1;
+                  }
+                  y2 = res.degree * y2;
+                  if (y2 <= x2) {
+                        y2 = x2;
+                  }
+                  if (y1 <= x1 && y2 <= x2) {
+                        res.completed = true;
+                  } else {
+                        var P = new CurvesTransformation;
+                        P.K = [ // x, y
+                              [0.00000, 0.00000],
+                              [x1, y1],
+                              [x2, y2],
+                              [1.00000, 1.00000]
+                        ];
+                        P.executeOn(new_win.mainView, false);
+                  }
+            } else {
+                  util.throwFatalError("Highlight stretch does not support reverse stretching");
+            }
 
       } else {
             util.throwFatalError("Unknown image stretching method: " + image_stretching);
@@ -7781,24 +7891,40 @@ function stretchHistogramTransform(res, image_stretching, channel)
       }
       var window_updated = false;
 
-      if (res.forward && current_value > target_value + 0.1 * target_value) {
+      if (res.completed) {
+            // we are done
+            console.writeln("*** Stop, stretch completed, current value " + current_value + ", target value" + target_value);
+            printImageStatistics(new_win, channel);
+            window_updated = false;
+            if (copy_window) {
+                  new_win.forceClose();
+            }
+      } else if (res.forward && current_value > target_value + 0.1 * target_value) {
             // We are above the target value, ignore this iteration
             res.skipped++;
-            res.forward = false;
+            if (!copy_window) {
+                  res.forward = false;
+            }
             // util.forceCloseOneWindow(new_win);
-            if (res.skipped > 3) {
+            if (res.skipped > res.maxskipped) {
                   console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
                   res.completed = true;
             } else {
                   console.writeln("*** Skip, we are past the target, skip this iteration, skipped + " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+            }
+            if (copy_window) {
+                  new_win.forceClose();
             }
       } else if (!res.forward && current_value < target_value + 0.1 * target_value) {
             // We are below the target value, ignore this iteration
             res.skipped++;
             res.forward = true;
             // util.forceCloseOneWindow(new_win);
-            console.writeln("*** Stop, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
-            res.completed = true;
+            console.writeln("*** Skip, we are past the target, skipped " + res.skipped + ", current value " + current_value + ", target value " + target_value);
+            // res.completed = true;
+            if (copy_window) {
+                  new_win.forceClose();
+            }
       } else {
             window_updated = true;
             if (current_value < target_value - 0.1 * target_value) {
@@ -7809,14 +7935,15 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   res.completed = true;
                   printImageStatistics(new_win, channel);
             }
-            if (0) {
-                  // We now update directly to the original window
-                  // find new window and copy keywords
+            if (copy_window) {
+                  // use new window and copy keywords
                   setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
                   // close old image
                   var image_id = res.win.mainView.id;
-                  util.forceCloseOneWindow(res.win);
+                  console.writeln("Close old window " + image_id);
+                  res.win.forceClose();
                   // rename new as old
+                  console.writeln("Rename new window " + new_win.mainView.id + " to " + image_id);
                   util.windowRename(new_win.mainView.id, image_id);
                   res.win = new_win;
             }
@@ -8067,6 +8194,8 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
                   case 'Logarithmic stretch':
                   case 'Asinh+Histogram':
                   case 'Square root stretch':
+                  case 'Shadow stretch':
+                  case 'Highlight stretch':
                         // Iterative stretch for a mask is very slow, just use Auto STF
                         image_stretching = 'Auto STF';
                         break;
@@ -8099,16 +8228,22 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
-            GC_win = stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val);
+            GC_win = stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, par.histogram_stretch_target.val, null);
 
       } else if (image_stretching == 'Logarithmic stretch') {
-            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val, 1000);
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 10);
 
       } else if (image_stretching == 'Asinh+Histogram stretch') {
-            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val, 0.1);
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 5);
 
       } else if (image_stretching == 'Square root stretch') {
-            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.logarithmic_stretch_target.val);
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
+
+      } else if (image_stretching == 'Shadow stretch') {
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
+
+      } else if (image_stretching == 'Highlight stretch') {
+            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
 
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
@@ -13492,9 +13627,14 @@ function extraBandingReduction(extraWin)
 
 function extraGradientCorrection(extraWin)
 {
-      if (par.use_graxpert.val) {
+      if (par.extra_GC_method.val == 'Auto') {
+            var gc_method = getDefaultGradientCorrectionMethod();
+      } else {
+            var gc_method = par.extra_GC_method.val;
+      }
+      if (gc_method == 'GraXpert') {
             addExtraProcessingStep("Extract background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
-      } else if (par.use_abe.val) {
+      } else if (gc_method == 'ABE') {
             addExtraProcessingStep("Extract background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
       } else {
             addExtraProcessingStep("Extract background using GradientCorrection" +
@@ -13503,8 +13643,8 @@ function extraGradientCorrection(extraWin)
                                     (par.gc_structure_protection.val != par.gc_structure_protection.def ? ", Structure Protection " + par.gc_structure_protection.val : "") +
                                     (par.gc_protection_threshold.val != par.gc_protection_threshold.def ? ", Protection threshold " + par.gc_protection_threshold.val : "") + 
                                     (par.gc_protection_amount.val != par.gc_protection_amount.def ? ", Protection amount " + par.gc_protection_amount.val : ""));
-}
-      var id = runGradientCorrection(extraWin, true);
+      }
+      var id = runGradientCorrection(extraWin, true, gc_method);
       // guiUpdatePreviewWin(extraWin);
       return id;
 }
