@@ -312,6 +312,7 @@ var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged s
 var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
+var imageintegration_combination_values = [ 'Average', 'Median', 'Minimum', 'Maximum' ];
 var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
@@ -8225,6 +8226,17 @@ function AutoIntegrateDialog()
       // Image integration
       //
       // normalization
+      this.ImageIntegrationCombinationLabel = new Label( this );
+      this.ImageIntegrationCombinationLabel.text = "Combination";
+      this.ImageIntegrationCombinationLabel.toolTip = "<p>Pixel combionation operation</p>";
+      this.ImageIntegrationCombinationLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      this.ImageIntegrationCombinationComboBox = newComboBox(this, par.integration_combination, imageintegration_combination_values, this.ImageIntegrationCombinationLabel.toolTip);
+
+      this.ImageIntegrationCombinationSizer = new HorizontalSizer;
+      this.ImageIntegrationCombinationSizer.spacing = 4;
+      this.ImageIntegrationCombinationSizer.add( this.ImageIntegrationCombinationLabel );
+      this.ImageIntegrationCombinationSizer.add( this.ImageIntegrationCombinationComboBox, 100 );
+
       this.ImageIntegrationNormalizationLabel = new Label( this );
       this.ImageIntegrationNormalizationLabel.text = "Normalization";
       this.ImageIntegrationNormalizationLabel.toolTip = "<p>Rejection normalization. This is value is ignored if local normalization is used.</p>";
@@ -8293,6 +8305,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSettingsSizer1 = new HorizontalSizer;
       this.ImageIntegrationRejectionSettingsSizer1.spacing = 4;
       this.ImageIntegrationRejectionSettingsSizer1.toolTip = ImageIntegrationHelpToolTips;
+      this.ImageIntegrationRejectionSettingsSizer1.add( this.ImageIntegrationCombinationSizer );
       this.ImageIntegrationRejectionSettingsSizer1.add( this.ImageIntegrationNormalizationSizer );
       this.ImageIntegrationRejectionSettingsSizer1.add( this.ImageIntegrationRejectionSizer );
       this.ImageIntegrationRejectionSettingsSizer1.addStretch();

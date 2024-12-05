@@ -264,9 +264,7 @@ var channels = {
       C: 7
 };
 
-var telescope_info = [];
-
-var not_used_telescope_info = [     // Problems with this info, just use image metadata
+var telescope_info = [     // Problems with this info, just use image metadata
       [ 'AUS-2-CMOS', 382, 3.76 ],
       [ 'SPA-1-CMOS', 382, 3.76 ],
       [ 'SPA-2-CMOS', 5600, 3.76 ],
@@ -707,8 +705,11 @@ function flowchartDone()
 }
 
 // Find focal length using telescope name saved into variable current_telescope_name
-function find_focal_length()
+function find_focal_length(use_telescope_info)
 {
+      if (!use_telescope_info) {
+            return 0;
+      }
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
                   console.writeln("Telescope " + telescope_info[i][0] + " focal length " + telescope_info[i][1]);
@@ -719,8 +720,11 @@ function find_focal_length()
 }
 
 // Find pixel size using telescope name saved into variable current_telescope_name
-function find_pixel_size()
+function find_pixel_size(use_telescope_info)
 {
+      if (!use_telescope_info) {
+            return 0;
+      }
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
                   console.writeln("Telescope " + telescope_info[i][0] + " pixel size " + telescope_info[i][2]);
@@ -2140,6 +2144,23 @@ function runImageIntegrationFlats(images, name)
       }
 
       var P = new ImageIntegration;
+      switch (par.integration_combination.val) {
+            case 'Average':
+                  P.combination = ImageIntegration.prototype.Average;
+                  break;
+            case 'Median':
+                  P.combination = ImageIntegration.prototype.Median;
+                  break;
+            case 'Minimum':
+                  P.combination = ImageIntegration.prototype.Minimum;
+                  break;
+            case 'Maximum':
+                  P.combination = ImageIntegration.prototype.Maximum;
+                  break;
+            default:
+                  util.throwError("runImageIntegrationFlats, unknown combination " + par.integration_combination.val);
+      }
+            
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
       P.weightMode = ImageIntegration.prototype.DontCare;
       P.normalization = ImageIntegration.prototype.MultiplicativeWithScaling;
@@ -4357,7 +4378,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 }
 
 /* Run single expression PixelMath and optionally create new image. */
-function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescale, no_status_info)
+function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbols, rescale, no_status_info, show_flowchart = true)
 {
       if (!no_status_info) {
             util.addProcessingStepAndStatusInfo("Run PixelMath single mapping");
@@ -7331,9 +7352,9 @@ function runHistogramTransformMaskedStretch(GC_win, image_stretching, histogram_
       return GC_win;
 }
 
-function runHistogramTransformArcsinhStretch(GC_win)
+function runHistogramTransformArcsinhStretch(GC_win, image_stretching, histogram_poststretch)
 {
-      util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using ArcsinhStretch");
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using " + image_stretching);
 
       var stretch = Math.pow(par.Arcsinh_stretch_factor.val, 1/par.Arcsinh_iterations.val);
 
@@ -7362,6 +7383,11 @@ function runHistogramTransformArcsinhStretch(GC_win)
             var peak_val = findHistogramPeak(GC_win).normalizedPeakCol;
             console.writeln("Iteration " + i + ", stretch " + stretch + ", black point " + P.blackPoint + ", current peak at " + peak_val);
       }
+      if (histogram_poststretch) {
+            console.writeln("Execute Histogram stretch on " + GC_win.mainView.id);
+            GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', par.histogram_stretch_target.val, null);
+      }
+      return GC_win;
 }
 
 function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_process)
@@ -7425,7 +7451,7 @@ function stretchHistogramTransformChannel(GC_win, image_stretching, target_value
 }
 */
 
-function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel, degree, copy_window)
+function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_value, channel, degree, copy_window, maxiterations=20)
 {
       var res = { 
             win: GC_win, 
@@ -7441,7 +7467,7 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
       };
 
       var degree_update_count = 0;
-      for (var i = 0; i < 100; i++) {
+      for (var i = 0; i < maxiterations; i++) {
             res.iteration_number = i + 1;
             var window_updated = stretchHistogramTransform(res, image_stretching, channel);
             if (window_updated) {
@@ -7457,9 +7483,6 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
                   if (image_stretching == 'Histogram stretch') {
                   } else if (image_stretching == 'Logarithmic stretch') {
                         res.degree = degree + (2 * degree_update_count);
-                        res.skipped = 0;  // Reset skip counter
-                  } else if (image_stretching == 'Asinh+Histogram stretch') {
-                        res.degree = degree + degree_update_count;
                         res.skipped = 0;  // Reset skip counter
                   } else if (image_stretching == 'Square root stretch') {
                         res.degree = degree + 0.1 * degree_update_count;
@@ -7519,11 +7542,13 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
 {
       var debug = par.debug.val;
 
-      if (!GC_win.mainView.image.isColor) {
-            util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
-      }
-      if (!iscolor) {
-            util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
+      if (0) {
+            if (!GC_win.mainView.image.isColor) {
+                  util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
+            }
+            if (!iscolor) {
+                  util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
+            }
       }
       if (1) {
             // For now, always use linked stretch
@@ -7536,13 +7561,6 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
             }
       }
       util.addProcessingStepAndStatusInfo("Run " + image_stretching + " on " + GC_win.mainView.id + " using iterations");
-
-      if (image_stretching == 'Asinh+Histogram stretch') {
-            GC_win = histogramPrestretch(GC_win, par.histogram_stretch_target.val);
-            if (debug) {
-                  util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_prestretch_debug"), true);
-            }
-      }
 
       // Run the stretch function on the image
       if (rgbLinked) {
@@ -7735,7 +7753,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             } else {
                   throw new Error("Logarithmic stretch does not support reverse stretching");
             }
-            runPixelMathSingleMappingEx(new_win.mainView.id, "logarithmic stretch", mapping, false, null, true, true);
+            runPixelMathSingleMappingEx(new_win.mainView.id, "logarithmic stretch", mapping, false, null, true, true, false);
 
       } else if (image_stretching == 'Asinh+Histogram stretch') {
 
@@ -7747,7 +7765,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             } else {
                   util.throwFatalError("Asinh+Histogram stretch does not support reverse stretching");
             }
-            runPixelMathSingleMappingEx(new_win.mainView.id, "asinh stretch", mapping, false, null, true, true);
+            runPixelMathSingleMappingEx(new_win.mainView.id, "asinh stretch", mapping, false, null, true, true, false);
 
       } else if (image_stretching == 'Square root stretch') {
 
@@ -7757,7 +7775,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
             } else {
                   throw new Error("Square root stretch does not support reverse stretching");
             }
-            runPixelMathSingleMappingEx(new_win.mainView.id, "sqrt stretch", mapping, false, null, true, true);
+            runPixelMathSingleMappingEx(new_win.mainView.id, "sqrt stretch", mapping, false, null, true, true, false);
 
       } else if (image_stretching == 'Shadow stretch') {
             if (res.forward) {
@@ -8219,7 +8237,10 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, true);
 
       } else if (image_stretching == 'Arcsinh Stretch') {
-            runHistogramTransformArcsinhStretch(GC_win);
+            GC_win = runHistogramTransformArcsinhStretch(GC_win, image_stretching, false);
+
+      } else if (image_stretching == 'Asinh+Histogram stretch') {
+            GC_win = runHistogramTransformArcsinhStretch(GC_win, image_stretching, true);
 
       } else if (image_stretching == 'Hyperbolic formulas not used') {
             GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, false);
@@ -8232,9 +8253,6 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
 
       } else if (image_stretching == 'Logarithmic stretch') {
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 10);
-
-      } else if (image_stretching == 'Asinh+Histogram stretch') {
-            GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 5);
 
       } else if (image_stretching == 'Square root stretch') {
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
@@ -9015,9 +9033,9 @@ function findBinning(imgWin)
       return 1;
 }
 
-function runImageSolverEx(id)
+function runImageSolverEx(id, use_telescope_info)
 {
-      console.writeln("runImageSolverEx: image " + id);
+      console.writeln("runImageSolverEx: image " + id + ", use telescope info " + use_telescope_info);
       var node = flowchartOperation("ImageSolver");
       if (global.get_flowchart_data) {
             return true;
@@ -9033,7 +9051,7 @@ function runImageSolverEx(id)
             } else {
                   util.addProcessingStep("Image " + id + " was already plate solved.");
                   if (global.pixinsight_version_num < 1080902) {
-                        solver.metadata.Print();
+                        metadata.Print();
                   } else {
                         console.writeln(imgWin.astrometricSolutionSummary());
                   }
@@ -9103,7 +9121,7 @@ function runImageSolverEx(id)
                         solver.metadata.focal = focal_len;
                   }
             } else {
-                  var focal_len = find_focal_length();
+                  var focal_len = find_focal_length(use_telescope_info);
                   if (focal_len != 0) {
                         console.writeln("Using telescope name based focal length: " + focal_len);
                         solver.metadata.focal = focal_len;
@@ -9118,7 +9136,7 @@ function runImageSolverEx(id)
                         console.writeln("Using user given pixel size: " + pixel_size);
                   }
             } else {
-                  var pixel_size = find_pixel_size();
+                  var pixel_size = find_pixel_size(use_telescope_info);
                   if (pixel_size != 0) {
                         console.writeln("Using telescope name based pixel size: " + pixel_size);
                   }
@@ -9165,16 +9183,16 @@ function runImageSolverEx(id)
 
             console.writeln("Image metadata for SolveImage:");
 
-            console.writeln("metadata.focal: " + metadata.focal);
-            console.writeln("metadata.useFocal: " + metadata.useFocal);
-            console.writeln("metadata.xpixsz: " + metadata.xpixsz);
-            console.writeln("metadata.resolution: " + metadata.resolution);
-            console.writeln("metadata.referenceSystem: " + metadata.referenceSystem);
-            console.writeln("metadata.ra: " + metadata.ra);
-            console.writeln("metadata.dec: " + metadata.dec);
-            console.writeln("metadata.epoch: " + metadata.epoch);
-            console.writeln("metadata.observationTime: " + metadata.observationTime);
-            console.writeln("metadata.topocentric: " + metadata.topocentric);
+            console.writeln("solver.metadata.focal: " + solver.metadata.focal);
+            console.writeln("solver.metadata.useFocal: " + solver.metadata.useFocal);
+            console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
+            console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
+            console.writeln("solver.metadata.referenceSystem: " + solver.metadata.referenceSystem);
+            console.writeln("solver.metadata.ra: " + solver.metadata.ra);
+            console.writeln("solver.metadata.dec: " + solver.metadata.dec);
+            console.writeln("solver.metadata.epoch: " + solver.metadata.epoch);
+            console.writeln("solver.metadata.observationTime: " + solver.metadata.observationTime);
+            console.writeln("solver.metadata.topocentric: " + solver.metadata.topocentric);
 
             console.writeln("solverCfg.version: " + solver.solverCfg.version);
             console.writeln("solverCfg.magnitude: " + solver.solverCfg.magnitude);
@@ -9254,7 +9272,12 @@ function runImageSolverEx(id)
 
 function runImageSolver(id)
 {
-      var solved = runImageSolverEx(id);
+      console.writeln("runImageSolver on image " + id);
+      var solved = runImageSolverEx(id, false);
+      if (!solved) {
+            console.writeln("runImageSolver: retrying with telescope info");
+            solved = runImageSolverEx(id, true);
+      }
       if (!solved) {
             util.throwFatalError("ImageSolver failed on image " + id);
       }

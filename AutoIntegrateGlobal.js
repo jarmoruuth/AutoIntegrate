@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.72 test2";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.72 test3";         // Version, also updated into updates.xri
 this.autointegrate_info = "Ha to RGB mapping, true background";   // For updates.xri
 
 this.autointegrate_version_info = [
@@ -302,6 +302,7 @@ this.par = {
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
       imageintegration_normalization: { val: 'Additive', def: 'Additive', name : "ImageIntegration Normalization", type : 'S' },
+      integration_combination: { val: 'Average', def: 'Average', name : "ImageIntegration Combination", type : 'S' },
       use_clipping: { val: 'Auto2', def: 'Auto2', name : "ImageIntegration rejection", type : 'S' },
 
       target_type: { val: 'Default', def: 'Default', name : "Target type", type : 'S' },
