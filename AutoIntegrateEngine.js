@@ -16246,10 +16246,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        console.noteln("--------------------------------------");
        util.addProcessingStepAndStatusInfo("Start processing : " + txt);
        console.writeln("auto_continue : " + auto_continue + ", autocontinue_narrowband : " + autocontinue_narrowband);
-       if (global.pixinsight_version_num >= 108090) {
-            var memoryStatus = physicalMemoryStatus();
-            console.writeln("Memory status: total bytes: " + memoryStatus.totalBytes + ", available bytes: " + memoryStatus.availableBytes);
-       }
  
        if (gui) {
             gui.close_undo_images();
@@ -16762,10 +16758,6 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
        console.noteln("======================================");
 
-       if (global.pixinsight_version_num >= 1080903) {
-            var memoryStatus = physicalMemoryStatus();
-            console.writeln("Memory status: total bytes: " + memoryStatus.totalBytes + ", available bytes: " + memoryStatus.availableBytes);
-       }
 
        console.writeln("--------------------------------------");
        if (global.flowchartData != null) {
