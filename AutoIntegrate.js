@@ -105,11 +105,8 @@ Steps with LRGB files
    for each R,G and B images using a mask.
 10. ChannelCombination is run on Red, Green and Blue integrated images to
    create an RGB image. After that there is one L and one RGB image.
-11. If color_calibration_before_GC is selected then color calibration is run on RGB image.
-    If use_background_neutralization is selected then BackgroundNeutralization is run before
-    color calibration.
 12. Optionally gradient correction is run on RGB image. <rgbGC>
-13. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+13. Color calibration is run on RGB image. Optionally
     BackgroundNeutralization is run before color calibration
 14. HistogramTransform is run on RGB image. <rgbHT>
 15. Optionally TGVDenoise is run to reduce color noise.
@@ -124,11 +121,8 @@ Steps with color files
 1. ImageIntegration is run on color *_a_r.xisf files.
    Rejection method is chosen dynamically based on the number of image files.
    After this step there is Integration_RGB_color image.
-2. If color_calibration_before_GC is selected then color calibration is run on RGB image.
-   If use_background_neutralization is selected then BackgroundNeutralization is run before
-   color calibration.
 3. Optionally gradient correction in run on RGB image. <colorGC>
-4. If color calibration is not yet done the color calibration is run on RGB image. Optionally
+4. Color calibration is run on RGB image. Optionally
    BackgroundNeutralization is run before color calibration
 5. HistogramTransform is run on RGB image. <colorHT>
 6. A mask is created from an extracted and stretched luminance channel.
@@ -736,6 +730,11 @@ this.autointegrate_main = function()
                   // Old versions do not have GradientCorrection process
                   par.use_abe.val = true;
                   par.use_abe.def = true;
+                  global.is_gc_process = false;
+            }
+            if (global.pixinsight_version_num >= 1090000) {
+                  global.is_gc_process = true;
+            } else {
                   global.is_gc_process = false;
             }
       }

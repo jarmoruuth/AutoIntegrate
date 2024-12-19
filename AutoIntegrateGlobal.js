@@ -42,13 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.72.1";             // Version, also updated into updates.xri
-this.autointegrate_info = "Ha to RGB mapping, true background";   // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.73 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "MultiscaleGradientCorrection";         // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Better Ha to RGB mapping",
-      "- Find true background"
+      "- Support for MultiscaleGradientCorrection"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -110,9 +109,9 @@ this.par = {
       use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
       use_graxpert_denoise: { val: false, def: false, name : "Use GraXpert denoise", type : 'B' },
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
+      use_multiscalegradientcorrection: { val: false, def: false, name : "Use MultiscaleGradientCorrection", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       skip_auto_background: { val: false, def: false, name : "No auto background", type : 'B' },
-      color_calibration_before_GC: { val: false, def: false, name : "Color calibration before GC", type : 'B', oldname: "Color calibration before ABE" },
       use_spcc: { val: false, def: false, name : "Use SPCC for color calibration", type : 'B' },
       solve_image: { val: false, def: false, name : "Solve image", type : 'B' },
       use_background_neutralization: { val: false, def: false, name : "Background neutralization", type : 'B' },
@@ -153,7 +152,7 @@ this.par = {
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
-      reset_on_setup_load: { val: false, def: false, name : "Reset on setup load", type : 'B' },
+      reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
       keep_processed_images: { val: false, def: false, name : "Keep processed images", type : 'B' },
       debug: { val: false, def: false, name : "Debug", type : 'B' },
@@ -283,6 +282,8 @@ this.par = {
       gc_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
       gc_simplified_model: { val: false, def: false, name : "GC simplified model", type : 'B' },
       gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
+      mgc_scale: { val: '1024', def: '1024', name : "MGC scale", type : 'S' },
+      mgc_output_background_model: { val: false, def: false, name : "MGC output background model", type : 'B' },
       
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
@@ -354,6 +355,7 @@ this.par = {
       target_binning: { val: 'Auto', def: 'Auto', name : "Target binning", type : 'S' }, 
       target_drizzle: { val: 'Auto', def: 'Auto', name : "Target drizzle", type : 'S' }, 
       target_forcesolve: { val: false, def: false, name : "Target force solve", type : 'B' }, 
+      target_interactivesolve: { val: false, def: false, name : "Target interactive solve", type : 'B' }, 
       spcc_detection_scales: { val: 5, def: 5, name : "SPCC detection scales", type : 'I' }, 
       spcc_noise_scales: { val: 1, def: 1, name : "SPCC noise scales", type : 'I' }, 
       spcc_min_struct_size: { val: 0, def: 0, name : "SPCC min struct size", type : 'I' }, 
@@ -513,6 +515,7 @@ this.par = {
       integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
+      output_pedestal: { val: 1, def: 1, name : "Output pedestal", type : 'B' },
 
       // Misc settings
       show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },
@@ -566,6 +569,8 @@ this.run_results = {
       fatal_error: ''               // if non-empty, fatal error during processing
 };
 
+this.console_hidden = false;  // true if console is hidden
+
 this.debayerPattern_values = [ "Auto", "RGGB", "BGGR", "GBRG", 
                                "GRBG", "GRGB", "GBGR", "RGBG", 
                                "BGRG", "None" ];
@@ -587,6 +592,7 @@ this.write_processing_log_file = true;  // if we fail very early we set this to 
 this.shadow_clip_value = 0.01;
 
 this.is_gc_process = true;          // true if we have GradientCorrection process available
+this.is_mgc_process = true;         // true if we have MultiscaleGradientCorrection process available
 
 this.outputRootDir = "";
 this.lightFileNames = null;

@@ -343,6 +343,7 @@ var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Botto
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
+var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -1480,7 +1481,7 @@ function extraProcessingGUI(parent)
             "<p>Make image highlights darker using a lightness mask.</p>" );
 
       this.extra_GC_CheckBox = newCheckBox(parent, "Gradient correction", par.extra_GC, 
-            "<p>Do gradient correction to the image using ABE or GraXpert.</p>" );
+            "<p>Do gradient correction to the image using the selected gradient correction method.</p>" );
       this.extra_GC_values_ComboBox = newComboBox(parent, par.extra_GC_method, extra_gradient_correction_values, 
             "<p>Gradient correction method to be used.</p>" +
             "<p>Auto uses the selected gradient correction method from <i>Setting</i> tab.</p>");
@@ -2968,9 +2969,6 @@ function Autorun(parent)
                               console.writeln("Do not get flowchart data for batch mode");
                         } else {
                               let succ = generateNewFlowchartData(parent);
-                              if (par.debug.val) {
-                                    util.throwFatalError("Debug stop");
-                              }
                         }
                   } else {
                         console.writeln("Do not get flowchart data");
@@ -6742,8 +6740,6 @@ function AutoIntegrateDialog()
             "can be later added back to the image. This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
       this.unscreen_stars_CheckBox = newCheckBox(this, "Unscreen stars", par.unscreen_stars, unscreen_tooltip);
-      this.color_calibration_before_GC_CheckBox = newCheckBox(this, "Color calibration before gradient correction", par.color_calibration_before_GC, 
-            "<p>Run ColorCalibration before gradient correction is run on RGB image</p>" );
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
             "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with checking this box.</p>" +
@@ -6889,6 +6885,14 @@ function AutoIntegrateDialog()
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
             "the gradient correction options in the <i>Image processing parameters</i> section.</p>");
       }
+      if (global.is_mgc_process) {
+            this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "Use MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
+                  "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
+                  "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
+                  "the gradient correction options in the <i>Image processing parameters</i> section.</p>" +
+                  "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
+                  "usiong this option.</p>");
+            }
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -6966,7 +6970,6 @@ function AutoIntegrateDialog()
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
       this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
-      this.imageParamsSet2.add( this.color_calibration_before_GC_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
       this.imageParamsSet2.add( this.GC_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.use_GC_L_RGB_CheckBox );
@@ -7035,6 +7038,10 @@ function AutoIntegrateDialog()
       if (global.is_gc_process) {
             this.imageToolsSet1.add( this.use_abe_CheckBox );
       }
+      if (global.is_mgc_process) {
+            this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
+      }
+
       this.imageToolsSet1.add( this.use_graxpert_CheckBox );
       this.imageToolsSet1.add( this.use_StarXTerminator_CheckBox );
       this.imageToolsSet1.add( this.use_starnet2_CheckBox );
@@ -7527,6 +7534,16 @@ function AutoIntegrateDialog()
       this.bandingGroupBoxSizer.add( this.bandingAmountControl );
       this.bandingGroupBoxSizer.addStretch();
 
+      this.calibrationPedestalLabel = newLabel(this, "Output pedestal", "<p>Pedestal value added when calibrating lights. Value is from range 0 to 65535.</p>");
+      this.calibrationPedestalSpinBox = newSpinBox(this, par.output_pedestal, 0, 1000, this.calibrationPedestalLabel.toolTip);
+
+      this.calibrationGroupBoxSizer = new HorizontalSizer;
+      this.calibrationGroupBoxSizer.margin = 6;
+      this.calibrationGroupBoxSizer.spacing = 4;
+      this.calibrationGroupBoxSizer.add( this.calibrationPedestalLabel );
+      this.calibrationGroupBoxSizer.add( this.calibrationPedestalSpinBox );
+      this.calibrationGroupBoxSizer.addStretch();
+
       this.targetNameLabel = newLabel(this, "Name", "Target name (optional).");
       this.targetNameEdit = newTextEdit(this, par.target_name, this.targetNameLabel.toolTip);
 
@@ -7577,7 +7594,9 @@ function AutoIntegrateDialog()
       this.targetForceSolveCheckBox = newCheckBox(this, "Force solve", par.target_forcesolve, 
                                                       "<p>Force solving images even if it already solved.</p>" +
                                                       "<p>Can be useful for example when using old data with a newer SPCC version.</p>");
-
+      this.targetInteractiveSolveCheckBox = newCheckBox(this, "Interactive solve", par.target_interactivesolve, 
+                                                      "<p>Try solving the image interactively using image solver dialog.</p>");
+      
       this.imageSolvingGroupBoxSizer1 = new HorizontalSizer;
       // this.imageSolvingGroupBoxSizer1.margin = 6;
       this.imageSolvingGroupBoxSizer1.spacing = 4;
@@ -7587,6 +7606,7 @@ function AutoIntegrateDialog()
       this.imageSolvingGroupBoxSizer1.add( this.targetRaDecEdit );
       this.imageSolvingGroupBoxSizer1.add( this.findTargetCoordinatesButton );
       this.imageSolvingGroupBoxSizer1.add( this.targetForceSolveCheckBox );
+      this.imageSolvingGroupBoxSizer1.add( this.targetInteractiveSolveCheckBox );
       this.imageSolvingGroupBoxSizer1.addStretch();
 
       this.imageSolvingGroupBoxSizer2 = new HorizontalSizer;
@@ -7910,7 +7930,7 @@ function AutoIntegrateDialog()
 
       if (global.is_gc_process) {
             this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
-            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is output into an image with _model extension.</p>");
+            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is created.</p>");
             this.gc_scale_Edit = newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
             this.gc_smoothness_Edit = newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
             this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
@@ -7928,10 +7948,20 @@ function AutoIntegrateDialog()
 
             this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
 
-            this.GCGroupBoxLabel = newSectionLabel(this, "GredientCorrection settings");
+            this.GCGroupBoxLabel = newSectionLabel(this, "GradientCorrection settings");
             this.GCGroupBoxSizer = newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);
       }
 
+      if (global.is_mgc_process) {
+            this.mgc_scale_Label = newLabel(this, "Gradient scale", "<p>Gradient model scale.</p>", true);
+            this.mgc_scale_ComboBox = newComboBox(this, par.mgc_scale, mgc_scale_valuestxt, this.mgc_scale_Label.toolTip);
+            this.mgc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.mgc_output_background_model, "<p>If checked the backgroung model is created.</p>");
+
+            this.MGCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgc_output_background_model_CheckBox], 12);
+
+            this.MGCGroupBoxLabel = newSectionLabel(this, "MultiscaleGradientCorrection settings");
+            this.MGCGroupBoxSizer = newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0]);
+      }
       this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
       this.ABEDegreeSpinBox = newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
       this.ABECorrectionLabel = newLabel(this, "Correction", "Correction method for ABE.", true);
@@ -8012,11 +8042,18 @@ function AutoIntegrateDialog()
 
       this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 
-      if (global.is_gc_process) {
-            this.GCStarXSizer = newVerticalSizer(0, true, [this.GCGroupBoxSizer, this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
-      } else {
-            this.GCStarXSizer = newVerticalSizer(0, true, [this.ABEGroupBoxSizer, this.graxpertGroupBoxSizer, this.StarXTerminatorGroupBoxSizer]);
+      var processes = [];
+      if (global.is_mgc_process) {
+            processes.push(this.MGCGroupBoxSizer);
       }
+      if (global.is_gc_process) {
+            processes.push(this.GCGroupBoxSizer);
+      }
+      processes.push(this.ABEGroupBoxSizer);
+      processes.push(this.graxpertGroupBoxSizer);
+      processes.push(this.StarXTerminatorGroupBoxSizer);
+
+      this.GCStarXSizer = newVerticalSizer(0, true, processes);
 
       //
       // Stretching parameters
@@ -9480,6 +9517,7 @@ function AutoIntegrateDialog()
       this.hideProcessConsoleButton.toolTip = "<p>Hide Process Console.</p>";
       this.hideProcessConsoleButton.onClick = function() {
             console.hide();
+            global.console_hidden = true;
       };
 
       this.showProcessConsoleButton = new PushButton( this );
@@ -9488,6 +9526,7 @@ function AutoIntegrateDialog()
       this.showProcessConsoleButton.toolTip = "<p>Show Process Console.</p>";
       this.showProcessConsoleButton.onClick = function() {
             console.show();
+            global.console_hidden = false;
       };
 
       this.interfaceSizer = new HorizontalSizer;
@@ -9751,6 +9790,8 @@ function AutoIntegrateDialog()
               this.fastIntegrationGroupBoxSizer,
               this.localNormalizationGroupBoxLabel,
               this.localNormalizationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image calibration", "ps_calibration",
+            [ this.calibrationGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
             [ this.StarAlignmentGroupBoxLabel,
               this.StarAlignmentGroupBoxSizer,

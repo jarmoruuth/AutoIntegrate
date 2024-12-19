@@ -1458,7 +1458,7 @@ this.ensure_win_prefix = function(id)
 this.remove_autocontinue_prefix = function(id)
 {
       if (ppar.autocontinue_win_prefix != "" 
-          && ppar.autocontinue_win_prefix != par.win_prefix 
+          && ppar.autocontinue_win_prefix != ppar.win_prefix 
           && id.startsWith(ppar.autocontinue_win_prefix)) 
       {
             return id.substring(ppar.autocontinue_win_prefix.length);

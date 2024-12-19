@@ -241,6 +241,7 @@ var RGB_HT_start_win;
 
 var range_mask_win;
 var final_win;
+var solved_imageWin;          // successfully solved image, used to copy astrometric solution
 var current_telescope_name = "";
 
 var linear_fit_rerefence_id = null;
@@ -264,7 +265,7 @@ var channels = {
       C: 7
 };
 
-var telescope_info = [     // Problems with this info, just use image metadata
+var telescope_info = [
       [ 'AUS-2-CMOS', 382, 3.76 ],
       [ 'SPA-1-CMOS', 382, 3.76 ],
       [ 'SPA-2-CMOS', 5600, 3.76 ],
@@ -705,11 +706,8 @@ function flowchartDone()
 }
 
 // Find focal length using telescope name saved into variable current_telescope_name
-function find_focal_length(use_telescope_info)
+function find_focal_length()
 {
-      if (!use_telescope_info) {
-            return 0;
-      }
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
                   console.writeln("Telescope " + telescope_info[i][0] + " focal length " + telescope_info[i][1]);
@@ -720,11 +718,8 @@ function find_focal_length(use_telescope_info)
 }
 
 // Find pixel size using telescope name saved into variable current_telescope_name
-function find_pixel_size(use_telescope_info)
+function find_pixel_size()
 {
-      if (!use_telescope_info) {
-            return 0;
-      }
       for (var i = 0; i < telescope_info.length; i++) {
             if (current_telescope_name.indexOf(telescope_info[i][0]) != -1) {
                   console.writeln("Telescope " + telescope_info[i][0] + " pixel size " + telescope_info[i][2]);
@@ -817,6 +812,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                   util.closeOneWindowById(arr[i]+"_stars");
                   util.closeOneWindowById(arr[i]+"_starless");
                   util.closeOneWindowById(arr[i]+"_map");
+                  util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
                   util.closeOneWindowById(arr[i]+"_model");
                   if (!keep_base_image) {
                         util.closeOneWindowById(arr[i]);
@@ -995,6 +991,7 @@ function setMaskChecked(imgWin, maskWin)
             console.criticalln("setMask failed: " + err.toString());
             console.criticalln("Image:" + imgWin.mainView.id + ", mask:" + maskWin.mainView.id);
             console.criticalln("Maybe mask is from different data set, different image size/binning or different crop to common areas setting.");
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Error setting the mask.");
       }
 }
@@ -2209,6 +2206,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       P.targetFrames = images; // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
       P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
+      P.outputPedestal = par.output_pedestal.val;
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
@@ -2594,6 +2592,91 @@ function runBinningOnLights(fileNames, filtered_files)
       return newFileNames;
 }
 
+function runPedestalOnLights(fileNames)
+{
+      var newFileNames = [];
+      var outputDir = global.outputRootDir + global.AutoOutputDir;
+      var postfix = "_p";
+      var outputExtension = ".xisf";
+
+      util.addProcessingStepAndStatusInfo("Run pedestal on light files using value " + "200");
+      var node = flowchartOperation("Pedestal");
+
+      if (global.get_flowchart_data) {
+            return fileNames;
+      }
+
+      console.writeln("runPedestalOnLights output *" + postfix + ".xisf");
+      console.writeln("runPedestalOnLights input[0] " + fileNames[0]);
+
+      for (var i = 0; i < fileNames.length; i++) {
+            // Open source image window from a file
+            var imageWindows = ImageWindow.open(fileNames[i]);
+            if (!imageWindows || imageWindows.length == 0) {
+                  util.throwFatalError("*** runPedestalOnLights Error: imageWindows.length: " + imageWindows.length);
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  util.throwFatalError("*** runPedestalOnLights Error: Can't read file: " + fileNames[i]);
+            }
+
+            // Use Pixelmath to add pedestal
+            var P = new PixelMath;
+            P.expression = "$T + " + 200/65535;
+            P.expression1 = "";
+            P.expression2 = "";
+            P.expression3 = "";
+            P.useSingleExpression = true;
+            P.symbols = "";
+            P.clearImageCacheAndExit = false;
+            P.cacheGeneratedImages = false;
+            P.generateOutput = true;
+            P.singleThreaded = false;
+            P.optimization = true;
+            P.use64BitWorkingImage = false;
+            P.rescale = false;
+            P.rescaleLower = 0;
+            P.rescaleUpper = 1;
+            P.truncate = true;
+            P.truncateLower = 0;
+            P.truncateUpper = 1;
+            P.createNewImage = false;
+            P.showNewImage = false;
+            P.newImageId = "";
+            P.newImageWidth = 0;
+            P.newImageHeight = 0;
+            P.newImageAlpha = false;
+            P.newImageColorSpace = PixelMath.prototype.Gray;
+            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+      
+            P.executeOn(imageWindow.mainView);
+            
+            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+
+            // Save window
+            if (!writeImage(filePath, imageWindow)) {
+                  util.throwFatalError("*** runPedestalOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
+            }
+
+            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
+
+            // Save updates image
+            if (!writeImage(filePath, imageWindow)) {
+                  util.throwFatalError("*** runPedestalOnLights Error: Can't write output image: " + filePath);
+            }
+            // Close GC window
+            util.closeOneWindow(imageWindow);
+
+            newFileNames[newFileNames.length] = filePath;
+      }
+
+      console.writeln("runPedestalOnLights output[0] " + newFileNames[0]);
+
+      engine_end_process(node);
+
+      return newFileNames;
+}
+
 function runGradientCorrectionOnLights(fileNames)
 {
       var newFileNames = [];
@@ -2624,7 +2707,7 @@ function runGradientCorrectionOnLights(fileNames)
             
             // Run gradient correction which creates a new window with postfix extension
 
-            var new_id = runGradientCorrectionEx(imageWindow, false, postfix, false);
+            var new_id = runGradientCorrectionEx(imageWindow, false, postfix, true);
             var new_win = util.findWindow(new_id);
             if (new_win == null) {
                   util.throwFatalError("*** runGradientCorrectionOnLights Error: could not find window: " + new_id);
@@ -2930,6 +3013,7 @@ function getImagePSF(imgWin)
       console.writeln("getImagePSF input file " + fname);
       if (!copy_win.saveAs(fname, false, false, false, false)) {
             util.closeOneWindowById(copy_win.mainView.id);
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Failed to save image to get image PSF: " + fname);
       }
       util.closeOneWindowById(copy_win.mainView.id);
@@ -4252,9 +4336,36 @@ function ensureLightImages(ch, check_allfilesarr)
       }
 }
 
+function findWindowAutoContinuePrefix(to_id, check_basename)
+{
+      if (ppar.autocontinue_win_prefix != "" 
+            && ppar.autocontinue_win_prefix != ppar.win_prefix)
+      {
+            // Try replacing autocontinue prefix with normal prefix
+            if (to_id.startsWith(ppar.autocontinue_win_prefix)) {
+                  var basename = to_id.substring(ppar.autocontinue_win_prefix.length);
+                  var win = util.findWindow(ppar.win_prefix + basename);
+                  if (win != null) {
+                        return win;
+                  }
+            }
+            // Try replacing normal prefix with autocontinue prefix
+            if (to_id.startsWith(ppar.win_prefix)) {
+                  var basename = to_id.substring(ppar.win_prefix.length);
+                  var win = util.findWindow(ppar.autocontinue_win_prefix + basename);
+                  if (win != null) {
+                        return win;
+                  }
+            }
+      }
+      return null;
+}
+
 function ensureLightImageWindow(to_id, ext)
 {
+      console.writeln("ensureLightImageWindow " + to_id + ", ext " + ext);
       if (findWindowNoPrefixIf(to_id, global.run_auto_continue) == null
+          && findWindowAutoContinuePrefix(to_id, global.run_auto_continue) == null
           && findWindowNoPrefixIf(to_id + ext, global.run_auto_continue) == null)
       {
             util.closeTempWindows();
@@ -4697,7 +4808,13 @@ function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
       for (var i = 0; i < images.length; i++) {
-            var basename = util.remove_autocontinue_prefix(images[i]);
+            if (ppar.win_prefix != '' && images[i].startsWith(ppar.win_prefix)) {
+                  var basename = images[i].substring(ppar.win_prefix.length);
+            } else if (ppar.autocontinue_win_prefix != '' && images[i].startsWith(ppar.autocontinue_win_prefix)) {
+                  var basename = images[i].substring(ppar.autocontinue_win_prefix.length);
+            } else {
+                  var basename = images[i];
+            }
             if (basename.endsWith("_crop")) {
                   var copyname = util.ensure_win_prefix(util.replacePostfixOrAppend(basename, ["_crop"], "_map"));
             } else {
@@ -4810,6 +4927,7 @@ function checkNoiseReduction(image, phase)
       switch (image) {
             case 'L':
                   if (is_color_files) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("checkNoiseReduction bad combination, L+color/OSC");
                   }
                   if (par.luminance_noise_reduction_strength.val == 0) {
@@ -4837,6 +4955,7 @@ function checkNoiseReduction(image, phase)
                   break;
             case 'RGB':
                   if (is_color_files) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("checkNoiseReduction bad combination, RGB+color/OSC");
                   }
                   if (par.noise_reduction_strength.val == 0) {
@@ -4879,11 +4998,13 @@ function checkNoiseReduction(image, phase)
                               noise_reduction = par.non_linear_noise_reduction.val;
                               break;
                         default:
+                              save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                               util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
             case 'color':
                   if (!is_color_files) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("checkNoiseReduction bad combination, color/OSC and nor color files");
                   }
                   if (par.noise_reduction_strength.val == 0) {
@@ -4901,6 +5022,7 @@ function checkNoiseReduction(image, phase)
                               noise_reduction = par.non_linear_noise_reduction.val;
                               break;
                         default:
+                              save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                               util.throwFatalError("checkNoiseReduction bad phase '" + phase + "' for " + image + " image");
                   }
                   break;
@@ -4986,6 +5108,7 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscr
             }
             engine_end_process(node);
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("StarXTerminator failed");
             console.criticalln(err);
             util.addProcessingStep("Maybe StarXTerminator is not installed, AI is missing or platform is not supported");
@@ -5007,6 +5130,7 @@ function createNewStarNet(star_mask, from_lights)
             P.mask = star_mask;
             engine_end_process(node);
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("StarNet failed");
             console.criticalln(err);
             util.addProcessingStep("Maybe weight files are missing or platform is not supported");
@@ -5027,6 +5151,7 @@ function createNewStarNet2(star_mask, from_lights)
             P.mask = star_mask;
             engine_end_process(node);
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("StarNet2 failed");
             console.criticalln(err);
             util.addProcessingStep("Maybe StarNet2 is not installed, weight files are missing or platform is not supported");
@@ -5042,6 +5167,7 @@ function getStarMaskWin(imgWin, name)
             var win = util.findWindow(win_id);
             console.writeln("getStarMaskWin win_id " + win_id);
             if (win == null) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Could not find StarXTerminator stars window " + win_id);
             }
             util.windowRename(win_id, name);
@@ -5089,6 +5215,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             var P = createNewStarNet2(create_star_mask, from_lights);
             var process_name = "StarNet2";
       } else {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
       }
 
@@ -5116,6 +5243,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       engine_end_process(node, imgWin, process_name);
 
       if (!succp) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Failed to remove stars!");
       }
 
@@ -5347,6 +5475,7 @@ function createStarlessChannelImages(images, basenames = null)
             console.writeln("createStarlessChannelImages, image " + id);
             var image_win = util.findWindow(id);
             if (image_win == null) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("createStarlessChannelImages:could not find image " + id);
             }
 
@@ -5573,6 +5702,7 @@ function customMapping(RGBmapping, filtered_lights)
                    */
                   util.addProcessingStep("Custom mapping, stretched narrowband images");
                   if (par.remove_stars_before_stretch.val) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
                   }
                   flowchartParentBegin("Stretch channels");
@@ -5592,7 +5722,7 @@ function customMapping(RGBmapping, filtered_lights)
                   RGBmapping.stretched = true;
             }
 
-            if (par.bxt_correct_channels.val && !bxt_run) {
+            if (par.bxt_correct_channels.val && !bxt_run && par.use_blurxterminator.val) {
                   // Run BlurXTerminator on all channels if we did not run it earlier
                   flowchartParentBegin("Channels");
                   for (var i = 0; i < images.length; i++) {
@@ -5875,6 +6005,7 @@ function runCometAlignment(filenames, filename_postfix)
             } else if (a.date_obs > b.date_obs) {
                   return 1;
             } else {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Comet alignment failed, equal DATE-OBS " + a.date_obs + " in files " + a.name + " and " + b.name);
                   return 0;
             }
@@ -5885,12 +6016,14 @@ function runCometAlignment(filenames, filename_postfix)
       console.writeln("Comet alignment, generate target frame info.");
       var splt = par.comet_first_xy.val.split(",");
       if (splt.length != 2) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Comet alignment failed, incorrect first image X,Y format " + par.comet_first_xy.val);
       }
       var first_x = parseInt(splt[0]);
       var first_y = parseInt(splt[1]);
       var splt = par.comet_last_xy.val.split(",");
       if (splt.length != 2) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Comet alignment failed, incorrect last image X,Y format " + par.comet_last_xy.val);
       }
       var last_x = parseInt(splt[0]);
@@ -6137,6 +6270,7 @@ function runLinearFit(refViewId, targetId)
 {
       util.addProcessingStepAndStatusInfo("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       if (refViewId == null || targetId == null) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
       }
 
@@ -6336,9 +6470,6 @@ function runFastIntegration(integration_images, name, refImage)
       if (!succ) {
             util.throwFatalError("FastIntegration failed at executeGlobal");
       }
-      if (P.outputData[0][3] == 0 && P.outputData[0][4] == 0 && P.outputData[0][5] == 0) {
-            util.throwFatalError("FastIntegration failed, empty output data");
-      }
 
       var w = util.findWindowStartsWith("FastIntegrationMaster");
       if (w != null) {
@@ -6434,6 +6565,13 @@ function runBasicIntegration(images, name, local_normalization)
       P.esdOutliersFraction = par.ESD_outliers.val;
       P.esdAlpha = par.ESD_significance.val;
       // P.esdLowRelaxation = par.ESD_lowrelaxation.val; deprecated, use default for old version
+
+      if (local_normalization) {
+            // With local normalization the pedestal is already subtracted
+            P.subtractPedestals = false;
+      } else {
+            P.subtractPedestals = true;
+      }
 
       try {
             var succ = P.executeGlobal();
@@ -6763,6 +6901,7 @@ function runGraXpertExternal(win, denoise)
       }
 
       if (par.graxpert_path.val == "") {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("GraXpert path is empty, please add path to GraXpert binary in Gradient correction section");
       }
       if (!File.exists(par.graxpert_path.val)) {
@@ -6780,6 +6919,7 @@ function runGraXpertExternal(win, denoise)
       console.writeln("GraXpert input file " + fname);
       if (!copy_win.saveAs(fname, false, false, false, false)) {
             util.closeOneWindowById(copy_win.mainView.id);
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Failed to save image for GraXpert: " + fname);
       }
 
@@ -6820,6 +6960,7 @@ function runGraXpertExternal(win, denoise)
             console.criticalln("- GraXpert path is incorrect.");
             console.criticalln("- GraXpert version is not compatible.");
             console.criticalln("- GraXpert AI model is not loaded. To load the AI model, run GraXpert manually once and close it. AutoIntegrate uses the default model.");
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             if (imgWin == null) {
                   util.throwFatalError("GraXpert did not run, failed to open processed image: " + graxpert_fname);
             } else {
@@ -6845,8 +6986,13 @@ function runGraXpertExternal(win, denoise)
 }
 
 // Run GraXpert on an image
-function runGraXpert(win, replaceTarget, postfix)
+function runGraXpert(win, replaceTarget, postfix, from_lights)
 {
+      if (from_lights) {
+            var node = null;
+      } else {
+            var node = flowchartOperation("GraXpert");
+      }
       if (replaceTarget) {
             if (!global.get_flowchart_data || par.debug.val) {
                   util.addProcessingStepAndStatusInfo("Run GraXpert on image " + win.mainView.id);
@@ -6886,12 +7032,18 @@ function runGraXpert(win, replaceTarget, postfix)
       if (!global.get_flowchart_data || par.debug.val) {
             console.writeln("GraXpert output window " + copyWin.mainView.id);
       }
+      engine_end_process(node, util.findWindow(GC_id), "GraXpert");
 
       return GC_id;
 }
 
-function runABEex(win, replaceTarget, postfix)
+function runABEex(win, replaceTarget, postfix, from_lights)
 {
+      if (from_lights) {
+            var node = null;
+      } else {
+            var node = flowchartOperation("AutomaticBackgroundExtractor");
+      }
       if (replaceTarget) {
             util.addProcessingStepAndStatusInfo("Run ABE on image " + win.mainView.id);
             var GC_id = win.mainView.id;
@@ -6910,6 +7062,7 @@ function runABEex(win, replaceTarget, postfix)
       } else if (par.ABE_correction.val == 'Division') {
             P.targetCorrection = AutomaticBackgroundExtractor.prototype.Divide;
       } else {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Unknown ABE correction " + par.ABE_correction.val);
       }
       P.polyDegree = par.ABE_degree.val;
@@ -6938,12 +7091,18 @@ function runABEex(win, replaceTarget, postfix)
                   }
             }
       }
+      engine_end_process(node, util.findWindow(GC_id), "AutomaticBackgroundExtractor");
 
       return GC_id;
 }
 
-function runGCProcess(win, replaceTarget, postfix)
+function runGCProcess(win, replaceTarget, postfix, from_lights)
 {
+      if (from_lights) {
+            var node = null;
+      } else {
+            var node = flowchartOperation("GradientCorrection");
+      }
       if (replaceTarget) {
             util.addProcessingStepAndStatusInfo("Run GradientCorrection on image " + win.mainView.id);
             var GC_id = win.mainView.id;
@@ -6961,13 +7120,6 @@ function runGCProcess(win, replaceTarget, postfix)
       if (global.get_flowchart_data) {
             return GC_id;
       }
-      if (par.gc_output_background_model.val) {
-            // Create a window for the background model from the original window
-            var model_id = util.ensure_win_prefix(util.replacePostfixOrAppend(GC_id, ["_map", "_combined", postfix], "_model"));
-            iconized_image_ids.push(model_id);
-            var model_win = util.copyWindowEx(win, model_id, true);
-            model_win.show();
-      }
       
       var P = new GradientCorrection;
       P.scale = par.gc_scale.val;
@@ -6980,30 +7132,167 @@ function runGCProcess(win, replaceTarget, postfix)
       P.generateProtectionMasks = false;
       P.useSimplification = par.gc_simplified_model.val;
       P.simplificationDegree = par.gc_simplified_model_degree.val;
+      P.generateGradientModel = par.gc_output_background_model.val;
 
-      win.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-      P.executeOn(win.mainView, false);
-
-      win.mainView.endProcess();
-      printProcessValues(P);
-
-      if (par.gc_output_background_model.val) {
-            // subtract gradient corrected image from original to get the background model
-            var P = new PixelMath;
-            P.expression = "$T - " + GC_id;
-            P.useSingleExpression = true;
-            P.createNewImage = false;
-            P.rescale = true;
-            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-
-            console.writeln("Generate greadient model image " + model_id + ", expression " + P.expression);
-
-            P.executeOn(model_win.mainView);
+      if (par.debug.val) {
+            util.copyWindowEx(win, win.mainView.id + "_GC_before", true);
       }
 
-      engine_end_process(null);
+      var succp = P.executeOn(win.mainView, false);
+      if (!succp) {
+            util.addCriticalStatus("GradientCorrection failed");
+      } else {
+            if (par.debug.val) {
+                  util.copyWindowEx(win, win.mainView.id + "_GC_after", true);
+            }
+      }
+
+      printProcessValues(P);
+
+      engine_end_process(node, util.findWindow(GC_id), "GradientCorrection");
+
+      return GC_id;
+}
+
+function runSpectrophotometricFluxCalibration(win)
+{
+      var node = flowchartOperation("SpectrophotometricFluxCalibration");
+
+      if (global.get_flowchart_data) {
+            return;
+      }
+
+      var P = new SpectrophotometricFluxCalibration;
+      P.narrowbandMode = is_narrowband_files && !is_rgb_files && !is_color_files;
+      P.grayFilterTrCurve = "300,0,380,0,400,1,500,1,675,1,710,0,800,0";
+      P.grayFilterName = "Astronomik UV-IR Block L-2";
+      P.redFilterTrCurve = "400,0.088,402,0.084,404,0.080,406,0.076,408,0.072,410,0.068,412,0.065,414,0.061,416,0.058,418,0.055,420,0.052,422,0.049,424,0.046,426,0.044,428,0.041,430,0.039,432,0.037,434,0.035,436,0.033,438,0.031,440,0.030,442,0.028,444,0.027,446,0.026,448,0.025,450,0.024,452,0.023,454,0.022,456,0.021,458,0.021,460,0.021,462,0.020,464,0.020,466,0.020,468,0.020,470,0.020,472,0.021,474,0.021,476,0.022,478,0.022,480,0.023,482,0.024,484,0.025,486,0.026,488,0.027,490,0.028,492,0.029,494,0.031,496,0.032,498,0.034,500,0.036,502,0.037,504,0.039,506,0.041,508,0.043,510,0.045,512,0.048,514,0.050,516,0.052,518,0.055,520,0.057,522,0.060,524,0.063,526,0.071,528,0.072,530,0.070,532,0.067,534,0.064,536,0.059,538,0.054,540,0.050,542,0.045,544,0.041,546,0.037,548,0.034,550,0.032,552,0.031,554,0.031,556,0.032,558,0.035,560,0.038,562,0.043,564,0.048,566,0.055,568,0.062,570,0.070,572,0.122,574,0.187,576,0.262,578,0.346,580,0.433,582,0.521,584,0.606,586,0.686,588,0.755,590,0.812,592,0.851,594,0.871,596,0.876,598,0.885,600,0.892,602,0.896,604,0.897,606,0.897,608,0.895,610,0.891,612,0.887,614,0.882,616,0.878,618,0.873,620,0.870,622,0.867,624,0.863,626,0.860,628,0.858,630,0.856,632,0.854,634,0.852,636,0.850,638,0.848,640,0.846,642,0.844,644,0.841,646,0.837,648,0.834,650,0.829,652,0.824,654,0.819,656,0.813,658,0.806,660,0.799,662,0.791,664,0.783,666,0.774,668,0.765,670,0.755,672,0.745,674,0.735,676,0.725,678,0.715,680,0.704,682,0.695,684,0.685,686,0.676,688,0.668,690,0.660,692,0.654,694,0.649,696,0.648,698,0.649,700,0.649";
+      P.redFilterName = "Sony Color Sensor R-UVIRcut";
+      P.greenFilterTrCurve = "400,0.089,402,0.086,404,0.082,406,0.079,408,0.075,410,0.071,412,0.066,414,0.062,416,0.058,418,0.053,420,0.049,422,0.045,424,0.042,426,0.041,428,0.042,430,0.043,432,0.044,434,0.046,436,0.047,438,0.049,440,0.051,442,0.053,444,0.055,446,0.057,448,0.059,450,0.061,452,0.064,454,0.067,456,0.069,458,0.072,460,0.075,462,0.098,464,0.130,466,0.169,468,0.215,470,0.267,472,0.323,474,0.382,476,0.443,478,0.505,480,0.566,482,0.627,484,0.684,486,0.739,488,0.788,490,0.832,492,0.868,494,0.896,496,0.915,498,0.924,500,0.921,502,0.939,504,0.947,506,0.954,508,0.961,510,0.967,512,0.973,514,0.978,516,0.982,518,0.986,520,0.989,522,0.992,524,0.994,526,0.996,528,0.997,530,0.997,532,0.995,534,0.990,536,0.986,538,0.981,540,0.977,542,0.973,544,0.969,546,0.965,548,0.960,550,0.955,552,0.949,554,0.943,556,0.936,558,0.928,560,0.919,562,0.909,564,0.898,566,0.887,568,0.874,570,0.860,572,0.845,574,0.829,576,0.812,578,0.794,580,0.775,582,0.754,584,0.733,586,0.711,588,0.688,590,0.665,592,0.640,594,0.615,596,0.589,598,0.563,600,0.537,602,0.510,604,0.483,606,0.456,608,0.430,610,0.403,612,0.377,614,0.352,616,0.328,618,0.304,620,0.282,622,0.261,624,0.242,626,0.224,628,0.225,630,0.216,632,0.207,634,0.199,636,0.192,638,0.185,640,0.179,642,0.174,644,0.169,646,0.165,648,0.161,650,0.158,652,0.156,654,0.155,656,0.154,658,0.154,660,0.155,662,0.156,664,0.158,666,0.162,668,0.165,670,0.170,672,0.176,674,0.182,676,0.189,678,0.198,680,0.207,682,0.217,684,0.228,686,0.240,688,0.240,690,0.248,692,0.257,694,0.265,696,0.274,698,0.282,700,0.289";
+      P.greenFilterName = "Sony Color Sensor G-UVIRcut";
+      P.blueFilterTrCurve = "400,0.438,402,0.469,404,0.496,406,0.519,408,0.539,410,0.557,412,0.572,414,0.586,416,0.599,418,0.614,420,0.631,422,0.637,424,0.647,426,0.658,428,0.670,430,0.682,432,0.695,434,0.708,436,0.720,438,0.732,440,0.743,442,0.753,444,0.762,446,0.770,448,0.777,450,0.783,452,0.788,454,0.791,456,0.794,458,0.796,460,0.797,462,0.798,464,0.798,466,0.799,468,0.800,470,0.801,472,0.800,474,0.798,476,0.793,478,0.785,480,0.774,482,0.760,484,0.742,486,0.707,488,0.669,490,0.633,492,0.598,494,0.565,496,0.533,498,0.502,500,0.473,502,0.446,504,0.419,506,0.394,508,0.370,510,0.348,512,0.326,514,0.306,516,0.287,518,0.268,520,0.251,522,0.235,524,0.220,526,0.205,528,0.192,530,0.179,532,0.167,534,0.156,536,0.145,538,0.136,540,0.126,542,0.118,544,0.110,546,0.102,548,0.095,550,0.089,552,0.083,554,0.077,556,0.071,558,0.066,560,0.061,562,0.057,564,0.052,566,0.048,568,0.044,570,0.039,572,0.041,574,0.039,576,0.037,578,0.035,580,0.033,582,0.032,584,0.030,586,0.029,588,0.027,590,0.026,592,0.025,594,0.024,596,0.023,598,0.022,600,0.022,602,0.021,604,0.021,606,0.020,608,0.020,610,0.020,612,0.020,614,0.020,616,0.020,618,0.021,620,0.021,622,0.022,624,0.022,626,0.023,628,0.024,630,0.025,632,0.026,634,0.027,636,0.028,638,0.030,640,0.031,642,0.033,644,0.035,646,0.036,648,0.038,650,0.040,652,0.042,654,0.045,656,0.048,658,0.051,660,0.054,662,0.057,664,0.059,666,0.061,668,0.063,670,0.065,672,0.066,674,0.068,676,0.069,678,0.070,680,0.071,682,0.072,684,0.072,686,0.073,688,0.073,690,0.073,692,0.073,694,0.073,696,0.073,698,0.073,700,0.073";
+      P.blueFilterName = "Sony Color Sensor B-UVIRcut";
+      P.grayFilterWavelength = 656.3;
+      P.grayFilterBandwidth = 3.0;
+      P.redFilterWavelength = 656.3;
+      P.redFilterBandwidth = 3.0;
+      P.greenFilterWavelength = 500.7;
+      P.greenFilterBandwidth = 3.0;
+      P.blueFilterWavelength = 500.7;
+      P.blueFilterBandwidth = 3.0;
+      P.deviceQECurve = "1,1.0,500,1.0,1000,1.0,1500,1.0,2000,1.0,2500,1.0";
+      P.deviceQECurveName = "Ideal QE curve";
+      P.broadbandIntegrationStepSize = 0.50;
+      P.narrowbandIntegrationSteps = 10;
+      P.rejectionLimit = 0.30;
+      P.catalogId = "GaiaDR3SP";
+      P.minMagnitude = 0.00;
+      P.limitMagnitude = 12.00;
+      P.autoLimitMagnitude = true;
+      P.psfStructureLayers = 5;
+      P.saturationThreshold = 0.75;
+      P.saturationRelative = true;
+      P.saturationShrinkFactor = 0.10;
+      P.psfNoiseLayers = 1;
+      P.psfHotPixelFilterRadius = 1;
+      P.psfNoiseReductionFilterRadius = 0;
+      P.psfMinStructureSize = 0;
+      P.psfMinSNR = 40.00;
+      P.psfAllowClusteredSources = false;
+      P.psfType = SpectrophotometricFluxCalibration.prototype.PSFType_Auto;
+      P.psfGrowth = 1.75;
+      P.psfMaxStars = 24576;
+      P.psfSearchTolerance = 4.00;
+      P.psfChannelSearchTolerance = 2.00;
+      P.generateGraphs = false;
+      P.generateStarMaps = false;
+      P.generateTextFiles = false;
+      P.outputDirectory = "";
+      
+      var succp = P.executeOn(win.mainView, false);
+      if (!succp) {
+            util.addCriticalStatus("SpectrophotometricFluxCalibration failed");
+      }
+
+      printProcessValues(P);
+      engine_end_process(node, win, "SpectrophotometricFluxCalibration");
+}
+
+function runMultiscaleGradientCorrectionProcess(win, postfix)
+{
+      console.writeln("MultiscaleGradientCorrection using scale " + par.mgc_scale.val);
+
+      var node = flowchartOperation("MultiscaleGradientCorrection");
+
+      if (global.get_flowchart_data) {
+            return;
+      }
+      
+      var P = new MultiscaleGradientCorrection;
+      // Get MARS database location
+      P.command = "set-default-database-files";
+      P.executeGlobal();
+
+      // Set other parameters
+      P.command = "";
+      P.useMARSDatabase = true;
+      P.grayMARSFilter = "L";
+      P.redMARSFilter = "R";
+      P.greenMARSFilter = "G";
+      P.blueMARSFilter = "B";
+      P.referenceImageId = "";
+      P.gradientScale = parseInt(par.mgc_scale.val);
+      P.structureSeparation = 3;
+      P.modelSmoothness = 1.00;
+      P.minFieldRatio = 0.017;
+      P.maxFieldRatio = 0.167;
+      P.enforceFieldLimits = true;
+      P.scaleFactorRK = 1.0000;
+      P.scaleFactorG = 1.0000;
+      P.scaleFactorB = 1.0000;
+      P.showGradientModel = par.mgc_output_background_model.val;
+
+      if (par.debug.val) {
+            util.copyWindowEx(win, win.mainView.id + "_MGC_before", true);
+      }
+
+      var succp = P.executeOn(win.mainView, false);
+
+      if (!succp) {
+            util.addCriticalStatus("MultiscaleGradientCorrection failed");
+      } else {
+            if (par.debug.val) {
+                  util.copyWindowEx(win, win.mainView.id + "_MGC_after", true);
+            }
+      }
+      printProcessValues(P);
+      engine_end_process(node, win, "MultiscaleGradientCorrection");
+}
+
+function runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_lights)
+{
+      if (from_lights) {
+            util.throwFatalError("MultiscaleGradientCorrection not supported for all lights files");
+      }
+      if (replaceTarget) {
+            util.addProcessingStepAndStatusInfo("Run MultiscaleGradientCorrection on image " + win.mainView.id);
+            var GC_id = win.mainView.id;
+      } else {
+            var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
+            util.addProcessingStepAndStatusInfo("Run MultiscaleGradientCorrection from image " + win.mainView.id + ", target image " + GC_id);
+            win = util.copyWindowEx(win, GC_id, true);
+      }
+
+      /* If BlurXTerminator is available, we run it first in correct only mode.
+       * Then we run SpectrophotometricFluxCalibration. Actual MultiscaleGradientCorrection
+       * is run as the last step.
+       */
+      if (par.use_blurxterminator.val) {
+            runBlurXTerminator(win, true);      
+      }
+      runImageSolver(win.mainView.id);
+      runSpectrophotometricFluxCalibration(win);
+      runMultiscaleGradientCorrectionProcess(win, replaceTarget, postfix);
 
       return GC_id;
 }
@@ -7014,6 +7303,8 @@ function getGradientCorrectionName()
             return "GraXpert";
       } else if (par.use_abe.val) {
             return "AutomaticBackgroundExtractor";
+      } else if (par.use_multiscalegradientcorrection.val) {
+            return "MultiscaleGradientCorrection";
       } else {
             return "GradientCorrection";
       }
@@ -7025,48 +7316,44 @@ function getDefaultGradientCorrectionMethod()
             return "GraXpert";
       } else if (par.use_abe.val) {
             return "ABE";
+      } else if (par.use_multiscalegradientcorrection.val) {
+            return "MultiscaleGradientCorrection";
       } else {
             return "GradientCorrection";
       }
 }
 
-function runGradientCorrectionEx(win, replaceTarget, postfix, update_flowchart, gc_method = 'Auto')
+function runGradientCorrectionEx(win, replaceTarget, postfix, from_lights, gc_method = 'Auto')
 {
       if (gc_method == 'Auto') {
             gc_method = getDefaultGradientCorrectionMethod();
       }
-      if (update_flowchart) {
-            var node = flowchartOperation(getGradientCorrectionName());
-      } else {
-            var node = null;
-      }
       if (gc_method == 'GraXpert') {
-            var GC_id = runGraXpert(win, replaceTarget, postfix);
-            var process = "GraXpert";
+            var GC_id = runGraXpert(win, replaceTarget, postfix, from_lights);
       } else if (gc_method == 'ABE') {
-            var GC_id = runABEex(win, replaceTarget, postfix);
-            var process = "ABE";
+            var GC_id = runABEex(win, replaceTarget, postfix, from_lights);
+      } else if (gc_method == 'MultiscaleGradientCorrection') {
+            var GC_id = runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_lights);
       } else {
-            var GC_id = runGCProcess(win, replaceTarget, postfix);
-            var process = "GradientCorrection";
+            var GC_id = runGCProcess(win, replaceTarget, postfix, from_lights);
       }
-      engine_end_process(node, util.findWindow(GC_id), process);
       return GC_id;
 }
 
 function runGradientCorrection(win, replaceTarget, gc_method = 'Auto')
 {
-      return runGradientCorrectionEx(win, replaceTarget, "_processed", true, gc_method);
+      return runGradientCorrectionEx(win, replaceTarget, "_processed", false, gc_method);
 }
 
 // Run gradient correction and rename windows so that the final result has the same id
 function runGradientCorrectionBeforeChannelCombination(id)
 {
       if (id == null) {
-            util.throwFatalError("No image for gradient correction , maybe some previous step like star alignment failed");
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
+            util.throwFatalError("No image for gradient correction, maybe some previous step like star alignment failed");
       }
       var id_win = ImageWindow.windowById(id);
-      runGradientCorrectionEx(id_win, true, "", true);
+      runGradientCorrectionEx(id_win, true, "", false);
       return id;
 }
 
@@ -7544,9 +7831,11 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
 
       if (0) {
             if (!GC_win.mainView.image.isColor) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
             }
             if (!iscolor) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Stretch function " + image_stretching + " only works on color images");
             }
       }
@@ -7763,6 +8052,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   // Start with 0.01
                   var mapping = "asinh($T / " + res.degree + ") / asinh(" + res.degree + ")";
             } else {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Asinh+Histogram stretch does not support reverse stretching");
             }
             runPixelMathSingleMappingEx(new_win.mainView.id, "asinh stretch", mapping, false, null, true, true, false);
@@ -7804,6 +8094,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                         P.executeOn(new_win.mainView, false);
                   }
             } else {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Shadow stretch does not support reverse stretching");
             }
 
@@ -7834,6 +8125,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                         P.executeOn(new_win.mainView, false);
                   }
             } else {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Highlight stretch does not support reverse stretching");
             }
 
@@ -8059,10 +8351,12 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
                   console.criticalln(err);
                   util.addProcessingStep("Maybe GeneralizedHyperbolicStretch is not installed");
                   // util.closeOneWindowById(new_win.mainView.id);
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("GeneralizedHyperbolicStretch failed to run");
             }
       
       } else {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Only GHS process is supported");      
 
             var P = new PixelMath;
@@ -8477,6 +8771,7 @@ function runBlurXTerminator(imgWin, correct_only)
       } else if (par.bxt_median_psf.val) {
             var auto_psf = false;
             if (medianFWHM == null) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Cannot run BlurXTerminator, median FWHM is not calculated. Maybe subframe selector was not run.")
             }
             var psf = medianFWHM;
@@ -8501,6 +8796,7 @@ function runBlurXTerminator(imgWin, correct_only)
             P.auto_nonstellar_psf = auto_psf;
             P.sharpen_nonstellar = par.bxt_sharpen_nonstellar.val;
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("BlurXTerminator failed");
             console.criticalln(err);
             console.criticalln("Maybe BlurXTerminator is not installed, AI is missing or platform is not supported");
@@ -8562,6 +8858,7 @@ function runNoiseXTerminator(imgWin, strength, linear)
             P.detail = detail;
             P.linear = linear;
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("NoiseXTerminator failed");
             console.criticalln(err);
             console.criticalln("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
@@ -8620,6 +8917,7 @@ function runDeepSNR(imgWin, strength, linear)
             P.shadows_clipping = -2.80;
             P.target_background = 0.25;
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("DeepSNR failed");
             console.criticalln(err);
             console.criticalln("Maybe DeepSNR is not installed, AI is missing or platform is not supported");
@@ -8787,6 +9085,7 @@ function findTrueBackground(w, testmode)
             console.writeln("findTrueBackground:Found existing background information in " + bg_win.mainView.id);
             let preview = bg_win.previewById("background");
             if (preview.isNull) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("Error: background preview not found from " + bg_image_id);
             }
             var rect = bg_win.previewRect(preview);
@@ -9033,19 +9332,68 @@ function findBinning(imgWin)
       return 1;
 }
 
-function runImageSolverEx(id, use_telescope_info)
+function printImageSolverMetadata(solver)
 {
-      console.writeln("runImageSolverEx: image " + id + ", use telescope info " + use_telescope_info);
-      var node = flowchartOperation("ImageSolver");
-      if (global.get_flowchart_data) {
-            return true;
-      }
+      console.writeln("Image metadata for SolveImage:");
+
+      console.writeln("solver.metadata.focal: " + solver.metadata.focal);
+      console.writeln("solver.metadata.useFocal: " + solver.metadata.useFocal);
+      console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
+      console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
+      console.writeln("solver.metadata.referenceSystem: " + solver.metadata.referenceSystem);
+      console.writeln("solver.metadata.ra: " + solver.metadata.ra);
+      console.writeln("solver.metadata.dec: " + solver.metadata.dec);
+      console.writeln("solver.metadata.epoch: " + solver.metadata.epoch);
+      console.writeln("solver.metadata.observationTime: " + solver.metadata.observationTime);
+      console.writeln("solver.metadata.topocentric: " + solver.metadata.topocentric);
+
+      console.writeln("solverCfg.version: " + solver.solverCfg.version);
+      console.writeln("solverCfg.magnitude: " + solver.solverCfg.magnitude);
+      console.writeln("solverCfg.autoMagnitude: " + solver.solverCfg.autoMagnitude);
+      console.writeln("solverCfg.generateErrorImg: " + solver.solverCfg.generateErrorImg);
+      console.writeln("solverCfg.structureLayers: " + solver.solverCfg.structureLayers);
+      console.writeln("solverCfg.minStructureSize: " + solver.solverCfg.minStructureSize);
+      console.writeln("solverCfg.hotPixelFilterRadius: " + solver.solverCfg.hotPixelFilterRadius);
+      console.writeln("solverCfg.noiseReductionFilterRadius: " + solver.solverCfg.noiseReductionFilterRadius);
+      console.writeln("solverCfg.sensitivity: " + solver.solverCfg.sensitivity);
+      console.writeln("solverCfg.peakResponse: " + solver.solverCfg.peakResponse); // row 20
+      console.writeln("solverCfg.brightThreshold: " + solver.solverCfg.brightThreshold);
+      console.writeln("solverCfg.maxStarDistortion: " + solver.solverCfg.maxStarDistortion);
+      console.writeln("solverCfg.autoPSF: " + solver.solverCfg.autoPSF);
+      console.writeln("solverCfg.catalogMode: " + solver.solverCfg.catalogMode);
+      console.writeln("solverCfg.vizierServer: " + solver.solverCfg.vizierServer);
+      console.writeln("solverCfg.showStars: " + solver.solverCfg.showStars);
+      console.writeln("solverCfg.showStarMatches: " + solver.solverCfg.showStarMatches);
+      console.writeln("solverCfg.showSimplifiedSurfaces: " + solver.solverCfg.showSimplifiedSurfaces);
+      console.writeln("solverCfg.showDistortion: " + solver.solverCfg.showDistortion);
+      console.writeln("solverCfg.generateDistortModel: " + solver.solverCfg.generateDistortModel); // row 30
+      console.writeln("solverCfg.catalog: " + solver.solverCfg.catalog);
+      console.writeln("solverCfg.distortionCorrection: " + solver.solverCfg.distortionCorrection);
+      console.writeln("solverCfg.splineOrder: " + solver.solverCfg.splineOrder);
+      console.writeln("solverCfg.splineSmoothing: " + solver.solverCfg.splineSmoothing);
+      console.writeln("solverCfg.enableSimplifier: " + solver.solverCfg.enableSimplifier);
+      console.writeln("solverCfg.simplifierRejectFraction: " + solver.solverCfg.simplifierRejectFraction);
+      console.writeln("solverCfg.outlierDetectionRadius: " + solver.solverCfg.outlierDetectionRadius);
+      console.writeln("solverCfg.outlierDetectionMinThreshold: " + solver.solverCfg.outlierDetectionMinThreshold);
+      console.writeln("solverCfg.outlierDetectionSigma: " + solver.solverCfg.outlierDetectionSigma);
+      console.writeln("solverCfg.useActive: " + solver.solverCfg.useActive);
+      console.writeln("solverCfg.outSuffix: " + solver.solverCfg.outSuffix);
+      console.writeln("solverCfg.projection: " + solver.solverCfg.projection);
+      console.writeln("solverCfg.projectionOriginMode: " + solver.solverCfg.projectionOriginMode);
+      console.writeln("solverCfg.restrictToHQStars: " + solver.solverCfg.restrictToHQStars);
+      console.writeln("solverCfg.tryApparentCoordinates: " + solver.solverCfg.tryApparentCoordinates);
+      console.writeln("solverCfg.tryExhaustiveInitialAlignment: " + solver.solverCfg.tryExhaustiveInitialAlignment);
+}
+
+function runImageSolverEx(id, use_defaults, use_dialog)
+{
+      console.writeln("runImageSolverEx: image " + id + ", use default info " + use_defaults + ", use dialog " + use_dialog);
 
       var imgWin = ImageWindow.windowById(id);
 
       var metadata = new ImageMetadata();
       metadata.ExtractMetadata(imgWin);
-      if (metadata.projection && metadata.ref_I_G_linear) {
+      if ((metadata.projection && metadata.ref_I_G_linear) || imgWin.astrometricSolutionSummary().length > 0) {
             if (par.target_forcesolve.val) {
                   console.writeln("runImageSolverEx: image " + id + " already has been plate solved, but we are resolving it again.");
             } else {
@@ -9055,9 +9403,19 @@ function runImageSolverEx(id, use_telescope_info)
                   } else {
                         console.writeln(imgWin.astrometricSolutionSummary());
                   }
+                  if (!solved_imageWin) {
+                        solved_imageWin = imgWin;
+                  }
                   console.writeln("runImageSolverEx: image " + id + " already has been plate solved.");
                   return true;
             }
+      }
+      if (!par.target_forcesolve.val && solved_imageWin) {
+            // Image does not have astrometric solution but we have already solved an image.
+            // Copy the astrometric solution from the solved image.
+            console.writeln("runImageSolverEx: copy astrometric solution from an already solved image image " + imgWin.mainView.id);
+            imgWin.copyAstrometricSolution(solved_imageWin);
+            return true;
       }
 
       util.addProcessingStepAndStatusInfo("ImageSolver on image " + imgWin.mainView.id);
@@ -9086,7 +9444,7 @@ function runImageSolverEx(id, use_telescope_info)
              *    solver.metadata.resolution
              *    solver.metadata.referenceSystem
              *    solver.metadata.useFocal
-             */
+             */ 
 
             console.writeln("Telescope: " + current_telescope_name);
             console.writeln("Image metadata");
@@ -9100,13 +9458,15 @@ function runImageSolverEx(id, use_telescope_info)
 
             console.writeln("  solver.metadata: " + JSON.stringify(solver.metadata, null, 2));
 
-            solver.metadata.referenceSystem = "ICRS";
-            solver.metadata.useFocal = true;
-            solver.metadata.topocentric = false;
+            if (!use_defaults) {
+                  solver.metadata.referenceSystem = "ICRS";
+                  solver.metadata.useFocal = true;
+                  solver.metadata.topocentric = false;
+            }
             if (par.target_radec.val != '') {
                   let radec = par.target_radec.val.trim().split(/\s+/);
                   if (radec.length != 2) {
-                        throwFatalError("Incorrect RA DEC value " + par.target_radec.val);
+                        util.throwFatalError("Incorrect RA DEC value " + par.target_radec.val);
                   }
                   solver.metadata.ra = parseFloat(radec[0]) * 15;
                   solver.metadata.dec = parseFloat(radec[1]);
@@ -9114,32 +9474,39 @@ function runImageSolverEx(id, use_telescope_info)
             } else {
                   console.writeln("Using image metadata coordinates RA DEC: " + solver.metadata.ra + " " + solver.metadata.dec);
             }
+            var metadata_changed = false;
             if (par.target_focal.val != '') {
                   var focal_len = parseFloat(par.target_focal.val);
-                  if (focal_len != 0) {
-                        console.writeln("Using user given focal length: " + focal_len);
-                        solver.metadata.focal = focal_len;
-                  }
-            } else {
-                  var focal_len = find_focal_length(use_telescope_info);
+                  console.writeln("Using user given focal length: " + focal_len);
+                  solver.metadata.focal = focal_len;
+                  metadata_changed = true;
+            } else if (!use_defaults) {
+                  var focal_len = find_focal_length();
                   if (focal_len != 0) {
                         console.writeln("Using telescope name based focal length: " + focal_len);
                         solver.metadata.focal = focal_len;
+                        metadata_changed = true;
                   }
+            } else {
+                  var focal_len = 0;
             }
             if (focal_len == 0) {
                   console.writeln("Using image metadata focal length: " + solver.metadata.focal);
             }
             if (par.target_pixel_size.val != '') {
                   var pixel_size = parseFloat(par.target_pixel_size.val);
-                  if (pixel_size != 0) {
-                        console.writeln("Using user given pixel size: " + pixel_size);
-                  }
-            } else {
-                  var pixel_size = find_pixel_size(use_telescope_info);
+                  console.writeln("Using user given pixel size: " + pixel_size);
+                  solver.metadata.xpixsz = pixel_size;
+                  metadata_changed = true;
+            } else if (!use_defaults) {
+                  var pixel_size = find_pixel_size();
                   if (pixel_size != 0) {
                         console.writeln("Using telescope name based pixel size: " + pixel_size);
+                        solver.metadata.xpixsz = pixel_size;
+                        metadata_changed = true;
                   }
+            } else {
+                  var pixel_size = 0;
             }
             if (pixel_size == 0) {
                   console.writeln("Using image metadata pixel size: " + solver.metadata.xpixsz);
@@ -9148,9 +9515,13 @@ function runImageSolverEx(id, use_telescope_info)
             if (pixel_size != 0) {
                   if (par.target_binning.val != 'None') {
                         if (par.target_binning.val == 'Auto') {
-                              var binning = findBinning(imgWin);
-                              pixel_size = binning * pixel_size;
-                              console.writeln("Using auto binning " + binning + ", adjusted pixel size: " + pixel_size);
+                              if (0) {
+                                    var binning = findBinning(imgWin);
+                                    pixel_size = binning * pixel_size;
+                                    console.writeln("Using auto binning " + binning + ", adjusted pixel size: " + pixel_size);
+                              } else {
+                                    console.writeln("Auto binning, using metadata pixel size: " + pixel_size);
+                              }
                         } else {
                               var binning = parseInt(par.target_binning.val);
                               pixel_size = binning * pixel_size;
@@ -9172,66 +9543,39 @@ function runImageSolverEx(id, use_telescope_info)
                               }
                         }
                   }
-                  solver.metadata.xpixsz = pixel_size;
+                  if (solver.metadata.xpixsz != pixel_size) {
+                        solver.metadata.xpixsz = pixel_size;
+                        metadata_changed = true;
+                  }
             }
-            if (solver.metadata.xpixsz && solver.metadata.focal) {
+            if (solver.metadata.xpixsz && solver.metadata.focal && metadata_changed) {
                   solver.metadata.resolution = solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI;
                   console.writeln("Using calculated resolution: " + solver.metadata.resolution);
             } else {
                   console.writeln("Using metadata resolution: " + solver.metadata.resolution);
             }
 
-            console.writeln("Image metadata for SolveImage:");
+            printImageSolverMetadata(solver);
 
-            console.writeln("solver.metadata.focal: " + solver.metadata.focal);
-            console.writeln("solver.metadata.useFocal: " + solver.metadata.useFocal);
-            console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
-            console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
-            console.writeln("solver.metadata.referenceSystem: " + solver.metadata.referenceSystem);
-            console.writeln("solver.metadata.ra: " + solver.metadata.ra);
-            console.writeln("solver.metadata.dec: " + solver.metadata.dec);
-            console.writeln("solver.metadata.epoch: " + solver.metadata.epoch);
-            console.writeln("solver.metadata.observationTime: " + solver.metadata.observationTime);
-            console.writeln("solver.metadata.topocentric: " + solver.metadata.topocentric);
+            if (use_dialog) {
+                  //imgWin.show();
+                  //console.hide();
+                  imgWin.bringToFront();
+                  let dialog = new ImageSolverDialog( solver.solverCfg, solver.metadata, false /*showTargetImage*/ );
+                  succ = dialog.execute();
+                  if (0 && !global.console_hidden) {
+                        console.show();
+                  }
+                  if (!succ) {
+                        console.writeln("ImageSolver dialog cancelled");
+                        return false;
+                  }
+                  solver.solverCfg = dialog.solverCfg;
+                  solver.metadata = dialog.metadata;
 
-            console.writeln("solverCfg.version: " + solver.solverCfg.version);
-            console.writeln("solverCfg.magnitude: " + solver.solverCfg.magnitude);
-            console.writeln("solverCfg.autoMagnitude: " + solver.solverCfg.autoMagnitude);
-            console.writeln("solverCfg.generateErrorImg: " + solver.solverCfg.generateErrorImg);
-            console.writeln("solverCfg.structureLayers: " + solver.solverCfg.structureLayers);
-            console.writeln("solverCfg.minStructureSize: " + solver.solverCfg.minStructureSize);
-            console.writeln("solverCfg.hotPixelFilterRadius: " + solver.solverCfg.hotPixelFilterRadius);
-            console.writeln("solverCfg.noiseReductionFilterRadius: " + solver.solverCfg.noiseReductionFilterRadius);
-            console.writeln("solverCfg.sensitivity: " + solver.solverCfg.sensitivity);
-            console.writeln("solverCfg.peakResponse: " + solver.solverCfg.peakResponse); // row 20
-            console.writeln("solverCfg.brightThreshold: " + solver.solverCfg.brightThreshold);
-            console.writeln("solverCfg.maxStarDistortion: " + solver.solverCfg.maxStarDistortion);
-            console.writeln("solverCfg.autoPSF: " + solver.solverCfg.autoPSF);
-            console.writeln("solverCfg.catalogMode: " + solver.solverCfg.catalogMode);
-            console.writeln("solverCfg.vizierServer: " + solver.solverCfg.vizierServer);
-            console.writeln("solverCfg.showStars: " + solver.solverCfg.showStars);
-            console.writeln("solverCfg.showStarMatches: " + solver.solverCfg.showStarMatches);
-            console.writeln("solverCfg.showSimplifiedSurfaces: " + solver.solverCfg.showSimplifiedSurfaces);
-            console.writeln("solverCfg.showDistortion: " + solver.solverCfg.showDistortion);
-            console.writeln("solverCfg.generateDistortModel: " + solver.solverCfg.generateDistortModel); // row 30
-            console.writeln("solverCfg.catalog: " + solver.solverCfg.catalog);
-            console.writeln("solverCfg.distortionCorrection: " + solver.solverCfg.distortionCorrection);
-            console.writeln("solverCfg.splineOrder: " + solver.solverCfg.splineOrder);
-            console.writeln("solverCfg.splineSmoothing: " + solver.solverCfg.splineSmoothing);
-            console.writeln("solverCfg.enableSimplifier: " + solver.solverCfg.enableSimplifier);
-            console.writeln("solverCfg.simplifierRejectFraction: " + solver.solverCfg.simplifierRejectFraction);
-            console.writeln("solverCfg.outlierDetectionRadius: " + solver.solverCfg.outlierDetectionRadius);
-            console.writeln("solverCfg.outlierDetectionMinThreshold: " + solver.solverCfg.outlierDetectionMinThreshold);
-            console.writeln("solverCfg.outlierDetectionSigma: " + solver.solverCfg.outlierDetectionSigma);
-            console.writeln("solverCfg.useDistortionModel: " + solver.solverCfg.useDistortionModel); // row 40
-            console.writeln("solverCfg.useActive: " + solver.solverCfg.useActive);
-            console.writeln("solverCfg.outSuffix: " + solver.solverCfg.outSuffix);
-            console.writeln("solverCfg.projection: " + solver.solverCfg.projection);
-            console.writeln("solverCfg.projectionOriginMode: " + solver.solverCfg.projectionOriginMode);
-            console.writeln("solverCfg.restrictToHQStars: " + solver.solverCfg.restrictToHQStars);
-            console.writeln("solverCfg.tryApparentCoordinates: " + solver.solverCfg.tryApparentCoordinates);
-            console.writeln("solverCfg.tryExhaustiveInitialAlignment: " + solver.solverCfg.tryExhaustiveInitialAlignment);
-
+                  console.writeln("Image metadata from dialog:");
+                  printImageSolverMetadata(solver);
+            }         
             /*
              * Solve image
              */
@@ -9251,21 +9595,25 @@ function runImageSolverEx(id, use_telescope_info)
                   solver.solverCfg.SaveParameters();
                   solver.metadata.SaveSettings();
                   solver.metadata.SaveParameters();
-         
+      
                   console.writeln("runImageSolverEx: SolveImage succeeded on image "+ id);
             }
-            engine_end_process(node);
       } catch (err) {
-                  console.writeln("runImageSolverEx: exception error, SolveImage failed on image " + id);
-                  util.addCriticalStatus(err.toString());
+            console.writeln("runImageSolverEx: exception error, SolveImage failed on image " + id);
+            util.addCriticalStatus(err.toString());
       }
 
       if (!succ) {
-            console.writeln("Focal length: " + solver.metadata.focal);
-            console.writeln("Resolution: " + solver.metadata.resolution*3600);
+            console.writeln("solver.metadata.focal: " + solver.metadata.focal);
+            console.writeln("solver.metadata.xpixsz: " + solver.metadata.xpixsz);
+            console.writeln("solver.metadata.resolution: " + solver.metadata.resolution);
+            console.writeln("solver.metadata.ra: " + solver.metadata.ra);
+            console.writeln("solver.metadata.dec: " + solver.metadata.dec);
             console.writeln("ImageSolver failed on image " + id);
             return false
       } else {
+            solved_imageWin = imgWin;
+            console.writeln("runImageSolverEx: save already solved image image " + imgWin.mainView.id);
             return true;
       }
 }
@@ -9273,12 +9621,30 @@ function runImageSolverEx(id, use_telescope_info)
 function runImageSolver(id)
 {
       console.writeln("runImageSolver on image " + id);
-      var solved = runImageSolverEx(id, false);
+      var node = flowchartOperation("ImageSolver");
+      if (global.get_flowchart_data) {
+            return;
+      }
+      var solved = runImageSolverEx(id, true, false);
       if (!solved) {
             console.writeln("runImageSolver: retrying with telescope info");
-            solved = runImageSolverEx(id, true);
+            solved = runImageSolverEx(id, false, false);
       }
+      if (!solved && par.target_interactivesolve.val) {
+            do {
+                  solved = runImageSolverEx(id, true, true);
+                  if (!solved) {
+                        var txt = "ImageSolver failed. Do you want to retry?";
+                        var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
+                        if (response != StdButton_Yes) {
+                              break;
+                        }
+                  }
+            } while (!solved);
+      }
+      engine_end_process(node);
       if (!solved) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("ImageSolver failed on image " + id);
       }
 }
@@ -9315,6 +9681,7 @@ function runColorCalibrationProcess(imgWin, roi)
             guiUpdatePreviewId(imgWin.mainView.id);
 
       } catch(err) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("Color calibration failed");
             console.criticalln(err);
             console.criticalln("Maybe filter files or file format were not recognized correctly");
@@ -9372,6 +9739,7 @@ function runColorCalibration(imgWin, phase)
                         P.whiteReferenceSpectrum = "1,1.0,500,1.0,1000,1.0,1500,1.0,2000,1.0,2500,1.0";
                         P.whiteReferenceName = "Photon Flux";
                   } else {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("Unknown SPCC white reference " + spcc_params.white_reference);
                   }
                   console.writeln("SpectrophotometricColorCalibration white reference " + P.whiteReferenceName);
@@ -9400,6 +9768,7 @@ function runColorCalibration(imgWin, phase)
                         P.autoLimitMagnitude = false;
                         P.limitMagnitude = parseFloat(par.spcc_limit_magnitude.val);
                         if (P.limitMagnitude == NaN) {
+                              save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                               util.throwFatalError("Invalid limit magnitude " + par.spcc_limit_magnitude.val);
                         }
                         if (P.limitMagnitude > 30) {
@@ -9441,6 +9810,7 @@ function runColorCalibration(imgWin, phase)
                   var succp = P.executeOn(imgWin.mainView);
 
                   if (!succp) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("SpectrophotometricColorCalibration failed");
                   }
 
@@ -9452,6 +9822,7 @@ function runColorCalibration(imgWin, phase)
                   spcc_color_calibration_done = true;
 
             } catch(err) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   console.criticalln("SpectrophotometricColorCalibration failed");
                   console.criticalln(err);
                   console.noteln("You can try adjusting SpectophotometricColorCalibration parameters and rerun the script.");
@@ -9823,6 +10194,11 @@ function findWindowNoPrefixIf(id, check_base)
             // Try without prefix
             var win = util.findWindow(id.substring(ppar.win_prefix.length));
       }
+      if (win == null && check_base && ppar.win_prefix != '' && id.startsWith(ppar.win_prefix)) {
+            // Try with autocontinue prefix
+            var basename = id.substring(ppar.win_prefix.length);
+            var win = util.findWindow(ppar.autocontinue_win_prefix + basename);
+      }
       return win;
 }
 
@@ -10072,10 +10448,12 @@ function extractChannels(fileNames)
             // Open source image window from a file
             var imageWindows = ImageWindow.open(fileNames[i]);
             if (!imageWindows || imageWindows.length == 0) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("*** extractChannels Error: imageWindows.length: " + imageWindows.length);
             }
             var imageWindow = imageWindows[0];
             if (imageWindow == null) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("*** extractChannels Error: Can't read file: " + fileNames[i]);
             }
 
@@ -10086,6 +10464,7 @@ function extractChannels(fileNames)
                   util.setFITSKeyword(targetWindow, "FILTER", "L", "AutoIntegrate extracted channel")
                   // Save window
                   if (!writeImage(filePath, targetWindow)) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                         util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
                   }
                   newFileNames[newFileNames.length] = filePath;
@@ -10097,6 +10476,7 @@ function extractChannels(fileNames)
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[0], outputExtension);
             util.setFITSKeyword(rWin, "FILTER", channel_map[0], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, rWin)) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
@@ -10107,6 +10487,7 @@ function extractChannels(fileNames)
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[1], outputExtension);
             util.setFITSKeyword(gWin, "FILTER", channel_map[1], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, gWin)) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
@@ -10117,6 +10498,7 @@ function extractChannels(fileNames)
             var filePath = generateNewFileName(fileNames[i], outputDir, "_" + channel_map[2], outputExtension);
             util.setFITSKeyword(bWin, "FILTER", channel_map[2], "AutoIntegrate extracted channel")
             if (!writeImage(filePath, bWin)) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("*** extractChannels Error: Can't write output image: " + filePath);
             }
             newFileNames[newFileNames.length] = filePath;
@@ -10578,6 +10960,34 @@ function CreateChannelImages(parent, auto_continue)
             }
 
             /********************************************************************
+             * Pedestal
+             * 
+             * Just testing, looks pretty useless.
+             * 
+             * Add pedestal to each light file.
+             * Output is *_p.xisf files.
+             ********************************************************************/
+            // if (par.pedestal.val > 0 && !skip_early_steps) {
+            if (0) {
+                  if (is_color_files) {
+                        util.addProcessingStep("No pedestal for color files");
+                  } else {
+                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_p');
+                        if (fileProcessedStatus.unprocessed.length == 0) {
+                              var node = flowchartOperation("Pedestal");
+                              fileNames = fileProcessedStatus.processed;
+                              engine_end_process(node);     // Update procesing time
+                        } else {
+                              let processedFileNames = runPedestalOnLights(fileProcessedStatus.unprocessed, filtered_files);
+                              fileNames = processedFileNames.concat(fileProcessedStatus.processed);
+                        }
+                        filename_postfix = filename_postfix + '_p';
+                        guiUpdatePreviewFilename(fileNames[0]);
+                  }
+            }
+            util.runGarbageCollection();
+
+            /********************************************************************
              * Binning
              * 
              * Run binning for each file.
@@ -11027,6 +11437,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
                               util.addProcessingStep("Using image " + luminance_id + " for a mask");
                               L_win = ImageWindow.windowById(luminance_id);
                         } else {
+                              save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                               util.throwFatalError("No luminance image id for a mask");
                         }
                   }
@@ -11220,7 +11631,7 @@ function ProcessLimage(RGBmapping)
                         // use starless L image as mask
                         LRGBEnsureMask(L_processed_id);
                   }
-                  if (par.bxt_correct_channels.val) {
+                  if (par.bxt_correct_channels.val && par.use_blurxterminator.val) {
                         // Run BlurXTerminator on L channel
                         runBlurXTerminator(ImageWindow.windowById(L_processed_id), true);
                   }
@@ -11364,7 +11775,7 @@ function CombineRGBimageEx(target_name, images)
             flowchartParentEnd("Channels");
       }
 
-      if (par.bxt_correct_channels.val) {
+      if (par.bxt_correct_channels.val && par.use_blurxterminator.val) {
             // Run BlurXTerminator on all channels
             flowchartParentBegin("Channels");
             for (var i = 0; i < images.length; i++) {
@@ -11974,14 +12385,17 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
 
       if (rgb_is_linear && nb_channel_nonlinear != null) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_ContinuumSubtract, no AutoIntegrateNonLinear keyword found for Ha channel");
       }
       if (rgb_is_linear && rgb_channel_nonlinear != null) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_ContinuumSubtract, RGB channel is linear but no AutoIntegrateNonLinear keyword found");
       }
       if ((nb_channel_nonlinear == null) != (rgb_channel_nonlinear == null)) {
             console.writeln("RGBHa_ContinuumSubtract, rgb_channel_nonlinear is " + rgb_channel_nonlinear + ", nb_channel_nonlinear is " + nb_channel_nonlinear);
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_ContinuumSubtract, Ha and RGB images are not in the same state");
       }
 
@@ -12043,6 +12457,7 @@ function RGBHa_ContinuumSubtract(nb_channel_id, rgb_channel_id, rgb_is_linear, t
        */
       if (par.RGBHa_remove_stars.val && !RGBHa_H_enhanced_info.starless) {
             if (!par.use_starxterminator.val && !par.use_starnet2.val) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
             }
             console.writeln("RGBHa_ContinuumSubtract, remove stars on " + hrr_id);
@@ -12131,6 +12546,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
       var RGB_nonlinear = util.getKeywordValue(RGB_win, "AutoIntegrateNonLinear");
 
       if (rgb_is_linear && RGB_nonlinear != null) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_init, no AutoIntegrateNonLinear keyword found for RGB image");
       }
 
@@ -12141,9 +12557,11 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
 
       if (par.RGBHa_combine_time.val == 'SPCC linear') {
             if (!rgb_is_linear) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("RGBHa_combine_time is SPCC linear but RGB image is not linear");
             }
             if (!par.use_spcc.val) {
+                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                   util.throwFatalError("RGBHa_combine_time is SPCC linear but SPCC is not enabled");
             }
       }
@@ -12180,6 +12598,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
             default:
                   if (par.RGBHa_remove_stars.val && !RGBHa_H_enhanced_info.starless) {
                         if (!par.use_starxterminator.val && !par.use_starnet2.val) {
+                              save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
                               util.throwFatalError("RGBHa_remove_stars is set but neither StarNet nor StarXterminator is enabled");
                         }
                         console.writeln("RGBHa_init, remove stars on " + nb_channel_id);
@@ -12236,9 +12655,11 @@ function RGBHa_mapping(RGB_id)
 
       if ((nb_channel_nonlinear == null) != (RGB_nonlinear == null) && !global.get_flowchart_data) {
             console.writeln("nb_channel_nonlinear " + nb_channel_nonlinear + ", RGB_nonlinear " + RGB_nonlinear); 
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_mapping, Ha and RGB images are not in the same linear/non-linear state");
       }
       if (par.RGBHa_combine_time.val == 'SPCC linear' && nb_channel_nonlinear != null && !global.get_flowchart_data) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("RGBHa_mapping, Ha image is not linear but RGBHa_combine_time is SPCC linear");
       }
 
@@ -12491,6 +12912,7 @@ function extraHaMapping(extraWin)
 {
       H_id = findIntegratedChannelImage("H", true, null);
       if (H_id == null) {
+            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             util.throwFatalError("Could not find integrated H image");
       }
 
@@ -12530,6 +12952,7 @@ function ProcessRGBimage(RGBmapping)
             }
             RGBmapping.stretched = true;
       } else {
+            var gc_done;
             if (preprocessed_images == global.start_images.RGB_GC) {
                   /* We have gradient corrected integrated image. */
                   util.addProcessingStep("Start from image " + RGB_GC_start_win.mainView.id);
@@ -12538,6 +12961,7 @@ function ProcessRGBimage(RGBmapping)
                   if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_processed_id);
                   }
+                  gc_done = false;
             } else {
                   if (preprocessed_images == global.start_images.RGB) {
                         // start from integrated RGB image
@@ -12547,23 +12971,11 @@ function ProcessRGBimage(RGBmapping)
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'integrated')) {
                         runNoiseReduction(RGB_win, mask_win, !RGBmapping.stretched);
                   }
+                  if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
+                        runBlurXTerminator(RGB_win, true);
+                  }
                   if (par.solve_image.val || par.use_spcc.val) {
                         runImageSolver(RGB_win.mainView.id);
-                  }
-                  if (par.color_calibration_before_GC.val) {
-                        if (par.use_background_neutralization.val && !par.use_spcc.val) {
-                              /* With SPCC, do not run background neutralization before SPCC. */
-                              runBackgroundNeutralization(RGB_win);
-                        }
-                        if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
-                              runBlurXTerminator(RGB_win, true);
-                        }
-                        /* Color calibration on RGB
-                        */
-                        runColorCalibration(RGB_win, 'linear');
-                        if (par.use_background_neutralization.val && par.use_spcc.val) {
-                              runBackgroundNeutralization(RGB_win);
-                        }
                   }
                   if (par.use_GC_on_L_RGB.val
                       || (is_color_files && par.GC_before_channel_combination.val && !par.use_GC_on_L_RGB_stretched.val)) 
@@ -12577,22 +12989,22 @@ function ProcessRGBimage(RGBmapping)
                         console.writeln("No GC for RGB");
                         RGB_processed_id = noGradientCorrectionCopyWin(RGB_win);
                   }
+                  gc_done = true;
             }
 
-            if (!par.color_calibration_before_GC.val) {
-                  if (par.use_background_neutralization.val && !par.use_spcc.val) {
-                        /* With SPCC, do not rum background neutralization before SPCC. */
-                        runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id));
-                  }
-                  if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(RGB_win, true);
-                  }
-                  /* Color calibration on RGB
-                  */
-                  runColorCalibration(ImageWindow.windowById(RGB_processed_id), 'linear');
-                  if (par.use_background_neutralization.val && par.use_spcc.val) {
-                        runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id));
-                  }
+            if (par.use_background_neutralization.val && !par.use_spcc.val) {
+                  /* Without SPCC, run background neutralization before CC. */
+                  runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id));
+            }
+            if (!gc_done && par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {
+                  runBlurXTerminator(RGB_win, true);
+            }
+            /* Color calibration on RGB
+            */
+            runColorCalibration(ImageWindow.windowById(RGB_processed_id), 'linear');
+            if (par.use_background_neutralization.val && par.use_spcc.val) {
+                  /* With SPCC, run background neutralization after CC. */
+                  runBackgroundNeutralization(ImageWindow.windowById(RGB_processed_id));
             }
 
             if (par.use_RGBNB_Mapping.val) {
@@ -13659,6 +14071,8 @@ function extraGradientCorrection(extraWin)
             addExtraProcessingStep("Extract background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
       } else if (gc_method == 'ABE') {
             addExtraProcessingStep("Extract background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
+      } else if (gc_method == 'MultiscaleGradientCorrection') {
+            addExtraProcessingStep("Extract background using MultiscaleGradientCorrection");
       } else {
             addExtraProcessingStep("Extract background using GradientCorrection" +
                                     (par.gc_smoothness.val != par.gc_smoothness.def ? ", Smoothness " + par.gc_smoothness.val : "") + 
@@ -16035,6 +16449,7 @@ function createCropInformationAutoContinue()
        global.processing_warnings = "";
 
        iconized_image_ids = [];
+       save_id_list = [];
 
        global.test_image_ids = [];
 
@@ -16103,6 +16518,20 @@ function check_engine_processing()
             return false;
       }
       return true;
+}
+
+function save_images_in_save_id_list()
+{
+      for (var i = 0; i < save_id_list.length; i++) {
+            if (save_id_list[i][0] != save_id_list[i][1]) {
+                  // We have made a copy of the image to save_id_list[i][1]
+                  saveProcessedWindow(save_id_list[i][1]);
+                  util.closeOneWindowById(save_id_list[i][1]);
+            } else {
+                  saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
+            }
+       }
+       save_id_list = [];
 }
 
 /***************************************************************************
@@ -16197,6 +16626,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        autocontinue_prefix = "";
        medianFWHM = null;
        linear_fit_rerefence_id = null;
+       solved_imageWin = null;
  
        RGB_stars_win = null;
        RGB_stars_HT_win = null;
@@ -16546,15 +16976,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        console.writeln("Basic processing completed");
        flowchartDone();
 
-       for (var i = 0; i < save_id_list.length; i++) {
-            if (save_id_list[i][0] != save_id_list[i][1]) {
-                  // We have made a copy of the image to save_id_list[i][1]
-                  saveProcessedWindow(save_id_list[i][1]);
-                  util.closeOneWindowById(save_id_list[i][1]);
-            } else {
-                  saveProcessedWindow(save_id_list[i][0], save_id_list[i][1]);
-            }
-       }
+       save_images_in_save_id_list();
  
        if (do_extra_processing && (util.is_extra_option() || util.is_narrowband_option())) {
              extraProcessing(parent, LRGB_processed_HT_id, false);
@@ -16818,6 +17240,8 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             console.criticalln(global.processing_errors);
        }
 
+       solved_imageWin = null;
+
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();
  
@@ -16873,7 +17297,11 @@ this.getProcessDefaultValues = function()
             }
       }
       if (par.use_noisexterminator.val) {
-            printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
+            try {
+                  printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
+            } catch (e) {
+                  console.criticalln("StarXTerminator not available");
+            }
       }
       if (par.use_starnet2.val) {
             try {
@@ -16934,9 +17362,11 @@ this.getProcessDefaultValues = function()
             console.criticalln("BlurXTerminator not available");
       }
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
-      printProcessDefaultValues("new Colourise", new Colourise);
+      // printProcessDefaultValues("new Colourise", new Colourise);
       printProcessDefaultValues("new GradientCorrection", new GradientCorrection);
       printProcessDefaultValues("new FastIntegration", new FastIntegration);
+      printProcessDefaultValues("new SpectrophotometricFluxCalibration", new SpectrophotometricFluxCalibration);
+      printProcessDefaultValues("new MultiscaleGradientCorrection", new MultiscaleGradientCorrection);
 
       engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }
