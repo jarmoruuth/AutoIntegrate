@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.73 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.73";               // Version, also updated into updates.xri
 this.autointegrate_info = "MultiscaleGradientCorrection";         // For updates.xri
 
 this.autointegrate_version_info = [
@@ -337,6 +337,7 @@ this.par = {
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
+      use_chrominance: { val: false, def: false, name : "Use chrominance", type : 'B' },
       Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
       Hyperbolic_b: { val: 3, def: 3, name : "Hyperbolic Stretch b value", type : 'I' }, 
       Hyperbolic_SP: { val: 10, def: 10, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 

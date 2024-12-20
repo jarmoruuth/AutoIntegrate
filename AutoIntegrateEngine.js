@@ -241,7 +241,7 @@ var RGB_HT_start_win;
 
 var range_mask_win;
 var final_win;
-var solved_imageWin;          // successfully solved image, used to copy astrometric solution
+var solved_imageId;           // successfully solved image, used to copy astrometric solution
 var current_telescope_name = "";
 
 var linear_fit_rerefence_id = null;
@@ -7218,14 +7218,14 @@ function runSpectrophotometricFluxCalibration(win)
       engine_end_process(node, win, "SpectrophotometricFluxCalibration");
 }
 
-function runMultiscaleGradientCorrectionProcess(win, postfix)
+function runMultiscaleGradientCorrectionProcess(win)
 {
       console.writeln("MultiscaleGradientCorrection using scale " + par.mgc_scale.val);
 
       var node = flowchartOperation("MultiscaleGradientCorrection");
 
       if (global.get_flowchart_data) {
-            return;
+            return true;
       }
       
       var P = new MultiscaleGradientCorrection;
@@ -7259,7 +7259,7 @@ function runMultiscaleGradientCorrectionProcess(win, postfix)
       var succp = P.executeOn(win.mainView, false);
 
       if (!succp) {
-            util.addCriticalStatus("MultiscaleGradientCorrection failed");
+            console.criticalln("MultiscaleGradientCorrection failed");
       } else {
             if (par.debug.val) {
                   util.copyWindowEx(win, win.mainView.id + "_MGC_after", true);
@@ -7267,6 +7267,8 @@ function runMultiscaleGradientCorrectionProcess(win, postfix)
       }
       printProcessValues(P);
       engine_end_process(node, win, "MultiscaleGradientCorrection");
+
+      return succp;
 }
 
 function runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_lights)
@@ -7292,9 +7294,19 @@ function runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_light
       }
       runImageSolver(win.mainView.id);
       runSpectrophotometricFluxCalibration(win);
-      runMultiscaleGradientCorrectionProcess(win, replaceTarget, postfix);
-
-      return GC_id;
+      if (runMultiscaleGradientCorrectionProcess(win)) {
+            return GC_id;
+      } else {
+            if (!replaceTarget) {
+                  if (solved_imageId == win.mainView.id) {
+                        console.writeln("Set solved image as null");
+                        solved_imageId = null;
+                  }
+                  console.criticalln("MultiscaleGradientCorrection failed on image " + win.mainView.id + ", closing window");
+                  win.forceClose();
+            }
+            return null;
+      }
 }
 
 function getGradientCorrectionName()
@@ -7310,14 +7322,21 @@ function getGradientCorrectionName()
       }
 }
 
-function getDefaultGradientCorrectionMethod()
+// Get the default gradient correction method
+// If skip_mgc is true, then MultiscaleGradientCorrection is not returned
+// as the default method.
+// This is used when MultiscaleGradientCorrection fails and we want to try
+// some other gradient correction method.
+// Note that the order of checking is important so we can return the correct
+// default method if multiple methods are checked.
+function getDefaultGradientCorrectionMethod(skip_mgc = false)
 {
-      if (par.use_graxpert.val) {
+      if (par.use_multiscalegradientcorrection.val && !skip_mgc) {
+            return "MultiscaleGradientCorrection";
+      } else if (par.use_graxpert.val) {
             return "GraXpert";
       } else if (par.use_abe.val) {
             return "ABE";
-      } else if (par.use_multiscalegradientcorrection.val) {
-            return "MultiscaleGradientCorrection";
       } else {
             return "GradientCorrection";
       }
@@ -7334,6 +7353,15 @@ function runGradientCorrectionEx(win, replaceTarget, postfix, from_lights, gc_me
             var GC_id = runABEex(win, replaceTarget, postfix, from_lights);
       } else if (gc_method == 'MultiscaleGradientCorrection') {
             var GC_id = runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_lights);
+            if (GC_id == null) {
+                  // MultiscaleGradientCorrection failed, try some other gradient correct.
+                  // Since the full sky area is not available for MultiscaleGradientCorrection,
+                  // we can try some other gradient correction method.
+                  // We recurse back to this function with a specific method to try.
+                  gc_method = getDefaultGradientCorrectionMethod(true);
+                  util.addCriticalStatus("MultiscaleGradientCorrection failed on image " + win.mainView.id + ", using " + gc_method);
+                  var GC_id = runGradientCorrectionEx(win, replaceTarget, postfix, from_lights, gc_method);
+            }
       } else {
             var GC_id = runGCProcess(win, replaceTarget, postfix, from_lights);
       }
@@ -9403,19 +9431,23 @@ function runImageSolverEx(id, use_defaults, use_dialog)
                   } else {
                         console.writeln(imgWin.astrometricSolutionSummary());
                   }
-                  if (!solved_imageWin) {
-                        solved_imageWin = imgWin;
+                  if (!solved_imageId) {
+                        console.writeln("runImageSolverEx: save already solved image image " + imgWin.mainView.id);
+                        solved_imageId = imgWin.mainView.id;
                   }
                   console.writeln("runImageSolverEx: image " + id + " already has been plate solved.");
                   return true;
             }
       }
-      if (!par.target_forcesolve.val && solved_imageWin) {
-            // Image does not have astrometric solution but we have already solved an image.
-            // Copy the astrometric solution from the solved image.
-            console.writeln("runImageSolverEx: copy astrometric solution from an already solved image image " + imgWin.mainView.id);
-            imgWin.copyAstrometricSolution(solved_imageWin);
-            return true;
+      if (!par.target_forcesolve.val && solved_imageId) {
+            let solved_imageWin = ImageWindow.windowById(solved_imageId);
+            if (solved_imageWin != null && solved_imageWin.astrometricSolutionSummary().length > 0) {
+                  // Image does not have astrometric solution but we have already solved an image.
+                  // Copy the astrometric solution from the solved image.
+                  console.writeln("runImageSolverEx: copy astrometric solution from an already solved image image " + solved_imageId + " to " + imgWin.mainView.id);
+                  imgWin.copyAstrometricSolution(solved_imageWin);
+                  return true;
+            }
       }
 
       util.addProcessingStepAndStatusInfo("ImageSolver on image " + imgWin.mainView.id);
@@ -9612,7 +9644,7 @@ function runImageSolverEx(id, use_defaults, use_dialog)
             console.writeln("ImageSolver failed on image " + id);
             return false
       } else {
-            solved_imageWin = imgWin;
+            solved_imageId = imgWin.mainView.id;
             console.writeln("runImageSolverEx: save already solved image image " + imgWin.mainView.id);
             return true;
       }
@@ -9915,10 +9947,53 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
+function runCurvesTransformationChrominance (imgWin, maskWin)
+{
+      if (maskWin == null) {
+            util.addProcessingStepAndStatusInfo("Curves transformation for chrominance  on " + imgWin.mainView.id);
+      } else {
+            util.addProcessingStepAndStatusInfo("Curves transformation for chrominance on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
+      }
+      var node = flowchartOperation("CurvesTransformation:chrominance");
+      if (global.get_flowchart_data) {
+            return;
+      }
+
+      var P = new CurvesTransformation;
+      P.c = [ // x, y
+            [0.00000, 0.00000],
+            [0.48604, 0.51200],
+            [1.00000, 1.00000]
+         ];
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      if (maskWin != null) {
+            /* Apply chrominance only light parts of the image. */
+            setMaskChecked(imgWin, maskWin);
+            imgWin.maskInverted = false;
+      }
+      
+      P.executeOn(imgWin.mainView, false);
+
+      if (maskWin != null) {
+            imgWin.removeMask();
+      }
+
+      imgWin.mainView.endProcess();
+
+      printProcessValues(P);
+      engine_end_process(node, imgWin, "CurvesTransformation:chrominance");
+
+      guiUpdatePreviewWin(imgWin);
+}
+
 function increaseSaturation(imgWin, maskWin)
 {
-      //runColorSaturation(imgWin, maskWin);
-      runCurvesTransformationSaturation(imgWin, maskWin);
+      if (par.use_chrominance.val) {
+            runCurvesTransformationChrominance(imgWin, maskWin);
+      } else {
+            runCurvesTransformationSaturation(imgWin, maskWin);
+      }
 }
 
 // Replace last occurance of oldtxt to newtxt in str.
@@ -16626,7 +16701,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        autocontinue_prefix = "";
        medianFWHM = null;
        linear_fit_rerefence_id = null;
-       solved_imageWin = null;
+       solved_imageId = null;
  
        RGB_stars_win = null;
        RGB_stars_HT_win = null;
@@ -17240,7 +17315,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
             console.criticalln(global.processing_errors);
        }
 
-       solved_imageWin = null;
+       solved_imageId = null;
 
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();

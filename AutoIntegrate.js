@@ -733,9 +733,9 @@ this.autointegrate_main = function()
                   global.is_gc_process = false;
             }
             if (global.pixinsight_version_num >= 1090000) {
-                  global.is_gc_process = true;
+                  global.is_mgc_process = true;
             } else {
-                  global.is_gc_process = false;
+                  global.is_mgc_process = false;
             }
       }
       catch (x) {

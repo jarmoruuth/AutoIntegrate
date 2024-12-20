@@ -401,7 +401,11 @@ var adjust_type_toolTip =                 "<ul>" +
                                           "<li>All adjust the whole image.</li>" +
                                           "</ul>";
 
-
+var MGCToolTip =                          "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
+                                          "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to anoter " + 
+                                          "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, GradientCorrection<./p>";
+                              
+                              
 // Settings for flowchart graph
 var flowchart_text_margin = 4;                                                // Margin between box and text
 var flowchart_box_margin = 4;                                                 // Margin outside of the box
@@ -6891,7 +6895,8 @@ function AutoIntegrateDialog()
                   "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
                   "the gradient correction options in the <i>Image processing parameters</i> section.</p>" +
                   "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
-                  "usiong this option.</p>");
+                  "using this option.</p>" +
+                  MGCToolTip);
             }
       this.win_prefix_to_log_files_CheckBox = newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
@@ -7299,6 +7304,9 @@ function AutoIntegrateDialog()
       this.nonLinearSaturationLabel.toolTip = "<p>Saturation increase in non-linear state using a mask.</p>";
       this.nonLinearSaturationSpinBox = newSpinBox(this, par.non_linear_increase_saturation, 0, 10, this.nonLinearSaturationLabel.toolTip);
 
+      this.use_chrominance_CheckBox = newCheckBox(this, "Use chrominance", par.use_chrominance,
+            "<p>Use chrominance instead of saturation to boost colors.</p>");
+
       this.saturationGroupBoxLabel = newSectionLabel(this, "Saturation setting");
       this.saturationGroupBoxSizer = new HorizontalSizer;
       this.saturationGroupBoxSizer.margin = 6;
@@ -7307,6 +7315,7 @@ function AutoIntegrateDialog()
       this.saturationGroupBoxSizer.add( this.linearSaturationSpinBox );
       this.saturationGroupBoxSizer.add( this.nonLinearSaturationLabel );
       this.saturationGroupBoxSizer.add( this.nonLinearSaturationSpinBox );
+      this.saturationGroupBoxSizer.add( this.use_chrominance_CheckBox );
       this.saturationGroupBoxSizer.addStretch();
 
       // Noise reduction
@@ -7385,7 +7394,7 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
       this.noiseReductionGroupBoxSizer.addStretch();
 
-      this.sharpeningGroupBoxLabel = newSectionLabel(this, "Sharpening settings for BlurXTerminator");
+      this.sharpeningGroupBoxLabel = newSectionLabel(this, "BlurXTerminator settings");
 
       this.bxtLabel = newLabel(this, "BlurXTerminator,", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
@@ -7960,6 +7969,7 @@ function AutoIntegrateDialog()
             this.MGCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgc_output_background_model_CheckBox], 12);
 
             this.MGCGroupBoxLabel = newSectionLabel(this, "MultiscaleGradientCorrection settings");
+            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + MGCToolTip;
             this.MGCGroupBoxSizer = newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0]);
       }
       this.ABEDegreeLabel = newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
@@ -8378,7 +8388,7 @@ function AutoIntegrateDialog()
       this.ImageIntegrationSubstackSettingsSizer.add( this.ImageIntegrationSubstackSpinbox );
       this.ImageIntegrationSubstackSettingsSizer.addStretch();
 
-      this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration pixel rejection');
+      this.clippingGroupBoxLabel = newSectionLabel(this, 'Image integration settings');
       this.clippingGroupBoxSizer = new VerticalSizer;
       this.clippingGroupBoxSizer.margin = 6;
       this.clippingGroupBoxSizer.spacing = 4;
@@ -9783,7 +9793,7 @@ function AutoIntegrateDialog()
 
       // Right processing group box
       this.rightProcessingGroupBox = newGroupBoxSizer(this);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and local normalization settings", "ps_integration",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration, FastIntegration and local normalization settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer,
               this.fastIntegrationGroupBoxLabel,
