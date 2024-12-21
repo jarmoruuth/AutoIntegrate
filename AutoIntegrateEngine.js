@@ -3747,6 +3747,92 @@ function getFileKeywords(filePath)
       return keywords;
 }
 
+// Get filter keywpord for image. If filter is not found from FILTER keyword
+// or file name, default to color files.
+// Parameters:
+// filter: FILTER keyword value or null
+// filePath: file path
+// filename_postfix: file name postfix
+function getFilterKeywordForImage(filter, filePath, filename_postfix)
+{
+      /* 1. Check Hubble filter
+       */
+      if (filter != null && filter.trim().substring(0, 1) == 'F') {
+            // Hubble FILTER starts with F, force using file name
+            filter = null;
+      }
+      /* 2. No filter keyword, check file name
+       */
+      if (filter == null || par.force_file_name_filter.val) {
+            // No filter keyword. Try mapping based on file name.
+            filter = filterByFileName(filePath, filename_postfix);
+            if (filter == null  && global.get_flowchart_data) {
+                  filter = filterByFileName(filePath, '');
+            }
+      }
+      /* 3. No filter keyword or name found, default to color files
+       */
+      if (filter == null) {
+            filter = 'Color';
+      }
+      /* 4. With monochrome settings, set all as luminance
+       */
+      if (par.monochrome_image.val) {
+            console.writeln("Create monochrome image, set filter = Luminance");
+            filter = 'Luminance';
+      }
+      /* 5. Check with full filter name, either from FILTER keyword or file name
+       */
+      switch (filter.trim().toUpperCase()) {
+            case 'LUMINANCE':
+            case 'LUM':
+            case 'CLEAR':
+            case 'L':
+                  filter = 'L';
+                  break;
+            case 'RED':
+            case 'R':
+                  filter = 'R';
+                  break;
+            case 'GREEN':
+            case 'G':
+                  filter = 'G';
+                  break;
+            case 'BLUE':
+            case 'B':
+                  filter = 'B';
+                  break;
+            case 'HALPHA':
+            case 'HA':
+            case 'H':
+                  filter = 'H';
+                  break;
+            case 'SII':
+            case 'S':
+                  filter = 'S';
+                  break;
+            case 'OIII':
+            case 'O':
+                  filter = 'O';
+                  break;
+            case 'COLOR':
+            case 'NO FILTER':
+            case 'L_EN':
+            case 'LC':   // Seestar
+            case 'LP':   // Seestar
+            case 'C':
+                  filter = 'C';
+                  break;
+            default:
+                  break;
+      }
+      /* 6. Do final resolve based on the first letter in the filter
+       */
+      var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
+
+      return filter_keyword;
+}
+
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
 // or treeboxfiles array having [ filename, checked, weight ] members
@@ -3899,80 +3985,10 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix, flochart_file
                   }
             }
 
-            /* 1. Check Hubble filter
+            /* Resolve image filter.
              */
-            if (filter != null && filter.trim().substring(0, 1) == 'F') {
-                  // Hubble FILTER starts with F, force using file name
-                  filter = null;
-            }
-            /* 2. No filter keyword, check file name
-             */
-            if (filter == null || par.force_file_name_filter.val) {
-                  // No filter keyword. Try mapping based on file name.
-                  filter = filterByFileName(filePath, filename_postfix);
-                  if (filter == null  && global.get_flowchart_data) {
-                        filter = filterByFileName(filePath, '');
-                  }
-            }
-            /* 3. No filter keyword or name found, default to color files
-             */
-            if (filter == null) {
-                  filter = 'Color';
-            }
-            /* 4. With monochrome settings, set all as luminance
-             */
-            if (par.monochrome_image.val) {
-                  console.writeln("Create monochrome image, set filter = Luminance");
-                  filter = 'Luminance';
-            }
-            /* 5. Check with full filter name, either from FILTER keyword or file name
-             */
-            switch (filter.trim().toUpperCase()) {
-                  case 'LUMINANCE':
-                  case 'LUM':
-                  case 'CLEAR':
-                  case 'L':
-                        filter = 'L';
-                        break;
-                  case 'RED':
-                  case 'R':
-                        filter = 'R';
-                        break;
-                  case 'GREEN':
-                  case 'G':
-                        filter = 'G';
-                        break;
-                  case 'BLUE':
-                  case 'B':
-                        filter = 'B';
-                        break;
-                  case 'HALPHA':
-                  case 'HA':
-                  case 'H':
-                        filter = 'H';
-                        break;
-                  case 'SII':
-                  case 'S':
-                        filter = 'S';
-                        break;
-                  case 'OIII':
-                  case 'O':
-                        filter = 'O';
-                        break;
-                  case 'COLOR':
-                  case 'NO FILTER':
-                  case 'L_EN':
-                  case 'LC':   // Seestar
-                  case 'LP':   // Seestar
-                  case 'C':
-                        filter = 'C';
-                        break;
-                  default:
-                        break;
-            }
-            /* 6.  Do final resolve based on the first letter in the filter
-             */
-            var filter_keyword = filter.trim().substring(0, 1).toUpperCase();
+            var filter_keyword = getFilterKeywordForImage(filter, filePath, filename_postfix);
+
             var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
                               best_image: treebox_best_image, reference_image: treebox_reference_image,
                               width: imgwidth, heigth: imgheigth, date_obs: date_obs, isFirstDate: false, isLastDate: false };
@@ -4443,7 +4459,13 @@ function replaceMappingImageNamesExt(mapping, from, to, ext, images, check_allfi
  */
 function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
 {
-      return replaceMappingImageNamesExt(mapping, from, to, "_map", images, check_allfilesarr);
+      var new_mapping = replaceMappingImageNamesExt(mapping.mapping, from, to, "_map", images, check_allfilesarr);
+      if (new_mapping != mapping.mapping) {
+            // We added filter "from" to the mapping
+            mapping.filters += from;
+      }
+      mapping.mapping = new_mapping;
+      return mapping;
 }
 
 /* Get custom channel mapping and replace target images with real names.
@@ -4454,16 +4476,16 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 {
       switch (targetChannel) {
             case 'R':
-                  var mapping = par.custom_R_mapping.val;
+                  var mapping = { mapping: par.custom_R_mapping.val, filters: "" };
                   break;
             case 'G':
-                  var mapping = par.custom_G_mapping.val;
+                  var mapping = { mapping: par.custom_G_mapping.val, filters: "" };
                   break;
             case 'B':
-                  var mapping = par.custom_B_mapping.val;
+                  var mapping = { mapping: par.custom_B_mapping.val, filters: "" };
                   break;
             case 'L':
-                  var mapping = par.custom_L_mapping.val;
+                  var mapping = { mapping: par.custom_L_mapping.val, filters: "" };
                   break;
             default:
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
@@ -4482,7 +4504,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
       mapping = replaceMappingImageNames(mapping, "O", ppar.win_prefix + "Integration_O", images, check_allfilesarr);
 
       if (check_allfilesarr == null && !global.get_flowchart_data) {
-            console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping);
+            console.writeln("mapCustomAndReplaceImageNames:converted mapping " + mapping.mapping + ", filters " + mapping.filters);
       }
 
       return mapping;
@@ -5744,7 +5766,11 @@ function customMapping(RGBmapping, filtered_lights)
       
             /* Run PixelMath to create a combined RGB image.
              */
-            RGB_win_id = runPixelMathRGBMappingFindRef(ppar.win_prefix + "Integration_RGB_combined", red_mapping, green_mapping, blue_mapping);
+            RGB_win_id = runPixelMathRGBMappingFindRef(
+                              ppar.win_prefix + "Integration_RGB_combined", 
+                              red_mapping.mapping, 
+                              green_mapping.mapping, 
+                              blue_mapping.mapping);
 
             RGBmapping.combined = true;
 
@@ -5752,6 +5778,11 @@ function customMapping(RGBmapping, filtered_lights)
             guiUpdatePreviewWin(RGB_win);
 
             util.setFITSKeywordNoOverwrite(RGB_win, "AutoIntegrateNarrowband", "true", "If true then this is a narrowband image");
+            util.setFITSKeyword(
+                  RGB_win, 
+                  "AutoIntegrateFilters", 
+                  red_mapping.filters + ',' + green_mapping.filters + ',' + blue_mapping.filters, 
+                  "Filters used");
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
                   RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
@@ -6592,7 +6623,34 @@ function runBasicIntegration(images, name, local_normalization)
 
       util.copyKeywordsFromFile(P.integrationImageId, images[0][1]);
 
+      /* Set the filter keyword for the integration image.
+       */
+      setAutoIntegrateFilters(P.integrationImageId, [ P.integrationImageId ]);
+
       return P.integrationImageId;
+}
+
+function setAutoIntegrateFilters(target_id, idlist)
+{
+      console.writeln("setAutoIntegrateFilters, target_id " + target_id + ", idlist " + idlist);
+      var filter_keywords = "";
+      for (var i = 0; i < idlist.length; i++) {
+            var win = ImageWindow.windowById(idlist[i]);
+            var filter_keyword = util.getKeywordValue(win, "AutoIntegrateFilters");
+            if (filter_keyword == null) {
+                  var filter = util.getKeywordValue(win, "FILTER");
+                  filter_keyword = getFilterKeywordForImage(filter, target_id, '');
+            }
+            if (filter_keyword) {
+                  if (filter_keywords.length > 0) {
+                        filter_keywords += ",";
+                  }
+                  filter_keywords += filter_keyword;
+            }
+      }
+      var win = ImageWindow.windowById(target_id);
+      util.setFITSKeyword(win, "AutoIntegrateFilters", filter_keywords, "Filters used");
+      console.writeln("setAutoIntegrateFilters, target_id " + target_id + ", filter_keywords " + filter_keywords);
 }
 
 function runImageIntegrationEx(images, name, local_normalization)
@@ -9413,7 +9471,7 @@ function printImageSolverMetadata(solver)
       console.writeln("solverCfg.tryExhaustiveInitialAlignment: " + solver.solverCfg.tryExhaustiveInitialAlignment);
 }
 
-function runImageSolverEx(id, use_defaults, use_dialog)
+function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
 {
       console.writeln("runImageSolverEx: image " + id + ", use default info " + use_defaults + ", use dialog " + use_dialog);
 
@@ -9580,6 +9638,11 @@ function runImageSolverEx(id, use_defaults, use_dialog)
                         metadata_changed = true;
                   }
             }
+            if (xpixsz_multiplier != 1) {
+                  solver.metadata.xpixsz = solver.metadata.xpixsz * xpixsz_multiplier;
+                  console.writeln("Using adjusted pixel size: " + solver.metadata.xpixsz + " (multiplier " + xpixsz_multiplier + ")");
+                  metadata_changed = true;
+            }
             if (solver.metadata.xpixsz && solver.metadata.focal && metadata_changed) {
                   solver.metadata.resolution = solver.metadata.xpixsz / solver.metadata.focal * 0.18 / Math.PI;
                   console.writeln("Using calculated resolution: " + solver.metadata.resolution);
@@ -9657,14 +9720,22 @@ function runImageSolver(id)
       if (global.get_flowchart_data) {
             return;
       }
-      var solved = runImageSolverEx(id, true, false);
+      var solved = runImageSolverEx(id, true, false, 1);
+      if (!solved) {
+            console.writeln("runImageSolver: retrying with smaller xpixsz");
+            solved = runImageSolverEx(id, true, false, 0.5);
+      }
+      if (!solved) {
+            console.writeln("runImageSolver: retrying with bigger xpixsz");
+            solved = runImageSolverEx(id, true, false, 2);
+      }
       if (!solved) {
             console.writeln("runImageSolver: retrying with telescope info");
-            solved = runImageSolverEx(id, false, false);
+            solved = runImageSolverEx(id, false, false, 1);
       }
       if (!solved && par.target_interactivesolve.val) {
             do {
-                  solved = runImageSolverEx(id, true, true);
+                  solved = runImageSolverEx(id, true, true, 1);
                   if (!solved) {
                         var txt = "ImageSolver failed. Do you want to retry?";
                         var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
@@ -10041,6 +10112,8 @@ function runLRGBCombination(RGB_id, L_id)
       engine_end_process(node, targetWin, "LRGBCombination");
 
       guiUpdatePreviewId(RGBimgView.id);
+
+      setAutoIntegrateFilters(RGBimgView.id, [ RGB_id, L_id ]);
 
       return RGBimgView.id;
 }
@@ -11913,6 +11986,8 @@ function CombineRGBimageEx(target_name, images)
 
       printProcessValues(P);
       engine_end_process(node, win, "ChannelCombination");
+
+      setAutoIntegrateFilters(win.mainView.id, images);
 
       guiUpdatePreviewWin(win);
 
