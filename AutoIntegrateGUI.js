@@ -7965,8 +7965,13 @@ function AutoIntegrateDialog()
             this.mgc_scale_Label = newLabel(this, "Gradient scale", "<p>Gradient model scale.</p>", true);
             this.mgc_scale_ComboBox = newComboBox(this, par.mgc_scale, mgc_scale_valuestxt, this.mgc_scale_Label.toolTip);
             this.mgc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.mgc_output_background_model, "<p>If checked the backgroung model is created.</p>");
-
-            this.MGCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgc_output_background_model_CheckBox], 12);
+            this.mgs_scale_factor_Edit = newNumericEditPrecision(this, "Scale", par.mgc_scale_factor, 0.1, 10, "Scale factor for all channels.", 4);
+            this.mgc_strucure_separation_Label = newLabel(this, "Structure separation", "Structure separation for MultiscaleGradientCorrection.", true);
+            this.mgc_strucure_separation_SpinBox = newSpinBox(this, par.mgc_structure_separation, 1, 5, this.mgc_strucure_separation_Label.toolTip);
+      
+            this.MGCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgs_scale_factor_Edit, 
+                                                                  this.mgc_strucure_separation_Label, this.mgc_strucure_separation_SpinBox,
+                                                                  this.mgc_output_background_model_CheckBox ], 12);
 
             this.MGCGroupBoxLabel = newSectionLabel(this, "MultiscaleGradientCorrection settings");
             this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + MGCToolTip;

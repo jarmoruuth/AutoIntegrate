@@ -7300,14 +7300,14 @@ function runMultiscaleGradientCorrectionProcess(win)
       P.blueMARSFilter = "B";
       P.referenceImageId = "";
       P.gradientScale = parseInt(par.mgc_scale.val);
-      P.structureSeparation = 3;
+      P.structureSeparation = par.mgc_strucure_separation.val;
       P.modelSmoothness = 1.00;
       P.minFieldRatio = 0.017;
       P.maxFieldRatio = 0.167;
       P.enforceFieldLimits = true;
-      P.scaleFactorRK = 1.0000;
-      P.scaleFactorG = 1.0000;
-      P.scaleFactorB = 1.0000;
+      P.scaleFactorRK = par.mgc_scale_factor.val;
+      P.scaleFactorG = par.mgc_scale_factor.val;
+      P.scaleFactorB = par.mgc_scale_factor.val;
       P.showGradientModel = par.mgc_output_background_model.val;
 
       if (par.debug.val) {

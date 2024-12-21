@@ -284,6 +284,8 @@ this.par = {
       gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
       mgc_scale: { val: '1024', def: '1024', name : "MGC scale", type : 'S' },
       mgc_output_background_model: { val: false, def: false, name : "MGC output background model", type : 'B' },
+      mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
+      mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
