@@ -5,7 +5,7 @@
  * Show image preview in max size view.,
  * 
  */
-function AutoIntegrateMaxPreviewDialog(util, global, image, txt)
+function AutoIntegrateMaxPreviewDialog(engine, util, global, image, txt)
 {
       this.__base__ = Dialog;
       this.__base__();
@@ -21,7 +21,7 @@ function AutoIntegrateMaxPreviewDialog(util, global, image, txt)
 
        console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
-      this.maxPreviewControl = new AutoIntegratePreviewControl(this, util, global, preview_width, preview_height, true);
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, engine, util, global, preview_width, preview_height, true);
 
       this.maxPreviewControl.SetImage(image, txt);
    
@@ -53,7 +53,7 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y, call_from_max_preview)
+function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x, size_y, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
@@ -65,6 +65,8 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
       } else {   
             this.normalPreview = true;
       }
+
+      this.saveNonclippedImage = null;
 
        // Set image window and bitmap
        this.SetImage = function(image, txt)
@@ -83,6 +85,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             } else {
                   this.image_name_Label.text = "";
             }
+            this.saveNonclippedImage = null;
       }
  
        // Update image window and bitmap
@@ -105,7 +108,74 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
                   } else {
                         this.image_name_Label.text = "";
                   }
+                  this.saveNonclippedImage = null;
             }
+       }
+
+       this.showClippedImage = function()
+       {
+            if (this.saveNonclippedImage) {
+                  console.writeln("showNonclippedImage");
+                  this.UpdateImage(this.saveNonclippedImage, this.image_name_Label.text);
+                  return;
+            }
+
+            console.writeln("showClippedImage");
+
+            var imgWin = util.findWindow("AutoIntegrate_preview_clipped");
+            if (imgWin) {
+                  imgWin.forceClose();
+            }
+
+            // Create a new window from the image
+            imgWin = util.createWindowFromImage(this.image, "AutoIntegrate_preview_clipped");
+
+            // Show clipped pixels using PixelMath
+            var P = new PixelMath;
+            P.expression = "iif( $T <= 0, 0, iif( $T >= 1, 1, 0.5 ) )";
+            P.expression1 = "";
+            P.expression2 = "";
+            P.expression3 = "";
+            P.useSingleExpression = true;
+            P.symbols = "";
+            P.clearImageCacheAndExit = false;
+            P.cacheGeneratedImages = false;
+            P.generateOutput = true;
+            P.singleThreaded = false;
+            P.optimization = true;
+            P.use64BitWorkingImage = false;
+            P.rescale = false;
+            P.rescaleLower = 0;
+            P.rescaleUpper = 1;
+            P.truncate = true;
+            P.truncateLower = 0;
+            P.truncateUpper = 1;
+            P.createNewImage = false;
+            P.showNewImage = false;
+            P.newImageId = "";
+            P.newImageWidth = 0;
+            P.newImageHeight = 0;
+            P.newImageAlpha = false;
+            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
+            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
+            /*
+             * Read-only properties
+             *
+            P.outputData = [ // globalVariableId, globalVariableRK, globalVariableG, globalVariableB
+            ];
+             */
+
+            P.executeOn(imgWin.mainView, false);
+
+            // Save the original non-clipped image
+            var saveNonclippedImage = this.image;
+            this.image = null;
+
+            this.UpdateImage(imgWin.mainView.image, this.image_name_Label.text);
+
+            imgWin.forceClose();
+
+            this.saveNonclippedImage = saveNonclippedImage;
        }
  
        this.UpdateZoom = function (newZoom, refPoint)
@@ -248,7 +318,7 @@ function AutoIntegratePreviewControl(parentDialog, util, global, size_x, size_y,
             this.maxPreview_Button.toolTip = "Open a new dialog to view the image in (almost) full screen size.";
             this.maxPreview_Button.onClick = function()
             {
-                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(util, global, this.parent.image, this.parent.image_name_Label.text);
+                  let maxPreviewDialog = new AutoIntegrateMaxPreviewDialog(engine, util, global, this.parent.image, this.parent.image_name_Label.text);
                   maxPreviewDialog.execute();
                   gc(false);
             };

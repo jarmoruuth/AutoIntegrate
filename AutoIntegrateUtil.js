@@ -1364,7 +1364,40 @@ this.getWindowBitmap = function(imgWin)
       return bmp;
 }
 
+this.createWindowFromImage = function(image, name, allow_duplicate_name)
+{
+      if (par.debug.val) {
+            console.writeln("createWindowFromImage " + name + ", allow_duplicate_name " + allow_duplicate_name);
+      }
+      if (global.get_flowchart_data) {
+            allow_duplicate_name = true;
+      }
+      if (image == null) {
+            util.throwFatalError("Image not found, cannot create " + name);
+      }
+      var targetWindow = new ImageWindow(image.width, image.height);
+      targetWindow.mainView.id = name;
 
+      targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+      targetWindow.mainView.image.assign(image);
+      targetWindow.mainView.endProcess();
+
+      util.addScriptWindow(name);
+
+      if (targetWindow.mainView.id != name && !allow_duplicate_name) {
+            util.fatalWindowNameFailed("Failed to create window with name " + name + ", window name is " + targetWindow.mainView.id);
+      }
+
+      if (!global.get_flowchart_data || par.debug.val) {
+            console.writeln("createWindowFromImage " + name);
+      }
+
+      if (global.get_flowchart_data) {
+            global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
+      }
+
+      return targetWindow;
+}
 
 this.addProcessingStep = function(txt)
 {

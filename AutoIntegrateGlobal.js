@@ -518,7 +518,9 @@ this.par = {
       integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
-      output_pedestal: { val: 1, def: 1, name : "Output pedestal", type : 'B' },
+      auto_output_pedestal: { val: true, def: true, name : "Auto output pedestal", type : 'B' },
+      output_pedestal: { val: 0, def: 0, name : "Output pedestal", type : 'B' },
+      
 
       // Misc settings
       show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },

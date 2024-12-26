@@ -14,6 +14,7 @@ Interface functions:
       getFilterFiles
       subframeSelectorMeasure
       runHistogramTransformSTFex
+      autoStretch
       testRGBNBmapping
       testRGBHaMapping
       writeProcessingStepsAndEndLog
@@ -1026,7 +1027,7 @@ function copy_processed_image(imgWin, process_name)
       {
             // Copy window to new window with process name
             var copy_name = util.ensure_win_prefix(util.mapBadWindowNameChars(process_name) + "_" + imgWin.mainView.id);
-            console.writeln("Copy window " + imgWin.mainView.id + " to " + copy_name);
+            console.writeln("Copy processed image " + imgWin.mainView.id + " to " + copy_name);
             util.copyWindow(imgWin, copy_name);
       }
 }
@@ -1935,6 +1936,7 @@ function runImageIntegrationBiasDarks(images, name, type)
       } else {
             P.evaluateSNR = false;
       }
+      P.subtractPedestals = false;
 
       P.executeGlobal();
 
@@ -2049,6 +2051,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       var P = new ImageCalibration;
       P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
+      P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
       P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
       P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       P.masterBiasEnabled = true;
@@ -2084,6 +2087,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
+      P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
       P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
       P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
       if (masterflatdarkPath != null) {
@@ -2171,6 +2175,7 @@ function runImageIntegrationFlats(images, name)
             P.pcClipHigh = 0.100;
       }
       P.rangeClipLow = false;
+      P.subtractPedestals = false;
 
       P.executeGlobal();
 
@@ -2206,7 +2211,14 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       P.targetFrames = images; // [ enabled, path ];
       P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
       P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
-      P.outputPedestal = par.output_pedestal.val;
+      if (par.auto_output_pedestal.val) {
+            console.writeln("runCalibrateLights, auto output pedestal");
+            P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
+      } else {
+            console.writeln("runCalibrateLights, literal output pedestal " + par.output_pedestal.val);
+            P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Literal;
+            P.outputPedestal = par.output_pedestal.val;
+      }
       if (masterbiasPath != null) {
             console.writeln("runCalibrateLights, master bias " + masterbiasPath);
             P.masterBiasEnabled = true;
@@ -2586,91 +2598,6 @@ function runBinningOnLights(fileNames, filtered_files)
       var node = flowchartOperation("Binning");
 
       var newFileNames = runBinningOnFiles(fileNames, par.binning.val, par.binning_resample.val, filtered_files);
-
-      engine_end_process(node);
-
-      return newFileNames;
-}
-
-function runPedestalOnLights(fileNames)
-{
-      var newFileNames = [];
-      var outputDir = global.outputRootDir + global.AutoOutputDir;
-      var postfix = "_p";
-      var outputExtension = ".xisf";
-
-      util.addProcessingStepAndStatusInfo("Run pedestal on light files using value " + "200");
-      var node = flowchartOperation("Pedestal");
-
-      if (global.get_flowchart_data) {
-            return fileNames;
-      }
-
-      console.writeln("runPedestalOnLights output *" + postfix + ".xisf");
-      console.writeln("runPedestalOnLights input[0] " + fileNames[0]);
-
-      for (var i = 0; i < fileNames.length; i++) {
-            // Open source image window from a file
-            var imageWindows = ImageWindow.open(fileNames[i]);
-            if (!imageWindows || imageWindows.length == 0) {
-                  util.throwFatalError("*** runPedestalOnLights Error: imageWindows.length: " + imageWindows.length);
-            }
-            var imageWindow = imageWindows[0];
-            if (imageWindow == null) {
-                  util.throwFatalError("*** runPedestalOnLights Error: Can't read file: " + fileNames[i]);
-            }
-
-            // Use Pixelmath to add pedestal
-            var P = new PixelMath;
-            P.expression = "$T + " + 200/65535;
-            P.expression1 = "";
-            P.expression2 = "";
-            P.expression3 = "";
-            P.useSingleExpression = true;
-            P.symbols = "";
-            P.clearImageCacheAndExit = false;
-            P.cacheGeneratedImages = false;
-            P.generateOutput = true;
-            P.singleThreaded = false;
-            P.optimization = true;
-            P.use64BitWorkingImage = false;
-            P.rescale = false;
-            P.rescaleLower = 0;
-            P.rescaleUpper = 1;
-            P.truncate = true;
-            P.truncateLower = 0;
-            P.truncateUpper = 1;
-            P.createNewImage = false;
-            P.showNewImage = false;
-            P.newImageId = "";
-            P.newImageWidth = 0;
-            P.newImageHeight = 0;
-            P.newImageAlpha = false;
-            P.newImageColorSpace = PixelMath.prototype.Gray;
-            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-      
-            P.executeOn(imageWindow.mainView);
-            
-            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
-
-            // Save window
-            if (!writeImage(filePath, imageWindow)) {
-                  util.throwFatalError("*** runPedestalOnLights Error: Can't write output image: " + imageWindow.mainView.id + ", file: " + filePath);
-            }
-
-            var filePath = generateNewFileName(fileNames[i], outputDir, postfix, outputExtension);
-
-            // Save updates image
-            if (!writeImage(filePath, imageWindow)) {
-                  util.throwFatalError("*** runPedestalOnLights Error: Can't write output image: " + filePath);
-            }
-            // Close GC window
-            util.closeOneWindow(imageWindow);
-
-            newFileNames[newFileNames.length] = filePath;
-      }
-
-      console.writeln("runPedestalOnLights output[0] " + newFileNames[0]);
 
       engine_end_process(node);
 
@@ -7300,7 +7227,7 @@ function runMultiscaleGradientCorrectionProcess(win)
       P.blueMARSFilter = "B";
       P.referenceImageId = "";
       P.gradientScale = parseInt(par.mgc_scale.val);
-      P.structureSeparation = par.mgc_strucure_separation.val;
+      P.structureSeparation = par.mgc_structure_separation.val;
       P.modelSmoothness = 1.00;
       P.minFieldRatio = 0.017;
       P.maxFieldRatio = 0.167;
@@ -7687,6 +7614,11 @@ this.runHistogramTransformSTFex = function(GC_win, stf_to_use, iscolor, targetBa
       engine_end_process(null);
 
       return stf_to_use;
+}
+
+this.autoStretch = function(imgWin, silent = true)
+{
+      engine.runHistogramTransformSTFex(imgWin, null, imgWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, silent, null);
 }
 
 function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
@@ -11106,34 +11038,6 @@ function CreateChannelImages(parent, auto_continue)
             } else {
                   var skip_early_steps = false;
             }
-
-            /********************************************************************
-             * Pedestal
-             * 
-             * Just testing, looks pretty useless.
-             * 
-             * Add pedestal to each light file.
-             * Output is *_p.xisf files.
-             ********************************************************************/
-            // if (par.pedestal.val > 0 && !skip_early_steps) {
-            if (0) {
-                  if (is_color_files) {
-                        util.addProcessingStep("No pedestal for color files");
-                  } else {
-                        var fileProcessedStatus = getFileProcessedStatus(fileNames, '_p');
-                        if (fileProcessedStatus.unprocessed.length == 0) {
-                              var node = flowchartOperation("Pedestal");
-                              fileNames = fileProcessedStatus.processed;
-                              engine_end_process(node);     // Update procesing time
-                        } else {
-                              let processedFileNames = runPedestalOnLights(fileProcessedStatus.unprocessed, filtered_files);
-                              fileNames = processedFileNames.concat(fileProcessedStatus.processed);
-                        }
-                        filename_postfix = filename_postfix + '_p';
-                        guiUpdatePreviewFilename(fileNames[0]);
-                  }
-            }
-            util.runGarbageCollection();
 
             /********************************************************************
              * Binning

@@ -404,7 +404,9 @@ var adjust_type_toolTip =                 "<ul>" +
 var MGCToolTip =                          "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
                                           "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to anoter " + 
                                           "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, GradientCorrection<./p>";
-                              
+var clippedPixelsToolTip =                "<p>Show clipped pixels in the preview image.</p>" + 
+                                          "<p>Pixes with value 0 are shown as black, pixels with value 1 are shown as white. Other pixes are shown as gray.</p>";
+                                                                  
                               
 // Settings for flowchart graph
 var flowchart_text_margin = 4;                                                // Margin between box and text
@@ -1831,7 +1833,7 @@ function extraProcessingGUI(parent)
             "<p>Run star noise reduction on star image.</p>" );
       this.extra_color_calibration_CheckBox = newCheckBox(parent, "Color calibration", par.extra_color_calibration, 
             "<p>Run ColorCalibration on image.</p>" );
-      this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve image", par.extra_solve_image, 
+      this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve", par.extra_solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" + 
             "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
 
@@ -1853,7 +1855,7 @@ function extraProcessingGUI(parent)
             }
       };
       
-      this.extra_annotate_image_CheckBox = newCheckBox(parent, "Annotate image", par.extra_annotate_image, 
+      this.extra_annotate_image_CheckBox = newCheckBox(parent, "Annotate", par.extra_annotate_image, 
             "<p>Use AnnotateImage script to annotate image.</p>" + 
             "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
             "When using SPCC color calibration astrometric solution is automatically added.</p>" +
@@ -1861,6 +1863,17 @@ function extraProcessingGUI(parent)
       this.extra_annotate_scale_SpinBox = newSpinBox(parent, par.extra_annotate_image_scale, 1, 8, 
             "<p>Graphics scale for AnnotateImage script.</p>");
 
+      this.extraClippedPixelsLabel = newLabel( parent, "Clipped", clippedPixelsToolTip);
+      this.extraSetClippedPixelsButton = new ToolButton( parent );
+      this.extraSetClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
+      this.extraSetClippedPixelsButton.toolTip = clippedPixelsToolTip;
+      this.extraSetClippedPixelsButton.setScaledFixedSize( 20, 20 );
+      this.extraSetClippedPixelsButton.onClick = function()
+      {
+            tabPreviewControl.showClippedImage();
+            sidePreviewControl.showClippedImage();
+      };
+      
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
                                   "<p>If BlurXTerminator is used for sharpening then iterations parameter is ignored.</p>";
@@ -1949,6 +1962,41 @@ function extraProcessingGUI(parent)
       extra_gui_info.images_combobox = this.extraImageComboBox;
       update_extra_target_image_window_list("Auto");
       global.extra_target_image = extra_target_image_window_list[0];
+
+      this.extraLoadTargetImageButton = new ToolButton( parent );
+      this.extraLoadTargetImageButton.icon = parent.scaledResource(":/icons/select-file.png");
+      this.extraLoadTargetImageButton.toolTip = "<p>Select file as target image.</p>";
+      this.extraLoadTargetImageButton.setScaledFixedSize( 20, 20 );
+      this.extraLoadTargetImageButton.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  console.writeln("No file selected.");
+                  return;
+            }
+            var imageWindows = ImageWindow.open(ofd.fileName);
+            if (imageWindows == null || imageWindows.length == 0) {
+                  console.criticalln("Could not open image " + ofd.fileName);
+                  return;
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  console.criticalln("Could not open image " + ofd.fileName);
+                  return;
+            }
+            imageWindow.show();
+            console.writeln("Opened image " + ofd.fileName);
+            close_undo_images();
+            console.writeln("updatePreviewWinTxt");
+            updatePreviewWinTxt(imageWindow, File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName));
+            console.writeln("util.updateStatusInfoLabel");
+            util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+            global.extra_target_image = imageWindow.mainView.id;
+            console.writeln("global.extra_target_image " + global.extra_target_image);
+            extra_gui_info.save_button.enabled = true;
+            update_extra_target_image_window_list(global.extra_target_image);
+      };
 
       var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
       this.extraApplyButton = new PushButton( parent );
@@ -2153,6 +2201,7 @@ function extraProcessingGUI(parent)
       this.extraImageSizer.spacing = 4;
       this.extraImageSizer.add( this.extraImageLabel );
       this.extraImageSizer.add( this.extraImageComboBox );
+      this.extraImageSizer.add( this.extraLoadTargetImageButton );
       this.extraImageSizer.add( this.extraApplyButton );
       this.extraImageSizer.add( this.extraUndoButton );
       this.extraImageSizer.add( this.extraRedoButton );
@@ -2187,6 +2236,8 @@ function extraProcessingGUI(parent)
       this.extraImageOptionsSizer2.add( this.extra_solve_image_Button );
       this.extraImageOptionsSizer2.add( this.extra_annotate_image_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_annotate_scale_SpinBox );
+      this.extraImageOptionsSizer2.add( this.extraClippedPixelsLabel );
+      this.extraImageOptionsSizer2.add( this.extraSetClippedPixelsButton );
       this.extraImageOptionsSizer2.add( this.extra_signature_CheckBox );
       this.extraImageOptionsSizer2.add( this.extra_signature_path_Edit );
       this.extraImageOptionsSizer2.add( this.extra_signature_path_Button );
@@ -3624,7 +3675,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   // Image is linear, run AutoSTF
                   util.closeOneWindowById("AutoIntegrate_preview_tmp");
                   var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
-                  engine.runHistogramTransformSTFex(copy_win, null, copy_win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
+                  engine.autoStretch(copy_win);
                   imgWin = copy_win;
                   txt = txt + " (AutoSTF)";
                   preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
@@ -3678,7 +3729,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
       }
 
       if (stf) {
-            engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, false, null);
+            engine.autoStretch(imageWindow, false);
       }
 
       updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
@@ -5131,7 +5182,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
-                        engine.runHistogramTransformSTFex(imageWindow, null, imageWindow.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, null);
+                        engine.autoStretch(imageWindow);
                         if (!global.use_preview) {
                               updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
@@ -6063,6 +6114,19 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             }
       };
 
+      var clippedPixelsLabel = newLabel( parent, "Clipped pixels", clippedPixelsToolTip);
+
+      var setClippedPixelsButton = new ToolButton( parent );
+      parent.rootingArr.push(setClippedPixelsButton);
+      setClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
+      setClippedPixelsButton.toolTip = clippedPixelsToolTip;
+      setClippedPixelsButton.setScaledFixedSize( 20, 20 );
+      setClippedPixelsButton.onClick = function()
+      {
+            tabPreviewControl.showClippedImage();
+            sidePreviewControl.showClippedImage();
+      };
+
       var buttonsSizer = new HorizontalSizer;
       parent.rootingArr.push(buttonsSizer);
       buttonsSizer.spacing = 4;
@@ -6097,6 +6161,10 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( setReferenceImageButton );
       buttonsSizer.add( clearBestImageButton );
       buttonsSizer.add( findBestImageButton );
+
+      buttonsSizer.addSpacing( 12 );
+      buttonsSizer.add( clippedPixelsLabel );
+      buttonsSizer.add( setClippedPixelsButton );
 
       buttonsSizer.addStretch();
       if (actionSizer) {
@@ -6176,9 +6244,9 @@ function getWindowBitmap(imgWin)
 function newPreviewObj(parent, side_preview)
 {
       if (side_preview) {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, engine, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
       } else {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
       }
 
       var previewImageSizer = new Sizer();
@@ -7543,14 +7611,23 @@ function AutoIntegrateDialog()
       this.bandingGroupBoxSizer.add( this.bandingAmountControl );
       this.bandingGroupBoxSizer.addStretch();
 
-      this.calibrationPedestalLabel = newLabel(this, "Output pedestal", "<p>Pedestal value added when calibrating lights. Value is from range 0 to 65535.</p>");
+      this.calibrationAutoPedestalCheckBox = newCheckBox(this, "Auto output pedestal", par.auto_output_pedestal, 
+            "<p>Use automatic output pedestal when calibrating lights.</p>");
+      this.calibrationPedestalLabel = newLabel(this, "Output pedestal", "<p>Pedestal value added when calibrating lights if auto output pedestal is not checked. Value is from range 0 to 65535.</p>");
       this.calibrationPedestalSpinBox = newSpinBox(this, par.output_pedestal, 0, 1000, this.calibrationPedestalLabel.toolTip);
 
-      this.calibrationGroupBoxSizer = new HorizontalSizer;
+      this.calibrationGroupBoxSizer1 = new HorizontalSizer;
+      this.calibrationGroupBoxSizer1.margin = 6;
+      this.calibrationGroupBoxSizer1.spacing = 4;
+      this.calibrationGroupBoxSizer1.add( this.calibrationPedestalLabel );
+      this.calibrationGroupBoxSizer1.add( this.calibrationPedestalSpinBox );
+      this.calibrationGroupBoxSizer1.addStretch();
+
+      this.calibrationGroupBoxSizer = new VerticalSizer;
       this.calibrationGroupBoxSizer.margin = 6;
       this.calibrationGroupBoxSizer.spacing = 4;
-      this.calibrationGroupBoxSizer.add( this.calibrationPedestalLabel );
-      this.calibrationGroupBoxSizer.add( this.calibrationPedestalSpinBox );
+      this.calibrationGroupBoxSizer.add( this.calibrationAutoPedestalCheckBox );
+      this.calibrationGroupBoxSizer.add( this.calibrationGroupBoxSizer1 );
       this.calibrationGroupBoxSizer.addStretch();
 
       this.targetNameLabel = newLabel(this, "Name", "Target name (optional).");
