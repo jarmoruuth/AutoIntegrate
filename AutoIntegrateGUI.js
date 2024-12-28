@@ -4249,7 +4249,7 @@ function setReferenceImageInTreeBoxNode(parent, node, reference_image, filename_
             // We compare only file name as path and extension can be different when we
             // set values at run time.
             if (reference_image != null && util.compareReferenceFileNames(reference_image, node.filename, filename_postfix)) {
-                  // console.writeln("setReferenceImageInTreeBoxNode found reference image");
+                  console.writeln("setReferenceImageInTreeBoxNode found reference image, filter " + filter + ", file " + node.filename);
                   // Invert the flag, either set or clear it
                   node.reference_image = true;
                   updateTreeBoxNodeFromFlags(parent, node);
@@ -4709,7 +4709,10 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
                         node.collapsable = false;
                         node.ssweight = filterFiles[j].ssweight;
                         node.exptime = filterFiles[j].exptime;
-                        node.filter = filterFiles[j].filter;
+                        node.filter = filterName;
+                        if (node.filter == undefined) {
+                              util.throwFatalError("addFilteredFilesToTreeBox bad filter " + node.filename);
+                        }
                         node.best_image = filterFiles[j].best_image;
                         node.reference_image = filterFiles[j].reference_image;
                         if (pageIndex == global.pages.LIGHTS) {

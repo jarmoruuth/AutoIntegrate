@@ -92,7 +92,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 /* Settings to ImageSolver script. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
 #define USE_ANNOTATE_LIBRARY true
-#define SETTINGS_MODULE "AutoIntegrate"
+#define SETTINGS_MODULE "AutoIntegrateSolver"
 #define STAR_CSV_FILE   File.systemTempDirectory + "/stars.csv"
 #include "../AdP/CommonUIControls.js"
 #include "../AdP/AstronomicalCatalogs.jsh"
@@ -3613,7 +3613,7 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
             var found_best_image = false;
             if (refImage != null && filearr[i].name == refImage) {
                   found_best_image = true;
-                  console.writeln(filter + " user selected best image, ssweight=" + filearr[i].ssweight);
+                  console.writeln(filter + " user selected best image " + filearr[i].name + " as reference image, ssweight=" + filearr[i].ssweight);
             } else if (refImage == null && (files.best_image == null || filearr[i].ssweight > files.best_ssweight)) {
                   found_best_image = true;
                   automatic_reference_image = filearr[i].name;
@@ -3625,13 +3625,14 @@ function updateFilesInfo(parent, files, filearr, filter, filename_postfix)
                    */
                   files.best_ssweight = filearr[i].ssweight;
                   files.best_image = filearr[i].name;
-                  insert_image_for_integrate(files.images, filearr[i].name);
+                  insert_image_for_integrate(files.images, filearr[i].name, filearr[i].ssweight);
             } else {
-                  append_image_for_integrate(files.images, filearr[i].name);
+                  append_image_for_integrate(files.images, filearr[i].name, filearr[i].ssweight);
             }
             files.exptime += filearr[i].exptime;
       }
       if (automatic_reference_image != null && gui && !global.get_flowchart_data) {
+            console.writeln("Set automatic reference image " + automatic_reference_image + " for filter " + filter + ", ssweight=" + files.best_ssweight);
             gui.setReferenceImageInTreeBox(parent, parent.treeBox[global.pages.LIGHTS], automatic_reference_image, filename_postfix, filter);
       }
 }
@@ -5860,18 +5861,18 @@ function mapLRGBchannels(RGBmapping)
 }
 
 // add as a first item, first item should be the best image
-function insert_image_for_integrate(images, new_image)
+function insert_image_for_integrate(images, new_image, ssweight)
 {
-      console.writeln("insert_image_for_integrate " + new_image);
+      console.writeln("insert_image_for_integrate " + new_image + ", ssweight=" + ssweight);
       images.unshift(new Array(2));
       images[0][0] = true;                // enabled
       images[0][1] = new_image;           // path
 }
 
 // add to the end
-function append_image_for_integrate(images, new_image)
+function append_image_for_integrate(images, new_image, ssweight)
 {
-      console.writeln("append_image_for_integrate " + new_image);
+      console.writeln("append_image_for_integrate " + new_image + ", ssweight=" + ssweight);
       var len = images.length;
       images[len] = [];
       images[len][0] = true;
@@ -8767,11 +8768,15 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
       imgWin.mainView.endProcess();
 }
 
-function runBlurXTerminator(imgWin, correct_only)
+function runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
 {
-      console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + par.bxt_sharpen_stars.val + 
-                      ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val +
-                      ", correct only " + correct_only);
+      if (for_image_solver) {
+            console.writeln("BlurXTerminator for ImageSolver on " + imgWin.mainView.id + " for image solver");
+      } else {
+            console.writeln("BlurXTerminator on " + imgWin.mainView.id + ", sharpen stars " + par.bxt_sharpen_stars.val + 
+                        ", adjust star halos " + par.bxt_adjust_halo.val + ", sharpen nonstellar " + par.bxt_sharpen_nonstellar.val +
+                        ", correct only " + correct_only);
+      }
       if (correct_only) {
             var node = flowchartOperation("BlurXTerminator:correct only");
       } else {
@@ -8782,7 +8787,11 @@ function runBlurXTerminator(imgWin, correct_only)
             return;
       }
 
-      if (par.bxt_psf.val > 0) {
+      if (for_image_solver) {
+            var auto_psf = true;
+            var psf = 0.0;
+            console.writeln("Using auto PSF with image solver");
+      } else if (par.bxt_psf.val > 0) {
             var auto_psf = false;
             var psf = par.bxt_psf.val;
             console.writeln("Using user given PSF " + psf);
@@ -8806,13 +8815,18 @@ function runBlurXTerminator(imgWin, correct_only)
 
       try {
             var P = new BlurXTerminator;
-            P.correct_only = correct_only;
-            P.nonstellar_then_stellar = false;
-            P.sharpen_stars = par.bxt_sharpen_stars.val;
-            P.adjust_halos = par.bxt_adjust_halo.val;
-            P.nonstellar_psf_diameter = psf;
-            P.auto_nonstellar_psf = auto_psf;
-            P.sharpen_nonstellar = par.bxt_sharpen_nonstellar.val;
+            if (for_image_solver) {
+                  P.sharpen_stars = 0.7;
+                  P.auto_nonstellar_psf = true;
+                  P.sharpen_nonstellar = 0;
+            } else {
+                  P.nonstellar_then_stellar = false;
+                  P.sharpen_stars = par.bxt_sharpen_stars.val;
+                  P.adjust_halos = par.bxt_adjust_halo.val;
+                  P.nonstellar_psf_diameter = psf;
+                  P.auto_nonstellar_psf = auto_psf;
+                  P.sharpen_nonstellar = par.bxt_sharpen_nonstellar.val;
+            }
       } catch(err) {
             save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("BlurXTerminator failed");
@@ -9537,7 +9551,7 @@ function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
             if (pixel_size != 0) {
                   if (par.target_binning.val != 'None') {
                         if (par.target_binning.val == 'Auto') {
-                              if (0) {
+                              if (!use_defaults) {
                                     var binning = findBinning(imgWin);
                                     pixel_size = binning * pixel_size;
                                     console.writeln("Using auto binning " + binning + ", adjusted pixel size: " + pixel_size);
@@ -9645,13 +9659,8 @@ function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
       }
 }
 
-function runImageSolver(id)
+function runImageSolverVariations(id)
 {
-      console.writeln("runImageSolver on image " + id);
-      var node = flowchartOperation("ImageSolver");
-      if (global.get_flowchart_data) {
-            return;
-      }
       var solved = runImageSolverEx(id, true, false, 1);
       if (!solved) {
             console.writeln("runImageSolver: retrying with smaller xpixsz");
@@ -9664,6 +9673,40 @@ function runImageSolver(id)
       if (!solved) {
             console.writeln("runImageSolver: retrying with telescope info");
             solved = runImageSolverEx(id, false, false, 1);
+      }
+      return solved;
+}
+
+function runImageSolver(id)
+{
+      console.writeln("runImageSolver on image " + id);
+      var node = flowchartOperation("ImageSolver");
+      if (global.get_flowchart_data) {
+            return;
+      }
+      var solved = runImageSolverVariations(id);
+      if (!solved) {
+            // Delete possible old copy windows
+            let copyWin = util.findWindow("AutoIntegrateImageSolverCopy");
+            if (copyWin) {
+                  copyWin.forceClose();
+            }
+            // Make a copy of image and try with noise reducted image
+            console.writeln("runImageSolver: copy image and try with noise reducted image");
+            let imgWin = ImageWindow.windowById(id);
+            copyWin = util.copyWindow(imgWin, "AutoIntegrateImageSolverCopy");
+            if (par.use_blurxterminator.val) {
+                  console.writeln("runImageSolver: runBlurXTerminator on " + copyWin.mainView.id);
+                  runBlurXTerminator(imgWin, false, true);
+            }
+            console.writeln("runImageSolver: runNoiseReduction on " + copyWin.mainView.id);
+            runNoiseReductionEx(imgWin, null, 3, true);
+            console.writeln("runImageSolver: runImageSolverVariations on " + copyWin.mainView.id);
+            solved = runImageSolverVariations(id);
+            if (solved) {
+                  imgWin.copyAstrometricSolution(copyWin);
+            }
+            copyWin.forceClose();
       }
       if (!solved && par.target_interactivesolve.val) {
             do {
