@@ -322,7 +322,7 @@ this.par = {
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
       use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Multiscale", type : 'B' },
       fastintegration_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
-      fastintegration_max_flux: { val: 0.35, def: 0.35, name : "FastIntegration max flux", type : 'R' },
+      fastintegration_max_flux: { val: 0.5, def: 0.5, name : "FastIntegration max flux", type : 'R' },
       fastintegration_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
       fastintegration_fast_subframeselector: { val: true, def: true, name : "FastIntegration fast SubframeSelector", type : 'B' },
       fastintegration_skip_cosmeticcorrection: { val: true, def: true, name : "FastIntegration skip CosmeticCorrection", type : 'B' },

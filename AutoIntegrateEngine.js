@@ -6402,12 +6402,12 @@ function runFastIntegration(integration_images, name, refImage)
       P.useROI = false;
 
       // Other useful settings
-      P.weightingEnabled = true;
+      // P.weightingEnabled = true; // default false
 
       // Configuration settings
-      P.rejectionFluxRatio = par.fastintegration_max_flux.val;
-      P.maxStarSearchIterations = par.fastintegration_iterations.val;
-      P.medianErrorTolerance = par.fastintegration_errortolerance.val;;
+      P.rejectionFluxRatio = par.fastintegration_max_flux.val;          // default 0.5, AutoIntegrate default changed from 0.35 to 0.5
+      P.maxStarSearchIterations = par.fastintegration_iterations.val;   // default 1, AutoIntegrate default 1
+      P.medianErrorTolerance = par.fastintegration_errortolerance.val;  // default 1.5, AutoIntegrate default 1.5
 
       /*
        * Read-only properties
