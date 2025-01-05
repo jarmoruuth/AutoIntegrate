@@ -305,11 +305,11 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
-var use_linear_fit_values = [ 'Luminance', 'Red', 'Green', 'Blue', 'No linear fit' ];
+var use_linear_fit_values = [ 'Auto', 'Min', 'Max', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
                                 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
-var narrowband_linear_fit_values = [ 'Auto', 'H', 'S', 'O', 'None' ];
+var narrowband_linear_fit_values = [ 'Auto', 'Min', 'Max', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
 var imageintegration_combination_values = [ 'Average', 'Median', 'Minimum', 'Maximum' ];
@@ -8009,9 +8009,14 @@ function AutoIntegrateDialog()
       // Linear Fit selection
 
       this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, 
-            "<p>Choose how to do linear fit of images.</p>" +
-            "<p>Default for linear fit is to use the luminance channel. If the luminance channel is not present then RGB images use a red channel.</p>" +
-            "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>"
+            "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
+            "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>" +
+            "<p>Auto does linear fit using Min.</p>" + 
+            "<p>Min does linear fit using the RGB channel with minimum median value as the reference image.</p>" + 
+            "<p>Max does linear fit using the RGB channel with maximum median value as the reference image.</p>" + 
+            "<p>When a channel is selected it uses that channel as the the reference image.<p>" +
+            "<p>When Luminance channel is selected also the luminance channel is used for linear fit. If the luminance " + 
+            "channel is not present then the red channel is used as the refence image.</p>"
       );
 
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
@@ -8672,13 +8677,12 @@ function AutoIntegrateDialog()
       this.narrowbandLinearFit_Label.text = "Linear fit";
       this.narrowbandLinearFit_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
       this.narrowbandLinearFit_Label.toolTip = 
-            "<p>" +
-            "Linear fit setting before running PixelMath." +
-            "</p><p>" +
-            "None does not use linear fit.<br>" +
-            "Auto uses linear fit and tries to choose a less bright channel, first O and then S.<br>" +
-            "Other selections use linear fit with that channel image." +
-            "</p>";
+            "<p>Linear fit setting before running PixelMath to combine narrowband channel.</p>" +
+            "<p>Auto does not use linear if Auto STF or Histogram stretch is used for stretching. Otherwise it uses Min.<br>" +
+            "<p>Min does linear fit using the channel with minimum median value as the reference image.</p>" + 
+            "<p>Max does linear fit using the channel with maximum median value as the reference image.</p>" + 
+            "<p>When a channel is selected it uses that channel as the the reference image.<p>" +
+            "<p>Other selections use linear fit with that channel image as the reference image.</p>";
       this.narrowbandLinearFit_Label.margin = 6;
       this.narrowbandLinearFit_Label.spacing = 4;
       this.narrowbandLinearFit_ComboBox = newComboBox(this, par.narrowband_linear_fit, narrowband_linear_fit_values, this.narrowbandLinearFit_Label.toolTip);

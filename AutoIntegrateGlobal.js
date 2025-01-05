@@ -271,7 +271,7 @@ this.par = {
       outliers_stars: { val: false, def: false, name : "Outliers Stars", type : 'B' },
       outliers_method: { val: 'Two sigma', def: 'Two sigma', name : "Outlier method", type : 'S' },
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
-      use_linear_fit: { val: 'Luminance', def: 'Luminance', name : "Linear fit", type : 'S' },
+      use_linear_fit: { val: 'Auto', def: 'Auto', name : "Linear fit", type : 'S' },
 
       gc_scale: { val: 5, def: 5, name : "GC scale", type : 'R' },
       gc_smoothness: { val: 0.4, def: 0.4, name : "GC smoothness", type : 'R' },

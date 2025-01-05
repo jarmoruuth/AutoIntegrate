@@ -4623,23 +4623,44 @@ function arrayAppendCheckDuplicates(images, appimages)
       }
 }
 
+function findReferenceImageForLinearFit(images, suggestion)
+{
+      var refimage = null;
+      var refvalue = null;
+      console.writeln("findReferenceImageForLinearFit: suggestion " + suggestion);
+      if (suggestion == "Auto" || suggestion == "Min") {
+            for (var i = 0; i < images.length; i++) {
+                  var win = ImageWindow.windowById(images[i]);
+                  var current_value = win.mainView.computeOrFetchProperty("Median").at(0);
+                  console.writeln("findReferenceImageForLinearFit " + images[i] + " " + current_value);
+                  if (refimage == null || current_value < refvalue) {
+                        refimage = images[i];
+                        refvalue = current_value;
+                  }
+            }
+      } else if (suggestion == "Max") {
+            for (var i = 0; i < images.length; i++) {
+                  var win = ImageWindow.windowById(images[i]);
+                  var current_value = win.mainView.computeOrFetchProperty("Median").at(0);
+                  console.writeln("findReferenceImageForLinearFit " + images[i] + " " + current_value);
+                  if (refimage == null || current_value > refvalue) {
+                        refimage = images[i];
+                        refvalue = current_value;
+                  }
+            }
+      } else {
+            util.throwFatalError("Unknown linear fit reference image suggestion " + suggestion);
+      }
+      console.writeln("findReferenceImageForLinearFit: refimage " + refimage);
+      return refimage;
+}
+
 function findLinearFitHSOMapRefimage(images, suggestion)
 {
       var refimage;
       console.writeln("findLinearFitHSOMapRefimage");
-      if (suggestion == "Auto") {
-            refimage = ppar.win_prefix + "Integration_H_map";
-            if (arrayFindImage(images, refimage)) {
-                  return(refimage);
-            }
-            refimage = ppar.win_prefix + "Integration_O_map";
-            if (arrayFindImage(images, refimage)) {
-                  return(refimage);
-            }
-            refimage = ppar.win_prefix + "Integration_S_map";
-            if (arrayFindImage(images, refimage)) {
-                  return(refimage);
-            }
+      if (suggestion == "Auto" || suggestion == "Min" || suggestion == "Max") {
+            refimage = findReferenceImageForLinearFit(images, suggestion);
       } else {
             refimage = ppar.win_prefix + "Integration_" + suggestion + "_map";
             if (arrayFindImage(images, refimage)) {
@@ -4849,7 +4870,8 @@ function mapRGBchannel(images, refimage, mapping, is_luminance, name)
             console.writeln("mapRGBchannel, refimage from images[0] " + refimage);
       }
       if (images.length > 1) {
-            // run linear fit to match images before PixelMath
+            // Run linear fit to match images before PixelMath
+            // This done for each channel to match images before PixelMath
             var node = flowchartOperation("LinearFit");
             linearFitArray(refimage, images);
             copyLinearFitReferenceImage(refimage);
@@ -6227,6 +6249,9 @@ function runLocalNormalization(imagetable, refImage, filter)
 
 function runLinearFit(refViewId, targetId)
 {
+      if (refViewId == targetId) {
+            return;
+      }
       util.addProcessingStepAndStatusInfo("Run linear fit on " + targetId + " using " + refViewId + " as reference");
       if (refViewId == null || targetId == null) {
             save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
@@ -11349,7 +11374,7 @@ function CreateChannelImages(parent, auto_continue)
             util.runGarbageCollection();
 
             /********************************************************************
-             * Remove stars
+             * Remove stars from lights
              * 
              * Remove stars from light files.
              * Output is *_starless.xisf files.
@@ -11810,9 +11835,6 @@ function LinearFitLRGBchannels()
             /* Use R.
              */
             util.addProcessingStep("Linear fit using R");
-            if (luminance_id != null) {
-                  runLinearFit(red_id, luminance_id);
-            }
             runLinearFit(red_id, green_id);
             runLinearFit(red_id, blue_id);
             copyLinearFitReferenceImage(red_id);
@@ -11820,9 +11842,6 @@ function LinearFitLRGBchannels()
             /* Use G.
               */
             util.addProcessingStep("Linear fit using G");
-            if (luminance_id != null) {
-                  runLinearFit(green_id, luminance_id);
-            }
             runLinearFit(green_id, red_id);
             runLinearFit(green_id, blue_id);
             copyLinearFitReferenceImage(green_id);
@@ -11830,9 +11849,6 @@ function LinearFitLRGBchannels()
             /* Use B.
               */
             util.addProcessingStep("Linear fit using B");
-            if (luminance_id != null) {
-                  runLinearFit(blue_id, luminance_id);
-            }
             runLinearFit(blue_id, red_id);
             runLinearFit(blue_id, green_id);
             copyLinearFitReferenceImage(blue_id);
@@ -11844,8 +11860,16 @@ function LinearFitLRGBchannels()
             runLinearFit(luminance_id, green_id);
             runLinearFit(luminance_id, blue_id);
             copyLinearFitReferenceImage(luminance_id);
-      } else {
+      } else if (use_linear_fit == 'Auto' || use_linear_fit == 'Min' || use_linear_fit == 'Max') {
+            var refimage = findReferenceImageForLinearFit([ red_id, green_id, blue_id ], use_linear_fit);
+            runLinearFit(refimage, red_id);
+            runLinearFit(refimage, green_id);
+            runLinearFit(refimage, blue_id);
+            copyLinearFitReferenceImage(refimage);
+      } else if (use_linear_fit == 'No linear fit') {
             util.addProcessingStep("No linear fit");
+      } else {
+            util.throwFatalError("Unknown linear fit option " + use_linear_fit);
       }
       engine_end_process(node);
 }
@@ -16749,6 +16773,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        H_in_R_channel = false;
        process_narrowband = autocontinue_narrowband;
        is_luminance_images = false;
+       var starless_id = null;
        var stars_id = null;
  
        if (gui) {
@@ -17046,7 +17071,7 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
                    setFinalImageKeyword(ImageWindow.windowById(stars_id));
                    stars_id = util.windowRename(stars_id, LRGB_processed_HT_id + "_stars");
        
-                   var starless_id = LRGB_processed_HT_id + "_starless";
+                   starless_id = LRGB_processed_HT_id + "_starless";
                    console.writeln("Rename " + LRGB_processed_HT_id + " as " + starless_id);
                    util.windowRename(LRGB_processed_HT_id, starless_id);
                    var new_image = combineStarsAndStarless(
@@ -17201,7 +17226,13 @@ this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinu
        if (iconize_final_image) {
             util.windowIconizeif(LRGB_processed_HT_id, true);
        }
- 
+       if (stars_id != null) {
+            util.windowIconizeif(stars_id, true);
+       }
+       if (starless_id != null) {
+            util.windowIconizeif(starless_id, true);
+       }
+
        if (par.batch_mode.val) {
              /* Rename image based on first file directory name. 
               * First check possible device in Windows (like c:)
