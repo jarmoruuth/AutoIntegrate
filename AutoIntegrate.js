@@ -461,19 +461,19 @@ function readOneParameterFromProcessIcon(name, type)
             switch (type) {
                   case 'S':
                         var val = Parameters.getString(name);
-                        console.writeln(name + "=" + param.val);
+                        console.writeln(name + "=" + val);
                         break;
                   case 'B':
                         var val = Parameters.getBoolean(name);
-                        console.writeln(name + "=" + param.val);
+                        console.writeln(name + "=" + val);
                         break;
                   case 'I':
                         var val = Parameters.getInteger(name);
-                        console.writeln(name + "=" + param.val);
+                        console.writeln(name + "=" + val);
                         break;
                   case 'R':
                         var val = Parameters.getReal(name);
-                        console.writeln(name + "=" + param.val);
+                        console.writeln(name + "=" + val);
                         break;
                   default:
                         util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
@@ -673,15 +673,20 @@ this.autointegrate_main = function()
 
             util.setDefaultDirs();
 
-            // 1. Read saved parameters from persistent module settings
-            console.noteln("Read persistent module settings");
-            readParametersFromPersistentModuleSettings();
 
-            // 2. Read parameters saved to process icon, these overwrite persistent module settings
             if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
+                  // 1. Read parameters saved to process icon, these overwrite default settings
                   // read default parameters from saved settings/process icon
                   console.noteln("Read process icon settings");
-                  readParametersFromProcessIcon();
+                  try {
+                        readParametersFromProcessIcon();
+                  } catch(err) {
+                        console.writeln("Error reading parameters from process icon: " + err);
+                  }
+            } else {
+                  // 2. Read saved parameters from persistent module settings
+                  console.noteln("Read persistent module settings");
+                  readParametersFromPersistentModuleSettings();
             }
             
             if (global.ai_use_persistent_module_settings) {

@@ -43,11 +43,12 @@ this.__base__();
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.74 test2";         // Version, also updated into updates.xri
-this.autointegrate_info = "Enhancements";                         // For updates.xri
+this.autointegrate_info = "Sharpening, local normalization";      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Small enhancements"
+      "- Added high pass sharpening",
+      "- Updates to local normalization"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

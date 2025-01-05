@@ -9773,12 +9773,13 @@ function AutoIntegrateDialog()
       this.newInstance_Button = new ToolButton(this);
       this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
       this.newInstance_Button.toolTip = "<p>New Instance</p>";
-      this.newInstance_Button.onClick = function()
+      this.newInstance_Button.onMousePress = function()
       {
          this.hasFocus = true;
          saveParametersToProcessIcon();
          this.pushed = false;
          this.dialog.newInstance();
+         console.noteln("New instance created");
       };
       this.savedefaults_Button = new ToolButton(this);
       this.savedefaults_Button.icon = new Bitmap( ":/process-interface/edit-preferences.png" );
