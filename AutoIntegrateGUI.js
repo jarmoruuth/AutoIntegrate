@@ -12,7 +12,7 @@ Interface objects:
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2024 Jarmo Ruuth.
+Copyright (c) 2018-2025 Jarmo Ruuth.
 
 Window name prefix and icon location code
 
@@ -344,6 +344,7 @@ var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
+var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -1903,6 +1904,51 @@ function extraProcessingGUI(parent)
       this.extraUnsharpMaskSizer.add( this.extraUnsharpMaskAmountEdit );
       this.extraUnsharpMaskSizer.addStretch();
       
+      var highpass_sharpen_tooltip = "<p>Sharpen image using high pass filter and a luminance mask.</p>" +
+                                     "<p>High pass sharpen should be used only for starless images.</p>";
+      this.extra_highpass_sharpen_CheckBox = newCheckBox(parent, "High pass sharpen", par.extra_highpass_sharpen, highpass_sharpen_tooltip);
+      this.extra_highpass_sharpen_ComboBox = newComboBox(parent, par.extra_highpass_sharpen_method, highpass_sharpen_values, 
+            "<p>High pass sharpen type to sharpen the high pass image before combining it back to original image.</p>" +
+            "<ul>" +
+            "<li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li>" +
+            "<li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. " + 
+            "Settings for iterations are taken from the extra processing section Sharpening options.</li>" +
+            "<li>Option 'UnsharpMask' uses UnsharpMask on high pass image. Settings are taken from the extra processing section.</li>" +
+            "<li>Option 'BlurXTerminator' uses BlurXTerminator on high pass image. Settings are taken from the BlurXTerminator section.</li>" +
+            "</ul>"
+      );
+      this.extra_highpass_sharpen_Label = newLabel(parent, "Layers", "<p>Number of layers used to blur the original image.</p>");
+      this.extra_highpass_sharpen_SpinBox = newSpinBox(parent, par.extra_highpass_sharpen_layers, 1, 7, this.extra_highpass_sharpen_Label.toolTip);
+      
+      this.extraHighPassSharpenSizer1 = new HorizontalSizer;
+      this.extraHighPassSharpenSizer1.spacing = 4;
+      this.extraHighPassSharpenSizer1.add( this.extra_highpass_sharpen_CheckBox );
+      this.extraHighPassSharpenSizer1.add( this.extra_highpass_sharpen_ComboBox );
+      this.extraHighPassSharpenSizer1.add( this.extra_highpass_sharpen_Label );
+      this.extraHighPassSharpenSizer1.add( this.extra_highpass_sharpen_SpinBox );
+      this.extraHighPassSharpenSizer1.addStretch();
+
+      this.extra_highpass_sharpen_noise_reduction_CheckBox = newCheckBox(parent, "Noise reduction", par.extra_highpass_sharpen_noise_reduction, 
+            "<p>Do noise reduction on high pass image before sharpening.</p>");
+      this.extra_highpass_sharpen_keep_images_CheckBox = newCheckBox(parent, "Keep images", par.extra_highpass_sharpen_keep_images, 
+            "<p>Do not delete low pass and high pass images.</p>");
+      this.extra_highpass_sharpen_combine_only_CheckBox = newCheckBox(parent, "Combine only", par.extra_highpass_sharpen_combine_only, 
+            "<p>Combine only high pass sharpened image with low pass image. Image is assumed to have a _lowpass or _highpass postfix.</p>");
+
+      this.extraHighPassSharpenSizer2 = new HorizontalSizer;
+      this.extraHighPassSharpenSizer2.spacing = 4;
+      this.extraHighPassSharpenSizer2.addSpacing(20);
+      this.extraHighPassSharpenSizer2.add( this.extra_highpass_sharpen_noise_reduction_CheckBox );
+      this.extraHighPassSharpenSizer2.add( this.extra_highpass_sharpen_keep_images_CheckBox );
+      this.extraHighPassSharpenSizer2.add( this.extra_highpass_sharpen_combine_only_CheckBox );
+      this.extraHighPassSharpenSizer2.addStretch();
+
+      this.extraHighPassSharpenSizer = new VerticalSizer;
+      this.extraHighPassSharpenSizer.spacing = 4;
+      this.extraHighPassSharpenSizer.add( this.extraHighPassSharpenSizer1 );
+      this.extraHighPassSharpenSizer.add( this.extraHighPassSharpenSizer2 );
+      this.extraHighPassSharpenSizer.addStretch();
+
       var extra_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
                                      "<p>Number of iterations specifies how many times add saturation is run.</p>";
       this.extra_saturation_CheckBox = newCheckBox(parent, "Saturation", par.extra_saturation, extra_saturation_tooltip);
@@ -2285,6 +2331,7 @@ function extraProcessingGUI(parent)
       this.extra2.add( this.extra_star_noise_reduction_CheckBox );
       this.extra2.add( this.extraUnsharpMaskSizer );
       this.extra2.add( this.extraSharpenIterationsSizer );
+      this.extra2.add( this.extraHighPassSharpenSizer );
       this.extra2.add( this.extraSaturationIterationsSizer );
       this.extra2.add( this.extraClaritySizer );
       this.extra2.add( this.extraSmallerStarsSizer );
@@ -6614,7 +6661,7 @@ function AutoIntegrateDialog()
       "by Pleiades Astrophoto and its contributors (" +
       '<a href="https://pixinsight.com/">https://pixinsight.com/</a>)' + 
       "</p><p>" +
-      "Copyright (c) 2018-2024 Jarmo Ruuth<br>" +
+      "Copyright (c) 2018-2025 Jarmo Ruuth<br>" +
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2013 Andres del Pozo<br>" +

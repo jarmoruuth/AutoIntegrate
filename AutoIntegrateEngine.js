@@ -21,7 +21,7 @@ Interface functions:
       closeAllWindows
       getProcessDefaultValues
 
-Copyright (c) 2018-2024 Jarmo Ruuth.
+Copyright (c) 2018-2025 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -815,6 +815,8 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                   util.closeOneWindowById(arr[i]+"_map");
                   util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
                   util.closeOneWindowById(arr[i]+"_model");
+                  util.closeOneWindowById(arr[i]+"_highpass");
+                  util.closeOneWindowById(arr[i]+"_lowpass");
                   if (!keep_base_image) {
                         util.closeOneWindowById(arr[i]);
                   }
@@ -14086,6 +14088,152 @@ function extraColorNoise(extraWin)
       runColorReduceNoise(extraWin);
 }
 
+function combineLowPassandHighPass(extraWin, low_pass_win, high_pass_win)
+{
+      var node = flowchartOperation("PixelMath:combine high pass and low pass");
+
+      console.writeln("extraHighPassSharpen: run PixelMath on " + extraWin.mainView.id + "to create high pass sharpened image");
+      var P = new PixelMath;
+      P.expression = low_pass_win.mainView.id + " + " + high_pass_win.mainView.id + " - 0.5"; // Subtract 0.5 we added earlier
+      P.useSingleExpression = true;
+      P.createNewImage = false;
+      // P.rescale = false;
+      // P.truncate = false;
+
+      P.executeOn(extraWin.mainView, false);
+
+      printProcessValues(P);
+      engine_end_process(node);
+}
+
+function extraHighPassSharpen(extraWin, mask_win)
+{
+      addExtraProcessingStep("High pass sharpening");
+
+      if (par.extra_highpass_sharpen_combine_only.val) {
+            console.writeln("extraHighPassSharpen: only combine high pass and low pass images into " + extraWin.mainView.id);
+            var str = extraWin.mainView.id;
+            if (str.indexOf("_lowpass") != -1) {
+                  var low_pass_id = str.split("_lowpass")[0] + "_lowpass";
+                  var high_pass_id = low_pass_id.replace("_lowpass", "_highpass");
+            } else if (str.indexOf("_highpass") != -1) {
+                  var high_pass_id = str.split("_highpass")[0] + "_highpass";
+                  var low_pass_id = high_pass_id.replace("_highpass", "_lowpass");
+            } else {
+                  util.throwFatalError("Invalid image name " + str + ", name should include _lowpass or _highpass");
+            }
+            var high_pass_win = util.findWindow(high_pass_id);
+            if (high_pass_win == null) {
+                  util.throwFatalError("High pass image " + high_pass_id + " not found");
+            }
+            var low_pass_win = util.findWindow(low_pass_id);
+            if (low_pass_win == null) {
+                  util.throwFatalError("Low pass image " + low_pass_id + " not found");
+            }
+            combineLowPassandHighPass(extraWin, low_pass_win, high_pass_win)
+            return;
+      }
+
+      // ---------------------------------------------
+      // Generate low pass filtered image
+      // ---------------------------------------------
+      var node = flowchartOperation("PixelMath:low pass image");
+
+      var low_pass_win = util.findWindow(util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
+      if (low_pass_win != null) {
+            console.writeln("extraHighPassSharpen: close old low pass image " + low_pass_win.mainView.id);
+            util.closeOneWindow(low_pass_win);
+      }
+      console.writeln("extraHighPassSharpen: copy low pass image from " + extraWin.mainView.id + " to " + util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
+      low_pass_win = util.copyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
+
+      console.writeln("extraHighPassSharpen: run ATrousWaveletTransform on " + low_pass_win.mainView.id + ", layers " + par.extra_highpass_sharpen_layers.val);
+
+      var layers = [ // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1],
+            [true, true, 0.000, false, 3.000, 1.00, 1]
+      ];
+      for (var i = 0; i < par.extra_highpass_sharpen_layers.val; i++) {
+            layers[i][0] = false;
+      }
+
+      var P = new ATrousWaveletTransform;
+      P.layers = layers; // enabled, biasEnabled, bias, noiseReductionEnabled, noiseReductionThreshold, noiseReductionAmount, noiseReductionIterations
+
+      P.executeOn(low_pass_win.mainView, false);
+
+      printProcessValues(P);
+      engine_end_process(node);
+
+      // ---------------------------------------------
+      // Generate high pass filtered image by subtract low pass from original image
+      // ---------------------------------------------
+      var node = flowchartOperation("PixelMath:high pass image");
+
+      var high_pass_win = util.findWindow(util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
+      if (high_pass_win != null) {
+            console.writeln("extraHighPassSharpen: close old high pass image " + high_pass_win.mainView.id);
+            util.closeOneWindow(high_pass_win);
+      }
+      console.writeln("extraHighPassSharpen: copy low pass image from " + extraWin.mainView.id + " to " + util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
+      high_pass_win = util.copyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
+
+      console.writeln("extraHighPassSharpen: run PixelMath on " + high_pass_win.mainView.id + " to create high pass image");
+      var P = new PixelMath;
+      P.expression = "$T - " + low_pass_win.mainView.id + " + 0.5"; // Add 0.5 so it looks the same as in photoshop
+      P.useSingleExpression = true;
+      P.createNewImage = false;
+      // P.rescale = false;
+      // P.truncate = false;
+
+      P.executeOn(high_pass_win.mainView, false);
+
+      printProcessValues(P);
+      engine_end_process(node);
+
+      if (par.extra_highpass_sharpen_noise_reduction.val) {
+            console.writeln("extraHighPassSharpen: run noise reduction on " + high_pass_win.mainView.id);
+            extraNoiseReduction(high_pass_win, null);
+      }
+
+      // ---------------------------------------------
+      // Sharpen the high pass image
+      // ---------------------------------------------
+      if (par.extra_highpass_sharpen_method.val == 'MLT' || par.extra_highpass_sharpen_method.val == 'Default') {
+            console.writeln("extraHighPassSharpen: use MultiscaleLinearTransform to sharpen " + high_pass_win.mainView.id);
+            for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
+                  runMultiscaleLinearTransformSharpen(high_pass_win, mask_win);
+            }
+      } else if (par.extra_highpass_sharpen_method.val == 'UnsharpMask') {
+            console.writeln("extraHighPassSharpen: use UnsharpMask to sharpen " + high_pass_win.mainView.id);
+            extraUnsharpMask(high_pass_win, mask_win);
+      } else if (par.extra_highpass_sharpen_method.val == 'BlurXTerminator') {
+            console.writeln("extraHighPassSharpen: use BlurXTerminator to sharpen " + high_pass_win.mainView.id);
+            runBlurXTerminator(high_pass_win, false);
+      } else if (par.extra_highpass_sharpen_method.val == 'None') {
+            console.writeln("extraHighPassSharpen: no sharpening on " + high_pass_win.mainView.id);
+      } else {
+            util.throwFatalError("Invalid high pass sharpening method " + par.extra_highpass_sharpen_method.val);
+      }
+
+      // ---------------------------------------------
+      // Create new image by combining high pass and low pass images
+      // ---------------------------------------------'
+      combineLowPassandHighPass(extraWin, low_pass_win, high_pass_win);
+
+      // Cleanup
+      if (!par.extra_highpass_sharpen_keep_images.val) {
+            util.closeOneWindow(low_pass_win);
+            util.closeOneWindow(high_pass_win);
+      }
+}
+
 function extraUnsharpMask(extraWin, mask_win)
 {
       addExtraProcessingStep("UnsharpMask using StdDev " + par.extra_unsharpmask_stddev.val + ", amount " + par.extra_unsharpmask_amount.val);
@@ -15239,6 +15387,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_ACDNR.val ||
                         (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
                         par.extra_unsharpmask.val ||
+                        (par.extra_highpass_sharpen.val && !par.extra_highpass_sharpen_combine_only.val) ||
                         par.extra_saturation.val ||
                         (par.extra_clarity.val && par.extra_clarity_mask.val);
 
@@ -15437,6 +15586,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_sharpen.val) {
             extraSharpen(extraWin, mask_win);
             extraOptionCompleted(par.extra_sharpen);
+      }
+      if (par.extra_highpass_sharpen.val) {
+            extraHighPassSharpen(extraWin, mask_win);
+            extraOptionCompleted(par.extra_highpass_sharpen);
       }
       if (par.extra_saturation.val) {
             extraSaturation(extraWin, mask_win);

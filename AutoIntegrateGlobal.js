@@ -1,7 +1,7 @@
 /*
     AutoIntegrate Global variables.
 
-Copyright (c) 2018-2024 Jarmo Ruuth.
+Copyright (c) 2018-2025 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.74 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.74 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "Enhancements";                         // For updates.xri
 
 this.autointegrate_version_info = [
@@ -483,6 +483,12 @@ this.par = {
       extra_unsharpmask: { val: false, def: false, name : "Extra unsharpmask", type : 'B' },
       extra_unsharpmask_stddev: { val: 2, def: 2, name : "Extra unsharpmask stddev", type : 'I' },
       extra_unsharpmask_amount: { val: 0.8, def: 0.8, name : "Extra unsharpmask amount", type : 'I' },
+      extra_highpass_sharpen: { val: false, def: false, name : "Extra highpass sharpen", type : 'B' },
+      extra_highpass_sharpen_method: { val: 'Default', def: 'Default', name : "Extra highpass sharpen method", type : 'S' },
+      extra_highpass_sharpen_layers: { val: 5, def: 5, name : "Extra highpass sharpen layers", type : 'I' },
+      extra_highpass_sharpen_keep_images: { val: false, def: false, name : "Extra highpass sharpen keep images", type : 'B' },
+      extra_highpass_sharpen_combine_only: { val: false, def: false, name : "Extra highpass sharpen combine only", type : 'B' },
+      extra_highpass_sharpen_noise_reduction: { val: false, def: false, name : "Extra highpass sharpen noise reduction", type : 'B' },
       extra_clarity: { val: false, def: false, name : "Extra clarity", type : 'B' },
       extra_clarity_stddev: { val: 100, def: 100, name : "Extra clarity stddev", type : 'I' },
       extra_clarity_amount: { val: 0.3, def: 0.3, name : "Extra clarity amount", type : 'I' },

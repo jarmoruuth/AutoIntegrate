@@ -1,7 +1,7 @@
 /*
         AutoIntegrate utility functions.
 
-Copyright (c) 2018-2024 Jarmo Ruuth.
+Copyright (c) 2018-2025 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -1519,6 +1519,7 @@ function is_non_starless_option()
              par.extra_color_noise.val ||
              par.extra_sharpen.val ||
              par.extra_unsharpmask.val ||
+             par.extra_highpass_sharpen.val ||
              par.extra_saturation.val ||
              par.extra_clarity.val ||
              par.extra_smaller_stars.val ||

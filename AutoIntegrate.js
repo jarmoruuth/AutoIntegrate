@@ -186,7 +186,7 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2024 Jarmo Ruuth.
+Copyright (c) 2018-2025 Jarmo Ruuth.
 
 Crop to common area code
 
