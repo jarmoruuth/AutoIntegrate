@@ -7128,8 +7128,15 @@ function AutoIntegrateDialog()
             "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
             Hyperbolic_li +
-            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<p>Can be useful when stretching stars to keep good star color.</p></li>" +
-            "<li><p>Logarithmic stretch - Experimental stretch</p></li>" +
+            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.</p></li>" +
+            "</ul>" +
+            "<p>There are also some experimental stretches.</p>" +
+            "<ul>" +
+            "<li><p>Logarithmic stretch</p></li>" +
+            "<li><p>Asinh+Histogram stretch</p></li>" +
+            "<li><p>Square root stretch</p></li>" +
+            "<li><p>Shadow stretch</p></li>" +
+            "<li><p>Highlight stretch</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
             "</ul>" + 
             "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>" +
@@ -7456,7 +7463,7 @@ function AutoIntegrateDialog()
                                                 "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
       this.auto_noise_reduction_CheckBox = newCheckBox(this, "Auto", par.auto_noise_reduction,
             "<p>Select automatically correct time for noise reduction.</p>" + 
-            "<p>If BlurXTerminator is not used, then combined image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
+            "<p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
             "<p>This option enables also color/OSC image noise reduction.</p>");
       this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
             "<p>Do noise reduction on each color channels and luminance image separately.</p>" + 
