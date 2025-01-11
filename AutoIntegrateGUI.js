@@ -305,7 +305,7 @@ var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
-var use_linear_fit_values = [ 'Auto', 'Min', 'Max', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
+var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
                                 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
@@ -6599,7 +6599,6 @@ function getPreviewSize()
             ppar.preview.side_preview_height = preview_size;
             ppar.preview.side_histogram_height = Math.floor(screen_height * 0.1);
       }
-      // ppar.preview.side_preview_height = 1500;  // XXX testing
 
       return use_old_preview_size;
 }
@@ -7327,9 +7326,10 @@ function AutoIntegrateDialog()
       
       
       // LRGBCombination selection
+      this.LRGBCombinationLinearFitCheckBox = newCheckBox(this, "Linear fit", par.LRGBCombination_linearfit,
+            "<p>Do linear fit on luminance using RGB as a reference before LRGBCombination process.</p>");
       this.LRGBCombinationLightnessControl = newNumericEdit(this, "Lightness", par.LRGBCombination_lightness, 0, 1, 
             "<p>LRGBCombination lightness setting. Smaller value gives more bright image. Usually should be left to the default value.</p>");
-
       this.LRGBCombinationSaturationControl = newNumericEdit(this, "Saturation", par.LRGBCombination_saturation, 0, 1, 
             "<p>LRGBCombination saturation setting. Smaller value gives more saturated image. Usually should be left to the default value.</p>");
 
@@ -7337,7 +7337,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationGroupBoxLabel.toolTip = 
             "<p>LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.</p>";
-      this.LRGBCombinationSizer = newVerticalSizer(6, true, [this.LRGBCombinationGroupBoxLabel, this.LRGBCombinationLightnessControl, this.LRGBCombinationSaturationControl] );
+      this.LRGBCombinationSizer = newVerticalSizer(6, true, [this.LRGBCombinationGroupBoxLabel, this.LRGBCombinationLinearFitCheckBox, this.LRGBCombinationLightnessControl, this.LRGBCombinationSaturationControl] );
 
       // StarAlignment selection
       var starAlignmentValuesToolTip = "<p>If star aligment fails you can try change values. Here is one suggestion of values that might help:<br>" +
@@ -8062,12 +8062,14 @@ function AutoIntegrateDialog()
 
       // Linear Fit selection
 
-      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, 
+      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values,
             "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
             "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>" +
             "<p>Auto does linear fit using Min.</p>" + 
-            "<p>Min does linear fit using the RGB channel with minimum median value as the reference image.</p>" + 
-            "<p>Max does linear fit using the RGB channel with maximum median value as the reference image.</p>" + 
+            "<p>Min RGB does linear fit using RGB channels with minimum median value as the reference image.</p>" + 
+            "<p>Max RGB does linear fit using RGB channels with maximum median value as the reference image.</p>" + 
+            "<p>Min LRGB does linear fit using LRGB channels with minimum median value as the reference image.</p>" + 
+            "<p>Max LRGB does linear fit using LRGB channels with maximum median value as the reference image.</p>" + 
             "<p>When a channel is selected it uses that channel as the the reference image.<p>" +
             "<p>When Luminance channel is selected also the luminance channel is used for linear fit. If the luminance " + 
             "channel is not present then the red channel is used as the refence image.</p>"

@@ -338,6 +338,7 @@ this.par = {
       Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
+      LRGBCombination_linearfit: { val: false, def: false, name : "LRGBCombination linear fit", type : 'B' },
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
       use_chrominance: { val: false, def: false, name : "Use chrominance", type : 'B' },

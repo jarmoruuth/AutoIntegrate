@@ -1141,6 +1141,15 @@ this.copyWindow = function(sourceWindow, name)
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
+this.forceCopyWindow = function(sourceWindow, name)
+{
+      var win = util.findWindow(name);
+      if (win != null) {
+            util.closeOneWindow(win, true);
+      }
+      return util.copyWindowEx(sourceWindow, name, false);
+}
+
 /* Open a file as image window. */
 this.openImageWindowFromFile = function(fileName, allow_missing_file)
 {

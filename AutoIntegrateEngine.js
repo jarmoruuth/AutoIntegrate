@@ -4596,14 +4596,20 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       return newId;
 }
 
-function linearFitArray(refimage, targetimages)
+function linearFitArray(refimage, targetimages, add_to_flowchart = false)
 {
       console.writeln("linearFitArray");
+      if (add_to_flowchart) {
+            var node = flowchartOperation("LinearFit");
+      } else {
+            var node = null;
+      }
       for (var i = 0; i < targetimages.length; i++) {
-            if (targetimages[i] != refimage) {
+            if (targetimages[i] != null && targetimages[i] != refimage) {
                   runLinearFit(refimage, targetimages[i]);
             }
       }
+      engine_end_process(node, null, "", false);
 }
 
 function arrayFindImage(images, image)
@@ -4630,8 +4636,12 @@ function findReferenceImageForLinearFit(images, suggestion)
       var refimage = null;
       var refvalue = null;
       console.writeln("findReferenceImageForLinearFit: suggestion " + suggestion);
-      if (suggestion == "Auto" || suggestion == "Min") {
+      if (suggestion == "Min") {
             for (var i = 0; i < images.length; i++) {
+                  if (images[i] == null) {
+                        // For example Luminance may be missing sometimes
+                        continue;
+                  }
                   var win = ImageWindow.windowById(images[i]);
                   var current_value = win.mainView.computeOrFetchProperty("Median").at(0);
                   console.writeln("findReferenceImageForLinearFit " + images[i] + " " + current_value);
@@ -4642,6 +4652,10 @@ function findReferenceImageForLinearFit(images, suggestion)
             }
       } else if (suggestion == "Max") {
             for (var i = 0; i < images.length; i++) {
+                  if (images[i] == null) {
+                        // For example Luminance may be missing sometimes
+                        continue;
+                  }
                   var win = ImageWindow.windowById(images[i]);
                   var current_value = win.mainView.computeOrFetchProperty("Median").at(0);
                   console.writeln("findReferenceImageForLinearFit " + images[i] + " " + current_value);
@@ -4661,7 +4675,10 @@ function findLinearFitHSOMapRefimage(images, suggestion)
 {
       var refimage;
       console.writeln("findLinearFitHSOMapRefimage");
-      if (suggestion == "Auto" || suggestion == "Min" || suggestion == "Max") {
+      if (suggestion == "Auto") {
+            suggestion = "Min";
+      }
+      if (suggestion == "Min" || suggestion == "Max") {
             refimage = findReferenceImageForLinearFit(images, suggestion);
       } else {
             refimage = ppar.win_prefix + "Integration_" + suggestion + "_map";
@@ -5651,7 +5668,8 @@ function customMapping(RGBmapping, filtered_lights)
                   * stretching. We do this on both cases, linear and stretched.
                   */
                   var refimage = findLinearFitHSOMapRefimage(images, narrowband_linear_fit);
-                  linearFitArray(refimage, images);
+                  util.addProcessingStep("Linear fit using " + refimage);
+                  linearFitArray(refimage, images, true);
                   copyLinearFitReferenceImage(refimage);
             }
             if (checkNoiseReduction('RGB', 'channel')) {
@@ -6249,7 +6267,7 @@ function runLocalNormalization(imagetable, refImage, filter)
       engine_end_process(node);
 }
 
-function runLinearFit(refViewId, targetId)
+function runLinearFit(refViewId, targetId, add_to_flowchart = false)
 {
       if (refViewId == targetId) {
             return;
@@ -6260,6 +6278,11 @@ function runLinearFit(refViewId, targetId)
             util.throwFatalError("No image for linear fit, maybe some previous step like star alignment failed");
       }
 
+      if (add_to_flowchart) {
+            var node = flowchartOperation("LinearFit");
+      } else {
+            var node = null;
+      }
       linear_fit_done = true;
 
       if (global.get_flowchart_data) {
@@ -6275,7 +6298,7 @@ function runLinearFit(refViewId, targetId)
       targetWin.mainView.endProcess();
 
       printProcessValues(P);
-      engine_end_process(null, targetWin, "LinearFit", false);
+      engine_end_process(node, targetWin, "LinearFit", false);
 }
 
 function runDrizzleIntegration(integrationImageId, images, name, local_normalization, drizzle_extension)
@@ -10083,6 +10106,17 @@ function replaceLastString(str, oldtxt, newtxt)
 function runLRGBCombination(RGB_id, L_id)
 {
       console.writeln("runLRGBCombination using " + RGB_id + " and " + L_id );
+
+      if (par.LRGBCombination_linearfit.val) {      // XXX
+            console.writeln("Linear fit of " + RGB_id + " and luminance image " + L_id);
+            var referenceWin = util.forceCopyWindow(
+                                    ImageWindow.windowById(RGB_id), 
+                                    util.ensure_win_prefix(RGB_id + "GrayScale"));
+            convert_to_grayscale(referenceWin);
+            runLinearFit(referenceWin.mainView.id, L_id, true);
+            referenceWin.forceClose();
+      }
+
       var targetWin = util.copyWindow(
                         ImageWindow.windowById(RGB_id), 
                         util.ensure_win_prefix(replaceLastString(RGB_id, "RGB", "LRGB")));
@@ -11812,67 +11846,65 @@ function copyLinearFitReferenceImage(id)
  */
 function LinearFitLRGBchannels()
 {
+      var use_linear_fit = par.use_linear_fit.val;     // XXX
+      if (use_linear_fit == 'No linear fit') {
+            util.addProcessingStep("No linear fit");
+            return;
+      }
+
       util.addProcessingStepAndStatusInfo("Linear fit LRGB channels");
       var node = flowchartOperation("LinearFit");
       if (global.get_flowchart_data) {
             return;
       }
 
-      var use_linear_fit = par.use_linear_fit.val;
+      var linear_fit_luminance_id = null;
 
-      if (luminance_id == null && use_linear_fit == 'Luminance') {
-            // no luminance
-            if (process_narrowband) {
-                  util.addProcessingStep("No Luminance, no linear fit with narrowband");
-                  use_linear_fit = 'No linear fit';
-            } else {
-                  util.addProcessingStep("No Luminance, linear fit using R with RGB");
-                  use_linear_fit = 'Red';
-            }
+      switch (use_linear_fit) {
+            case 'Min RGB':
+                  var refimage = findReferenceImageForLinearFit([ red_id, green_id, blue_id ], 'Min');
+                  break;
+            case 'Max RGB':
+                  var refimage = findReferenceImageForLinearFit([ red_id, green_id, blue_id ], 'Max');
+                  break;
+            case 'Min LRGB':
+                  var refimage = findReferenceImageForLinearFit([ luminance_id, red_id, green_id, blue_id ], 'Min');
+                  linear_fit_luminance_id = luminance_id;
+                  break;
+            case 'Auto':
+            case 'Max LRGB':
+                  var refimage = findReferenceImageForLinearFit([ luminance_id, red_id, green_id, blue_id ], 'Max');
+                  linear_fit_luminance_id = luminance_id;
+                  break;
+            case 'Red':
+                  var refimage = red_id;
+                  break;
+            case 'Green':
+                  var refimage = green_id;
+                  break;
+            case 'Blue':
+                  var refimage = blue_id;
+                  break;
+            case 'Luminance':
+                  if (luminance_id == null) {
+                        util.throwFatalError("No luminance image for linear fit");
+                  }
+                  var refimage = luminance_id;
+                  linear_fit_luminance_id = luminance_id;
+                  break;
+            default:
+                  util.throwFatalError("Unknown linear fit option " + use_linear_fit);
       }
 
-      /* Check for LinearFit
-       */
-      if (use_linear_fit == 'Red') {
-            /* Use R.
-             */
-            util.addProcessingStep("Linear fit using R");
-            runLinearFit(red_id, green_id);
-            runLinearFit(red_id, blue_id);
-            copyLinearFitReferenceImage(red_id);
-      } else if (use_linear_fit == 'Green') {
-            /* Use G.
-              */
-            util.addProcessingStep("Linear fit using G");
-            runLinearFit(green_id, red_id);
-            runLinearFit(green_id, blue_id);
-            copyLinearFitReferenceImage(green_id);
-      } else if (use_linear_fit == 'Blue') {
-            /* Use B.
-              */
-            util.addProcessingStep("Linear fit using B");
-            runLinearFit(blue_id, red_id);
-            runLinearFit(blue_id, green_id);
-            copyLinearFitReferenceImage(blue_id);
-      } else if (use_linear_fit == 'Luminance' && luminance_id != null) {
-            /* Use L.
-             */
-            util.addProcessingStep("Linear fit using L");
-            runLinearFit(luminance_id, red_id);
-            runLinearFit(luminance_id, green_id);
-            runLinearFit(luminance_id, blue_id);
-            copyLinearFitReferenceImage(luminance_id);
-      } else if (use_linear_fit == 'Auto' || use_linear_fit == 'Min' || use_linear_fit == 'Max') {
-            var refimage = findReferenceImageForLinearFit([ red_id, green_id, blue_id ], use_linear_fit);
-            runLinearFit(refimage, red_id);
-            runLinearFit(refimage, green_id);
-            runLinearFit(refimage, blue_id);
-            copyLinearFitReferenceImage(refimage);
-      } else if (use_linear_fit == 'No linear fit') {
-            util.addProcessingStep("No linear fit");
-      } else {
-            util.throwFatalError("Unknown linear fit option " + use_linear_fit);
+      if (refimage == null) {
+            util.throwFatalError("No reference image for linear fit using " + use_linear_fit);
       }
+
+      util.addProcessingStep("Linear fit using " + refimage);
+      copyLinearFitReferenceImage(refimage);
+
+      linearFitArray(refimage, [ linear_fit_luminance_id, red_id, green_id, blue_id ], false);
+
       engine_end_process(node);
 }
 
@@ -14092,7 +14124,7 @@ function combineLowPassandHighPass(extraWin, low_pass_win, high_pass_win)
 {
       var node = flowchartOperation("PixelMath:combine high pass and low pass");
 
-      console.writeln("extraHighPassSharpen: run PixelMath on " + extraWin.mainView.id + "to create high pass sharpened image");
+      console.writeln("combineLowPassandHighPass: run PixelMath on " + extraWin.mainView.id + "to create high pass sharpened image");
       var P = new PixelMath;
       P.expression = low_pass_win.mainView.id + " + " + high_pass_win.mainView.id + " - 0.5"; // Subtract 0.5 we added earlier
       P.useSingleExpression = true;
@@ -14139,13 +14171,8 @@ function extraHighPassSharpen(extraWin, mask_win)
       // ---------------------------------------------
       var node = flowchartOperation("PixelMath:low pass image");
 
-      var low_pass_win = util.findWindow(util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
-      if (low_pass_win != null) {
-            console.writeln("extraHighPassSharpen: close old low pass image " + low_pass_win.mainView.id);
-            util.closeOneWindow(low_pass_win);
-      }
       console.writeln("extraHighPassSharpen: copy low pass image from " + extraWin.mainView.id + " to " + util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
-      low_pass_win = util.copyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
+      var low_pass_win = util.forceCopyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_lowpass"));
 
       console.writeln("extraHighPassSharpen: run ATrousWaveletTransform on " + low_pass_win.mainView.id + ", layers " + par.extra_highpass_sharpen_layers.val);
 
@@ -14176,13 +14203,8 @@ function extraHighPassSharpen(extraWin, mask_win)
       // ---------------------------------------------
       var node = flowchartOperation("PixelMath:high pass image");
 
-      var high_pass_win = util.findWindow(util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
-      if (high_pass_win != null) {
-            console.writeln("extraHighPassSharpen: close old high pass image " + high_pass_win.mainView.id);
-            util.closeOneWindow(high_pass_win);
-      }
       console.writeln("extraHighPassSharpen: copy low pass image from " + extraWin.mainView.id + " to " + util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
-      high_pass_win = util.copyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
+      var high_pass_win = util.forceCopyWindow(extraWin, util.ensure_win_prefix(extraWin.mainView.id + "_highpass"));
 
       console.writeln("extraHighPassSharpen: run PixelMath on " + high_pass_win.mainView.id + " to create high pass image");
       var P = new PixelMath;
