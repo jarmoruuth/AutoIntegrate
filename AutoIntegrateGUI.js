@@ -2629,6 +2629,7 @@ function update_undo_buttons()
 function copy_new_edit_image(id)
 {
       var win = ImageWindow.windowById(id);
+      id = util.getBaseWindowId(win);
       var editcount = util.getKeywordValue(win, "AutoIntegrateEditCount");
       if (editcount == null) {
             editcount = 0;

@@ -265,6 +265,81 @@ this.findWindow = function(id)
       return null;
 }
 
+function isDefaultImageId(str) 
+{
+      // Regular expression to match the pattern "Image" followed by a number
+      const regex = /^Image\d+$/i; 
+    
+      // Test the string against the regular expression
+      return regex.test(str);
+}
+
+function getFnameIfGeneratedWindowId(imgWin) 
+{
+      var filePath = imgWin.filePath;
+      if (filePath == null || filePath == undefined) {
+            return null;
+      }
+      var fname = File.extractName(filePath);
+      if (fname == imgWin.mainView.id) {
+            // fname and view id match, not using a system generated view id
+            return null;
+      }
+      if (!isDefaultImageId(imgWin.mainView.id)) {
+            // not using a system generated view id, maybe user changed the view id
+            return null;
+      }
+      return fname;
+}
+
+this.getBaseWindowId = function(imgWin)
+{
+      var fname = getFnameIfGeneratedWindowId(imgWin);
+      if (fname != null) {
+            // We have system generated view id, use the file name
+            return fname;
+      }
+      return imgWin.mainView.id;
+
+}
+
+this.findWindowOrFile = function(id)
+{
+      if (id == null || id == undefined) {
+            return null;
+      }
+      var images = ImageWindow.windows;
+      if (images == null || images == undefined) {
+            return null;
+      }
+
+      var w = util.findWindow(id);
+      if (w != null) {
+            return w;
+      }
+      // Window not found by view id, try to find using a file name
+      for (var i in images) {
+            if (images[i].mainView == null
+                || images[i].mainView == undefined)
+            {
+                  continue;
+            }
+            var fname = getFnameIfGeneratedWindowId(images[i]);
+            if (fname == null) {
+                  // not using a system generated view id so we
+                  // have already checked the id
+                  continue;
+            }
+            // We have a system generated default view id, check if we have a match with the file name
+            if (fname == id) {
+                  var w = images[i];
+                  w.mainView.id = id;  // Ensure that the window id is the same as the file name
+                  return w;
+            }
+      }
+      return null;
+}
+
 this.findWindowStartsWith = function(id)
 {
       if (id == null || id == undefined) {
@@ -340,9 +415,10 @@ this.getWindowList = function()
       }
       for (var i in images) {
             try {
-                  if (images[i].mainView != null && images[i].mainView != undefined) {
-                        windowList[windowList.length] = images[i].mainView.id;
+                  if (images[i].mainView == null || images[i].mainView == undefined) {
+                        continue;
                   }
+                  windowList[windowList.length] = images[i].mainView.id;
             } catch (err) {
                   // ignore errors
             }
@@ -365,6 +441,17 @@ this.getWindowListReverse = function()
 this.findWindowId = function(id)
 {
       var w = util.findWindow(id);
+
+      if (w == null) {
+            return null;
+      }
+
+      return w.mainView.id;
+}
+
+this.findWindowOrFileId = function(id)
+{
+      var w = util.findWindowOrFile(id);
 
       if (w == null) {
             return null;

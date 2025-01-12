@@ -10339,12 +10339,12 @@ this.writeProcessingStepsAndEndLog = function(alignedFiles, autocontinue, basena
 function findWindowCheckBaseNameIf(id, check_base_name)
 {
       // console.writeln("findWindowCheckBaseNameIf: " + id);
-      var win = util.findWindow(util.ensure_win_prefix(id));
+      var win = util.findWindowOrFile(util.ensure_win_prefix(id));
       if (win == null && check_base_name && ppar.win_prefix != ppar.autocontinue_win_prefix) {
             // Try to find without prefix so we can autocontinue
             // from default run but will have new output
             // file names.
-            win = util.findWindow(util.ensure_win_prefix_ex(id, ppar.autocontinue_win_prefix));
+            win = util.findWindowOrFile(util.ensure_win_prefix_ex(id, ppar.autocontinue_win_prefix));
       }
       return win;
 }
@@ -10353,12 +10353,12 @@ function findWindowCheckBaseNameIf(id, check_base_name)
 // Used to find AutoContinue images
 function findWindowIdCheckBaseNameIf(name, check_base_name)
 {
-      var id = util.findWindowId(util.ensure_win_prefix(name));
+      var id = util.findWindowOrFileId(util.ensure_win_prefix(name));
       if (id == null && check_base_name && ppar.win_prefix != ppar.autocontinue_win_prefix) {
             // Try to find with autocontinue prefix so we can autocontinue
             // from other run but will have new output
             // file names.
-            id = util.findWindowId(util.ensure_win_prefix_ex(name, ppar.autocontinue_win_prefix));
+            id = util.findWindowOrFileId(util.ensure_win_prefix_ex(name, ppar.autocontinue_win_prefix));
             autocontinue_prefix = ppar.autocontinue_win_prefix;
       } else {
             autocontinue_prefix = ppar.win_prefix;
@@ -10373,15 +10373,15 @@ function findWindowIdCheckBaseNameIf(name, check_base_name)
 // then try without prefix
 function findWindowNoPrefixIf(id, check_base)
 {
-      var win = util.findWindow(id);
+      var win = util.findWindowOrFile(id);
       if (win == null && check_base && ppar.win_prefix != '' && id.startsWith(ppar.win_prefix)) {
             // Try without prefix
-            var win = util.findWindow(id.substring(ppar.win_prefix.length));
+            var win = util.findWindowOrFile(id.substring(ppar.win_prefix.length));
       }
       if (win == null && check_base && ppar.win_prefix != '' && id.startsWith(ppar.win_prefix)) {
             // Try with autocontinue prefix
             var basename = id.substring(ppar.win_prefix.length);
-            var win = util.findWindow(ppar.autocontinue_win_prefix + basename);
+            var win = util.findWindowOrFile(ppar.autocontinue_win_prefix + basename);
       }
       return win;
 }
@@ -16282,7 +16282,7 @@ function CropImageIf(id)
 function calculate_crop_amount(lowClipImageName, integratedImageName, crop_auto_continue)
 {
       let crop_errors = "";
-      let lowClipImageWindow = util.findWindow(lowClipImageName);
+      let lowClipImageWindow = util.findWindowOrFile(lowClipImageName);
       if (lowClipImageWindow == null) {
             util.throwFatalError("Crop failed to find image " + lowClipImageName);
       }
