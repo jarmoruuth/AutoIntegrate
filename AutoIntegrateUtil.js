@@ -318,6 +318,7 @@ this.findWindowOrFile = function(id)
             return w;
       }
       // Window not found by view id, try to find using a file name
+      var found_win = null;
       for (var i in images) {
             if (images[i].mainView == null
                 || images[i].mainView == undefined)
@@ -332,12 +333,18 @@ this.findWindowOrFile = function(id)
             }
             // We have a system generated default view id, check if we have a match with the file name
             if (fname == id) {
-                  var w = images[i];
-                  w.mainView.id = id;  // Ensure that the window id is the same as the file name
-                  return w;
+                  if (found_win != null) {
+                        // Duplicate file name found, we cannot use the file name
+                        util.addCriticalStatus("Duplicate file name " + id + " found, cannot use the file");
+                        return null;
+                  }
+                  found_win = images[i];
             }
       }
-      return null;
+      if (found_win != null) {
+            found_win.mainView.id = id;  // Ensure that the window id is the same as the file name
+      }
+      return found_win;
 }
 
 this.findWindowStartsWith = function(id)
@@ -1066,11 +1073,13 @@ this.getOptionalUniqueFilenamePart = function()
 this.saveFinalImageWindow = function(win, dir, name, bits)
 {
       console.writeln("saveFinalImageWindow " + name);
-      var copy_win = util.copyWindow(win, util.ensure_win_prefix(name + "_savetmp"));
+      var copy_win = null;
       var save_name;
+      var save_win = win;
 
       // 8 and 16 bite are TIFF, 32 is XISF
       if (bits != 32) {
+            copy_win = util.copyWindow(win, util.ensure_win_prefix(name + "_savetmp"));
             if (bits == 16) {
                   var new_postfix = "";
             } else {
@@ -1088,16 +1097,19 @@ this.saveFinalImageWindow = function(win, dir, name, bits)
                   console.writeln("saveFinalImageWindow:set bits to " + bits);
                   copy_win.setSampleFormat(bits, false);
             }
+            save_win = copy_win
       } else {
             save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".xisf";
       }
       console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
       // no strict mode, no overwrite checks.
-      if (!copy_win.saveAs(save_name, false, false, false, false)) {
+      if (!save_win.saveAs(save_name, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + save_name);
       }
-      util.closeOneWindow(copy_win);
+      if (copy_win != null) {
+            util.closeOneWindow(copy_win);
+      }
 }
 
 this.saveAllFinalImageWindows = function(bits)
@@ -1630,7 +1642,8 @@ function is_non_starless_option()
              par.extra_solve_image.val ||
              par.extra_annotate_image.val ||
              par.extra_signature.val ||
-             par.extra_rotate.val;
+             par.extra_rotate.val ||
+             par.extra_fix_star_cores.val;
 }
 
 this.is_extra_option = function()

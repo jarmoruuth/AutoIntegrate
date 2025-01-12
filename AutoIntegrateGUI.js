@@ -1385,6 +1385,9 @@ function extraProcessingGUI(parent)
       this.extraRemoveStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
       this.extraRemoveStars_Sizer.addStretch();
 
+      this.extraFixStarCores_CheckBox = newCheckBox(parent, "Fix star cores", par.extra_fix_star_cores, 
+            "<p>Fix star cores by applying a slight blur to then using a star mask.</p>");
+
       var extraCombineStarsReduce_Tooltip =
             "<p>With reduce selection it is possible to reduce stars while combining. " +
             "Star reduction uses PixelMath expressions created by Bill Blanshan.</p>" +
@@ -2303,6 +2306,7 @@ function extraProcessingGUI(parent)
       this.extra1.margin = 6;
       this.extra1.spacing = 4;
       this.extra1.add( this.extraRemoveStars_Sizer );
+      this.extra1.add( this.extraFixStarCores_CheckBox );
       this.extra1.add( this.extraRGBHamapping_CheckBox );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraBandinReduction_CheckBox );
@@ -2853,15 +2857,13 @@ function save_as_undo()
 
       /* Save as XISF.
        */
-      var copy_win = util.copyWindow(save_win, util.ensure_win_prefix(save_win.mainView.id + "_savetmp"));
       var filename = util.ensurePathEndSlash(save_dir) + save_id + ".xisf";
       console.noteln("Save " + global.extra_target_image + " as " + filename);
       // Save image. No format options, no warning messages,
       // no strict mode, no overwrite checks.
-      if (!copy_win.saveAs(filename, false, false, false, false)) {
+      if (!save_win.saveAs(filename, false, false, false, false)) {
             util.throwFatalError("Failed to save image: " + filename);
       }
-      util.closeOneWindow(copy_win);
 
       util.saveLastDir(save_dir);
       update_undo_buttons();

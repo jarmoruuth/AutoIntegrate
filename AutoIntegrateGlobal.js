@@ -418,6 +418,7 @@ this.par = {
       // Generic Extra processing
       extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
       extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
+      extra_fix_star_cores: { val: false, def: false, name : "Extra fix star cores", type : 'B' },
       extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
       extra_combine_stars_mode: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
       extra_combine_stars_image: { val: 'Auto', def: 'Auto', name : "Extra stars image", type : 'S' },

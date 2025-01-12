@@ -13400,6 +13400,65 @@ function addExtraProcessingStep(txt)
       util.addProcessingStepAndStatusInfo("Processing: " + txt);
 }
 
+function extraFixStarCores(targetWin)
+{
+      console.writeln("extraFixStarCores:create star mask");
+
+      // Create mask for star cores
+      var P = new StarMask;
+      P.shadowsClipping = 0.00000;
+      P.midtonesBalance = 0.80000;
+      P.highlightsClipping = 1.00000;
+      P.waveletLayers = 6;
+      P.structureContours = false;
+      P.noiseThreshold = 0.10000;
+      P.aggregateStructures = false;
+      P.binarizeStructures = false;
+      P.largeScaleGrowth = 2;
+      P.smallScaleGrowth = 1;
+      P.growthCompensation = 2;
+      P.smoothness = 8;
+      P.invert = false;
+      P.truncation = 1.00000;
+      P.limit = 1.00000;
+      P.mode = StarMask.prototype.StarMask;
+
+      P.executeOn(targetWin.mainView, false);
+
+      printProcessValues(P);
+
+      console.writeln("extraFixStarCores:set star mask");
+
+      star_fix_mask_win = ImageWindow.activeWindow;
+
+      setMaskChecked(targetWin, star_fix_mask_win);
+      targetWin.maskInverted = false;
+
+      // Blur star cores
+      console.writeln("extraFixStarCores:blur star cores");
+      var P = new Convolution;
+      P.mode = Convolution.prototype.Parametric;
+      P.sigma = 2.00;
+      P.shape = 2.00;
+      P.aspectRatio = 1.00;
+      P.rotationAngle = 0.00;
+      P.filterSource = "SeparableFilter {\n" +
+      "   name { Gaussian (5) }\n" +
+      "   row-vector {  0.010000  0.316228  1.000000  0.316228  0.010000 }\n" +
+      "   col-vector {  0.010000  0.316228  1.000000  0.316228  0.010000 }\n" +
+      "}\n";
+      P.rescaleHighPass = false;
+      P.viewId = "";
+
+      P.executeOn(targetWin.mainView, false);
+
+      printProcessValues(P);
+           
+      // Cleanup
+      targetWin.removeMask();
+      star_fix_mask_win.forceClose();
+}
+
 // When start removal is run we do some things differently
 // - We make a copy of the starless image
 // - We make a copy of the stars image
@@ -15492,6 +15551,11 @@ function extraProcessing(parent, id, apply_directly)
             extra_stars_id = res.stars_id;
             console.writeln("extra_starless_id " + extra_starless_id + ", extra_stars_id " + extra_stars_id);
             extraOptionCompleted(par.extra_remove_stars);
+      }
+      if (par.extra_fix_star_cores.val) {
+            addExtraProcessingStep("Fix star cores");
+            extraFixStarCores(extraWin);
+            extraOptionCompleted(par.extra_fix_star_cores);
       }
       if (par.extra_ha_mapping.val) {
             addExtraProcessingStep("Ha mapping");
