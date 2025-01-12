@@ -3,23 +3,7 @@
 
 This is the main engine for AutoIntegrate script.
 
-Interface functions:
-
-      autointegrateProcessingEngine
-      extraProcessingEngine
-      autointegrateNarrowbandPaletteBatch
-      openImageFiles
-      openDirectoryFiles
-      getImagetypFiles
-      getFilterFiles
-      subframeSelectorMeasure
-      runHistogramTransformSTFex
-      autoStretch
-      testRGBNBmapping
-      testRGBHaMapping
-      writeProcessingStepsAndEndLog
-      closeAllWindows
-      getProcessDefaultValues
+Interface functions, see at the end of the module.
 
 Copyright (c) 2018-2025 Jarmo Ruuth.
 
@@ -123,7 +107,7 @@ var flowchart_operation_level = 0;
 
 /* Set optional GUI object to update GUI components.
  */
-this.setGUI = function(aigui) {
+function setGUI(aigui) {
       gui = aigui;
 }
 
@@ -637,7 +621,7 @@ function flowchartPrintList(list, indent)
       }
 }
 
-this.flowchartPrint = function(rootnode)
+function flowchartPrint(rootnode)
 {
       if (rootnode == null) {
             console.writeln("No flowchart");
@@ -647,7 +631,7 @@ this.flowchartPrint = function(rootnode)
       flowchartPrintList(rootnode.list, "  ");
 }
 
-this.flowchartReset = function()
+function flowchartReset()
 {
       console.writeln("flowchartReset");
       flowchart_active = false;
@@ -835,7 +819,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
 this.closeAllWindowsFromArray = closeAllWindowsFromArray;
 
 // close all windows created by this script
-this.closeAllWindows = function(keep_integrated_imgs, force_close)
+function closeAllWindows(keep_integrated_imgs, force_close)
 {
       util.closeTempWindows();
 
@@ -1528,7 +1512,7 @@ function treeboxfilesToFilenames(treeboxfiles)
 Function to open image files, or Json file.      
 
 */
-this.openImageFiles = function(filetype, lights_only, json_only, filetype_is_full_caption)
+function openImageFiles(filetype, lights_only, json_only, filetype_is_full_caption)
 {
       var ofd = new OpenFileDialog;
 
@@ -1609,7 +1593,7 @@ this.openImageFiles = function(filetype, lights_only, json_only, filetype_is_ful
       }
 }
 
-this.openDirectoryFiles = function(filetype, file_filter, lights_only, filetype_is_full_caption)
+function openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption)
 {
       console.writeln("openDirectoryFiles: " + filetype + " " + file_filter);
 
@@ -2979,7 +2963,7 @@ function findFilterIndex(name)
 //    returns array of [ filename, checked, weight ]
 // else
 //    returns array of [ filename, weight ]
-this.subframeSelectorMeasure = function(fileNames, weight_filtering, treebox_filtering)
+function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
 {
       console.writeln("subframeSelectorMeasure, input[0] " + fileNames[0]);
 
@@ -3766,7 +3750,7 @@ function getFilterKeywordForImage(filter, filePath, filename_postfix)
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
 // or treeboxfiles array having [ filename, checked, weight ] members
-this.getFilterFiles = function(files, pageIndex, filename_postfix, flochart_files = false)
+function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false)
 {
       var luminance = false;
       var rgb = false;
@@ -4036,7 +4020,7 @@ this.getFilterFiles = function(files, pageIndex, filename_postfix, flochart_file
       };
 }
 
-this.getImagetypFiles = function(files)
+function getImagetypFiles(files)
 {
       var allfiles = [];
 
@@ -7625,7 +7609,7 @@ function getRgbLinked(iscolor)
       }
 }
 
-this.runHistogramTransformSTFex = function(GC_win, stf_to_use, iscolor, targetBackground, silent, rgbLinked)
+function runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackground, silent, rgbLinked)
 {
       if (!silent) {
             util.addProcessingStep("Run histogram transform on " + GC_win.mainView.id + " based on autostretch, targetBackground " + targetBackground);
@@ -7667,7 +7651,7 @@ this.runHistogramTransformSTFex = function(GC_win, stf_to_use, iscolor, targetBa
       return stf_to_use;
 }
 
-this.autoStretch = function(imgWin, silent = true)
+function autoStretch(imgWin, silent = true)
 {
       engine.runHistogramTransformSTFex(imgWin, null, imgWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, silent, null);
 }
@@ -10258,7 +10242,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
-this.writeProcessingStepsAndEndLog = function(alignedFiles, autocontinue, basename, iserror)
+function writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, iserror)
 {
       if (basename == null) {
             if (autocontinue) {
@@ -10876,7 +10860,7 @@ function findStartImages(auto_continue, check_base_name, can_update_preview)
       return preprocessed_images;
 }
 
-this.autocontinueHasNarrowband = function()
+function autocontinueHasNarrowband()
 {
       process_narrowband = false;
       findStartImages(true, true, true);
@@ -12223,7 +12207,7 @@ function doRGBNBmapping(RGB_id)
       return RGB_mapped_id;
 }
 
-this.testRGBNBmapping = function()
+function testRGBNBmapping()
 {
       var test_RGB_color_id = null;
 
@@ -13040,7 +13024,7 @@ function testRGBHaMapping1(savelog)
       console.noteln("Testing completed");
 }
 
-this.testRGBHaMapping = function()
+function testRGBHaMapping()
 {
       if (par.RGBHa_test_value.val == 'All mappings') {
             console.beginLog();
@@ -14778,7 +14762,7 @@ function extraColorizePixelMathChannelsWeightedMapping(channel)
       return weighted_mapping;
 }
 
-this.extraColorizedNarrowbandImages = function(imgWin)
+function extraColorizedNarrowbandImages(imgWin)
 {
       console.writeln("extraColorizedNarrowbandImages " + imgWin.mainView.id + ", mapping " + par.narrowband_colorized_mapping.val + ", combine " + par.narrowband_colorized_combine.val);
       let node = flowchartOperation("Colorize");
@@ -15138,7 +15122,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
 }
 
 // Run through all narrowband palette options
-this.autointegrateNarrowbandPaletteBatch = function(parent, auto_continue)
+function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
 {
       console.writeln("autointegrateNarrowbandPaletteBatch");
       if (par.use_narrowband_multiple_mappings.val) {
@@ -16789,7 +16773,7 @@ function createCropInformationAutoContinue()
  *    extraProcessingEngine
  * 
  */
- this.extraProcessingEngine = function(parent, extra_target_image, extra_narrowband)
+ function extraProcessingEngine(parent, extra_target_image, extra_narrowband)
  {
        engineInit();
        engine.flowchartReset();
@@ -16932,7 +16916,7 @@ function save_images_in_save_id_list()
  *                Processing parameters.
  * 
  */
-this.autointegrateProcessingEngine = function(parent, auto_continue, autocontinue_narrowband, txt)
+function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, txt)
 {
        if (!check_engine_processing()) {
             return false;
@@ -17640,7 +17624,7 @@ function printProcessDefaultValues(name, obj)
       console.writeln(obj.toSource());
 }
 
-this.getProcessDefaultValues = function()
+function getProcessDefaultValues()
 {
       console.beginLog();
 
@@ -17738,7 +17722,40 @@ this.getProcessDefaultValues = function()
       engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }
 
+/* Interface functions.
+ */
+
+// Setup
+this.setGUI = setGUI;
+
+// Main interface functions
+this.extraProcessingEngine = extraProcessingEngine;
+this.autointegrateProcessingEngine = autointegrateProcessingEngine;
+this.autointegrateNarrowbandPaletteBatch = autointegrateNarrowbandPaletteBatch;
+
+// Flowchart
+this.flowchartPrint = flowchartPrint;
+this.flowchartReset = flowchartReset;
+this.closeAllWindows = closeAllWindows;
+
+// Utility processing functions
+this.subframeSelectorMeasure = subframeSelectorMeasure;
+this.runHistogramTransformSTFex = runHistogramTransformSTFex;
+this.autoStretch = autoStretch;
+this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
+
+this.openImageFiles = openImageFiles;
+this.openDirectoryFiles = openDirectoryFiles;
+this.getFilterFiles = getFilterFiles;
+this.getImagetypFiles = getImagetypFiles;
+
+this.writeProcessingStepsAndEndLog = writeProcessingStepsAndEndLog;
+this.getProcessDefaultValues = getProcessDefaultValues;
 this.getChangedProcessingOptions = getChangedProcessingOptions;
+this.autocontinueHasNarrowband = autocontinueHasNarrowband;
+
+this.testRGBNBmapping = testRGBNBmapping;
+this.testRGBHaMapping = testRGBHaMapping;
 
 }  /* AutoIntegrateEngine*/
 

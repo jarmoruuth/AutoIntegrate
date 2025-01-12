@@ -30,12 +30,12 @@ var ppar = global.ppar;
 
 /* Set optional GUI object to update GUI components.
  */
-this.setGUI = function(aigui)
+function setGUI(aigui)
 {
       gui = aigui;
 }
 
-this.init_pixinsight_version = function()
+function init_pixinsight_version()
 {
       global.pixinsight_version_str = CoreApplication.versionMajor + '.' + CoreApplication.versionMinor + '.' + 
                                       CoreApplication.versionRelease + '-' + CoreApplication.versionRevision +
@@ -47,7 +47,7 @@ this.init_pixinsight_version = function()
       global.pixinsight_build_num = CoreApplication.versionBuild;
 }
 
-this.runGarbageCollection = function()
+function runGarbageCollection()
 {
       var start_time = Date.now();
       gc();
@@ -55,7 +55,7 @@ this.runGarbageCollection = function()
       console.writeln("runGarbageCollection, " + (end_time-start_time)/1000+ " sec");
 }
 
-this.checkEvents = function()
+function checkEvents()
 {
       processEvents();  // process events to keep GUI responsible
       util.runGarbageCollection();
@@ -65,7 +65,7 @@ this.checkEvents = function()
 // use a simple array so we can add object into it.
 // There are file sets for each possible filters and
 // each array element has file name and used flag.
-this.initFilterSets = function()
+function initFilterSets()
 {
       return [
             ['L', []],
@@ -80,7 +80,7 @@ this.initFilterSets = function()
 }
 
 // find filter set object based on file type
-this.findFilterSet = function(filterSet, filetype)
+function findFilterSet(filterSet, filetype)
 {
       for (var i = 0; i < filterSet.length; i++) {
             if (filterSet[i][0] == filetype) {
@@ -93,7 +93,7 @@ this.findFilterSet = function(filterSet, filetype)
 
 // Add file base name to the filter set object
 // We use file base name to detect filter files
-this.addFilterSetFile = function(filterSet, filePath, filetype)
+function addFilterSetFile(filterSet, filePath, filetype)
 {
       var basename = File.extractName(filePath);
       console.writeln("addFilterSetFile add " + basename + " filter "+ filetype);
@@ -103,7 +103,7 @@ this.addFilterSetFile = function(filterSet, filePath, filetype)
 // Try to find base file name from filter set objects.
 // We use simple linear search which should be fine
 // for most data sizes.
-this.findFilterForFile = function(filterSet, filePath, filename_postfix)
+function findFilterForFile(filterSet, filePath, filename_postfix)
 {
       var basename = File.extractName(filePath);
       if (filename_postfix.length > 0) {
@@ -125,7 +125,7 @@ this.findFilterForFile = function(filterSet, filePath, filename_postfix)
 }
 
 // remove a file from filter set
-this.removeFilterFile = function(filterSet, filePath)
+function removeFilterFile(filterSet, filePath)
 {
       var basename = File.extractName(filePath);
       for (var i = 0; i < filterSet.length; i++) {
@@ -139,7 +139,7 @@ this.removeFilterFile = function(filterSet, filePath)
       }
 }
 
-this.clearFilterFileUsedFlags = function(filterSet)
+function clearFilterFileUsedFlags(filterSet)
 {
       console.writeln("clearUsedFilterForFiles");
       for (var i = 0; i < filterSet.length; i++) {
@@ -151,7 +151,7 @@ this.clearFilterFileUsedFlags = function(filterSet)
       return null;
 }
 
-this.setDefaultDirs = function()
+function setDefaultDirs()
 {
       global.AutoOutputDir = "AutoOutput";
       global.AutoCalibratedDir = "AutoCalibrated";
@@ -159,7 +159,7 @@ this.setDefaultDirs = function()
       global.AutoProcessedDir = "AutoProcessed";
 }
 
-this.clearDefaultDirs = function()
+function clearDefaultDirs()
 {
       global.AutoOutputDir = ".";
       global.AutoCalibratedDir = ".";
@@ -167,7 +167,7 @@ this.clearDefaultDirs = function()
       global.AutoProcessedDir = ".";
 }
 
-this.ensurePathEndSlash = function(dir)
+function ensurePathEndSlash(dir)
 {
       if (dir.length > 0) {
             switch (dir[dir.length-1]) {
@@ -182,7 +182,7 @@ this.ensurePathEndSlash = function(dir)
       return dir;
 }
 
-this.removePathEndSlash = function(dir)
+function removePathEndSlash(dir)
 {
       if (dir.length > 1) {
             switch (dir[dir.length-1]) {
@@ -196,7 +196,7 @@ this.removePathEndSlash = function(dir)
       return dir;
 }
 
-this.removePathEndDot = function(dir)
+function removePathEndDot(dir)
 {
       if (dir.length > 0) {
             switch (dir.substr(-2, 2)) {
@@ -211,7 +211,7 @@ this.removePathEndDot = function(dir)
 }
 
 // parse full path from file name appended with '/
-this.parseNewOutputDir = function(filePath, subdir)
+function parseNewOutputDir(filePath, subdir)
 {
       var path = util.ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
       path = util.ensurePathEndSlash(path + subdir);
@@ -221,7 +221,7 @@ this.parseNewOutputDir = function(filePath, subdir)
 
 // If path is relative and not absolute, we append it to the 
 // path of the image file
-this.pathIsRelative = function(p)
+function pathIsRelative(p)
 {
       var dir = File.extractDirectory(p);
       if (dir == null || dir == '') {
@@ -236,7 +236,7 @@ this.pathIsRelative = function(p)
       }
 }
 
-this.throwFatalError = function(txt)
+function throwFatalError(txt)
 {
       util.addProcessingStepAndStatusInfo(txt);
       global.run_results.fatal_error = txt;
@@ -244,7 +244,7 @@ this.throwFatalError = function(txt)
       throw new Error(txt);
 }
 
-this.findWindow = function(id)
+function findWindow(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -292,7 +292,7 @@ function getFnameIfGeneratedWindowId(imgWin)
       return fname;
 }
 
-this.getBaseWindowId = function(imgWin)
+function getBaseWindowId(imgWin)
 {
       var fname = getFnameIfGeneratedWindowId(imgWin);
       if (fname != null) {
@@ -303,7 +303,7 @@ this.getBaseWindowId = function(imgWin)
 
 }
 
-this.findWindowOrFile = function(id)
+function findWindowOrFile(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -347,7 +347,7 @@ this.findWindowOrFile = function(id)
       return found_win;
 }
 
-this.findWindowStartsWith = function(id)
+function findWindowStartsWith(id)
 {
       if (id == null || id == undefined) {
             return null;
@@ -367,7 +367,7 @@ this.findWindowStartsWith = function(id)
       return null;
 }
 
-this.findWindowRe = function(re)
+function findWindowRe(re)
 {
       if (re == null || re == undefined) {
             return null;
@@ -387,7 +387,7 @@ this.findWindowRe = function(re)
       return null;
 }
 
-this.findWindowFromArray = function(arr)
+function findWindowFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
             if (util.findWindow(arr[i]) != null) {
@@ -397,7 +397,7 @@ this.findWindowFromArray = function(arr)
       return false;
 }
 
-this.closeAllWindowsSubstr = function(id_substr)
+function closeAllWindowsSubstr(id_substr)
 {
       var images = ImageWindow.windows;
       if (images == null || images == undefined) {
@@ -413,7 +413,7 @@ this.closeAllWindowsSubstr = function(id_substr)
       }
 }
 
-this.getWindowList = function()
+function getWindowList()
 {
       var windowList = [];
       var images = ImageWindow.windows;
@@ -433,7 +433,7 @@ this.getWindowList = function()
       return windowList;
 }
 
-this.getWindowListReverse = function()
+function getWindowListReverse()
 {
       var windowListReverse = [];
       var windowList = util.getWindowList();
@@ -445,7 +445,7 @@ this.getWindowListReverse = function()
       return windowListReverse;
 }
 
-this.findWindowId = function(id)
+function findWindowId(id)
 {
       var w = util.findWindow(id);
 
@@ -456,7 +456,7 @@ this.findWindowId = function(id)
       return w.mainView.id;
 }
 
-this.findWindowOrFileId = function(id)
+function findWindowOrFileId(id)
 {
       var w = util.findWindowOrFile(id);
 
@@ -467,7 +467,7 @@ this.findWindowOrFileId = function(id)
       return w.mainView.id;
 }
 
-this.windowShowif = function(id)
+function windowShowif(id)
 {
       var w = util.findWindow(id);
       if (w != null) {
@@ -526,7 +526,7 @@ function windowIconizeEx(id, columnCount, iconStartRow, haveIconizedCount)
       return w;
 }
 
-this.windowIconizeFindPosition = function(id, keep_iconized)
+function windowIconizeFindPosition(id, keep_iconized)
 {
       var index = 0;
       var iconStartRow = 0;
@@ -579,7 +579,7 @@ this.windowIconizeFindPosition = function(id, keep_iconized)
 
 // Iconify the window, the return value is the window,
 // only as a convenience to this.windowIconizeAndKeywordif()
-this.windowIconizeif = function(id, show_image)
+function windowIconizeif(id, show_image)
 {
       if (id == null) {
             return null;
@@ -600,7 +600,7 @@ this.windowIconizeif = function(id, show_image)
       return w;
 }
 
-this.autointegrateProcessingHistory = function(imageWindow)
+function autointegrateProcessingHistory(imageWindow)
 {
       var keywords = imageWindow.keywords;
       var history = {
@@ -647,7 +647,7 @@ this.autointegrateProcessingHistory = function(imageWindow)
       }
 }
 
-this.filterKeywords = function(imageWindow, keywordname) 
+function filterKeywords(imageWindow, keywordname) 
 {
       var oldKeywords = [];
       var keywords = imageWindow.keywords;
@@ -660,7 +660,7 @@ this.filterKeywords = function(imageWindow, keywordname)
       return oldKeywords;
 }
 
-this.findDrizzleScale = function(imageWindow) 
+function findDrizzleScale(imageWindow) 
 {
       var scale = 0;
       var keywords = imageWindow.keywords;
@@ -680,7 +680,7 @@ this.findDrizzleScale = function(imageWindow)
       return scale;
 }
 
-this.copyKeywords = function(imageWindow) 
+function copyKeywords(imageWindow) 
 {
       var newKeywords = [];
       var keywords = imageWindow.keywords;
@@ -691,7 +691,7 @@ this.copyKeywords = function(imageWindow)
 }
 
 // Overwrite an old keyword or add a new one
-this.setFITSKeyword = function(imageWindow, name, value, comment) 
+function setFITSKeyword(imageWindow, name, value, comment) 
 {
       var oldKeywords = util.filterKeywords(imageWindow, name);
       imageWindow.keywords = oldKeywords.concat([
@@ -704,7 +704,7 @@ this.setFITSKeyword = function(imageWindow, name, value, comment)
 }
 
 // Append a new keyword, allows multiple keywords with same name
-this.appenFITSKeyword = function(imageWindow, name, value, comment) 
+function appenFITSKeyword(imageWindow, name, value, comment) 
 {
       imageWindow.keywords = imageWindow.keywords.concat([
          new FITSKeyword(
@@ -715,7 +715,7 @@ this.appenFITSKeyword = function(imageWindow, name, value, comment)
       ]);
 }
 
-this.getKeywordValue = function(imageWindow, keywordname) 
+function getKeywordValue(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       for (var i = 0; i < keywords.length; i++) {
@@ -727,7 +727,7 @@ this.getKeywordValue = function(imageWindow, keywordname)
       return null;
 }
 
-this.findKeywordName = function(imageWindow, keywordname) 
+function findKeywordName(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
       for (var i = 0; i < keywords.length; i++) {
@@ -739,7 +739,7 @@ this.findKeywordName = function(imageWindow, keywordname)
       return false;
 }
 
-this.setFITSKeywordNoOverwrite = function(imageWindow, name, value, comment)
+function setFITSKeywordNoOverwrite(imageWindow, name, value, comment)
 {
       if (util.findKeywordName(imageWindow, name)) {
             console.writeln("keyword already set");
@@ -758,7 +758,7 @@ function setProcessedImageKeyword(imageWindow)
             "AutoIntegrate processed intermediate image");
 }
 
-this.windowIconizeAndKeywordif = function(id, show_image, find_prefix)
+function windowIconizeAndKeywordif(id, show_image, find_prefix)
 {
       if (find_prefix) {
             var w = util.windowIconizeFindPosition(id, true);
@@ -780,12 +780,12 @@ this.windowIconizeAndKeywordif = function(id, show_image, find_prefix)
 
 // Add a script window that will be closed when close all is clicked
 // Useful for temporary windows that do not have a fixed name
-this.addScriptWindow = function(name)
+function addScriptWindow(name)
 {
       global.all_windows[global.all_windows.length] = name;
 }
 
-this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate_name)
+function windowRenameKeepifEx(old_name, new_name, keepif, allow_duplicate_name)
 {
       if (par.debug.val) {
             console.writeln("windowRenameKeepifEx " + old_name + " to " + new_name + ", keepif " + keepif + ", allow_duplicate_name " + allow_duplicate_name);
@@ -813,17 +813,17 @@ this.windowRenameKeepifEx = function(old_name, new_name, keepif, allow_duplicate
       return w.mainView.id;
 }
 
-this.windowRenameKeepif = function(old_name, new_name, keepif)
+function windowRenameKeepif(old_name, new_name, keepif)
 {
       return util.windowRenameKeepifEx(old_name, new_name, keepif, false);
 }
 
-this.windowRename = function(old_name, new_name)
+function windowRename(old_name, new_name)
 {
       return util.windowRenameKeepif(old_name, new_name, false);
 }
 
-this.closeOneWindow = function(w, force_close = true)
+function closeOneWindow(w, force_close = true)
 {
       if (w == null) {
             return;
@@ -846,7 +846,7 @@ this.closeOneWindow = function(w, force_close = true)
 }
 
 // close one window
-this.closeOneWindowById = function(id, force_close = true)
+function closeOneWindowById(id, force_close = true)
 {
       var w = util.findWindow(id);
       if (w != null) {
@@ -854,7 +854,7 @@ this.closeOneWindowById = function(id, force_close = true)
       }
 }
 
-this.closeWindowsFromArray = function(arr)
+function closeWindowsFromArray(arr)
 {
       for (var i = 0; i < arr.length; i++) {
             util.closeOneWindowById(arr[i]);
@@ -863,7 +863,7 @@ this.closeWindowsFromArray = function(arr)
 
 // For the final window, we may have more different names with
 // both prefix or postfix added
-this.closeFinalWindowsFromArray = function(arr, force_close)
+function closeFinalWindowsFromArray(arr, force_close)
 {
       for (var i = 0; i < arr.length; i++) {
             util.closeOneWindowById(arr[i], force_close);
@@ -876,7 +876,7 @@ this.closeFinalWindowsFromArray = function(arr, force_close)
       }
 }
 
-this.closeTempWindowsForOneImage = function(id)
+function closeTempWindowsForOneImage(id)
 {
       util.closeOneWindowById(id + "_max");
       util.closeOneWindowById(id + "_map");
@@ -891,7 +891,7 @@ this.closeTempWindowsForOneImage = function(id)
       util.closeOneWindowById(id + "_combined_solvercopy");
 }
 
-this.closeTempWindows = function()
+function closeTempWindows()
 {
       for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
             util.closeTempWindowsForOneImage(global.integration_LRGB_windows[i]);
@@ -905,7 +905,7 @@ this.closeTempWindows = function()
       global.temporary_windows = [];
 }
 
-this.findFromArray = function(arr, id)
+function findFromArray(arr, id)
 {
       for (var i = 0; i < arr.length; i++) {
             if (arr[i] == id) {
@@ -942,7 +942,7 @@ function getWindowPrefix(basename, curname)
 // Fix all fixed window names by having the given prefix
 // We find possible previous prefix from the known fixed
 // window name
-this.fixAllWindowArrays = function(new_prefix)
+function fixAllWindowArrays(new_prefix)
 {
       var old_prefix = getWindowPrefix("Integration_L", global.integration_LRGB_windows[0]);
       if (old_prefix == new_prefix) {
@@ -960,7 +960,7 @@ this.fixAllWindowArrays = function(new_prefix)
       fixWindowArray(global.final_windows, old_prefix, new_prefix);
 }
 
-this.getOutputDir = function(filePath)
+function getOutputDir(filePath)
 {
       var outputDir = global.outputRootDir;
       if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
@@ -977,7 +977,7 @@ this.getOutputDir = function(filePath)
 }
 
 // Write something to a directory to test if it is writeable
-this.testDirectoryIsWriteable = function(dir)
+function testDirectoryIsWriteable(dir)
 {
       var fname = util.ensurePathEndSlash(dir) + "info.txt";
       var info = global.getDirectoryInfo(true);
@@ -992,7 +992,7 @@ this.testDirectoryIsWriteable = function(dir)
       }
 }
 
-this.ensureDir = function(dir)
+function ensureDir(dir)
 {
       // console.writeln("ensureDir " + dir)
       if (dir == "") {
@@ -1010,7 +1010,7 @@ this.ensureDir = function(dir)
       }
 }
 
-this.saveLastDir = function(dirname)
+function saveLastDir(dirname)
 {
       ppar.lastDir = util.removePathEndSlash(dirname);
       if (!global.do_not_write_settings) {
@@ -1019,7 +1019,7 @@ this.saveLastDir = function(dirname)
       }
 }
 
-this.combinePath = function(p1, p2)
+function combinePath(p1, p2)
 {
       if (p1 == "") {
             return "";
@@ -1028,7 +1028,7 @@ this.combinePath = function(p1, p2)
       }
 }
 
-this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id, optional_extension = ".xisf")
+function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional_extension = ".xisf")
 {
       if (path == null || id == null) {
             return null;
@@ -1059,7 +1059,7 @@ this.saveWindowEx = function(path, id, optional_unique_part, optional_save_id, o
       return fname;
 }
 
-this.getOptionalUniqueFilenamePart = function()
+function getOptionalUniqueFilenamePart()
 {
       if (par.unique_file_names.val) {
             return format("_%04d%02d%02d_%02d%02d%02d",
@@ -1070,7 +1070,7 @@ this.getOptionalUniqueFilenamePart = function()
       }
 }
 
-this.saveFinalImageWindow = function(win, dir, name, bits)
+function saveFinalImageWindow(win, dir, name, bits)
 {
       console.writeln("saveFinalImageWindow " + name);
       var copy_win = null;
@@ -1112,7 +1112,7 @@ this.saveFinalImageWindow = function(win, dir, name, bits)
       }
 }
 
-this.saveAllFinalImageWindows = function(bits)
+function saveAllFinalImageWindows(bits)
 {
       console.writeln("saveAllFinalImageWindows");
 
@@ -1171,14 +1171,14 @@ this.saveAllFinalImageWindows = function(bits)
       console.writeln("All final image windows are saved!");
 }
 
-this.fatalWindowNameFailed = function(txt)
+function fatalWindowNameFailed(txt)
 {
       console.criticalln(txt);
       console.criticalln("Close old images or use a different window prefix.");
       util.throwFatalError("Processing stopped");
 }
 
-this.add_test_image = function(id, testid, testmode)
+function add_test_image(id, testid, testmode)
 {
       if (testmode) {
             var copy_id = ppar.win_prefix + testid;
@@ -1189,7 +1189,7 @@ this.add_test_image = function(id, testid, testmode)
       }
 }
 
-this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
+function copyWindowEx(sourceWindow, name, allow_duplicate_name)
 {
       if (par.debug.val) {
             console.writeln("copyWindowEx " + sourceWindow.mainView.id + " to " + name + ", allow_duplicate_name " + allow_duplicate_name);
@@ -1235,12 +1235,12 @@ this.copyWindowEx = function(sourceWindow, name, allow_duplicate_name)
       return targetWindow;
 }
 
-this.copyWindow = function(sourceWindow, name)
+function copyWindow(sourceWindow, name)
 {
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
-this.forceCopyWindow = function(sourceWindow, name)
+function forceCopyWindow(sourceWindow, name)
 {
       var win = util.findWindow(name);
       if (win != null) {
@@ -1250,7 +1250,7 @@ this.forceCopyWindow = function(sourceWindow, name)
 }
 
 /* Open a file as image window. */
-this.openImageWindowFromFile = function(fileName, allow_missing_file)
+function openImageWindowFromFile(fileName, allow_missing_file)
 {
       if (allow_missing_file && !File.exists(fileName)) {
             return null;
@@ -1266,7 +1266,7 @@ this.openImageWindowFromFile = function(fileName, allow_missing_file)
       return imageWindow;
 }
 
-this.copyAstrometricSolutionFromWindow = function(targetWindow, imgWin)
+function copyAstrometricSolutionFromWindow(targetWindow, imgWin)
 {
       console.writeln("copyAstrometricSolutionFromWindow from " + imgWin.mainView.id + " to " + targetWindow.mainView.id);
 
@@ -1284,7 +1284,7 @@ this.copyAstrometricSolutionFromWindow = function(targetWindow, imgWin)
       return succ;
 }
 
-this.copyAstrometricSolutionFromFile = function(targetId, fname)
+function copyAstrometricSolutionFromFile(targetId, fname)
 {
       console.writeln("copyAstrometricSolutionFromFile from " + fname + " to " + targetId);
 
@@ -1347,7 +1347,7 @@ function updateWindowKeywords(target_keywords, source_keywords, keyword_list)
       return new_keywords;
 }
 
-this.copyKeywordsFromWindow = function(targetWindow, imgWin)
+function copyKeywordsFromWindow(targetWindow, imgWin)
 {
       console.writeln("copyKeywordsFromWindow from " + targetWindow.mainView.id + " to " + imgWin.mainView.id);
 
@@ -1409,7 +1409,7 @@ this.copyKeywordsFromWindow = function(targetWindow, imgWin)
       console.writeln("copyKeywordsFromWindow new target metadata: " + JSON.stringify(new_target_metadata, null, 2));
 }
 
-this.copyKeywordsFromFile = function(targetId, fname)
+function copyKeywordsFromFile(targetId, fname)
 {
       console.writeln("copyKeywordsFromFile from " + fname + " to " + targetId);
 
@@ -1434,7 +1434,7 @@ this.copyKeywordsFromFile = function(targetId, fname)
       return true;
 }
 
-this.createImageFromBitmap = function(bitmap)
+function createImageFromBitmap(bitmap)
 {
       var image = new Image(
                         bitmap.width, 
@@ -1447,7 +1447,7 @@ this.createImageFromBitmap = function(bitmap)
       return image;
 }
 
-this.createWindowFromBitmap = function(bitmap, id)
+function createWindowFromBitmap(bitmap, id)
 {
       var win = new ImageWindow(
                         bitmap.width,
@@ -1465,14 +1465,14 @@ this.createWindowFromBitmap = function(bitmap, id)
       return win;
 }
 
-this.getWindowBitmap = function(imgWin)
+function getWindowBitmap(imgWin)
 {
       var bmp = new Bitmap(imgWin.mainView.image.width, imgWin.mainView.image.height);
       bmp.assign(imgWin.mainView.image.render());
       return bmp;
 }
 
-this.createWindowFromImage = function(image, name, allow_duplicate_name)
+function createWindowFromImage(image, name, allow_duplicate_name)
 {
       if (par.debug.val) {
             console.writeln("createWindowFromImage " + name + ", allow_duplicate_name " + allow_duplicate_name);
@@ -1507,13 +1507,13 @@ this.createWindowFromImage = function(image, name, allow_duplicate_name)
       return targetWindow;
 }
 
-this.addProcessingStep = function(txt)
+function addProcessingStep(txt)
 {
       console.noteln("AutoIntegrate: " + txt);
       global.processing_steps = global.processing_steps + "\n" + txt;
 }
 
-this.updateStatusInfoLabel = function(txt)
+function updateStatusInfoLabel(txt)
 {
       if (global.get_flowchart_data) {
             return;
@@ -1531,7 +1531,7 @@ this.updateStatusInfoLabel = function(txt)
 
 // Add critical status message to a list of messages
 // and update status info label
-this.addCriticalStatus = function(txt)
+function addCriticalStatus(txt)
 {
       if (txt == null || txt == undefined || txt == "") {
             return;
@@ -1548,7 +1548,7 @@ this.addCriticalStatus = function(txt)
       }
 }
 
-this.addWarningStatus = function(txt)
+function addWarningStatus(txt)
 {
       if (txt == null || txt == undefined || txt == "") {
             return;
@@ -1565,7 +1565,7 @@ this.addWarningStatus = function(txt)
       }
 }
 
-this.addStatusInfo = function(txt)
+function addStatusInfo(txt)
 {
       console.noteln("------------------------");
       console.noteln(txt);
@@ -1573,13 +1573,13 @@ this.addStatusInfo = function(txt)
       util.checkEvents();
 }
 
-this.addProcessingStepAndStatusInfo = function(txt)
+function addProcessingStepAndStatusInfo(txt)
 {
       util.addProcessingStep(txt);
       util.updateStatusInfoLabel(txt);
 }
 
-this.ensure_win_prefix_ex = function(id, prefix)
+function ensure_win_prefix_ex(id, prefix)
 {
       if (id == null) {
             return null;
@@ -1591,12 +1591,12 @@ this.ensure_win_prefix_ex = function(id, prefix)
       }
 }
 
-this.ensure_win_prefix = function(id)
+function ensure_win_prefix(id)
 {
       return util.ensure_win_prefix_ex(id, ppar.win_prefix);
 }
 
-this.remove_autocontinue_prefix = function(id)
+function remove_autocontinue_prefix(id)
 {
       if (ppar.autocontinue_win_prefix != "" 
           && ppar.autocontinue_win_prefix != ppar.win_prefix 
@@ -1646,14 +1646,14 @@ function is_non_starless_option()
              par.extra_fix_star_cores.val;
 }
 
-this.is_extra_option = function()
+function is_extra_option()
 {
       return par.extra_remove_stars.val || 
              par.extra_combine_stars.val ||
              is_non_starless_option();
 }
 
-this.is_narrowband_option = function()
+function is_narrowband_option()
 {
       return par.fix_narrowband_star_color.val ||
              par.run_less_green_hue_shift.val ||
@@ -1668,7 +1668,7 @@ this.is_narrowband_option = function()
              par.remove_magenta_color.val;
 }
 
-this.mapBadChars = function(str)
+function mapBadChars(str)
 {
       str = str.replace(/ /g,"_");
       str = str.replace(/-/g,"_");
@@ -1678,14 +1678,14 @@ this.mapBadChars = function(str)
       return str;
 }
 
-this.mapBadWindowNameChars = function(str)
+function mapBadWindowNameChars(str)
 {
       str = util.mapBadChars(str);
       str = str.replace(/\./g,"_");
       return str;
 }
 
-this.replacePostfixOrAppend = function(name, postfixarr, new_postfix)
+function replacePostfixOrAppend(name, postfixarr, new_postfix)
 {
       if (name.endsWith(new_postfix)) {
             // we already have a correct postfix
@@ -1702,7 +1702,7 @@ this.replacePostfixOrAppend = function(name, postfixarr, new_postfix)
       return name + new_postfix;
 }
 
-this.ensureDialogFilePath = function(names)
+function ensureDialogFilePath(names)
 {
       if (global.outputRootDir == "") {
             var gdd = new GetDirectoryDialog;
@@ -1725,7 +1725,7 @@ this.ensureDialogFilePath = function(names)
       }
 }
 
-this.setParameterDefaults = function()
+function setParameterDefaults()
 {
       console.writeln("Set parameter defaults");
       for (let x in par) {
@@ -1775,7 +1775,7 @@ function getSettingsFromJson(settings)
 
 /* Read saved Json file info.
  */ 
-this.readJsonFile = function(fname, lights_only)
+function readJsonFile(fname, lights_only)
 {
       console.writeln("readJsonFile " + fname + " lights_only " + lights_only);
 
@@ -1902,7 +1902,7 @@ this.readJsonFile = function(fname, lights_only)
       return pagearray;
 }
 
-this.addJsonFileInfo = function(fileInfoList, pageIndex, treeboxfiles, filterset)
+function addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterset)
 {
       var name = "";
       switch (pageIndex) {
@@ -1954,7 +1954,7 @@ function copy_user_selected_reference_image_array()
       return copyarr;
 }
 
-this.initJsonSaveInfo = function(fileInfoList, save_settings, saveDir)
+function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
 {
       if (save_settings) {
             var changed_settings = getChangedSettingsAsJson();
@@ -2092,7 +2092,7 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
 
 /* Save file info to a file.
  */
-this.saveJsonFileEx = function(parent, save_settings, autosave_json_filename)
+function saveJsonFileEx(parent, save_settings, autosave_json_filename)
 {
       if (!gui) {
             return;
@@ -2227,19 +2227,19 @@ function getReferenceBasename(processed_name, filename_postfix)
       return processed_basename;
 }
 
-this.compareReferenceFileNames = function(reference_name, processed_name, filename_postfix)
+function compareReferenceFileNames(reference_name, processed_name, filename_postfix)
 {
       let reference_basename = getReferenceBasename(reference_name, filename_postfix);
       let processed_basename = getReferenceBasename(processed_name, filename_postfix);
       return reference_basename == processed_basename;
 }
 
-this.saveJsonFile = function(parent, save_settings)
+function saveJsonFile(parent, save_settings)
 {
       util.saveJsonFileEx(parent, save_settings, null);
 }
 
-this.formatToolTip = function(txt)
+function formatToolTip(txt)
 {
       if (txt.substr(0, 1) == "<") {
             return txt;
@@ -2248,7 +2248,7 @@ this.formatToolTip = function(txt)
       }
 }
 
-this.getScreenSize = function(dialog)
+function getScreenSize(dialog)
 {
       if (dialog.availableScreenRect != undefined) {
             var screen_width = dialog.availableScreenRect.width;
@@ -2263,7 +2263,7 @@ this.getScreenSize = function(dialog)
 }
 
 // Adjust dialog to screen size by adjusting preview control size
-this.adjustDialogToScreen = function(dialog, preview_control, maxsize, preview_width, preview_height)
+function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, preview_height)
 {
       var changes = false;
       
@@ -2369,7 +2369,7 @@ this.adjustDialogToScreen = function(dialog, preview_control, maxsize, preview_w
       return { width: preview_width, height: preview_height, changes: changes };
 }
 
-this.get_execute_time_str = function (start_time, end_time) 
+function get_execute_time_str(start_time, end_time) 
 {
       var elapsed_time = (end_time - start_time) / 1000;
       var elapsed_time_str = "";
@@ -2392,7 +2392,7 @@ this.get_execute_time_str = function (start_time, end_time)
       return elapsed_time_str;
 }
 
-this.get_node_execute_time_str = function(node)
+function get_node_execute_time_str(node)
 {
       if (node.end_time) {
             return " (" + util.get_execute_time_str(node.start_time, node.end_time) + ")";
@@ -2401,6 +2401,152 @@ this.get_node_execute_time_str = function(node)
       }
 }
 
+/* Interface functions.
+ */
+
+// Setup
+this.setGUI = setGUI;
+this.init_pixinsight_version = init_pixinsight_version;
+
+this.runGarbageCollection = runGarbageCollection;
+this.checkEvents = checkEvents;
+
+// Filter sets
+this.initFilterSets = initFilterSets;
+this.findFilterSet = findFilterSet;
+this.addFilterSetFile = addFilterSetFile;
+this.findFilterForFile = findFilterForFile;
+this.removeFilterFile = removeFilterFile;
+this.clearFilterFileUsedFlags = clearFilterFileUsedFlags;
+
+// File handling
+this.setDefaultDirs = setDefaultDirs;
+this.clearDefaultDirs = clearDefaultDirs;
+this.ensurePathEndSlash = ensurePathEndSlash;
+this.removePathEndSlash = removePathEndSlash;
+this.removePathEndDot = removePathEndDot;
+this.parseNewOutputDir = parseNewOutputDir;
+this.pathIsRelative = pathIsRelative;
+this.getOutputDir = getOutputDir;
+this.testDirectoryIsWriteable = testDirectoryIsWriteable;
+this.ensureDir = ensureDir;
+this.saveLastDir = saveLastDir;
+this.combinePath = combinePath;
+this.getOptionalUniqueFilenamePart = getOptionalUniqueFilenamePart;
+this.ensureDialogFilePath = ensureDialogFilePath;
+this.compareReferenceFileNames = compareReferenceFileNames;
+
+// Info and error handling
+this.throwFatalError = throwFatalError;
+this.fatalWindowNameFailed = fatalWindowNameFailed;
+this.updateStatusInfoLabel = updateStatusInfoLabel;
+this.addCriticalStatus = addCriticalStatus;
+this.addWarningStatus = addWarningStatus;
+this.addStatusInfo = addStatusInfo;
+this.addProcessingStepAndStatusInfo = addProcessingStepAndStatusInfo;
+
+// Window handling
+this.findWindow = findWindow;
+this.getBaseWindowId = getBaseWindowId;
+this.findWindowOrFile = findWindowOrFile;
+this.findWindowStartsWith = findWindowStartsWith;
+this.findWindowRe = findWindowRe;
+this.findWindowFromArray = findWindowFromArray;
+this.closeAllWindowsSubstr = closeAllWindowsSubstr;
+this.getWindowList = getWindowList;
+this.getWindowListReverse = getWindowListReverse;
+this.findWindowId = findWindowId;
+this.findWindowOrFileId = findWindowOrFileId;
+this.windowShowif = windowShowif;
+
+// Window iconize
+this.windowIconizeFindPosition = windowIconizeFindPosition;
+this.windowIconizeif = windowIconizeif;
+this.windowIconizeAndKeywordif = windowIconizeAndKeywordif;
+
+// History and keywords
+this.autointegrateProcessingHistory = autointegrateProcessingHistory;
+this.filterKeywords = filterKeywords;
+this.findDrizzleScale = findDrizzleScale;
+this.copyKeywords = copyKeywords;
+this.setFITSKeyword = setFITSKeyword;
+this.appenFITSKeyword = appenFITSKeyword;
+this.getKeywordValue = getKeywordValue;
+this.findKeywordName = findKeywordName;
+this.setFITSKeywordNoOverwrite = setFITSKeywordNoOverwrite;
+this.copyKeywordsFromWindow = copyKeywordsFromWindow;
+this.copyKeywordsFromFile = copyKeywordsFromFile;
+this.addProcessingStep = addProcessingStep;
+
+this.addScriptWindow = addScriptWindow;
+
+// Rename windows
+this.windowRenameKeepifEx = windowRenameKeepifEx;
+this.windowRenameKeepif = windowRenameKeepif;
+this.windowRename = windowRename;
+
+// Close windows
+this.closeOneWindow = closeOneWindow;
+this.closeOneWindowById = closeOneWindowById;
+this.closeWindowsFromArray = closeWindowsFromArray;
+this.closeFinalWindowsFromArray = closeFinalWindowsFromArray;
+this.closeTempWindowsForOneImage = closeTempWindowsForOneImage;
+this.closeTempWindows = closeTempWindows;
+
+// Window arrays
+this.findFromArray = findFromArray;
+this.fixAllWindowArrays = fixAllWindowArrays;
+
+// Save windows
+this.saveWindowEx = saveWindowEx;
+this.saveFinalImageWindow = saveFinalImageWindow;
+this.saveAllFinalImageWindows = saveAllFinalImageWindows;
+
+this.add_test_image = add_test_image;
+this.copyWindowEx = copyWindowEx;
+
+// Copy windows
+this.copyWindow = copyWindow;
+this.forceCopyWindow = forceCopyWindow;
+this.openImageWindowFromFile = openImageWindowFromFile;
+this.copyAstrometricSolutionFromWindow = copyAstrometricSolutionFromWindow;
+this.copyAstrometricSolutionFromFile = copyAstrometricSolutionFromFile;
+
+// Create new windows
+this.createImageFromBitmap = createImageFromBitmap;
+this.createWindowFromBitmap = createWindowFromBitmap;
+this.getWindowBitmap = getWindowBitmap;
+this.createWindowFromImage = createWindowFromImage;
+
+// Prefix and postfix handling
+this.ensure_win_prefix_ex = ensure_win_prefix_ex;
+this.ensure_win_prefix = ensure_win_prefix;
+this.remove_autocontinue_prefix = remove_autocontinue_prefix;
+this.replacePostfixOrAppend = replacePostfixOrAppend;
+
+// Json files
+this.readJsonFile = readJsonFile;
+this.addJsonFileInfo = addJsonFileInfo;
+this.initJsonSaveInfo = initJsonSaveInfo;
+this.saveJsonFileEx = saveJsonFileEx;
+this.saveJsonFile = saveJsonFile;
+
+// Parameters and options
+this.is_extra_option = is_extra_option;
+this.is_narrowband_option = is_narrowband_option;
+this.setParameterDefaults = setParameterDefaults;
+
+this.mapBadChars = mapBadChars;
+this.mapBadWindowNameChars = mapBadWindowNameChars;
+
+this.formatToolTip = formatToolTip;
+this.getScreenSize = getScreenSize;
+this.adjustDialogToScreen = adjustDialogToScreen;
+
+this.get_execute_time_str = get_execute_time_str;
+this.get_node_execute_time_str = get_node_execute_time_str;
+
 }  /* AutoIntegrateUtil */
 
 AutoIntegrateUtil.prototype = new Object;
+

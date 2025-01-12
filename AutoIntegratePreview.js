@@ -1,8 +1,16 @@
+// Interface function
+//
+// SetImage = function(image, txt)
+// UpdateImage = function(image, txt)
+// showClippedImage = function()
+// forceRedraw = function()
+// setSize = function(w, h)
+
 /***************************************************************************
  * 
  *    AutoIntegrateMaxPreviewDialog
  * 
- * Show image preview in max size view.,
+ * Show image preview in max size view.
  * 
  */
 function AutoIntegrateMaxPreviewDialog(engine, util, global, image, txt)
