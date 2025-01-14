@@ -14694,6 +14694,7 @@ function getColorizeChannels(imgWin)
       return channel_wins;
 }
 
+// Colourise is not a standard process so we need to use PixelMath
 function extraColorizeChannelUsingColourise(ch_win, channel)
 {
       var node = flowchartOperation("Colourise");
@@ -14844,6 +14845,7 @@ function extraColorizedNarrowbandImages(imgWin)
 
             switch (par.narrowband_colorized_method.val) {
                   case 'Colourise':
+                        // Not used since it is not a standard process
                         channel_wins[0] = extraColorizeChannelUsingColourise(channel_wins[0], 'R');
                         channel_wins[1] = extraColorizeChannelUsingColourise(channel_wins[1], 'G');
                         channel_wins[2] = extraColorizeChannelUsingColourise(channel_wins[2], 'B');

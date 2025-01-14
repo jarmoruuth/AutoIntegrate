@@ -332,7 +332,7 @@ var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 var colorized_narrowband_preset_values = [ 'Default', 'North America', 'Eagle' ];
 var narrowband_colorized_mapping_values = [ 'RGB', 'GRB', 'GBR', 'BRG', 'BGR', 'RBG' ];
 var narrowband_colorized_combine_values = [ 'Channels', 'Screen', 'Sum', 'Mean', 'Max', 'Median' ];
-var narrowband_colorized_method_values = [ 'Colourise', 'PixelMath' ];
+var narrowband_colorized_method_values = [ 'PixelMath' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
 var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
@@ -1100,8 +1100,7 @@ function getNarrowbandColorizedSizer(parent)
             narrowband_colorized_method_values.push('D:PixelMathChannels');
       }
 
-      var narrowbandColorizedMethodLabel = newLabel(parent, "Method",  "<p>Method tells hoe channels are colorized.</p>" + 
-                                                                       "<p>Colourize uses a built in process Colourise.</p>" + 
+      var narrowbandColorizedMethodLabel = newLabel(parent, "Method",  "<p>Method tells how channels are colorized.</p>" + 
                                                                        "<p>PixelMath uses RGB color values derived from hue to create a colorized image.</p>" + 
                                                                        narrowbandColorizedtoolTip);
       var narrowbandColorizedMethodComboBox = newComboBox(parent, par.narrowband_colorized_method, narrowband_colorized_method_values, narrowbandColorizedMethodLabel.toolTip);
@@ -1163,7 +1162,6 @@ function getNarrowbandColorizedSizer(parent)
       var weightToolTip = "<p>Relative weight for the channel.</p>" +
                           "<p>Weight is used to adjust relative contribution of each channel to the final image when combining a colorized channel image.</p>" +
                           "<p>A smaller weight value means darker image and a bigger value means a lighter image.</p>" +
-                          "<p>In case of Colourise combine method weight is used to calculate midtones value using a formula 1-weight/2. " + 
                           "Often it is necessary to reduce the weight value for example to 0.6</p>" +
                           "<p>In case of PixelMath combine method each colorized channel is multiplied by the weight value.</p>" +
                           narrowbandColorizedtoolTip;

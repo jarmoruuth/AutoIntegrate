@@ -407,7 +407,7 @@ this.par = {
       narrowband_colorized_B_weight: { val: 1.0, def: 1.0, name : "Extra colorized narrowband B weight", type : 'R' },
       narrowband_colorized_mapping: { val: 'RGB', def: 'RGB', name : "Extra colorized narrowband mapping", type : 'S' },
       narrowband_colorized_combine: { val: 'Channels', def: 'Channels', name : "Extra colorized narrowband combine", type : 'S' },
-      narrowband_colorized_method: { val: 'Colourise', def: 'Colourise', name : "Extra colorized narrowband method", type : 'S' },
+      narrowband_colorized_method: { val: 'PixelMath', def: 'PixelMath', name : "Extra colorized narrowband method", type : 'S' },
       narrowband_colorized_linear_fit: { val: false, def: false, name : "Extra colorized narrowband linear fit", type : 'B' },
       
       leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
