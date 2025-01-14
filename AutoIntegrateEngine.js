@@ -5583,6 +5583,8 @@ function extractChannelsAndSaveStarlessImages(RGB_win_id)
 
 /* Do custom mapping of channels to RGB image. We do some of the same 
  * stuff here as in CombineRGBimage.
+ * We process one of the global.narrowBandPalettes here to
+ * create narrowband mapping.
  * If filtered_lights != null we do not do any processing, just check
  * that all files exist.
  */
@@ -5676,7 +5678,18 @@ function customMapping(RGBmapping, filtered_lights)
                         console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", use linear fit.");
                   }
             }
-            var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
+
+            // Narrowband mapping name is stored into par.narrowband_mapping.val
+            // Some predefined mapping work best with linear data, some with stretched data.
+            // For example Dynamic Foraxx palettes should be used with stretched data
+            // so we check if we should use stretched data for mapping.
+
+            if (useStretchedNarrowBandData(par.narrowband_mapping.val)) {
+                  console.writeln("Narrowband mapping using stretched data with palette " + par.narrowband_mapping.val);
+                  var mapping_on_nonlinear_data = true;
+            } else {
+                  var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
+            }
 
             if (narrowband_linear_fit != "None") {
                   /* Do a linear fit of images before PixelMath and before possible
@@ -15011,8 +15024,18 @@ function findNarrowBandPalette(name)
                   return global.narrowBandPalettes[i];
             }
       }
-      throwFatalError("Could not find narrowband palette " + name);
+      util.throwFatalError("Could not find narrowband palette " + name);
       return null;
+}
+
+function useStretchedNarrowBandData(name)
+{
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            if (global.narrowBandPalettes[i].name == name) {
+                  return global.narrowBandPalettes[i].stretched;
+            }
+      }
+      return false;
 }
 
 // Run hue shift on narrowband image to shift red more to yellow/orange.

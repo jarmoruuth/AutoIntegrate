@@ -42,13 +42,15 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.74 test3";         // Version, also updated into updates.xri
-this.autointegrate_info = "Sharpening, local normalization";      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.74 test4";         // Version, also updated into updates.xri
+this.autointegrate_info = "Sharpening, linear fit";               // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Added high pass sharpening",
-      "- Updates to local normalization"
+      "- Updates to linear fit",
+      "- Extra option to fix star cores",
+      "- Updates file view id / file name handling"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -786,8 +788,8 @@ this.narrowBandPalettes = [
       { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true }, 
       { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true }, 
       { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
       { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false }, 
       { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false }, 
       { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true }, 
