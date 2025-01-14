@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.74 test2";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.74 test3";         // Version, also updated into updates.xri
 this.autointegrate_info = "Sharpening, local normalization";      // For updates.xri
 
 this.autointegrate_version_info = [
@@ -445,7 +445,7 @@ this.par = {
       extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
       extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
       extra_auto_contrast: { val: false, def: false, name : "Extra auto contrast", type : 'B' },
-      extra_auto_contrast_limit_low: { val: 0.0001, def: 0.0001, name : "Extra auto contrast limit", type : 'R' },
+      extra_auto_contrast_limit_low: { val: 0.0000, def: 0.0000, name : "Extra auto contrast limit", type : 'R' },
       extra_auto_contrast_limit_high: { val: 100, def: 100, name : "Extra auto contrast limit high", type : 'R' },
       extra_auto_contrast_channels: { val: false, def: false, name : "Extra auto contrast channels", type : 'B' },
       extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },

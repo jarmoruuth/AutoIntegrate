@@ -1733,8 +1733,11 @@ function copySelectedFITSKeywords(sourceWindow, targetWindow)
       var keywords = sourceWindow.keywords;
       for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
-            if (keyword.name == 'AutoIntegrateDrizzle') {
+            if (keyword.name == 'AutoIntegrateDrizzle'
+                || keyword.name == 'AutoIntegrateMEDFWHM') 
+            {
                   // copy keyword
+                  console.writeln("Copy keyword " + keyword.name + " to " + targetWindow.mainView.id);
                   targetWindow.keywords = targetWindow.keywords.concat([keyword]);
             }
       }
@@ -1845,6 +1848,16 @@ function setDrizzleKeyword(imageWindow, val)
             "AutoIntegrateDrizzle",
             val.toString(),
             "AutoIntegrate drizzle scale");
+}
+
+function setMEDFWHMKeyword(imageWindow, val) 
+{
+      console.writeln("setMEDFWHMKeyword to " + val);
+      util.setFITSKeyword(
+            imageWindow,
+            "AutoIntegrateMEDFWHM",
+            val.toString(),
+            "Median FWHM of images");
 }
 
 function setImagetypKeyword(imageWindow, imagetype) 
@@ -3176,16 +3189,34 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       if (par.filter_limit2_type.val != 'None') {
             measurements = filterLimit(measurements, par.filter_limit2_type.val, findFilterIndex(par.filter_limit2_type.val), par.filter_limit2_val.val, indexPath, filtered_files);
       }
-      
-      /* Sort by FWHM to find median FWHM. */
-      measurements.sort( function(a, b) {
-            return a[indexFWHM] - b[indexFWHM];
+
+      /* Collect FWHM values to a separat array to find median FWHM.*/
+      var FWHMValues = [];
+      for (var i = 0; i < measurements.length; i++) {
+            let FWHM = measurements[i][indexFWHM];
+            if (FWHM != undefined && !isNaN(FWHM) && FWHM != 0) {
+                  FWHMValues[FWHMValues.length] = FWHM;
+            }
+      }
+
+      /* Sort values to find median FWHM. */
+      FWHMValues.sort( function(a, b) {
+            return a - b;
       });
-      if (measurements.length > 0 && measurements[measurements.length / 2] != undefined) {
-            medianFWHM = measurements[measurements.length / 2][indexFWHM];
-            console.writeln("medianFWHM " + medianFWHM);
+      if (FWHMValues.length >= 3) {
+            console.writeln("FWHMValues " + FWHMValues);
+            var medianIndex = Math.floor(FWHMValues.length / 2);
+            medianFWHM = FWHMValues[medianIndex];
+      } else if (FWHMValues.length > 0) {
+            medianFWHM = FWHMValues[0];
       } else {
-            console.writeln("medianFWHM not available, measurements.length " + measurements.length + ", measurements[measurements.length / 2] " + measurements[measurements.length / 2]);
+            medianFWHM = null;
+      }
+
+      if (medianFWHM != null) {
+            console.writeln("AutoIntegrateMEDFWHM " + medianFWHM);
+      } else {
+            console.writeln("AutoIntegrateMEDFWHM not available, measurements.length " + measurements.length + ", FWHMValues.length " + FWHMValues.length);
       }
 
       var ssFiles = [];
@@ -6329,6 +6360,9 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
 
       util.copyKeywordsFromWindow(new_win, ImageWindow.windowById(integrationImageId));
       setDrizzleKeyword(new_win, par.drizzle_scale.val);
+      if (medianFWHM) {
+            setMEDFWHMKeyword(new_win, medianFWHM * par.drizzle_scale.val);
+      }
 
       guiUpdatePreviewId(new_name);
       //util.addScriptWindow(new_name);
@@ -6588,6 +6622,9 @@ function runBasicIntegration(images, name, local_normalization)
       /* Set the filter keyword for the integration image.
        */
       setAutoIntegrateFilters(P.integrationImageId, [ P.integrationImageId ]);
+      if (medianFWHM) {
+            setMEDFWHMKeyword(ImageWindow.windowById(P.integrationImageId), medianFWHM);
+      }
 
       return P.integrationImageId;
 }
@@ -8831,12 +8868,20 @@ function runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
             console.writeln("Using user given PSF " + psf);
       } else if (par.bxt_median_psf.val) {
             var auto_psf = false;
-            if (medianFWHM == null) {
-                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  util.throwFatalError("Cannot run BlurXTerminator, median FWHM is not calculated. Maybe subframe selector was not run.")
-            }
             var psf = medianFWHM;
-            console.writeln("Using PSF " + psf + " from median FWHM value");
+            if (psf == null) {
+                  // Get psf from image header
+                  psf = util.getKeywordValue(imgWin, "AutoIntegrateMEDFWHM");
+                  if (psf != null) {
+                        // Convert to number
+                        psf = parseFloat(psf);
+                  }
+            }
+            if (psf == null) {
+                  save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+                  util.throwFatalError("Cannot run BlurXTerminator, AutoIntegrateMEDFWHM is not calculated. Maybe subframe selector was not run, or not using XISF/FITS image with proper header values.");
+            }
+            console.writeln("Using PSF " + psf + " from AutoIntegrateMEDFWHM value");
       } else if (par.bxt_image_psf.val) {
             var auto_psf = false;
             var psf = getImagePSF(imgWin);
@@ -9773,7 +9818,7 @@ function runColorCalibrationProcess(imgWin, roi)
 
             var P = new ColorCalibration;
             if (roi) {
-                  console.writeln("Color calibration using background region at " + roi.x0 + ", " + roi.y2 + ", " + roi.x1 + ", " + roi.y1);
+                  console.writeln("Color calibration using background region at " + roi.x0 + ", " + roi.y0 + ", " + roi.x1 + ", " + roi.y1);
                   P.backgroundUseROI = true;
                   P.backgroundROIX0 = roi.x0;
                   P.backgroundROIY0 = roi.y0;
@@ -16780,6 +16825,7 @@ function createCropInformationAutoContinue()
 
        global.is_processing = global.processing_state.extra_processing;
        global.cancel_processing = false;
+       medianFWHM = null;
 
        process_narrowband = extra_narrowband;
 

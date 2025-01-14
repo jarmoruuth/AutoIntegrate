@@ -2630,55 +2630,55 @@ function update_undo_buttons()
       extra_gui_info.redo_button.enabled = extra_gui_info.undo_images.length > 0 && extra_gui_info.undo_images_pos < extra_gui_info.undo_images.length - 1;
 }
 
+function getNumberAfterUnderscore(str) 
+{
+      const match = /_(\d+)$/.exec(str);
+      return match ? parseInt(match[1], 10) : 0;
+}
+
+function removeUnderscoreNumber(str) 
+{
+      return str.replace(/_\d+$/, '');
+}
 function copy_new_edit_image(id)
 {
+      var copy_id = null;
+
+      // Get edit count from file name
+      var id_editcount = getNumberAfterUnderscore(id);
+      console.writeln("copy_new_edit_image:id_editcount " + id_editcount);
+      
+      // Get edit count from image metadata
       var win = ImageWindow.windowById(id);
       id = util.getBaseWindowId(win);
       var editcount = util.getKeywordValue(win, "AutoIntegrateEditCount");
       if (editcount == null) {
             editcount = 0;
-            for (var x = 0; ; x++) {
-                  if (x == 0) {
-                        var copy_id = id + "_edit";
-                  } else {
-                        var copy_id = id +  "_" + x.toString() + "_edit";
-                  }
-                  if (util.findWindow(copy_id) == null
-                      && util.findWindow(copy_id + "_starless") == null
-                      && util.findWindow(copy_id + "_stars") == null) 
-                  {
-                        break;
-                  }
-                  // console.writeln(copy_id + " is use, retry");
-            }
       } else {
-            for (var x = 0; ; x++) {
-                  editcount = parseInt(editcount);
-                  if (editcount == 1) {
-                        var endstr = "_edit";
-                  } else {
-                        var endstr = "_edit_" + editcount.toString();
-                  }
-                  console.writeln("id " + id +  " endstr " + endstr);
-                  if (id.endsWith(endstr)) {
-                        // Remove old edit count
-                        var base_id = id.substring(0, id.length - endstr.length);
-                  } else {
-                        var base_id = id;
-                  }
-                  if (x == 0) {
-                        var copy_id = base_id + "_edit_" + (editcount + 1).toString();
-                  } else {
-                        var copy_id = base_id +  "_" + x.toString() + "_edit_" + (editcount + 1).toString();
-                  }
-                  console.writeln("base_id " + base_id + " copy_id " + copy_id);
-                  if (util.findWindow(copy_id) == null
-                      && util.findWindow(copy_id + "_starless") == null
-                      && util.findWindow(copy_id + "_stars") == null) 
-                  {
+            editcount = parseInt(editcount);
+      }
+      console.writeln("copy_new_edit_image:editcount " + editcount);
+
+      if (id_editcount > 0) {
+            // Check if next number is available
+            var basename = removeUnderscoreNumber(id);
+            console.writeln("copy_new_edit_image:basename " + basename);
+            var next_id = basename + "_" + (id_editcount + 1).toString();
+            console.writeln("copy_new_edit_image:next_id " + next_id);
+            if (util.findWindow(next_id) == null) {
+                  // Next id is free, use it
+                  copy_id = next_id;
+            }
+      }
+      if (copy_id == null) {
+            // Next number used, create a new subversion
+            // Try to find first free number
+            for (var id_editcount = 1; ; id_editcount++) {
+                  var next_id = id + "_" + id_editcount.toString();
+                  if (util.findWindow(next_id) == null) {
+                        copy_id = next_id;
                         break;
                   }
-                  // console.writeln(copy_id + " in use, retry");
             }
       }
       var copy_win = util.copyWindowEx(win, copy_id, true);
@@ -7544,7 +7544,7 @@ function AutoIntegrateDialog()
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtMedianPSF = newCheckBox(this, "Use median PSF", par.bxt_median_psf, 
             "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
-            "<p>Value is printed to the AutoIntegrate.log file with a name medianFWHM.</p>" + 
+            "<p>Value is saved to the FITS header and printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectOnlyBeforeCC = newCheckBox(this, "Correct only before CC", par.bxt_correct_only_before_cc, 
             "<p>Run BlurXTerminator in correct only mode before color calibration.</p>" );
@@ -8068,7 +8068,7 @@ function AutoIntegrateDialog()
       this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values,
             "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
             "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>" +
-            "<p>Auto does linear fit using Min.</p>" + 
+            "<p>Auto does linear fit using Max LRGB.</p>" + 
             "<p>Min RGB does linear fit using RGB channels with minimum median value as the reference image.</p>" + 
             "<p>Max RGB does linear fit using RGB channels with maximum median value as the reference image.</p>" + 
             "<p>Min LRGB does linear fit using LRGB channels with minimum median value as the reference image.</p>" + 
