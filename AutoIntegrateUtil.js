@@ -215,6 +215,7 @@ function parseNewOutputDir(filePath, subdir)
 {
       var path = util.ensurePathEndSlash(File.extractDrive(filePath) + File.extractDirectory(filePath));
       path = util.ensurePathEndSlash(path + subdir);
+      path = util.normalizePath(path);
       console.writeln("parseNewOutputDir " + path);
       return path;
 }
@@ -598,6 +599,17 @@ function windowIconizeif(id, show_image)
       }
 
       return w;
+}
+
+function batchWindowSetPosition(id, count)
+{
+      var w = util.findWindow(id);
+      if (w != null) {
+            var windowPoint = new Point(
+                                    5 + 300 + count * 64,
+                                    5 + count * 32);
+            w.position = new Point(windowPoint);
+      }
 }
 
 function autointegrateProcessingHistory(imageWindow)
@@ -1024,7 +1036,7 @@ function combinePath(p1, p2)
       if (p1 == "") {
             return "";
       } else {
-            return util.ensurePathEndSlash(p1) + p2;
+            return util.normalizePath(util.ensurePathEndSlash(p1) + p2);
       }
 }
 
@@ -1240,20 +1252,22 @@ function copyWindow(sourceWindow, name)
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
+
 function forceCopyWindow(sourceWindow, name)
 {
-      var win = util.findWindow(name);
-      if (win != null) {
-            util.closeOneWindow(win, true);
-      }
+      util.closeOneWindowById(name);
       return util.copyWindowEx(sourceWindow, name, false);
 }
 
 /* Open a file as image window. */
-function openImageWindowFromFile(fileName, allow_missing_file)
+function openImageWindowFromFile(fileName, allow_missing_file = false, close_old_window = false)
 {
       if (allow_missing_file && !File.exists(fileName)) {
             return null;
+      }
+      var id = File.extractName(fileName);
+      if (close_old_window) {
+            util.closeOneWindowById(id);
       }
       var imageWindows = ImageWindow.open(fileName);
       if (!imageWindows || imageWindows.length == 0) {
@@ -2234,6 +2248,15 @@ function compareReferenceFileNames(reference_name, processed_name, filename_post
       return reference_basename == processed_basename;
 }
 
+function normalizePath(filePath) 
+{
+      let newPath = filePath.split("/./").join("/");
+      if (par.debug.val) {
+            console.writeln("normalizePath " + filePath + " -> " + newPath);
+      }
+      return newPath;
+}
+
 function saveJsonFile(parent, save_settings)
 {
       util.saveJsonFileEx(parent, save_settings, null);
@@ -2435,6 +2458,7 @@ this.combinePath = combinePath;
 this.getOptionalUniqueFilenamePart = getOptionalUniqueFilenamePart;
 this.ensureDialogFilePath = ensureDialogFilePath;
 this.compareReferenceFileNames = compareReferenceFileNames;
+this.normalizePath = normalizePath;
 
 // Info and error handling
 this.throwFatalError = throwFatalError;
@@ -2459,10 +2483,11 @@ this.findWindowId = findWindowId;
 this.findWindowOrFileId = findWindowOrFileId;
 this.windowShowif = windowShowif;
 
-// Window iconize
+// Window iconize and position
 this.windowIconizeFindPosition = windowIconizeFindPosition;
 this.windowIconizeif = windowIconizeif;
 this.windowIconizeAndKeywordif = windowIconizeAndKeywordif;
+this.batchWindowSetPosition = batchWindowSetPosition;
 
 // History and keywords
 this.autointegrateProcessingHistory = autointegrateProcessingHistory;

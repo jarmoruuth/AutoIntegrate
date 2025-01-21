@@ -99,6 +99,13 @@ var par = global.par;
 var ppar = global.ppar;
 var engine = this;
 
+// Copy of files grom glolobal object
+this.lightFileNames = null;
+this.darkFileNames = null;
+this.biasFileNames = null;
+this.flatdarkFileNames = null;
+this.flatFileNames = null;
+
 var flowchart_active = false;
 var flowchartCurrent = null;
 var flowchartStack = [];
@@ -210,7 +217,7 @@ var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
 var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
 var RGB_stars = [];           // linear RGB channel star image ids
 
-var start_time;
+var script_start_time;
 
 var L_GC_start_win;           // Gradient corrected and integrated start images for AutoContinue
 var R_GC_start_win;
@@ -262,6 +269,91 @@ var telescope_info = [
       [ 'CHI-5-CMOS', 200, 3.76 ],
       [ 'CHI-6-CMOS', 600, 3.76 ]
 ];
+
+
+// Binning value for par.fast_mode
+function getFastModeBinning(imgWin)
+{
+      switch (par.fast_mode_opt.val) {
+            case 'S':
+                  // Use smallest image size
+                  // Longest side of image should be less than 1024
+                  var image_size = Math.max(imgWin.mainView.image.width, imgWin.mainView.image.height);
+                  break;
+            case 'M':
+                  // Use medium image size
+                  // Shortest side of image should be less than 2048
+                  var image_size = Math.min(imgWin.mainView.image.width, imgWin.mainView.image.height);
+                  break;
+            default:
+                  util.throwFatalError("getFastModeBinning, unknown fast_mode_opt " + par.fast_mode_opt.val);
+                  break;
+      }
+      var binning = 1;
+      var binned_size = image_size;
+      while (binned_size > 2048) {
+            binning++;
+            binned_size = image_size / binning;
+      }
+      return binning;
+}
+
+// Filtering for par.fast_mode
+function filterFilesForFastMode(fileNames, auto_continue, filetype)
+{
+      if (fileNames == null || fileNames.length == 0) {
+            return fileNames;
+      }
+      if (auto_continue) {
+            return fileNames;
+      } else if (par.fast_mode.val) {
+            // Get a subset of images for fast mode
+            var original_len = fileNames.length;
+            switch (filetype) {
+                  case global.pages.FLATS:
+                  case global.pages.LIGHTS:
+                        // For each filter, get 10%, or at least 3 images from the list
+                        var fast_mode_filtered_files = engine.getFilterFiles(fileNames, filetype, '', false);
+                        var allfilesarr = fast_mode_filtered_files.allfilesarr;
+                        fileNames = [];
+                        for (var i = 0; i < allfilesarr.length; i++) {
+                              if (allfilesarr[i].files.length == 0) {
+                                    continue;
+                              }
+                              console.writeln("filterFilesForFastMode, " + allfilesarr[i].filter);
+                              var len = allfilesarr[i].files.length;
+                              var cnt = Math.max(3, Math.floor(len / 10));
+                              var nth = Math.max(1, Math.floor(len / cnt));
+                              for (var j = 0; j < cnt; j++) {
+                                    fileNames[fileNames.length] = allfilesarr[i].files[j * nth].name;
+                              }
+                        }
+                        break;
+                  default:
+                        // Get 10%, or at least 3 images from the list
+                        fileNames = fileNames.slice(0, Math.max(3, Math.floor(fileNames.length / 10)));
+                        break;
+            }
+
+            console.writeln("filterFilesForFastMode, original files " + original_len + ", filtered files " + fileNames.length);
+
+            // Calculate binning to use smaller images
+            console.writeln("filterFilesForFastMode, read image " + fileNames[0] + " to get binning");
+            util.closeOneWindowById("AutoIntegrateFastModeTemp");
+            var imgWin = util.openImageWindowFromFile(fileNames[0], false, true);
+            imgWin.mainView.id = "AutoIntegrateFastModeTemp";
+            var binning = getFastModeBinning(imgWin);
+            util.closeOneWindow(imgWin);
+            console.writeln("filterFilesForFastMode, binning " + binning);
+
+            if (binning > 1) {
+                  fileNames = runBinningOnFiles(fileNames, 2, 2, null, null, "_fb" + binning);
+            }
+            return fileNames;
+      } else {
+            return fileNames;
+      }
+}
 
 // Filter files for global.get_flowchart_data.
 // Pick just one or two files for each channel
@@ -660,7 +752,11 @@ function flowchartInit(txt)
       flowchartOperationList = [];
       if (global.flowchartOperationList.length == 0) {
             // No previous flowchart data, use current flowchart
+            console.writeln("flowchartInit, no previous flowchart data");
             global.flowchartData = flowchartCurrent;
+      } else {
+            // Use previous flowchart data
+            console.writeln("flowchartInit, use previous flowchart data");
       }
 
       global.flowchartActiveId = 0;
@@ -2515,6 +2611,31 @@ function getBinningPostfix()
       return '_b' + par.binning_resample.val;
 }
 
+// resample_val is scale factor to get the desired dimension
+function runResample(imageWindow, resample_val)
+{
+      var P = new Resample;
+      P.xSize = resample_val;
+      P.ySize = resample_val;
+      P.mode = Resample.prototype.RelativeDimensions;
+      P.absoluteMode = Resample.prototype.ForceWidthAndHeight;
+      P.xResolution = 72.000;
+      P.yResolution = 72.000;
+      P.metric = false;
+      P.forceResolution = false;
+      P.interpolation = Resample.prototype.Auto;
+      P.clampingThreshold = 0.30;
+      P.smoothness = 1.50;
+      P.gammaCorrection = false;
+      P.noGUIMessages = true;
+
+      imageWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imageWindow.mainView, false);
+      
+      imageWindow.mainView.endProcess();
+}
+
 function runBinning(imageWindow, resample_val)
 {
       var P = new IntegerResample;
@@ -2528,10 +2649,18 @@ function runBinning(imageWindow, resample_val)
       imageWindow.mainView.endProcess();
 }
 
-function runBinningOnFiles(fileNames, binning_val, resample_val, filtered_files, renamedFileNames, postfix)
+// binning_values_index: 1 color, 2 = L + color (0 = None but not checked here)
+function runBinningOnFiles(fileNames, binning_values_index, resample_val, filtered_files, renamedFileNames, postfix)
 {
+      if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
+            /* Get path to current directory. */
+            var outputRootDir = util.parseNewOutputDir(fileNames[0], global.outputRootDir);
+            console.writeln("runBinningOnFiles, outputRootDir ", outputRootDir);
+      } else {
+            var outputRootDir = global.outputRootDir;
+      }
       var newFileNames = [];
-      var outputDir = global.outputRootDir + global.AutoOutputDir;
+      var outputDir = outputRootDir + global.AutoOutputDir;
       var outputExtension = ".xisf";
 
       if (postfix == null) {
@@ -2542,7 +2671,7 @@ function runBinningOnFiles(fileNames, binning_val, resample_val, filtered_files,
 
       for (var i = 0; i < fileNames.length; i++) {
             var do_binning = true;
-            if (binning_val == 1) {
+            if (binning_values_index == 1) {
                   // Binning is done only for color channels, check if this is luminance file
                   if (isLuminanceFile(filtered_files, fileNames[i])) {
                         do_binning = false;
@@ -4812,6 +4941,7 @@ function findChannelFromName(name)
 function copyToMapImages(images)
 {
       console.writeln("copyToMapImages");
+      var update_preview = false;
       for (var i = 0; i < images.length; i++) {
             if (ppar.win_prefix != '' && images[i].startsWith(ppar.win_prefix)) {
                   var basename = images[i].substring(ppar.win_prefix.length);
@@ -4832,14 +4962,37 @@ function copyToMapImages(images)
                   if (!global.get_flowchart_data) {
                         console.writeln("copy from " + images[i] + " to " + copyname);
                   }
-                  util.copyWindow(
-                        findWindowNoPrefixIf(images[i], global.run_auto_continue), 
-                        copyname);
+                  var imgWin = util.copyWindow(
+                                    findWindowNoPrefixIf(images[i], global.run_auto_continue), 
+                                    copyname);
                   global.temporary_windows[global.temporary_windows.length] = copyname;
+                  if (par.fast_mode.val) {
+                        var binning = getFastModeBinning(imgWin);
+                        if (binning > 1) {
+                              console.writeln("copyToMapImages, binning " + binning + " for " + copyname);
+                              runBinning(imgWin, binning);
+                              // Update preview to a smaller image
+                              update_preview = true;
+                        }
+                  }
             } else {
                   console.writeln("map image " + copyname + " already copied");
             }
             images[i] = copyname;
+      }
+      if (update_preview) {
+            // Try to find image with "_L_" or "_H_" in the name
+            for (var i = 0; i < images.length; i++) {
+                  if (images[i].indexOf("_L_") != -1 || images[i].indexOf("_H_") != -1) {
+                        guiUpdatePreviewId(images[i]);
+                        update_preview = false;
+                        break;
+                  }
+            }
+            if (update_preview) {
+                  // Update preview to the first image
+                  guiUpdatePreviewId(images[0]);
+            }
       }
 }
 
@@ -5649,17 +5802,22 @@ function customMapping(RGBmapping, filtered_lights)
             arrayAppendCheckDuplicates(images, G_images);
             arrayAppendCheckDuplicates(images, B_images);
 
+            if (par.debug.val) console.writeln('customMapping: copyToMapImages(images)');
             copyToMapImages(images);
 
+            if (par.debug.val) console.writeln('customMapping: flowchartParentBegin("Channels")');
             flowchartParentBegin("Channels");
             for (var i = 0; i < images.length; i++) {
+                  if (par.debug.val) console.writeln('customMapping: flowchartChildBegin(findChannelFromName(images[i]))');
                   flowchartChildBegin(findChannelFromName(images[i]));
 
                   CropImageIf(images[i]);
                   processChannelImage(images[i], false);
                   
+                  if (par.debug.val) console.writeln('customMapping: flowchartChildEnd(findChannelFromName(images[i]))');
                   flowchartChildEnd(findChannelFromName(images[i]));
             }
+            if (par.debug.val) console.writeln('customMapping: flowchartParentEnd("Channels")');
             flowchartParentEnd("Channels");
 
             var narrowband_linear_fit = par.narrowband_linear_fit.val;
@@ -10346,10 +10504,10 @@ function writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, ise
       if (iserror) {
             // In case of error write info to log file.
             // Normally this is written from the console output.
-            if (global.lightFileNames != null) {
+            if (engine.lightFileNames != null) {
                   file.outTextLn("Dialog files:");
-                  for (var i = 0; i < global.lightFileNames.length; i++) {
-                        file.outTextLn(global.lightFileNames[i]);
+                  for (var i = 0; i < engine.lightFileNames.length; i++) {
+                        file.outTextLn(engine.lightFileNames[i]);
                   }
             }
             if (alignedFiles != null) {
@@ -10506,8 +10664,8 @@ function findIntegratedRGBImage(check_base_name, filtered_lights)
 
 function findIntegratedChannelAndRGBImages(check_base_name)
 {
-      if (global.lightFileNames != null && par.integrated_lights.val) {
-            var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
+      if (engine.lightFileNames != null && par.integrated_lights.val) {
+            var filtered_lights = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, '');
       } else {
             var filtered_lights = null;
       }
@@ -11072,17 +11230,18 @@ function CreateChannelImages(parent, auto_continue)
              * to assigns SSWEIGHT.
              */
             var fileNames;
-            if (global.lightFileNames == null) {
+            if (engine.lightFileNames == null) {
                   global.lightFileNames = engine.openImageFiles("Lights", true, false, false);
+                  engine.lightFileNames = filterFilesForFastMode(global.lightFileNames, false, global.pages.LIGHTS);
                   util.addProcessingStep("Get files from dialog");
             }
-            if (global.lightFileNames == null) {
+            if (engine.lightFileNames == null) {
                   global.write_processing_log_file = false;
                   console.writeln("No files to process");
                   return retval.ERROR;
             }
 
-            guiUpdatePreviewFilename(global.lightFileNames[0]);
+            guiUpdatePreviewFilename(engine.lightFileNames[0]);
 
             // We keep track of extensions added to the file names
             // If we need to original file names we can subtract
@@ -11091,7 +11250,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
                   /* Get path to current directory. */
-                  global.outputRootDir = util.parseNewOutputDir(global.lightFileNames[0], global.outputRootDir);
+                  global.outputRootDir = util.parseNewOutputDir(engine.lightFileNames[0], global.outputRootDir);
                   console.writeln("CreateChannelImages, set global.outputRootDir ", global.outputRootDir);
             }
 
@@ -11101,19 +11260,23 @@ function CreateChannelImages(parent, auto_continue)
 
             if (global.get_flowchart_data) {
                   // Filter files for global.get_flowchart_data.
-                  global.lightFileNames = flowchartFilterFiles(global.lightFileNames, global.pages.LIGHTS);
+                  engine.lightFileNames = flowchartFilterFiles(engine.lightFileNames, global.pages.LIGHTS);
             }
 
             if (!par.image_weight_testing.val && par.early_PSF_check.val) {
                   /* Remove bad files. */
-                  global.lightFileNames = filterBadPSFImages(global.lightFileNames);
-                  if (global.lightFileNames.length == 0) {
+                  engine.lightFileNames = filterBadPSFImages(engine.lightFileNames);
+                  if (!par.fast_mode && !global.get_flowchart_data) {
+                        // We did filtering for real data set, save the list
+                        global.lightFileNames = engine.lightFileNames;
+                  }
+                  if (engine.lightFileNames.length == 0) {
                         util.addCriticalStatus("No files to process after filtering bad PSF images");
                         return retval.ERROR;
                   }
             }
 
-            var filtered_lights = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, '');
+            var filtered_lights = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, '');
             if (!par.image_weight_testing.val
                 && !par.debayer_only.val
                 && !par.binning_only.val
@@ -11153,9 +11316,9 @@ function CreateChannelImages(parent, auto_continue)
              * Run image calibration if we have calibration frames.
              *********************************************************************/
             var calibrateInfo = calibrateEngine(filtered_lights);
-            global.lightFileNames = calibrateInfo[0];
+            engine.lightFileNames = calibrateInfo[0];
             filename_postfix = filename_postfix + calibrateInfo[1];
-            guiUpdatePreviewFilename(global.lightFileNames[0]);
+            guiUpdatePreviewFilename(engine.lightFileNames[0]);
 
             if (par.calibrate_only.val) {
                   return(retval.INCOMPLETE);
@@ -11163,7 +11326,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (filename_postfix != '') {
                   // We did run calibration, filter again with calibrated lights
-                  var filtered_files = engine.getFilterFiles(global.lightFileNames, global.pages.LIGHTS, filename_postfix);
+                  var filtered_files = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, filename_postfix);
             } else {
                   // Calibration was not run
                   var filtered_files = filtered_lights;
@@ -11174,7 +11337,7 @@ function CreateChannelImages(parent, auto_continue)
                   is_color_files = true;
             }
 
-            fileNames = global.lightFileNames;
+            fileNames = engine.lightFileNames;
 
             if (par.start_from_imageintegration.val 
                 || par.image_weight_testing.val
@@ -11504,7 +11667,7 @@ function CreateChannelImages(parent, auto_continue)
                   console.writeln("Option start_from_imageintegration or cropinfo_only selected, fix output directory");
                   console.writeln("Current global.outputRootDir " + global.outputRootDir);
 
-                  global.outputRootDir = global.outputRootDir.replace("AutoOutput", ".");
+                  global.outputRootDir = util.normalizePath(global.outputRootDir.replace("AutoOutput", "."));
 
                   console.writeln("Fixes global.outputRootDir " + global.outputRootDir);
             }
@@ -15189,6 +15352,7 @@ function narrowbandPaletteBatchFinalImage(palette_name, winId, extra)
       console.writeln("narrowbandPaletteBatchFinalImage:save image " + palette_image);
       saveProcessedWindow(palette_image);
       util.addProcessingStep("Narrowband palette batch final image " + palette_image);
+      return palette_image;
 }
 
 // Run through all narrowband palette options
@@ -15210,6 +15374,7 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
                   }
             }
       }
+      var batch_image_cnt = 0;
       for (var i = 0; i < global.narrowBandPalettes.length; i++) {
             console.writeln("autointegrateNarrowbandPaletteBatch loop ", i);
             var run_this = false;
@@ -15235,14 +15400,20 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
                   par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
                   util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
+                  flowchartReset();
+
                   var succ = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option(), txt);
                   if (!succ) {
                         util.addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
                   // rename and save the final image
-                  narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
+                  var image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
+                  util.batchWindowSetPosition(image_name, batch_image_cnt);
+                  batch_image_cnt++;
                   if (util.findWindow(ppar.win_prefix + "AutoRGB_extra") != null) {
-                        narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
+                        image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
+                        util.batchWindowSetPosition(image_name, batch_image_cnt);
+                        batch_image_cnt++;
                   }
                   // next runs are always auto_continue
                   console.writeln("autointegrateNarrowbandPaletteBatch:set auto_continue = true");
@@ -16353,6 +16524,7 @@ function CreateCrop(left,top,right,bottom)
 // Crop an image if it exists
 function CropImageIf(id)
 {
+      if (par.debug.val) console.writeln("CropImageIf ", id);
       var window = util.findWindow(id);
       var truncate_amount = crop_truncate_amount;
       if (window == null) { 
@@ -16637,26 +16809,26 @@ function createCropInformationAutoContinue()
  */
  function calibrateEngine(filtered_lights)
  {
-       if (global.biasFileNames == null) {
-             global.biasFileNames = [];
+       if (engine.biasFileNames == null) {
+             engine.biasFileNames = [];
        }
-       if (global.flatdarkFileNames == null) {
-             global.flatdarkFileNames = [];
+       if (engine.flatdarkFileNames == null) {
+             engine.flatdarkFileNames = [];
        }
-       if (global.flatFileNames == null) {
-             global.flatFileNames = [];
+       if (engine.flatFileNames == null) {
+             engine.flatFileNames = [];
        }
-       if (global.darkFileNames == null) {
-             global.darkFileNames = [];
+       if (engine.darkFileNames == null) {
+             engine.darkFileNames = [];
        }
-       if (global.biasFileNames.length == 0
-           && global.flatdarkFileNames.length == 0
-           && global.flatFileNames.length == 0
-           && global.darkFileNames.length == 0)
+       if (engine.biasFileNames.length == 0
+           && engine.flatdarkFileNames.length == 0
+           && engine.flatFileNames.length == 0
+           && engine.darkFileNames.length == 0)
        {
              // do not calibrate
              util.addProcessingStep("calibrateEngine, no bias, flat or dark files");
-             return [ global.lightFileNames , '' ];
+             return [ engine.lightFileNames , '' ];
        }
  
        util.addProcessingStepAndStatusInfo("Image calibration");
@@ -16668,15 +16840,15 @@ function createCropInformationAutoContinue()
  
        if (global.get_flowchart_data) {
             // Filter files for global.get_flowchart_data.
-            global.flatFileNames = flowchartFilterFiles(global.flatFileNames, global.pages.FLATS);
+            engine.flatFileNames = flowchartFilterFiles(engine.flatFileNames, global.pages.FLATS);
       }
 
        // Collect filter files
-       var filtered_flats = engine.getFilterFiles(global.flatFileNames, global.pages.FLATS, '');
+       var filtered_flats = engine.getFilterFiles(engine.flatFileNames, global.pages.FLATS, '');
  
        is_color_files = filtered_flats.color_files;
  
-       if (global.flatFileNames.length > 0 && global.lightFileNames.length > 0) {
+       if (engine.flatFileNames.length > 0 && engine.lightFileNames.length > 0) {
              // we have flats and lights
              // check that filtered files match
              for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
@@ -16690,15 +16862,15 @@ function createCropInformationAutoContinue()
        }
  
        if (par.bias_master_files.val) {
-             util.addProcessingStep("calibrateEngine use existing master bias files " + global.biasFileNames);
-             var masterbiasPath = global.biasFileNames;
-       } else if (global.biasFileNames.length == 1) {
-             util.addProcessingStep("calibrateEngine use existing master bias " + global.biasFileNames[0]);
-             var masterbiasPath = global.biasFileNames[0];
-       } else if (global.biasFileNames.length > 0) {
-             util.addProcessingStep("calibrateEngine generate master bias using " + global.biasFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master bias files " + engine.biasFileNames);
+             var masterbiasPath = engine.biasFileNames;
+       } else if (engine.biasFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master bias " + engine.biasFileNames[0]);
+             var masterbiasPath = engine.biasFileNames[0];
+       } else if (engine.biasFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master bias using " + engine.biasFileNames.length + " files");
              // integrate bias images
-             var biasimages = filesForImageIntegration(global.biasFileNames);
+             var biasimages = filesForImageIntegration(engine.biasFileNames);
              var masterbiasid = runImageIntegrationBiasDarks(biasimages, ppar.win_prefix + "AutoMasterBias", "bias");
  
              // save master bias
@@ -16721,15 +16893,15 @@ function createCropInformationAutoContinue()
        }
  
        if (par.flat_dark_master_files.val) {
-             util.addProcessingStep("calibrateEngine use existing master flat dark files " + global.flatdarkFileNames);
-             var masterflatdarkPath = global.darkFileNames;
-       } else if (global.flatdarkFileNames.length == 1) {
-             util.addProcessingStep("calibrateEngine use existing master flat dark " + global.flatdarkFileNames[0]);
-             var masterflatdarkPath = global.flatdarkFileNames[0];
-       } else if (global.flatdarkFileNames.length > 0) {
-             util.addProcessingStep("calibrateEngine generate master flat dark using " + global.flatdarkFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master flat dark files " + engine.flatdarkFileNames);
+             var masterflatdarkPath = engine.darkFileNames;
+       } else if (engine.flatdarkFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master flat dark " + engine.flatdarkFileNames[0]);
+             var masterflatdarkPath = engine.flatdarkFileNames[0];
+       } else if (engine.flatdarkFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master flat dark using " + engine.flatdarkFileNames.length + " files");
              // integrate flat dark images
-             var flatdarkimages = filesForImageIntegration(global.flatdarkFileNames);
+             var flatdarkimages = filesForImageIntegration(engine.flatdarkFileNames);
              var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark", "flatdark");
              setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
              var masterflatdarkPath = saveMasterWindow(global.outputRootDir, masterflatdarkid);
@@ -16740,19 +16912,19 @@ function createCropInformationAutoContinue()
        }
  
        if (par.dark_master_files.val) {
-             util.addProcessingStep("calibrateEngine use existing master dark files " + global.darkFileNames);
-             var masterdarkPath = global.darkFileNames;
-       } else if (global.darkFileNames.length == 1) {
-             util.addProcessingStep("calibrateEngine use existing master dark " + global.darkFileNames[0]);
-             var masterdarkPath = global.darkFileNames[0];
-       } else if (global.darkFileNames.length > 0) {
-             util.addProcessingStep("calibrateEngine generate master dark using " + global.darkFileNames.length + " files");
+             util.addProcessingStep("calibrateEngine use existing master dark files " + engine.darkFileNames);
+             var masterdarkPath = engine.darkFileNames;
+       } else if (engine.darkFileNames.length == 1) {
+             util.addProcessingStep("calibrateEngine use existing master dark " + engine.darkFileNames[0]);
+             var masterdarkPath = engine.darkFileNames[0];
+       } else if (engine.darkFileNames.length > 0) {
+             util.addProcessingStep("calibrateEngine generate master dark using " + engine.darkFileNames.length + " files");
              if (par.pre_calibrate_darks.val && masterbiasPath != null) {
                    // calibrate dark frames with bias
-                   var darkcalFileNames = runCalibrateDarks(global.darkFileNames, masterbiasPath);
+                   var darkcalFileNames = runCalibrateDarks(engine.darkFileNames, masterbiasPath);
                    var darkimages = filesForImageIntegration(darkcalFileNames);
              } else {
-                   var darkimages = filesForImageIntegration(global.darkFileNames);
+                   var darkimages = filesForImageIntegration(engine.darkFileNames);
              }
              // generate master dark file
              var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark", "dark");
@@ -17000,6 +17172,19 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
 
        stepno = 1;
 
+       if (par.fast_mode.val) {
+            if (ppar.win_prefix == "")  {
+                  ppar.win_prefix = "fast_";
+            }
+       }
+
+      // Save file list locally. In case of par.fast_mode wer make a new copy of the list
+      engine.lightFileNames = filterFilesForFastMode(global.lightFileNames, auto_continue, global.pages.LIGHTS);
+      engine.darkFileNames = filterFilesForFastMode(global.darkFileNames, auto_continue, global.pages.DARKS);
+      engine.biasFileNames = filterFilesForFastMode(global.biasFileNames, auto_continue, global.pages.BIAS);
+      engine.flatdarkFileNames = filterFilesForFastMode(global.flatdarkFileNames, auto_continue, global.pages.FLAT_DARKS);
+      engine.flatFileNames = filterFilesForFastMode(global.flatFileNames, auto_continue, global.pages.FLATS);
+
       flowchartInit("AutoIntegrate");
 
        util.runGarbageCollection();
@@ -17030,7 +17215,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        iconized_image_ids = [];
        RGB_color_id = null;
        RGB_win_id = null;
-       start_time = Date.now();
+       script_start_time = Date.now();
        mask_win = null;
        star_mask_win = null;
        star_fix_mask_win = null;
@@ -17531,7 +17716,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
              /* Rename image based on first file directory name. 
               * First check possible device in Windows (like c:)
               */
-             var fname = global.lightFileNames[0];
+             var fname = engine.lightFileNames[0];
              console.writeln("Batch mode, get directory from file " + fname);
              var ss = fname.split(':');
              if (ss.length > 1) {
@@ -17599,7 +17784,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
              var full_run = false;
        }
        var end_time = Date.now();
-       util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-start_time)/1000+" sec");
+       util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-script_start_time)/1000+" sec");
        console.noteln("======================================");
 
 
@@ -17664,6 +17849,12 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
 
        solved_imageId = null;
 
+       engine.lightFileNames = null;
+       engine.darkFileNames = null;
+       engine.biasFileNames = null;
+       engine.flatdarkFileNames = null;
+       engine.flatFileNames = null;
+ 
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();
  

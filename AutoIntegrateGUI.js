@@ -345,6 +345,7 @@ var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
+var fast_mode_values = [ 'S', 'M' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -425,6 +426,7 @@ var flowchart_active_id_color = 0xffff0000;      // For active node, red
 var flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
 
 var flowchart_is_background_image = false;
+var flowchart_garbagecollection_ctr = 0;
 
 // Node structure elements for flowchart graph
 // txt: text to be displayed
@@ -742,6 +744,7 @@ function flowchartGraph(rootnode)
       var height = size[1] + margin;
 
       if (ppar.preview.side_preview_visible) {
+            // We have " / 2" below to keep text size readable
             width = Math.max(width, ppar.preview.side_preview_width / 2);
             height = Math.max(height, ppar.preview.side_preview_height / 2);
       } else {
@@ -749,8 +752,8 @@ function flowchartGraph(rootnode)
             height = Math.max(height, ppar.preview.preview_height);
       }
 
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartGraph:width " + width + " height " + height);
+      if (par.flowchart_debug.val || par.debug.val) {
+            console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
       }
 
       if (preview_image != null && par.flowchart_background_image.val) {
@@ -778,6 +781,9 @@ function flowchartGraph(rootnode)
 
       if (flowchart_is_background_image) {
             // Scale bitmap to image size
+            if (par.flowchart_debug.val || par.debug.val) {
+                  console.writeln("flowchartGraph:image " + preview_image.width + "x" + preview_image.height);
+            }
             if (bitmap.height != preview_image.height) {
                   var scale = preview_image.height / bitmap.height;
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
@@ -788,17 +794,19 @@ function flowchartGraph(rootnode)
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
                   bitmap = scaled_bitmap;
             }
-            var background_image = new Image(preview_image);
-            var background_bitmap = background_image.render();
+            // A new Image should not be needed
+            // var background_image = new Image(preview_image);
+            // var background_bitmap = background_image.render();
+            var background_bitmap = preview_image.render();
             graphics = new Graphics(background_bitmap);
-            // draw bitmnap to the middle of the image
+            // draw bitmap to the middle of the image
             var x = (preview_image.width - bitmap.width) / 2;
             var y = (preview_image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
             var flowchartImage = util.createImageFromBitmap(background_bitmap);
-            background_image.free();
-            background_image = null;
+            // background_image.free();
+            // background_image = null;
       } else {
             var flowchartImage = util.createImageFromBitmap(bitmap);
       }
@@ -808,10 +816,16 @@ function flowchartGraph(rootnode)
       }
       global.flowchart_image = flowchartImage;
 
-      tabPreviewControl.SetImage(flowchartImage, txt);
-      sidePreviewControl.SetImage(flowchartImage, txt);
+      if (ppar.preview.side_preview_visible) {
+            sidePreviewControl.SetImage(flowchartImage, txt);
+      } else {
+            tabPreviewControl.SetImage(flowchartImage, txt);
+      }
 
-      util.runGarbageCollection();
+      if (flowchart_garbagecollection_ctr++ > 5) {
+            util.runGarbageCollection();
+            flowchart_garbagecollection_ctr = 0;
+      }
 
       if (par.flowchart_debug.val) {
             console.writeln("flowchartGraph:end");
@@ -1872,8 +1886,11 @@ function extraProcessingGUI(parent)
       this.extraSetClippedPixelsButton.setScaledFixedSize( 20, 20 );
       this.extraSetClippedPixelsButton.onClick = function()
       {
-            tabPreviewControl.showClippedImage();
-            sidePreviewControl.showClippedImage();
+            if (ppar.preview.side_preview_visible) {
+                  sidePreviewControl.showClippedImage();
+            } else {
+                  tabPreviewControl.showClippedImage();
+            }
       };
       
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
@@ -3692,6 +3709,7 @@ function getHistogramInfo(imgWin, side_preview)
 function updatePreviewWinTxt(imgWin, txt, histogramInfo)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
+            console.writeln("Preview image:" + imgWin.mainView.id + " " + txt);
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
@@ -3939,8 +3957,11 @@ function updatePreviewNoImageInControl(control)
 function updatePreviewNoImage()
 {
       if (global.use_preview) {
-            updatePreviewNoImageInControl(tabPreviewControl);
-            updatePreviewNoImageInControl(sidePreviewControl);
+            if (ppar.preview.side_preview_visible) {
+                  updatePreviewNoImageInControl(sidePreviewControl);
+            } else {
+                  updatePreviewNoImageInControl(tabPreviewControl);
+            }
             updatePreviewTxt("No preview");
             util.updateStatusInfoLabel("No preview");
       }
@@ -6174,8 +6195,11 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       setClippedPixelsButton.setScaledFixedSize( 20, 20 );
       setClippedPixelsButton.onClick = function()
       {
-            tabPreviewControl.showClippedImage();
-            sidePreviewControl.showClippedImage();
+            if (ppar.preview.side_preview_visible) {
+                  sidePreviewControl.showClippedImage();
+            } else {
+                  tabPreviewControl.showClippedImage();
+            }
       };
 
       var buttonsSizer = new HorizontalSizer;
@@ -6888,6 +6912,12 @@ function AutoIntegrateDialog()
             "<p>Final images are renamed using the subdirectory name. It is " + 
             "recommended that each part of the batch is stored in a separate directory (like for example P1, P2, etc.).</p>" +
             "<p>Batch mode works only with calibrated light images.</p>");
+      this.fast_mode_CheckBox = newCheckBox(this, "Fast mode", par.fast_mode, 
+            "<p>Run in fast mode where images are downsampled to a smaller size and only 10% or minimum of 3 images are used.</p>" +
+            "<p>With full processing, all light and possibly calibration images are downsampled.</p>" +
+            "<p>With AutoContinue, all integrated images (Integration_[LRGBHSO]) are downsampled. For other AutoContinue starting points the fast mode is ignored.</p>" +
+            "<p>Fast mode can be useful to do a quick overview of processing before committing to full processing.</p>" );
+      this.fast_mode_ComboBox = newComboBox(this, par.fast_mode_opt, fast_mode_values, "<p>S uses smaller images, M uses bigger images.</p>");
       this.autodetect_imagetyp_CheckBox = newCheckBox(this, "Do not use IMAGETYP keyword", par.skip_autodetect_imagetyp, 
             "<p>If selected do not try to autodetect calibration files based on IMAGETYP keyword.</p>" );
       this.autodetect_filter_CheckBox = newCheckBoxEx(this, "Do not use FILTER keyword", par.skip_autodetect_filter, 
@@ -6964,17 +6994,17 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.skip_auto_background_CheckBox = newCheckBox(this, "No auto background", par.skip_auto_background, 
             "<p>Do not try to find background area.</p>" );
-      this.use_StarXTerminator_CheckBox = newCheckBox(this, "Use StarXTerminator", par.use_starxterminator, 
+      this.use_StarXTerminator_CheckBox = newCheckBox(this, "StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
             "<p>You can change some StarXTerminator settings in the <i>StarXTerminator settings</i> section.</p>" );
-      this.use_noisexterminator_CheckBox = newCheckBox(this, "Use NoiseXTerminator", par.use_noisexterminator, 
+      this.use_noisexterminator_CheckBox = newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" );
-      this.use_starnet2_CheckBox = newCheckBox(this, "Use StarNet2", par.use_starnet2, 
+      this.use_starnet2_CheckBox = newCheckBox(this, "StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 to remove stars from an image.</p>" );
-      this.use_deepsnr_CheckBox = newCheckBox(this, "Use DeepSNR", par.use_deepsnr, 
+      this.use_deepsnr_CheckBox = newCheckBox(this, "DeepSNR", par.use_deepsnr, 
             "<p>Use DeepSNR for noise reduction.</p>" +
             "<p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>" );
-      this.use_blurxterminator_CheckBox = newCheckBox(this, "Use BlurXTerminator", par.use_blurxterminator, 
+      this.use_blurxterminator_CheckBox = newCheckBox(this, "BlurXTerminator", par.use_blurxterminator, 
             "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Extra processing " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
@@ -6992,23 +7022,23 @@ function AutoIntegrateDialog()
       use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
                               "the gradient correction options in the <i>Image processing parameters</i> section.</p>";
       
-      this.use_graxpert_CheckBox = newCheckBox(this, "Use GraXpert", par.use_graxpert, 
+      this.use_graxpert_CheckBox = newCheckBox(this, "GraXpert", par.use_graxpert, 
             use_graxpert_toolTip + 
             "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
             "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>" +
             "<p>GraXpert always uses the AI background model. In the GraXpert section " +
             "it is possible to set correction and smoothing values.</p>");
-      this.use_graxpert_denoise_CheckBox = newCheckBox(this, "Use GraXpert denoise", par.use_graxpert_denoise, 
+      this.use_graxpert_denoise_CheckBox = newCheckBox(this, "GraXpert denoise", par.use_graxpert_denoise, 
             "<p>Use GraXpert for noise reduction.</p>" +
             "<p>In the GraXpert section it is possible to set smoothing values and batch size.</p>");
       if (global.is_gc_process) {
-            this.use_abe_CheckBox = newCheckBox(this, "Use ABE", par.use_abe, 
+            this.use_abe_CheckBox = newCheckBox(this, "ABE", par.use_abe, 
             "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
             "the gradient correction options in the <i>Image processing parameters</i> section.</p>");
       }
       if (global.is_mgc_process) {
-            this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "Use MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
+            this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
                   "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
                   "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
                   "the gradient correction options in the <i>Image processing parameters</i> section.</p>" +
@@ -7161,47 +7191,90 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       this.imageParamsControl.sizer.addStretch();
 
-      // Image tools and batching set 1.
-      this.imageToolsSet1 = new VerticalSizer;
-      this.imageToolsSet1.margin = 6;
-      this.imageToolsSet1.spacing = 4;
-      if (global.is_gc_process) {
-            this.imageToolsSet1.add( this.use_abe_CheckBox );
-      }
-      if (global.is_mgc_process) {
-            this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
+      // Image tools and batching set 1, built in tools.
+      if (global.is_gc_process || global.is_mgc_process) {
+            this.imageToolsSet1 = new VerticalSizer;
+            this.imageToolsSet1.margin = 6;
+            this.imageToolsSet1.spacing = 4;
+            if (global.is_gc_process) {
+                  this.imageToolsSet1.add( this.use_abe_CheckBox );
+            }
+            if (global.is_mgc_process) {
+                  this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
+            }
+      } else {
+            this.imageToolsSet1 = null;
       }
 
-      this.imageToolsSet1.add( this.use_graxpert_CheckBox );
-      this.imageToolsSet1.add( this.use_StarXTerminator_CheckBox );
-      this.imageToolsSet1.add( this.use_starnet2_CheckBox );
-      
-      // Image tools and batching set 2.
+      // Image tools and batching set 2, RC Astro.
       this.imageToolsSet2 = new VerticalSizer;
       this.imageToolsSet2.margin = 6;
       this.imageToolsSet2.spacing = 4;
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
-      this.imageToolsSet2.add( this.use_graxpert_denoise_CheckBox );
-      this.imageToolsSet2.add( this.use_deepsnr_CheckBox );
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
+      this.imageToolsSet2.add( this.use_StarXTerminator_CheckBox );
 
-      // Image tools and batching set 3.
+      // Image tools and batching set 3, GraXpert.
       this.imageToolsSet3 = new VerticalSizer;
       this.imageToolsSet3.margin = 6;
       this.imageToolsSet3.spacing = 4;
-      this.imageToolsSet3.add( this.batch_mode_CheckBox );
-      this.imageToolsSet3.add( this.solve_image_CheckBox );
+      this.imageToolsSet3.add( this.use_graxpert_CheckBox );
+      this.imageToolsSet3.add( this.use_graxpert_denoise_CheckBox );
+
+      // Image tools and batching set 4, StarNet2.
+      this.imageToolsSet4 = new VerticalSizer;
+      this.imageToolsSet4.margin = 6;
+      this.imageToolsSet4.spacing = 4;
+      this.imageToolsSet4.add( this.use_starnet2_CheckBox );
+      this.imageToolsSet4.add( this.use_deepsnr_CheckBox );
       
       // Image tools and batching par.
       this.imageToolsControl = new Control( this );
       this.imageToolsControl.sizer = new HorizontalSizer;
       this.imageToolsControl.sizer.margin = 6;
       this.imageToolsControl.sizer.spacing = 4;
-      this.imageToolsControl.sizer.add( this.imageToolsSet1 );
+      if (this.imageToolsSet1) {
+            this.imageToolsControl.sizer.add( this.imageToolsSet1 );
+      }
       this.imageToolsControl.sizer.add( this.imageToolsSet2 );
       this.imageToolsControl.sizer.add( this.imageToolsSet3 );
+      this.imageToolsControl.sizer.add( this.imageToolsSet4 );
       this.imageToolsControl.visible = false;
       this.imageToolsControl.sizer.addStretch();
+
+      this.fastModeSizer = new HorizontalSizer;
+      this.fastModeSizer.margin = 6;
+      this.fastModeSizer.spacing = 4;
+      this.fastModeSizer.add( this.fast_mode_CheckBox );
+      this.fastModeSizer.add( this.fast_mode_ComboBox );
+      this.fastModeSizer.addStretch();
+
+      // Image tools other.
+      this.imageToolsOtherSet1 = new VerticalSizer;
+      this.imageToolsOtherSet1.margin = 6;
+      this.imageToolsOtherSet1.spacing = 4;
+      this.imageToolsOtherSet1.add( this.batch_mode_CheckBox );
+      this.imageToolsOtherSet1.add( this.solve_image_CheckBox );
+
+      this.imageToolsOtherSet2 = new VerticalSizer;
+      this.imageToolsOtherSet2.margin = 6;
+      this.imageToolsOtherSet2.spacing = 4;
+      this.imageToolsOtherSet2.add( this.fast_mode_CheckBox );
+      this.imageToolsOtherSet2.add( this.fast_mode_ComboBox );
+
+      this.imageToolsOtherSet2 = new VerticalSizer;
+      this.imageToolsOtherSet2.margin = 6;
+      this.imageToolsOtherSet2.spacing = 4;
+      this.imageToolsOtherSet2.add( this.fastModeSizer );
+
+      this.imageToolsOtherControl = new Control( this );
+      this.imageToolsOtherControl.sizer = new HorizontalSizer;
+      this.imageToolsOtherControl.sizer.margin = 6;
+      this.imageToolsOtherControl.sizer.spacing = 4;
+      this.imageToolsOtherControl.sizer.add( this.imageToolsOtherSet1 );
+      this.imageToolsOtherControl.sizer.add( this.imageToolsOtherSet2 );
+      this.imageToolsOtherControl.visible = false;
+      this.imageToolsOtherControl.sizer.addStretch();
 
       // Other parameters set 0.
       this.otherParamsSet01 = new VerticalSizer;
@@ -9353,8 +9426,11 @@ function AutoIntegrateDialog()
                         }
                   } else {
                         if (preview_image != null) {
-                              tabPreviewControl.SetImage(preview_image, preview_image_txt);
-                              sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                              if (ppar.preview.side_preview_visible) {
+                                    sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                              } else {
+                                    tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                              }
                         }
                   }
             });
@@ -9429,8 +9505,11 @@ function AutoIntegrateDialog()
                         }
                   } else {
                         if (preview_image != null) {
-                              tabPreviewControl.SetImage(preview_image, preview_image_txt);
-                              sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                              if (ppar.preview.side_preview_visible) {
+                                    sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                              } else {
+                                    tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                              }
                         }
                   }
             });
@@ -9907,7 +9986,8 @@ function AutoIntegrateDialog()
       this.leftGroupBox = newGroupBoxSizer(this);
 
       newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
-      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsControl, "Tools and batching", "ImageTools");
+      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsControl, "Tools", "ImageTools");
+      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
       newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       this.leftGroupBox.sizer.addStretch();
 
@@ -10302,8 +10382,11 @@ function AutoIntegrateDialog()
             }
       }
       if (ppar.preview.use_preview) {
-            updatePreviewNoImageInControl(sidePreviewControl);
-            updatePreviewNoImageInControl(tabPreviewControl);
+            if (ppar.preview.side_preview_visible) {
+                  updatePreviewNoImageInControl(sidePreviewControl);
+            } else {
+                  updatePreviewNoImageInControl(tabPreviewControl);
+            }
             console.writeln("Screen size " + screen_size +  
                             ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + 
                             ", histogram height " + ppar.preview.histogram_height + 
