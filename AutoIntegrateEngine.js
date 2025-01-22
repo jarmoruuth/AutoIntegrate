@@ -257,6 +257,13 @@ var channels = {
       C: 7
 };
 
+var GraXpertCmd = {
+      background: 0,
+      denoise: 1,
+      deconvolution_stars: 2,
+      deconvolution_object: 3,
+};
+
 var telescope_info = [
       [ 'AUS-2-CMOS', 382, 3.76 ],
       [ 'SPA-1-CMOS', 382, 3.76 ],
@@ -5096,14 +5103,16 @@ function checkNoiseReduction(image, phase)
                   switch (phase) {
                         case 'channel':
                               noise_reduction = par.channel_noise_reduction.val ||
-                                                (par.auto_noise_reduction.val && !par.use_blurxterminator.val);
+                                                (par.auto_noise_reduction.val && 
+                                                      (!par.use_blurxterminator.val && !par.use_graxpert_deconvolution.val));
                               break;
                         case 'integrated':
                               noise_reduction = par.integrated_image_noise_reduction.val;
                               break;
                         case 'processed':
                               noise_reduction = par.processed_image_noise_reduction.val ||
-                                                (par.auto_noise_reduction.val && par.use_blurxterminator.val);
+                                                (par.auto_noise_reduction.val && 
+                                                      (par.use_blurxterminator.val || par.use_graxpert_deconvolution.val));
                               break;
                         case 'nonlinear':
                               noise_reduction = par.non_linear_noise_reduction.val;
@@ -5127,7 +5136,7 @@ function checkNoiseReduction(image, phase)
                                     noise_reduction = true;
                               } else if (par.auto_noise_reduction.val) {
                                     // Auto select noise reduction
-                                    if (par.use_blurxterminator.val) {
+                                    if (par.use_blurxterminator.val || par.use_graxpert_deconvolution.val) {
                                           // Skip noise reduction on channel images if BlurXterminator is used
                                           noise_reduction = false;
                                     } else {
@@ -5144,7 +5153,7 @@ function checkNoiseReduction(image, phase)
                                     noise_reduction = true;
                               } else if (par.auto_noise_reduction.val) {
                                     // Auto select noise reduction
-                                    if (par.use_blurxterminator.val) {
+                                    if (par.use_blurxterminator.val || par.use_graxpert_deconvolution.val) {
                                           // Do noise reduction on combined images if BlurXterminator is used
                                           noise_reduction = true;
                                     } else {
@@ -5886,12 +5895,16 @@ function customMapping(RGBmapping, filtered_lights)
                   flowchartParentBegin("Stretch channels");
                   for (var i = 0; i < images.length; i++) {
                         flowchartChildBegin(findChannelFromName(images[i]));
-                        if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                              /* Run BlurXTerminator separately for each channel since
-                               * we want to run it on linear data.
-                               */
-                              runBlurXTerminator(ImageWindow.windowById(images[i]), false);
-                              bxt_run = true;
+                        if (!par.skip_sharpening.val) {
+                               if (par.use_blurxterminator.val) {
+                                    /* Run BlurXTerminator separately for each channel since
+                                     * we want to run it on linear data.
+                                     */
+                                    runBlurXTerminator(ImageWindow.windowById(images[i]), false);
+                                    bxt_run = true;
+                               } else if (par.use_graxpert_deconvolution.val) {
+                                    runGraXpertDeconvolution(ImageWindow.windowById(images[i]));
+                              }
                         }
                         runHistogramTransform(util.findWindow(images[i]), null, false, findChannelFromName(images[i]));
                         flowchartChildEnd(findChannelFromName(images[i]));
@@ -7118,14 +7131,44 @@ function noGradientCorrectionCopyWin(win)
       return noGC_id;
 }
 
-// Run GraXpert as an external process
-function runGraXpertExternal(win, denoise)
+// Run GraXpert deconvolution
+function runGraXpertDeconvolution(win)
 {
-      if (denoise) {
-            var node = flowchartOperation("GraXpert denoise");
-      } else {
-            // Weird but flochart is handled differently here
-            var node = null;
+      var node = flowchartOperation("GraXpert deconvolution");
+      if (global.get_flowchart_data) {
+            return;
+      }
+
+      if (par.graxpert_median_psf.val || par.graxpert_deconvolution_stellar_psf.val > 0) {
+            console.writeln("GraXpert deconvolution stars");
+            runGraXpertExternal(win, GraXpertCmd.deconvolution_stars);
+      }
+      if (par.graxpert_median_psf.val || par.graxpert_deconvolution_nonstellar_psf.val > 0) {
+            console.writeln("GraXpert deconvolution object");
+            runGraXpertExternal(win, GraXpertCmd.deconvolution_object);
+      }
+      engine_end_process(node, win, "GraXpert deconvolution");
+}
+
+
+// Run GraXpert as an external process.
+// With option GraXpertCmd.background we return a new image.
+// Other options update the input image directly.
+// With option GraXpertCmd.denoise we do flowchart operations here.
+function runGraXpertExternal(win, cmd)
+{
+      switch (cmd) {
+            case GraXpertCmd.background:
+            case GraXpertCmd.deconvolution_stars:
+            case GraXpertCmd.deconvolution_object:
+                  // Flowchart is handled in upper levels
+                  var node = null;
+                  break;
+            case GraXpertCmd.denoise:
+                  var node = flowchartOperation("GraXpert denoise");
+                  break;
+            default:
+                  util.throwFatalError("Unknown GraXpert command " + cmd);
       }
 
       if (par.graxpert_path.val == "") {
@@ -7153,11 +7196,50 @@ function runGraXpertExternal(win, denoise)
 
       util.closeOneWindowById(copy_win.mainView.id);
 
-      if (denoise) {
-            var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd denoising -strength " + par.graxpert_denoise_strength.val + " -batch_size " + par.graxpert_denoise_batch_size.val + ' "' + fname + '"';
-      } else {
-            var command = '"' + par.graxpert_path.val + '"' + " -cli " + '"' + fname + '"' + " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+      if (cmd == GraXpertCmd.deconvolution_stars || cmd == GraXpertCmd.deconvolution_object) {
+            if (par.graxpert_median_psf.val) {
+                  var psf = medianFWHM;
+                  if (psf == null) {
+                        // Get psf from image header
+                        psf = util.getKeywordValue(win, "AutoIntegrateMEDFWHM");
+                        if (psf != null) {
+                              // Convert to number
+                              psf = parseFloat(psf);
+                        }
+                  }
+                  if (psf == null) {
+                        save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+                        util.throwFatalError("Cannot run GraXpert deconvolution, AutoIntegrateMEDFWHM is not calculated. Maybe subframe selector was not run, or not using XISF/FITS image with proper header values.");
+                  }
+                  console.writeln("Using PSF " + psf + " from AutoIntegrateMEDFWHM value");
+            } else if (cmd == GraXpertCmd.deconvolution_stars) {
+                  var psf = par.graxpert_deconvolution_stellar_psf.val;
+            } else {
+                  var psf = par.graxpert_deconvolution_nonstellar_psf.val;
+            }
+      } 
+
+      switch (cmd) {
+            case GraXpertCmd.background:
+                  var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd background-extraction " + '"' + fname + '"' + 
+                                " -correction " + par.graxpert_correction.val + " -smoothing " + par.graxpert_smoothing.val;
+                  break;
+            case GraXpertCmd.denoise:
+                  var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd denoising -strength " + par.graxpert_denoise_strength.val + 
+                                " -batch_size " + par.graxpert_denoise_batch_size.val + ' "' + fname + '"';
+                  break;
+            case GraXpertCmd.deconvolution_stars:
+                  var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd deconv-stellar -strength " + par.graxpert_deconvolution_stellar_strength.val + 
+                                " -psfsize " + psf + ' "' + fname + '"';
+                  break;
+            case GraXpertCmd.deconvolution_object:
+                  var command = '"' + par.graxpert_path.val + '"' + " -cli -cmd deconv-obj -strength " + par.graxpert_deconvolution_nonstellar_strength.val + 
+                                 " -psfsize " + psf + ' "' + fname + '"';
+                  break;
+            default:
+                  util.throwFatalError("Unknown GraXpert command " + cmd);
       }
+
       console.writeln("GraXpert command " + command);
 
       var P = new ExternalProcess();
@@ -7186,7 +7268,7 @@ function runGraXpertExternal(win, denoise)
             }
             console.criticalln("GraXpert failed to run, possible reasons could be");
             console.criticalln("- GraXpert path is incorrect.");
-            console.criticalln("- GraXpert version is not compatible.");
+            console.criticalln("- GraXpert version is not compatible with selected options.");
             console.criticalln("- GraXpert AI model is not loaded. To load the AI model, run GraXpert manually once and close it. AutoIntegrate uses the default model.");
             save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             if (imgWin == null) {
@@ -7196,18 +7278,18 @@ function runGraXpertExternal(win, denoise)
             }
       }
 
-      if (denoise) {
+      if (cmd == GraXpertCmd.background) {
+            console.writeln("GraXpert output window " + imgWin.mainView.id);
+            imgWin.copyAstrometricSolution(win);
+      } else {
             win.mainView.beginProcess(UndoFlag_NoSwapFile);
             win.mainView.image.assign(imgWin.mainView.image);
             win.mainView.endProcess();
             imgWin.forceClose();
             imgWin = win;
-      } else {
-            console.writeln("GraXpert output window " + imgWin.mainView.id);
-            imgWin.copyAstrometricSolution(win);
       }
-      if (denoise) {
-            engine_end_process(node, imgWin, "GraXpert:denoise");
+      if (cmd == GraXpertCmd.denoise) {
+            engine_end_process(node, imgWin, "GraXpert denoise");
       }
 
       return imgWin;
@@ -7239,7 +7321,7 @@ function runGraXpert(win, replaceTarget, postfix, from_lights)
       if (global.get_flowchart_data) {
             var imgWin = util.copyWindowEx(win, "AutoIntegrateTemp", true);
       } else {
-            var imgWin = runGraXpertExternal(win, false);
+            var imgWin = runGraXpertExternal(win, GraXpertCmd.background);
       }
 
       if (replaceTarget) {
@@ -9245,7 +9327,7 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
       if (par.use_noisexterminator.val) {
             runNoiseXTerminator(imgWin, strength, linear);
       } else if (par.use_graxpert_denoise.val) {
-            runGraXpertExternal(imgWin, true);
+            runGraXpertExternal(imgWin, GraXpertCmd.denoise);
       } else if (par.use_deepsnr.val) {
             runDeepSNR(imgWin, strength, true);
       } else {
@@ -11975,8 +12057,12 @@ function ProcessLimage(RGBmapping)
                   if (checkNoiseReduction('L', 'integrated')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
-                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(L_processed_id), false);
+                  if (!par.skip_sharpening.val) {
+                        if (par.use_blurxterminator.val) {
+                              runBlurXTerminator(ImageWindow.windowById(L_processed_id), false);
+                        } else if (par.use_graxpert_deconvolution.val) {
+                              runGraXpertDeconvolution(ImageWindow.windowById(L_processed_id));
+                        }
                   }
                   if (checkNoiseReduction('L', 'processed')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
@@ -13392,8 +13478,12 @@ function ProcessRGBimage(RGBmapping)
             }
 
             if (!RGBmapping.stretched) {
-                  if (!par.skip_sharpening.val && par.use_blurxterminator.val) {
-                        runBlurXTerminator(ImageWindow.windowById(RGB_processed_id), false);
+                  if (!par.skip_sharpening.val) {
+                        if (par.use_blurxterminator.val) {
+                              runBlurXTerminator(ImageWindow.windowById(RGB_processed_id), false);
+                        } else if (par.use_graxpert_deconvolution.val) {
+                              runGraXpertDeconvolution(ImageWindow.windowById(RGB_processed_id));
+                        }
                   }
                   /* Check noise reduction only after BlurXTerminator. */
                   if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'processed')) {
@@ -14589,6 +14679,8 @@ function extraSharpen(extraWin, mask_win)
       if (par.use_blurxterminator.val) {
             addExtraProcessingStep("Sharpening using BlurXTerminator");
             runBlurXTerminator(extraWin, false);
+      } else if (par.use_graxpert_deconvolution.val) {
+            runGraXpertDeconvolution(extraWin);
       } else {
             addExtraProcessingStep("Sharpening using MLT with " + par.extra_sharpen_iterations.val + " iterations");
             for (var i = 0; i < par.extra_sharpen_iterations.val; i++) {
@@ -15691,7 +15783,7 @@ function extraProcessing(parent, id, apply_directly)
                         par.extra_LHE.val ||
                         (par.extra_noise_reduction.val && !(par.use_noisexterminator.val || par.use_graxpert_denoise.val || par.use_deepsnr.val)) ||
                         par.extra_ACDNR.val ||
-                        (par.extra_sharpen.val && !par.use_blurxterminator.val) ||
+                        (par.extra_sharpen.val && !par.use_blurxterminator.val && !par.use_graxpert_deconvolution.val) ||
                         par.extra_unsharpmask.val ||
                         (par.extra_highpass_sharpen.val && !par.extra_highpass_sharpen_combine_only.val) ||
                         par.extra_saturation.val ||
@@ -17499,7 +17591,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    */
                    if (par.skip_sharpening.val) {
                          console.writeln("No sharpening on " + LRGB_processed_HT_id);
-                   } else if (par.use_blurxterminator.val) {
+                   } else if (par.use_blurxterminator.val || par.use_graxpert_deconvolution.val) {
                         /* We have already applied BlurXTerminator on linear image. */
                   } else {
                          runMultiscaleLinearTransformSharpen(

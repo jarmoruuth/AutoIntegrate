@@ -111,6 +111,7 @@ this.par = {
       use_GC_on_L_RGB_stretched: { val: false, def: false, name : "Use GC on L, RGB stretched", type : 'B', oldname: "Use ABE on L, RGB stretched" },
       use_graxpert: { val: false, def: false, name : "Use GraXpert", type : 'B' },
       use_graxpert_denoise: { val: false, def: false, name : "Use GraXpert denoise", type : 'B' },
+      use_graxpert_deconvolution: { val: false, def: false, name : "Use GraXpert deconvolution", type : 'B' },
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
       use_multiscalegradientcorrection: { val: false, def: false, name : "Use MultiscaleGradientCorrection", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
@@ -294,11 +295,18 @@ this.par = {
       
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
+
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
       graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },
       graxpert_smoothing: { val: 0.5, def: 0.5, name : "GraXpert smoothing", type : 'R' },
       graxpert_denoise_strength: { val: 0.5, def: 0.5, name : "GraXpert denoise strength", type : 'R' },
       graxpert_denoise_batch_size: { val: '4', def: '4', name : "GraXpert denoise batch size", type : 'S' },
+      graxpert_deconvolution_stellar_strength: { val: 0.5, def: 0.5, name : "GraXpert deconvolution stellar strength", type : 'R' },
+      graxpert_deconvolution_stellar_psf: { val: 2.0, def: 2.0, name : "GraXpert deconvolution stellar PSF", type : 'R' },
+      graxpert_deconvolution_nonstellar_strength: { val: 0.5, def: 0.5, name : "GraXpert deconvolution nonstellar strength", type : 'R' },
+      graxpert_deconvolution_nonstellar_psf: { val: 2.0, def: 2.0, name : "GraXpert deconvolution nonstellar PSF", type : 'R' },
+      graxpert_median_psf: { val: true, def: true, name : "GraXpert median PSF", type : 'B' },
+
       starxterminator_ai_model: { val: "", def: "", name : "StarXTerminator AI model", type : 'S', skip_reset: true },
       starxterminator_large_overlap: { val: false, def: false, name : "StarXTerminator large overlap", type : 'B' },
       crop_tolerance: { val: 2, def: 2, name : "Crop tolerance", type : 'I' },

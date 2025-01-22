@@ -1895,7 +1895,7 @@ function extraProcessingGUI(parent)
       
       var extra_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                   "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
-                                  "<p>If BlurXTerminator is used for sharpening then iterations parameter is ignored.</p>";
+                                  "<p>If BlurXTerminator or GraXpert is used for sharpening then iterations parameter is ignored.</p>";
       this.extra_sharpen_CheckBox = newCheckBox(parent, "Sharpening", par.extra_sharpen, extra_sharpen_tooltip);
 
       this.extraSharpenIterationsSpinBox = newSpinBox(parent, par.extra_sharpen_iterations, 1, 10, extra_sharpen_tooltip);
@@ -6996,9 +6996,11 @@ function AutoIntegrateDialog()
             "<p>Do not try to find background area.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
-            "<p>You can change some StarXTerminator settings in the <i>StarXTerminator settings</i> section.</p>" );
+            "<p>You can change some StarXTerminator settings in the <i>Processing 1 / StarXTerminator settings</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
-            "<p>Use NoiseXTerminator for noise reduction.</p>" );
+            "<p>Use NoiseXTerminator for noise reduction.</p>" +
+            "<p>NoiseXTerminator uses generic noise rediuction settings.</p>" +
+            "<p>You can change noise reduction settings in the <i>Processing 1 / noise reduction</i> section.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 to remove stars from an image.</p>" );
       this.use_deepsnr_CheckBox = newCheckBox(this, "DeepSNR", par.use_deepsnr, 
@@ -7008,7 +7010,7 @@ function AutoIntegrateDialog()
             "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Extra processing " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
-            "<p>Some options for BlurXTerminator can be adjusted in the sharpening section.</p>" +
+            "<p>Some options for BlurXTerminator can be adjusted in the <i>Processing 1 / BlurXTerminator</i> section.</p>" +
             "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
             "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
             "But it is always good to experiment what " +
@@ -7022,15 +7024,23 @@ function AutoIntegrateDialog()
       use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
                               "the gradient correction options in the <i>Image processing parameters</i> section.</p>";
       
+      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Processing 1 / GraXpert</i> section before it can be used.</p>" +
+                          "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
+
       this.use_graxpert_CheckBox = newCheckBox(this, "GraXpert", par.use_graxpert, 
             use_graxpert_toolTip + 
-            "<p><b>NOTE!</b> A path to GraXpert file must be set in the GraXpert section before it can be used.</p>" +
-            "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>" +
-            "<p>GraXpert always uses the AI background model. In the GraXpert section " +
-            "it is possible to set correction and smoothing values.</p>");
+            "<p>GraXpert always uses the AI background model. In the <i>Processing 1 / GraXpert</i> section " +
+            "it is possible to set some settings.</p>" +
+            GraXpert_note);
       this.use_graxpert_denoise_CheckBox = newCheckBox(this, "GraXpert denoise", par.use_graxpert_denoise, 
             "<p>Use GraXpert for noise reduction.</p>" +
-            "<p>In the GraXpert section it is possible to set smoothing values and batch size.</p>");
+            "<p>In the <i>Processing 1 / GraXpert</i> section it is possible to set some settings.</p>" +
+            GraXpert_note);
+
+      this.use_graxpert_deconvolution_CheckBox = newCheckBox(this, "GraXpert deconvolution", par.use_graxpert_deconvolution, 
+            "<p>Use GraXpert deconvolution for stella and non-stellar sharpening.</p>" +
+            "<p>In the <i>Processing 1 / GraXpert</i> section it is possible to set some settings.</p>" +
+            GraXpert_note);
       if (global.is_gc_process) {
             this.use_abe_CheckBox = newCheckBox(this, "ABE", par.use_abe, 
             "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
@@ -7219,6 +7229,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet3.margin = 6;
       this.imageToolsSet3.spacing = 4;
       this.imageToolsSet3.add( this.use_graxpert_CheckBox );
+      this.imageToolsSet3.add( this.use_graxpert_deconvolution_CheckBox );
       this.imageToolsSet3.add( this.use_graxpert_denoise_CheckBox );
 
       // Image tools and batching set 4, StarNet2.
@@ -7593,21 +7604,20 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
       this.noiseReductionGroupBoxSizer.addStretch();
 
-      this.sharpeningGroupBoxLabel = newSectionLabel(this, "BlurXTerminator settings");
+      this.blurxterminatorGroupBoxLabel = newSectionLabel(this, "BlurXTerminator settings");
+      this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.";
 
-      this.bxtLabel = newLabel(this, "BlurXTerminator,", "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.");
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
       this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
       this.bxtSharpenNonstellar = newNumericEdit(this, "Sharpen nonstellar", par.bxt_sharpen_nonstellar, 0, 1, "The amount to sharpen non-stellar image features. Use a value between 0.00 and 1.00.");
 
-      this.sharpeningGroupBoxSizer1 = new HorizontalSizer;
-      // this.sharpeningGroupBoxSizer1.margin = 6;
-      this.sharpeningGroupBoxSizer1.spacing = 4;
-      this.sharpeningGroupBoxSizer1.add( this.bxtLabel );
-      this.sharpeningGroupBoxSizer1.add( this.bxtSharpenStars );
-      this.sharpeningGroupBoxSizer1.add( this.bxtAdjustHalo );
-      this.sharpeningGroupBoxSizer1.add( this.bxtSharpenNonstellar );
-      this.sharpeningGroupBoxSizer1.addStretch();
+      this.blurxterminatorGroupBoxSizer1 = new HorizontalSizer;
+      // this.blurxterminatorGroupBoxSizer1.margin = 6;
+      this.blurxterminatorGroupBoxSizer1.spacing = 4;
+      this.blurxterminatorGroupBoxSizer1.add( this.bxtSharpenStars );
+      this.blurxterminatorGroupBoxSizer1.add( this.bxtAdjustHalo );
+      this.blurxterminatorGroupBoxSizer1.add( this.bxtSharpenNonstellar );
+      this.blurxterminatorGroupBoxSizer1.addStretch();
 
       this.bxtPSF = newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
       this.bxtImagePSF = newCheckBox(this, "Get PSF from image", par.bxt_image_psf, 
@@ -7615,35 +7625,35 @@ function AutoIntegrateDialog()
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtMedianPSF = newCheckBox(this, "Use median PSF", par.bxt_median_psf, 
             "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
-            "<p>Value is saved to the FITS header and printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>" + 
+            "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>" + 
             "<p>" + BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectOnlyBeforeCC = newCheckBox(this, "Correct only before CC", par.bxt_correct_only_before_cc, 
             "<p>Run BlurXTerminator in correct only mode before color calibration.</p>" );
       this.bxtCorrectOnlyChannel = newCheckBox(this, "Correct only on channel images", par.bxt_correct_channels, 
             "<p>Run BlurXTerminator in correct only mode on channel images.</p>" );
       
-      this.sharpeningGroupBoxSizer2 = new HorizontalSizer;
-      // this.sharpeningGroupBoxSizer2.margin = 2;
-      this.sharpeningGroupBoxSizer2.spacing = 4;
-      this.sharpeningGroupBoxSizer2.add( this.bxtPSF );
-      this.sharpeningGroupBoxSizer2.add( this.bxtImagePSF );
-      this.sharpeningGroupBoxSizer2.add( this.bxtMedianPSF );
-      this.sharpeningGroupBoxSizer2.addStretch();
+      this.blurxterminatorGroupBoxSizer2 = new HorizontalSizer;
+      // this.blurxterminatorGroupBoxSizer2.margin = 2;
+      this.blurxterminatorGroupBoxSizer2.spacing = 4;
+      this.blurxterminatorGroupBoxSizer2.add( this.bxtPSF );
+      this.blurxterminatorGroupBoxSizer2.add( this.bxtImagePSF );
+      this.blurxterminatorGroupBoxSizer2.add( this.bxtMedianPSF );
+      this.blurxterminatorGroupBoxSizer2.addStretch();
 
-      this.sharpeningGroupBoxSizer3 = new HorizontalSizer;
-      // this.sharpeningGroupBoxSizer3.margin = 2;
-      this.sharpeningGroupBoxSizer3.spacing = 4;
-      this.sharpeningGroupBoxSizer3.add( this.bxtCorrectOnlyBeforeCC );
-      this.sharpeningGroupBoxSizer3.add( this.bxtCorrectOnlyChannel );
-      this.sharpeningGroupBoxSizer3.addStretch();
+      this.blurxterminatorGroupBoxSizer3 = new HorizontalSizer;
+      // this.blurxterminatorGroupBoxSizer3.margin = 2;
+      this.blurxterminatorGroupBoxSizer3.spacing = 4;
+      this.blurxterminatorGroupBoxSizer3.add( this.bxtCorrectOnlyBeforeCC );
+      this.blurxterminatorGroupBoxSizer3.add( this.bxtCorrectOnlyChannel );
+      this.blurxterminatorGroupBoxSizer3.addStretch();
 
-      this.sharpeningGroupBoxSizer = new VerticalSizer;
-      this.sharpeningGroupBoxSizer.margin = 6;
-      this.sharpeningGroupBoxSizer.spacing = 4;
-      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer1 );
-      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer2 );
-      this.sharpeningGroupBoxSizer.add( this.sharpeningGroupBoxSizer3 );
-      this.sharpeningGroupBoxSizer.addStretch();
+      this.blurxterminatorGroupBoxSizer = new VerticalSizer;
+      this.blurxterminatorGroupBoxSizer.margin = 6;
+      this.blurxterminatorGroupBoxSizer.spacing = 4;
+      this.blurxterminatorGroupBoxSizer.add( this.blurxterminatorGroupBoxSizer1 );
+      this.blurxterminatorGroupBoxSizer.add( this.blurxterminatorGroupBoxSizer2 );
+      this.blurxterminatorGroupBoxSizer.add( this.blurxterminatorGroupBoxSizer3 );
+      this.blurxterminatorGroupBoxSizer.addStretch();
 
       function AImodelSizer(parent, name, param, toolTip) {
             var AImodelLabel = newLabel(parent, name, "<p>Select AI model for " + name + "</p>" + toolTip);
@@ -8251,8 +8261,24 @@ function AutoIntegrateDialog()
       this.graxpertDenoiseBatchSizeComboBox = newComboBox(this, par.graxpert_denoise_batch_size, graxpert_batch_size_values, this.graxpertBatchSizeLabel.toolTip);
       this.graxpertDenoiseSizer = newHorizontalSizer(2, true, [this.graxpertDenoiseStrengthEdit, this.graxpertBatchSizeLabel, this.graxpertDenoiseBatchSizeComboBox]);
 
-      this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
-      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertGroupBoxLabel, this.graxpertPathSizer, this.graxpertGradientCorrectionSizer, this.graxpertDenoiseSizer]);
+      this.graxpertDenconvolutionStellarStrengthEdit = newNumericEdit(this, "Deconvolution stars strength", par.graxpert_deconvolution_stellar_strength, 0, 1, "Strength for GraXpert stars deconvolution.");
+      this.graxpertDenconvolutionStellarPsfEdit = newNumericEdit(this, "Stars FWHM", par.graxpert_deconvolution_stellar_psf, 0, 14, "FWHM in pixels for GraXpert stars deconvolution.");
+      this.graxpertDenconvolutionStellarSizer = newHorizontalSizer(2, true, [this.graxpertDenconvolutionStellarStrengthEdit, this.graxpertDenconvolutionStellarPsfEdit]);
+
+      this.graxpertDenconvolutionNonStellarStrengthEdit = newNumericEdit(this, "Deconvolution object strength", par.graxpert_deconvolution_nonstellar_strength, 0, 1, "Strength for GraXpert object deconvolution.");
+      this.graxpertDenconvolutionNonStellarPsfEdit = newNumericEdit(this, "Object FWHM", par.graxpert_deconvolution_nonstellar_psf, 0, 14, "FWHM in pixels for GraXpert stars deconvolution.");
+      this.graxpertDenconvolutionNonStellarSizer = newHorizontalSizer(2, true, [this.graxpertDenconvolutionNonStellarStrengthEdit, this.graxpertDenconvolutionNonStellarPsfEdit]);
+
+      this.graxpertDenconvolutionMedianPSF = newCheckBox(this, "Use median FWHM", par.graxpert_median_psf, 
+            "<p>Use median FWHM from subframe selector as FWHM value.</p>" + 
+            "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>");
+
+      this.graxpertDenconvolutionSizer = newVerticalSizer(2, true, [this.graxpertDenconvolutionStellarSizer, this.graxpertDenconvolutionNonStellarSizer, this.graxpertDenconvolutionMedianPSF]);
+      
+      // this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
+      this.graxpertGroupBoxSizer1 = newVerticalSizer(6, true, [this.graxpertGradientCorrectionSizer, this.graxpertDenoiseSizer]);
+      this.graxpertGroupBoxSizer2 = newHorizontalSizer(6, true, [this.graxpertGroupBoxSizer1, this.graxpertDenconvolutionSizer]);
+      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertPathSizer, this.graxpertGroupBoxSizer2]);
 
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
@@ -8280,8 +8306,6 @@ function AutoIntegrateDialog()
             processes.push(this.GCGroupBoxSizer);
       }
       processes.push(this.ABEGroupBoxSizer);
-      processes.push(this.graxpertGroupBoxSizer);
-      processes.push(this.StarXTerminatorGroupBoxSizer);
 
       this.GCStarXSizer = newVerticalSizer(0, true, processes);
 
@@ -10008,14 +10032,18 @@ function AutoIntegrateDialog()
             [ this.linearFitAndLRGBCombinationCropSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, GraXpert, ABE and StarXTerminator settings", "ps_ave_graxpert",
             [ this.GCStarXSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction and BlurXTerminator settings", "ps_saturation_noise",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
               this.noiseReductionGroupBoxLabel,
-              this.noiseReductionGroupBoxSizer,
-              this.sharpeningGroupBoxLabel,
-              this.sharpeningGroupBoxSizer ]);
-
+              this.noiseReductionGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "StarXTerminator, BlurXTerminator settings", "ps_rcastro",
+            [ this.StarXTerminatorGroupBoxSizer,
+              this.blurxterminatorGroupBoxLabel,
+              this.blurxterminatorGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "GraXpert settings", "ps_graxpert",
+            [ this.graxpertGroupBoxSizer  ]);
+            
       this.leftProcessingGroupBox.sizer.addStretch();
 
       // Right processing group box
