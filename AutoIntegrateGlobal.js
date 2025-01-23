@@ -50,7 +50,7 @@ this.autointegrate_version_info = [
       "- Added high pass sharpening",
       "- Updates to linear fit",
       "- Extra option to fix star cores",
-      "- Updates file view id / file name handling"
+      "- Updates to view id / file name handling"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
