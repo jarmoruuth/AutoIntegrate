@@ -29,7 +29,7 @@ function AutoIntegrateMaxPreviewDialog(engine, util, global, image, txt)
 
        console.writeln("Maximize image preview: screen_width ", screen_width, ", screen_height ", screen_height + ", preview_width ", preview_width, ", preview_height ", preview_height);
 
-      this.maxPreviewControl = new AutoIntegratePreviewControl(this, engine, util, global, preview_width, preview_height, true);
+      this.maxPreviewControl = new AutoIntegratePreviewControl(this, "max", engine, util, global, preview_width, preview_height, true);
 
       this.maxPreviewControl.SetImage(image, txt);
    
@@ -61,10 +61,12 @@ AutoIntegrateMaxPreviewDialog.prototype = new Dialog;
  * This product is based on software from the PixInsight project, developed
  * by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
  */
-function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x, size_y, call_from_max_preview)
+function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, size_x, size_y, call_from_max_preview)
 {
        this.__base__ = Frame;
        this.__base__(parentDialog);
+
+       this.name = name;
 
        var par = global.par;
 
@@ -79,7 +81,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
        // Set image window and bitmap
        this.SetImage = function(image, txt)
        {
-             //console.writeln("SetImage");
+             if (par.debug.val) console.writeln(this.name + ":SetImage:image " + image.width + "x" + image.height + ", txt " + txt);
              if (this.image) {
                   this.image.free();
              }
@@ -99,7 +101,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
        // Update image window and bitmap
        this.UpdateImage = function(image, txt)
        {
-             //console.writeln("UpdateImage");
+             if (par.debug.val) console.writeln(this.name + ":UpdateImage:image " + image.width + "x" + image.height + ", txt " + txt);
              if (this.zoom == this.zoomOutLimit) {
                    this.SetImage(image, txt);
              } else {
@@ -109,8 +111,13 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
                   this.image = new Image( image );
                    this.bitmap = this.image.render();
                    this.scaledBitmap = null;
+                   if (this.zoom == this.zoomOutLimit) {
+                        var newZoom = -100;
+                   } else {
+                        var newZoom = this.zoom;
+                   }
                    this.SetZoomOutLimit();
-                   this.UpdateZoom(this.zoom);
+                   this.UpdateZoom(newZoom);
                    if (txt) {
                         this.image_name_Label.text = txt;
                   } else {
@@ -188,11 +195,12 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
  
        this.UpdateZoom = function (newZoom, refPoint)
        {
-             if (newZoom < this.zoomOutLimit) {
+            if (newZoom < this.zoomOutLimit) {
                    newZoom = this.zoomOutLimit;
              } else if (newZoom >= 1) {
                    newZoom = 1;
              }
+             if (par.debug.val) console.writeln(this.name + ":UpdateZoom:newZoom " + newZoom);
              if (newZoom == this.zoom && this.scaledBitmap) {
                    return;
              }
@@ -220,9 +228,11 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
             }
             if (this.bitmap) {
                    if (this.zoom > this.zoomOutLimit) {
-                         this.scaledBitmap = this.bitmap.scaled(this.scale);
+                        if (par.debug.val) console.writeln(this.name + ":UpdateZoom:this.scale " + this.scale);
+                        this.scaledBitmap = this.bitmap.scaled(this.scale);
                    } else {
-                         this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
+                        if (par.debug.val) console.writeln(this.name + ":UpdateZoom:0.98 * this.scale " + (0.98 * this.scale));
+                        this.scaledBitmap = this.bitmap.scaled(0.98 * this.scale);
                    }
              } else {
                    this.scaledBitmap = {width:this.image.width * this.scale, height:this.image.height * this.scale};
@@ -246,6 +256,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
       this.zoomIn_Button.toolTip = "Zoom in";
       this.zoomIn_Button.onClick = function()
       {
+            if (par.debug.val) console.writeln(this.parent.name + ":zoom-in");
             this.parent.UpdateZoom(this.parent.zoom + this.parent.zoomOutLimit);
       };
 
@@ -255,6 +266,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
       this.zoomOut_Button.toolTip = "Zoom out";
       this.zoomOut_Button.onClick = function()
       {
+            if (par.debug.val) console.writeln(this.parent.name + ":zoom-out");
             this.parent.UpdateZoom(this.parent.zoom - this.parent.zoomOutLimit);
       };
 
@@ -264,6 +276,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
       this.zoom11_Button.toolTip = "Zoom 1:1";
       this.zoom11_Button.onClick = function()
       {
+            if (par.debug.val) console.writeln(this.parent.name + ":zoom-1-1");
             this.parent.UpdateZoom(1);
       };
 
@@ -273,6 +286,7 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
       this.zoomFit_Button.toolTip = "Zoom fit";
       this.zoomFit_Button.onClick = function()
       {
+            if (par.debug.val) console.writeln(this.parent.name + ":zoom");
             this.parent.UpdateZoom(-100);
       };
 
@@ -365,11 +379,13 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
  
        this.SetZoomOutLimit = function()
        {
+            if (par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:width ", this.scrollbox.viewport.width, ", height ", this.scrollbox.viewport.height);
+            if (par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:image.width ", this.image.width, ", image.height ", this.image.height);
              var scaleX = this.scrollbox.viewport.width/this.image.width;
              var scaleY = this.scrollbox.viewport.height/this.image.height;
              var scale = Math.min(scaleX,scaleY);
              this.zoomOutLimit = scale;
-             //console.writeln("scale ", scale, ", this.zoomOutLimit ", this.zoomOutLimit);
+             if (par.debug.val) console.writeln(this.name + ":SetZoomOutLimit:scale ", scale, ", this.zoomOutLimit ", this.zoomOutLimit);
        }
  
        this.scrollbox.onHorizontalScrollPosUpdated = function (newPos)
@@ -383,11 +399,13 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
  
        this.forceRedraw = function()
        {
+             if (par.debug.val) console.writeln(this.name + ":forceRedraw");
              this.scrollbox.viewport.update();
        };
  
        this.setSize = function(w, h)
        {
+             if (par.debug.val) console.writeln(this.name + ":setSize");
              this.setScaledMinSize(w, h);
              this.width = w;
              this.heigth = h;
@@ -458,20 +476,28 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
  
        this.scrollbox.viewport.onResize = function (wNew, hNew, wOld, hOld)
        {
-             var preview = this.parent.parent;
+            var preview = this.parent.parent;
+            if (par.debug.val) console.writeln(preview.name + ":onResize");
              if(preview.image && preview.scaledBitmap != null)
              {
-                   this.parent.maxHorizontalScrollPosition = Math.max(0, preview.scaledBitmap.width - wNew);
+                  this.parent.maxHorizontalScrollPosition = Math.max(0, preview.scaledBitmap.width - wNew);
                    this.parent.maxVerticalScrollPosition = Math.max(0, preview.scaledBitmap.height - hNew);
+                   if (par.debug.val) console.writeln(preview.name + ":onResize, preview.zoom " + preview.zoom + ", preview.zoomOutLimit " + preview.zoomOutLimit);
+                   if (preview.zoom == preview.zoomOutLimit) {
+                        var newZoom = -100;
+                   } else {
+                        var newZoom = preview.zoom;
+                   }
                    preview.SetZoomOutLimit();
-                   preview.UpdateZoom(preview.zoom);
+                   preview.UpdateZoom(newZoom);
              }
              this.update();
        }
  
        this.scrollbox.viewport.onPaint = function (x0, y0, x1, y1)
        {
-             var preview = this.parent.parent;
+            var preview = this.parent.parent;
+            if (par.debug.val) console.writeln(preview.name + ":onPaint");
              var graphics = new VectorGraphics(this);
  
              graphics.fillRect(x0,y0, x1, y1, new Brush(0xff202020));
@@ -498,7 +524,8 @@ function AutoIntegratePreviewControl(parentDialog, engine, util, global, size_x,
  
        this.transform = function(x, y, preview)
        {
-             var scrollbox = preview.scrollbox;
+            // if (par.debug.val) console.writeln(this.name + ":transform");
+            var scrollbox = preview.scrollbox;
              var ox = 0;
              var oy = 0;
              ox = scrollbox.maxHorizontalScrollPosition>0 ? -scrollbox.horizontalScrollPosition : (scrollbox.viewport.width-preview.scaledBitmap.width)/2;

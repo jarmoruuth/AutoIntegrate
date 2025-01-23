@@ -2019,7 +2019,7 @@ function extraProcessingGUI(parent)
                   updatePreviewNoImage();
                   extra_gui_info.save_button.enabled = false;
             } else {
-                  updatePreviewIdReset(global.extra_target_image, true);
+                  updatePreviewIdReset(global.extra_target_image, false);
                   extra_gui_info.save_button.enabled = true;
             }
       };
@@ -3958,8 +3958,10 @@ function updatePreviewNoImage()
 {
       if (global.use_preview) {
             if (ppar.preview.side_preview_visible) {
+                  if (par.debug.val) console.writeln("updatePreviewNoImage, side_preview");
                   updatePreviewNoImageInControl(sidePreviewControl);
             } else {
+                  if (par.debug.val) console.writeln("updatePreviewNoImage, tab_preview");
                   updatePreviewNoImageInControl(tabPreviewControl);
             }
             updatePreviewTxt("No preview");
@@ -6319,9 +6321,9 @@ function getWindowBitmap(imgWin)
 function newPreviewObj(parent, side_preview)
 {
       if (side_preview) {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, engine, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, "side", engine, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
       } else {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
+            var newPreviewControl = new AutoIntegratePreviewControl(parent, "tab", engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
       }
 
       var previewImageSizer = new Sizer();
@@ -10411,8 +10413,10 @@ function AutoIntegrateDialog()
       }
       if (ppar.preview.use_preview) {
             if (ppar.preview.side_preview_visible) {
+                  if (par.debug.val) console.writeln("updatePreviewNoImage, side_preview");
                   updatePreviewNoImageInControl(sidePreviewControl);
             } else {
+                  if (par.debug.val) console.writeln("updatePreviewNoImage, tab_preview");
                   updatePreviewNoImageInControl(tabPreviewControl);
             }
             console.writeln("Screen size " + screen_size +  
