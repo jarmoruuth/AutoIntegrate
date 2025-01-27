@@ -2386,7 +2386,7 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
             changes = true;
       }
       if (changes) {
-            console.writeln("adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", steps " + i );
+            console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", steps " + i );
       }
 
       return { width: preview_width, height: preview_height, changes: changes };

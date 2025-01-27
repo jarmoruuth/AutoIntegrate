@@ -1355,7 +1355,7 @@ function addMildBlur(imgWin)
       engine_end_process(null);
 }
 
-function findHistogramPeak(win, channel)
+function findHistogramPeak(win, channel = -1)
 {
       var view = win.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
@@ -1401,7 +1401,7 @@ function countPixels(histogramMatrix, row)
       return cnt;
 }
 
-function getClipShadowsValue(win, perc, channel)
+function getAdjustShadowsValue(win, perc, channel = -1)
 {
       // Get image histogram
       var view = win.mainView;
@@ -1411,20 +1411,20 @@ function getClipShadowsValue(win, perc, channel)
       if (channel >= 0) {
             pixelCount += countPixels(histogramMatrix, channel);
       } else {
-            // Count pixels for each row
+            // Count pixels for all channels
+            console.writeln("getAdjustShadowsValue, all channels, histogramMatrix.rows " + histogramMatrix.rows);
             for (var i = 0; i < histogramMatrix.rows; i++) {
                   pixelCount += countPixels(histogramMatrix, i);
             }
       }
       // console.writeln("Total pixel count for matrix is " + pixelCount);
 
-      var start_col = 0;
       var maxClip = (perc / 100) * pixelCount;
       console.writeln("Clip max " + maxClip + " pixels (" + perc + "%)");
 
-      // Clip shadows
+      // Adjust shadows
       var clipCount = 0;
-      for (var col = start_col; col < histogramMatrix.cols; col++) {
+      for (var col = 0; col < histogramMatrix.cols; col++) {
             var colClipCount = 0;
             if (channel >= 0) {
                   colClipCount += histogramMatrix.at(channel, col)
@@ -1436,43 +1436,46 @@ function getClipShadowsValue(win, perc, channel)
             clipCount += colClipCount;
             if (clipCount > maxClip && col != 0 && colClipCount > 0) {
                   clipCount = clipCount - colClipCount;
+                  col--;
                   break;
             }
       }
-      var normalizedShadowClipping = col / histogramMatrix.cols;
-      console.writeln(channelText(channel) + " normalized shadow clipping value is " + normalizedShadowClipping + ", clip count " + clipCount);
+      var normalizedShadowAdjust = col / histogramMatrix.cols;
+      console.writeln(channelText(channel) + " normalized shadow adjust value is " + normalizedShadowAdjust + ", clip count " + clipCount);
 
-      return { normalizedShadowClipping : normalizedShadowClipping, rows : histogramMatrix.rows, clipCount : clipCount };
+      return { normalizedShadowAdjust : normalizedShadowAdjust, rows : histogramMatrix.rows, clipCount : clipCount };
 }
 
-function clipShadows(win, perc)
+function adjustShadows(win, perc)
 {
-      console.writeln("Clip " + perc + "% of shadows from image " + win.mainView.id);
+      console.writeln("Adjust " + perc + "% of shadows from image " + win.mainView.id);
 
-      var node = flowchartOperation("Clip shadows");
+      var node = flowchartOperation("Adjust shadows");
       if (global.get_flowchart_data) {
             return;
       }
 
+      printImageStatistics(win);
+      
       var view = win.mainView;
 
-      var clip = getClipShadowsValue(win, perc);
-      var normalizedShadowClipping = clip.normalizedShadowClipping;
+      var adjust = getAdjustShadowsValue(win, perc, -1);
+      var normalizedShadowAdjust = adjust.normalizedShadowAdjust;
 
       var P = new HistogramTransformation;
-      if (clip.rows == 1) {
+      if (adjust.rows == 1) {
             P.H = [ // c0, m, c1, r0, r1
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
-                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
+                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
             ];
       } else {
             P.H = [ // c0, m, c1, r0, r1
-                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // R
-                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // G
-                  [normalizedShadowClipping, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // B
+                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // R
+                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // G
+                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // B
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
             ];
@@ -1484,7 +1487,9 @@ function clipShadows(win, perc)
       view.endProcess();
 
       printProcessValues(P);
-      engine_end_process(node, win, "HistogramTransformation:clip shadows");
+      engine_end_process(node, win, "HistogramTransformation:adjust shadows");
+
+      printImageStatistics(win);
 }
 
 function channelText(channel)
@@ -1496,13 +1501,15 @@ function channelText(channel)
                   return 'Green';
             case 2:
                   return 'Blue';
+            case -1:
+                  return 'All';
             default:
-                  return 'Luminance';
+                  util.throwFatalError("Invalid channel value: " + channel);
       }
 }
 
 // Find symmetry point as percentage of clipped pixels
-function findSymmetryPoint(win, perc, channel)
+function findSymmetryPoint(win, perc, channel = -1)
 {
       console.writeln(channelText(channel) + ", findSymmetryPoint at " + perc + "% of shadows from image " + win.mainView.id);
 
@@ -1539,10 +1546,10 @@ function findSymmetryPoint(win, perc, channel)
       if (col > 0) {
             col = col - 1;
       }
-      var normalizedShadowClipping = col / histogramMatrix.cols;
-      console.writeln(channelText(channel) + " symmetry point is " + normalizedShadowClipping);
+      var normalizedShadowAdjust = col / histogramMatrix.cols;
+      console.writeln(channelText(channel) + " symmetry point is " + normalizedShadowAdjust);
 
-      return normalizedShadowClipping;
+      return normalizedShadowAdjust;
 }
 
 function newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
@@ -1575,7 +1582,6 @@ function newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_mo
       if (clip_shadows_more) {
             autoContrast(targetWindow, 10, 99.9);
       } else if (!par.skip_mask_contrast.val) {
-            //clipShadows(targetWindow, 1.0);   Not sure if this actually helps
             autoContrast(targetWindow, 0.1, 99.9);
       }
 
@@ -7888,10 +7894,13 @@ function getRgbLinked(iscolor)
                         console.writeln("Default narrowband, use RGB channels unlinked");
                         rgbLinked = false;
                   }
-            } else if (iscolor) {
+            } else if (is_color_files && iscolor) {
+                  // We have color/OSC images and a color file, we use unlinked stretch
+                  // to get rid of possible color cast
                   console.writeln("Color file, use RGB channels unlinked");
                   rgbLinked = false;
             } else {
+                  // Assume color calibration has balanced the channels, use linked stretch
                   console.writeln("Use default RGB channels linked");
                   rgbLinked = true;
             }
@@ -8071,7 +8080,7 @@ function stretchHistogramTransformChannel(GC_win, image_stretching, target_value
             degree: degree
       };
 
-      var window_updated = stretchHistogramTransform(res, image_stretching, channel);
+      var window_updated = stretchHistogramTransformIterationStep(res, image_stretching, channel);
       if (window_updated) {
             guiUpdatePreviewWin(res.win);
       }
@@ -8099,7 +8108,7 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
       var degree_update_count = 0;
       for (var i = 0; i < maxiterations; i++) {
             res.iteration_number = i + 1;
-            var window_updated = stretchHistogramTransform(res, image_stretching, channel);
+            var window_updated = stretchHistogramTransformIterationStep(res, image_stretching, channel);
             if (window_updated) {
                   if (i > 0 && i % 5 == 0) {
                         guiUpdatePreviewWin(res.win);
@@ -8156,7 +8165,7 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
       console.writeln("Target value " + target_val);
 
       if (rgbLinked) {
-            console.writeln("Channel: " + channelText(3));
+            console.writeln("Channel: " + channelText(-1));
             return stretchHistogramTransformIterationsChannel(GC_win, image_stretching, target_val, null, null, false);
       } else {
             for (var i = 0; i < 3; i++) {
@@ -8196,7 +8205,7 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
 
       // Run the stretch function on the image
       if (rgbLinked) {
-            console.writeln("Channel: " + channelText(3));
+            console.writeln("Channel: " + channelText(-1));
             GC_win = stretchHistogramTransformIterationsChannel(GC_win, image_stretching, stretch_target_val, null, degree, true);
             if (debug) {
                   util.copyWindowEx(GC_win, util.mapBadWindowNameChars(image_stretching + "_linked_final_debug"), true);
@@ -8232,20 +8241,78 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
       return GC_win;
 }
 
-function printImageStatistics(win, channel)
+// Possible options for computeOrFetchProperty:
+// Mean, Modulus, SumOfSquares, Median, Variance, StdDev, AvgDev, MAD, BWMV, PBMV, Sn, Qn, Minimum, MinimumPos, Maximum, MaximumPos, Histogram16, Histogram20​
+function printImageStatistics(win, channel = -1)
 {
       var view = win.mainView;
       if (channel >= 0) {
-            var stat_channel = channel;
+            var med = view.computeOrFetchProperty("Median").at(channel);
+            var mean = view.computeOrFetchProperty("Mean").at(channel);
+            var stdDev = view.computeOrFetchProperty("StdDev").at(channel);
+            var MAD = view.computeOrFetchProperty("MAD").at(channel);
+            var min = view.computeOrFetchProperty("Minimum").at(channel);
+            var max = view.computeOrFetchProperty("Maximum").at(channel);
       } else {
-            var stat_channel = 0;
+            var med = win.mainView.image.median();
+            var mean = win.mainView.image.mean();
+            var MAD = win.mainView.image.MAD();
+            var stdDev = win.mainView.image.stdDev();
+            var min = win.mainView.image.minimum();
+            var max = win.mainView.image.maximum();
       }
-      console.writeln("Image statistics for " + view.id + ", stat_channel " + stat_channel);
+      console.writeln("Image statistics for " + view.id + ", channel " + channelText(channel));
 
-      console.writeln(channelText(channel) + " Median " + view.computeOrFetchProperty("Median").at(stat_channel) + 
-                                             " MAD " + view.computeOrFetchProperty("MAD").at(stat_channel) +
-                                             " Mean " + view.computeOrFetchProperty("Mean").at(stat_channel) +
-                                             " StdDev " + view.computeOrFetchProperty("StdDev").at(stat_channel));
+      console.writeln(channelText(channel) + " Median " + med + 
+                                             " Mean " + mean +
+                                             " MAD " + MAD +
+                                             " stdDev " + stdDev +
+                                             " min " + min + 
+                                             " max " + max);
+}
+
+function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
+{
+      console.writeln("stretchHistogramTransformAdjustShadows");
+      
+      var shadows = [ 0.00000000, 0.00000000, 0.00000000, 0.00000000 ];
+
+      var shadows_clip_value = 0;
+      var adjust = getAdjustShadowsValue(new_win, shadows_clip_value, channel);
+      
+      if (channel >= 0) {
+            shadows[channel] = adjust.normalizedShadowAdjust;
+      } else {
+            shadows[3] = adjust.normalizedShadowAdjust;
+      }
+      console.writeln("stretchHistogramTransformAdjustShadows, " + channelText(channel) + ", shadows " + adjust.normalizedShadowAdjust);
+
+      var P = new HistogramTransformation;
+      P.H = [ // c0, c1, m, r0, r1
+            [shadows[0], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // R
+            [shadows[1], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // G
+            [shadows[2], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // B
+            [shadows[3], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // L
+            [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+      ];
+      new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(new_win.mainView);
+      new_win.mainView.endProcess();
+
+      engine_end_process(null);
+
+      if (use_median) {
+            if (channel >= 0) {
+                  var current_value = new_win.mainView.computeOrFetchProperty("Median").at(channel);
+            } else {
+                  var current_value = new_win.mainView.image.median();
+            }
+            console.writeln(channelText(channel) + " median " + current_value);
+      } else {
+            var current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+            console.writeln(channelText(channel) + " peak " + current_value);
+      }
+      return adjust.clipCount;
 }
 
 /* Experimenting with stretching, mostly just for fun and to understand
@@ -8253,26 +8320,20 @@ function printImageStatistics(win, channel)
  * Works pretty ok on some images with Crop to common area and zero shadow
  * clipping.
  */
-function stretchHistogramTransform(res, image_stretching, channel)
+function stretchHistogramTransformIterationStep(res, image_stretching, channel)
 {
       var copy_window = res.copy_window;
+      var clipCount = 0;
 
-      if (channel == null) {
-            channel = undefined;
+      if (channel == null || channel == undefined || channel == -1) {
+            channel = -1;
+      } else if (channel >= 3) {
+            util.throwFatalError("Invalid channel " + channel + " for stretchHistogramTransformIterationStep");
       }
 
-      console.writeln(image_stretching + " on " + res.win.mainView.id + ", iteration " + res.iteration_number + ", channel " + channel);
+      console.writeln(image_stretching + " on " + res.win.mainView.id + ", iteration " + res.iteration_number + ", channel " + channelText(channel));
       console.writeln("\n****************************************************************");
       console.writeln("*** start iteration " + res.iteration_number + ", " + channelText(channel));
-
-      if (channel >= 0) {
-            var channel_number = channel;
-            var median_channel = channel;
-      } else {
-            var channel_number = 3;
-            var median_channel = 0;
-      }
-      console.writeln("channel_number " + channel_number + ", median_channel " + median_channel);
 
       if (res.iteration_number == 1) {
             printImageStatistics(res.win, channel);
@@ -8287,35 +8348,47 @@ function stretchHistogramTransform(res, image_stretching, channel)
             var new_win = res.win;  // Update original window
       }
 
+      if (res.iteration_number == 1) {
+            clipCount = stretchHistogramTransformAdjustShadows(new_win, channel, use_median);
+      }
+
       var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
 
       if (use_median) {
-            // var current_value = findSymmetryPoint(new_win, 50, channel);
-            var current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
-            console.writeln(channelText(channel) + " Median " + current_value);
+            if (channel >= 0) {
+                  var current_value = new_win.mainView.computeOrFetchProperty("Median").at(channel);
+            } else {
+                  var current_value = new_win.mainView.image.median();
+            }
+            console.writeln(channelText(channel) + " median " + current_value);
       } else {
             var current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+            console.writeln(channelText(channel) + " peak " + current_value);
       }
-
-      console.writeln("*** current value " + current_value);
 
       if (current_value > target_value && res.iteration_number == 1) {
             res.forward = false;
       }
 
       if (!res.forward) {
-            midtones[channel_number] = Math.mtf(target_value, current_value);
+            var new_midtones = Math.mtf(target_value, current_value);
+            if (channel >= 0) {
+                  midtones[channel] = new_midtones;
+            } else {
+                  midtones[3] = new_midtones;
+            }
       } else {
             // Iterative method gives maybe a bit better shadows
             var adjust = target_value - current_value;
-            midtones[channel_number] = 0.50 - adjust;
+            var new_midtones = 0.50 - adjust;
+            if (channel >= 0) {
+                  midtones[channel] = new_midtones;
+            } else {
+                  midtones[3] = new_midtones;
+            }
       }
 
-      console.writeln("*** midtones "+ midtones[channel_number]);
-
-      /* Separate stretch for shadows and midtones.
-       */
-      console.writeln("*** stretch for midtones, " + channelText(channel));
+      console.writeln("New midtones " + new_midtones);
 
       if (image_stretching == 'Histogram stretch') {
             if (1) {
@@ -8477,77 +8550,29 @@ function stretchHistogramTransform(res, image_stretching, channel)
       }
 
       if (use_median) {
-            // current_value = findSymmetryPoint(new_win, 50, channel);
-            current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
-            console.writeln(channelText(channel) + " Median " + current_value);
+            if (channel >= 0) {
+                  current_value = new_win.mainView.computeOrFetchProperty("Median").at(channel);
+            } else {
+                  current_value = new_win.mainView.image.median();
+            }
+            console.writeln(channelText(channel) + " median " + current_value);
       } else {
             current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
+            console.writeln(channelText(channel) + " peak " + current_value);
       }
-      console.writeln("*** after midtones current value " + current_value);
 
       if (res.iteration_number == 1) {
-            console.writeln("*** get shadows clip value");
-            var shadows = [ 0.00000000, 0.00000000, 0.00000000, 0.00000000 ];
-
-            var shadows_clip_value = par.histogram_shadow_clip.val;
-            var clip = getClipShadowsValue(new_win, shadows_clip_value, channel);
-            
-            shadows[channel_number] = clip.normalizedShadowClipping;
-            console.writeln("*** shadows " + shadows[channel_number]);
-
-            console.writeln("*** HistogramTransformation for shadows, "+ channelText(channel));
-
-            var P = new HistogramTransformation;
-            P.H = [ // c0, c1, m, r0, r1
-                  [shadows[0], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // R
-                  [shadows[1], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // G
-                  [shadows[2], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // B
-                  [shadows[3], 0.50000000, 1.00000000, 0.00000000, 1.00000000],     // L
-                  [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
-            ];
-            new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-            P.executeOn(new_win.mainView);
-            new_win.mainView.endProcess();
-
-            engine_end_process(null);
-
-            if (use_median) {
-                  // current_value = findSymmetryPoint(new_win, 50, channel);
-                  current_value = new_win.mainView.computeOrFetchProperty("Median").at(median_channel);
-                  console.writeln(channelText(channel) + " Median " + current_value);
-            } else {
-                  current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
-            }
-            console.writeln("*** after shadows current value " + current_value);
-      
-      } else {
-            var clip = null;
+            // clipCount = stretchHistogramTransformAdjustShadows(new_win, channel, use_median);
       }
 
       // check where histograms are
-      if (new_win.mainView.image.isColor) {
-            for (var i = 0; i < 3; i++) {
-                  if (use_median) {
-                        // findSymmetryPoint(new_win, 50, i);
-                        console.writeln(channelText(i) + " Median " + new_win.mainView.computeOrFetchProperty("Median").at(i));
-                  } else {
-                        findHistogramPeak(new_win, i);
-                  }
-            } 
-      } else {
-            if (use_median) {
-                  // findSymmetryPoint(new_win, 50);
-                  console.writeln(channelText(channel) + " Median " + new_win.mainView.computeOrFetchProperty("Median").at(0));
-            } else {
-                  findHistogramPeak(new_win);
-            }
-      }
+      printImageStatistics(new_win, channel);
+
       var window_updated = false;
 
       if (res.completed) {
             // we are done
             console.writeln("*** Stop, stretch completed, current value " + current_value + ", target value" + target_value);
-            printImageStatistics(new_win, channel);
             window_updated = false;
             if (copy_window) {
                   new_win.forceClose();
@@ -8586,7 +8611,6 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   // we are close enough, we are done
                   console.writeln("*** Stop, stretch completed, we are close enough, current value " + current_value + ", target value" + target_value);
                   res.completed = true;
-                  printImageStatistics(new_win, channel);
             }
             if (copy_window) {
                   // use new window and copy keywords
@@ -8600,9 +8624,7 @@ function stretchHistogramTransform(res, image_stretching, channel)
                   util.windowRename(new_win.mainView.id, image_id);
                   res.win = new_win;
             }
-            if (clip) {
-                  res.clipCount += clip.clipCount;
-            }
+            res.clipCount += clipCount;
             console.writeln("*** Clipped total of " + res.clipCount + " pixels");
       }
 
@@ -8813,10 +8835,32 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
 
 function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
 {
+      // Check for valid type values
+      switch (type) {
+            case 'stars':
+            case 'mask':
+                  var run_adjust_shadows = false;
+                  break;
+            case 'channel':
+            case 'RGB':
+            case 'R':
+            case 'G':
+            case 'B':
+            case 'L':
+            case 'H':
+            case 'S':
+            case 'O':
+            case 'C':
+                  var run_adjust_shadows = true;
+                  break;
+            default:
+                  util.throwFatalError("Bad runHistogramTransform type value " + type);
+      }
       if (!run_HT) {
             util.addProcessingStep("Do not run histogram transform on " + GC_win.mainView.id);
             return { win: GC_win, stf: null };
       }
+      console.writeln("runHistogramTransform, type " + type + ", iscolor " + iscolor, ", run_adjust_shadows " + run_adjust_shadows + ", stretch_adjust_shadows " + par.stretch_adjust_shadows.val);
 
       if (type == 'stars') {
             var image_stretching = par.stars_stretching.val;
@@ -8829,6 +8873,10 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             } else {
                   return { win: GC_win, stf: null };
             }
+      }
+      if (run_adjust_shadows && (par.stretch_adjust_shadows.val == "before" || par.stretch_adjust_shadows.val == "both")) {
+            console.writeln("runHistogramTransform adjust shadows");
+            adjustShadows(GC_win, par.stretch_adjust_shadows_perc.val);
       }
       if (type == 'mask') {
             console.writeln("runHistogramTransform for a mask using " + image_stretching);
@@ -8903,11 +8951,14 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
       }
-      if (par.shadow_clip.val) {
-            clipShadows(GC_win, global.shadow_clip_value);
-      }
       util.setFITSKeyword(GC_win, "AutoIntegrateNonLinear", image_stretching, "");
       engine_end_process(node, GC_win, image_stretching);
+
+      if (run_adjust_shadows && (par.stretch_adjust_shadows.val == "after" || par.stretch_adjust_shadows.val == "both")) {
+            console.writeln("runHistogramTransform adjust shadows");
+            adjustShadows(GC_win, par.stretch_adjust_shadows_perc.val);
+      }
+
       guiUpdatePreviewWin(GC_win);
       return { win: GC_win, stf: stf };
 }
@@ -10103,6 +10154,10 @@ function runColorCalibration(imgWin, phase)
 {
       console.writeln("runColorCalibration on " + imgWin.mainView.id + " in phase " + phase);
       console.writeln("  process_narrowband: " + process_narrowband + ", narrowband_mode: " + spcc_params.narrowband_mode + ", color_calibration_narrowband: " + par.color_calibration_narrowband.val);
+      // check for correct phase values
+      if (phase != 'linear' && phase != 'nonlinear') {
+            util.throwFatalError("Incorrect phase value " + phase);
+      }
       if (process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
             util.addProcessingStep("No color calibration for narrowband");
             return;
@@ -10111,16 +10166,11 @@ function runColorCalibration(imgWin, phase)
             util.addProcessingStep("Color calibration was disabled");
             return;
       }
-      if (par.color_calibration_time.val != 'auto' && par.color_calibration_time.val != phase) {
-            util.addProcessingStep("Color calibration was disabled for this phase");
-            return;
-      }
       if (par.use_spcc.val) {
             /* Use SPCC.
              */
-            if (par.color_calibration_time.val == 'auto' && phase == 'nonlinear') {
+            if (phase != 'linear') {
                   /* SPCC is run only in linear phase. */
-                  console.writeln("SpectrophotometricColorCalibration is run only in linear mode.");
                   return;
             }
             var node = flowchartOperation("SpectrophotometricColorCalibration");
@@ -10240,9 +10290,21 @@ function runColorCalibration(imgWin, phase)
             }
 
       } else {
-            /* Use ColorCalibration.
-             */
-            runColorCalibrationProcess(imgWin);
+            if (par.color_calibration_time.val == phase) {
+                  var run_colorcalibration = true;
+            } else if (par.color_calibration_time.val == 'auto') {
+                  // var run_colorcalibration = (phase == 'linear'); Seem to get better results when run twice
+                  var run_colorcalibration = true;
+            } else if (par.color_calibration_time.val == 'both') {
+                  var run_colorcalibration = true;
+            } else {
+                  var run_colorcalibration = false;
+            }
+            if (run_colorcalibration) {
+                  /* Use ColorCalibration.
+                   */
+                  runColorCalibrationProcess(imgWin);
+            }
       }
 }
 
@@ -10389,7 +10451,7 @@ function runLRGBCombination(RGB_id, L_id)
 {
       console.writeln("runLRGBCombination using " + RGB_id + " and " + L_id );
 
-      if (par.LRGBCombination_linearfit.val) {      // XXX
+      if (par.LRGBCombination_linearfit.val) {
             console.writeln("Linear fit of " + RGB_id + " and luminance image " + L_id);
             var referenceWin = util.forceCopyWindow(
                                     ImageWindow.windowById(RGB_id), 
@@ -11973,8 +12035,8 @@ function smoothBackgroundBeforeGC(win, val_perc, linear_data)
             val = val_perc;
       } else {
             console.writeln("smoothBackgroundBeforeGC, percentage " + val_perc);
-            var clip = getClipShadowsValue(win, val_perc);
-            var val = clip.normalizedShadowClipping;
+            var adjust = getAdjustShadowsValue(win, val_perc);
+            var val = adjust.normalizedShadowAdjust;
             console.writeln("smoothBackgroundBeforeGC, value " + val);
       }
       if (delinearize) {
@@ -12137,7 +12199,7 @@ function copyLinearFitReferenceImage(id)
  */
 function LinearFitLRGBchannels()
 {
-      var use_linear_fit = par.use_linear_fit.val;     // XXX
+      var use_linear_fit = par.use_linear_fit.val;
       if (use_linear_fit == 'No linear fit') {
             util.addProcessingStep("No linear fit");
             return;
@@ -14335,11 +14397,11 @@ function extraAutoSTF(win)
       return win;
 }
 
-function extraShadowClipping(win, perc)
+function extraAdjustShadows(win, perc)
 {
-      addExtraProcessingStep("Shadow clipping of " + perc + "%");
+      addExtraProcessingStep("Adjust shadows, " + perc + "%");
 
-      clipShadows(win, perc);
+      adjustShadows(win, perc);
 
       // guiUpdatePreviewWin(win);
 }
@@ -14396,10 +14458,10 @@ function autoContrast(win, contrast_limit_low, contrast_limit_high)
             return;
       }
 
-      var low_clip = getClipShadowsValue(win, contrast_limit_low);
-      var high_clip = getClipShadowsValue(win, contrast_limit_high);
+      var low_clip = getAdjustShadowsValue(win, contrast_limit_low);
+      var high_clip = getAdjustShadowsValue(win, contrast_limit_high);
 
-      var mapping = "($T-" + low_clip.normalizedShadowClipping + ")*(1/(" + high_clip.normalizedShadowClipping + "-" + low_clip.normalizedShadowClipping + "))";
+      var mapping = "($T-" + low_clip.normalizedShadowAdjust + ")*(1/(" + high_clip.normalizedShadowAdjust + "-" + low_clip.normalizedShadowAdjust + "))";
 
       runPixelMathSingleMappingEx(win.mainView.id, "autocontrast", mapping, false, null);
 }
@@ -15553,6 +15615,10 @@ function findStarImageId(starless_id, original_id)
       if (stars_id != null) {
             return stars_id;
       }
+      stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless_[1-9]*/g, "stars"), false);
+      if (stars_id != null) {
+            return stars_id;
+      }
       stars_id = findStarImageIdEx(starless_id, starless_id.replace(/starless$/g, "stars"), false);
       if (stars_id != null) {
             return stars_id;
@@ -15916,7 +15982,7 @@ function extraProcessing(parent, id, apply_directly)
             console.writeln("Use mask " + mask_win.mainView.id);
       }
       if (par.extra_shadowclipping.val) {
-            extraShadowClipping(extraWin, par.extra_shadowclippingperc.val);
+            extraAdjustShadows(extraWin, par.extra_shadowclippingperc.val);
             extraOptionCompleted(par.extra_shadowclipping);
       }
       if (par.extra_darker_background.val) {

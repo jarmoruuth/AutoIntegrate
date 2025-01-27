@@ -340,12 +340,13 @@ var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic' ];
 var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear' ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtract add', 'Max', 'Add', 'None' ];
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
-var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear' ];
+var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
 var fast_mode_values = [ 'S', 'M' ];
+var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -1686,9 +1687,10 @@ function extraProcessingGUI(parent)
       this.extra_auto_reset_CheckBox = newCheckBox(parent, "Auto reset", par.extra_auto_reset, 
             "<p>If using Apply button, uncheck options when they are applied.</p>" );
 
-      var shadowclipTooltip = "<p>Run shadow clipping on image. Clip percentage tells how many shadow pixels are clipped.</p>";
-      this.extra_shadowclip_CheckBox = newCheckBox(parent, "Clip shadows,", par.extra_shadowclipping, shadowclipTooltip);
-      this.extra_shadowclipperc_edit = newNumericEditPrecision(parent, 'percent', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
+      var shadowclipTooltip = "<p>Adjust shadows in the image. Adjust percentage tells how much shadow pixels are clipped.</p>" +
+                              "<p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p>";
+      this.extra_shadowclip_CheckBox = newCheckBox(parent, "Adjust shadows,", par.extra_shadowclipping, shadowclipTooltip);
+      this.extra_shadowclipperc_edit = newNumericEditPrecision(parent, '%', par.extra_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
       this.extra_shadowclip_Sizer = new HorizontalSizer;
       this.extra_shadowclip_Sizer.spacing = 4;
       this.extra_shadowclip_Sizer.add( this.extra_shadowclip_CheckBox );
@@ -1842,7 +1844,7 @@ function extraProcessingGUI(parent)
       this.extraNoiseReductionStrengthSizer.addStretch();
 
       this.extra_ACDNR_CheckBox = newCheckBox(parent, "ACDNR noise reduction", par.extra_ACDNR, 
-            "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from noise reduction section.</p>" + ACDNR_StdDev_tooltip);
+            "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from <i>Processing1 / noise reduction</i> section.</p>" + ACDNR_StdDev_tooltip);
       this.extra_color_noise_CheckBox = newCheckBox(parent, "Color noise reduction", par.extra_color_noise, 
             "<p>Run color noise reduction on image.</p>" );
       this.extra_star_noise_reduction_CheckBox = newCheckBox(parent, "Star noise reduction", par.extra_star_noise_reduction, 
@@ -1851,7 +1853,7 @@ function extraProcessingGUI(parent)
             "<p>Run ColorCalibration on image.</p>" );
       this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve", par.extra_solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" + 
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>");
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>");
 
       this.extra_solve_image_Button = new ToolButton( parent );
       this.extra_solve_image_Button.icon = parent.scaledResource(":/icons/select-file.png");
@@ -1930,9 +1932,9 @@ function extraProcessingGUI(parent)
             "<ul>" +
             "<li>Option 'Default' uses MultiscaleLinearTransform sharpening on high pass image. See below for settings.</li>" +
             "<li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. " + 
-            "Settings for iterations are taken from the extra processing section Sharpening options.</li>" +
-            "<li>Option 'UnsharpMask' uses UnsharpMask on high pass image. Settings are taken from the extra processing section.</li>" +
-            "<li>Option 'BlurXTerminator' uses BlurXTerminator on high pass image. Settings are taken from the BlurXTerminator section.</li>" +
+            "Settings for iterations are taken from the <i>Extra processing / Generic extra processing</i> section <i>Sharpening</i> options.</li>" +
+            "<li>Option 'UnsharpMask' uses UnsharpMask on high pass image. Settings are taken from the <i>Generic extra processing</i> section.</li>" +
+            "<li>Option 'BlurXTerminator' uses BlurXTerminator on high pass image. Settings are taken from the <i>Processing 1 / BlurXTerminator</i> section.</li>" +
             "</ul>"
       );
       this.extra_highpass_sharpen_Label = newLabel(parent, "Layers", "<p>Number of layers used to blur the original image.</p>");
@@ -3438,8 +3440,8 @@ function lightsOptions(parent)
             "processing continues as mono processing with separate filter files.</p>" +
             "<p>Option LRGB extract lightness channels as L and color channels as separate R, G and B files.</p>" +
             "<p>Option HOS extract channels as RGB=HOS and option HSO extract channels RGB=HSO. " + 
-            "Resulting channels can then be mixed as needed using PixMath expressions in color " + 
-            "palette section.</p>" +
+            "Resulting channels can then be mixed as needed using PixMath expressions in <i>Settings / Narroeband processing</i> " + 
+            "section.</p>" +
             "<p>Channel files have a channel name (_L, _R, etc.) at the end of the file name. Script " + 
             "can then automatically recognize files as filter files.</p>"
             ;
@@ -3621,7 +3623,7 @@ function setHistogramBitmapBackground(graphics, side_preview)
 
 function getHistogramInfo(imgWin, side_preview)
 {
-      console.writeln("getHistogramInfo");
+      if (par.debug.val) console.writeln("getHistogramInfo");
       var view = imgWin.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
       var values = [];
@@ -3644,7 +3646,7 @@ function getHistogramInfo(imgWin, side_preview)
                   values[channel][i] = 0;
             }
       }
-      console.writeln("getHistogramInfo: maxchannels ", maxchannels);
+      if (par.debug.val) console.writeln("getHistogramInfo: maxchannels ", maxchannels);
       for (var channel = 0; channel < maxchannels; channel++) {
             for (var col = 0; col < histogramMatrix.cols; col++) {
                   var i = parseInt(col / histogramMatrix.cols * width);
@@ -3674,7 +3676,7 @@ function getHistogramInfo(imgWin, side_preview)
             percentageValues[i] = cumulativeValues[i] / cumulativeValues[width-1] * 100;
       }
 
-      console.writeln("getHistogramInfo: width " +  width + " height " + height);
+      if (par.debug.val) console.writeln("getHistogramInfo: width " +  width + " height " + height);
 
       var bitmap = new Bitmap(width, height);
       var graphics = new VectorGraphics(bitmap);
@@ -5751,7 +5753,7 @@ function newMaximizeDialogButton(parent)
       maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
 
       var maxDialogToolTip = "<p>Maximize dialog size to (almost) full screen.</p>" +
-                             "<p>Note that the maximizing works best when the side preview is enabled in the Interface section.</p>";
+                             "<p>Note that the maximizing works best when the side preview is enabled in the <i>Interface / Interface settings</i> section.</p>";
 
       maxDialogButton.setScaledFixedSize( 20, 20 );
       maxDialogButton.toolTip = maxDialogToolTip;
@@ -6702,11 +6704,11 @@ function AutoIntegrateDialog()
             "<li>Run a normal workflow to get correct stars and background objects.</li>" +
             "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
-            "<li>Check <i>Comet align</i> in <i>Image processing parameters</i> section in <i>Settings</i> tab.</li>" +
-            "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Tools and batching</i> section in <i>Settings</i> tab.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Other parameters</i> section in <i>Other</i> tab.</li>" +
-            "<li>Check <i>No CosmeticCorrection</i> in <i>Other parameters</i> section in <i>Other</i> tab.</li>" +
-            "<li>Go to the <i>Processing 2 tab</i> and <i>CometAlignment</i> section.</li>" +
+            "<li>Check <i>Comet align</i> in <i>Settings / Image processing parameters</i> section.</li>" +
+            "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Settings / Tools and batching</i> section.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Other / Other parameters</i> section.</li>" +
+            "<li>Check <i>No CosmeticCorrection</i> in <i>Other / Other parameters</i> section.</li>" +
+            "<li>Go to the <i>Processing 2 / CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
                   "<i>Preview</i> button for the first or last image, go to preview, zoom " + 
                   "to 1:1 view and click the comet nucleus with the left mouse button. Note that the " + 
@@ -6805,7 +6807,7 @@ function AutoIntegrateDialog()
             "<p>Do not run SubframeSelector to get image weights.</p>" +
             "<p>When this option is used then the first image in the list is used as a reference image unless reference image is selected manually.</p>");
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
-            "<p>If checked, run CometAlign process using settings in the <i>CometAlignment settings</i> section in <i>Processing 2</i> tab.</p>" +
+            "<p>If checked, run CometAlign process using settings in the <i>Processing 2 / CometAlignment settings</i> section.</p>" +
             "<p>For more details see the help icon in <i>CometAlignment settings</i> section.</p>");
       this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.use_fastintegration, 
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
@@ -6832,7 +6834,7 @@ function AutoIntegrateDialog()
             "<p>With this option no output image files are written.</p>" );
       this.earlyPSFCheckCheckBox = newCheckBox(this, "Early PSF check", par.early_PSF_check, 
             "<p>Checking this box will enable early PSF signal test. Then light files are filtered for PSF signal values below weight limit before any processing.</p>" +
-            "<p>Weight limit is set in <i>filtering</i> section in <i>Processing</i> tab.</p>" );
+            "<p>Weight limit is set in <i>Processing 2 / filtering</i> section.</p>" );
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No auto stretch or color calibration.</p>" );
       /* this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
@@ -6863,7 +6865,7 @@ function AutoIntegrateDialog()
       this.use_GC_L_RGB_stretched_CheckBox = newCheckBox(this, "Gradient correction on stretched images", par.use_GC_on_L_RGB_stretched, 
             "<p>Use gradient correction on L and RGB images after they have been stretched to non-linear mode.</p>" +
             "<p>Note that thiis option should not be used with GradientCorrection process.</p>" );
-      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from Stretching settings section.</p>"
+      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from <i>Processing 1 / Star stretching settings</i> section.</p>"
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
@@ -6891,14 +6893,14 @@ function AutoIntegrateDialog()
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
             "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with checking this box.</p>" +
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>" +
             "<p>Consider also using Drizzle with scale 1 or 2 when using SPCC.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
             "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
             "<p>Run color calibration using SpectrophotometricColorCalibration (SPCC). This requires image solving which is done automatically on " + 
             "Integration_RGB image if it is not already done.</p>" +
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in Image solving section in the Processing tab.</p>" +
-            "<p>SPCC settings can be updated at Color calibration section in the Processing tab.</p>");
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>" +
+            "<p>SPCC settings can be updated at <i>Processing 2 / Color calibration</i> section.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration.</p>" +
             "<p>By default the script tries automatically detect an area with true background. If it finds one, an image with name AutoBackgroundModel is created.</p>" +
@@ -6975,17 +6977,13 @@ function AutoIntegrateDialog()
             "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction, 
             "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p>" + 
-            "<p>More fine grained noise reduction settings can be found in the Processing settings section.</p>" );
+            "<p>More fine grained noise reduction settings can be found in the <i>Processing 1 / noise reduction</i> section.</p>" );
       this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
             "<p>Do not add extra contrast on automatically created luminance mask.</p>" );
       this.no_sharpening_CheckBox = newCheckBox(this, "No sharpening", par.skip_sharpening, 
             "<p>Do not use sharpening on image. Sharpening uses a luminance and star mask to target light parts of the image.</p>" );
-      this.shadowClip_CheckBox = newCheckBox(this, "Shadow clip", par.shadow_clip, 
-            "<p>Clip shadows.</p>" +
-            "<p>Clipping shadows increases contrast but clips out some data. Shadow clip clips " + global.shadow_clip_value + "% of shadows " +
-            "after image is stretched.</p>");
       this.forceNewMask_CheckBox = newCheckBox(this, "New mask", par.force_new_mask, 
             "<p>Do not use an existing mask but always create a new mask.</p>");
       this.no_SCNR_CheckBox = newCheckBox(this, "No SCNR", par.skip_SCNR, 
@@ -6998,7 +6996,7 @@ function AutoIntegrateDialog()
             "<p>Do not try to find background area.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
-            "<p>You can change some StarXTerminator settings in the <i>Processing 1 / StarXTerminator settings</i> section.</p>" );
+            "<p>You can change some StarXTerminator settings in the <i>Processing 1 / StarXTerminator</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" +
             "<p>NoiseXTerminator uses generic noise rediuction settings.</p>" +
@@ -7024,7 +7022,7 @@ function AutoIntegrateDialog()
             var use_graxpert_toolTip = "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>";
       }
       use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
-                              "the gradient correction options in the <i>Image processing parameters</i> section.</p>";
+                              "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>";
       
       var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Processing 1 / GraXpert</i> section before it can be used.</p>" +
                           "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
@@ -7047,13 +7045,13 @@ function AutoIntegrateDialog()
             this.use_abe_CheckBox = newCheckBox(this, "ABE", par.use_abe, 
             "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Image processing parameters</i> section.</p>");
+            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>");
       }
       if (global.is_mgc_process) {
             this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
                   "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
                   "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
-                  "the gradient correction options in the <i>Image processing parameters</i> section.</p>" +
+                  "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
                   "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
                   "using this option.</p>" +
                   MGCToolTip);
@@ -7102,7 +7100,7 @@ function AutoIntegrateDialog()
             "<p>Start the script with empty window prefix</p>" );
       this.ManualIconColumnBox = newCheckBox(this, "Manual icon column control", par.use_manual_icon_column, 
             "<p>Enable manual control of icon columns. Useful for example when using multiple Workspaces.</p>" +
-            "<p>When this option is enabled the control for icon column is in the Interface settings section.</p>" +
+            "<p>When this option is enabled the control for icon column is in the <i>Interface / Interface settings</i> section.</p>" +
             "<p>This setting is effective only after restart of the script.</p>" );
       this.AutoSaveSetupBox = newCheckBox(this, "Autosave setup", par.autosave_setup, 
             "<p>Save setup after successful processing into AutosaveSetup.json file. Autosave is done only after the Run command, " + 
@@ -7181,7 +7179,7 @@ function AutoIntegrateDialog()
             "<li><p>Highlight stretch</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
             "</ul>" + 
-            "<p>See Image stretching settings section in Processing 1 tab to set stretching specific parameters.</p>" +
+            "<p>See <i>Processing 1 / Image stretching</i> section for stretching specific parameters.</p>" +
             "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       stretchingComboBox = this.stretchingComboBox;
@@ -7307,7 +7305,6 @@ function AutoIntegrateDialog()
       this.otherParamsSet02.margin = 6;
       this.otherParamsSet02.spacing = 4;
       this.otherParamsSet02.add( this.no_mask_contrast_CheckBox );
-      this.otherParamsSet02.add( this.shadowClip_CheckBox );
       this.otherParamsSet02.add( this.no_SCNR_CheckBox );
       this.otherParamsSet02.add( this.no_sharpening_CheckBox );
       this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
@@ -7607,7 +7604,7 @@ function AutoIntegrateDialog()
       this.noiseReductionGroupBoxSizer.addStretch();
 
       this.blurxterminatorGroupBoxLabel = newSectionLabel(this, "BlurXTerminator settings");
-      this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Tools and batching</i> section.";
+      this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Settings / Tools</i> section.";
 
       this.bxtSharpenStars = newNumericEdit(this, "Sharpen stars", par.bxt_sharpen_stars, 0, 0.50, "Amount to reduce the diameter of stars.  Use a value between 0.00 and 0.50.");
       this.bxtAdjustHalo = newNumericEdit(this, "Adjust star halos", par.bxt_adjust_halo, -0.50, 0.50, "Amount to adjust star halos. Use a value between -0.50 and 0.50.");
@@ -7865,12 +7862,17 @@ function AutoIntegrateDialog()
             "Enable ColorCalibration for narrowband images.");
 
       this.colorCalibrationTimeLabel = newLabel(this, "When to run color calibration", 
-                        "<p>When to run color calibration</p>" +
+                        "<p>When to run ColorCalibration process</p>" +
                         "<ul>" +
-                        "<li>With auto when using ColorCalibation process color calibration run for linear and nonlinear phase. When using SPCC process color calibration run only in linear phase.</li>" + 
-                        "<li>With linear color calibration is run only in linear phase.</li>" + 
-                        "<li>With nonlinear color calibration is run only in nonlinear phase.</li>" + 
-                        "</ul>");
+                        "<li>With <b>auto</b> the ColorCalibration process is run in  both linear and nonlinear phase (non-stretched and stretched image). " +
+                        "Running the ColorCalibration process twice seems to give better final image in many cases.</li>" + 
+                        "<li>With <b>linear</b> the ColorCalibration process is run only in linear phase (non-stretched image).</li>" + 
+                        "<li>With <b>nonlinear</b> the ColorCalibration process is run only in nonlinear phase (stretched image).</li>" + 
+                        "<li>With <b>both</b> the ColorCalibration process is run in both linear and nonlinear phase (non-stretched and stretched image).</li>" + 
+                        "</ul>" +
+                        "<p>When using the SPCC process the color calibration is always in a linear phase (non-stretched image).</p>" + 
+                        "<p>Note that when using narrowband data color calibration is not run by default and must be enablöed separately.</p>"
+                  );
       this.colorCalibrationTimeComboBox = newComboBox(this, par.color_calibration_time, color_calibration_time_values, this.colorCalibrationTimeLabel.toolTip);
       this.colorCalibrationTimeSizer = new HorizontalSizer;
       this.colorCalibrationTimeSizer.margin = 6;
@@ -8150,7 +8152,7 @@ function AutoIntegrateDialog()
 
       this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values,
             "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
-            "<p>For narrowband images linear fit settings are in the <i>Narrowband processing</i> section.</p>" +
+            "<p>For narrowband images linear fit settings are in the <i>Settings / Narrowband processing</i> section.</p>" +
             "<p>Auto does linear fit using Max LRGB.</p>" + 
             "<p>Min RGB does linear fit using RGB channels with minimum median value as the reference image.</p>" + 
             "<p>Max RGB does linear fit using RGB channels with maximum median value as the reference image.</p>" + 
@@ -8337,19 +8339,36 @@ function AutoIntegrateDialog()
       "<p>" +
       "RGB channel linking in image stretching." +
       "</p><p>" +
-      "Note that not all stretching mehods support unlinked channels." +
-      "</p><p>" +
-      "With Auto the default for true RGB images is to use linked channels. For narrowband and OSC/DSLR images the default " +
-      "is to use unlinked channels. But if linear fit or color calibration is done with narrowband images, then linked channels are used." +
+      "Auto option uses the following defaults:" + 
+      "</p>" +
+      "<ul>" +
+      "<li>RGB images using mono camera with separate filters for RGB channels use linked stretching.</li>" + 
+      "<li>Color OSC/DSLR images use unlinked stretching.</li>" +
+      "<li>Narrowband images use unlinked stretching. But if linear fit or color calibration is done with narrowband images, then linked stretching is used.</li>" +
+      "<p>" +
+      "Note that some stretching methods do not support unlinked channels." +
       "</p>";
       this.STFComboBox = newComboBox(this, par.STF_linking, STF_linking_values, this.STFLinkLabel.toolTip);
 
-      this.STFLinkSectionLabel = newSectionLabel(this, "RGB channel linking");
+      var adjustShadowsToolTip = "<p>If enabled shadows are adjusted after stretch.</p>" +
+                                 "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
+
+      this.stretchAdjustShadowsLabel = newLabel(this, "Adjust shadows", adjustShadowsToolTip, true);
+      this.stretchAdjustShadowsComboBox = newComboBox(this, par.stretch_adjust_shadows, adjust_shadows_values, adjustShadowsToolTip);
+      this.stretchAdjustShadowsControl = newNumericEditPrecision(this, "%", par.stretch_adjust_shadows_perc, 0, 99,
+            "<p>Percentage of shadows adjustment after stretch.</p>" +
+            "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
+            3);
+
+      this.STFLinkSectionLabel = newSectionLabel(this, "Generic settings");
       this.STFLinkSizer = new HorizontalSizer;
       this.STFLinkSizer.spacing = 4;
       this.STFLinkSizer.toolTip = this.STFLinkLabel.toolTip;
       this.STFLinkSizer.add( this.STFLinkLabel );
       this.STFLinkSizer.add( this.STFComboBox );
+      this.STFLinkSizer.add( this.stretchAdjustShadowsLabel );
+      this.STFLinkSizer.add( this.stretchAdjustShadowsComboBox );
+      this.STFLinkSizer.add( this.stretchAdjustShadowsControl );
       this.STFLinkSizer.addStretch();
                                     
       this.STFTargetBackgroundControl = newNumericEdit(this, "targetBackground", par.STF_targetBackground, 0, 1,
@@ -8462,8 +8481,6 @@ function AutoIntegrateDialog()
             this.hyperbolicSizer.addStretch();
       }
 
-      this.histogramShadowClip_Control = newNumericEditPrecision(this, "Shadow clip", par.histogram_shadow_clip, 0, 99,
-                                          "Percentage of shadows that are clipped with Histogram stretch.", 3);
       this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
       this.histogramTargetValue_Control = newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 1, 
@@ -8476,7 +8493,6 @@ function AutoIntegrateDialog()
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
       // this.histogramStretchingSizer.margin = 2;
-      this.histogramStretchingSizer.add( this.histogramShadowClip_Control );
       this.histogramStretchingSizer.add( this.histogramTypeLabel );
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
@@ -8742,9 +8758,8 @@ function AutoIntegrateDialog()
             "<p>" +
             "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
             "</p><p>" +
-            "Dynamic palettes are the same as Foraxx options in Extra processing section. " + 
-            "With Dynamic palettes it is recommended to use non-linear " + 
-            "images by checking the option <i>Narrowband mapping using non-linear data</i>." +
+            "Dynamic palettes are the same as Foraxx options in <i>Extra processing / Narrowband extra processing</i> section. " + 
+            "With Dynamic palettes the script automatically uses non-linear data>." +
             "</p><p>" +
             Foraxx_credit + 
             "</p><p>" +
@@ -8822,7 +8837,7 @@ function AutoIntegrateDialog()
 
       this.force_narrowband_mapping_CheckBox = newCheckBox(this, "Force narrowband mapping", par.force_narrowband_mapping, 
             "<p>" +
-            "Force narrowband mapping using formulas given in Color palette section." +
+            "Force narrowband mapping using formulas given in <i>Settings / Narrowbad processing</i> section." +
             "</p>" );
       this.mapping_on_nonlinear_data_CheckBox = newCheckBox(this, "Narrowband mapping using non-linear data", par.mapping_on_nonlinear_data, 
             "<p>" +
@@ -10455,6 +10470,8 @@ this.createEmptyBitmap = createEmptyBitmap;
 
 this.RGBHa_prepare_method_values = RGBHa_prepare_method_values;
 this.RGBHa_combine_method_values = RGBHa_combine_method_values;
+
+this.forceNewHistogram = forceNewHistogram;
 
 /* Exported data for testing.
  */
