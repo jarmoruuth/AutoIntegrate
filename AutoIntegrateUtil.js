@@ -2318,6 +2318,8 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
             console.writeln("DEBUG:adjustDialogToScreen, start, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
       }
 
+      var original_preview_width = preview_width;
+      var original_preview_height = preview_height;
       var prev_preview_width = preview_width;
       var prev_preview_height = preview_height;
 
@@ -2383,10 +2385,16 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
             if (dialog_height > target_height - limit) {
                   preview_height = preview_height - step;
             }
+      }
+      if (original_preview_width != preview_width || original_preview_height != preview_height) {
             changes = true;
       }
       if (changes) {
-            console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", steps " + i );
+            if (i > 1) {
+                  console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", steps " + i );
+            } else {
+                  console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
+            }
       }
 
       return { width: preview_width, height: preview_height, changes: changes };

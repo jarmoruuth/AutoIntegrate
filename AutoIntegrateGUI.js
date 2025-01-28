@@ -10442,21 +10442,31 @@ function AutoIntegrateDialog()
             if (preview_size.changes) {
                   if (ppar.preview.side_preview_visible) {
                         // side preview
-                        console.writeln("Adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        if (ppar.preview.side_preview_width != preview_size.width || ppar.preview.side_preview_height != preview_size.height) { 
+                              console.writeln("Adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        }
                         ppar.preview.side_preview_width = preview_size.width;
                         ppar.preview.side_preview_height = preview_size.height;
 
-                        console.writeln("Also adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + Math.min(preview_size.width / 2, ppar.preview.preview_width) + "x" + Math.min(preview_size.height / 2, ppar.preview.preview_height));
-                        ppar.preview.preview_width = Math.min(preview_size.width / 2, ppar.preview.preview_width);
-                        ppar.preview.preview_height = Math.min(preview_size.height / 2, ppar.preview.preview_height);
+                        var new_width = Math.min(preview_size.width / 2, ppar.preview.preview_width);
+                        var new_height = Math.min(preview_size.height / 2, ppar.preview.preview_height);
+                        if (ppar.preview.preview_width != new_width || ppar.preview.preview_height != new_height) {
+                              console.writeln("Adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + new_width + "x" + new_height);
+                        }
+                        ppar.preview.preview_width = new_width;
+                        ppar.preview.preview_height = new_height;
 
                   } else {
                         // tab preview
-                        console.writeln("Adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        if (ppar.preview.preview_width != preview_size.width || ppar.preview.preview_height != preview_size.height) {
+                              console.writeln("Adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        }
                         ppar.preview.preview_width = preview_size.width;
                         ppar.preview.preview_height = preview_size.height;
 
-                        console.writeln("Also adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        if (ppar.preview.side_preview_width != preview_size.width || ppar.preview.side_preview_height != preview_size.height) {
+                              console.writeln("Adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
+                        }
                         ppar.preview.side_preview_width = preview_size.width;
                         ppar.preview.side_preview_height = preview_size.height;
                   }
