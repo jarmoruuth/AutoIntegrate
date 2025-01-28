@@ -699,6 +699,14 @@ this.autointegrate_main = function()
             util.fixAllWindowArrays(ppar.win_prefix);
 
             init_pixinsight_version();
+
+            console.criticalln("   _____          __         .___        __                              __           ");
+            console.criticalln("  \/  _     __ ___\/  |_  ____ |   | _____\/  |_  ____   ________________ _\/  |_  ____   ");
+            console.criticalln(" \/  \/_    |  |      __ \/  _  |   |\/        __ \/ __   \/ ___ _  __  __       __ \/ __    ");
+            console.warningln("\/    |       |  \/|  | (  (_) )   |   |     |    ___\/\/ \/_\/  >  |  \/\/ __  |  |    ___\/  ");
+            console.warningln(" ____|__  \/____\/ |__|   ____\/|___|___|  \/__|   ___  >___  \/|__|  (____  \/__|   ___  > ");
+            console.warningln("         \/                             \/           \/_____\/             \/           \/  ");
+
             console.noteln("======================================================");
             console.noteln("To enable automatic updates add the following link to ");
             console.noteln("the PixInsight update repository: ");
