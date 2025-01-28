@@ -307,7 +307,7 @@ var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPow
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
-                                'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'Shadow stretch', 'Highlight stretch', 'None' ];
+                                'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'Min', 'Max', 'H', 'S', 'O', 'None' ];
 var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -2976,6 +2976,7 @@ function Autorun(parent)
 {
       console.writeln("AutoRun");
       var stopped = true;
+      var success = true;
       var first_step = true;
       var savedOutputRootDir = global.outputRootDir;
       var batch_narrowband_palette_mode = isbatchNarrowbandPaletteMode();
@@ -3015,13 +3016,13 @@ function Autorun(parent)
             }
             if (batch_files.length == 0) {
                   console.writeln("No files selected for a batch. Stopped.");
-                  return;
+                  return false;
             }
             var txt = "Batch processing " + batch_files.length + " panels. Do you want to proceed?";
             var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
             if (response != StdButton_Yes) {
                   console.writeln("Batch processing not started.");
-                  return;
+                  return false;
             }
             global.lightFileNames = null; // Use files given here
       } else {
@@ -3109,6 +3110,7 @@ function Autorun(parent)
                         engine.writeProcessingStepsAndEndLog(null, false, null, true);
                         global.is_processing = global.processing_state.none;
                         stopped = true;
+                        success = false;
                   }
                   if (par.batch_mode.val) {
                         global.outputRootDir = savedOutputRootDir;
@@ -3127,6 +3129,7 @@ function Autorun(parent)
             if (global.cancel_processing) {
                   stopped = true;
                   console.writeln("Processing cancelled!");
+                  success = false;
             }
       } while (!stopped);
 
@@ -3134,6 +3137,7 @@ function Autorun(parent)
       par.integrate_only.val = saved_integrate_only;
       global.lightFileNames = substack_saved_lightFileNames;
       global.substack_number = 0;
+      return success;
 }
 
 function newSectionLabel(parent, text)
@@ -5414,6 +5418,19 @@ function newPushOrToolButton(parent, icon, txt, tooltip, action, toolbutton)
       return button;
 }
 
+function processingCompletedText(success)
+{
+      if (success) {
+            console.noteln("**********************************");
+            console.noteln("* Processing completed           *");
+            console.noteln("**********************************");
+      } else {
+            console.noteln("**********************************");
+            console.noteln("* Processing stopped with errors *");
+            console.noteln("**********************************");
+      }
+}
+
 function runAction(parent)
 {
       console.writeln("Run button pressed");
@@ -5440,7 +5457,7 @@ function runAction(parent)
       }
       global.iconStartRow = 0;
       global.write_processing_log_file = true;
-      Autorun(parent);
+      var success = Autorun(parent);
       if (global.haveIconized) {
             // We have iconized something so update prefix array
             ppar.prefixArray[index] = [ global.columnCount, ppar.win_prefix, global.haveIconized ];
@@ -5451,6 +5468,7 @@ function runAction(parent)
             }
             savePersistentSettings(false);
       }
+      processingCompletedText(success);
 }
 
 function newRunButton(parent, toolbutton)
@@ -5578,6 +5596,7 @@ function newAutoContinueButton(parent, toolbutton)
                         //parent.columnCountControlComboBox.currentItem = global.columnCount + 1;
                         savePersistentSettings(false);
                   }
+                  processingCompletedText(true);
             }
             catch(err) {
                   console.criticalln(err);
@@ -5587,6 +5606,7 @@ function newAutoContinueButton(parent, toolbutton)
                   global.is_processing = global.processing_state.none;
                   util.setDefaultDirs();
                   fix_win_prefix_array();
+                  processingCompletedText(false);
             }
       };
 
@@ -8636,6 +8656,20 @@ function AutoIntegrateDialog()
       this.ImageIntegrationRejectionSettingsSizer3.add( this.ImageIntegrationESDSignificance );
       this.ImageIntegrationRejectionSettingsSizer3.addStretch();
 
+      this.ImageIntegrationLargeScaleRejectionLabel = newLabel(this, 'Large scale pixel rejection', "<p>Enable large scale rejection of pixels.</p>");
+      this.ImageIntegrationLargeScaleRejectionHighCheckBox = newCheckBox(this, "High", par.large_scale_pixel_rejection_high, 
+            "<p>Enable large scale rejection of high pixels.</p>" +
+            "<p>Large scale rejection of high pixels may help for example with satellite trails.</p>");
+      this.ImageIntegrationLargeScaleRejectionLowCheckBox = newCheckBox(this, "Low", par.large_scale_pixel_rejection_low, 
+            "<p>Enable large scale rejection of low pixels.</p>");
+      
+      this.ImageIntegrationRejectionSettingsSizer4 = new HorizontalSizer;
+      this.ImageIntegrationRejectionSettingsSizer4.spacing = 4;
+      this.ImageIntegrationRejectionSettingsSizer4.add( this.ImageIntegrationLargeScaleRejectionLabel );
+      this.ImageIntegrationRejectionSettingsSizer4.add( this.ImageIntegrationLargeScaleRejectionHighCheckBox );
+      this.ImageIntegrationRejectionSettingsSizer4.add( this.ImageIntegrationLargeScaleRejectionLowCheckBox );
+      this.ImageIntegrationRejectionSettingsSizer4.addStretch();
+
       this.ImageIntegrationSubstackCheckBox = newCheckBox(this, "Substack,", par.substack_mode, 
             "<p>Divide light files into <i>Number of substacks</i> substacks and stack them separately. Stacked files are named as Stack_<i>num</i>_Integration_RGB.</p>" +
             "<p>When this option is enabled only image integration is done and final images are not generated. The idea is to use substacks to generate the final image.</p>" +
@@ -8658,6 +8692,8 @@ function AutoIntegrateDialog()
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer1 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer2 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer3 );
+      this.clippingGroupBoxSizer.add( this.ImageIntegrationRejectionSettingsSizer4 );
+      this.clippingGroupBoxSizer.addSpacing( 8 );
       this.clippingGroupBoxSizer.add( this.ImageIntegrationSubstackSettingsSizer );
       //this.clippingGroupBoxSizer.addStretch();
 
@@ -9368,7 +9404,7 @@ function AutoIntegrateDialog()
                   //this.columnCountControlComboBox.currentItem = global.columnCount + 1;
             }
             update_extra_target_image_window_list(null);
-            console.writeln("Close prefix completed");
+            console.noteln("Close prefix completed");
       };
 
       closeAllPrefixButton = new PushButton( this );
@@ -9421,7 +9457,7 @@ function AutoIntegrateDialog()
             // restore original prefix
             util.fixAllWindowArrays(ppar.win_prefix);
             update_extra_target_image_window_list(null);
-            console.writeln("Close all prefixes completed");
+            console.noteln("Close all prefixes completed");
       };
 
       var flowchartToolTip = "<p>Flowchart information is always generated during the processing. It is saved to the " + 

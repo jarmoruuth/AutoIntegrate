@@ -1436,7 +1436,6 @@ function getAdjustShadowsValue(win, perc, channel = -1)
             clipCount += colClipCount;
             if (clipCount > maxClip && col != 0 && colClipCount > 0) {
                   clipCount = clipCount - colClipCount;
-                  col--;
                   break;
             }
       }
@@ -1505,6 +1504,7 @@ function channelText(channel)
                   return 'All';
             default:
                   util.throwFatalError("Invalid channel value: " + channel);
+                  return 'unknown';
       }
 }
 
@@ -6781,6 +6781,16 @@ function runBasicIntegration(images, name, local_normalization)
       P.linearFitHigh = par.linearfit_high.val;
       P.esdOutliersFraction = par.ESD_outliers.val;
       P.esdAlpha = par.ESD_significance.val;
+
+      P.largeScaleClipHigh = par.large_scale_pixel_rejection_high.val;
+      if (par.large_scale_pixel_rejection_high.val) {
+            console.writeln("Using large scale pixel rejection high");
+      }
+      P.largeScaleClipLow = par.large_scale_pixel_rejection_low.val;
+      if (par.large_scale_pixel_rejection_low.val) {
+            console.writeln("Using large scale pixel rejection low");
+      }
+
       // P.esdLowRelaxation = par.ESD_lowrelaxation.val; deprecated, use default for old version
 
       if (local_normalization) {
@@ -7963,7 +7973,7 @@ function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
 function histogramPrestretch(GC_win, target_val)
 {
       console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
-      GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', target_val, true);
+      adjustHistogram(GC_win, target_val);
       return GC_win;
 }
 
@@ -8142,6 +8152,10 @@ function stretchHistogramTransformIterationsChannel(GC_win, image_stretching, ta
                   break;
             }
       }
+
+      // Do final step to get histogram to the required position
+      adjustHistogram(res.win, target_value, channel);
+
       guiUpdatePreviewWin(res.win);
       return res.win;
 }
@@ -8271,6 +8285,142 @@ function printImageStatistics(win, channel = -1)
                                              " max " + max);
 }
 
+function calculateMTFParameter(source, target) 
+{
+      let tolerance = 0.00000001;
+      let maxIterations = 100;
+      let low = 0;
+      let high = 1;
+      let mid;
+      let currentMedian = source;
+      let iterations = 0;
+    
+      while (Math.abs(currentMedian - target) > tolerance && iterations < maxIterations) {
+            mid = (low + high) / 2;
+            if (par.debug.val) console.writeln("calculateMTFParameter, mid " + mid + ", low " + low + ", high " + high);
+      
+            currentMedian = Math.mtf(mid, source); 
+            if (par.debug.val) console.writeln("calculateMTFParameter, currentMedian " + currentMedian + ", target " + target);
+      
+            if (currentMedian > target) {
+                  low = mid;
+            } else {
+                  high = mid;
+            }
+      
+            iterations++;
+            if (par.debug.val) console.writeln("calculateMTFParameter, iterations " + iterations);
+      }
+    
+      if (iterations >= maxIterations) {
+            console.writeln("Maximum iterations reached. Could not achieve target median within tolerance.");
+      }
+    
+      return mid;
+}
+
+function adjustHistogram(win, target_value, channel = -1)
+{
+      if (channel == null || channel == undefined) {
+            channel = -1;
+      }
+      console.writeln("adjustHistogram, " + channelText(channel) + ", target_value " + target_value);
+      
+      var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
+
+      if (channel >= 0) {
+            var med = win.mainView.computeOrFetchProperty("Median").at(channel);
+      } else {
+            var med = win.mainView.image.median();
+      }
+      console.writeln("adjustHistogram, " + channelText(channel) + ", median " + med);
+
+      var new_midtones = calculateMTFParameter(med, target_value);
+      console.writeln("adjustHistogram, calculateMTFParameter, " + channelText(channel) + ", new midtones " + new_midtones);
+
+      if (channel >= 0) {
+            midtones[channel] = new_midtones;
+      } else {
+            midtones[3] = new_midtones;
+      }
+
+      var P = new HistogramTransformation;
+      P.H = [ // c0, c1, m, r0, r1
+            [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
+            [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
+            [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
+            [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
+            [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+      ];
+
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(win.mainView);
+      win.mainView.endProcess();
+
+      engine_end_process(null);
+
+      if (channel >= 0) {
+            med = win.mainView.computeOrFetchProperty("Median").at(channel);
+      } else {
+            med = win.mainView.image.median();
+      }
+      console.writeln(channelText(channel) + " new median " + med);
+}
+
+function histogramDirectStretch(win, image_stretching, iscolor, target_value)
+{
+      util.addProcessingStepAndStatusInfo("Run histogram transform on " + win.mainView.id + " using " + image_stretching + " with target value " + target_value);
+
+      if (win.mainView.image.isColor) {
+            var rgbLinked = getRgbLinked(iscolor);
+      } else {
+            var rgbLinked = true;
+      }
+      
+      var midtones = [ 0.50000000, 0.50000000, 0.50000000, 0.50000000 ];
+
+      if (rgbLinked) {
+            var med = win.mainView.image.median();
+            console.writeln("histogramDirectStretch, " + channelText(-1) + ", median " + med);
+            var new_midtones = calculateMTFParameter(med, target_value);
+            console.writeln("histogramDirectStretch, calculateMTFParameter, " + channelText(-1) + ", new midtones " + new_midtones);
+            midtones[3] = new_midtones;
+      } else {
+            for (var i = 0; i < 3; i++) {
+                  var med = win.mainView.computeOrFetchProperty("Median").at(i);
+                  console.writeln("histogramDirectStretch, " + channelText(i) + ", median " + med);
+                  var new_midtones = calculateMTFParameter(med, target_value);
+                  console.writeln("histogramDirectStretch, calculateMTFParameter, " + channelText(i) + ", new midtones " + new_midtones);
+                  midtones[i] = new_midtones;
+            }
+      }
+
+      var P = new HistogramTransformation;
+      P.H = [ // c0, c1, m, r0, r1
+            [0.00000000, midtones[0], 1.00000000, 0.00000000, 1.00000000],     // R
+            [0.00000000, midtones[1], 1.00000000, 0.00000000, 1.00000000],     // G
+            [0.00000000, midtones[2], 1.00000000, 0.00000000, 1.00000000],     // B
+            [0.00000000, midtones[3], 1.00000000, 0.00000000, 1.00000000],     // L
+            [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
+      ];
+
+      win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(win.mainView);
+      win.mainView.endProcess();
+
+      engine_end_process(null);
+
+      if (rgbLinked) {
+            var med = win.mainView.image.median();
+            console.writeln("histogramDirectStretch, " + channelText(-1) + ", new median " + med);
+      } else {
+            for (var i = 0; i < 3; i++) {
+                  var med = win.mainView.computeOrFetchProperty("Median").at(i);
+                  console.writeln("histogramDirectStretch, " + channelText(i) + ", new median " + med);
+            }
+      }
+}
+
 function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
 {
       console.writeln("stretchHistogramTransformAdjustShadows");
@@ -8279,6 +8429,11 @@ function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
 
       var shadows_clip_value = 0;
       var adjust = getAdjustShadowsValue(new_win, shadows_clip_value, channel);
+
+      if (adjust.normalizedShadowAdjust == 0) {
+            console.writeln("No shadows to adjust");
+            return 0;
+      }
       
       if (channel >= 0) {
             shadows[channel] = adjust.normalizedShadowAdjust;
@@ -8947,6 +9102,9 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
 
       } else if (image_stretching == 'Highlight stretch') {
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
+
+      } else if (image_stretching == 'Histogram direct') {
+            histogramDirectStretch(GC_win, image_stretching, iscolor, par.other_stretch_target.val);
 
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);

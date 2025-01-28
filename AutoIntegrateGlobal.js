@@ -331,6 +331,8 @@ this.par = {
       linearfit_high: { val: 4.0, def: 4.0, name : "Linear fit high", type : 'R' },
       ESD_outliers: { val: 0.3, def: 0.3, name : "ESD outliers", type : 'R' },
       ESD_significance: { val: 0.05, def: 0.05, name : "ESD significance", type : 'R' },
+      large_scale_pixel_rejection_high: { val: false, def: false, name : "Large scale pixel rejection high", type : 'B' },
+      large_scale_pixel_rejection_low: { val: false, def: false, name : "Large scale pixel rejection low", type : 'B' },
       // ESD_lowrelaxation: { val: 1.50, def: 1.50, name : "ESD low relaxation", type : 'R' }, deprecated, use default for old version
       use_localnormalization_multiscale: { val: false, def: false, name : "Use LocalNormalization Multiscale", type : 'B' },
       fastintegration_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
