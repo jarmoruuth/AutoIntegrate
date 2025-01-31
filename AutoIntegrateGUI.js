@@ -3658,6 +3658,23 @@ function calculateReverseLogarithmicXScale(minVal, maxVal, numBins)
       return xScale.sort((a, b) => a - b); // Sort in ascending order for the histogram logic
 }
 
+function imageIsLinear(window) 
+{
+      let view = window.mainView;
+      let image = view.image;
+
+      // Calculate basic statistics
+      let median = image.median();
+      let stdDev = image.stdDev();
+
+      // Make a very basic determination of linearity
+      if (median < 0.1 && stdDev < 0.05) {
+            return true;
+      } else {
+            return false;
+      }
+}
+
 function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 {
       if (par.debug.val) console.writeln("getHistogramInfo");
@@ -3675,9 +3692,12 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 
       var bucket_size = histogramMatrix.cols / width;
 
+      if (!log_x_scale) {
+            log_x_scale = imageIsLinear(imgWin);
+      }
+
       if (log_x_scale) {
             var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
-            // console.writeln("getHistogramInfo: xscale ", xscale);
       }
 
       console.writeln("getHistogramInfo: width " +  width + " maxchannels " + maxchannels +  " histogramMatrix.cols " + histogramMatrix.cols);
@@ -3691,13 +3711,11 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       if (par.debug.val) console.writeln("getHistogramInfo: maxchannels ", maxchannels);
       for (var channel = 0; channel < maxchannels; channel++) {
             var xpos = 0;
-            // console.writeln("getHistogramInfo: xpos " + xpos + " xScale " + xscale[xpos]);
             for (var col = 0; col < histogramMatrix.cols; col++) {
                   if (log_x_scale) {
                         if (col < xscale[xpos]) {
                               i = xpos;
                         } else {
-                              // console.writeln("getHistogramInfo: xpos " + xpos + " count " + values[channel][i] + " xScale " + xscale[xpos]);
                               xpos++;
                               i = xpos;
                         }
