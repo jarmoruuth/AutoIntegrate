@@ -3603,16 +3603,26 @@ function updatePreviewTxt(txt)
       console.writeln(txt);
 }
 
-function setHistogramBitmapBackground(graphics, side_preview)
+function getHistogramSize(side_preview)
 {
       if (side_preview) {
-            var width = ppar.preview.side_preview_width;
+            var width = Math.floor(ppar.preview.side_preview_width * 0.9);
             var height = ppar.preview.side_histogram_height;
       } else {
-            var width = ppar.preview.preview_width;
+            var width = Math.floor(ppar.preview.preview_width * 0.9);
             var height = ppar.preview.histogram_height;
       }
+      return { width: width, height: height };
+}
+
+function setHistogramBitmapBackground(graphics, side_preview)
+{
+      var size = getHistogramSize(side_preview);
+      var width = size.width;
+      var height = size.height;
+
       graphics.antialiasing = true;
+
       graphics.pen = new Pen(0xffffffff,1);
       
       graphics.fillRect(0, 0, width, height, new Brush(0xff000000));
@@ -3625,7 +3635,30 @@ function setHistogramBitmapBackground(graphics, side_preview)
       }
 }
 
-function getHistogramInfo(imgWin, side_preview)
+function calculateReverseLogarithmicXScale(minVal, maxVal, numBins) 
+{
+      /**
+       * Calculates the boundaries for a reversed logarithmic x-axis scale
+       * (smaller values have larger bins).
+       *
+       * Args:
+       *   minVal: The minimum value in the data (for the start of the x-axis).
+       *   maxVal: The maximum value in the data (for the end of the x-axis).
+       *   numBins: The desired number of bins (segments on the x-axis).
+       *
+       * Returns:
+       *   An array of x-axis boundaries.
+       */
+      const base = Math.pow(maxVal / minVal, 1 / numBins);
+      const xScale = [];
+      for (let i = 0; i <= numBins; i++) {
+        // Reverse the logarithmic scaling:
+        xScale.push(maxVal / Math.pow(base, i));
+      }
+      return xScale.sort((a, b) => a - b); // Sort in ascending order for the histogram logic
+}
+
+function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 {
       if (par.debug.val) console.writeln("getHistogramInfo");
       var view = imgWin.mainView;
@@ -3636,13 +3669,18 @@ function getHistogramInfo(imgWin, side_preview)
       var maxvalue_pos = 0;
       var maxchannels = histogramMatrix.rows;
 
-      if (side_preview) {
-            var width = ppar.preview.side_preview_width;
-            var height = ppar.preview.side_histogram_height;
-      } else {
-            var width = ppar.preview.preview_width;
-            var height = ppar.preview.histogram_height;
+      var size = getHistogramSize(side_preview);
+      var width = size.width;
+      var height = size.height;
+
+      var bucket_size = histogramMatrix.cols / width;
+
+      if (log_x_scale) {
+            var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
+            // console.writeln("getHistogramInfo: xscale ", xscale);
       }
+
+      console.writeln("getHistogramInfo: width " +  width + " maxchannels " + maxchannels +  " histogramMatrix.cols " + histogramMatrix.cols);
 
       for (var channel = 0; channel < maxchannels; channel++) {
             values[channel] = [];
@@ -3652,8 +3690,23 @@ function getHistogramInfo(imgWin, side_preview)
       }
       if (par.debug.val) console.writeln("getHistogramInfo: maxchannels ", maxchannels);
       for (var channel = 0; channel < maxchannels; channel++) {
+            var xpos = 0;
+            // console.writeln("getHistogramInfo: xpos " + xpos + " xScale " + xscale[xpos]);
             for (var col = 0; col < histogramMatrix.cols; col++) {
-                  var i = parseInt(col / histogramMatrix.cols * width);
+                  if (log_x_scale) {
+                        if (col < xscale[xpos]) {
+                              i = xpos;
+                        } else {
+                              // console.writeln("getHistogramInfo: xpos " + xpos + " count " + values[channel][i] + " xScale " + xscale[xpos]);
+                              xpos++;
+                              i = xpos;
+                        }
+                        if (i >= width) {
+                              i = width - 1;
+                        }
+                  } else {
+                        var i = Math.floor(col / width);
+                  }
                   values[channel][i] += histogramMatrix.at(channel, col);
                   if (values[channel][i] > maxvalue) {
                         maxvalue = values[channel][i];
@@ -3709,10 +3762,10 @@ function getHistogramInfo(imgWin, side_preview)
       }
       graphics.end();
 
-      return { bitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues };
+      return { histogramBitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues, log_x_scale: log_x_scale };
 }
 
-function updatePreviewWinTxt(imgWin, txt, histogramInfo)
+function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             console.writeln("Preview image:" + imgWin.mainView.id + " " + txt);
@@ -3725,6 +3778,11 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   }
                   preview_size_changed = false;
             }
+            autostf = autostf 
+                      || (global.is_processing == global.processing_state.processing
+                          && par.preview_autostf.val 
+                          && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear"));
+ 
             if (histogramInfo) {
                   console.writeln("updatePreviewWinTxt:use existing histogramInfo");
                   current_histogramInfo = histogramInfo;
@@ -3732,7 +3790,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   if (tabHistogramControl != null && sideHistogramControl != null) {
                         console.writeln("updatePreviewWinTxt:get new histogramInfo");
                         forceNewHistogram(imgWin);
-                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible);
+                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible, autostf);
                   } else {
                         console.writeln("updatePreviewWinTxt:no histogram");
                         histogramInfo = null;
@@ -3740,10 +3798,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo)
                   current_histogramInfo = histogramInfo;
             }
             preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
-            if (global.is_processing == global.processing_state.processing
-                && par.preview_autostf.val 
-                && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear")) 
-            {
+            if (autostf) {
                   // Image is linear, run AutoSTF
                   util.closeOneWindowById("AutoIntegrate_preview_tmp");
                   var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
@@ -3784,7 +3839,7 @@ function updatePreviewWin(imgWin)
       updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
-function updatePreviewFilenameAndInfo(filename, stf, update_info)
+function updatePreviewFilenameAndInfo(filename, autostf, update_info)
 {
       console.writeln("updatePreviewFilenameAndInfo ", filename);
 
@@ -3800,11 +3855,7 @@ function updatePreviewFilenameAndInfo(filename, stf, update_info)
             return;
       }
 
-      if (stf) {
-            engine.autoStretch(imageWindow, false);
-      }
-
-      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename));
+      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename), null, autostf);
       if (update_info) {
             util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
       }
@@ -4692,14 +4743,14 @@ function getFilesFromTreebox(parent)
       }
 }
 
-function getNewTreeBoxFiles(parent, pageIndex, imageFileNames)
+function getNewTreeBoxFiles(parent, pageIndex, imageFileNames, skip_old_files = false)
 {
       console.writeln("getNewTreeBoxFiles " + pageIndex);
 
       var treeBox = parent.treeBox[pageIndex];
       var treeboxfiles = [];
 
-      if (treeBox.numberOfChildren > 0) {
+      if (treeBox.numberOfChildren > 0 && !skip_old_files) {
             getTreeBoxNodeFiles(treeBox, treeboxfiles);
       }
 
@@ -4718,12 +4769,12 @@ function getNewTreeBoxFiles(parent, pageIndex, imageFileNames)
 
 // in newImageFileNames we have file name list or
 // treeboxfiles which is array of [ filename, checked, weight ]
-function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
+function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_old_files = false)
 {
       console.writeln("addFilteredFilesToTreeBox " + pageIndex);
 
       // ensure we have treeboxfiles which is array of [ filename, checked, weight, best_image, reference_image ]
-      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames);
+      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
 
       var filteredFiles = engine.getFilterFiles(treeboxfiles, pageIndex, '');
       var files_TreeBox = parent.treeBox[pageIndex];
@@ -4835,14 +4886,14 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       }
 }
 
-function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
+function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_old_files = false)
 {
       console.writeln("addUnfilteredFilesToTreeBox " + pageIndex);
 
       var files_TreeBox = parent.treeBox[pageIndex];
       files_TreeBox.clear();
 
-      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames);
+      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
 
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < treeboxfiles.length; i++) {
@@ -4865,17 +4916,21 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames)
       files_TreeBox.canUpdate = true;
 }
 
-function addFilesToTreeBox(parent, pageIndex, imageFileNames)
+function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = false)
 {
+      if (imageFileNames == null) {
+            parent.treeBox[pageIndex].clear();
+            return;
+      }
       switch (pageIndex) {
             case global.pages.LIGHTS:
             case global.pages.FLATS:
-                  addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             case global.pages.BIAS:
             case global.pages.DARKS:
             case global.pages.FLAT_DARKS:
-                  addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames);
+                  addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             default:
                   util.throwFatalError("addFilesToTreeBox bad pageIndex " + pageIndex);
@@ -4891,9 +4946,7 @@ function loadJsonFile(parent)
       }
       // page array of treebox files names
       for (var i = 0; i < pagearray.length; i++) {
-            if (pagearray[i] != null) {
-                  addFilesToTreeBox(parent, i, pagearray[i]);
-            }
+            addFilesToTreeBox(parent, i, pagearray[i], true);
       }
       updateInfoLabel(parent);
       if (par.show_flowchart.val && global.flowchartData != null) {
@@ -5262,8 +5315,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
-                        engine.autoStretch(imageWindow);
                         if (!global.use_preview) {
+                              engine.autoStretch(imageWindow);
                               updateImageInfoLabel(imageInfoTxt);
                               if (blink_zoom) {
                                     blinkWindowZoomedUpdate(imageWindow, 0, 0);
@@ -5276,7 +5329,9 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               updatePreviewWinTxt(
                                     imageWindow, 
-                                    File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename));
+                                    File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
+                                    null,
+                              true);
                               util.updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
                               switchtoPreviewTab();
@@ -6384,13 +6439,10 @@ function newHistogramControl(parent, side_preview)
       if (!ppar.preview.show_histogram) {
             return null;
       }
-      if (side_preview) {
-            var width = ppar.preview.side_preview_width;
-            var height = ppar.preview.side_histogram_height;
-      } else {
-            var width = ppar.preview.preview_width;
-            var height = ppar.preview.histogram_height;
-      }
+      var size = getHistogramSize(side_preview);
+      var width = size.width;
+      var height = size.height;
+
       var histogramViewControl = new Control(parent);
       histogramViewControl.scaledMinWidth = width;
       histogramViewControl.scaledMinHeight = height;
@@ -6399,19 +6451,26 @@ function newHistogramControl(parent, side_preview)
       var graphics = new VectorGraphics(bitmap);
       setHistogramBitmapBackground(graphics, side_preview);
       graphics.end();
-      histogramViewControl.aiInfo = { bitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null };
+      histogramViewControl.aiInfo = { histogramBitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null, log_x_scale: false };
       histogramViewControl.onPaint = function(x0, y0, x1, y1) {
             var graphics = new VectorGraphics(this);
             graphics.antialiasing = true;
-            graphics.drawBitmap(0, 0, this.aiInfo.bitmap);
+            graphics.drawBitmap(0, 0, this.aiInfo.histogramBitmap);
             graphics.end();
+            if (this.aiInfo.log_x_scale) {
+                  this.aiLabelLog.text = "Log";
+                  this.aiLabelLog.toolTip = "<p>Logarithmic scale on X axis.</p>";
+            } else {
+                  this.aiLabelLog.text = "";
+                  this.aiLabelLog.toolTip = "<p>Normal scale on X axis.</p>";
+            }
       };
       histogramViewControl.onMousePress = function(x, y, buttonState, modifiers) {
             // console.writeln("histogramViewControl.onMousePress " + x + ", " + y);
-            if (x >= 0 && x < this.aiInfo.bitmap.width && y >= 0 && y < this.aiInfo.bitmap.height) {
-                  this.aiLabelX.text = "x: " + (x / this.aiInfo.bitmap.width).toFixed(4);
+            if (x >= 0 && x < this.aiInfo.histogramBitmap.width && y >= 0 && y < this.aiInfo.histogramBitmap.height) {
+                  this.aiLabelX.text = "x: " + (x / this.aiInfo.histogramBitmap.width).toFixed(4);
                   this.aiLabelX.toolTip = "<p>X coordinate value.</p>";
-                  this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.bitmap.height).toFixed(4);
+                  this.aiLabelY.text = "y: " + (1 - y / this.aiInfo.histogramBitmap.height).toFixed(4);
                   this.aiLabelY.toolTip = "<p>Y coordinate value.</p>";
                   if (this.aiInfo.cumulativeValues) {
                         this.aiLabelCnt.text = "Cnt: " + this.aiInfo.cumulativeValues[x];
@@ -6426,6 +6485,7 @@ function newHistogramControl(parent, side_preview)
       histogramViewControl.aiLabelY = newLabel(parent, "y:", "Click on histogram to get values");
       histogramViewControl.aiLabelCnt = newLabel(parent, "Cnt:", "Click on histogram to get values");
       histogramViewControl.aiLabelPrc = newLabel(parent, "%:", "Click on histogram to get values");
+      histogramViewControl.aiLabelLog = newLabel(parent, "", "Normal scale on X axis");
       histogramViewControl.sizer = new VerticalSizer;
       histogramViewControl.sizer.margin = 6;
       histogramViewControl.sizer.spacing = 4;
@@ -6433,6 +6493,7 @@ function newHistogramControl(parent, side_preview)
       histogramViewControl.sizer.add( histogramViewControl.aiLabelY );
       histogramViewControl.sizer.add( histogramViewControl.aiLabelCnt );
       histogramViewControl.sizer.add( histogramViewControl.aiLabelPrc );
+      histogramViewControl.sizer.add( histogramViewControl.aiLabelLog );
       histogramViewControl.sizer.addStretch();
 
       histogramViewControl.repaint();
@@ -10481,10 +10542,10 @@ function AutoIntegrateDialog()
                   updatePreviewNoImageInControl(tabPreviewControl);
             }
             console.writeln("Screen size " + screen_size +  
-                            ", using preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + 
-                            ", histogram height " + ppar.preview.histogram_height + 
                             ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
                             ", side histogram height " + ppar.preview.side_histogram_height + 
+                            ", tab preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + 
+                            ", tab histogram height " + ppar.preview.histogram_height + 
                             ", dialog size " + this.width + "x" + this.height);
       }
 }
