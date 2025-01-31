@@ -1203,6 +1203,8 @@ function add_test_image(id, testid, testmode)
 
 function copyWindowEx(sourceWindow, name, allow_duplicate_name)
 {
+      name = validateViewIdCharacters(name);
+      
       if (par.debug.val) {
             console.writeln("copyWindowEx " + sourceWindow.mainView.id + " to " + name + ", allow_duplicate_name " + allow_duplicate_name);
       }
@@ -1680,6 +1682,17 @@ function is_narrowband_option()
              par.run_narrowband_SCNR.val ||
              par.leave_some_green.val ||
              par.remove_magenta_color.val;
+}
+
+function validateViewIdCharacters(p)
+{
+      p = p.replace(/[^A-Za-z0-9]/gi,'_');
+      //p = p.replace(/_+$/,'');
+      if (p.match(/^\d/)) {
+            // if user tries to start prefix with a digit, prepend an underscore
+            p = "_" + p;
+      }
+      return p;
 }
 
 function mapBadChars(str)
@@ -2571,6 +2584,7 @@ this.setParameterDefaults = setParameterDefaults;
 
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;
+this.validateViewIdCharacters = validateViewIdCharacters;
 
 this.formatToolTip = formatToolTip;
 this.getScreenSize = getScreenSize;

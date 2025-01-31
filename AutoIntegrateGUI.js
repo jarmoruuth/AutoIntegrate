@@ -4167,20 +4167,9 @@ function addOutputDir(parent)
       return outputdir_Sizer;
 }
 
-function validateWindowPrefixCharacters(p)
-{
-      p = p.replace(/[^A-Za-z0-9]/gi,'_');
-      //p = p.replace(/_+$/,'');
-      if (p.match(/^\d/)) {
-            // if user tries to start prefix with a digit, prepend an underscore
-            p = "_" + p;
-      }
-      return p;
-}
-
 function validateWindowPrefix(p)
 {
-      p = validateWindowPrefixCharacters(p);
+      p = util.validateViewIdCharacters(p);
       if (p != "" && !p.endsWith("_")) {
             p = p + "_";
       }
@@ -4227,7 +4216,7 @@ function addWinPrefix(parent)
       windowPrefixComboBox.onEditTextUpdated = function() {
             // This function is called for every character edit so actions
             // are moved to function updateWindowPrefix
-            ppar.win_prefix = validateWindowPrefixCharacters(windowPrefixComboBox.editText.trim());
+            ppar.win_prefix = util.validateViewIdCharacters(windowPrefixComboBox.editText.trim());
             windowPrefixComboBox.editText = ppar.win_prefix;
       };
 
@@ -4264,7 +4253,7 @@ function addAutoContinueWinPrefix(parent)
       autoContinueWindowPrefixComboBox.onEditTextUpdated = function() {
             // This function is called for every character edit so actions
             // are moved to function updateWindowPrefix
-            ppar.autocontinue_win_prefix = validateWindowPrefixCharacters(autoContinueWindowPrefixComboBox.editText.trim());
+            ppar.autocontinue_win_prefix = util.validateViewIdCharacters(autoContinueWindowPrefixComboBox.editText.trim());
             autoContinueWindowPrefixComboBox.editText = ppar.autocontinue_win_prefix;
       };
 
