@@ -1401,7 +1401,7 @@ function countPixels(histogramMatrix, row)
       return cnt;
 }
 
-function getAdjustShadowsValue(win, perc, channel = -1)
+function getAdjustPoint(win, perc, channel = -1)
 {
       // Get image histogram
       var view = win.mainView;
@@ -1412,37 +1412,37 @@ function getAdjustShadowsValue(win, perc, channel = -1)
             pixelCount += countPixels(histogramMatrix, channel);
       } else {
             // Count pixels for all channels
-            console.writeln("getAdjustShadowsValue, all channels, histogramMatrix.rows " + histogramMatrix.rows);
+            console.writeln("getAdjustPoint, all channels, histogramMatrix.rows " + histogramMatrix.rows);
             for (var i = 0; i < histogramMatrix.rows; i++) {
                   pixelCount += countPixels(histogramMatrix, i);
             }
       }
       // console.writeln("Total pixel count for matrix is " + pixelCount);
 
-      var maxClip = (perc / 100) * pixelCount;
-      console.writeln("Clip max " + maxClip + " pixels (" + perc + "%)");
+      var adjustPoint = (perc / 100) * pixelCount;
+      console.writeln("Adjust point pixel count " + adjustPoint + " (" + perc + "%)");
 
       // Adjust shadows
-      var clipCount = 0;
+      var adjustCount = 0;
       for (var col = 0; col < histogramMatrix.cols; col++) {
-            var colClipCount = 0;
+            var coladjustCount = 0;
             if (channel >= 0) {
-                  colClipCount += histogramMatrix.at(channel, col)
+                  coladjustCount += histogramMatrix.at(channel, col)
             } else {
                   for (var row = 0; row < histogramMatrix.rows; row++) {
-                        colClipCount += histogramMatrix.at(row, col)
+                        coladjustCount += histogramMatrix.at(row, col)
                   }
             }
-            clipCount += colClipCount;
-            if (clipCount > maxClip && col != 0 && colClipCount > 0) {
-                  clipCount = clipCount - colClipCount;
+            adjustCount += coladjustCount;
+            if (adjustCount > adjustPoint && col != 0 && coladjustCount > 0) {
+                  adjustCount = adjustCount - coladjustCount;
                   break;
             }
       }
-      var normalizedShadowAdjust = col / histogramMatrix.cols;
-      console.writeln(channelText(channel) + " normalized shadow adjust value is " + normalizedShadowAdjust + ", clip count " + clipCount);
+      var normalizedAdjustPoint = col / histogramMatrix.cols;
+      console.writeln(channelText(channel) + " normalized adjust value is " + normalizedAdjustPoint + ", pixel count " + adjustCount);
 
-      return { normalizedShadowAdjust : normalizedShadowAdjust, rows : histogramMatrix.rows, clipCount : clipCount };
+      return { normalizedAdjustPoint : normalizedAdjustPoint, rows : histogramMatrix.rows, adjustCount : adjustCount };
 }
 
 function adjustShadows(win, perc)
@@ -1458,8 +1458,8 @@ function adjustShadows(win, perc)
       
       var view = win.mainView;
 
-      var adjust = getAdjustShadowsValue(win, perc, -1);
-      var normalizedShadowAdjust = adjust.normalizedShadowAdjust;
+      var adjust = getAdjustPoint(win, perc, -1);
+      var normalizedAdjustPoint = adjust.normalizedAdjustPoint;
 
       var P = new HistogramTransformation;
       if (adjust.rows == 1) {
@@ -1467,14 +1467,14 @@ function adjustShadows(win, perc)
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],
-                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
+                  [normalizedAdjustPoint, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
             ];
       } else {
             P.H = [ // c0, m, c1, r0, r1
-                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // R
-                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // G
-                  [normalizedShadowAdjust, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // B
+                  [normalizedAdjustPoint, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // R
+                  [normalizedAdjustPoint, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // G
+                  [normalizedAdjustPoint, 0.50000000, 1.00000000, 0.00000000, 1.00000000],   // B
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000],  // luminance
                   [0.00000000, 0.50000000, 1.00000000, 0.00000000, 1.00000000]
             ];
@@ -1546,10 +1546,10 @@ function findSymmetryPoint(win, perc, channel = -1)
       if (col > 0) {
             col = col - 1;
       }
-      var normalizedShadowAdjust = col / histogramMatrix.cols;
-      console.writeln(channelText(channel) + " symmetry point is " + normalizedShadowAdjust);
+      var normalizedAdjustPoint = col / histogramMatrix.cols;
+      console.writeln(channelText(channel) + " symmetry point is " + normalizedAdjustPoint);
 
-      return normalizedShadowAdjust;
+      return normalizedAdjustPoint;
 }
 
 function newMaskWindow(sourceWindow, name, allow_duplicate_name, clip_shadows_more)
@@ -8428,19 +8428,19 @@ function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
       var shadows = [ 0.00000000, 0.00000000, 0.00000000, 0.00000000 ];
 
       var shadows_clip_value = 0;
-      var adjust = getAdjustShadowsValue(new_win, shadows_clip_value, channel);
+      var adjust = getAdjustPoint(new_win, shadows_clip_value, channel);
 
-      if (adjust.normalizedShadowAdjust == 0) {
+      if (adjust.normalizedAdjustPoint == 0) {
             console.writeln("No shadows to adjust");
             return 0;
       }
       
       if (channel >= 0) {
-            shadows[channel] = adjust.normalizedShadowAdjust;
+            shadows[channel] = adjust.normalizedAdjustPoint;
       } else {
-            shadows[3] = adjust.normalizedShadowAdjust;
+            shadows[3] = adjust.normalizedAdjustPoint;
       }
-      console.writeln("stretchHistogramTransformAdjustShadows, " + channelText(channel) + ", shadows " + adjust.normalizedShadowAdjust);
+      console.writeln("stretchHistogramTransformAdjustShadows, " + channelText(channel) + ", shadows " + adjust.normalizedAdjustPoint);
 
       var P = new HistogramTransformation;
       P.H = [ // c0, c1, m, r0, r1
@@ -12193,8 +12193,8 @@ function smoothBackgroundBeforeGC(win, val_perc, linear_data)
             val = val_perc;
       } else {
             console.writeln("smoothBackgroundBeforeGC, percentage " + val_perc);
-            var adjust = getAdjustShadowsValue(win, val_perc);
-            var val = adjust.normalizedShadowAdjust;
+            var adjust = getAdjustPoint(win, val_perc);
+            var val = adjust.normalizedAdjustPoint;
             console.writeln("smoothBackgroundBeforeGC, value " + val);
       }
       if (delinearize) {
@@ -14616,10 +14616,11 @@ function autoContrast(win, contrast_limit_low, contrast_limit_high)
             return;
       }
 
-      var low_clip = getAdjustShadowsValue(win, contrast_limit_low);
-      var high_clip = getAdjustShadowsValue(win, contrast_limit_high);
+      var low_adjust = getAdjustPoint(win, contrast_limit_low);
+      var high_adjust = getAdjustPoint(win, contrast_limit_high);
 
-      var mapping = "($T-" + low_clip.normalizedShadowAdjust + ")*(1/(" + high_clip.normalizedShadowAdjust + "-" + low_clip.normalizedShadowAdjust + "))";
+      var mapping = "($T-" + low_adjust.normalizedAdjustPoint + ")*(1/(" + high_adjust.normalizedAdjustPoint + "-" + low_adjust.normalizedAdjustPoint + "))";
+      console.writeln("autoContrast: mapping " + mapping);
 
       runPixelMathSingleMappingEx(win.mainView.id, "autocontrast", mapping, false, null);
 }
