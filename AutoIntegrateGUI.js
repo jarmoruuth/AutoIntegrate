@@ -367,33 +367,9 @@ var unscreen_tooltip =                    "<p>Use unscreen method to get stars i
                                           "<p>Unscreen method usually keeps star colors more correct than simple star removal. It is " + 
                                           "recommended to use Screen method when combining star and starless images back together.<p>";
 
-var noiseReductionToolTipCommon =         "<p>By default noise reduction is done using a luminance mask to target noise reduction on darker areas of the image. " +
-                                          "AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
-                                          "<p>Bigger strength value means stronger noise reduction except with DeepSNR where is has a reverse effect. " +
-                                          "Noise reduction uses MultiscaleLinerTransform, NoiseXTerminator, GraXpert denoise or DeepSNR.</p>" + 
-                                          "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
-                                          "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>" +
-                                          "<p>With NoiseXTerminator the strength changes denoise and detail values. Strength value has the following mapping to denoise " + 
-                                          "and detail:</p>" + 
-                                          "<ul>" +
-                                          "<li>Value: 1, Denoise: 0.60, Detail: 0.10</li>" +
-                                          "<li>Value: 2, Denoise: 0.70, Detail: 0.15</li>" +
-                                          "<li>Value: 3, Denoise: 0.80, Detail: 0.15</li>" +
-                                          "<li>Value: 4, Denoise: 0.90, Detail: 0.15</li>" +
-                                          "<li>Value: 5, Denoise: 0.90, Detail: 0.20</li>" +
-                                          "<li>Value: 6, Denoise: 0.95, Detail: 0.20</li>" +
-                                          "</ul>" +
-                                          "<p>With DeepSNR the strength value has the following mapping:</p>" + 
-                                          "<ul>" +
-                                          "<li>Value: 1, Strength: 1.00</li>" +
-                                          "<li>Value: 2, Strength: 0.90</li>" +
-                                          "<li>Value: 3, Strength: 0.80</li>" +
-                                          "<li>Value: 4, Strength: 0.70</li>" +
-                                          "<li>Value: 5, Strength: 0.60</li>" +
-                                          "<li>Value: 6, Strength: 0.50</li>" +
-                                          "</ul>" +
-                                          "<p>With GraXpert denoise the strength value is ignored.</p>";
-
+var noiseReductionToolTipCommon =         "<p>AI based noise reduction using NoiseXTerminator, GraXpert denoise or DeepSNR do not use a mask.</p> " +
+                                          "<p>Default noise reduction using MultiscaleLinerTransform is done using a luminance mask to target noise " + 
+                                          "reduction on darker areas of the image.</p>";
 
 var ACDNR_StdDev_tooltip =                "<p>A mild ACDNR noise reduction with StdDev value between 1.0 and 2.0 can be useful to smooth image and reduce black spots " + 
                                           "left from previous noise reduction.</p>";
@@ -409,7 +385,6 @@ var MGCToolTip =                          "<p>When MultiscaleGradientCorrection 
                                           "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, GradientCorrection<./p>";
 var clippedPixelsToolTip =                "<p>Show clipped pixels in the preview image.</p>" + 
                                           "<p>Pixes with value 0 are shown as black, pixels with value 1 are shown as white. Other pixes are shown as gray.</p>";
-                                                                  
                               
 // Settings for flowchart graph
 var flowchart_text_margin = 4;                                                // Margin between box and text
@@ -1830,16 +1805,9 @@ function extraProcessingGUI(parent)
       this.extra_NoiseReduction_CheckBox = newCheckBox(parent, "Noise reduction", par.extra_noise_reduction, 
             extra_noise_reduction_tooltip);
 
-      this.extraNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(parent, par.extra_noise_reduction_strength, noise_reduction_strength_values, extra_noise_reduction_tooltip);
-      this.extraNoiseReductionStrengthLabel = new Label( parent );
-      this.extraNoiseReductionStrengthLabel.text = "strength";
-      this.extraNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.extraNoiseReductionStrengthLabel.toolTip = extra_noise_reduction_tooltip;
       this.extraNoiseReductionStrengthSizer = new HorizontalSizer;
       this.extraNoiseReductionStrengthSizer.spacing = 4;
       this.extraNoiseReductionStrengthSizer.add( this.extra_NoiseReduction_CheckBox );
-      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthComboBox );
-      this.extraNoiseReductionStrengthSizer.add( this.extraNoiseReductionStrengthLabel );
       this.extraNoiseReductionStrengthSizer.toolTip = extra_noise_reduction_tooltip;
       this.extraNoiseReductionStrengthSizer.addStretch();
 
@@ -7087,7 +7055,6 @@ function AutoIntegrateDialog()
             "<p>You can change some StarXTerminator settings in the <i>Processing 1 / StarXTerminator</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" +
-            "<p>NoiseXTerminator uses generic noise rediuction settings.</p>" +
             "<p>You can change noise reduction settings in the <i>Processing 1 / noise reduction</i> section.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 to remove stars from an image.</p>" );
@@ -7213,14 +7180,14 @@ function AutoIntegrateDialog()
       this.imageParamsSet1.add( this.CometAlignCheckBox );
       this.imageParamsSet1.add( this.fastIntegrationCheckBox );
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
+      this.imageParamsSet1.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
-      this.imageParamsSet1.add( this.use_background_neutralization_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
-      this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
+      this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
       this.imageParamsSet2.add( this.GC_before_channel_combination_CheckBox );
       this.imageParamsSet2.add( this.use_GC_L_RGB_CheckBox );
@@ -7616,16 +7583,19 @@ function AutoIntegrateDialog()
       this.saturationGroupBoxSizer.addStretch();
 
       // Noise reduction
+      var noiseReductionStregthToolTip = "<p>With MultiscaleLinerTransform the strength between 3 and 5 is the number of layers used to reduce noise. " + 
+                                         "Strength values 1 and 2 are very mild three layer noise reductions and strength 6 is very aggressive five layer noise reduction.</p>";
+
       this.noiseReductionStrengthLabel = new Label( this );
       this.noiseReductionStrengthLabel.text = "Noise reduction";
-      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionToolTipCommon;
+      this.noiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for color channel (R,G,B,H,S,O) or color images.</p>" + noiseReductionStregthToolTip;
       this.noiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.noiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.noise_reduction_strength, noise_reduction_strength_values, this.noiseReductionStrengthLabel.toolTip);
 
       this.luminanceNoiseReductionStrengthLabel = new Label( this );
       this.luminanceNoiseReductionStrengthLabel.text = "Luminance noise reduction";
-      this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionToolTipCommon;
+      this.luminanceNoiseReductionStrengthLabel.toolTip = "<p>Noise reduction strength for luminance image.</p>" + noiseReductionStregthToolTip;
       this.luminanceNoiseReductionStrengthLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       this.luminanceNoiseReductionStrengthComboBox = newComboBoxStrvalsToInt(this, par.luminance_noise_reduction_strength, noise_reduction_strength_values, this.luminanceNoiseReductionStrengthLabel.toolTip);
@@ -7648,49 +7618,148 @@ function AutoIntegrateDialog()
             "<p>This option enables also color/OSC image noise reduction.</p>" );
       this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
-      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction,", par.use_color_noise_reduction, 
-            "<p>Do color noise reduction.</p>" );
+      this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
+            "<p>Do color noise reduction using TGVDenoise.</p>" );
 
-      this.ACDNR_noise_reduction_Control = newNumericEdit(this, "ACDNR noise reduction", par.ACDNR_noise_reduction, 0, 5, 
+      this.ACDNR_noise_reduction_CheckBox = newCheckBox(this, "ACDNR noise reduction,", par.use_ACDNR_noise_reduction, 
+            "<p>Runs ACDNR noise reduction.</p>" );
+      this.ACDNR_noise_reduction_Control = newNumericEdit(this, "StdDev", par.ACDNR_noise_reduction, 0, 5, 
             "<p>If non-zero, sets StdDev value and runs ACDNR noise reduction.</p>" +
             ACDNR_StdDev_tooltip);
 
-      this.noiseReductionGroupBoxLabel = newSectionLabel(this, "Noise reduction settings");
-      this.noiseReductionGroupBoxSizer1 = new HorizontalSizer;
-      // this.noiseReductionGroupBoxSizer1.margin = 6;
-      this.noiseReductionGroupBoxSizer1.spacing = 4;
-      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthLabel );
-      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionStrengthComboBox );
-      this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthLabel );
-      this.noiseReductionGroupBoxSizer1.add( this.luminanceNoiseReductionStrengthComboBox );
-      this.noiseReductionGroupBoxSizer1.addStretch();
-
+      // Generic noise reduction settings
+      //
       this.noiseReductionGroupBoxSizer11 = new HorizontalSizer;
-      // this.noiseReductionGroupBoxSizer11.margin = 2;
       this.noiseReductionGroupBoxSizer11.spacing = 4;
-      this.noiseReductionGroupBoxSizer11.add( this.color_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer11.add( this.ACDNR_noise_reduction_Control );
+      this.noiseReductionGroupBoxSizer11.margin = 2;
+      this.noiseReductionGroupBoxSizer11.add( this.noise_reduction_checkbox_label );
+      this.noiseReductionGroupBoxSizer11.add( this.auto_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer11.add( this.channel_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer11.add( this.integrated_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer11.add( this.processed_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer11.add( this.non_linear_noise_reduction_CheckBox );
       this.noiseReductionGroupBoxSizer11.addStretch();
 
+      this.noiseReductionGroupBoxSizer12 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer12.spacing = 4;
+      this.noiseReductionGroupBoxSizer12.margin = 2;
+      this.noiseReductionGroupBoxSizer12.add( this.color_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer12.add( this.ACDNR_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer12.add( this.ACDNR_noise_reduction_Control );
+      this.noiseReductionGroupBoxSizer12.addStretch();
+
+      this.noiseReductionGroupBoxLabel1 = newSectionLabel(this, "Generic noise reduction settings");
+      this.noiseReductionGroupBoxSizer1 = new VerticalSizer;
+      this.noiseReductionGroupBoxSizer1.margin = 6;
+      this.noiseReductionGroupBoxSizer1.spacing = 4;
+      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionGroupBoxSizer11 );
+      this.noiseReductionGroupBoxSizer1.add( this.noiseReductionGroupBoxSizer12 );
+      this.noiseReductionGroupBoxSizer1.addStretch();
+
+      // MultiscaleLinearTransform noise reduction settings
+      //
+      this.noiseReductionGroupBoxLabel2 = newSectionLabel(this, "MultiscaleLinearTransform noise reduction settings");
       this.noiseReductionGroupBoxSizer2 = new HorizontalSizer;
-      // this.noiseReductionGroupBoxSizer2.margin = 2;
+      this.noiseReductionGroupBoxSizer2.margin = 6;
       this.noiseReductionGroupBoxSizer2.spacing = 4;
-      this.noiseReductionGroupBoxSizer2.add( this.noise_reduction_checkbox_label );
-      this.noiseReductionGroupBoxSizer2.add( this.auto_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer2.add( this.channel_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer2.add( this.integrated_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer2.add( this.processed_noise_reduction_CheckBox );
-      this.noiseReductionGroupBoxSizer2.add( this.non_linear_noise_reduction_CheckBox );
+      this.noiseReductionGroupBoxSizer2.add( this.noiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer2.add( this.noiseReductionStrengthComboBox );
+      this.noiseReductionGroupBoxSizer2.add( this.luminanceNoiseReductionStrengthLabel );
+      this.noiseReductionGroupBoxSizer2.add( this.luminanceNoiseReductionStrengthComboBox );
       this.noiseReductionGroupBoxSizer2.addStretch();
 
-      this.noiseReductionGroupBoxSizer = new VerticalSizer;
-      this.noiseReductionGroupBoxSizer.margin = 6;
-      this.noiseReductionGroupBoxSizer.spacing = 4;
-      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer1 );
-      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer11 );
-      this.noiseReductionGroupBoxSizer.add( this.noiseReductionGroupBoxSizer2 );
-      this.noiseReductionGroupBoxSizer.addStretch();
+      // NoiseXTerminator noise reduction settings
+      //
 
+      this.noisexterminatorDenoiseEdit = newNumericEdit(this, "Denoise", par.nxt_denoise, 0, 1, "<p>Amount of noise reduction.</p><p>Depending on options: Denoise, Denoise intensity, Denoise HF or Denoise HF Intensity.</p>");
+      this.noisexterminatorIterationsEdit = newNumericEditPrecision(this, "Iterations", par.nxt_iterations, 1, 5, "Number of iterations for noise reduction.", 0);
+
+      this.noisexterminatorColorSeparationCheckBox = newCheckBox(this, "Intensity/color separation", par.nxt_enable_color_separation, "<p>Depending on options: Denoise Color or Denoise HF Color</p>");
+      this.noisexterminatorColorSeparationCheckBox.onClick = function(checked) {
+            if (checked && this.dialog.noisexterminatorFreqSeparationCheckBox.checked) {
+                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
+            } else {
+                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = false;
+            }
+      }
+      this.noisexterminatorColorEdit = newNumericEdit(this, "Color", par.nxt_denoise_color, 0, 1, "Amount of high frequency color noise to remove.");
+
+      this.noisexterminatorFreqSeparationCheckBox = newCheckBox(this, "Frequency separation", par.nxt_enable_frequency_separation, "Enable frequency separation.");
+      this.noisexterminatorFreqSeparationCheckBox.onClick = function(checked) {
+            if (checked && this.dialog.noisexterminatorColorSeparationCheckBox.checked) {
+                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = true;
+            } else {
+                  this.dialog.noisexterminatorDenoiseLFColorEdit.enabled = false;
+            }
+      }
+      this.noisexterminatorDenoiseLFEdit = newNumericEdit(this, "LF", par.nxt_denoise_lf, 0, 1, "<p>Depending on options: Denoise LF or Denoise LF Intensity.</p>");
+      this.noisexterminatorScaleEdit = newNumericEdit(this, "HF/LF Scale (pixels)", par.nxt_frequency_scale, 0.5, 100, "Pixel scale for transition between HF and LF noise reduction.");
+
+      this.noisexterminatorDenoiseLFColorEdit = newNumericEdit(this, "LF Color", par.nxt_denoise_lf_color, 0, 1, "<p>Used only if both Intensity/color separation and Frequency separation are selected.</p>");
+      if (this.noisexterminatorColorSeparationCheckBox.checked && this.noisexterminatorFreqSeparationCheckBox.checked) {
+            this.noisexterminatorDenoiseLFColorEdit.enabled = true;
+      } else {
+            this.noisexterminatorDenoiseLFColorEdit.enabled = false;
+      }
+
+      this.noiseReductionGroupBoxSizer31 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer31.margin = 2;
+      this.noiseReductionGroupBoxSizer31.spacing = 4;
+      this.noiseReductionGroupBoxSizer31.add( this.noisexterminatorDenoiseEdit );
+      this.noiseReductionGroupBoxSizer31.add( this.noisexterminatorIterationsEdit );
+      this.noiseReductionGroupBoxSizer31.addStretch();
+
+      this.noiseReductionGroupBoxSizer32 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer32.margin = 2;
+      this.noiseReductionGroupBoxSizer32.spacing = 4;
+      this.noiseReductionGroupBoxSizer32.add( this.noisexterminatorColorSeparationCheckBox );
+      this.noiseReductionGroupBoxSizer32.add( this.noisexterminatorColorEdit );
+      this.noiseReductionGroupBoxSizer32.addStretch();
+
+      this.noiseReductionGroupBoxSizer33 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer33.margin = 2;
+      this.noiseReductionGroupBoxSizer33.spacing = 4;
+      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorFreqSeparationCheckBox );
+      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorDenoiseLFEdit );
+      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorScaleEdit );
+      this.noiseReductionGroupBoxSizer33.add( this.noisexterminatorDenoiseLFColorEdit );
+      this.noiseReductionGroupBoxSizer33.addStretch();
+
+      this.noiseReductionGroupBoxLabel3 = newSectionLabel(this, "NoiseXTerminator settings");
+      this.noiseReductionGroupBoxSizer3 = new VerticalSizer;
+      this.noiseReductionGroupBoxSizer3.margin = 6;
+      this.noiseReductionGroupBoxSizer3.spacing = 4;
+      this.noiseReductionGroupBoxSizer3.add( this.noiseReductionGroupBoxSizer31 );
+      this.noiseReductionGroupBoxSizer3.add( this.noiseReductionGroupBoxSizer32 );
+      this.noiseReductionGroupBoxSizer3.add( this.noiseReductionGroupBoxSizer33 );
+      this.noiseReductionGroupBoxSizer3.addStretch();
+
+      // GraXpert noise reduction settings
+      //
+      this.graxpertDenoiseStrengthEdit = newNumericEdit(this, "Denoise smoothing", par.graxpert_denoise_strength, 0, 1, "Strength for GraXpert denoise.");
+      this.graxpertBatchSizeLabel = newLabel(this, "Batch size", "Batch size for GraXpert denoise.", true);
+      this.graxpertDenoiseBatchSizeComboBox = newComboBox(this, par.graxpert_denoise_batch_size, graxpert_batch_size_values, this.graxpertBatchSizeLabel.toolTip);
+      this.graxpertDenoiseSizer = newHorizontalSizer(2, true, [this.graxpertDenoiseStrengthEdit, this.graxpertBatchSizeLabel, this.graxpertDenoiseBatchSizeComboBox]);
+
+      this.noiseReductionGroupBoxLabel4 = newSectionLabel(this, "GraXpert denoise settings");
+      this.noiseReductionGroupBoxSizer4 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer4.margin = 6;
+      this.noiseReductionGroupBoxSizer4.spacing = 4;
+      this.noiseReductionGroupBoxSizer4.add( this.graxpertDenoiseSizer );
+      this.noiseReductionGroupBoxSizer4.addStretch();
+
+      // DeepSNR noise reduction settings
+      //
+      this.noiseReductionGroupBoxLabel5 = newSectionLabel(this, "DeepSNR denoise settings");
+      this.deepSNRAmountEdit = newNumericEdit(this, "Amount", par.deepsnr_amount, 0, 1, "Amount of noise reduction.");
+      this.noiseReductionGroupBoxSizer5 = new HorizontalSizer;
+      this.noiseReductionGroupBoxSizer5.margin = 6;
+      this.noiseReductionGroupBoxSizer5.spacing = 4;
+      this.noiseReductionGroupBoxSizer5.add( this.deepSNRAmountEdit );
+      this.noiseReductionGroupBoxSizer5.addStretch();
+
+      // BlurXTerminator settings
+      //
       this.blurxterminatorGroupBoxLabel = newSectionLabel(this, "BlurXTerminator settings");
       this.blurxterminatorGroupBoxLabel.toolTip = "Settings for BlurXTerminator. To use BlurXTerminator you need to check <i>Use BlurXTerminator</i> in <i>Settings / Tools</i> section.";
 
@@ -7742,6 +7811,8 @@ function AutoIntegrateDialog()
       this.blurxterminatorGroupBoxSizer.add( this.blurxterminatorGroupBoxSizer3 );
       this.blurxterminatorGroupBoxSizer.addStretch();
 
+      // StarXTerminator settings
+      //
       function AImodelSizer(parent, name, param, toolTip) {
             var AImodelLabel = newLabel(parent, name, "<p>Select AI model for " + name + "</p>" + toolTip);
             var AImodelEdit = newTextEdit(parent, param, AImodelLabel.toolTip);
@@ -7772,8 +7843,11 @@ function AutoIntegrateDialog()
       } catch (e) {
       }
 
-      this.StarXTerminatorAImodeSizer = AImodelSizer(this, "StarXTerminator", par.starxterminator_ai_model, 
-                                                "<p>Select other than default AI model. Default AI model is " + starxterminator_default_ai_model + "</p>" +
+      if (starxterminator_default_ai_model != "unknown" && par.starxterminator_ai_model.val == "") {
+            par.starxterminator_ai_model.val = starxterminator_default_ai_model;
+      }
+      this.StarXTerminatorAImodeSizer = AImodelSizer(this, "AI model", par.starxterminator_ai_model, 
+                                                "<p>Use the selected model AI model. Default AI model is " + starxterminator_default_ai_model + "</p>" +
                                                 "<p>AI models are stored in PixInsight installation directory and have .pb extension. " + 
                                                 "At least in Windows they are in PixInsight/library directory.</p>");
       this.StarXTerminatorLargeOverlapCheckBox = newCheckBox(this, "Large overlap", par.starxterminator_large_overlap, 
@@ -7787,13 +7861,19 @@ function AutoIntegrateDialog()
       this.StarXTerminatorSizer.addStretch();
 
       this.StarXTerminatorGroupBoxLabel = newSectionLabel(this, "StarXTerminator settings");
-      this.StarXTerminatorGroupBoxSizer = new VerticalSizer;
-      this.StarXTerminatorGroupBoxSizer.margin = 6;
-      this.StarXTerminatorGroupBoxSizer.spacing = 4;
-      this.StarXTerminatorGroupBoxSizer.add( this.StarXTerminatorGroupBoxLabel );
-      this.StarXTerminatorGroupBoxSizer.add( this.StarXTerminatorSizer );
-      this.StarXTerminatorGroupBoxSizer.addStretch();
 
+      // NoiseXterminator info
+      //
+      this.NoiseXTerminatorInfoGroupBoxLabel = newSectionLabel(this, "NoiseXTerminator");
+      this.NoiseXTerminatorInfoTxt = newLabel(this, "NoiseXTerminator settings are in the noise reduction section.", ".", true);
+      this.NoiseXTerminatorInfoSizer = new VerticalSizer;
+      this.NoiseXTerminatorInfoSizer.margin = 6;
+      this.NoiseXTerminatorInfoSizer.spacing = 4;
+      this.NoiseXTerminatorInfoSizer.add( this.NoiseXTerminatorInfoTxt );
+      this.NoiseXTerminatorInfoSizer.addStretch();
+
+      // Binning settings
+      //
       this.binningLabel = new Label( this );
       this.binningLabel.text = "Binning";
       this.binningLabel.toolTip = 
@@ -7804,6 +7884,7 @@ function AutoIntegrateDialog()
       this.binningLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
       // Binning
+      //
       this.binningComboBox = newComboBoxIndex(this, par.binning, binning_values, this.binningLabel.toolTip);
       this.binningSpinBoxLabel = newLabel(this, "Resample factor", 
                                           "<p>Resample factor for binning.</p>" +
@@ -8341,18 +8422,23 @@ function AutoIntegrateDialog()
             this.dialog.graxpertPathEdit.text = ofd.fileName;
             par.graxpert_path.val = ofd.fileName;
       };
-      this.graxpertPathSizer = newHorizontalSizer(2, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
 
+      // Path
+      //
+      this.graxpertPathSizer = newHorizontalSizer(6, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
+
+      // Gradient correction
+      //
       this.graxpertCorrectionLabel = newLabel(this, "Gradient correction", "Correction method for GraXpert.", true);
       this.graxpertCorrectionComboBox = newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
       this.graxpertSmoothingEdit = newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert gradient correction.");
-      this.graxpertGradientCorrectionSizer = newHorizontalSizer(2, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox, this.graxpertSmoothingEdit]);
+      this.graxpertGradientCorrectionSizer1 = newHorizontalSizer(2, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox, this.graxpertSmoothingEdit]);
 
-      this.graxpertDenoiseStrengthEdit = newNumericEdit(this, "Denoise smoothing", par.graxpert_denoise_strength, 0, 1, "Strength for GraXpert denoise.");
-      this.graxpertBatchSizeLabel = newLabel(this, "Batch size", "Batch size for GraXpert denoise.", true);
-      this.graxpertDenoiseBatchSizeComboBox = newComboBox(this, par.graxpert_denoise_batch_size, graxpert_batch_size_values, this.graxpertBatchSizeLabel.toolTip);
-      this.graxpertDenoiseSizer = newHorizontalSizer(2, true, [this.graxpertDenoiseStrengthEdit, this.graxpertBatchSizeLabel, this.graxpertDenoiseBatchSizeComboBox]);
+      this.graxpertGradientCorrectionLabel = newSectionLabel(this, "Gradient correction settings");
+      this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionSizer1]);
 
+      // Deconvolution
+      //
       this.graxpertDenconvolutionStellarStrengthEdit = newNumericEdit(this, "Deconvolution stars strength", par.graxpert_deconvolution_stellar_strength, 0, 1, "Strength for GraXpert stars deconvolution.");
       this.graxpertDenconvolutionStellarPsfEdit = newNumericEdit(this, "Stars FWHM", par.graxpert_deconvolution_stellar_psf, 0, 14, "FWHM in pixels for GraXpert stars deconvolution.");
       this.graxpertDenconvolutionStellarSizer = newHorizontalSizer(2, true, [this.graxpertDenconvolutionStellarStrengthEdit, this.graxpertDenconvolutionStellarPsfEdit]);
@@ -8365,13 +8451,28 @@ function AutoIntegrateDialog()
             "<p>Use median FWHM from subframe selector as FWHM value.</p>" + 
             "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>");
 
+      this.graxpertDenconvolutionLabel = newSectionLabel(this, "Deconvolution settings");
       this.graxpertDenconvolutionSizer = newVerticalSizer(2, true, [this.graxpertDenconvolutionStellarSizer, this.graxpertDenconvolutionNonStellarSizer, this.graxpertDenconvolutionMedianPSF]);
-      
-      // this.graxpertGroupBoxLabel = newSectionLabel(this, "GraXpert settings");
-      this.graxpertGroupBoxSizer1 = newVerticalSizer(6, true, [this.graxpertGradientCorrectionSizer, this.graxpertDenoiseSizer]);
-      this.graxpertGroupBoxSizer2 = newHorizontalSizer(6, true, [this.graxpertGroupBoxSizer1, this.graxpertDenconvolutionSizer]);
-      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [this.graxpertPathSizer, this.graxpertGroupBoxSizer2]);
 
+      // Noise reduction
+      //
+      this.graxpertInfoDenoiseLabel = newSectionLabel(this, "Denoise settings");
+      this.graxpertInfoDenoiseText = newLabel(this, "GraXpert denoise settings are in the noise reduction section.", "", true);
+      this.graxpertInfoDenoiseSizer = newVerticalSizer(6, true, [this.graxpertInfoDenoiseText]);
+
+      // Graxpert all settings
+      //
+      this.graxpertGroupBoxSizer = newVerticalSizer(6, true, [
+            this.graxpertPathSizer, 
+            this.graxpertGradientCorrectionLabel, 
+            this.graxpertGradientCorrectionSizer, 
+            this.graxpertDenconvolutionLabel, 
+            this.graxpertDenconvolutionSizer, 
+            this.graxpertInfoDenoiseLabel, 
+            this.graxpertInfoDenoiseSizer ]);
+
+      // Cropping settings
+      //
       this.CropToleranceLabel = newLabel(this, "Tolerance", "Number of consecutive bad pixels allowed before detecting crop edge.");
       this.CropToleranceSpinBox = newSpinBox(this, par.crop_tolerance, 0, 100, this.CropToleranceLabel.toolTip);
       this.cropUseRejectionLowCheckBox = newCheckBox(this, "Use rejection low", par.crop_use_rejection_low, "Use rejection_low from ImageIntegration instead of integrated data to calculate crop amount.");
@@ -10156,12 +10257,23 @@ function AutoIntegrateDialog()
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,
               this.saturationGroupBoxSizer,
-              this.noiseReductionGroupBoxLabel,
-              this.noiseReductionGroupBoxSizer ]);
+              this.noiseReductionGroupBoxLabel1,
+              this.noiseReductionGroupBoxSizer1,
+              this.noiseReductionGroupBoxLabel2,
+              this.noiseReductionGroupBoxSizer2,
+              this.noiseReductionGroupBoxLabel3,
+              this.noiseReductionGroupBoxSizer3,
+              this.noiseReductionGroupBoxLabel4,
+              this.noiseReductionGroupBoxSizer4,
+              this.noiseReductionGroupBoxLabel5,
+              this.noiseReductionGroupBoxSizer5 ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "StarXTerminator, BlurXTerminator settings", "ps_rcastro",
-            [ this.StarXTerminatorGroupBoxSizer,
+            [ this.StarXTerminatorGroupBoxLabel,
+              this.StarXTerminatorSizer,
               this.blurxterminatorGroupBoxLabel,
-              this.blurxterminatorGroupBoxSizer ]);
+              this.blurxterminatorGroupBoxSizer,
+              this.NoiseXTerminatorInfoGroupBoxLabel,
+              this.NoiseXTerminatorInfoSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "GraXpert settings", "ps_graxpert",
             [ this.graxpertGroupBoxSizer  ]);
             

@@ -184,6 +184,17 @@ this.par = {
       bxt_median_psf: { val: false, def: false, name : "BlurXTerminator median PSF", type : 'B' },
       bxt_correct_only_before_cc: { val: false, def: false, name : "BlurXTerminator correct only before CC", type : 'B' },
       bxt_correct_channels: { val: false, def: false, name : "BlurXTerminator correct only channels", type : 'B' },
+      nxt_denoise: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise", type : 'R' },
+      nxt_iterations: { val: 2, def: 2, name : "NoiseXTerminator iterations", type : 'I' },
+      nxt_enable_color_separation: { val: false, def: false, name : "NoiseXTerminator enable color separation", type : 'B' },
+      nxt_denoise_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise color", type : 'R' },
+      nxt_enable_frequency_separation: { val: false, def: false, name : "NoiseXTerminator enable frequency separation", type : 'B' },
+      nxt_denoise_lf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF", type : 'R' },
+      nxt_frequency_scale: { val: 5, def: 5, name : "NoiseXTerminator frequency scale", type : 'R' },
+      nxt_denoise_lf_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF color", type : 'R' },
+      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R' },   // Old
+
+      deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
       
       use_noisexterminator: { val: false, def: false, name : "Use NoiseXTerminator", type : 'B' },
       use_starnet2: { val: false, def: false, name : "Use StarNet2", type : 'B' },
@@ -260,6 +271,7 @@ this.par = {
       integrated_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on integrated image", type : 'B' },
       processed_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on processed image", type : 'B', oldname : "Do noise reduction on combined image" },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
+      use_ACDNR_noise_reduction: { val: true, def: true, name : "Use ACDNR noise reduction", type : 'B' },
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
       ssweight_limit: { val: 0.0000000001, def: 0.0000000001, name : "SSWEIGHT limit", type : 'R' },
@@ -491,7 +503,6 @@ this.par = {
       extra_gamma_value: { val: 1, def: 1, name : "Extra gamma value", type : 'R' },
             
       extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
-      extra_noise_reduction_strength: { val: 3, def: 3, name : "Extra noise reduction strength", type : 'I' },
       extra_ACDNR: { val: false, def: false, name : "Extra ACDNR noise reduction", type : 'B' },
       extra_color_noise: { val: false, def: false, name : "Extra color noise reduction", type : 'B' },
       extra_star_noise_reduction: { val: false, def: false, name : "Extra star noise reduction", type : 'B' },

@@ -9123,7 +9123,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
 
 function runACDNRReduceNoise(imgWin, maskWin)
 {
-      if (par.ACDNR_noise_reduction.val == 0.0) {
+      if (!par.use_ACDNR_noise_reduction.val || par.ACDNR_noise_reduction.val == 0.0) {
             return;
       }
       util.addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
@@ -9388,48 +9388,39 @@ function runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
       engine_end_process(node, imgWin, "BlurXTerminator");
 }
 
-function runNoiseXTerminator(imgWin, strength, linear)
+function runNoiseXTerminator(imgWin, linear)
 {
       var node = flowchartOperation("NoiseXTerminator");
       if (global.get_flowchart_data) {
             return;
       }
-      switch (strength) {
-            case 1:
-                  var denoise = 0.60;
-                  var detail = 0.10;
-                  break;
-            case 2:
-                  var denoise = 0.70;
-                  var detail = 0.15;
-                  break;
-            case 3:
-                  var denoise = 0.80;
-                  var detail = 0.15;
-                  break;
-            case 4:
-                  var denoise = 0.90;
-                  var detail = 0.15;
-                  break;
-            case 5:
-                  var denoise = 0.90;
-                  var detail = 0.20;
-                  break;
-            case 6:
-                  var denoise = 0.95;
-                  var detail = 0.20;
-                  break;
-            default:
-                  util.throwFatalError("Bad noise reduction value " + strength);
-      }
-
-      console.writeln("Run NoiseXTerminator using denoise " + denoise + " and detail " + detail);
+      console.writeln("Run NoiseXTerminator using denoise " + par.nxt_denoise.val + " and iterations " + par.nxt_iterations.val);
 
       try {
             var P = new NoiseXTerminator;
-            P.denoise = denoise;
-            P.detail = detail;
-            P.linear = linear;
+            P.denoise = par.nxt_denoise.val;                      // Both: Denoise HF Intensity, Freq: Denoise HF, Color: Denoise Intensity, Default: Denoise     par.nxt_denoise.val
+            P.denoise_color = par.nxt_denoise_color.val;          // Both: Denoise HF color                        Color: Denoise Color                           par.nxt_denoise_color.val
+            P.denoise_lf = par.nxt_denoise_lf.val;                // Both: Denoise LF Intensity  Freq: Denoise LF                                                 par.nxt_denoise_lf.val
+            P.denoise_lf_color = par.nxt_denoise_lf_color.val;    // Both: Denoise LF color                                                                       par.nxt_denoise_lf_color.val
+            P.frequency_scale = par.nxt_frequency_scale.val;      // Use only when both selected
+            P.iterations = par.nxt_iterations.val;
+
+            P.detail = par.nxt_detail.val;            // Not needed, but keep for old versions
+            P.linear = linear;                        // Not needed, but keep for old versions
+            /*
+            All new settings:
+            var P = new NoiseXTerminator;
+            P.ai_file = "NoiseXTerminator.3.pb";
+            P.enable_color_separation = false;
+            P.enable_frequency_separation = false;
+            P.denoise = 0.90;             // Both: Denoise HF Intensity, Freq: Denoise HF, Color: Denoise Intensity, Default: Denoise     par.nxt_denoise.val
+            P.denoise_color = 0.90;       // Both: Denoise HF color                        Color: Denoise Color                           par.nxt_denoise_color.val
+            P.denoise_lf = 0.9;           // Both: Denoise LF Intensity  Freq: Denoise LF                                                 par.nxt_denoise_lf.val
+            P.denoise_lf_color = 0.9;     // Both: Denoise LF color                                                                       par.nxt_denoise_lf_color.val
+            P.frequency_scale = 5.0;
+            P.iterations = 2;
+            P.detail = 0.15;
+            */
       } catch(err) {
             save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
             console.criticalln("NoiseXTerminator failed");
@@ -9437,8 +9428,6 @@ function runNoiseXTerminator(imgWin, strength, linear)
             console.criticalln("Maybe NoiseXTerminator is not installed, AI is missing or platform is not supported");
             util.throwFatalError("NoiseXTerminator failed");
       }
-
-      console.writeln("runNoiseXTerminator on " + imgWin.mainView.id + " using denoise " + denoise + ", detail " + detail + ", linear " + linear);
 
       /* Execute on image.
        */
@@ -9452,41 +9441,19 @@ function runNoiseXTerminator(imgWin, strength, linear)
       engine_end_process(node, imgWin, "NoiseXTerminator");
 }
 
-function runDeepSNR(imgWin, strength, linear)
+function runDeepSNR(imgWin, linear)
 {
       var node = flowchartOperation("DeepSNR");
       if (global.get_flowchart_data) {
             return;
       }
-      switch (strength) {
-            case 1:
-                  var amount = 1.00;
-                  break;
-            case 2:
-                  var amount = 0.90;
-                  break;
-            case 3:
-                  var amount = 0.80;
-                  break;
-            case 4:
-                  var amount = 0.70;
-                  break;
-            case 5:
-                  var amount = 0.60;
-                  break;
-            case 6:
-                  var amount = 0.50;
-                  break;
-            default:
-                  util.throwFatalError("Bad noise reduction value " + strength);
-      }
 
-      console.writeln("Run DeepSNR using amount " + amount);
+      console.writeln("Run DeepSNR using amount " + par.deepsnr_amount.val);
 
       try {
             var P = new DeepSNR;
             P.linear = linear;
-            P.amount = amount;
+            P.amount = par.deepsnr_amount.val;
             P.shadows_clipping = -2.80;
             P.target_background = 0.25;
       } catch(err) {
@@ -9513,11 +9480,8 @@ function runDeepSNR(imgWin, strength, linear)
 
 function runNoiseReductionEx(imgWin, maskWin, strength, linear)
 {
-      if (maskWin != null) {
-            console.writeln("runNoiseReductionEx on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id + ", strength " + strength + ", linear " + linear);
-      } else {
-            console.writeln("runNoiseReductionEx on " + imgWin.mainView.id + ", strength " + strength + ", linear " + linear);
-      }
+      console.writeln("runNoiseReductionEx on " + imgWin.mainView.id + ", linear " + linear);
+
       if (global.get_flowchart_data) {
             if (par.use_noisexterminator.val) {
                   var node = flowchartOperation("NoiseXTerminator");
@@ -9530,15 +9494,12 @@ function runNoiseReductionEx(imgWin, maskWin, strength, linear)
             }
             return;
       }
-      if (strength == 0) {
-            return;
-      }
       if (par.use_noisexterminator.val) {
-            runNoiseXTerminator(imgWin, strength, linear);
+            runNoiseXTerminator(imgWin, linear);
       } else if (par.use_graxpert_denoise.val) {
             runGraXpertExternal(imgWin, GraXpertCmd.denoise);
       } else if (par.use_deepsnr.val) {
-            runDeepSNR(imgWin, strength, true);
+            runDeepSNR(imgWin, true);
       } else {
             runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength);
       }
@@ -14662,15 +14623,12 @@ function extraAutoContrast(win, contrast_limit_low, contrast_limit_high, channel
 
 function extraNoiseReduction(win, mask_win)
 {
-      if (par.extra_noise_reduction_strength.val == 0) {
-            return;
-      }
       addExtraProcessingStep("Noise reduction");
 
       runNoiseReductionEx(
             win, 
             mask_win, 
-            par.extra_noise_reduction_strength.val,
+            par.noise_reduction_strength.val,
             false);
 
       // guiUpdatePreviewWin(win);
@@ -14679,8 +14637,8 @@ function extraNoiseReduction(win, mask_win)
 function extraACDNR(extraWin, mask_win)
 {
       addExtraProcessingStep("ACDNR noise reduction");
-      if (par.ACDNR_noise_reduction.val == 0.0) {
-            util.addProcessingStep("Extra ACDNR noise reduction not done, StdDev value is zero");
+      if (!par.use_ACDNR_noise_reduction.val || par.ACDNR_noise_reduction.val == 0.0) {
+            util.addProcessingStep("Extra ACDNR noise reduction not enabled");
             return;
       }
 
@@ -18219,20 +18177,6 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new CosmeticCorrection", new CosmeticCorrection);
       printProcessDefaultValues("new SubframeSelector", new SubframeSelector);
       printProcessDefaultValues("new PixelMath", new PixelMath);
-      if (par.use_starxterminator.val) {
-            try {
-                  printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
-            } catch (e) {
-                  console.criticalln("StarXTerminator not available");
-            }
-      }
-      if (par.use_noisexterminator.val) {
-            try {
-                  printProcessDefaultValues("new NoiseXTerminator", new NoiseXTerminator);
-            } catch (e) {
-                  console.criticalln("StarXTerminator not available");
-            }
-      }
       if (par.use_starnet2.val) {
             try {
                   printProcessDefaultValues("new StarNet2", new StarNet2);
