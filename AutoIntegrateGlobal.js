@@ -43,12 +43,14 @@ this.__base__();
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.74 test6";         // Version, also updated into updates.xri
-this.autointegrate_info = "Sharpening, linear fit";               // For updates.xri
+this.autointegrate_info = "Sharpening, stretching, tools";        // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Added high pass sharpening",
-      "- Updates to linear fit",
+      "- Updates for new version of NoiseXTerminator",
+      "- Support for GraXpert deconvolution",
+      "- Updates to stretching",
+      "- Added extra option for high pass sharpening",
       "- Extra option to fix star cores",
       "- Updates to view id / file name handling"
 ];
