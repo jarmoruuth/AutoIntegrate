@@ -838,10 +838,10 @@ function guiUpdatePreviewId(id)
       }
 }
 
-function guiUpdatePreviewFilename(filename, stf)
+function guiUpdatePreviewFilename(filename, run_autostf = false)
 {
       if (gui) {
-            gui.updatePreviewFilename(filename, stf);
+            gui.updatePreviewFilename(filename, run_autostf);
       }
 }
 
@@ -18059,6 +18059,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
              var full_run = false;
        }
        var end_time = Date.now();
+       console.noteln("======================================");
        util.addProcessingStepAndStatusInfo("Script completed, time "+(end_time-script_start_time)/1000+" sec");
        console.noteln("======================================");
 

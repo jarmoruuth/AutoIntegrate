@@ -793,9 +793,9 @@ function flowchartGraph(rootnode)
       global.flowchart_image = flowchartImage;
 
       if (ppar.preview.side_preview_visible) {
-            sidePreviewControl.SetImage(flowchartImage, txt);
+            updatePreviewImage(sidePreviewControl, flowchartImage, txt, sideHistogramControl, current_histogramInfo, true);
       } else {
-            tabPreviewControl.SetImage(flowchartImage, txt);
+            updatePreviewImage(tabPreviewControl, flowchartImage, txt, tabHistogramControl, current_histogramInfo, true);
       }
 
       if (flowchart_garbagecollection_ctr++ > 5) {
@@ -3543,15 +3543,18 @@ function flatdarksOptions(parent)
       return sizer;
 }
 
-function updatePreviewImage(updPreviewControl, imgWin, txt, histogramControl, histogramInfo)
+function updatePreviewImage(updPreviewControl, image, txt, histogramControl, histogramInfo, force_setimage = false)
 {
       if (updPreviewControl == null) {
             return;
       }
-      if ((is_some_preview && global.is_processing == global.processing_state.none) || preview_keep_zoom) {
-            updPreviewControl.UpdateImage(imgWin.mainView.image, txt);
+      if (!force_setimage 
+          && ((is_some_preview && global.is_processing == global.processing_state.none) 
+              || preview_keep_zoom))
+      {
+            updPreviewControl.UpdateImage(image, txt);
       } else {
-            updPreviewControl.SetImage(imgWin.mainView.image, txt);
+            updPreviewControl.SetImage(image, txt);
       }
       if (histogramControl != null && histogramInfo != null) {
             histogramControl.aiInfo = histogramInfo;
@@ -3637,8 +3640,10 @@ function imageIsLinear(window)
 
       // Make a very basic determination of linearity
       if (median < 0.1 && stdDev < 0.05) {
+            console.writeln("Image is linear, median: ", median, " stdDev: ", stdDev);
             return true;
       } else {
+            console.writeln("Image is not linear, median: ", median, " stdDev: ", stdDev);
             return false;
       }
 }
@@ -3660,9 +3665,8 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 
       var bucket_size = histogramMatrix.cols / width;
 
-      if (!log_x_scale) {
-            log_x_scale = imageIsLinear(imgWin);
-      }
+      // Always autodetect linear vs non-linear images
+      log_x_scale = imageIsLinear(imgWin);
 
       if (log_x_scale) {
             var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
@@ -3691,7 +3695,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
                               i = width - 1;
                         }
                   } else {
-                        var i = Math.floor(col / width);
+                        i = Math.floor(col / bucket_size);
                   }
                   values[channel][i] += histogramMatrix.at(channel, col);
                   if (values[channel][i] > maxvalue) {
@@ -3751,7 +3755,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       return { histogramBitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues, log_x_scale: log_x_scale };
 }
 
-function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
+function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             console.writeln("Preview image:" + imgWin.mainView.id + " " + txt);
@@ -3764,10 +3768,10 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
                   }
                   preview_size_changed = false;
             }
-            autostf = autostf 
-                      || (global.is_processing == global.processing_state.processing
-                          && par.preview_autostf.val 
-                          && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear"));
+            run_autostf = run_autostf 
+                          || (global.is_processing == global.processing_state.processing
+                              && par.preview_autostf.val 
+                              && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear"));
  
             if (histogramInfo) {
                   console.writeln("updatePreviewWinTxt:use existing histogramInfo");
@@ -3776,7 +3780,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
                   if (tabHistogramControl != null && sideHistogramControl != null) {
                         console.writeln("updatePreviewWinTxt:get new histogramInfo");
                         forceNewHistogram(imgWin);
-                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible, autostf);
+                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible, run_autostf);
                   } else {
                         console.writeln("updatePreviewWinTxt:no histogram");
                         histogramInfo = null;
@@ -3784,7 +3788,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
                   current_histogramInfo = histogramInfo;
             }
             preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
-            if (autostf) {
+            if (run_autostf) {
                   // Image is linear, run AutoSTF
                   util.closeOneWindowById("AutoIntegrate_preview_tmp");
                   var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
@@ -3805,9 +3809,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, autostf = false)
             }
             if (!par.show_flowchart.val || global.is_processing != global.processing_state.processing) {
                   if (ppar.preview.side_preview_visible) {
-                        updatePreviewImage(sidePreviewControl, imgWin, txt, sideHistogramControl, histogramInfo);
+                        updatePreviewImage(sidePreviewControl, imgWin.mainView.image, txt, sideHistogramControl, histogramInfo);
                   } else {
-                        updatePreviewImage(tabPreviewControl, imgWin, txt, tabHistogramControl, histogramInfo);
+                        updatePreviewImage(tabPreviewControl, imgWin.mainView.image, txt, tabHistogramControl, histogramInfo);
                   }
             }
             if (copy_win != null) {
@@ -3825,7 +3829,7 @@ function updatePreviewWin(imgWin)
       updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
-function updatePreviewFilenameAndInfo(filename, autostf, update_info)
+function updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
 {
       console.writeln("updatePreviewFilenameAndInfo ", filename);
 
@@ -3841,7 +3845,7 @@ function updatePreviewFilenameAndInfo(filename, autostf, update_info)
             return;
       }
 
-      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename), null, autostf);
+      updatePreviewWinTxt(imageWindow, File.extractName(filename) + File.extractExtension(filename), null, run_autostf);
       if (update_info) {
             util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
       }
@@ -3849,9 +3853,9 @@ function updatePreviewFilenameAndInfo(filename, autostf, update_info)
       imageWindow.forceClose();
 }
 
-function updatePreviewFilename(filename, stf)
+function updatePreviewFilename(filename, run_autostf = false)
 {
-      updatePreviewFilenameAndInfo(filename, stf, false);
+      updatePreviewFilenameAndInfo(filename, run_autostf, false);
 }
 
 function updatePreviewId(id)
@@ -6436,7 +6440,7 @@ function newHistogramControl(parent, side_preview)
                   this.aiLabelLog.text = "Log";
                   this.aiLabelLog.toolTip = "<p>Logarithmic scale on X axis.</p>";
             } else {
-                  this.aiLabelLog.text = "";
+                  this.aiLabelLog.text = "Normal";
                   this.aiLabelLog.toolTip = "<p>Normal scale on X axis.</p>";
             }
       };
