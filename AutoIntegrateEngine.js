@@ -5112,8 +5112,8 @@ function checkNoiseReduction(image, phase)
                                                 (par.auto_noise_reduction.val && 
                                                       (!par.use_blurxterminator.val && !par.use_graxpert_deconvolution.val));
                               break;
-                        case 'integrated':
-                              noise_reduction = par.integrated_image_noise_reduction.val;
+                        case 'combined':
+                              noise_reduction = par.combined_image_noise_reduction.val;
                               break;
                         case 'processed':
                               noise_reduction = par.processed_image_noise_reduction.val ||
@@ -5151,8 +5151,8 @@ function checkNoiseReduction(image, phase)
                                     }
                               }
                               break;
-                        case 'integrated':
-                              noise_reduction = par.integrated_image_noise_reduction.val;
+                        case 'combined':
+                              noise_reduction = par.combined_image_noise_reduction.val;
                               break;
                         case 'processed':
                               if (par.processed_image_noise_reduction.val) {
@@ -5186,8 +5186,8 @@ function checkNoiseReduction(image, phase)
                         return false;
                   }
                   switch (phase) {
-                        case 'integrated':
-                              noise_reduction = par.integrated_image_noise_reduction.val;
+                        case 'combined':
+                              noise_reduction = par.combined_image_noise_reduction.val;
                               break;
                         case 'processed':
                               noise_reduction = par.processed_image_noise_reduction.val || par.auto_noise_reduction.val;
@@ -12235,7 +12235,7 @@ function ProcessLimage(RGBmapping)
             */
             L_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(L_processed_id, ["_processed"], "_HT"));
             if (!RGBmapping.stretched) {
-                  if (checkNoiseReduction('L', 'integrated')) {
+                  if (checkNoiseReduction('L', 'combined')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
                   if (!par.skip_sharpening.val) {
@@ -13591,11 +13591,11 @@ function ProcessRGBimage(RGBmapping)
                   gc_done = false;
             } else {
                   if (preprocessed_images == global.start_images.RGB) {
-                        // start from integrated RGB image
+                        // start from combined RGB image
                         util.addProcessingStep("Start from image " + RGB_color_id);
                         RGB_win = util.copyWindow(util.findWindow(RGB_color_id), ppar.win_prefix + "Integration_RGB_map");
                   }
-                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'integrated')) {
+                  if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'combined')) {
                         runNoiseReduction(RGB_win, mask_win, !RGBmapping.stretched);
                   }
                   if (par.bxt_correct_only_before_cc.val && par.use_blurxterminator.val) {

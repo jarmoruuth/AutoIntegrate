@@ -195,6 +195,9 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
  
        this.UpdateZoom = function (newZoom, refPoint)
        {
+            if (!this.bitmap && !this.image) {
+                  return;
+            }
             if (newZoom < this.zoomOutLimit) {
                    newZoom = this.zoomOutLimit;
              } else if (newZoom >= 1) {
@@ -430,6 +433,10 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
        this.scrollbox.viewport.onMouseMove = function ( x, y, buttonState, modifiers )
        {
              var preview = this.parent.parent;
+
+             if (!preview.image) {
+                  return;
+             }
              var p =  preview.transform(x, y, preview);
 
             var val = Math.floor(p.x);
@@ -525,6 +532,9 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
        this.transform = function(x, y, preview)
        {
             // if (par.debug.val) console.writeln(this.name + ":transform");
+            if (!preview.scaledBitmap) {
+                  return new Point(x, y);
+            }
             var scrollbox = preview.scrollbox;
              var ox = 0;
              var oy = 0;

@@ -270,7 +270,7 @@ this.par = {
       non_linear_noise_reduction: { val: false, def: false, name : "Non-linear noise reduction", type : 'B' },
       noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength", type : 'I' },
       luminance_noise_reduction_strength: { val: 3, def: 3, name : "Noise reduction strength on luminance image", type : 'I' },
-      integrated_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on integrated image", type : 'B' },
+      combined_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on integrated image", type : 'B' },
       processed_image_noise_reduction: { val: false, def: false, name : "Do noise reduction on processed image", type : 'B', oldname : "Do noise reduction on combined image" },
       use_color_noise_reduction: { val: false, def: false, name : "Color noise reduction", type : 'B' },
       use_ACDNR_noise_reduction: { val: true, def: true, name : "Use ACDNR noise reduction", type : 'B' },

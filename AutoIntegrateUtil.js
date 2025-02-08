@@ -2306,15 +2306,18 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
       var sz = util.getScreenSize(dialog);
       var screen_width = sz[0];
       var screen_height = sz[1];
+      if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, screen size " + screen_width + "x" + screen_height + ", preview size " + preview_width + "x" + preview_height);
 
       if (maxsize) {
             var limit = 50;
-            var target_width = screen_width;
-            var target_height = screen_height;
+            var target_width = Math.floor(screen_width * 0.95);
+            var target_height = Math.floor(screen_height * 0.9);
+            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, maxsize, target size " + target_width + "x" + target_height);
       } else {
             var limit = 100;
             var target_width = Math.floor(screen_width * 0.7);
             var target_height = Math.floor(screen_height * 0.7);
+            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, target size " + target_width + "x" + target_height);
       }
       var step = limit / 2;
 
@@ -2323,6 +2326,7 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
 
       if (!maxsize && dialog_width < target_width - limit && dialog_height < target_height - limit) {
             // Dialog already fits on screen
+            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, Dialog already fits on screen");
             return { width: preview_width, height: preview_height, changes: changes };
       }
 
@@ -2364,7 +2368,7 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                   {
                         // We are close enough
                         if (par.debug.val) {
-                              console.writeln("DEBUG:adjustDialogToScreen, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
+                              console.writeln("DEBUG:adjustDialogToScreen, maxsize, stop, close enough, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height + ", i " + i );
                         }
                         break;
                   }
@@ -2388,15 +2392,19 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
       
             if (maxsize && dialog_width < target_width + limit) {
                   preview_width = preview_width + step;
+                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview width to " + preview_width);
             }
             if (maxsize && dialog_height < target_height + limit) {
                   preview_height = preview_height + step;
+                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview height to " + preview_height);
             }
             if (dialog_width > target_width - limit) {
                   preview_width = preview_width - step;
+                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview width to " + preview_width);
             }
             if (dialog_height > target_height - limit) {
                   preview_height = preview_height - step;
+                  if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview height to " + preview_height);
             }
       }
       if (original_preview_width != preview_width || original_preview_height != preview_height) {
@@ -2408,6 +2416,8 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
             } else {
                   console.writeln("Adjust Dialog to screen, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
             }
+      } else {
+            if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, no changes, screen size " + screen_width + "x" + screen_height + ", dialog size " + dialog_width + "x" + dialog_height + ", preview size " + preview_width + "x" + preview_height);
       }
 
       return { width: preview_width, height: preview_height, changes: changes };

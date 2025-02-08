@@ -5233,9 +5233,11 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
 
 function switchtoPreviewTab()
 {
+      var currentPageIndex = mainTabBox.currentPageIndex;
       if (global.use_preview && !ppar.preview.side_preview_visible && mainTabBox != null) {
             mainTabBox.currentPageIndex = tab_preview_index;
       }
+      return currentPageIndex;
 }
 
 function filesTreeBox(parent, optionsSizer, pageIndex)
@@ -5822,18 +5824,23 @@ function newMaximizeDialogButton(parent)
                   return;
             }
             if (dialog_mode == 2) {   // restore
+                  if (par.debug.val) console.writeln("DEBUG:Maximize dialog: restore");
                   maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
                   maxDialogButton.toolTip = maxDialogToolTip;
                   if (ppar.preview.side_preview_visible) {
                         sidePreviewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
+                        sidePreviewControl.adjustToContents();
                   } else {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
+                        tabPreviewControl.adjustToContents();
                   }
                   parent.dialog.move(dialog_old_position);
                   dialog_mode = 1;
+                  parent.dialog.adjustToContents();
             } else if (dialog_mode == 1) {
                   // maximize
                   // calculate starting point for maximized dialog size
+                  if (par.debug.val) console.writeln("DEBUG:Maximize dialog: maximize");
                   maxDialogButton.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
                   maxDialogButton.toolTip = "Restore dialog to a normal size.";
                   if (ppar.preview.side_preview_visible) {
@@ -5856,14 +5863,16 @@ function newMaximizeDialogButton(parent)
                         var histogram_control_height = tabHistogramControl.height;
                   }
 
+                  var currentPageIndex = switchtoPreviewTab()
                   var emptyAreaHeight = mainTabBox.height - preview_control_height - histogram_control_height;
                   if (emptyAreaHeight < 0) {
                         emptyAreaHeight = 0;
                   }
                   var dialog_width = parent.dialog.width;
                   var dialog_height = parent.dialog.height;
-                  var max_preview_width = preview_width + (screen_width - dialog_width) - (preview_control_width - preview_width) - 100;
-                  var max_preview_height = preview_height + (screen_height - dialog_height) + emptyAreaHeight - (preview_control_height - preview_height) - 100;
+                  if (par.debug.val) console.writeln("DEBUG:Maximize dialog: dialog " + dialog_width + "x" + dialog_height + ", preview " + preview_width + "x" + preview_height + ", preview control " + preview_control_width + "x" + preview_control_height + ", empty area " + emptyAreaHeight);
+                  var max_preview_width = preview_width + (screen_width - dialog_width) - 100;
+                  var max_preview_height = preview_height + (screen_height - dialog_height) + emptyAreaHeight - 100;
 
                   var preview_size = util.adjustDialogToScreen(
                                           parent.dialog, 
@@ -5874,6 +5883,7 @@ function newMaximizeDialogButton(parent)
                                           max_preview_width, 
                                           max_preview_height);
 
+                  mainTabBox.currentPageIndex = currentPageIndex;
                   dialog_old_position = parent.dialog.position;   // save old position so we can restore it
                   parent.dialog.move(10, 10);                     // move to top left corner
                   dialog_mode = 2;
@@ -5905,6 +5915,7 @@ function newMinimizeDialogButton(parent)
                   return;
             }
             if (dialog_mode == 0) {   // restore
+                  if (par.debug.val) console.writeln("DEBUG:Minimize dialog: restore");
                   dialog_min_position = parent.dialog.position;    // save old position so we can restore it
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
                   minDialogButton.toolTip = minDialogToolTip;
@@ -5922,8 +5933,10 @@ function newMinimizeDialogButton(parent)
                   mainTabBox.show();
                   parent.dialog.move(dialog_old_position);
                   dialog_mode = 1;
+                  parent.dialog.adjustToContents();
             } else if (dialog_mode == 1) {
                   // minimize
+                  if (par.debug.val) console.writeln("DEBUG:Minimize dialog: minimize");
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-maximize.png" );
                   minDialogButton.toolTip = "Restore dialog to normal size.";
                   dialog_old_position = parent.dialog.position;    // save old position so we can restore it
@@ -5945,6 +5958,7 @@ function newMinimizeDialogButton(parent)
                         parent.dialog.move(dialog_min_position);
                   }
                   dialog_mode = 0;
+                  parent.dialog.adjustToContents();
             }
             minDialogButton.aiminDialogMode = !minDialogButton.aiminDialogMode;
             parent.dialog.adjustToContents();
@@ -7609,17 +7623,16 @@ function AutoIntegrateDialog()
                                                 "When using BlurXTerminator it is recommended to use Combined image noise reduction.");
       this.auto_noise_reduction_CheckBox = newCheckBox(this, "Auto", par.auto_noise_reduction,
             "<p>Select automatically correct time for noise reduction.</p>" + 
-            "<p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise channel noise reduction is used.</p>" + 
-            "<p>This option enables also color/OSC image noise reduction.</p>");
+            "<p>If BlurXTerminator is used, then processed linear image noise reduction is used. Otherwise " + 
+            "channel noise reduction is used except for OSC/color images where processed linear image is used.</p>");
       this.channel_noise_reduction_CheckBox = newCheckBox(this, "Channel image", par.channel_noise_reduction,
             "<p>Do noise reduction on each color channels and luminance image separately.</p>" + 
             "<p>This option does nothing with color/OSC images.</p>");
-      this.integrated_noise_reduction_CheckBox = newCheckBox(this, "Integrated image", par.integrated_image_noise_reduction,
-            "<p>Do noise reduction on integreated image. Image can be from channel combination or from integrated color/OSC image.</p>" +
+      this.integrated_noise_reduction_CheckBox = newCheckBox(this, "Combined image", par.combined_image_noise_reduction,
+            "<p>Do noise reduction on combined image. Image can be from channel combination or from integrated color/OSC image.</p>" +
             "<p>On L image noise reduction is done before processing which is the same as channel noise reduction.</p>");
       this.processed_noise_reduction_CheckBox = newCheckBox(this, "Processed linear image", par.processed_image_noise_reduction,
-            "<p>Do noise reduction on processed RGB image and possible luminance image in linear stage.</p>" + 
-            "<p>This option enables also color/OSC image noise reduction.</p>" );
+            "<p>Do noise reduction on processed RGB image and possible luminance image in linear stage.</p>");
       this.non_linear_noise_reduction_CheckBox = newCheckBox(this, "Non-linear image", par.non_linear_noise_reduction, 
             "<p>Do noise reduction in non-linear state after stretching on combined and luminance images.</p>" );
       this.color_noise_reduction_CheckBox = newCheckBox(this, "Color noise reduction", par.use_color_noise_reduction, 
