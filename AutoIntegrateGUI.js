@@ -5824,7 +5824,7 @@ function newMaximizeDialogButton(parent)
                   return;
             }
             if (dialog_mode == 2) {   // restore
-                  if (par.debug.val) console.writeln("DEBUG:Maximize dialog: restore");
+                  console.writeln("Maximize dialog: restore");
                   maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
                   maxDialogButton.toolTip = maxDialogToolTip;
                   if (ppar.preview.side_preview_visible) {
@@ -5840,7 +5840,7 @@ function newMaximizeDialogButton(parent)
             } else if (dialog_mode == 1) {
                   // maximize
                   // calculate starting point for maximized dialog size
-                  if (par.debug.val) console.writeln("DEBUG:Maximize dialog: maximize");
+                  console.writeln("Maximize dialog: maximize");
                   maxDialogButton.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
                   maxDialogButton.toolTip = "Restore dialog to a normal size.";
                   if (ppar.preview.side_preview_visible) {
@@ -5915,7 +5915,7 @@ function newMinimizeDialogButton(parent)
                   return;
             }
             if (dialog_mode == 0) {   // restore
-                  if (par.debug.val) console.writeln("DEBUG:Minimize dialog: restore");
+                  console.writeln("Minimize dialog: restore");
                   dialog_min_position = parent.dialog.position;    // save old position so we can restore it
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
                   minDialogButton.toolTip = minDialogToolTip;
@@ -5936,7 +5936,7 @@ function newMinimizeDialogButton(parent)
                   parent.dialog.adjustToContents();
             } else if (dialog_mode == 1) {
                   // minimize
-                  if (par.debug.val) console.writeln("DEBUG:Minimize dialog: minimize");
+                  console.writeln("Minimize dialog: minimize");
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-maximize.png" );
                   minDialogButton.toolTip = "Restore dialog to normal size.";
                   dialog_old_position = parent.dialog.position;    // save old position so we can restore it
@@ -10624,6 +10624,7 @@ function AutoIntegrateDialog()
 
        if (ppar.preview.use_preview && !use_restored_preview_size) {
             // preview size not set, adjust to screen
+            console.noteln("Preview size not restored from settings, adjusting to screen");
             var preview_size = util.adjustDialogToScreen(
                                     this.dialog, 
                                     ppar.preview.side_preview_visible
