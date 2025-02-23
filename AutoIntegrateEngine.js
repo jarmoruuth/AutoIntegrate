@@ -4579,7 +4579,7 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
                   return null;
       }
       if (check_allfilesarr == null && !global.get_flowchart_data) {
-            console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping);
+            console.writeln("mapCustomAndReplaceImageNames " + targetChannel + " using " + mapping.mapping);
       }
       /* Replace letters with actual image identifiers. */
       mapping = replaceMappingImageNames(mapping, "L", ppar.win_prefix + "Integration_L", images, check_allfilesarr);
@@ -5979,14 +5979,14 @@ function customMapping(RGBmapping, filtered_lights)
             flowchartParentBegin("RGB+Narroband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (par.custom_L_mapping.val != '') {
-                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping, true, 'L');
+                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping.mapping, true, 'L');
                   guiUpdatePreviewId(luminance_id);
                   is_luminance_images = true;
             }
 
-            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping, false, 'R');
-            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping, false, 'G');
-            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping, false, 'B');
+            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping.mapping, false, 'R');
+            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping.mapping, false, 'G');
+            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping.mapping, false, 'B');
 
             flowchartParentEnd("RGB+Narroband");
       }
