@@ -2390,6 +2390,8 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
             prev_preview_width = preview_width;
             prev_preview_height = preview_height;
       
+            /* With maxsize, try to make dialog bigger if it is smaller than target size.
+             */
             if (maxsize && dialog_width < target_width + limit) {
                   preview_width = preview_width + step;
                   if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview width to " + preview_width);
@@ -2398,6 +2400,8 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
                   preview_height = preview_height + step;
                   if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, increase preview height to " + preview_height);
             }
+            /* Make dialog smaller if it is bigger than target size.
+             */
             if (dialog_width > target_width - limit) {
                   preview_width = preview_width - step;
                   if (par.debug.val) console.writeln("DEBUG:adjustDialogToScreen, decrease preview width to " + preview_width);
