@@ -4076,7 +4076,7 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
              */
             var filter_keyword = getFilterKeywordForImage(filter, filePath, filename_postfix);
 
-            var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter, checked: checked,
+            var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter_keyword, checked: checked,
                               best_image: treebox_best_image, reference_image: treebox_reference_image,
                               width: imgwidth, heigth: imgheigth, date_obs: date_obs, isFirstDate: false, isLastDate: false };
             if (date_obs != null) {
