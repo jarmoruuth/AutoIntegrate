@@ -347,6 +347,7 @@ var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1
 var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
 var fast_mode_values = [ 'S', 'M' ];
 var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
+var drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 
@@ -6867,7 +6868,8 @@ function AutoIntegrateDialog()
 
       /* Parameters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization, 
-            "<p>Use local normalization data for ImageIntegration</p>" );
+            "<p>Use local normalization data for ImageIntegration</p>" +
+            "<p>For local normalization settings see section <i>Processing 2 / LocalNormalization</i></p>");
       this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
@@ -7024,7 +7026,8 @@ function AutoIntegrateDialog()
             "<p>Use Drizzle integration</p>" +
             "<p>Drizzle scale 1 does not change the image size but may help with fine details like stars in the image.</p>" +
             "<p>Drizzle scale 2 doubles the image resolution and may help with small details in the image.</p>" +
-            "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" );
+            "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" +
+            "<p>For Drizzle settings see <i>Processing 2 / Drizzle</i> section.</p>");
       this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 10, this.use_drizzle_CheckBox.toolTip);
 
       this.drizzleSizer = new HorizontalSizer;
@@ -8939,6 +8942,20 @@ function AutoIntegrateDialog()
       this.localNormalizationGroupBoxSizer.add( this.localNormalizationSizer );
       //this.localNormalizationGroupBoxSizer.addStretch();
 
+      this.drizzleFunctionLabel = newLabel(this, "Kernel function", "Drizzle drop kernel function.");
+      this.drizzleFunctionComboBox = newComboBox(this, par.drizzle_function, drizzle_function_values, this.drizzleFunctionLabel.toolTip);
+      this.drizzleFastModeCheckBox = newCheckBox(this, "Fast mode", par.drizzle_fast_mode, "<p>Use fast mode for drizzle integration.</p>");
+
+      this.drizzleGroupBoxLabel = newSectionLabel(this, 'Drizzle settings');
+      this.drizzleGroupBoxSizer = new HorizontalSizer;
+      this.drizzleGroupBoxSizer.margin = 6;
+      this.drizzleGroupBoxSizer.spacing = 4;
+      this.drizzleGroupBoxSizer.toolTip = "<p>Drizzle settings.</p>";
+      this.drizzleGroupBoxSizer.add( this.drizzleFunctionLabel );
+      this.drizzleGroupBoxSizer.add( this.drizzleFunctionComboBox );
+      this.drizzleGroupBoxSizer.add( this.drizzleFastModeCheckBox );
+      this.drizzleGroupBoxSizer.addStretch();
+
       // Narrowband palette
 
       var narrowbandToolTip = 
@@ -10298,13 +10315,16 @@ function AutoIntegrateDialog()
 
       // Right processing group box
       this.rightProcessingGroupBox = newGroupBoxSizer(this);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration, FastIntegration and local normalization settings", "ps_integration",
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and FastIntegration settings", "ps_integration",
             [ this.clippingGroupBoxLabel,
               this.clippingGroupBoxSizer,
               this.fastIntegrationGroupBoxLabel,
-              this.fastIntegrationGroupBoxSizer,
-              this.localNormalizationGroupBoxLabel,
-              this.localNormalizationGroupBoxSizer ]);
+              this.fastIntegrationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Local normalization and drizzle settings", "ps_localnorm",
+          [ this.localNormalizationGroupBoxLabel,
+            this.localNormalizationGroupBoxSizer,
+            this.drizzleGroupBoxLabel,
+            this.drizzleGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image calibration", "ps_calibration",
             [ this.calibrationGroupBoxSizer ]);
       newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",

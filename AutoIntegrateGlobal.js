@@ -42,18 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.74.3";             // Version, also updated into updates.xri
-this.autointegrate_info = "Tools, stretching, sharpening";        // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.75 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Drizzle options";                      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Updates for new version of NoiseXTerminator",
-      "- Support for GraXpert deconvolution",
-      "- Updates to stretching",
-      "- Added extra option for high pass sharpening",
-      "- Extra option to fix star cores",
-      "- Bug fixes",
-      "- Fix to filter keyword handling"
+      "- Drizzle options"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -355,6 +349,8 @@ this.par = {
       fastintegration_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
       fastintegration_fast_subframeselector: { val: true, def: true, name : "FastIntegration fast SubframeSelector", type : 'B' },
       fastintegration_skip_cosmeticcorrection: { val: true, def: true, name : "FastIntegration skip CosmeticCorrection", type : 'B' },
+      drizzle_function: { val: 'Square', def: 'Square', name : "Drizzle function", type : 'S' },
+      drizzle_fast_mode: { val: true, def: true, name : "Drizzle fast mode", type : 'B' },
 
       cosmetic_correction_hot_sigma: { val: 3, def: 3, name : "CosmeticCorrection hot sigma", type : 'I' },
       cosmetic_correction_cold_sigma: { val: 3, def: 3, name : "CosmeticCorrection cold sigma", type : 'I' },

@@ -6536,7 +6536,24 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
       } else {
             P.dropShrink = 0.9;
       }
+      P.useLUT = par.drizzle_fast_mode.val;
+      switch (par.drizzle_function.val) {
+            case 'Square':
+                  P.kernelFunction = DrizzleIntegration.prototype.Kernel_Square;
+                  break;
+            case 'Circular':
+                  P.kernelFunction = DrizzleIntegration.prototype.Kernel_Circular;
+                  break;
+            case 'Gaussian':
+                  P.kernelFunction = DrizzleIntegration.prototype.Kernel_Gaussian;
+                  break;
+            default:
+                  util.throwError("Unknown drizzle function " + par.drizzle_function.val);
+                  break;
+      }
       // P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
+
+      console.writeln("runDrizzleIntegration, P.scale " + P.scale + ", P.dropShrink " + P.dropShrink + ", P.useLUT " + P.useLUT + ", P.kernelFunction " + par.drizzle_function.val, ", P.enableLocalNormalization " + P.enableLocalNormalization);
 
       P.executeGlobal();
 
