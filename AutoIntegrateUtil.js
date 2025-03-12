@@ -1057,7 +1057,7 @@ function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional
             return fname;
       }
 
-      var w = ImageWindow.windowById(id);
+      var w = util.findWindow(id);
 
       if (w == null) {
             return null;
@@ -1109,7 +1109,7 @@ function saveFinalImageWindow(win, dir, name, bits)
                   console.writeln("saveFinalImageWindow:set bits to " + bits);
                   copy_win.setSampleFormat(bits, false);
             }
-            save_win = copy_win
+            save_win = copy_win;
       } else {
             save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".xisf";
       }

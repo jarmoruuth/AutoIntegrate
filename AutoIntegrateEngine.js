@@ -4638,6 +4638,9 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       if (createNewImage) {
             var new_win = util.findWindow(P.newImageId);
             setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
+            if (global.pixinsight_version_num >= 1080902) {
+                  new_win.copyAstrometricSolution(idWin);
+            }
       } else {
             var new_win = idWin;
       }
@@ -4700,6 +4703,9 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       }
       if (newId != null) {
             setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
+            if (global.pixinsight_version_num >= 1080902) {
+                  new_win.copyAstrometricSolution(idWin);
+            }
       }
       engine_end_process(node, new_win, "PixelMath:combine RGB");
 
@@ -4747,6 +4753,9 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
 
       printProcessValues(P);
       var new_win = util.findWindow(newId);
+      if (global.pixinsight_version_num >= 1080902) {
+            new_win.copyAstrometricSolution(idWin);
+      }
       setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
       engine_end_process(node, new_win, "PixelMath:combine RGB");
 
@@ -9939,6 +9948,7 @@ function printImageSolverMetadata(solver)
 function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
 {
       console.writeln("runImageSolverEx: image " + id + ", use default info " + use_defaults + ", use dialog " + use_dialog);
+      checkCancel();
 
       var imgWin = ImageWindow.windowById(id);
 
@@ -10921,16 +10931,20 @@ function findIntegratedLightImage(channel, filtered_lights, new_id)
 function findIntegratedChannelImage(channel, check_base_name, filtered_lights)
 {
       var cropextensions = [ '_crop', '' ];
+      // First search from memory only
       for (var i = 0; i < cropextensions.length; i++) {
             var id = findWindowIdCheckBaseNameIf("Integration_" + channel + cropextensions[i], check_base_name);
-            if (id == null && filtered_lights != null) {
-                  id = findIntegratedLightImage(channel, filtered_lights, "Integration_" + channel + cropextensions[i]);
-            }
             if (id != null) {
                   return id;
             }
       }
-      return null;
+      // Try to read from disk
+      if (filtered_lights != null) {
+            id = findIntegratedLightImage(channel, filtered_lights, "Integration_" + channel + "_map");
+      } else {
+            id = null;
+      }
+      return id;
 }
 
 function findIntegratedRGBImage(check_base_name, filtered_lights)
@@ -12480,6 +12494,10 @@ function CombineRGBimageEx(target_name, images)
 
       printProcessValues(P);
       engine_end_process(node, win, "ChannelCombination");
+
+      if (global.pixinsight_version_num >= 1080902) {
+            win.copyAstrometricSolution(model_win);
+      }
 
       setAutoIntegrateFilters(win.mainView.id, images);
 
@@ -18270,9 +18288,9 @@ function getProcessDefaultValues()
 this.setGUI = setGUI;
 
 // Main interface functions
-this.extraProcessingEngine = extraProcessingEngine;
 this.autointegrateProcessingEngine = autointegrateProcessingEngine;
 this.autointegrateNarrowbandPaletteBatch = autointegrateNarrowbandPaletteBatch;
+this.extraProcessingEngine = extraProcessingEngine;
 
 // Flowchart
 this.flowchartPrint = flowchartPrint;
