@@ -2186,8 +2186,21 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
             return imagesEnabledPathToFileList(images);
       }
 
+      var txt = "";
+      if (masterflatdarkPath != null) {
+            txt = appendTxtWithComma(txt, "flat darks");
+      } else if (masterbiasPath != null) {
+            txt = appendTxtWithComma(txt, "bias");
+      }
+      if (masterdarkPath != null && !par.no_darks_on_flat_calibrate.val && masterflatdarkPath == null) {
+            txt = appendTxtWithComma(txt, "darks");
+      }
+      if (txt != "") {
+            txt = " (use " + txt + ")";
+      }
+
       console.noteln("runCalibrateFlats, images[0] " + images[0][1]);
-      var node = flowchartOperation("ImageCalibration:flats");
+      var node = flowchartOperation("ImageCalibration:flats" + txt);
 
       if (global.get_flowchart_data) {
             return imagesEnabledPathToFileList(images);
@@ -2301,6 +2314,14 @@ function runImageIntegrationFlats(images, name)
       return new_name;
 }
 
+function appendTxtWithComma(txt, append)
+{
+      if (txt != "") {
+            txt = txt + ", ";
+      }
+      return txt + append;
+}
+
 function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath)
 {
       if (masterbiasPath == null && masterdarkPath == null && masterflatPath == null) {
@@ -2309,7 +2330,22 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
       }
 
       console.noteln("runCalibrateLights, images[0] " + images[0][1]);
-      var node = flowchartOperation("ImageCalibration:lights");
+
+      var txt = "";
+      if (masterbiasPath != null) {
+            txt = appendTxtWithComma(txt, "bias");
+      }
+      if (masterdarkPath != null) {
+            txt = appendTxtWithComma(txt, "darks");
+      }
+      if (masterflatPath != null) {
+            txt = appendTxtWithComma(txt, "flats");
+      }
+      if (txt != "") {
+            txt = " (use " + txt + ")";
+      }
+
+      var node = flowchartOperation("ImageCalibration:lights" + txt);
 
       if (global.get_flowchart_data) {
             return imagesEnabledPathToFileList(images);
