@@ -3376,6 +3376,9 @@ function showOrHideFilterSectionBar(pageIndex)
             case global.pages.FLATS:
                   var show = par.flats_add_manually.val || par.skip_autodetect_filter.val;
                   break;
+            case global.pages.FLAT_DARKS:
+                  var show = par.flatdarks_add_manually.val || par.skip_autodetect_filter.val;
+                  break;
             default:
                   util.throwFatalError("showOrHideFilterSectionBar bad pageIndex " + pageIndex);
       }
@@ -3537,8 +3540,16 @@ function flatdarksOptions(parent)
       var checkbox = newCheckBox(parent, "Master files", par.flat_dark_master_files, 
             "<p>Files are master files.</p>" );
       parent.rootingArr.push(checkbox);
+      var checkboxManual = newCheckBox(parent, "Add manually", par.flatdarks_add_manually, 
+            "<p>Add flat dark files manually by selecting files for each filter.</p>" );
+      parent.rootingArr.push(checkboxManual);
+      checkboxManual.onClick = function(checked) {
+            checkboxManual.aiParam.val = checked;
+            showOrHideFilterSectionBar(global.pages.FLAT_DARKS);
+      }
 
       sizer.add(checkbox);
+      sizer.add(checkboxManual);
       sizer.addStretch();
       
       return sizer;
@@ -4905,11 +4916,11 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = f
       switch (pageIndex) {
             case global.pages.LIGHTS:
             case global.pages.FLATS:
+            case global.pages.FLAT_DARKS:
                   addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             case global.pages.BIAS:
             case global.pages.DARKS:
-            case global.pages.FLAT_DARKS:
                   addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             default:
@@ -5102,6 +5113,12 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
                                     global.flatFilterSet = util.initFilterSets();
                               }
                               filterSet = util.findFilterSet(global.flatFilterSet, filetype);
+                              break;
+                        case global.pages.FLAT_DARKS:
+                              if (global.flatDarkFilterSet == null) {
+                                    global.flatDarkFilterSet = util.initFilterSets();
+                              }
+                              filterSet = util.findFilterSet(global.flatDarkFilterSet, filetype);
                               break;
                         default:
                               util.throwFatalError("addOneFileManualFilterButton bad pageIndex " + pageIndex);
@@ -5333,7 +5350,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       filesControl.sizer = new VerticalSizer;
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
-      if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS) {
+      if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS || pageIndex == global.pages.FLAT_DARKS) {
             let obj = addFileFilterButtonSectionBar(parent, pageIndex);
             parent.rootingArr.push(obj);
             filesControl.sizer.add(obj);
@@ -6100,6 +6117,9 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             if (parent.tabBox.currentPageIndex == global.pages.FLATS) {
                   global.flatFilterSet = null;
             }
+            if (parent.tabBox.currentPageIndex == global.pages.FLAT_DARKS) {
+                  global.flatDarkFilterSet = null;
+            }
       };
 
       var currentPageRemoveSelectedButton = new ToolButton( parent );
@@ -6149,6 +6169,14 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                   if (global.flatFilterSet != null) {
                         for (var i = 0; i < unchecked_files.length; i++) {
                               util.removeFilterFile(global.flatFilterSet, unchecked_files[i]);
+                        }
+                  }
+            }
+            if (parent.tabBox.currentPageIndex == global.pages.FLAT_DARKS) {
+                  // find unchecked files from global.flatDarkFilterSet
+                  if (global.flatDarkFilterSet != null) {
+                        for (var i = 0; i < unchecked_files.length; i++) {
+                              util.removeFilterFile(global.flatDarkFilterSet, unchecked_files[i]);
                         }
                   }
             }
@@ -7007,6 +7035,7 @@ function AutoIntegrateDialog()
                   this.dialog.autodetect_filter_CheckBox.aiParam.val = checked; 
                   showOrHideFilterSectionBar(global.LIGHTS);
                   showOrHideFilterSectionBar(global.FLATS);
+                  showOrHideFilterSectionBar(global.FLAT_DARKS);
             });
       this.save_all_files_CheckBox = newCheckBox(this, "Save all files", par.save_all_files, 
             "<p>If selected save buttons will save all processed and iconized files and not just final image files. </p>" );

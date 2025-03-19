@@ -318,6 +318,7 @@ function filterFilesForFastMode(fileNames, auto_continue, filetype)
             var original_len = fileNames.length;
             switch (filetype) {
                   case global.pages.FLATS:
+                  case global.pages.FLAT_DARKS:
                   case global.pages.LIGHTS:
                         // For each filter, get 10%, or at least 3 images from the list
                         var fast_mode_filtered_files = engine.getFilterFiles(fileNames, filetype, '', false);
@@ -370,6 +371,9 @@ function flowchartFilterFiles(fileNames, filetype)
       if (filetype == global.pages.FLATS) {
             console.writeln("flowchartFilterFiles, " + fileNames.length + " flats");
             var stop_on_image = 1;  // Pick two flats for each channel
+      } else if (filetype == global.pages.FLAT_DARKS) {
+            console.writeln("flowchartFilterFiles, " + fileNames.length + " flat darks");
+            var stop_on_image = 1;  // Pick two flat darks for each channel
       } else if (filetype == global.pages.LIGHTS) {
             console.writeln("flowchartFilterFiles, " + fileNames.length + " lights");
             var stop_on_image = 0;  // Pick one light for each channel
@@ -2429,6 +2433,15 @@ function filesForImageIntegration(fileNames)
       return images;
 }
 
+function filesForImageIntegrationFromFilearr(filearr)
+{
+      var images = [];
+      for (var i = 0; i < filearr.length; i++) {
+            images[images.length] = [ true, filearr[i].name ]; // [ enabled, path, drizzlePath, localNormalizationDataPath ];
+      }
+      return images;
+}
+
 function fileNamesToEnabledPath(fileNames)
 {
       var images = [];
@@ -3988,6 +4001,9 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                   break;
             case global.pages.FLATS:
                   filterSet = global.flatFilterSet;
+                  break;
+            case global.pages.FLAT_DARKS:
+                  filterSet = global.flatDarkFilterSet;
                   break;
       }
 
@@ -17187,10 +17203,12 @@ function createCropInformationAutoContinue()
        if (global.get_flowchart_data) {
             // Filter files for global.get_flowchart_data.
             engine.flatFileNames = flowchartFilterFiles(engine.flatFileNames, global.pages.FLATS);
+            engine.flatdarkFileNames = flowchartFilterFiles(engine.flatdarkFileNames, global.pages.FLAT_DARKS);
       }
 
        // Collect filter files
        var filtered_flats = engine.getFilterFiles(engine.flatFileNames, global.pages.FLATS, '');
+       var filtered_flatdarks = engine.getFilterFiles(engine.flatdarkFileNames, global.pages.FLAT_DARKS, '');
  
        is_color_files = filtered_flats.color_files;
  
@@ -17206,7 +17224,19 @@ function createCropInformationAutoContinue()
                    }
              }
        }
- 
+       if (engine.flatFileNames.length > 0 && engine.flatdarkFileNames.length > 0) {
+            // we have flats and flat darks
+            // check that filtered files match
+            for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
+                  var is_flats = filtered_flats.allfilesarr[i].files.length > 0;
+                  var is_flatdarks = filtered_flatdarks.allfilesarr[i].files.length > 0;
+                  if (is_flats != is_flatdarks) {
+                        // lights and flats do not match on filters
+                        util.throwFatalError("Filters on flats and flat darks do not match.");
+                  }
+            }
+      }
+
        if (par.bias_master_files.val) {
              util.addProcessingStep("calibrateEngine use existing master bias files " + engine.biasFileNames);
              var masterbiasPath = engine.biasFileNames;
@@ -17238,21 +17268,35 @@ function createCropInformationAutoContinue()
              var masterbiasPath = null;
        }
  
-       if (par.flat_dark_master_files.val) {
-             util.addProcessingStep("calibrateEngine use existing master flat dark files " + engine.flatdarkFileNames);
-             var masterflatdarkPath = engine.darkFileNames;
-       } else if (engine.flatdarkFileNames.length == 1) {
-             util.addProcessingStep("calibrateEngine use existing master flat dark " + engine.flatdarkFileNames[0]);
-             var masterflatdarkPath = engine.flatdarkFileNames[0];
-       } else if (engine.flatdarkFileNames.length > 0) {
-             util.addProcessingStep("calibrateEngine generate master flat dark using " + engine.flatdarkFileNames.length + " files");
-             // integrate flat dark images
-             var flatdarkimages = filesForImageIntegration(engine.flatdarkFileNames);
-             var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark", "flatdark");
-             setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
-             var masterflatdarkPath = saveMasterWindow(global.outputRootDir, masterflatdarkid);
-             guiUpdatePreviewId(masterflatdarkid);
-       } else {
+       if (engine.flatdarkFileNames.length > 0) {
+            // generate master flat dark for each filter
+            util.addProcessingStep("calibrateEngine generate master flat darks");
+            var masterflatdarkPath = [];
+            flowchartParentBegin("Flat darks");
+            for (var i = 0; i < filtered_flatdarks.allfilesarr.length; i++) {
+                  var filterFiles = filtered_flatdarks.allfilesarr[i].files;
+                  var filterName = filtered_flatdarks.allfilesarr[i].filter;
+                  flowchartChildBegin(filterName);
+                  if (filterFiles.length == 1) {
+                        util.addProcessingStep("calibrateEngine use existing " + filterName + " master flat dark " + filterFiles[0].name);
+                        masterflatdarkPath[i] = filterFiles[0].name;
+                  } else if (filterFiles.length > 0) {
+                        // integrate flat darks to generate master flat dark for each filter
+                        util.addProcessingStep("calibrateEngine create " + filterName + " master flat dark");
+                        var flatdarkimages = filesForImageIntegrationFromFilearr(filterFiles);
+                        console.writeln("flatdarkimages[0] " + flatdarkimages[0][1]);
+                        var masterflatdarkid = runImageIntegrationBiasDarks(flatdarkimages, ppar.win_prefix + "AutoMasterFlatDark_" + filterName, "flatdark");
+                        console.writeln("masterflatdarkid " + masterflatdarkid);
+                        setImagetypKeyword(util.findWindow(masterflatdarkid), "Master flat dark");
+                        masterflatdarkPath[i] = saveMasterWindow(global.outputRootDir, masterflatdarkid);
+                        guiUpdatePreviewId(masterflatdarkid);
+                  } else {
+                        masterflatdarkPath[i] = null;
+                  }
+                  flowchartChildEnd(filterName);
+            }
+            flowchartParentEnd("Flat darks");
+      } else {
              util.addProcessingStep("calibrateEngine no master flat dark");
              var masterflatdarkPath = null;
        }
@@ -17298,7 +17342,7 @@ function createCropInformationAutoContinue()
                    util.addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
                    var flatcalimages = fileNamesToEnabledPathFromFilearr(filterFiles);
                    console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
-                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath);
+                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath ? masterflatdarkPath[i] : null);
                    console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
  
                    // integrate flats to generate master flat for each filter

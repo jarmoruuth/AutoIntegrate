@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.75 test1";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.75 test2";         // Version, also updated into updates.xri
 this.autointegrate_info = "Drizzle options";                      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Flat dark calibration fixes",
       "- Drizzle options"
 ];
 
@@ -550,6 +551,7 @@ this.par = {
       lights_add_manually: { val: false, def: false, name : "Add lights manually", type : 'B' },
       integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
+      flatdarks_add_manually: { val: false, def: false, name : "Add flat darks manually", type : 'B' },
       skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
       auto_output_pedestal: { val: true, def: true, name : "Auto output pedestal", type : 'B' },
       output_pedestal: { val: 0, def: 0, name : "Output pedestal", type : 'B' },
@@ -660,6 +662,7 @@ this.iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-
 
 this.lightFilterSet = null;
 this.flatFilterSet = null;
+this.flatDarkFilterSet = null;
 
 // These are initialized by util.setDefaultDirs
 this.AutoOutputDir = null;
@@ -777,7 +780,14 @@ this.fixed_windows = [
 this.calibrate_windows = [
       "AutoMasterBias",
       "AutoMasterSuperBias",
-      "AutoMasterFlatDark",
+      "AutoMasterFlatDark_L",
+      "AutoMasterFlatDark_R",
+      "AutoMasterFlatDark_G",
+      "AutoMasterFlatDark_B",
+      "AutoMasterFlatDark_H",
+      "AutoMasterFlatDark_S",
+      "AutoMasterFlatDark_O",
+      "AutoMasterFlatDark_C",
       "AutoMasterDark",
       "AutoMasterFlat_L",
       "AutoMasterFlat_R",

@@ -1915,6 +1915,10 @@ function readJsonFile(fname, lights_only)
                               console.writeln("readJsonFile, set manual filters for flats");
                               global.flatFilterSet = filterSet;
                               break;
+                        case global.pages.FLAT_DARKS:
+                              console.writeln("readJsonFile, set manual filters for flat darks");
+                              global.flatDarkFilterSet = filterSet;
+                              break;
                         default:
                               console.criticalln("Incorrect page index " +  saveInfo.pageindex + " for filter set in file " + fname);
                               return null;
