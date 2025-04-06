@@ -42,11 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.75 test2";         // Version, also updated into updates.xri
-this.autointegrate_info = "Drizzle options";                      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.75 test2";                     // Version, also updated into updates.xri
+this.autointegrate_info = "DBE, drizzle options, flat dark calibration";      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- DBE can be used for gradient correction",
       "- Flat dark calibration fixes",
       "- Drizzle options"
 ];
@@ -111,6 +112,7 @@ this.par = {
       use_graxpert_denoise: { val: false, def: false, name : "Use GraXpert denoise", type : 'B' },
       use_graxpert_deconvolution: { val: false, def: false, name : "Use GraXpert deconvolution", type : 'B' },
       use_abe: { val: false, def: false, name : "Use AutomaticBackgroundExtractor", type : 'B' },
+      use_dbe: { val: false, def: false, name : "Use DynamicBackgroundExtractor", type : 'B' },
       use_multiscalegradientcorrection: { val: false, def: false, name : "Use MultiscaleGradientCorrection", type : 'B' },
       skip_color_calibration: { val: false, def: false, name : "No color calibration", type : 'B' },
       skip_auto_background: { val: false, def: false, name : "No auto background", type : 'B' },
@@ -304,6 +306,12 @@ this.par = {
       
       ABE_degree: { val: 4, def: 4, name : "ABE function degree", type : 'I' },
       ABE_correction: { val: 'Subtraction', def: 'Subtraction', name : "ABE correction", type : 'S' },
+      ABE_normalize: { val: false, def: false, name : "ABE normalize", type : 'B' },
+
+      dbe_use_background_neutralization: { val: false, def: false, name : "DBE use background neutralization", type : 'B' },
+      dbe_use_abe: { val: true, def: true, name : "DBE use ABE", type : 'B' },
+      dbe_samples_per_row: { val: 10, def: 10, name : "DBE samples per row", type : 'I' },
+      dbe_normalize : { val: false, def: false, name : "DBE normalize", type : 'B' },
 
       graxpert_path: { val: "", def: "", name : "GraXpert path", type : 'S', skip_reset: true },
       graxpert_correction: { val: "Subtraction", def: "Subtraction", name : "GraXpert correction", type : 'S' },
@@ -451,6 +459,7 @@ this.par = {
       extra_combine_stars_reduce: { val: 'None', def: 'None', name : "Extra combine stars reduce", type : 'S' },
       extra_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Extra combine stars reduce S", type : 'R' },
       extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
+      extra_backgroundneutralization: { val: false, def: false, name : "Extra background neutralization", type : 'B' },
       extra_GC: { val: false, def: false, name : "Extra GC", type : 'B', oldname: 'Extra ABE' },
       extra_GC_method: { val: 'Auto', def: 'Auto', name : "Extra GC method", type : 'S' },
       extra_banding_reduction: { val: false, def: false, name : "Extra banding reduction", type : 'B' },

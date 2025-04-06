@@ -342,7 +342,7 @@ var RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtr
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
-var extra_gradient_correction_values = [ 'Auto', 'ABE', 'GradientCorrection', 'GraXpert' ];
+var extra_gradient_correction_values = [ 'Auto', 'ABE', 'DBE', 'GradientCorrection', 'GraXpert' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
 var fast_mode_values = [ 'S', 'M' ];
@@ -383,7 +383,7 @@ var adjust_type_toolTip =                 "<ul>" +
 
 var MGCToolTip =                          "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
                                           "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to anoter " + 
-                                          "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, GradientCorrection<./p>";
+                                          "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection<./p>";
 var clippedPixelsToolTip =                "<p>Show clipped pixels in the preview image.</p>" + 
                                           "<p>Pixes with value 0 are shown as black, pixels with value 1 are shown as white. Other pixes are shown as gray.</p>";
                               
@@ -1479,6 +1479,9 @@ function extraProcessingGUI(parent)
       this.extraDarkerHighlights_CheckBox = newCheckBox(parent, "Darker highlights", par.extra_darker_hightlights, 
             "<p>Make image highlights darker using a lightness mask.</p>" );
 
+      this.extra_backgroundneutralization_CheckBox = newCheckBox(parent, "Background neutralization", par.extra_backgroundneutralization, 
+            "<p>Run background neutralization to the image.</p>" );
+
       this.extra_GC_CheckBox = newCheckBox(parent, "Gradient correction", par.extra_GC, 
             "<p>Do gradient correction to the image using the selected gradient correction method.</p>" );
       this.extra_GC_values_ComboBox = newComboBox(parent, par.extra_GC_method, extra_gradient_correction_values, 
@@ -2296,6 +2299,7 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraRGBHamapping_CheckBox );
       this.extra1.add( this.extra_smoothBackground_Sizer );
       this.extra1.add( this.extraBandinReduction_CheckBox );
+      this.extra1.add( this.extra_backgroundneutralization_CheckBox );
       this.extra1.add( this.extra_GC_Sizer );
       this.extra1.add( this.extra_shadowclip_Sizer );
       this.extra1.add( this.extraDarkerBackground_CheckBox );
@@ -3178,7 +3182,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
             edt.setValue(edt.aiParam.val);
       };
       edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      return newHorizontalSizer(0, true, [edt]);
+      return edt;
 }
 
 function newNumericEdit(parent, txt, param, min, max, tooltip)
@@ -3641,25 +3645,6 @@ function calculateReverseLogarithmicXScale(minVal, maxVal, numBins)
       return xScale.sort((a, b) => a - b); // Sort in ascending order for the histogram logic
 }
 
-function imageIsLinear(window) 
-{
-      let view = window.mainView;
-      let image = view.image;
-
-      // Calculate basic statistics
-      let median = image.median();
-      let stdDev = image.stdDev();
-
-      // Make a very basic determination of linearity
-      if (median < 0.1 && stdDev < 0.05) {
-            console.writeln("Image is linear, median: ", median, " stdDev: ", stdDev);
-            return true;
-      } else {
-            console.writeln("Image is not linear, median: ", median, " stdDev: ", stdDev);
-            return false;
-      }
-}
-
 function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 {
       if (par.debug.val) console.writeln("getHistogramInfo");
@@ -3678,7 +3663,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       var bucket_size = histogramMatrix.cols / width;
 
       // Always autodetect linear vs non-linear images
-      log_x_scale = imageIsLinear(imgWin);
+      log_x_scale = engine.imageIsLinear(imgWin);
 
       if (log_x_scale) {
             var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
@@ -7143,7 +7128,7 @@ function AutoIntegrateDialog()
             GraXpert_note);
 
       this.use_graxpert_deconvolution_CheckBox = newCheckBox(this, "GraXpert deconvolution", par.use_graxpert_deconvolution, 
-            "<p>Use GraXpert deconvolution for stella and non-stellar sharpening.</p>" +
+            "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
             "<p>In the <i>Processing 1 / GraXpert</i> section it is possible to set some settings.</p>" +
             GraXpert_note);
       if (global.is_gc_process) {
@@ -7152,6 +7137,11 @@ function AutoIntegrateDialog()
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
             "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>");
       }
+      this.use_dbe_CheckBox = newCheckBox(this, "DBE", par.use_dbe, 
+            "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p>" +
+            "</p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of " +
+            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
+            "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Processing 1 / DBE settings</i> section.</p>");
       if (global.is_mgc_process) {
             this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
                   "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
@@ -7268,23 +7258,31 @@ function AutoIntegrateDialog()
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
             "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.<br>" + 
-                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Processing 1</i> tab to a smaller valiue, like 0.10</pi></li>" +
-            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>Useful when AutoSTF generates too bright images, like on some galaxies.</p></li>" +
-            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>Prestretch help with stars that can be too pointlike with Masked Stretch.</p></li>" +
-            "<li><p>Histogram stretch - " + histogramStretchToolTip + "</p></li>" +
+                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Processing 1</i> tab to a smaller value, like 0.10</i><br>" +
+                 "Parameters are set in <i>Processing 1 / AutoSTF settings</i> section.</p></li>" +
+            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
+                   "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
+                   "Parameters are set in <i>Processing 1 / Masked stretch settings</i> section</p></li>" +
+            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>" + 
+                   "Prestretch help with stars that can be too pointlike with Masked Stretch.<br>" +
+                   "Parameters are set in <i>Processing 1 / Masked stretch settings</i> and <i>Processing 1 / Histogram stretching settings</i> sections</p></li>" +
+            "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
+                   "Parameters are set in <i>Processing 1 / Histogram stretching settings</i> section</p></li>" +
             Hyperbolic_li +
-            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>Can be useful when stretching stars to keep good star color.</p></li>" +
+            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
+                   "Can be useful when stretching stars to keep good star color.<br>" + 
+                   "Parameters are set in <i>Processing 1 / Arcsinh stretch settings</i> section</p></li>" +
             "</ul>" +
             "<p>There are also some experimental stretches.</p>" +
             "<ul>" +
-            "<li><p>Logarithmic stretch</p></li>" +
-            "<li><p>Asinh+Histogram stretch</p></li>" +
-            "<li><p>Square root stretch</p></li>" +
-            "<li><p>Shadow stretch</p></li>" +
-            "<li><p>Highlight stretch</p></li>" +
+            "<li><p>Logarithmic stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
+            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>Processing 1 / Arcsinh stretch settings</i> and <i>Processing 1 / Histogram stretching settings</i> sections</p></li>" +
+            "<li><p>Square root stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
+            "<li><p>Shadow stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
+            "<li><p>Highlight stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
             "</ul>" + 
-            "<p>See <i>Processing 1 / Image stretching</i> section for stretching specific parameters.</p>" +
+            "<p>See <i>Processing 1 / Stretching settings</i> section for stretching specific parameters.</p>" +
             "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       stretchingComboBox = this.stretchingComboBox;
@@ -7314,6 +7312,7 @@ function AutoIntegrateDialog()
             if (global.is_gc_process) {
                   this.imageToolsSet1.add( this.use_abe_CheckBox );
             }
+            this.imageToolsSet1.add( this.use_dbe_CheckBox );
             if (global.is_mgc_process) {
                   this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
             }
@@ -8386,7 +8385,7 @@ function AutoIntegrateDialog()
 
       if (global.is_gc_process) {
             this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
-            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the backgroung model is created.</p>");
+            this.gc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the background model is created.</p>");
             this.gc_scale_Edit = newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
             this.gc_smoothness_Edit = newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
             this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
@@ -8411,7 +8410,7 @@ function AutoIntegrateDialog()
       if (global.is_mgc_process) {
             this.mgc_scale_Label = newLabel(this, "Gradient scale", "<p>Gradient model scale.</p>", true);
             this.mgc_scale_ComboBox = newComboBox(this, par.mgc_scale, mgc_scale_valuestxt, this.mgc_scale_Label.toolTip);
-            this.mgc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.mgc_output_background_model, "<p>If checked the backgroung model is created.</p>");
+            this.mgc_output_background_model_CheckBox = newCheckBox(this, "Output background model", par.mgc_output_background_model, "<p>If checked the background model is created.</p>");
             this.mgs_scale_factor_Edit = newNumericEditPrecision(this, "Scale", par.mgc_scale_factor, 0.1, 10, "Scale factor for all channels.", 4);
             this.mgc_strucure_separation_Label = newLabel(this, "Structure separation", "Structure separation for MultiscaleGradientCorrection.", true);
             this.mgc_strucure_separation_SpinBox = newSpinBox(this, par.mgc_structure_separation, 1, 5, this.mgc_strucure_separation_Label.toolTip);
@@ -8432,6 +8431,8 @@ function AutoIntegrateDialog()
       this.ABEDegreeSizer = newHorizontalSizer(0, true, [this.ABEDegreeLabel, this.ABEDegreeSpinBox]);
       this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
 
+      this.ABEnormalize_CheckBox = newCheckBox(this, "Normalize", par.ABE_normalize, "<p>If checked set the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
+      
       this.smoothBackgroundEdit = newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
             "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
             "smoothing. Smoothing is done before gradient correction.</p>" +
@@ -8445,11 +8446,20 @@ function AutoIntegrateDialog()
       // this.smoothBackgroundSizer.margin = 2;
       this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
       this.smoothBackgroundSizer.addStretch();
-      
-      
+
       this.ABEGroupBoxLabel = newSectionLabel(this, "ABE settings");
-      this.ABEGMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.smoothBackgroundSizer]);
-      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEGMainSizer]);
+      this.ABEMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.ABEnormalize_CheckBox, this.smoothBackgroundSizer]);
+      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEMainSizer]);
+
+      this.dbe_use_background_neutralization_CheckBox = newCheckBox(this, "Background neutralization", par.dbe_use_background_neutralization, "<p>If checked background neutralization is run before DBE on color images.</p>");
+      this.dbe_use_abe_CheckBox = newCheckBox(this, "ABE", par.dbe_use_abe, "<p>If checked ABE with degree one is run before DBE.</p>");
+      this.dbe_normalize_CheckBox = newCheckBox(this, "Normalize,", par.dbe_normalize, "<p>If checked set the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
+      this.dbe_samples_per_row_Label = newLabel(this, "Samples per row", "Number of samples per row.", true);
+      this.dbe_samples_per_row_SpinBox = newSpinBox(this, par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
+
+      this.DBEGroupBoxLabel = newSectionLabel(this, "DBE settings");
+      this.DBEMainSizer = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, this.dbe_samples_per_row_SpinBox]);
+      this.DBEGroupBoxSizer = newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
             "<p>Path to GraXpert executable.</p>" +
@@ -8548,6 +8558,7 @@ function AutoIntegrateDialog()
             processes.push(this.GCGroupBoxSizer);
       }
       processes.push(this.ABEGroupBoxSizer);
+      processes.push(this.DBEGroupBoxSizer);
 
       this.GCStarXSizer = newVerticalSizer(0, true, processes);
 
@@ -8742,6 +8753,9 @@ function AutoIntegrateDialog()
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
             "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
             "like large nebulas or dust you should try with 0.25.</p>");
+      this.otherStrechingTargetValueSizer = new HorizontalSizer;
+      this.otherStrechingTargetValueSizer.add( this.otherStrechingTargetValue_Control );
+      this.otherStrechingTargetValueSizer.addStretch();
 
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
@@ -8760,7 +8774,7 @@ function AutoIntegrateDialog()
             this.StretchingGroupBoxSizer.add( this.hyperbolicSizer );
       }
       this.StretchingGroupBoxSizer.add( this.otherStretchingSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.otherStrechingTargetValue_Control );
+      this.StretchingGroupBoxSizer.add( this.otherStrechingTargetValueSizer );
       this.StretchingGroupBoxSizer.addStretch();
 
       this.StarStretchingGroupBoxSizer = new VerticalSizer;

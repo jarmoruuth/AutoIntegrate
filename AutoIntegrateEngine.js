@@ -277,6 +277,26 @@ var telescope_info = [
       [ 'CHI-6-CMOS', 600, 3.76 ]
 ];
 
+function imageIsLinear(window, median = null, stdDev = null) 
+{
+      let view = window.mainView;
+      let image = view.image;
+
+      // Calculate basic statistics
+      if (median == null || stdDev == null) {
+            median = image.median();
+            stdDev = image.stdDev();
+      }
+
+      // Make a very basic determination of linearity
+      if (median < 0.1 && stdDev < 0.05) {
+            console.writeln("Image is linear, median: ", median, " stdDev: ", stdDev);
+            return true;
+      } else {
+            console.writeln("Image is not linear, median: ", median, " stdDev: ", stdDev);
+            return false;
+      }
+}
 
 // Binning value for par.fast_mode
 function getFastModeBinning(imgWin)
@@ -908,6 +928,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                   util.closeOneWindowById(arr[i]+"_model");
                   util.closeOneWindowById(arr[i]+"_highpass");
                   util.closeOneWindowById(arr[i]+"_lowpass");
+                  util.closeOneWindowById(arr[i]+"_DBEsamples");
                   if (!keep_base_image) {
                         util.closeOneWindowById(arr[i]);
                   }
@@ -7441,12 +7462,21 @@ function runGraXpert(win, replaceTarget, postfix, from_lights)
       return GC_id;
 }
 
-function runABEex(win, replaceTarget, postfix, from_lights)
+function runABEex(win, replaceTarget, postfix, skip_flowchart, degree = null, normalize = null, correction = null)
 {
-      if (from_lights) {
+      if (skip_flowchart) {
             var node = null;
       } else {
             var node = flowchartOperation("AutomaticBackgroundExtractor");
+      }
+      if (degree == null) {
+            degree = par.ABE_degree.val;
+      }
+      if (normalize == null) {
+            normalize = par.ABE_normalize.val;
+      }
+      if (correction == null) {
+            correction = par.ABE_correction.val;
       }
       if (replaceTarget) {
             util.addProcessingStepAndStatusInfo("Run ABE on image " + win.mainView.id);
@@ -7455,21 +7485,22 @@ function runABEex(win, replaceTarget, postfix, from_lights)
             var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(win.mainView.id, ["_map", "_combined"], postfix));
             util.addProcessingStepAndStatusInfo("Run ABE from image " + win.mainView.id + ", target image " + GC_id);
       }
-      console.writeln("ABE using function degree " + par.ABE_degree.val + ' and correction ' + par.ABE_correction.val);
+      console.writeln("ABE using function degree " + degree + ', correction ' + correction + ", normalize " + normalize);
 
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = GC_id;
       P.replaceTarget = replaceTarget;
       P.discardModel = true;
-      if (par.ABE_correction.val == 'Subtraction') {
+      if (correction == 'Subtraction') {
             P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
-      } else if (par.ABE_correction.val == 'Division') {
+      } else if (correction == 'Division') {
             P.targetCorrection = AutomaticBackgroundExtractor.prototype.Divide;
       } else {
-            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-            util.throwFatalError("Unknown ABE correction " + par.ABE_correction.val);
+            save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+            util.throwFatalError("Unknown ABE correction " + correction);
       }
-      P.polyDegree = par.ABE_degree.val;
+      P.polyDegree = degree;
+      P.normalize = normalize;
 
       if (par.debug.val) {
             console.writeln("DEBUG: ABE parameters:");
@@ -7719,6 +7750,8 @@ function getGradientCorrectionName()
             return "GraXpert";
       } else if (par.use_abe.val) {
             return "AutomaticBackgroundExtractor";
+      } else if (par.use_dbe.val) {
+            return "DynamicBackgroundExtractor";
       } else if (par.use_multiscalegradientcorrection.val) {
             return "MultiscaleGradientCorrection";
       } else {
@@ -7741,6 +7774,8 @@ function getDefaultGradientCorrectionMethod(skip_mgc = false)
             return "GraXpert";
       } else if (par.use_abe.val) {
             return "ABE";
+      } else if (par.use_dbe.val) {
+            return "DBE";
       } else {
             return "GradientCorrection";
       }
@@ -7755,6 +7790,8 @@ function runGradientCorrectionEx(win, replaceTarget, postfix, from_lights, gc_me
             var GC_id = runGraXpert(win, replaceTarget, postfix, from_lights);
       } else if (gc_method == 'ABE') {
             var GC_id = runABEex(win, replaceTarget, postfix, from_lights);
+      } else if (gc_method == 'DBE') {
+            var GC_id = runDBE(win, replaceTarget, postfix, from_lights);
       } else if (gc_method == 'MultiscaleGradientCorrection') {
             var GC_id = runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_lights);
             if (GC_id == null) {
@@ -8545,7 +8582,7 @@ function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
             var current_value = findHistogramPeak(new_win, channel).normalizedPeakCol;
             console.writeln(channelText(channel) + " peak " + current_value);
       }
-      return adjust.clipCount;
+      return adjust.adjustCount;
 }
 
 /* Experimenting with stretching, mostly just for fun and to understand
@@ -9672,6 +9709,59 @@ function starReduceNoise(imgWin)
       engine_end_process(node, imgWin, "TGVDenoise");
 }
 
+/**
+ * Calculate the median of an array of numbers.
+ * @param {number[]} data - Array of numbers.
+ * @returns {number} The median value.
+ */
+function calculateMedian(data) 
+{
+      const sorted = data.slice().sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 !== 0
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Function to calculate standard deviation
+function calculateStdDev(array, median) 
+{
+      var sumSq = 0;
+      for (var i = 0; i < array.length; i++) {
+            var diff = array[i] - median;
+            sumSq += diff * diff;
+      }
+      return Math.sqrt(sumSq / array.length);
+}
+
+/**
+ * Calculate limits for image background checks.
+ * σ is estimated using the Median Absolute Deviation (MAD) scaled for a normal distribution.
+ *
+ * @param {win} - Image window
+ * @returns {object} Object with median, stddev, mad, sigma.
+ */
+function calculateBackgroundLimits(win)
+{
+      const med = win.mainView.image.median();
+
+      // Compute the median absolute deviation (MAD)
+      const mad = win.mainView.image.MAD();
+
+      // Convert MAD to an approximation of σ for a normal distribution
+      const sigma = mad * 1.4826;
+
+      // Calculate stdandard deviation
+      var stdDev = win.mainView.image.stdDev();
+
+      return {
+            median: med,
+            stdDev: stdDev,
+            mad: mad,
+            sigma: sigma
+      };
+}
+
 // Find a true background area in the image
 // Go thgrough the image and find a background area
 // We try to find an area of 25x25 pixels
@@ -9690,23 +9780,24 @@ function findTrueBackground(w, testmode)
             return null;
       }
 
-      // Try find existing background information
-      var bg_image_id = autocontinue_prefix + "AutoBackgroundModel";
-      var bg_win = util.findWindow(bg_image_id);
-      if (bg_win != null) {
-            console.writeln("findTrueBackground:Found existing background information in " + bg_win.mainView.id);
-            let preview = bg_win.previewById("background");
-            if (preview.isNull) {
-                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  util.throwFatalError("Error: background preview not found from " + bg_image_id);
+      if (!testmode) {
+            // Try find existing background information
+            var bg_image_id = autocontinue_prefix + "AutoBackgroundModel";
+            var bg_win = util.findWindow(bg_image_id);
+            if (bg_win != null) {
+                  console.writeln("findTrueBackground:Found existing background information in " + bg_win.mainView.id);
+                  let preview = bg_win.previewById("background");
+                  if (preview.isNull) {
+                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
+                        util.throwFatalError("Error: background preview not found from " + bg_image_id);
+                  }
+                  var rect = bg_win.previewRect(preview);
+                  engine_end_process(node, bg_win, "findTrueBackground");
+                  var roi = { x0: rect.x0, y0: rect.y0, x1: rect.x1, y1: rect.y1 };
+                  console.writeln("findTrueBackground:Returning background region at " + roi.x0 + ", " + roi.y0 + ", " + roi.x1 + ", " + roi.y1);
+                  return roi;
             }
-            var rect = bg_win.previewRect(preview);
-            engine_end_process(node, bg_win, "findTrueBackground");
-            var roi = { x0: rect.x0, y0: rect.y0, x1: rect.x1, y1: rect.y1 };
-            console.writeln("findTrueBackground:Returning background region at " + roi.x0 + ", " + roi.y0 + ", " + roi.x1 + ", " + roi.y1);
-            return roi;
       }
-
       var image = w.mainView.image;
 
       // Get image dimensions
@@ -9716,76 +9807,54 @@ function findTrueBackground(w, testmode)
       // Define window size
       var windowSize = 25;
       
-      // Define background criteria thresholds
-      var MAX_STD_DEV = 5; // Maximum standard deviation for background
-      var MAX_MEDIAN_DIFF = 10; // Maximum difference from overall median
+      console.writeln("Calculate limits...");
+      console.flush();
 
-      // Function to calculate median
-      function calculateMedian(array) {
-            array.sort(function(a, b) { return a - b; });
-            var middle = Math.floor(array.length / 2);
-            if (array.length % 2 === 0) {
-                  return (array[middle - 1] + array[middle]) / 2;
-            } else {
-                  return array[middle];
-            }
-      }
-
-      // Get all pixel samples to calculate overall median
-      var allPixels = [];
-      for (var y = 0; y < height; y++) {
-            for (var x = 0; x < width; x++) {
-                  var pixel = image.sample(x, y);
-                  // Assuming single-channel image; modify if multi-channel
-                  allPixels.push(pixel);
-            }
-      }
-
-      var overallMedian = calculateMedian(allPixels);
-
-      // Function to calculate standard deviation
-      function calculateStdDev(array, median) {
-            var sumSq = 0;
-            for (var i = 0; i < array.length; i++) {
-                  var diff = array[i] - median;
-                  sumSq += diff * diff;
-            }
-            return Math.sqrt(sumSq / array.length);
-      }
+      var limits = calculateBackgroundLimits(w);
+      
+      console.writeln("limits: " + limits.toSource());
+      console.writeln("Find background regions...");
+      console.flush();
 
       // Array to store background regions
       var backgroundRegions = [];
 
       // Iterate over the image with the defined window size
+      var nchecked = 0;
       for (var y = windowSize, cnt = 0; y <= height - windowSize; y += 10, cnt++) {
             for (var x = windowSize; x <= width - windowSize; x += 10) {
-                  var windowPixels = [];
-                  for (var wy = 0; wy < windowSize; wy++) {
-                        for (var wx = 0; wx < windowSize; wx++) {
-                              var pixel = image.sample(x + wx, y + wy);
-                              windowPixels.push(pixel);
-                        }
-                  }
+                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
 
-                  var windowMedian = calculateMedian(windowPixels);
-                  var medianDiff = Math.abs(windowMedian - overallMedian);
-                  var windowStdDev = calculateStdDev(windowPixels, windowMedian);
+                  var windowMedian = w.mainView.image.median(rect);
+                  var windowStdDev = w.mainView.image.stdDev(rect);
 
                   // Check if the window meets the background criteria
-                  if (windowStdDev <= MAX_STD_DEV && medianDiff <= MAX_MEDIAN_DIFF) {
+                  // Option 1
+                  if (0 && windowStdDev <= limits.stdDev
+                        && windowMedian <= limits.median)
+                  {
                         backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
                   }
+                  // Option 2
+                  if (1 && windowMedian < limits.median + 2 * limits.sigma
+                        && windowStdDev < 1.5 * limits.stdDev) 
+                  {
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
+                  }
+                  nchecked++;
             }
             if (cnt % 10 == 0) {
-                  checkCancel()
+                  checkCancel();
                   processEvents();
+                  util.runGarbageCollection();
             }
-            if (testmode && cnt % 100 == 0) {
-                  console.writeln("Checking " + x + " " + y + ", median " + windowMedian + ", std dev " + windowStdDev + ", median diff " + medianDiff);
-                  console.writeln("Total Background Regions Found: " + backgroundRegions.length);
+            if (testmode && cnt % 10 == 0) {
+                  console.writeln("Checking " + x + " " + y + ", median " + windowMedian + ", std dev " + windowStdDev);
+                  console.writeln("Background Regions Found: " + backgroundRegions.length);
                   console.flush();
             }
       }
+      console.writeln("Total Background Regions Found: " + backgroundRegions.length + ", Total regions checked: " + nchecked);
 
       // Sort the background regions by median value
       backgroundRegions.sort(function(a, b) {
@@ -9795,10 +9864,13 @@ function findTrueBackground(w, testmode)
       if (backgroundRegions.length > 0) {
             if (testmode) {
                   // Output the results
+                  var n_regions = 10;
                   console.writeln("Coordinates of Background Regions (Top-Left Corner):");
-                  for (var i = 0; i < backgroundRegions.length && i < 10; i++) {
-                        console.writeln("Region " + (i + 1) + ": (" + backgroundRegions[i].x + ", " + backgroundRegions[i].y + ")");
+                  for (var i = 0; i < backgroundRegions.length && i < n_regions; i++) {
+                        console.writeln(backgroundRegions[i].toSource());
                   }
+            } else {
+                  n_regions = 1;
             }
             console.writeln("findTrueBackground:Total Background Regions Found: " + backgroundRegions.length);
 
@@ -9806,9 +9878,9 @@ function findTrueBackground(w, testmode)
             
             var bw_id = util.ensure_win_prefix("AutoBackgroundModel");
             console.writeln("findTrueBackground:create new " + bw_id + " window");
-            var bw = util.copyWindow(w, bw_id);
+            var bw = util.forceCopyWindow(w, bw_id);
 
-            // Optionally, highlight the found regions on the image
+            // Optionally, highlight the found region on the image
             // Draw only first region
             if (gui) {
                   console.writeln("findTrueBackground:Highlighting background region");
@@ -9817,7 +9889,7 @@ function findTrueBackground(w, testmode)
                   graphics.pen = new Pen(0xFFFF0000, 4);
                   graphics.transparentBackground = true;
 
-                  for (var i = 0; i < backgroundRegions.length && i < 1; i++) {
+                  for (var i = 0; i < backgroundRegions.length && i < n_regions; i++) {
                         var region = backgroundRegions[i];
                         var x = region.x;
                         var y = region.y;
@@ -9835,15 +9907,16 @@ function findTrueBackground(w, testmode)
             console.writeln("findTrueBackground:create preview");
             bw.createPreview( roi.x0, roi.y0, roi.x1, roi.y1, "background" );
 
-            // Autostretch for the convenience of the user
-            ApplyAutoSTF(
-                  bw.mainView,
-                  DEFAULT_AUTOSTRETCH_SCLIP,
-                  DEFAULT_AUTOSTRETCH_TBGND,
-                  false,
-                  false);
-
-            save_id_list.push([bw_id, bw_id]);  /* AutoBackgroundModel */
+            if (0 && !util.findKeywordName(w, "AutoIntegrateNonLinear") && imageIsLinear(w, limits.median, limits.stdDev)) {
+                  // Autostretch for the convenience of the user
+                  // For now keep original forat so pixel values are not changed
+                  ApplyAutoSTF(
+                        bw.mainView,
+                        DEFAULT_AUTOSTRETCH_SCLIP,
+                        DEFAULT_AUTOSTRETCH_TBGND,
+                        false,
+                        false);
+            }
             iconized_image_ids.push(bw_id);
 
             engine_end_process(node, w, "findTrueBackground");
@@ -9856,16 +9929,24 @@ function findTrueBackground(w, testmode)
       }
 }
 
-function runBackgroundNeutralization(imgWin)
+function runBackgroundNeutralization(imgWin, find_true_background = true, skip_flowchart = false)
 {
       var imgView = imgWin.mainView;
       util.addProcessingStepAndStatusInfo("Background neutralization on " + imgView.id);
 
-      var roi = findTrueBackground(imgWin, false);
+      if (find_true_background) {
+            var roi = findTrueBackground(imgWin, false);
+      } else {
+            var roi = null;
+      }
 
-      var node = flowchartOperation("BackgroundNeutralization");
-      if (global.get_flowchart_data) {
-            return null;
+      if (skip_flowchart) {
+            node = null;
+      } else {
+            var node = flowchartOperation("BackgroundNeutralization");
+            if (global.get_flowchart_data) {
+                  return null;
+            }
       }
 
       var P = new BackgroundNeutralization;
@@ -9890,6 +9971,481 @@ function runBackgroundNeutralization(imgWin)
       guiUpdatePreviewId(imgView.id);
 
       return roi;
+}
+
+function findSampleFromTile(tileNumber, x, y, x_size, y_size, backgroundRegions, selectedRegions)
+{
+      // Find a sample in the background regions
+      var foundRegions = [];
+      for (var i = 0; i < backgroundRegions.length; i++) {
+            var region = backgroundRegions[i];
+            if (region.x >= x && region.x < x + x_size && region.y >= y && region.y < y + y_size) {
+                  if (foundRegions.length < 3) {
+                        let sample = region;
+                        console.writeln("Tile " + tileNumber + ", sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
+                  }
+                  foundRegions.push(region);
+            }
+      }
+      if (foundRegions.length > 0) {
+            console.writeln("Tile " + tileNumber + ", " + foundRegions.length + " samples");
+            // Sort the found regions by median value
+            foundRegions.sort(function(a, b) {
+                  return a.median - b.median;
+            });
+            // Pick the first region as the sample
+            let sample = foundRegions[0];
+            selectedRegions.push(sample);
+            console.writeln("Tile " + tileNumber + ", best sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
+      } else {
+            // No sample found in this area, so we can skip it
+            console.writeln("Tile " + tileNumber + ", no samples");
+      }
+}
+
+function runDBEprocess(imgWin, image_samples)
+{
+      var data = image_samples.data;
+      var samples = image_samples.samples;
+
+      console.writeln("DBE on " + imgWin.mainView.id  + ", normalize " + par.dbe_normalize.val);
+      // console.writeln("data: " + data.toSource());
+      // console.writeln("samples: " + samples.toSource());
+
+      var P = new DynamicBackgroundExtraction;
+      P.data = data;    // x, y, z0, w0, z1, w1, z2, w2
+      P.numberOfChannels = imgWin.mainView.image.numberOfChannels;
+      P.derivativeOrder = 2;
+      P.smoothing = 0.250;
+      P.ignoreWeights = false;
+      P.modelId = "";
+      P.modelWidth = 0;
+      P.modelHeight = 0;
+      P.downsample = 2;
+      P.modelSampleFormat = DynamicBackgroundExtraction.prototype.f32;
+      P.targetCorrection = DynamicBackgroundExtraction.prototype.None;
+      P.normalize = par.dbe_normalize.val;
+      P.discardModel = false;
+      P.replaceTarget = true;
+      P.correctedImageId = "";
+      P.correctedImageSampleFormat = DynamicBackgroundExtraction.prototype.SameAsTarget;
+      P.samples = samples;          // x, y, radius, symmetries, axialCount, isFixed, z0, w0, z1, w1, z2, w2
+      P.imageWidth = imgWin.mainView.image.width;
+      P.imageHeight = imgWin.mainView.image.height;
+      P.symmetryCenterX = 0.500000;
+      P.symmetryCenterY = 0.500000;
+      P.tolerance = 0.500;
+      P.shadowsRelaxation = 3.000;
+      P.minSampleFraction = 0.050;
+      P.defaultSampleRadius = image_samples.radius;
+      P.samplesPerRow = 10;
+      P.minWeight = 0.750;
+      P.sampleColor = 4292927712;
+      P.selectedSampleColor = 4278255360;
+      P.selectedSampleFillColor = 0;
+      P.badSampleColor = 4294901760;
+      P.badSampleFillColor = 2164195328;
+      P.axisColor = 4292927712;
+
+      imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
+
+      P.executeOn(imgWin.mainView, false);
+
+      imgWin.mainView.endProcess();
+
+      // printProcessValues(P);
+      console.writeln(P.toSource());
+
+      engine_end_process(null);
+}
+
+/**
+ * Calculate the weight for a DBE sample.
+ *
+ * @param {number} sampleMedian - Sigma-clipped median of the sample region.
+ * @param {number} globalBackground - Estimated global background level.
+ * @param {number} tolerance - Tolerance value controlling weight sensitivity.
+ * @returns {number} Weight (between 0 and 1).
+ */
+function calculateSampleWeight(sampleMedian, globalBackground, tolerance) 
+{
+      // Compute the absolute difference between sample background and global background
+      var delta = Math.abs(sampleMedian - globalBackground);
+      
+      // Compute weight using an exponential decay function.
+      // A smaller tolerance makes the weight drop off more rapidly.
+      var weight = Math.exp(- (delta * delta) / (2 * tolerance * tolerance));
+      return weight;
+}
+
+/**
+ * Calculates the minimum normalized distance from a sample point to any image edge
+ * Normalized value [0, 1] where 0 is at the edge and 1 is at the center
+ * 
+ * @param {Object} sample - The sample point with x, y coordinates
+ * @param {Number} width - Image width in pixels
+ * @param {Number} height - Image height in pixels
+ * @return {Number} The minimum distance to any edge in range [0, 1]
+ */
+function calculateNormalizedDistanceFromEdge(sample, width, height) {
+      // Calculate distance to each edge
+      const distToLeft = sample.x / (width / 2);
+      const distToRight = (width - sample.x) / (width / 2);
+      const distToTop = sample.y / (height / 2);
+      const distToBottom = (height - sample.y) / (height / 2);
+      
+      // Return the minimum distance
+      return Math.min(distToLeft, distToRight, distToTop, distToBottom);
+}
+
+/**
+ * Outlier factor calculation
+ * 
+ * @param {Number} value - The sample value
+ * @param {Number} median - The median value (global or local)
+ * @param {Number} stdDev - The standard deviation (global or local)
+ * @return {Number} Scaled outlier factor between 0.2 and 1.0
+ */
+function calculateOutlierFactor(value, median, stdDev) 
+{
+      // Only consider values above the median as "bright" outliers
+      // If value is below median, no outlier factor (return 1.0 - full weight)
+      if (value <= median) {
+          return 1.0; // No reduction in factor for values below or equal to median
+      }
+      
+      // Calculate z-score only for values above median (bright outliers)
+      const zScore = (value - median) / (stdDev > 0 ? stdDev : 1);
+      
+      // Use a more gradual scaling function
+      // This allows outliers to still contribute, but with reduced weight
+      
+      // Option 1: Sigmoid-like function with minimum threshold
+      const minFactor = 0.2;  // Even extreme outliers retain 20% weight
+      const scaleFactor = 2.0; // Controls how quickly weight drops off
+      
+      return minFactor + (1 - minFactor) / (1 + Math.pow(zScore / scaleFactor, 2));
+      
+      // Option 2: Linear scaling with clamping
+      // const minFactor = 0.2;
+      // const maxZScore = 3.0;  // z-score at which we reach minimum factor
+      // return Math.max(minFactor, 1.0 - (zScore / maxZScore) * (1.0 - minFactor));
+}
+
+function calculateOptimalWeight(image, sample, globalstats, stats) 
+{
+      // Base weight starts at 1.0
+      let weight = 1.0;
+
+      console.writeln("-- Sample weight calculation --");
+      console.writeln("Sample at x: " + sample.x + ", y: " + sample.y);
+      console.writeln("Sample stats: " + stats.toSource());
+      console.writeln("Global stats: " + globalstats.toSource());
+      
+      // 1. Signal-to-noise ratio factor
+      // Higher SNR gets higher weight
+      const snr = stats.mean / stats.stdDev;
+      const snrFactor = Math.min(1.0, snr / 10); // Cap at 1.0
+      weight *= (0.5 + 0.5 * snrFactor);
+      console.writeln("1. SNR: " + snr + ", SNR factor: " + snrFactor + ", weight: " + weight);
+      
+      // 2. Outlier detection
+      const outlierFactor = calculateOutlierFactor(
+                              stats.mean,          // Sample region mean
+                              globalstats.median,  // Global median reference
+                              globalstats.stdDev   // Global standard deviation
+      );
+      weight *= outlierFactor;
+      console.writeln("2. Outlier factor: " + outlierFactor + ", weight: " + weight);
+      
+      // 3. Edge proximity factor - adjust weight based on distance from edge
+
+      // Normalized value [0, 1] where 0 is at the edge and 1 is at the center
+      const normalizedDist = calculateNormalizedDistanceFromEdge(sample, image.width, image.height);
+      
+      // Two possible strategies:
+      
+      // Option 1: Reduce weight for edge samples
+      // This helps prevent edge artifacts from affecting the model
+      // const edgeFactor = 0.5 + 0.5 * normalizedDist;
+      // weight *= edgeFactor;
+
+      // Option 2: Increase weight for edge samples
+      // This helps the model better fit edge vignetting
+      const edgeFactor = 0.7 + 0.3 * (1 - normalizedDist);
+      weight *= edgeFactor;
+      console.writeln("3. Normalized distance from edge: " + normalizedDist + ", Edge factor: " + edgeFactor + ", weight: " + weight);
+      
+      // 4. Local gradient strength
+      // In areas with strong gradients, we might want higher weights
+      // const gradientStrength = stats.localGradient / stats.mean;
+      // const gradientFactor = Math.min(1.0, 0.5 + gradientStrength);
+      // weight *= gradientFactor;
+      
+      // 5. Sample region uniformity
+      // More uniform regions are better background samples
+      const uniformityFactor = Math.exp(-stats.stdDev / stats.mean);
+      weight *= uniformityFactor;
+      console.writeln("5. Uniformity factor: " + uniformityFactor + ", weight: " + weight);
+      
+      return weight;
+}
+
+function findDBEsamples(w)
+{
+      var image = w.mainView.image;
+
+      console.writeln("Finding DBE samples in " + w.mainView.id);
+
+      var image = w.mainView.image;
+
+      // Get image dimensions
+      var width = image.width;
+      var height = image.height;
+
+      // Define window size
+      var windowSize = 25;
+      
+      console.writeln("Calculate limits...");
+      console.flush();
+
+      var limits = calculateBackgroundLimits(w);
+      
+      console.writeln("limits: " + limits.toSource());
+      console.writeln("Find background regions...");
+      console.flush();
+
+      // var adjust_low = getAdjustPoint(w, 1);
+      // console.writeln("Adjust low: " + adjust_low.normalizedAdjustPoint);
+      // var adjust_high = getAdjustPoint(w, 80);
+      // console.writeln("Adjust high: " + adjust_high.normalizedAdjustPoint);
+
+      // Array to store background regions
+      var backgroundRegions = [];
+
+      // Iterate over the image with the defined window size
+      var nchecked = 0;
+      var stepsize = 10;
+      var tileNumber = 0;
+      var tile_x_size = Math.floor(width / par.dbe_samples_per_row.val);
+      var tile_y_size = Math.floor(height / par.dbe_samples_per_row.val);
+      var print_x = Math.floor(tile_x_size / 2);
+      var print_y = Math.floor(tile_y_size / 2);
+      for (var y = windowSize, cnt = 0; y < height - 2 * windowSize - 1; y += stepsize, cnt++) {
+            for (var x = windowSize; x < width - 2 * windowSize - 1; x += stepsize) {
+                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
+
+                  var windowMedian = image.mean(rect);
+                  var windowStdDev = image.stdDev(rect);
+                  var windowMean = w.mainView.image.mean(rect);
+
+                  // Check if the window meets the background criteria
+                  if (0 
+                      && windowStdDev <= limits.stdDev
+                      && windowMedian <= limits.median
+                      && windowMean <= limits.median) 
+                  {
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, mean: windowMean, size: windowSize});
+                  }
+                  if (1 
+                      && windowMedian < limits.median + 2 * limits.sigma
+                      && windowStdDev < 1.5 * limits.stdDev)
+                  {
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, mean: windowMean, size: windowSize});
+                  }
+                  nchecked++;
+                  if (x > print_x && y > print_y) {
+                        console.writeln("Tile " + tileNumber + ", x " + x + ", y " + y + ", median " + windowMedian + ", std dev " + windowStdDev + ", mean " + windowMean);
+                        console.writeln("Background regions found: " + backgroundRegions.length + ", Total regions checked: " + nchecked);
+                        console.flush();
+                        print_x += tile_x_size;
+                        tileNumber++;
+                  }      
+            }
+            if (y > print_y) {
+                  print_y += tile_y_size;
+                  print_x = Math.floor(tile_x_size / 2);
+            }
+            if (cnt % 10 == 0) {
+                  checkCancel();
+                  processEvents();
+                  util.runGarbageCollection();
+            }
+      }
+      console.writeln("Total Background Regions Found: " + backgroundRegions.length + ", Total regions checked: " + nchecked);
+
+      // Split the image to tiles and pick one area from backgroundRegions 
+      // for each tile
+      console.writeln("Splitting image to " + par.dbe_samples_per_row.val + "x" + par.dbe_samples_per_row.val + " tiles and picking samples from background regions...");
+      console.writeln("Tile width " + tile_x_size + ", height " + tile_y_size);
+      console.writeln("Image width " + width + ", height " + height);
+      var selectedRegions = [];
+      var tileNumber = 0;
+      var linesX = [];
+      var linesY = [];
+      for (var y = 0; y < height - tile_y_size / 2; y += tile_y_size) {
+            if (y > 0) {
+                  linesY.push(y);
+            }
+            for (var x = 0; x < width - tile_x_size / 2; x += tile_x_size) {
+                  console.writeln("Tile " + tileNumber + ", x " + x + ", y " + y + ", x1 " + (x + tile_x_size) + ", y1 " + (y + tile_y_size));
+                  findSampleFromTile(tileNumber, x, y, tile_x_size, tile_y_size, backgroundRegions, selectedRegions);
+                  if (y == 0 && x > 0) {
+                        linesX.push(x);
+                  }
+                  tileNumber++;
+            }
+            checkCancel();
+            processEvents();
+            util.runGarbageCollection();
+      }
+
+      if (selectedRegions.length > 0) {
+            console.writeln("findDBEsamples:Selected Background Regions Found: " + selectedRegions.length);
+
+            // Channel based values
+            var channelStats = [];
+            for (var j = 0; j < image.numberOfChannels; j++) {
+                  channelStats[j] = {
+                        median: image.median(new Rect(0), j, j),
+                        stdDev: image.stdDev(new Rect(0), j, j)
+                  };
+            }
+            // Create data and sample point for DBE
+            // x, y, z0, w0, z1, w1, z2, w2
+            var data = [];
+            // x, y, radius, symmetries, axialCount, isFixed, z0, w0, z1, w1, z2, w2
+            var samples = [];
+            for (var i = 0; i < selectedRegions.length; i++) {
+                  var region = selectedRegions[i];
+                  var datarow = [ region.x / width, region.y / height ];
+                  var samplerow = [ Math.floor(region.x + region.size / 2), Math.floor(region.y + region.size / 2) ];
+                  samplerow.push(Math.floor(region.size / 2), 0, 6, 0);
+                  var rect = new Rect(region.x, region.y, region.x + region.size, region.y + region.size);
+                  for (var j = 0; j < image.numberOfChannels; j++) {
+                        var regionStats = {
+                              mean: image.mean(rect, j, j),
+                              median: image.median(rect, j, j),
+                              stdDev: image.stdDev(rect, j, j)
+                        };
+                        var sampleWeight = calculateOptimalWeight(image, region, channelStats[j], regionStats);
+                        datarow.push(regionStats.mean, sampleWeight);   // mean, weight
+                        samplerow.push(regionStats.mean, sampleWeight);
+                  }
+                  console.writeln("findDBEsamples:Data row: " + datarow.toSource() + ", Sample row: " + samplerow.toSource());
+                  data.push(datarow);
+                  samples.push(samplerow);
+            }
+
+            // Optionally, highlight the found regions on the image
+            // Draw regions
+            if (gui) {
+                  console.writeln("findDBEsamples:Highlighting background region");
+
+                  var bw_id = util.ensure_win_prefix(w.mainView.id + "_DBEsamples");
+                  console.writeln("findDBEsamples:create new " + bw_id + " window");
+                  var bw = util.forceCopyWindow(w, bw_id);
+      
+                  var bitmap = gui.createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
+                  var graphics = new Graphics(bitmap);
+                  graphics.pen = new Pen(0xFFFFFFFF, 4);
+                  graphics.transparentBackground = true;
+
+                  // Draw lines for region boundaries
+                  for (var i = 0; i < linesX.length; i++) {
+                        var x = linesX[i];
+                        graphics.drawLine(x, 0, x, height);
+                  }
+                  for (var i = 0; i < linesY.length; i++) {
+                        var y = linesY[i];
+                        graphics.drawLine(0, y, width, y);
+                  }
+                  // Draw select points
+                  graphics.pen = new Pen(0xFFFF0000, 4);
+                  for (var i = 0; i < selectedRegions.length; i++) {
+                        var region = selectedRegions[i];
+                        var x = region.x;
+                        var y = region.y;
+
+                        // Create a rectangle
+                        graphics.drawRect(x, y, x + windowSize, y + windowSize);
+                  }
+                  graphics.end();
+
+                  bw.mainView.beginProcess(UndoFlag_NoSwapFile);
+                  bw.mainView.image.blend(bitmap);
+                  bw.mainView.endProcess();
+                  iconized_image_ids.push(bw_id);
+
+                  if (0 && !util.findKeywordName(w, "AutoIntegrateNonLinear") && imageIsLinear(w, limits.median, limits.stdDev)) {
+                        // Autostretch for the convenience of the user
+                        // For now keep original forat so pixel values are not changed
+                        ApplyAutoSTF(
+                              bw.mainView,
+                              DEFAULT_AUTOSTRETCH_SCLIP,
+                              DEFAULT_AUTOSTRETCH_TBGND,
+                              false,
+                              false);
+                  }
+            }
+
+            engine_end_process(null, w);
+
+            return { data: data, samples: samples, radius: Math.floor(windowSize / 2) };
+
+      } else {
+            util.addCriticalStatus("findDBEsamples:No selected background regions found matching the criteria.");
+            return null;
+      }
+}
+
+function runDBE(imgWin, replaceTarget, postfix, skip_flowchart)
+{
+      util.addProcessingStepAndStatusInfo("Dynamic background extraction on " + imgWin.mainView.id);
+
+      if (skip_flowchart) {
+            var node = null;
+      } else {
+            var node = flowchartOperation("DBE");
+      }
+
+      if (global.get_flowchart_data) {
+            return imgWin.mainView.id;
+      }
+
+      if (replaceTarget) {
+            util.addProcessingStepAndStatusInfo("Run DBE on image " + imgWin.mainView.id);
+            var GC_id = imgWin.mainView.id;
+      } else {
+            var GC_id = util.ensure_win_prefix(util.replacePostfixOrAppend(imgWin.mainView.id, ["_map", "_combined"], postfix));
+            util.addProcessingStepAndStatusInfo("Run DBE from image " + imgWin.mainView.id + ", target image " + GC_id);
+            imgWin = util.copyWindowEx(imgWin, GC_id, true);
+      }
+
+      if (imgWin.mainView.image.numberOfChannels > 1 && par.dbe_use_background_neutralization.val) {
+            // Run background neutralization before DBE
+            runBackgroundNeutralization(imgWin, false, true);
+      }
+
+      if (par.dbe_use_abe.val) {
+            // Run ABE before DBE
+            runABEex(imgWin, true, "", true, 1, par.dbe_normalize.val, 'Subtraction');
+      }
+
+      var samples = findDBEsamples(imgWin);
+      if (samples == null) {
+            util.addCriticalStatus("DBE: No samples found.");
+            engine_end_process(node, imgWin, "DBE");
+            return GC_id;
+      }
+
+      runDBEprocess(imgWin, samples);
+
+      engine_end_process(node, imgWin, "DBE");
+
+      console.writeln("Dynamic background extraction completed.");
+
+      return GC_id;
 }
 
 function findCurrentTelescope(imgWin)
@@ -12237,7 +12793,7 @@ function smoothBackgroundBeforeGC(win, val_perc, linear_data)
             val = val_perc;
       } else {
             console.writeln("smoothBackgroundBeforeGC, percentage " + val_perc);
-            var adjust = getAdjustPoint(win, val_perc);
+            let adjust = getAdjustPoint(win, val_perc);
             var val = adjust.normalizedAdjustPoint;
             console.writeln("smoothBackgroundBeforeGC, value " + val);
       }
@@ -14973,6 +15529,13 @@ function extraBandingReduction(extraWin)
       runBandingReduction(extraWin);
 }
 
+function extraBackgroundNeutralization(extraWin)
+{
+      addExtraProcessingStep("Background neutralization");
+
+      runBackgroundNeutralization(extraWin);
+}
+
 function extraGradientCorrection(extraWin)
 {
       if (par.extra_GC_method.val == 'Auto') {
@@ -14984,6 +15547,8 @@ function extraGradientCorrection(extraWin)
             addExtraProcessingStep("Extract background using GraXpert, correction " + par.graxpert_correction.val + ', smoothing ' + par.graxpert_smoothing.val);
       } else if (gc_method == 'ABE') {
             addExtraProcessingStep("Extract background using ABE, degree " + par.ABE_degree.val + ", correction " + par.ABE_correction.val);
+      } else if (gc_method == 'BBE') {
+            addExtraProcessingStep("Extract background using DBE");
       } else if (gc_method == 'MultiscaleGradientCorrection') {
             addExtraProcessingStep("Extract background using MultiscaleGradientCorrection");
       } else {
@@ -16156,6 +16721,10 @@ function extraProcessing(parent, id, apply_directly)
       if (par.extra_banding_reduction.val) {
             extraBandingReduction(extraWin);
             extraOptionCompleted(par.extra_banding_reduction);
+      }
+      if (par.extra_backgroundneutralization.val) {
+            extraBackgroundNeutralization(extraWin);
+            extraOptionCompleted(par.extra_backgroundneutralization);
       }
       if (par.extra_GC.val) {
             let abe_id = extraGradientCorrection(extraWin);
@@ -18382,6 +18951,7 @@ this.subframeSelectorMeasure = subframeSelectorMeasure;
 this.runHistogramTransformSTFex = runHistogramTransformSTFex;
 this.autoStretch = autoStretch;
 this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
+this.imageIsLinear = imageIsLinear;
 
 this.openImageFiles = openImageFiles;
 this.openDirectoryFiles = openDirectoryFiles;

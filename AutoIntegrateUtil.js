@@ -52,7 +52,10 @@ function runGarbageCollection()
       var start_time = Date.now();
       gc();
       var end_time = Date.now();
-      console.writeln("runGarbageCollection, " + (end_time-start_time)/1000+ " sec");
+      var time_sec = (end_time-start_time)/1000;
+      if (time_sec >= 1.0) {
+            console.writeln("runGarbageCollection, " + time_sec + " sec");
+      }
 }
 
 function checkEvents()
@@ -1626,7 +1629,8 @@ function remove_autocontinue_prefix(id)
 
 function is_non_starless_option()
 {
-      return par.extra_GC.val || 
+      return par.extra_backgroundneutralization.val ||
+             par.extra_GC.val || 
              par.extra_banding_reduction.val ||
              par.extra_darker_background.val || 
              par.extra_darker_hightlights.val ||
