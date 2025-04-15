@@ -8456,9 +8456,12 @@ function AutoIntegrateDialog()
       this.dbe_normalize_CheckBox = newCheckBox(this, "Normalize,", par.dbe_normalize, "<p>If checked set the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
       this.dbe_samples_per_row_Label = newLabel(this, "Samples per row", "Number of samples per row.", true);
       this.dbe_samples_per_row_SpinBox = newSpinBox(this, par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
+      this.dbe_min_weight_Edit = newNumericEdit(this, "Min weight", par.dbe_min_weight, 0, 1, "<p>Minimum sample weight to be included in the samples.");
 
       this.DBEGroupBoxLabel = newSectionLabel(this, "DBE settings");
-      this.DBEMainSizer = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, this.dbe_samples_per_row_SpinBox]);
+      this.DBEMainSizer = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, 
+                                                       this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, 
+                                                       this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
       this.DBEGroupBoxSizer = newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
