@@ -929,6 +929,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                   util.closeOneWindowById(arr[i]+"_highpass");
                   util.closeOneWindowById(arr[i]+"_lowpass");
                   util.closeOneWindowById(arr[i]+"_DBEsamples");
+                  util.closeOneWindowById(arr[i]+"_map_DBEsamples");
                   if (!keep_base_image) {
                         util.closeOneWindowById(arr[i]);
                   }
@@ -939,6 +940,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
                         util.closeOneWindowById(arr[i] + "_NB_max");
                         util.closeOneWindowById(arr[i] + "_processed_starless");
                         util.closeOneWindowById(arr[i] + "_background");
+                        util.closeOneWindowById(arr[i] + "_map_background");
                   }
             }
       }
@@ -9768,6 +9770,55 @@ function calculateImageStats(win)
       };
 }
 
+function findBackgroundRegions(w, windowSize, imageStats, testmode)
+{
+      console.writeln("Finding background regions in " + w.mainView.id + ", window size " + windowSize);
+
+      var image = w.mainView.image;
+
+      // Get image dimensions
+      var width = image.width;
+      var height = image.height;
+
+      // Array to store background regions
+      var backgroundRegions = [];
+
+      // Iterate over the image with the defined window size
+      var nchecked = 0;
+      for (var y = windowSize, cnt = 0; y <= height - windowSize; y += 10, cnt++) {
+            for (var x = windowSize; x <= width - windowSize; x += 10) {
+                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
+
+                  var windowMedian = w.mainView.image.median(rect);
+                  var windowStdDev = w.mainView.image.stdDev(rect);
+
+                  // Check if the window meets the background criteria
+                  if (windowMedian < imageStats.median
+                        && windowMedian > imageStats.median - 2 * imageStats.sigma
+                        && windowStdDev < 1.5 * imageStats.stdDev)
+                  {
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
+                  }
+                  if (0 && windowStdDev <= imageStats.stdDev && windowMedian <= imageStats.median) {
+                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
+                  }
+                  nchecked++;
+            }
+            if (cnt % 10 == 0) {
+                  checkCancel();
+                  processEvents();
+                  util.runGarbageCollection();
+            }
+            if (testmode && cnt % 10 == 0) {
+                  console.writeln("Checking " + x + " " + y + ", median " + windowMedian + ", std dev " + windowStdDev + ", background regions found: " + backgroundRegions.length);
+                  console.flush();
+            }
+      }
+      console.writeln("Total Background Regions Found: " + backgroundRegions.length + ", Total regions checked: " + nchecked);
+
+      return backgroundRegions;
+}
+
 // Find a true background area in the image
 // Go thgrough the image and find a background area
 // We try to find an area of 25x25 pixels
@@ -9810,9 +9861,6 @@ function findTrueBackground(w, testmode)
       var width = image.width;
       var height = image.height;
 
-      // Define window size
-      var windowSize = 25;
-      
       console.writeln("Calculate image stats...");
       console.flush();
 
@@ -9822,35 +9870,11 @@ function findTrueBackground(w, testmode)
       console.writeln("Find background regions...");
       console.flush();
 
-      // Array to store background regions
-      var backgroundRegions = [];
-
-      // Iterate over the image with the defined window size
-      var nchecked = 0;
-      for (var y = windowSize, cnt = 0; y <= height - windowSize; y += 10, cnt++) {
-            for (var x = windowSize; x <= width - windowSize; x += 10) {
-                  var rect = new Rect(x, y, x + windowSize, y + windowSize);
-
-                  var windowMedian = w.mainView.image.median(rect);
-                  var windowStdDev = w.mainView.image.stdDev(rect);
-
-                  // Check if the window meets the background criteria
-                  if (windowStdDev <= imageStats.stdDev && windowMedian <= imageStats.median) {
-                        backgroundRegions.push({x: x, y: y, median: windowMedian, stdDev: windowStdDev, size: windowSize});
-                  }
-                  nchecked++;
-            }
-            if (cnt % 10 == 0) {
-                  checkCancel();
-                  processEvents();
-                  util.runGarbageCollection();
-            }
-            if (testmode && cnt % 10 == 0) {
-                  console.writeln("Checking " + x + " " + y + ", median " + windowMedian + ", std dev " + windowStdDev + ", background regions found: " + backgroundRegions.length);
-                  console.flush();
-            }
-      }
-      console.writeln("Total Background Regions Found: " + backgroundRegions.length + ", Total regions checked: " + nchecked);
+      // Define initial window size
+      var windowSize = 25;
+      
+      // Find background regions
+      var backgroundRegions = findBackgroundRegions(w, windowSize, imageStats, testmode);
 
       // Sort the background regions by median value
       backgroundRegions.sort(function(a, b) {
@@ -10052,6 +10076,8 @@ function runDBEprocess(imgWin, image_samples)
       console.writeln(P.toSource());
 
       engine_end_process(null);
+
+      iconized_image_ids.push(imgWin.mainView.id + "_background");
 }
 
 /**
