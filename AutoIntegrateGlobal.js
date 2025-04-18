@@ -42,14 +42,15 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.75 test2";                     // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.75 test3";                     // Version, also updated into updates.xri
 this.autointegrate_info = "DBE, drizzle options, flat dark calibration";      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- DBE can be used for gradient correction",
       "- Flat dark calibration fixes",
-      "- Drizzle options"
+      "- Drizzle options",
+      "- Bug fixes and enhancements"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

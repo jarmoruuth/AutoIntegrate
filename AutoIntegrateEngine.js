@@ -5891,6 +5891,14 @@ function customMapping(RGBmapping, filtered_lights)
              * User can choose in the GUI interface which one to use.
              */
 
+            if (luminance_id == null) {
+                  // Check for luminance image.
+                  // We may already have copied L_id so we do it
+                  // here only if it is not copied yet.
+                  luminance_id = copyToMapIf(L_id);
+                  CropImageIf(luminance_id);
+            }
+
             /* Make a copy so we do not change the original integrated images.
              * Here we create image with _map added to the end 
              * (Integration_H -> Integration_H_map).
@@ -16382,16 +16390,16 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
 
                   flowchartReset();
 
-                  var succ = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option(), txt);
-                  if (!succ) {
+                  var finalImageId = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option(), txt);
+                  if (finalImageId == null) {
                         util.addProcessingStep("Narrowband palette batch could not process all palettes");
                   }
                   // rename and save the final image
-                  var image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB", false);
+                  var image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + finalImageId, false);
                   util.batchWindowSetPosition(image_name, batch_image_cnt);
                   batch_image_cnt++;
-                  if (util.findWindow(ppar.win_prefix + "AutoRGB_extra") != null) {
-                        image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + "AutoRGB_extra", true);
+                  if (util.findWindow(ppar.win_prefix + finalImageId + "_extra") != null) {
+                        image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + finalImageId + "_extra", true);
                         util.batchWindowSetPosition(image_name, batch_image_cnt);
                         batch_image_cnt++;
                   }
@@ -18174,11 +18182,16 @@ function save_images_in_save_id_list()
  *          global.par.*
  *                Processing parameters.
  * 
+ * Return value:
+ * 
+ *          null if processing was cancelled or failed.
+ *          final image id if processing was successful.
+ * 
  */
 function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, txt)
 {
        if (!check_engine_processing()) {
-            return false;
+            return null;
        }
 
        if (!global.get_flowchart_data) {
@@ -18311,7 +18324,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
              console.criticalln("Failed!");
              console.endLog();
              global.is_processing = global.processing_state.none;
-             return false;
+             return null;
        }
  
        /********************************************************************
@@ -18884,7 +18897,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
 
        global.is_processing = global.processing_state.none;
 
-       return true;
+       return LRGB_processed_HT_id;
 }
  
 function printProcessValues(obj)
