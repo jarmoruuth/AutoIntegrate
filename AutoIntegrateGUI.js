@@ -10332,7 +10332,7 @@ function AutoIntegrateDialog()
             [ this.StarStretchingGroupBoxSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
             [ this.linearFitAndLRGBCombinationCropSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, ABE settings", "ps_ave_graxpert",
+      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, ABE settings, DBE settings", "ps_ave_graxpert",
             [ this.GCStarXSizer ]);
       newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction settings", "ps_saturation_noise",
             [ this.saturationGroupBoxLabel,

@@ -7761,7 +7761,7 @@ function getGradientCorrectionName()
       } else if (par.use_abe.val) {
             return "AutomaticBackgroundExtractor";
       } else if (par.use_dbe.val) {
-            return "DynamicBackgroundExtractor";
+            return "DynamicBackgroundExtraction";
       } else if (par.use_multiscalegradientcorrection.val) {
             return "MultiscaleGradientCorrection";
       } else {
@@ -18949,6 +18949,7 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new LinearFit", new LinearFit);
       printProcessDefaultValues("new DrizzleIntegration", new DrizzleIntegration);
       printProcessDefaultValues("new AutomaticBackgroundExtractor", new AutomaticBackgroundExtractor);
+      printProcessDefaultValues("new DynamicBackgroundExtraction", new DynamicBackgroundExtraction);
       printProcessDefaultValues("new ScreenTransferFunction", new ScreenTransferFunction);
       printProcessDefaultValues("new HistogramTransformation", new HistogramTransformation);
       printProcessDefaultValues("new MaskedStretch", new MaskedStretch);
