@@ -733,6 +733,9 @@ function appenFITSKeyword(imageWindow, name, value, comment)
 function getKeywordValue(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
+      if (!keywords) {
+            return null;
+      }
       for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
             if (keyword.name == keywordname) {
@@ -745,6 +748,9 @@ function getKeywordValue(imageWindow, keywordname)
 function findKeywordName(imageWindow, keywordname) 
 {
       var keywords = imageWindow.keywords;
+      if (!keywords) {
+            return null;
+      }
       for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
             if (keyword.name == keywordname) {
@@ -1072,6 +1078,26 @@ function saveWindowEx(path, id, optional_unique_part, optional_save_id, optional
             util.throwFatalError("Failed to save image: " + fname);
       }
       return fname;
+}
+
+function saveWindowAsJpg(imgWin, jpeg_filename, quality)
+{
+      console.writeln("saveWindowAsJpg " + jpeg_filename + " quality " + quality);
+      var fileFormat = new FileFormat( ".jpg", false/*toRead*/, true/*toWrite*/ );
+      if (fileFormat.isNull) {
+            throwFatalError("No installed file format can write .jpg files.");
+      }
+      var file = new FileFormatInstance( fileFormat );
+      if (file.isNull) {
+            throwFatalError("Unable to instantiate file format: " + fileFormat.name);
+      }
+      if (!file.create(jpeg_filename, format("quality %d", quality))) {
+            throwFatalError("Error creating file: " + jpeg_filename);
+      }
+      if (!file.writeImage( imgWin.mainView.image)) {
+            throwFatalError("Error writing file: " + jpeg_filename);
+      }
+      file.close();
 }
 
 function getOptionalUniqueFilenamePart()
@@ -2569,6 +2595,7 @@ this.fixAllWindowArrays = fixAllWindowArrays;
 this.saveWindowEx = saveWindowEx;
 this.saveFinalImageWindow = saveFinalImageWindow;
 this.saveAllFinalImageWindows = saveAllFinalImageWindows;
+this.saveWindowAsJpg = saveWindowAsJpg;
 
 this.add_test_image = add_test_image;
 this.copyWindowEx = copyWindowEx;

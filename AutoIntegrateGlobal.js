@@ -42,15 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.75";                           // Version, also updated into updates.xri
-this.autointegrate_info = "DBE, drizzle options, flat dark calibration";      // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.76 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Updates";                              // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- DBE can be used for gradient correction",
-      "- Flat dark calibration fixes",
-      "- Drizzle options",
-      "- Bug fixes and enhancements"
+      "- Added options to save final image as JPG or TIFF."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -130,6 +127,11 @@ this.par = {
       force_new_mask: { val: false, def: false, name : "Force new mask", type : 'B' },
       crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
       unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
+
+      // Saving image
+      save_final_image_tiff: { val: false, def: false, name : "Save final image as TIFF", type : 'B' },
+      save_final_image_jpg: { val: false, def: false, name : "Save final image as JPG", type : 'B' },
+      save_final_image_jpg_quality: { val: 80, def: 80, name : "Save final image as JPG quality", type : 'I' },
 
       // Other parameters
       calibrate_only: { val: false, def: false, name : "Calibrate only", type : 'B' },

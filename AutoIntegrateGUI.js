@@ -9900,16 +9900,23 @@ function AutoIntegrateDialog()
             console.writeln("Save 8 bit TIFF");
             util.saveAllFinalImageWindows(8);
       };   
+      this.saveButtonsSizer = newHorizontalSizer(4, true, [ this.mosaicSaveXisfButton, this.mosaicSave16bitButton, this.mosaicSave8bitButton ]);
 
+      this.saveFinalImageLabel = newLabel(this, "Save final image as");
+      this.saveFinalImageTiffCheckBox = newCheckBox(this, "TIFF", par.save_final_image_tiff, 
+            "<p>Save final image also as a 16-bit TIFF image.</p>");
+      this.saveFinalImageJpgCheckBox = newCheckBox(this, "JPG", par.save_final_image_jpg, 
+            "<p>Save final image also as a JPG image.</p>");
+      this.saveFinalImageJpgQualityEdit = newNumericEditPrecision(this, "quality", par.save_final_image_jpg_quality, 20, 100, "Quality of the JPG image.", 0);
+      
+      this.saveFinalImageSizer = newHorizontalSizer(4, true, [ this.saveFinalImageLabel, this.saveFinalImageTiffCheckBox, this.saveFinalImageJpgCheckBox, this.saveFinalImageJpgQualityEdit ]);
+      
       this.mosaicSaveControl = new Control( this );
-      this.mosaicSaveControl.sizer = new HorizontalSizer;
+      this.mosaicSaveControl.sizer = new VerticalSizer;
       this.mosaicSaveControl.sizer.margin = 6;
       this.mosaicSaveControl.sizer.spacing = 4;
-      this.mosaicSaveControl.sizer.add( this.mosaicSaveXisfButton );
-      this.mosaicSaveControl.sizer.addSpacing( 4 );
-      this.mosaicSaveControl.sizer.add( this.mosaicSave16bitButton );
-      this.mosaicSaveControl.sizer.addSpacing( 4 );
-      this.mosaicSaveControl.sizer.add( this.mosaicSave8bitButton );
+      this.mosaicSaveControl.sizer.add( this.saveButtonsSizer );
+      this.mosaicSaveControl.sizer.add( this.saveFinalImageSizer );
       this.mosaicSaveControl.visible = false;
 
       /* Interface.
@@ -10159,7 +10166,7 @@ function AutoIntegrateDialog()
             "<p>If checked then the operation processing time is shown in the flowchart.</p>" +
             skip_reset_tooltip);
       this.flowchartSaveImageCheckBox = newCheckBox(this, "Flowchart save image", par.flowchart_saveimage, 
-            "<p>If checked then the flowchart image is saved into AutoProcessing directory after processing is complete.</p>" +
+            "<p>If checked then the flowchart image is saved into AutoProcessed directory after processing is complete.</p>" +
             skip_reset_tooltip);
                   
       this.flowchartControl = new Control( this );

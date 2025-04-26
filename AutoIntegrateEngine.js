@@ -1015,7 +1015,7 @@ function saveProcessedImage(id, save_id)
       save_id_list.push([save_id, save_id]);
 }
 
-function saveProcessedWindow(id, optional_save_id, optional_extension)
+function saveProcessedWindow(id, optional_save_id = null, optional_extension = ".xisf")
 {
       if (id == null) {
             return null;
@@ -1035,7 +1035,39 @@ function saveProcessedWindow(id, optional_save_id, optional_extension)
             var processedPath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
             util.ensureDir(processedPath);
       }
-      return util.saveWindowEx(util.ensurePathEndSlash(processedPath), id, util.getOptionalUniqueFilenamePart(), optional_save_id, optional_extension);
+      var path = util.ensurePathEndSlash(processedPath);
+      var uniquepart = util.getOptionalUniqueFilenamePart();
+
+      var fname = util.saveWindowEx(path, id, uniquepart, optional_save_id, optional_extension);
+
+      var image_win = util.findWindow(id);
+      if (image_win == null) {
+            util.throwFatalError("saveProcessedWindow:could not find image " + id);
+      }
+      var keyword = util.getKeywordValue(image_win, "AutoIntegrate");
+      console.writeln("saveProcessedWindow, keyword " + keyword + ", id " + id + ", save_id " + optional_save_id + ", extension " + optional_extension);
+
+      if (keyword == "finalimage" && !optional_save_id && optional_extension == ".xisf") {
+            // Saving final image with default extension, check if we should save in other formats too
+            if (par.save_final_image_tiff.val) {
+                  // Save as TIFF, 16 bit
+                  console.writeln("saveProcessedWindow:save as TIFF, 16 bit");
+                  var tmp_win = util.copyWindow(image_win, id + "_savetmp");
+                  if (tmp_win.bitsPerSample != 16) {
+                        console.writeln("saveProcessedWindow:TIFF, set bits to 16");
+                        tmp_win.setSampleFormat(16, false);
+                  }
+                  util.saveWindowEx(path, tmp_win.mainView.id, uniquepart, id, ".tif");
+                  util.closeOneWindow(tmp_win);
+            }
+            if (par.save_final_image_jpg.val) {
+                  // Save as JPG, 8 bit
+                  var fname = path + id + uniquepart + ".jpg";
+                  console.writeln("saveProcessedWindow:save as JPG, 8 bit, quality " + par.save_final_image_jpg_quality.val);
+                  util.saveWindowAsJpg(image_win, fname, par.save_final_image_jpg_quality.val);
+            }
+      }
+      return fname;
 }
 
 function saveOutputWindow(id, save_id)
@@ -13072,7 +13104,7 @@ function LinearFitLRGBchannels()
       }
 
       if (refimage == null) {
-            util.throwFatalError("No reference image for linear fit using " + use_linear_fit);
+            util.throwFatalError("No reference image for linear fit using " + use_linear_fit + " option.  Check possible incorrect combination of options.");
       }
 
       util.addProcessingStep("Linear fit using " + refimage);
@@ -13127,6 +13159,10 @@ function CombineRGBimageEx(target_name, images)
        */
       util.addProcessingStep("Channel combination using images " + images[0] + "," + images[1] + "," + images[2]);
       var node = flowchartOperation("ChannelCombination");
+
+      if (images[0] == null || images[1] == null || images[2] == null) {
+            util.throwFatalError("Cannot combine RGB images, one of the images is null. Check possible incorrect combination of options.");
+      }
 
       var P = new ChannelCombination;
       P.colorSpace = ChannelCombination.prototype.RGB;
