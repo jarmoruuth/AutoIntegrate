@@ -8990,7 +8990,9 @@ function AutoIntegrateDialog()
 
       this.drizzleFunctionLabel = newLabel(this, "Kernel function", "Drizzle drop kernel function.");
       this.drizzleFunctionComboBox = newComboBox(this, par.drizzle_function, drizzle_function_values, this.drizzleFunctionLabel.toolTip);
-      this.drizzleFastModeCheckBox = newCheckBox(this, "Fast mode", par.drizzle_fast_mode, "<p>Use fast mode for drizzle integration.</p>");
+      this.drizzleFastModeCheckBox = newCheckBox(this, "Fast mode,", par.drizzle_fast_mode, "<p>Use fast mode for drizzle integration.</p>");
+      this.drizzleDropShrinkEdit = newNumericEdit(this, "Drop shrink", par.drizzle_drop_shrink, 0, 1, 
+            "<p>Drop shrink value for drizzle.</p>");
 
       this.drizzleGroupBoxLabel = newSectionLabel(this, 'Drizzle settings');
       this.drizzleGroupBoxSizer = new HorizontalSizer;
@@ -9000,6 +9002,7 @@ function AutoIntegrateDialog()
       this.drizzleGroupBoxSizer.add( this.drizzleFunctionLabel );
       this.drizzleGroupBoxSizer.add( this.drizzleFunctionComboBox );
       this.drizzleGroupBoxSizer.add( this.drizzleFastModeCheckBox );
+      this.drizzleGroupBoxSizer.add( this.drizzleDropShrinkEdit );
       this.drizzleGroupBoxSizer.addStretch();
 
       // Narrowband palette

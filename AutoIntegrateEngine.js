@@ -6651,15 +6651,13 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
             }
       }
 
+      console.writeln("runDrizzleIntegration, scale " + par.drizzle_scale.val + ", dropShrink " + par.drizzle_drop_shrink.val + ", useLUT " + par.drizzle_fast_mode.val + ", kernelFunction " + par.drizzle_function.val, ", enableLocalNormalization " + local_normalization);
+
       var P = new DrizzleIntegration;
       P.inputData = drizzleImages; // [ enabled, path, localNormalizationDataPath ]
       P.enableLocalNormalization = local_normalization;
       P.scale = par.drizzle_scale.val;
-      if (is_color_files) {
-            P.dropShrink = 1.0;
-      } else {
-            P.dropShrink = 0.9;
-      }
+      P.dropShrink = par.drizzle_drop_shrink.val;
       P.useLUT = par.drizzle_fast_mode.val;
       switch (par.drizzle_function.val) {
             case 'Square':

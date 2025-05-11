@@ -159,6 +159,7 @@ this.par = {
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
+      drizzle_drop_shrink: { val: 0.9, def: 0.9, name : "Drizzle drop shrink", type : 'R' },
       keep_integrated_images: { val: false, def: false, name : "Keep integrated images", type : 'B' },
       reset_on_setup_load: { val: true, def: true, name : "Reset on setup load", type : 'B' },
       keep_temporary_images: { val: false, def: false, name : "Keep temporary images", type : 'B' },
