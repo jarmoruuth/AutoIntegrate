@@ -3752,10 +3752,11 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       return { histogramBitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues, log_x_scale: log_x_scale };
 }
 
-function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false)
+function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, copy_image = true)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             console.writeln("Preview image:" + imgWin.mainView.id + " " + txt);
+            if (par.debug.val) var start_time = Date.now();
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
@@ -3770,6 +3771,8 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                               && par.preview_autostf.val 
                               && !util.findKeywordName(imgWin, "AutoIntegrateNonLinear"));
  
+            if (par.debug.val) console.writeln("--- updatePreviewWinTxt:init " + (Date.now()-start_time)/1000 + " sec");
+            if (par.debug.val) start_time = Date.now();
             if (histogramInfo) {
                   console.writeln("updatePreviewWinTxt:use existing histogramInfo");
                   current_histogramInfo = histogramInfo;
@@ -3784,23 +3787,39 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                   }
                   current_histogramInfo = histogramInfo;
             }
-            preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
+            if (par.debug.val) console.writeln("--- updatePreviewWinTxt:histogram " + (Date.now()-start_time)/1000 + " sec");
+            if (par.debug.val) start_time = Date.now();
+            if (copy_image) {
+                  preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
+            } else {
+                  preview_images[0] = { image: imgWin.mainView.image, txt: txt };
+            }
             if (run_autostf) {
                   // Image is linear, run AutoSTF
-                  util.closeOneWindowById("AutoIntegrate_preview_tmp");
-                  var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
-                  engine.autoStretch(copy_win);
-                  imgWin = copy_win;
-                  txt = txt + " (AutoSTF)";
-                  preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
-                  preview_image = preview_images[1].image;
-                  preview_image_txt = preview_images[1].txt;
+                  if (copy_image) {
+                        util.closeOneWindowById("AutoIntegrate_preview_tmp");
+                        var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
+                        engine.autoStretch(copy_win);
+                        imgWin = copy_win;
+                        txt = txt + " (AutoSTF)";
+                        preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
+                        preview_image = preview_images[1].image;
+                        preview_image_txt = preview_images[1].txt;
+                  } else {
+                        preview_images[1] = preview_images[0];
+                        var copy_win = null;
+                        preview_image = preview_images[0].image;
+                        preview_image_txt = preview_images[0].txt;
+                        engine.autoStretch(imgWin);
+                  }
             } else {
                   preview_images[1] = preview_images[0];
                   var copy_win = null;
                   preview_image = preview_images[0].image;
                   preview_image_txt = preview_images[0].txt;
             }
+            if (par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
+            if (par.debug.val) start_time = Date.now();
             if (global.is_processing != global.processing_state.none) {
                   flowchartUpdated();
             }
@@ -3811,6 +3830,8 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                         updatePreviewImage(tabPreviewControl, imgWin.mainView.image, txt, tabHistogramControl, histogramInfo);
                   }
             }
+            if (par.debug.val) console.writeln("--- updatePreviewWinTxt:updatePreviewImage " + (Date.now()-start_time)/1000 + " sec");
+            if (par.debug.val) start_time = Date.now();
             if (copy_win != null) {
                   util.closeOneWindow(copy_win);
             }
@@ -3818,6 +3839,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             console.noteln("Preview updated");
             is_some_preview = true;
             current_selected_file_name = null; // reset file name, it is set by caller if needed
+            if (par.debug.val) console.writeln("--- updatePreviewWinTxt:end " + (Date.now()-start_time)/1000 + " sec");
       }
 }
 
@@ -4577,6 +4599,10 @@ function getTreeBoxFileNamesCheckedIf(node, filenames, checked)
 function getTreeBoxNodeFiles(node, treeboxfiles)
 {
       if (node.numberOfChildren == 0) {
+            if (!node.filename || !File.exists(node.filename)) {
+                  console.criticalln("getTreeBoxNodeFiles, no file " + node.filename);
+                  return;
+            }
             if (node.lightsnode) {
                   treeboxfiles[treeboxfiles.length] = [ node.filename, node.checked, node.ssweight, node.best_image, node.reference_image ];
             } else {
@@ -4753,6 +4779,11 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
 
       var filteredFiles = engine.getFilterFiles(treeboxfiles, pageIndex, '');
+      if (filteredFiles.filecount == 0) {
+            console.writeln("addFilteredFilesToTreeBox no files");
+            return;
+      }
+      console.writeln("addFilteredFilesToTreeBox " + filteredFiles.filecount + " files");
       var files_TreeBox = parent.treeBox[pageIndex];
       files_TreeBox.clear();
 
@@ -4795,6 +4826,10 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
                   filternode.filename = "";
 
                   for (var j = 0; j < filterFiles.length; j++) {
+                        if (!File.exists(filterFiles[j].name)) {
+                              console.criticalln("addFilteredFilesToTreeBox, no file " + filterFiles[j].name);
+                              continue;
+                        }
                         if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
                               console.writeln("Skipping duplicate file " + filterFiles[j].name);
                               continue;
@@ -4873,6 +4908,10 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_
 
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < treeboxfiles.length; i++) {
+            if (!File.exists(treeboxfiles[i][0])) {
+                  console.criticalln("addUnfilteredFilesToTreeBox, no file " + treeboxfiles[i][0]);
+                  continue;
+            }
             if (findFileFromTreeBox(files_TreeBox, treeboxfiles[i][0])) {
                   console.writeln("Skipping duplicate file " + treeboxfiles[i][0]);
                   continue;
@@ -5270,6 +5309,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         } else {
                               updatePreviewTxt("Processing...");
                         }
+                        if (par.debug.val) var start_time = Date.now();
                         console.writeln("files_TreeBox.onCurrentNodeUpdated " + files_TreeBox.currentNode.filename);
                         var imageWindows = ImageWindow.open(files_TreeBox.currentNode.filename);
                         if (imageWindows == null || imageWindows.length == 0) {
@@ -5283,6 +5323,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                     imageWindow.position = new Point(0, 0);
                               }
                         }
+                        if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:read " + (Date.now()-start_time)/1000 + " sec");
+                        if (par.debug.val) start_time = Date.now();
                         if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
                               if (files_TreeBox.currentNode.ssweight == 0) {
                                     var ssweighttxt = "";
@@ -5299,6 +5341,8 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
+                        if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:properties " + (Date.now()-start_time)/1000 + " sec");
+                        if (par.debug.val) start_time = Date.now();
                         if (!global.use_preview) {
                               engine.autoStretch(imageWindow);
                               updateImageInfoLabel(imageInfoTxt);
@@ -5311,17 +5355,30 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               }
                               blink_window = imageWindow;
                         } else {
+                              if (par.preview_resample.val) {
+                                    var maxlen = Math.max(imageWindow.mainView.image.width, imageWindow.mainView.image.height);
+                                    var resample_factor = par.preview_resample_target.val / maxlen;
+                                    if (resample_factor < 1) {
+                                          engine.runResample(imageWindow, resample_factor);
+                                          if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:runResample " + (Date.now()-start_time)/1000 + " sec, resample_factor " + resample_factor);
+                                          console.writeln("Resampled image size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+                                    }
+                              }
                               updatePreviewWinTxt(
                                     imageWindow, 
                                     File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
                                     null,
-                              true);
+                                    true,
+                              false);
+                              if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
+                              if (par.debug.val) start_time = Date.now();
                               util.updateStatusInfoLabel(imageInfoTxt);
                               imageWindow.forceClose();
                               switchtoPreviewTab();
                         }
                         current_selected_file_name = files_TreeBox.currentNode.filename;
                         current_selected_file_filter = files_TreeBox.currentNode.filter;
+                        if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:end " + (Date.now()-start_time)/1000 + " sec");
                   }
             } catch(err) {
                   console.show();
@@ -6288,6 +6345,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             }
       };
 
+
       var buttonsSizer = new HorizontalSizer;
       parent.rootingArr.push(buttonsSizer);
       buttonsSizer.spacing = 4;
@@ -7117,7 +7175,7 @@ function AutoIntegrateDialog()
       var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Processing 1 / GraXpert</i> section before it can be used.</p>" +
                           "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
 
-      this.use_graxpert_CheckBox = newCheckBox(this, "GraXpert", par.use_graxpert, 
+      this.use_graxpert_CheckBox = newCheckBox(this, "GraXpert gradient", par.use_graxpert, 
             use_graxpert_toolTip + 
             "<p>GraXpert always uses the AI background model. In the <i>Processing 1 / GraXpert</i> section " +
             "it is possible to set some settings.</p>" +
@@ -8637,7 +8695,7 @@ function AutoIntegrateDialog()
       /* Masked.
        */
       this.MaskedStretchTargetBackgroundEdit = newNumericEdit(this, "targetBackground", par.MaskedStretch_targetBackground, 0, 1,
-            "<p>Masked Stretch targetBackground value. Usually values between 0.1 and 0.2 work best. Possible values are between 0 and 1.</p>");
+            "<p>Masked Stretch targetBackground value. Usually values between 0.05 and 0.2 work best. Possible values are between 0 and 1.</p>");
       this.MaskedStretchPrestretchTargetEdit = newNumericEdit(this, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
             "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
@@ -9843,6 +9901,10 @@ function AutoIntegrateDialog()
                   }
             });
 
+      this.resampleCheckBox = newCheckBox(this, "Resample", par.preview_resample, 
+            "<p>Use Resample process to reduce the size of preview images. The target image size can be changed in the <i>Interface</i> tab.</p>" +
+            "<p>Resample will make it faster to blink through images. Only the preview image is resample, original image is not modified.</p>" +
+            "<p>Note that resample may alter how preview image and histogram are shown during the preview.</p>");
 
       if (par.use_manual_icon_column.val) {
             this.columnCountControlLabel = new Label( this );
@@ -10080,6 +10142,18 @@ function AutoIntegrateDialog()
       this.preview3Sizer.addStretch();
       this.preview3Sizer.add( this.saveInterfaceButton );
 
+      this.resample_target_Label = newLabel(this, 'Resample target', "<p>Target size for preview image resample.</p>" +
+                                                                     "<p>Note that resample may alter how preview image and histogram are shown during the preview.</p>");
+
+      this.resample_target_SpinBox = newSpinBox(this, par.preview_resample_target, 100, 10000, this.resample_target_Label.toolTip);
+
+      this.preview4Sizer = new HorizontalSizer;
+      this.preview4Sizer.margin = 6;
+      this.preview4Sizer.spacing = 4;
+      this.preview4Sizer.add( this.resample_target_Label );
+      this.preview4Sizer.add( this.resample_target_SpinBox );
+      this.preview4Sizer.addStretch();
+
       this.processConsole_label = newLabel(this, 'Process console', "Show or hide process console.");
 
       this.hideProcessConsoleButton = new PushButton( this );
@@ -10148,6 +10222,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.add( this.preview11Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.preview3Sizer );
+      this.interfaceControl.sizer.add( this.preview4Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
       if (par.use_manual_icon_column.val) {
             this.interfaceControl.sizer.add( this.interfaceManualColumnSizer );
@@ -10302,6 +10377,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.showFlowchartCheckBox );
       this.buttons_Sizer.add( this.showFlowchartHelpTips );
       this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
+      this.buttons_Sizer.add( this.resampleCheckBox );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );

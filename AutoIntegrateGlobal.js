@@ -574,6 +574,8 @@ this.par = {
       // Misc settings
       show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },
       preview_autostf: { val: true, def: true, name : "Preview AutoSTF", type : 'B' },
+      preview_resample: { val: false, def: false, name : "Preview resample", type : 'B' },
+      preview_resample_target: { val: 2000, def: 2000, name : "Preview resample target", type : 'I' },
 
       // Old persistent settings, moved to generic settings
       start_with_empty_window_prefix: { val: false, def: false, name: "startWithEmptyPrefixName", type: 'B' }, // Do we always start with empty prefix

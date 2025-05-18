@@ -2401,7 +2401,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
             txt = appendTxtWithComma(txt, "flats");
       }
       if (txt != "") {
-            txt = " (use " + txt + ")";
+            txt = " (" + txt + ")";
       }
 
       var node = flowchartOperation("ImageCalibration:lights" + txt);
@@ -2731,6 +2731,7 @@ function getBinningPostfix()
 // resample_val is scale factor to get the desired dimension
 function runResample(imageWindow, resample_val)
 {
+      console.writeln("runResample, imageWindow " + imageWindow.mainView.id + ", resample_val " + resample_val + "using Lanczos3");
       var P = new Resample;
       P.xSize = resample_val;
       P.ySize = resample_val;
@@ -2740,7 +2741,7 @@ function runResample(imageWindow, resample_val)
       P.yResolution = 72.000;
       P.metric = false;
       P.forceResolution = false;
-      P.interpolation = Resample.prototype.Auto;
+      P.interpolation = Resample.prototype.Lanczos3;
       P.clampingThreshold = 0.30;
       P.smoothness = 1.50;
       P.gammaCorrection = false;
@@ -4045,6 +4046,7 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
       var maxheigth = 0;
       var firstDate = null;
       var lastDate = null;
+      var filecount = 0;
 
       var allfiles = {
             L: [], R: [], G: [], B: [], H: [], S: [], O: [], C: []
@@ -4104,6 +4106,11 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
             
             console.writeln("getFilterFiles file " +  filePath);
 
+            if (!File.exists(filePath)) {
+                  console.criticalln("File " + filePath + " does not exist\n");
+                  continue;
+            }
+            filecount++;
             if (filterSet != null) {
                   filter = util.findFilterForFile(filterSet, filePath, filename_postfix);
             }
@@ -4296,7 +4303,8 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                minwidth : minwidth,
                minheigth : minheigth,
                maxwidth : maxwidth,
-               maxheigth : maxheigth
+               maxheigth : maxheigth,
+               filecount : filecount
       };
 }
 
@@ -19062,6 +19070,7 @@ this.openImageFiles = openImageFiles;
 this.openDirectoryFiles = openDirectoryFiles;
 this.getFilterFiles = getFilterFiles;
 this.getImagetypFiles = getImagetypFiles;
+this.runResample = runResample;
 
 this.writeProcessingStepsAndEndLog = writeProcessingStepsAndEndLog;
 this.getProcessDefaultValues = getProcessDefaultValues;
