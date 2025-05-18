@@ -1889,16 +1889,38 @@ function readJsonFile(fname, lights_only)
       saveInfoMakeFullPaths(saveInfo, saveDir);
 
       if (saveInfo.best_image != null && saveInfo.best_image != undefined) {
-            console.writeln("Restored best image " + saveInfo.best_image);
-            global.user_selected_best_image = saveInfo.best_image;
+            if (!File.exists(saveInfo.best_image)) {
+                  console.criticalln("Restored best image " + saveInfo.best_image + " does not exist");
+                  global.user_selected_best_image = null;
+            } else {
+                  console.writeln("Restored best image " + saveInfo.best_image);
+                  global.user_selected_best_image = saveInfo.best_image;
+            }
       }
       if (saveInfo.reference_image != null && saveInfo.reference_image != undefined) {
-            console.writeln("Restored reference images " + saveInfo.reference_image);
-            global.user_selected_reference_image = saveInfo.reference_image;
+            let file_not_found = false
+            for (var i = 0; i < saveInfo.reference_image.length; i++) {
+                  if (!File.exists(saveInfo.reference_image[i][0])) {
+                        console.criticalln("Restored reference image " + saveInfo.reference_image[i][0] + " does not exist");
+                        file_not_found = true;
+                        break;
+                  }
+            }
+            if (file_not_found) {
+                  global.user_selected_reference_image = [];
+            } else {
+                  console.writeln("Restored reference images " + saveInfo.reference_image);
+                  global.user_selected_reference_image = saveInfo.reference_image;
+            }
       }
       if (saveInfo.star_alignment_image != null && saveInfo.star_alignment_image != undefined) {
-            console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
-            global.star_alignment_image = saveInfo.star_alignment_image;
+            if (!File.exists(saveInfo.star_alignment_image)) {
+                  console.criticalln("Restored star alignment image " + saveInfo.star_alignment_image + " does not exist");
+                  global.star_alignment_image = null;
+            } else {
+                  console.writeln("Restored star alignment image " + saveInfo.star_alignment_image);
+                  global.star_alignment_image = saveInfo.star_alignment_image;
+            }
       }
       if (saveInfo.defectInfo != null && saveInfo.defectInfo != undefined) {
             console.writeln("Restored defect info");
