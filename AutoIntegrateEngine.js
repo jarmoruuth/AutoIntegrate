@@ -477,7 +477,7 @@ function flowchartNewImage(imgWin, targetImageName)
       console.writeln("flowchartNewIntegrationImage");
 
       // copy image file
-      util.copyWindow(imgWin, targetImageName);
+      util.copyWindow(imgWin, util.ensure_win_prefix(targetImageName));
 
       return targetImageName;
 }
@@ -5549,8 +5549,17 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             console.writeln("StarXTerminator completed");
       }
 
+      util.setFITSKeyword(imgWin, "AutoIntegrateStarless", "true", "Starless image created by AutoIntegrate");
+
       if (global.get_flowchart_data) {
-            return  null;
+            if (save_stars) {
+                  let new_id = flowchartNewImage(imgWin, imgWin.mainView.id + "_stars");
+                  let new_win = util.findWindow(new_id);
+                  util.setFITSKeyword(new_win, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
+                  return new_win;
+            } else {
+                  return  null;
+            }
       }
 
       guiUpdatePreviewWin(imgWin);
@@ -5574,10 +5583,11 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             } else {
                   var star_win = getStarMaskWin(imgWin, stars_image_name);
             }
-            if (save_array != null) {
+            if (save_array != null && !global.get_flowchart_data) {
                   save_array[save_array.length] = star_win.mainView.id;
             }
             console.writeln("Removed stars from " + imgWin.mainView.id + " and created stars image " + star_win.mainView.id);
+            util.setFITSKeyword(imgWin, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
             return star_win;
       } else {
             return null;
@@ -9201,7 +9211,18 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       } else {
             console.writeln("runHistogramTransform using " + image_stretching);
       }
-      var node = flowchartOperation(image_stretching + (type == 'mask' ? ':mask' : ''));
+      switch (type) {
+            case 'stars':
+                  var flowchart_name = ":stars";
+                  break;
+            case 'mask':
+                  var flowchart_name = ":mask";
+                  break;
+            default:
+                  var flowchart_name = "";
+                  break;
+      }
+      var node = flowchartOperation(image_stretching + flowchart_name);
       if (global.get_flowchart_data) {
             return { win: GC_win, stf: null };
       }
@@ -9723,7 +9744,7 @@ function runColorReduceNoise(imgWin)
 function starReduceNoise(imgWin)
 {
       util.addProcessingStepAndStatusInfo("Star noise reduction on " + imgWin.mainView.id);
-      var node = flowchartOperation("TGVDenoise");
+      var node = flowchartOperation("TGVDenoise" + (util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
 
       if (global.get_flowchart_data) {
             return;
@@ -10968,7 +10989,7 @@ function runImageSolver(id)
 
 function runColorCalibrationProcess(imgWin, roi)
 {
-      var node = flowchartOperation("ColorCalibration");
+      var node = flowchartOperation("ColorCalibration" + (util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
       if (global.get_flowchart_data) {
             return;
       }
@@ -11029,7 +11050,7 @@ function runColorCalibration(imgWin, phase)
                   /* SPCC is run only in linear phase. */
                   return;
             }
-            var node = flowchartOperation("SpectrophotometricColorCalibration");
+            var node = flowchartOperation("SpectrophotometricColorCalibration" + (util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
             if (global.get_flowchart_data) {
                   return;
             }
@@ -11360,7 +11381,7 @@ function runSCNR(imgWin, fixing_stars)
       if (!fixing_stars) {
             util.addProcessingStepAndStatusInfo("SCNR on " + RGBimgView.id);
       }
-      var node = flowchartOperation("SCNR");
+      var node = flowchartOperation("SCNR" + (util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
       if (global.get_flowchart_data) {
             return;
       }
@@ -11420,7 +11441,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
       } else {
             util.addProcessingStepAndStatusInfo("Sharpening on " + imgWin.mainView.id);
       }
-      var node = flowchartOperation("MultiscaleLinearTransform:sharpen");
+      var node = flowchartOperation("MultiscaleLinearTransform:sharpen" + (util.findKeywordName(imgWin, "AutoIntegrateStars") ? ":stars" : ""));
       if (global.get_flowchart_data) {
             return;
       }
