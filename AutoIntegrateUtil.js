@@ -1926,6 +1926,10 @@ function readJsonFile(fname, lights_only)
             console.writeln("Restored defect info");
             global.LDDDefectInfo = saveInfo.defectInfo;
       }
+      if (saveInfo.exclusion_areas != null && saveInfo.exclusion_areas != undefined) {
+            console.writeln("Restored exclusion areas");
+            global.exclusion_areas = saveInfo.exclusion_areas;
+      }
       if (saveInfo.saved_measurements != null && saveInfo.saved_measurements != undefined) {
             console.writeln("Restored subframe selector measurements");
             global.saved_measurements = saveInfo.saved_measurements;
@@ -2078,6 +2082,9 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
             }
             if (global.LDDDefectInfo.length > 0) {
                   saveInfo.defectInfo = global.LDDDefectInfo;
+            }
+            if (global.exclusion_areas.length > 0) {
+                  saveInfo.exclusion_areas = global.exclusion_areas;
             }
             if (global.saved_measurements != null) {
                   saveInfo.saved_measurements = global.saved_measurements;

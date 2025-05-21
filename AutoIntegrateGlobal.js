@@ -661,6 +661,9 @@ this.best_image = null;
 this.user_selected_best_image = null;
 this.user_selected_reference_image = [];  // array of [image, filter]
 this.star_alignment_image = null;
+this.exclusion_areas = [];
+
+
 
 this.substack_number = 0;
 

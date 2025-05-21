@@ -35,6 +35,8 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/SearchCoordinatesDialog.js"
 #endif
 
+#include "AutoIntegrateExclusionArea.js"
+
 function AutoIntegrateSelectStarsImageDialog( util )
 {
       this.__base__ = Dialog;
@@ -247,6 +249,7 @@ var dialog_min_position = null;
 
 var infoLabel;
 var imageInfoLabel;
+var exclusionAreaLabel;
 var windowPrefixHelpTips;              // For updating tooTip
 var autoContinueWindowPrefixHelpTips; // For updating tooTip
 var closeAllPrefixButton;              // For updating toolTip
@@ -1561,7 +1564,7 @@ function extraProcessingGUI(parent)
       this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_CheckBox );
       this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer );
       this.extra_HDRMLT_Sizer.add( this.extra_HDRMLT_Options_Sizer2 );
-            
+
       var extra_LHE_tooltip = "<p>Run LocalHistogramEqualization on image using a mask.</p>";
       this.extra_LHE_CheckBox = newCheckBox(parent, "LocalHistogramEqualization,", par.extra_LHE, extra_LHE_tooltip);
       this.extra_LHE_kernelradius_edit = newNumericEdit(parent, 'Kernel Radius', par.extra_LHE_kernelradius, 16, 512, "<p>Kernel radius value for LocalHistogramEqualization.</p>");
@@ -2311,6 +2314,7 @@ function extraProcessingGUI(parent)
       this.extra1.add( this.extraAdjustChannelsSizer );
       this.extra1.add( this.extra_ET_Sizer );
       this.extra1.add( this.extra_HDRMLT_Sizer );
+      
       this.extra1.addStretch();
 
       this.extra2 = new VerticalSizer;
@@ -3014,6 +3018,7 @@ function Autorun(parent)
                         parent.dialog.treeBox[global.pages.LIGHTS].clear();
                         addFilesToTreeBox(parent.dialog, global.pages.LIGHTS, global.lightFileNames);
                         updateInfoLabel(parent.dialog);
+                        updateExclusionAreaLabel(parent);
                   }
             }
             if (substack_mode) {
@@ -4530,22 +4535,22 @@ function getTreeBoxFileCount(node)
       }
 }
 
-function checkAllTreeBoxNodeFiles(node)
+function checkAllTreeBoxNodeFiles(node, checked)
 {
       if (node.numberOfChildren == 0) {
-            node.checked = true;
+            node.checked = checked;
       } else {
             for (var i = 0; i < node.numberOfChildren; i++) {
-                  checkAllTreeBoxNodeFiles(node.child(i));
+                  checkAllTreeBoxNodeFiles(node.child(i), checked);
             }
       }
 }
-function checkAllTreeBoxFiles(node)
+function checkAllTreeBoxFiles(node, checked)
 {
       if (node.numberOfChildren == 0) {
             return 0;
       } else {
-            return checkAllTreeBoxNodeFiles(node);
+            return checkAllTreeBoxNodeFiles(node, checked);
       }
 }
 
@@ -4964,6 +4969,7 @@ function loadJsonFile(parent)
             addFilesToTreeBox(parent, i, pagearray[i], true);
       }
       updateInfoLabel(parent);
+      updateExclusionAreaLabel(parent);
       if (par.show_flowchart.val && global.flowchartData != null) {
             flowchartUpdated();
       }
@@ -5008,6 +5014,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
                   }
             }
             updateInfoLabel(parent);
+            updateExclusionAreaLabel(parent);
             parent.tabBox.currentPageIndex = pageIndex;
       };
       return filesAdd_Button;
@@ -5153,6 +5160,7 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
                   }
                   addFilesToTreeBox(parent, pageIndex, imageFileNames);
                   updateInfoLabel(parent);
+                  updateExclusionAreaLabel(parent);
             }
       };
       return filesAdd_Button;
@@ -5432,6 +5440,11 @@ function updateInfoLabel(parent)
       console.writeln(txt);
 
       infoLabel.text = txt;
+}
+
+function updateExclusionAreaLabel(parent)
+{
+      exclusionAreaLabel.text = "Count: " + global.exclusion_areas.length;
 }
 
 function updateImageInfoLabel(txt)
@@ -6138,7 +6151,16 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
       currentPageCheckButton.onClick = function()
       {
-            checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex]);
+            checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
+      };
+      var currentPageUncheckButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageUncheckButton);
+      currentPageUncheckButton.icon = parent.scaledResource(":/qss/checkbox-unchecked.png");
+      currentPageUncheckButton.toolTip = "<p>Mark all files in the current page as unchecked.</p>";
+      currentPageUncheckButton.setScaledFixedSize( 20, 20 );
+      currentPageUncheckButton.onClick = function()
+      {
+            checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageClearButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageClearButton);
@@ -6368,6 +6390,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
 
       buttonsSizer.add( currentPageLabel );
       buttonsSizer.add( currentPageCheckButton );
+      buttonsSizer.add( currentPageUncheckButton );
       buttonsSizer.add( currentPageClearButton );
       buttonsSizer.add( currentPageRemoveSelectedButton );
       buttonsSizer.add( currentPageCollapseButton );
@@ -8139,14 +8162,15 @@ function AutoIntegrateDialog()
       this.colorCalibrationTimeLabel = newLabel(this, "When to run color calibration", 
                         "<p>When to run ColorCalibration process</p>" +
                         "<ul>" +
-                        "<li>With <b>auto</b> the ColorCalibration process is run in  both linear and nonlinear phase (non-stretched and stretched image). " +
-                        "Running the ColorCalibration process twice seems to give better final image in many cases.</li>" + 
+                        "<li>With <b>auto</b> the ColorCalibration process is run in both linear and nonlinear phase (non-stretched and stretched image). " +
+                        "Running the ColorCalibration process twice seems to give better final image in many cases. If SPCC is used for " +
+                        "color calibration then with <i>auto</i> option the ColorCalibration process is not run.</li>" + 
                         "<li>With <b>linear</b> the ColorCalibration process is run only in linear phase (non-stretched image).</li>" + 
                         "<li>With <b>nonlinear</b> the ColorCalibration process is run only in nonlinear phase (stretched image).</li>" + 
                         "<li>With <b>both</b> the ColorCalibration process is run in both linear and nonlinear phase (non-stretched and stretched image).</li>" + 
                         "</ul>" +
                         "<p>When using the SPCC process the color calibration is always in a linear phase (non-stretched image).</p>" + 
-                        "<p>Note that when using narrowband data color calibration is not run by default and must be enablöed separately.</p>"
+                        "<p>Note that when using narrowband data color calibration is not run by default and must be enabled separately.</p>"
                   );
       this.colorCalibrationTimeComboBox = newComboBox(this, par.color_calibration_time, color_calibration_time_values, this.colorCalibrationTimeLabel.toolTip);
       this.colorCalibrationTimeSizer = new HorizontalSizer;
@@ -8516,10 +8540,37 @@ function AutoIntegrateDialog()
       this.dbe_samples_per_row_SpinBox = newSpinBox(this, par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
       this.dbe_min_weight_Edit = newNumericEdit(this, "Min weight", par.dbe_min_weight, 0, 1, "<p>Minimum sample weight to be included in the samples.");
 
+      this.DBESizer1 = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, 
+                                                    this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, 
+                                                    this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
+      
+      this.exclusionAreasButton = new PushButton( this );
+      this.exclusionAreasButton.text = "Exclusion areas";
+      this.exclusionAreasButton.toolTip = "<p>Select exclusion areas.</p>";
+      this.exclusionAreasButton.onClick = function() 
+      {
+            console.writeln("Exclusion area button clicked, exclusion areas: " + JSON.stringify(global.exclusion_areas));
+            let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
+            let win = util.createWindowFromImage(preview_image, "ExclusionAreas", true);
+
+            if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
+            
+                  global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
+                  this.dialog.exclusionAreaLabel.text = "Count: " + global.exclusion_areas.length;
+
+                  console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
+            } else {
+                  console.writeln("No changes");
+            }
+            util.closeOneWindow(win);
+      };
+      this.exclusionAreaLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
+      exclusionAreaLabel = this.exclusionAreaLabel;
+
+      this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaLabel ]);
+
       this.DBEGroupBoxLabel = newSectionLabel(this, "DBE settings");
-      this.DBEMainSizer = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, 
-                                                       this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, 
-                                                       this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
+      this.DBEMainSizer = newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer2 ]);
       this.DBEGroupBoxSizer = newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
 
       this.graxpertPathLabel = newLabel(this, "Path", 
@@ -9967,11 +10018,13 @@ function AutoIntegrateDialog()
       };   
       this.saveButtonsSizer = newHorizontalSizer(4, true, [ this.mosaicSaveXisfButton, this.mosaicSave16bitButton, this.mosaicSave8bitButton ]);
 
-      this.saveFinalImageLabel = newLabel(this, "Save final image as");
+      this.saveFinalImageLabel = newLabel(this, "Autosave final image as");
       this.saveFinalImageTiffCheckBox = newCheckBox(this, "TIFF", par.save_final_image_tiff, 
-            "<p>Save final image also as a 16-bit TIFF image.</p>");
+            "<p>Automatically save the final image also as a 16-bit TIFF image.</p>" +
+            "<p>By default the final image is automatically saved only in XISF format.</p>");
       this.saveFinalImageJpgCheckBox = newCheckBox(this, "JPG", par.save_final_image_jpg, 
-            "<p>Save final image also as a JPG image.</p>");
+            "<p>Automatically save the final image also as a JPG image.</p>" +
+            "<p>By default the final image is automatically saved only in XISF format.</p>");
       this.saveFinalImageJpgQualityEdit = newNumericEditPrecision(this, "quality", par.save_final_image_jpg_quality, 20, 100, "Quality of the JPG image.", 0);
       
       this.saveFinalImageSizer = newHorizontalSizer(4, true, [ this.saveFinalImageLabel, this.saveFinalImageTiffCheckBox, this.saveFinalImageJpgCheckBox, this.saveFinalImageJpgQualityEdit ]);
