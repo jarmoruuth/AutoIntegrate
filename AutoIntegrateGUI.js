@@ -36,6 +36,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #endif
 
 #include "AutoIntegrateExclusionArea.js"
+#include "AutoIntegrateMetricsVisualizer.js"
 
 function AutoIntegrateSelectStarsImageDialog( util )
 {
@@ -4670,6 +4671,36 @@ function setExpandedTreeBoxNode(node, expanded)
       }
 }
 
+function metricsVisualizer()
+{
+      console.writeln("metricsVisualizer");
+
+      if (global.saved_measurements == null) {
+            console.writeln("No measurements to visualize");
+            return;
+      }
+      if (par.filter_limit1_type.val == 'None' &&
+          par.filter_limit2_type.val == 'None' &&
+          par.filter_limit3_type.val == 'None' &&
+          par.filter_limit4_type.val == 'None') 
+      {
+            var filters = [ 'PSFSignal', 'FWHM', 'Eccentricity', 'Stars' ];
+      } else {
+            var filters = [ par.filter_limit1_type.val, par.filter_limit2_type.val, par.filter_limit3_type.val, par.filter_limit4_type.val ];
+      }
+
+      var data = [];
+      for (var i = 0; i < filters.length; i++) {
+            data[i] = { name: filters[i], data: engine.getFilterValues(global.saved_measurements, filters[i]) };
+      }
+
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
+
+      metricsVisualizer.main(data);
+
+      console.writeln("metricsVisualizerButton button done");
+}
+
 function filterTreeBoxFiles(parent, pageIndex)
 {
       console.show();
@@ -6280,6 +6311,15 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       {
             filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
       };
+      var currentPageMetricsVisualizerButton = new ToolButton( parent );
+      parent.rootingArr.push(currentPageMetricsVisualizerButton);
+      currentPageMetricsVisualizerButton.icon = parent.scaledResource(":/icons/chart.png");
+      currentPageMetricsVisualizerButton.toolTip = "<p>Visualize image metrics.</p>";
+      currentPageMetricsVisualizerButton.setScaledFixedSize( 20, 20 );
+      currentPageMetricsVisualizerButton.onClick = function()
+      {
+            metricsVisualizer();
+      };
 
       var bestImageLabel = newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
 
@@ -6396,6 +6436,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( currentPageCollapseButton );
       buttonsSizer.add( currentPageExpandButton );
       buttonsSizer.add( currentPageFilterButton );
+      buttonsSizer.add( currentPageMetricsVisualizerButton );
 
       buttonsSizer.addSpacing( 12 );
       buttonsSizer.add( bestImageLabel );
@@ -6854,6 +6895,9 @@ function AutoIntegrateDialog()
       '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></li>' +
       "</ul>" +
       "<p>" +
+      "For a full list of credits and acknowledgements please see the <a href='" + global.autointegrateinfo_link + "#credits'>" + global.autointegrateinfo_link + "#credits</a>." +
+      "</p>" +
+      "<p>" +
       "This product is based on software from the PixInsight project, developed " +
       "by Pleiades Astrophoto and its contributors (" +
       '<a href="https://pixinsight.com/">https://pixinsight.com/</a>)' + 
@@ -6862,6 +6906,7 @@ function AutoIntegrateDialog()
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2013 Andres del Pozo<br>" +
+      "Copyright (C) 2009-2013 Georg Viehoever" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
@@ -8333,6 +8378,21 @@ function AutoIntegrateDialog()
       this.filterLimit2Label = newLabel(this, "Filter 2", filterLimitHelpToolTips);
       this.filterLimit2ComboBox = newComboBox(this, par.filter_limit2_type, filter_limit_values, filterLimitHelpToolTips);
       this.filterLimit2Edit = newNumericEditPrecision(this, "Limit", par.filter_limit2_val, 0, 999999, filterLimitHelpToolTips, 4);
+      this.filterLimit3Label = newLabel(this, "Filter 3", filterLimitHelpToolTips);
+      this.filterLimit3ComboBox = newComboBox(this, par.filter_limit3_type, filter_limit_values, filterLimitHelpToolTips);
+      this.filterLimit3Edit = newNumericEditPrecision(this, "Limit", par.filter_limit3_val, 0, 999999, filterLimitHelpToolTips, 4);
+      this.filterLimit4Label = newLabel(this, "Filter 4", filterLimitHelpToolTips);
+      this.filterLimit4ComboBox = newComboBox(this, par.filter_limit4_type, filter_limit_values, filterLimitHelpToolTips);
+      this.filterLimit4Edit = newNumericEditPrecision(this, "Limit", par.filter_limit4_val, 0, 999999, filterLimitHelpToolTips, 4);
+
+      this.metricsVisualizerButton = new PushButton( this );
+      this.metricsVisualizerButton.icon = this.scaledResource(":/icons/chart.png");
+      this.metricsVisualizerButton.text = "Metrics visualizer";
+      this.metricsVisualizerButton.toolTip = "<p>Visualize metrics.</p>";
+      this.metricsVisualizerButton.onClick = function() 
+      {
+            metricsVisualizer();
+      };
 
       this.outlierMethodLabel = new Label( this );
       this.outlierMethodLabel.text = "Outlier method";
@@ -8389,6 +8449,18 @@ function AutoIntegrateDialog()
       this.filterGroupBoxSizer.add( this.filterLimit2Edit );
       this.filterGroupBoxSizer.addStretch();
 
+      this.filterGroupBoxSizer2 = new HorizontalSizer;
+      this.filterGroupBoxSizer2.margin = 6;
+      this.filterGroupBoxSizer2.spacing = 4;
+      this.filterGroupBoxSizer2.add( this.filterLimit3Label );
+      this.filterGroupBoxSizer2.add( this.filterLimit3ComboBox );
+      this.filterGroupBoxSizer2.add( this.filterLimit3Edit );
+      this.filterGroupBoxSizer2.add( this.filterLimit4Label );
+      this.filterGroupBoxSizer2.add( this.filterLimit4ComboBox );
+      this.filterGroupBoxSizer2.add( this.filterLimit4Edit );
+      this.filterGroupBoxSizer2.add( this.metricsVisualizerButton );
+      this.filterGroupBoxSizer2.addStretch();
+
       this.weightGroupBoxSizer2 = new HorizontalSizer;
       this.weightGroupBoxSizer2.margin = 6;
       this.weightGroupBoxSizer2.spacing = 4;
@@ -8416,6 +8488,7 @@ function AutoIntegrateDialog()
       this.weightSizer.add( this.weightGroupBoxLabel );
       this.weightSizer.add( this.weightGroupBoxSizer );
       this.weightSizer.add( this.filterGroupBoxSizer );
+      this.weightSizer.add( this.filterGroupBoxSizer2 );
       this.weightSizer.add( this.weightGroupBoxSizer2 );
       this.weightSizer.add( this.weightGroupBoxSizer3 );
 
@@ -8452,12 +8525,14 @@ function AutoIntegrateDialog()
       this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values,
             "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
             "<p>For narrowband images linear fit settings are in the <i>Settings / Narrowband processing</i> section.</p>" +
-            "<p>Auto does linear fit using Max LRGB.</p>" + 
-            "<p>Min RGB does linear fit using RGB channels with minimum median value as the reference image.</p>" + 
-            "<p>Max RGB does linear fit using RGB channels with maximum median value as the reference image.</p>" + 
-            "<p>Min LRGB does linear fit using LRGB channels with minimum median value as the reference image.</p>" + 
-            "<p>Max LRGB does linear fit using LRGB channels with maximum median value as the reference image.</p>" + 
-            "<p>When a channel is selected it uses that channel as the the reference image.<p>" +
+            "<ul>" + 
+            "<li><b>Auto</b> does linear fit using Min RGB.</li>" + 
+            "<li><b>Min RGB</b> does linear fit using RGB channels with minimum median value as the reference image.</li>" + 
+            "<li><b>Max RGB</b> does linear fit using RGB channels with maximum median value as the reference image.</li>" + 
+            "<li><b>Min LRGB</b> does linear fit using LRGB channels with minimum median value as the reference image.</li>" + 
+            "<li><b>Max LRGB</b> does linear fit using LRGB channels with maximum median value as the reference image.</li>" + 
+            "</ul>" +
+            "<p>When a channel is selected it uses that channel as the the reference image for RGB images.<p>" +
             "<p>When Luminance channel is selected also the luminance channel is used for linear fit. If the luminance " + 
             "channel is not present then the red channel is used as the refence image.</p>"
       );

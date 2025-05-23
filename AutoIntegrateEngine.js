@@ -3092,6 +3092,27 @@ function filterLimit(measurements, name, index_info, limit_val, fileindex, filte
       return newMeasurements;
 }
 
+function getFilterValues(measurements, name)
+{
+      console.writeln("getFilterValues " + name);
+
+      if (name == 'None') {
+            return [];
+      }
+      var index_info = findFilterIndex(name);
+      var index = index_info[0];
+      var filter_high = index_info[1];
+      var values = [];
+      
+      for (var i = 0; i < measurements.length; i++) {
+            if (isNaN(measurements[i][index])) {
+                  measurements[i][index] = 0;
+            }
+            values[values.length] = measurements[i][index];
+      }
+      return values;
+}
+
 function getScaledValNeg(val, min, max)
 {
       if (min == max) {
@@ -3435,6 +3456,12 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       }
       if (par.filter_limit2_type.val != 'None') {
             measurements = filterLimit(measurements, par.filter_limit2_type.val, findFilterIndex(par.filter_limit2_type.val), par.filter_limit2_val.val, indexPath, filtered_files);
+      }
+      if (par.filter_limit3_type.val != 'None') {
+            measurements = filterLimit(measurements, par.filter_limit3_type.val, findFilterIndex(par.filter_limit3_type.val), par.filter_limit3_val.val, indexPath, filtered_files);
+      }
+      if (par.filter_limit4_type.val != 'None') {
+            measurements = filterLimit(measurements, par.filter_limit4_type.val, findFilterIndex(par.filter_limit4_type.val), par.filter_limit4_val.val, indexPath, filtered_files);
       }
 
       /* Collect FWHM values to a separat array to find median FWHM.*/
@@ -13187,6 +13214,7 @@ function LinearFitLRGBchannels()
       var linear_fit_luminance_id = null;
 
       switch (use_linear_fit) {
+            case 'Auto':
             case 'Min RGB':
                   var refimage = findReferenceImageForLinearFit([ red_id, green_id, blue_id ], 'Min');
                   break;
@@ -13197,7 +13225,6 @@ function LinearFitLRGBchannels()
                   var refimage = findReferenceImageForLinearFit([ luminance_id, red_id, green_id, blue_id ], 'Min');
                   linear_fit_luminance_id = luminance_id;
                   break;
-            case 'Auto':
             case 'Max LRGB':
                   var refimage = findReferenceImageForLinearFit([ luminance_id, red_id, green_id, blue_id ], 'Max');
                   linear_fit_luminance_id = luminance_id;
@@ -19174,6 +19201,7 @@ this.closeAllWindows = closeAllWindows;
 
 // Utility processing functions
 this.subframeSelectorMeasure = subframeSelectorMeasure;
+this.getFilterValues = getFilterValues;
 this.runHistogramTransformSTFex = runHistogramTransformSTFex;
 this.autoStretch = autoStretch;
 this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
