@@ -8,6 +8,8 @@
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/Color.jsh>
 
+#define WINDOW_TITLE "AutoIntegrate Metrics Visualizer"
+
 function AutoIntegrateMetricsVisualizer(global)
 {
 
@@ -18,26 +20,30 @@ var dialog;
 
 // Sample data structure - replace with your actual metrics arrays
 var metricsData = [
-    { name: "fwhm", data: [2.1, 2.3, 1.8, 2.5, 2.0, 2.2, 1.9, 2.4, 2.1, 1.7] },
-    { name: "eccentricity", data: [0.15, 0.22, 0.18, 0.28, 0.12, 0.19, 0.16, 0.25, 0.14, 0.11] },
-    { name: "snr", data: [45.2, 38.7, 52.1, 33.8, 48.9, 41.3, 46.7, 35.2, 49.8, 54.3] },
-    { name: "weight", data: [0.85, 0.72, 0.91, 0.65, 0.88, 0.78, 0.83, 0.69, 0.87, 0.93] }
+    { name: "fwhm", data: [2.1, 2.3, 1.8, 2.5, 2.0, 2.2, 1.9, 2.4, 2.1, 1.7], limit: 0.0, filter_high: true },
+    { name: "eccentricity", data: [0.15, 0.22, 0.18, 0.28, 0.12, 0.19, 0.16, 0.25, 0.14, 0.11], limit: 0.0, filter_high: true },
+    { name: "snr", data: [45.2, 38.7, 52.1, 33.8, 48.9, 41.3, 46.7, 35.2, 49.8, 54.3], limit: 0.0, filter_high: true },
+    { name: "stars", data: [0.85, 0.72, 0.91, 0.65, 0.88, 0.78, 0.83, 0.69, 0.87, 0.93], limit: 0.0, filter_high: false }
 ];
 
+var metricsFilteredOut = [];
+
 // Custom plotting control
-function PlotControl(parent, title, data, color) {
+function PlotControl(parent, metrics, color) {
     this.__base__ = Control;
     this.__base__(parent);
-    
-    this.title = title;
-    this.data = data;
+    this
+    this.metrics = metrics;
+    this.title = metrics.name;
+    this.data = metrics.data;
+    this.filter_high = metrics.filter_high;
     this.plotColor = color || 0xFF0066CC; // Default blue
     this.margin = 40;
     this.preferredWidth = 350;
     this.preferredHeight = 200;
-    this.plot_limit = 0.0;
+    this.plot_limit = metrics.limit || 0.0;
 
-    if (title == 'None') {
+    if (this.title == 'None') {
         this.enabled = false;
     }
 
@@ -91,12 +97,19 @@ function PlotControl(parent, title, data, color) {
                 var x = plotX + (plotWidth * i / (this.data.length - 1));
                 var normalizedValue = (this.data[i] - this.minValue) / this.range;
                 var y = plotY + plotHeight - (plotHeight * normalizedValue);
-                if (this.data[i] > this.plot_limit) {
-                    points.push([new Point(x, y), true]);
+                // Count filtering for this metric
+                if (this.plot_limit == 0.0) {
                     accept_count++;
+                } else if (this.filter_high) {
+                    if (this.data[i] < this.plot_limit) {
+                        accept_count++;
+                    }
                 } else {
-                    points.push([new Point(x, y), false]);
-                }   
+                    if (this.data[i] > this.plot_limit) {
+                        accept_count++;
+                    }
+                }
+                points.push(new Point(x, y));
             }
             
             if (0) {
@@ -108,13 +121,13 @@ function PlotControl(parent, title, data, color) {
             // Draw data points
             graphics.brush = new Brush(this.plotColor);
             for (var i = 0; i < points.length; i++) {
-                if (points[i][1]) {
-                    graphics.brush = new Brush(this.plotColor);
-                } else {
-                    // Gray out points below limit
+                if (metricsFilteredOut[i]) {
+                    // Gray out points filtered out
                     graphics.brush = new Brush(0xffC0C0C0);
+                } else {
+                    graphics.brush = new Brush(this.plotColor);
                 }
-                graphics.fillCircle(points[i][0], 3);
+                graphics.fillCircle(points[i], 3);
             }
             
             // Draw value labels
@@ -210,7 +223,7 @@ function newLimitEdit(parent, title, plot) {
     
     limitEdit.real = true;
     limitEdit.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-    limitEdit.label.text = title + " Limit:";
+    limitEdit.label.text = title + " Limit" + (plot.filter_high ? " (Max)" : " (Min)");
     limitEdit.label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
     limitEdit.minWidth = 50;
     limitEdit.setPrecision( 5 );
@@ -218,11 +231,18 @@ function newLimitEdit(parent, title, plot) {
     limitEdit.setValue(0.0);
     limitEdit.plot = plot;
 
+    if (limitEdit.plot.filter_high) {
+        limitEdit.toolTip = "Set the maximum value for " + title + " metric. Values above this limit will be filtered out.";
+    } else {
+        limitEdit.toolTip = "Set the minimum value for " + title + " metric. Values below this limit will be filtered out.";
+    }
+
     limitEdit.onValueUpdated = function(value) {
-        console.writeln("Limit Edit Text Updated: " + value);
+        console.writeln("Limit Updated: " + value + " for " + this.label.text);
         this.plot.plot_limit = value;
+        this.plot.metrics.limit = value;
         // Update plot with new limit
-        dialog.updateData(value);
+        dialog.updateData();
     };
     return limitEdit;
 }
@@ -240,15 +260,15 @@ function AstroMetricsDialog() {
     this.__base__ = Dialog;
     this.__base__();
     
-    this.windowTitle = "AutoIntegrate Metrics Visualizer";
+    this.windowTitle = WINDOW_TITLE;
     this.minWidth = 800;
     this.minHeight = 700;
     
     // Create plot controls for each metric
-    this.data1Plot = new PlotControl(this, metricsData[0].name, metricsData[0].data, 0xFF00AA00);
-    this.data2Plot = new PlotControl(this, metricsData[1].name, metricsData[1].data, 0xFFFF6600);
-    this.data3Plot = new PlotControl(this, metricsData[2].name, metricsData[2].data, 0xFF0066FF);
-    this.data4Plot = new PlotControl(this, metricsData[3].name, metricsData[3].data, 0xFFCC0066);
+    this.data1Plot = new PlotControl(this, metricsData[0], 0xFF00AA00);
+    this.data2Plot = new PlotControl(this, metricsData[1], 0xFFFF6600);
+    this.data3Plot = new PlotControl(this, metricsData[2], 0xFF0066FF);
+    this.data4Plot = new PlotControl(this, metricsData[3], 0xFFCC0066);
     
     // Create statistics panels
     this.data1Stats = new StatsControl(this, metricsData[0].name, metricsData[0].data);
@@ -300,6 +320,14 @@ function AstroMetricsDialog() {
     this.data4LimitEditSizer.add(this.data4Label);
     this.data4LimitEditSizer.addStretch();
 
+    this.totalLabel = newLabel(this);
+
+    // Sizer for the total accepted frames
+    this.totalLabelSizer = new HorizontalSizer;
+    this.totalLabelSizer.addSpacing(24);
+    this.totalLabelSizer.add(this.totalLabel);
+    this.totalLabelSizer.addStretch();
+
     // Layout
     this.plotsGroupBox = new GroupBox(this);
     this.plotsGroupBox.title = "Metrics Visualization";
@@ -346,6 +374,9 @@ function AstroMetricsDialog() {
     this.plotsGroupBox.sizer.add(this.topRowSizer);
     this.plotsGroupBox.sizer.addSpacing(10);
     this.plotsGroupBox.sizer.add(this.bottomRowSizer);
+    this.plotsGroupBox.sizer.addSpacing(4);
+    this.plotsGroupBox.sizer.add(this.totalLabelSizer);
+    this.plotsGroupBox.sizer.addSpacing(4);
     
     // Statistics section
     this.statsGroupBox = new GroupBox(this);
@@ -362,7 +393,11 @@ function AstroMetricsDialog() {
     this.okButton.text = "OK";
     this.okButton.icon = this.scaledResource(":/icons/ok.png");
     this.okButton.onClick = function() {
-        this.dialog.ok();
+         if ((new MessageBox("Do you really want to close " + WINDOW_TITLE + "?",
+               WINDOW_TITLE, StdIcon_Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) 
+        {
+            this.dialog.ok();
+         }
     };
     
     this.cancelButton = new PushButton(this);
@@ -392,9 +427,11 @@ function AstroMetricsDialog() {
 AstroMetricsDialog.prototype = new Dialog;
 
 // Function to update data and refresh dialog
-AstroMetricsDialog.prototype.updateData = function(limit) {
+AstroMetricsDialog.prototype.updateData = function() {
 
-    console.writeln("Updating data with limit: " + limit);
+    console.writeln("Updating data");
+
+    this.updateFilteredOut();
 
     // Force repaint
     this.data1Plot.repaint();
@@ -403,14 +440,63 @@ AstroMetricsDialog.prototype.updateData = function(limit) {
     this.data4Plot.repaint();
 };
 
+AstroMetricsDialog.prototype.updateFilteredOut = function() {
+    console.writeln("Initializing filtering...");
+
+    metricsFilteredOut = [];
+
+    // Initialize metricsFilteredOut
+    for (let i = 0; i < metricsData.length; i++) {
+        for (let j = 0; j < metricsData[i].data.length; j++) {
+            metricsFilteredOut[j] = false;
+        }
+    }
+
+    // Check filtering conditions
+    for (let i = 0; i < metricsData.length; i++) {
+        let metric = metricsData[i];
+        if (metric.name == 'None') {
+            console.writeln("Skipping metric: " + metric.name);
+            continue; // Skip metrics with name 'None'
+        }
+        if (metric.limit == 0.0) {
+            console.writeln("No limit set for metric: " + metric.name);
+            continue; // No filtering if limit is 0
+        }
+        console.writeln("Filtering metric: " + metric.name + " with limit: " + metric.limit);
+        if (metric.filter_high) {
+            for (let j = 0; j < metric.data.length; j++) {
+                if (metric.data[j] > metric.limit) {
+                    metricsFilteredOut[j] = true;
+                }
+            }
+        } else {
+            for (let j = 0; j < metric.data.length; j++) {
+                if (metric.data[j] < metric.limit) {
+                    metricsFilteredOut[j] = true;
+                }
+            }
+        }
+    }
+    // Count accepted frames
+    let accepted = 0;
+    for (let i = 0; i < metricsFilteredOut.length; i++) {
+        if (!metricsFilteredOut[i]) {
+            accepted++;
+        }
+    }
+    this.totalLabel.text = "Accepted Frames: " + accepted + " / " + metricsFilteredOut.length;
+};
+
 // Main execution function
 function main(data) {
     console.writeln("Starting AutoIntegrate Metrics Visualizer...");
 
     metricsData = data;
-    
+
     dialog = new AstroMetricsDialog();
-    
+    dialog.updateFilteredOut();
+  
     return dialog.execute();
 }
 

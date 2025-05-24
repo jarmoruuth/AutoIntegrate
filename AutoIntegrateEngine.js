@@ -3101,9 +3101,8 @@ function getFilterValues(measurements, name)
       }
       var index_info = findFilterIndex(name);
       var index = index_info[0];
-      var filter_high = index_info[1];
       var values = [];
-      
+
       for (var i = 0; i < measurements.length; i++) {
             if (isNaN(measurements[i][index])) {
                   measurements[i][index] = 0;
@@ -3111,6 +3110,20 @@ function getFilterValues(measurements, name)
             values[values.length] = measurements[i][index];
       }
       return values;
+}
+
+// Returns true if the filter is high limit, false if low limit
+// name is the filter name, e.g. 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'
+function getFilterHigh(name)
+{
+      console.writeln("getFilterHigh " + name);
+      if (name == 'None') {
+            return false;
+      }
+      var index_info = findFilterIndex(name);
+      var filter_high = index_info[1];
+
+      return filter_high;
 }
 
 function getScaledValNeg(val, min, max)
@@ -3219,6 +3232,9 @@ function getImagePSF(imgWin)
       return measurements[0][indexFWHM];
 }
 
+// returns [ index, filter_high ]
+// index is the index in the measurements array
+// filter_high is true if the filter is high limit, false if low limit
 function findFilterIndex(name)
 {
       switch (name) {
@@ -12042,7 +12058,7 @@ function extractChannels(fileNames)
 function findGCStartWindowCheckBaseNameIf(id, check_base_name)
 {
       var cropextensions = [ '_crop', '' ];
-      var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert' ];
+      var extensions = [ '_GC', '_ABE', '_DBE', '_GraXpert', '_ADBE' ];
 
       // console.writeln("findGCStartWindowCheckBaseNameIf: " + id + ", check_base_name: " + check_base_name);
 
@@ -19210,6 +19226,7 @@ this.imageIsLinear = imageIsLinear;
 this.openImageFiles = openImageFiles;
 this.openDirectoryFiles = openDirectoryFiles;
 this.getFilterFiles = getFilterFiles;
+this.getFilterHigh = getFilterHigh;
 this.getImagetypFiles = getImagetypFiles;
 this.runResample = runResample;
 

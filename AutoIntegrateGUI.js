@@ -4688,10 +4688,16 @@ function metricsVisualizer()
       } else {
             var filters = [ par.filter_limit1_type.val, par.filter_limit2_type.val, par.filter_limit3_type.val, par.filter_limit4_type.val ];
       }
+      var limits = [ par.filter_limit1_val.val, par.filter_limit2_val.val, par.filter_limit3_val.val, par.filter_limit4_val.val ];
 
       var data = [];
       for (var i = 0; i < filters.length; i++) {
-            data[i] = { name: filters[i], data: engine.getFilterValues(global.saved_measurements, filters[i]) };
+            data[i] = { 
+                        name: filters[i], 
+                        data: engine.getFilterValues(global.saved_measurements, filters[i]), 
+                        limit: limits[i],
+                        filter_high: engine.getFilterHigh(filters[i]),
+                   };
       }
 
       let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
