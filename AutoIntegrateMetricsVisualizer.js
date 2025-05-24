@@ -228,7 +228,7 @@ function newLimitEdit(parent, title, plot) {
     limitEdit.minWidth = 50;
     limitEdit.setPrecision( 5 );
     limitEdit.setRange(0, 1000000);
-    limitEdit.setValue(0.0);
+    limitEdit.setValue(plot.plot_limit || 0.0);
     limitEdit.plot = plot;
 
     if (limitEdit.plot.filter_high) {
@@ -393,7 +393,8 @@ function AstroMetricsDialog() {
     this.okButton.text = "OK";
     this.okButton.icon = this.scaledResource(":/icons/ok.png");
     this.okButton.onClick = function() {
-         if ((new MessageBox("Do you really want to close " + WINDOW_TITLE + "?",
+        // Confirm before exiting the dialog to avoid accidental exit with enter key
+         if ((new MessageBox("Do you really want to close " + WINDOW_TITLE + " and apply limits?",
                WINDOW_TITLE, StdIcon_Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) 
         {
             this.dialog.ok();

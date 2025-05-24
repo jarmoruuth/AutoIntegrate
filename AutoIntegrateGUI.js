@@ -390,7 +390,11 @@ var MGCToolTip =                          "<p>When MultiscaleGradientCorrection 
                                           "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection<./p>";
 var clippedPixelsToolTip =                "<p>Show clipped pixels in the preview image.</p>" + 
                                           "<p>Pixes with value 0 are shown as black, pixels with value 1 are shown as white. Other pixes are shown as gray.</p>";
-                              
+var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visualizer dialog.</p>" +
+                                          "<p>Filtering settings in the <i>Processing 2 / Weighting and filtering settings</i> section " +
+                                          "are used for visualization.</p>" +
+                                          "<p>If no filtering rules are set then default settings are used.</p>";
+
 // Settings for flowchart graph
 var flowchart_text_margin = 4;                                                // Margin between box and text
 var flowchart_box_margin = 4;                                                 // Margin outside of the box
@@ -4423,10 +4427,15 @@ function findBestImageFromTreeBoxFiles(treebox)
       util.addStatusInfo("Finding...");
 
       var checked_files = [];
+      var unchecked_files = [];
+
       getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+
+      var all_files = checked_files.concat(unchecked_files);
 
       // get array of [ filename, weight ]
-      var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false);
+      var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false, all_files);
 
       // create treeboxfiles array of [ filename, checked, weight ]
       var treeboxfiles = [];
@@ -4671,12 +4680,13 @@ function setExpandedTreeBoxNode(node, expanded)
       }
 }
 
-function metricsVisualizer()
+function metricsVisualizer(parent)
 {
-      console.writeln("metricsVisualizer");
-
       if (global.saved_measurements == null) {
-            console.writeln("No measurements to visualize");
+            console.noteln("No measurements to visualize");
+            console.writeln("Use Light files tab to load light files and measure them first using the filter and sort button.");
+            console.writeln("Once measurements are done they can be saved to a Json file using the save button.");
+            console.writeln("Measurements are also saved to AutovaSetup.json file. Loading this file will also load the measurements.");
             return;
       }
       if (par.filter_limit1_type.val == 'None' &&
@@ -4702,9 +4712,57 @@ function metricsVisualizer()
 
       let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
 
-      metricsVisualizer.main(data);
-
-      console.writeln("metricsVisualizerButton button done");
+      if (metricsVisualizer.main(data)) {
+            // Update all changed data
+            var changes = false;
+            for (var i = 0; i < filters.length; i++) {
+                  if (data[i].limit != limits[i]) {
+                        // Update limits
+                        switch (i) {
+                              case 0:
+                                    par.filter_limit1_type.val = data[i].name;
+                                    par.filter_limit1_val.val = data[i].limit;
+                                    par.filter_limit1_type.reset();
+                                    par.filter_limit1_val.reset();
+                                    changes = true;
+                                    break;
+                              case 1:
+                                    par.filter_limit2_type.val = data[i].name;
+                                    par.filter_limit2_val.val = data[i].limit;
+                                    par.filter_limit2_type.reset();
+                                    par.filter_limit2_val.reset();
+                                    changes = true;
+                                    break;
+                              case 2:
+                                    par.filter_limit3_type.val = data[i].name;
+                                    par.filter_limit3_val.val = data[i].limit;
+                                    par.filter_limit3_type.reset();
+                                    par.filter_limit3_val.reset();
+                                    changes = true;
+                                    break;
+                              case 3:
+                                    par.filter_limit4_type.val = data[i].name;
+                                    par.filter_limit4_val.val = data[i].limit;
+                                    par.filter_limit4_type.reset();
+                                    par.filter_limit4_val.reset();
+                                    changes = true;
+                                    break;
+                              default:
+                                    console.writeln("Metrics visualizer, unknown filter index " + i);
+                                    continue;
+                        }
+                        console.writeln("Metrics visualizer, update filter " + filters[i] + " limit to " + data[i].limit);
+                  }
+            }
+            if (changes) {
+                  // Mark all light files as checked
+                  checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
+                  // Update all treebox files with new limits
+                  filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
+            }
+      } else {
+            console.writeln("Metrics visualizer, no changes");
+      }
 }
 
 function filterTreeBoxFiles(parent, pageIndex)
@@ -4726,11 +4784,13 @@ function filterTreeBoxFiles(parent, pageIndex)
       getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
       getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
 
+      var all_files = checked_files.concat(unchecked_files);
+
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
-      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true);
+      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true, all_files);
 
-      // add old unchecked files
+      // mark old unchecked files as unchecked
       filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
 
       console.writeln("filterTreeBoxFiles " + treeboxfiles.length + " files");
@@ -6310,7 +6370,8 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       var currentPageFilterButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageFilterButton);
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
-      currentPageFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings. Only checked files are used. " +
+      currentPageFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings in the " + 
+                                        "<i>Processing 2 / Weighting and filtering settings</i> section. " +
                                         "Without any filtering rules files are just sorted by weighting setting.</p>";
       currentPageFilterButton.setScaledFixedSize( 20, 20 );
       currentPageFilterButton.onClick = function()
@@ -6320,11 +6381,15 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       var currentPageMetricsVisualizerButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageMetricsVisualizerButton);
       currentPageMetricsVisualizerButton.icon = parent.scaledResource(":/icons/chart.png");
-      currentPageMetricsVisualizerButton.toolTip = "<p>Visualize image metrics.</p>";
+      currentPageMetricsVisualizerButton.toolTip = metricsVisualizerToolTip;
       currentPageMetricsVisualizerButton.setScaledFixedSize( 20, 20 );
       currentPageMetricsVisualizerButton.onClick = function()
       {
-            metricsVisualizer();
+            if (parent.dialog.tabBox.currentPageIndex != global.pages.LIGHTS) {
+                  console.criticalln("Metrics visualizer is only available in the Lights page.");
+                  return;
+            }
+            metricsVisualizer(this);
       };
 
       var bestImageLabel = newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
@@ -8381,7 +8446,8 @@ function AutoIntegrateDialog()
                                "if using the SSWEIGHT value that is written to FITS header.</p>";
       this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 10);
       
-      var filterLimitHelpToolTips= "Choose filter measure and value. FWHM and Eccentricity are filtered for too high values, and all others are filtered for too low values.";
+      var filterLimitHelpToolTips= "<p>Choose filter measure and value. FWHM and Eccentricity are filtered for too high values (min), and all others are filtered for too low values (max).</p>" +
+                                   "<p>Limit value zero (0.00000) means that there is no filtering.</p>";
       this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
       this.filterLimit1ComboBox = newComboBox(this, par.filter_limit1_type, filter_limit_values, filterLimitHelpToolTips);
       this.filterLimit1Edit = newNumericEditPrecision(this, "Limit", par.filter_limit1_val, 0, 999999, filterLimitHelpToolTips, 4);
@@ -8398,10 +8464,10 @@ function AutoIntegrateDialog()
       this.metricsVisualizerButton = new PushButton( this );
       this.metricsVisualizerButton.icon = this.scaledResource(":/icons/chart.png");
       this.metricsVisualizerButton.text = "Metrics visualizer";
-      this.metricsVisualizerButton.toolTip = "<p>Visualize metrics.</p>";
+      this.metricsVisualizerButton.toolTip = metricsVisualizerToolTip;
       this.metricsVisualizerButton.onClick = function() 
       {
-            metricsVisualizer();
+            metricsVisualizer(this);
       };
 
       this.outlierMethodLabel = new Label( this );

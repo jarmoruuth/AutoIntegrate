@@ -3260,7 +3260,7 @@ function findFilterIndex(name)
 //    returns array of [ filename, checked, weight ]
 // else
 //    returns array of [ filename, weight ]
-function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
+function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames)
 {
       console.writeln("subframeSelectorMeasure, input[0] " + fileNames[0]);
 
@@ -3294,11 +3294,24 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
             var indexSNRWeight = 9;
       }
 
-      var measurements = null;
+      if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
+            var node = flowchartOperation("Fast SubframeSelector");
+      } else {
+            var node = flowchartOperation("SubframeSelector");
+      }
 
-      if (global.saved_measurements != null) {
-            // Find old measurements from global.saved_measurements
-            console.writeln("subframeSelectorMeasure, use saved measurements");
+      if (measurements == null) {
+            // collect new measurements
+            console.writeln("subframeSelectorMeasure, collect measurements");
+            global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames);
+      }
+
+      // Find measurements from global.saved_measurements
+      // We may collected more measurements in measurementFileNames than we 
+      // have in fileNames so we create a new array
+      console.writeln("subframeSelectorMeasure, use saved measurements");
+      var measurements = null;
+      for (var retrycount = 0; retrycount < 2; retrycount++) {
             measurements = [];
             for (var i = 0; i < fileNames.length; i++) {
                   var found = false;
@@ -3321,19 +3334,12 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
                   }
             }
       }
+
       if (measurements == null) {
-            // collect new measurements
-            console.writeln("subframeSelectorMeasure, collect measurements");
-            global.saved_measurements = getSubframeSelectorMeasurements(fileNames);
-            measurements = global.saved_measurements;
-      } else {
-            if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
-                  var node = flowchartOperation("Fast SubframeSelector");
-            } else {
-                  var node = flowchartOperation("SubframeSelector");
-            }
-            engine_end_process(node);     // Update procesing time
+            util.throwFatalError("subframeSelectorMeasure, could not find measurements for all files. Please check that all files are available and that the measurement files are not corrupted.");
       }
+
+      engine_end_process(node);     // Update procesing time
 
       // Close measurements and expressions windows
       util.closeAllWindowsSubstr("SubframeSelector");
@@ -3467,16 +3473,16 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering)
       console.writeln("SSWEIGHTMin " + findMin(measurements, indexWeight) + " SSWEIGHTMax " + findMax(measurements, indexWeight));
       measurements = filterOutliers(measurements, "SSWEIGHT", indexWeight, 'min', par.outliers_ssweight.val, indexPath, filtered_files);
       measurements = filterLimit(measurements, "SSWEIGHT", [ indexWeight, filter_high ], par.ssweight_limit.val, indexPath, filtered_files);
-      if (par.filter_limit1_type.val != 'None') {
+      if (par.filter_limit1_type.val != 'None' && par.filter_limit1_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit1_type.val, findFilterIndex(par.filter_limit1_type.val), par.filter_limit1_val.val, indexPath, filtered_files);
       }
-      if (par.filter_limit2_type.val != 'None') {
+      if (par.filter_limit2_type.val != 'None' && par.filter_limit2_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit2_type.val, findFilterIndex(par.filter_limit2_type.val), par.filter_limit2_val.val, indexPath, filtered_files);
       }
-      if (par.filter_limit3_type.val != 'None') {
+      if (par.filter_limit3_type.val != 'None' && par.filter_limit3_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit3_type.val, findFilterIndex(par.filter_limit3_type.val), par.filter_limit3_val.val, indexPath, filtered_files);
       }
-      if (par.filter_limit4_type.val != 'None') {
+      if (par.filter_limit4_type.val != 'None' && par.filter_limit4_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit4_type.val, findFilterIndex(par.filter_limit4_type.val), par.filter_limit4_val.val, indexPath, filtered_files);
       }
 
@@ -3594,7 +3600,7 @@ function runSubframeSelector(fileNames)
       }
       console.writeln("input[0] " + fileNames[0]);
 
-      var ssWeights = engine.subframeSelectorMeasure(measured_files, par.image_weight_testing.val, false);
+      var ssWeights = engine.subframeSelectorMeasure(measured_files, par.image_weight_testing.val, false, measured_files);
       // SubframeSelectorOutput(P.measurements); Does not write weight keyword
 
       if (global.get_flowchart_data) {
