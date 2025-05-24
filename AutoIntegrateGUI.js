@@ -7034,7 +7034,9 @@ function AutoIntegrateDialog()
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
             "<p>In <i>Processing 2</i> tab there are some settings for FastIntegration.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
-            "<p>Stop after image calibration step.</p>" );
+            "<p>Stop after image calibration step.</p>" +
+            "<p>Stopping after calibration could be useful if you for example want to check the quality of calibrated light files " + 
+            "and maybe set some filtering rules.</p>" );
       this.DebayerOnlyCheckBox = newCheckBox(this, "Debayer only", par.debayer_only, 
             "<p>Stop after Debayering step. Later it is possible to continue by selecting Debayered files " + 
             "and choosing None for Debayer.</p>" );
@@ -7044,7 +7046,9 @@ function AutoIntegrateDialog()
       this.BinningOnlyCheckBox = newCheckBox(this, "Binning only", par.binning_only, 
             "<p>Run only binning to create smaller files.</p>" );
       this.IntegrateOnlyCheckBox = newCheckBox(this, "Integrate only", par.integrate_only, 
-            "<p>Run only image integration to create L,R,G,B or RGB files</p>" );
+            "<p>Run only image integration to create integrated channel images or RGB image.</p>" +
+            "<p>Stopping after integration could be useful is you for example want to set some exclusions areas " + 
+            "for DBE or for finding the true background.</p>");
       this.CropInfoOnlyCheckBox = newCheckBox(this, "Crop info only", par.cropinfo_only, 
             "<p>Run only image integration on *_r.xisf files to create automatic cropping info.</p>" +
             "<p>Light file list should include all registered *_r.xisf files. The result will be LowRejectionMap_ALL.xisf file " +
@@ -7347,18 +7351,20 @@ function AutoIntegrateDialog()
       this.imageParamsSet1 = new VerticalSizer;
       this.imageParamsSet1.margin = 6;
       this.imageParamsSet1.spacing = 4;
+      this.imageParamsSet1.add( this.CalibrateOnlyCheckBox );
+      this.imageParamsSet1.add( this.IntegrateOnlyCheckBox );
       this.imageParamsSet1.add( this.FixColumnDefectsCheckBox );
       this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
       this.imageParamsSet1.add( this.CometAlignCheckBox );
       this.imageParamsSet1.add( this.fastIntegrationCheckBox );
       this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
-      this.imageParamsSet1.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
       
       // Image parameters set 2.
       this.imageParamsSet2 = new VerticalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
+      this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
       this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
       this.imageParamsSet2.add( this.use_spcc_CheckBox );
       this.imageParamsSet2.add( this.GC_before_channel_combination_CheckBox );
@@ -7559,11 +7565,9 @@ function AutoIntegrateDialog()
       this.otherParamsSet11 = new VerticalSizer;
       this.otherParamsSet11.margin = 6;
       this.otherParamsSet11.spacing = 4;
-      this.otherParamsSet11.add( this.CalibrateOnlyCheckBox );
       this.otherParamsSet11.add( this.DebayerOnlyCheckBox );
       this.otherParamsSet11.add( this.BinningOnlyCheckBox );
       this.otherParamsSet11.add( this.ExtractChannelsOnlyCheckBox );
-      this.otherParamsSet11.add( this.IntegrateOnlyCheckBox );
       this.otherParamsSet11.add( this.ChannelCombinationOnlyCheckBox );
       this.otherParamsSet11.add( this.CropInfoOnlyCheckBox );
       this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
