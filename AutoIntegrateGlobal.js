@@ -42,11 +42,13 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.76 test2";         // Version, also updated into updates.xri
-this.autointegrate_info = "Updates";                              // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.76 test3";         // Version, also updated into updates.xri
+this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
+      "- Exclusion areas can now be defined in the GUI for DBE.",
+      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
       "- Added options to save final image as JPG or TIFF."
 ];
 

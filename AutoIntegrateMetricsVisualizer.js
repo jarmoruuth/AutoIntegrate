@@ -55,7 +55,7 @@ function PlotControl(parent, metrics, color) {
     this.range = this.maxValue - this.minValue;
     
     this.onPaint = function(x0, y0, x1, y1) {
-        console.writeln("PlotControl onPaint: " + this.title + " plot_limit " + this.plot_limit);
+        // console.writeln("PlotControl onPaint: " + this.title + " plot_limit " + this.plot_limit);
         var graphics = new Graphics(this);
         graphics.fillRect(this.boundsRect, new Brush(0xFF2D2D30)); // Dark background
         
@@ -238,7 +238,7 @@ function newLimitEdit(parent, title, plot) {
     }
 
     limitEdit.onValueUpdated = function(value) {
-        console.writeln("Limit Updated: " + value + " for " + this.label.text);
+        // console.writeln("Limit Updated: " + value + " for " + this.label.text);
         this.plot.plot_limit = value;
         this.plot.metrics.limit = value;
         // Update plot with new limit
@@ -430,7 +430,7 @@ AstroMetricsDialog.prototype = new Dialog;
 // Function to update data and refresh dialog
 AstroMetricsDialog.prototype.updateData = function() {
 
-    console.writeln("Updating data");
+    // console.writeln("Updating data");
 
     this.updateFilteredOut();
 
@@ -442,7 +442,7 @@ AstroMetricsDialog.prototype.updateData = function() {
 };
 
 AstroMetricsDialog.prototype.updateFilteredOut = function() {
-    console.writeln("Initializing filtering...");
+    // console.writeln("Initializing filtering...");
 
     metricsFilteredOut = [];
 
@@ -457,14 +457,14 @@ AstroMetricsDialog.prototype.updateFilteredOut = function() {
     for (let i = 0; i < metricsData.length; i++) {
         let metric = metricsData[i];
         if (metric.name == 'None') {
-            console.writeln("Skipping metric: " + metric.name);
+            // console.writeln("Skipping metric: " + metric.name);
             continue; // Skip metrics with name 'None'
         }
         if (metric.limit == 0.0) {
-            console.writeln("No limit set for metric: " + metric.name);
+            // console.writeln("No limit set for metric: " + metric.name);
             continue; // No filtering if limit is 0
         }
-        console.writeln("Filtering metric: " + metric.name + " with limit: " + metric.limit);
+        // console.writeln("Filtering metric: " + metric.name + " with limit: " + metric.limit);
         if (metric.filter_high) {
             for (let j = 0; j < metric.data.length; j++) {
                 if (metric.data[j] > metric.limit) {
@@ -491,7 +491,7 @@ AstroMetricsDialog.prototype.updateFilteredOut = function() {
 
 // Main execution function
 function main(data) {
-    console.writeln("Starting AutoIntegrate Metrics Visualizer...");
+    // console.writeln("Starting AutoIntegrate Metrics Visualizer...");
 
     metricsData = data;
 

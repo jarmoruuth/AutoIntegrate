@@ -250,7 +250,7 @@ var dialog_min_position = null;
 
 var infoLabel;
 var imageInfoLabel;
-var exclusionAreaLabel;
+var exclusionAreaCountLabel;
 var windowPrefixHelpTips;              // For updating tooTip
 var autoContinueWindowPrefixHelpTips; // For updating tooTip
 var closeAllPrefixButton;              // For updating toolTip
@@ -291,6 +291,8 @@ var extra_gui_info = {
       images_combobox: null,
       save_button: null
 };
+var exclusionAreasComboBox = null;        // For updating exclusion image list
+var exclusionAreasTargetImageName = "Auto";   // Current exclusion image
 
 var monochrome_text = "Monochrome: ";
 
@@ -2610,6 +2612,11 @@ function update_extra_target_image_window_list(current_item)
                   combobox.setItemText(combobox.currentItem, extra_target_image_window_list[combobox.currentItem]);
             }
       }
+
+      exclusionAreasComboBox.clear();
+      for (var i = 0; i < extra_target_image_window_list.length; i++) {
+            exclusionAreasComboBox.addItem( extra_target_image_window_list[i] );
+      }
 }
 
 function forceNewHistogram(target_win)
@@ -4686,7 +4693,7 @@ function metricsVisualizer(parent)
             console.noteln("No measurements to visualize");
             console.writeln("Use Light files tab to load light files and measure them first using the filter and sort button.");
             console.writeln("Once measurements are done they can be saved to a Json file using the save button.");
-            console.writeln("Measurements are also saved to AutovaSetup.json file. Loading this file will also load the measurements.");
+            console.writeln("Measurements are also saved to AutosaveSetup.json file. Loading this file will also load the measurements.");
             return;
       }
       if (par.filter_limit1_type.val == 'None' &&
@@ -5541,7 +5548,7 @@ function updateInfoLabel(parent)
 
 function updateExclusionAreaLabel(parent)
 {
-      exclusionAreaLabel.text = "Count: " + global.exclusion_areas.length;
+      exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
 }
 
 function updateImageInfoLabel(txt)
@@ -6367,6 +6374,9 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       {
             setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
+
+      var filteringLabel = newLabel( parent, "Filtering", "Filtering and weighting current images.");
+
       var currentPageFilterButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageFilterButton);
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
@@ -6506,6 +6516,8 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( currentPageRemoveSelectedButton );
       buttonsSizer.add( currentPageCollapseButton );
       buttonsSizer.add( currentPageExpandButton );
+      buttonsSizer.addSpacing( 4 );
+      buttonsSizer.add( filteringLabel );
       buttonsSizer.add( currentPageFilterButton );
       buttonsSizer.add( currentPageMetricsVisualizerButton );
 
@@ -8695,19 +8707,46 @@ function AutoIntegrateDialog()
                                                     this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, 
                                                     this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
       
+      this.exclusionAreaImageLabel = newLabel(this, "Image:");
+      this.exclusionAreasComboBox = new ComboBox( this );
+      this.exclusionAreasComboBox.minItemCharWidth = 20;
+      this.exclusionAreasComboBox.onItemSelected = function( itemIndex )
+      {
+            exclusionAreasTargetImageName = extra_target_image_window_list[itemIndex];
+      };
+      exclusionAreasComboBox = this.exclusionAreasComboBox;
+
       this.exclusionAreasButton = new PushButton( this );
       this.exclusionAreasButton.text = "Exclusion areas";
       this.exclusionAreasButton.toolTip = "<p>Select exclusion areas.</p>";
       this.exclusionAreasButton.onClick = function() 
       {
             console.writeln("Exclusion area button clicked, exclusion areas: " + JSON.stringify(global.exclusion_areas));
-            let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
-            let win = util.createWindowFromImage(preview_image, "ExclusionAreas", true);
+            var tmpname = "AutoIntegrateExclusionAreas";
+            util.closeOneWindowById(tmpname);
+            if (exclusionAreasTargetImageName == "Auto") {
+                  console.writeln("Exclusion areas target image is set to Auto, using the current image.");
+                  var win = util.createWindowFromImage(preview_image, tmpname, true);
+            } else {
+                  console.writeln("Exclusion areas target image is set to: " + exclusionAreasTargetImageName);
+                  var target_win = util.findWindow(exclusionAreasTargetImageName);
+                  if (target_win == null) {
+                        console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
+                        return;
+                  }
+                  var win = util.copyWindow(target_win, tmpname);
+            }
+            if (engine.imageIsLinear(win)) {
+                  console.writeln("Exclusion areas target image is linear, stretching the image.");
+                  engine.autoStretch(win);
+            }
 
+            console.writeln("Opening Exclusion Area dialog for target image: " + exclusionAreasTargetImageName);
+            let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
             if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
             
                   global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
-                  this.dialog.exclusionAreaLabel.text = "Count: " + global.exclusion_areas.length;
+                  this.dialog.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
 
                   console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
             } else {
@@ -8715,10 +8754,10 @@ function AutoIntegrateDialog()
             }
             util.closeOneWindow(win);
       };
-      this.exclusionAreaLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
-      exclusionAreaLabel = this.exclusionAreaLabel;
+      this.exclusionAreaCountLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
+      exclusionAreaCountLabel = this.exclusionAreaCountLabel;
 
-      this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaLabel ]);
+      this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
 
       this.DBEGroupBoxLabel = newSectionLabel(this, "DBE settings");
       this.DBEMainSizer = newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer2 ]);
