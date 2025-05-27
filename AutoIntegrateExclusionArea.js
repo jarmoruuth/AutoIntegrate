@@ -29,7 +29,7 @@ var isDrawing = false;
 var targetView = null;
 var targetWindow = null;
 var previewControl = null;
-var title = "Exclusion Area";
+var title = "AutoIntegrate Exclusion Area";
 var scale = 1.0;
 
 // Main function - creates the script dialog
@@ -197,7 +197,7 @@ function ExclusionAreaDialog() {
    managementSizer.add(this.dialog_cancel_Button);
    this.sizer.add(managementSizer);
    
-   this.windowTitle = title + " - " + global.autointegrate_version;
+   this.windowTitle = title;
    this.adjustToContents();
 }
 
@@ -218,7 +218,7 @@ function drawPreview(control) {
    var offsetY = control.height  / 2;
    
    // Draw existing exclusion areas
-   g.pen = new Pen(0xFFFF0000, 1);
+   g.pen = new Pen(0xFFFF6600, 1);
    
    for (var i = 0; i < exclusionAreas.length; i++) {
       var polygon = exclusionAreas[i];

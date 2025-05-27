@@ -32,15 +32,15 @@ var metricsFilteredOut = [];
 function PlotControl(parent, metrics, color) {
     this.__base__ = Control;
     this.__base__(parent);
-    this
+
     this.metrics = metrics;
     this.title = metrics.name;
     this.data = metrics.data;
     this.filter_high = metrics.filter_high;
     this.plotColor = color || 0xFF0066CC; // Default blue
     this.margin = 40;
-    this.preferredWidth = 350;
-    this.preferredHeight = 200;
+    this.preferredWidth = 500;
+    this.preferredHeight = 250;
     this.plot_limit = metrics.limit || 0.0;
 
     if (this.title == 'None') {
@@ -101,11 +101,11 @@ function PlotControl(parent, metrics, color) {
                 if (this.plot_limit == 0.0) {
                     accept_count++;
                 } else if (this.filter_high) {
-                    if (this.data[i] < this.plot_limit) {
+                    if (this.data[i] <= this.plot_limit) {
                         accept_count++;
                     }
                 } else {
-                    if (this.data[i] > this.plot_limit) {
+                    if (this.data[i] >= this.plot_limit) {
                         accept_count++;
                     }
                 }
@@ -127,7 +127,7 @@ function PlotControl(parent, metrics, color) {
                 } else {
                     graphics.brush = new Brush(this.plotColor);
                 }
-                graphics.fillCircle(points[i], 3);
+                graphics.fillCircle(points[i], 2);
             }
             
             // Draw value labels
@@ -135,17 +135,37 @@ function PlotControl(parent, metrics, color) {
             graphics.font = new Font("Arial", 8);
             
             // Y-axis labels
-            for (var i = 0; i <= 4; i++) {
-                var value = this.minValue + (this.range * i / 4);
-                var y = plotY + plotHeight - (plotHeight * i / 4);
-                var label = value.toFixed(2);
-                graphics.drawText(5, y - 4, label);
+            for (var i = 0; i <= 5; i++) {
+                if (i == 0) {
+                    var value = this.minValue;
+                } else if (i == 5) {
+                    var value = this.maxValue;
+                } else {
+                    // Calculate intermediate values
+                    var value = this.minValue + (this.range * i / 5);
+                }
+                // Calculate Y position for label
+                var y = plotY + plotHeight - (plotHeight * i / 5);
+                // Adaptive change the number of decimals based on range
+                if (this.range < 10.0) {
+                    var label = value.toFixed(4);
+                } else if (this.range < 100.0) {
+                    var label = value.toFixed(3);
+                } else if (this.range < 1000.0) {
+                    var label = value.toFixed(2);
+                } else {
+                    var label = value.toFixed(1);
+                }
+                // graphics.drawText(5, y - 4, label);
+                graphics.drawText(5, y, label);
             }
             
-            // X-axis labels (frame numbers)
-            for (var i = 0; i < Math.min(this.data.length, 10); i += Math.max(1, Math.floor(this.data.length / 10))) {
-                var x = plotX + (plotWidth * i / (this.data.length - 1));
-                graphics.drawText(x - 5, plotY + plotHeight + 15, (i + 1).toString());
+            if (0) {
+                // X-axis labels (frame numbers)
+                for (var i = 0; i < Math.min(this.data.length, 10); i += Math.max(1, Math.floor(this.data.length / 10))) {
+                    var x = plotX + (plotWidth * i / (this.data.length - 1));
+                    graphics.drawText(x - 5, plotY + plotHeight + 15, (i + 1).toString());
+                }
             }
             this.dataLabel.text =  accept_count + " / " + this.data.length;
         } else {
@@ -192,10 +212,10 @@ function StatsControl(parent, title, data) {
         }
 
         graphics.pen = new Pen(0xFFFFFFFF);
-        graphics.font = new Font("Arial", 10);
+        graphics.font = new Font("Arial", 8);
         
         var y = 15;
-        var lineHeight = 18;
+        var lineHeight = 16;
         
         graphics.drawText(10, y, this.title + " Statistics:");
         y += lineHeight + 5;
@@ -262,7 +282,7 @@ function AstroMetricsDialog() {
     
     this.windowTitle = WINDOW_TITLE;
     this.minWidth = 800;
-    this.minHeight = 700;
+    this.minHeight = 780;
     
     // Create plot controls for each metric
     this.data1Plot = new PlotControl(this, metricsData[0], 0xFF00AA00);
@@ -491,7 +511,7 @@ AstroMetricsDialog.prototype.updateFilteredOut = function() {
 
 // Main execution function
 function main(data) {
-    // console.writeln("Starting AutoIntegrate Metrics Visualizer...");
+    //console.writeln("Starting AutoIntegrate Metrics Visualizer...");
 
     metricsData = data;
 

@@ -48,8 +48,7 @@ this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Exclusion areas can now be defined in the GUI for DBE.",
-      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
-      "- Added options to save final image as JPG or TIFF."
+      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -281,6 +280,7 @@ this.par = {
       ACDNR_noise_reduction: { val: 1.0, def: 1.0, name : "ACDNR noise reduction", type : 'R' },
       use_weight: { val: 'PSF Signal', def: 'PSF Signal', name : "Weight calculation", type : 'S' },
       ssweight_limit: { val: 0.0000000001, def: 0.0000000001, name : "SSWEIGHT limit", type : 'R' },
+      sort_order_type: { val: 'SSWEIGHT', def: 'SSWEIGHT', name : "Filtering sort order", type : 'S' },
       filter_limit1_type: { val: 'PSFSignal', def: 'PSFSignal', name : "Filter limit 1 type", type : 'S' },
       filter_limit1_val: { val: 0, def: 0, name : "Filter limit 1 value", type : 'R' },
       filter_limit2_type: { val: 'FWHM', def: 'FWHM', name : "Filter limit 2 type", type : 'S' },
@@ -641,6 +641,7 @@ this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, De
                               Debayer.prototype.BGRG, Debayer.prototype.Auto ];
 
 this.saved_measurements = null;
+this.saved_measurements_sorted = null;
 
 this.get_flowchart_data = false;    // true if we are running in flowchart mode
 this.flowchartWindows = [];   // array of flowchart window ids

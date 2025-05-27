@@ -1241,7 +1241,7 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
             allow_duplicate_name = true;
       }
       if (sourceWindow == null) {
-            util.throwFatalError("Window not found, cannot copy to " + name);
+            util.throwFatalError("No source window, cannot copy to " + name);
       }
       var targetWindow = new ImageWindow(
                               sourceWindow.mainView.image.width,
@@ -1933,6 +1933,7 @@ function readJsonFile(fname, lights_only)
       if (saveInfo.saved_measurements != null && saveInfo.saved_measurements != undefined) {
             console.writeln("Restored subframe selector measurements");
             global.saved_measurements = saveInfo.saved_measurements;
+            global.saved_measurements_sorted = null;
       }
       if (saveInfo.flowchartData != null && saveInfo.flowchartData != undefined) {
             console.writeln("Restored flowchart data");

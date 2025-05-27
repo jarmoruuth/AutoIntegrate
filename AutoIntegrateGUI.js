@@ -310,6 +310,7 @@ var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
+var filter_sort_values = [ 'SSWEIGHT', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
@@ -2623,10 +2624,10 @@ function forceNewHistogram(target_win)
 {
       try {
             if (!target_win.mainView.deleteProperty("Histogram16")) {
-                  console.writeln("Failed to delete property Histogram16");
+                  // console.writeln("Failed to delete property Histogram16");
             }
       } catch(err) {
-            console.writeln("Failed to delete property Histogram16 : " + err);
+            // console.writeln("Failed to delete property Histogram16 : " + err);
       }
 }
 
@@ -4282,8 +4283,10 @@ function filenamesToTreeboxfiles(treeboxfiles, filenames, checked)
 function updateTreeBoxNodeToolTip(node)
 {
       var toolTip = "<p>" + node.filename + "</p><p>exptime: " + node.exptime;
-      if (node.ssweight > 0) {
-            toolTip = toolTip + "<br>ssweight: " + node.ssweight.toFixed(10);
+      if (node.measurement_text && node.measurement_text != "") {
+            toolTip = toolTip + "<br>" + node.measurement_text;
+      } else if (node.ssweight > 0) {
+            toolTip = toolTip + "<br>SSWEIGHT: " + node.ssweight.toFixed(10);
       }
       if (node.best_image) {
             toolTip = toolTip + "<br>Reference image for star align";
@@ -4576,6 +4579,7 @@ function setTreeBoxNodeSsweight(node, filename, ssweight, filename_postfix)
       if (node.numberOfChildren == 0) {
             if (util.compareReferenceFileNames(filename, node.filename, filename_postfix)) {
                   node.ssweight = ssweight;
+                  node.measurement_text = engine.measurementTextForFilename(node.filename);
                   updateTreeBoxNodeToolTip(node);
                   return true;
             }
@@ -4694,7 +4698,10 @@ function metricsVisualizer(parent)
             console.writeln("Use Light files tab to load light files and measure them first using the filter and sort button.");
             console.writeln("Once measurements are done they can be saved to a Json file using the save button.");
             console.writeln("Measurements are also saved to AutosaveSetup.json file. Loading this file will also load the measurements.");
-            return;
+
+            if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
+                  return;
+            }
       }
       if (par.filter_limit1_type.val == 'None' &&
           par.filter_limit2_type.val == 'None' &&
@@ -4772,12 +4779,54 @@ function metricsVisualizer(parent)
       }
 }
 
-function filterTreeBoxFiles(parent, pageIndex)
+function measureTreeBoxFiles(parent, pageIndex)
 {
       console.show();
       var treebox = parent.treeBox[pageIndex];
       if (treebox.numberOfChildren == 0) {
-            console.writeln("filterTreeBoxFiles, no files");
+            console.writeln("No files to measure.");
+            return false;
+      }
+
+      if (global.saved_measurements == null) {
+            var messagebox = new MessageBox("There are no measurements available. Do you want to run SubframeSelector now?",
+                                             "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
+            if (!messagebox.execute != StdButton_Yes) {
+                  util.addStatusInfo("Cancelled.");
+                  return false;
+            }
+      }
+      util.addStatusInfo("Measuring...");
+
+      console.writeln("measureTreeBoxFiles " + pageIndex);
+
+      var checked_files = [];
+      var unchecked_files = [];
+
+      getTreeBoxFileNamesCheckedIf(treebox, checked_files, true);
+      getTreeBoxFileNamesCheckedIf(treebox, unchecked_files, false);
+
+      var all_files = checked_files.concat(unchecked_files);
+
+      engine.subframeSelectorMeasure(all_files, false, false, all_files);
+
+      return global.saved_measurements != null && global.saved_measurements.length > 0;
+}
+
+function filterTreeBoxFiles(parent, pageIndex)
+{
+      console.show();
+
+      if (global.saved_measurements == null) {
+            if (!measureTreeBoxFiles(parent, pageIndex)) {
+                  util.addStatusInfo("No measurements available, cannot filter files.");
+                  return;
+            }
+      }
+
+      var treebox = parent.treeBox[pageIndex];
+      if (treebox.numberOfChildren == 0) {
+            console.writeln("No files to filter.");
             return;
       }
 
@@ -4795,7 +4844,7 @@ function filterTreeBoxFiles(parent, pageIndex)
 
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
-      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true, all_files);
+      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
 
       // mark old unchecked files as unchecked
       filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
@@ -4817,7 +4866,7 @@ function filterTreeBoxFiles(parent, pageIndex)
             }
       }
 
-      console.noteln("AutoIntegrate filtering completed, " + checked_count + " checked, " + (treeboxfiles.length - checked_count) + " unchecked");
+      console.noteln("AutoIntegrate filtering completed, " + checked_count + " checked, " + (treeboxfiles.length - checked_count) + " unchecked, sorted by " + par.sort_order_type.val);
       util.updateStatusInfoLabel("Filtering completed");
 }
 
@@ -4956,6 +5005,9 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
                         node.checked = filterFiles[j].checked;
                         node.collapsable = false;
                         node.ssweight = filterFiles[j].ssweight;
+                        if (pageIndex == global.pages.LIGHTS) {
+                              node.measurement_text = engine.measurementTextForFilename(node.filename);
+                        }
                         node.exptime = filterFiles[j].exptime;
                         node.filter = filterName;
                         if (node.filter == undefined) {
@@ -6381,12 +6433,21 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       parent.rootingArr.push(currentPageFilterButton);
       currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
       currentPageFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings in the " + 
-                                        "<i>Processing 2 / Weighting and filtering settings</i> section. " +
-                                        "Without any filtering rules files are just sorted by weighting setting.</p>";
+                                        "<i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                        "<p>Without any filtering rules files are just sorted by the sort order " + 
+                                        "given in the <i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                        "<p>Using the mouse hover over the file name you can see the " +
+                                        "filtering and weighting information for the file.</p>" +
+                                        "<p>Note that the filtering is only available in the Lights page.</p>";
       currentPageFilterButton.setScaledFixedSize( 20, 20 );
       currentPageFilterButton.onClick = function()
       {
-            filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+            if (parent.dialog.tabBox.currentPageIndex == global.pages.LIGHTS) {
+                  // Filter and sort files in the Lights page
+                  filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+            } else {
+                  console.criticalln("Filtering is only available in the Lights page.");
+            }
       };
       var currentPageMetricsVisualizerButton = new ToolButton( parent );
       parent.rootingArr.push(currentPageMetricsVisualizerButton);
@@ -8457,9 +8518,12 @@ function AutoIntegrateDialog()
                                "<p>Not that the value is written to FITS hedaer using 10 digits. Smaller than 10 digit limit values should not be used " + 
                                "if using the SSWEIGHT value that is written to FITS header.</p>";
       this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 10);
-      
+
+      this.filterSortLabel = newLabel(this, "Sort order", "<p>Sort order for the filter and sort button.</p>");
+      this.filterSortComboBox = newComboBox(this, par.sort_order_type, filter_sort_values, this.filterSortLabel.toolTip);
+
       var filterLimitHelpToolTips= "<p>Choose filter measure and value. FWHM and Eccentricity are filtered for too high values (min), and all others are filtered for too low values (max).</p>" +
-                                   "<p>Limit value zero (0.00000) means that there is no filtering.</p>";
+                                   "<p>Limit value zero (0.0000) means that there is no filtering.</p>";
       this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
       this.filterLimit1ComboBox = newComboBox(this, par.filter_limit1_type, filter_limit_values, filterLimitHelpToolTips);
       this.filterLimit1Edit = newNumericEditPrecision(this, "Limit", par.filter_limit1_val, 0, 999999, filterLimitHelpToolTips, 4);
@@ -8526,6 +8590,8 @@ function AutoIntegrateDialog()
       this.weightGroupBoxSizer.add( this.weightLimitEdit );
       this.weightGroupBoxSizer.addStretch();
 
+      this.sortOrderSizer = newHorizontalSizer(2, true, [ this.filterSortLabel, this.filterSortComboBox ]);
+
       this.filterGroupBoxSizer = new HorizontalSizer;
       this.filterGroupBoxSizer.margin = 6;
       this.filterGroupBoxSizer.spacing = 4;
@@ -8574,6 +8640,7 @@ function AutoIntegrateDialog()
       //this.weightSizer.margin = 6;
       //this.weightSizer.spacing = 4;
       this.weightSizer.add( this.weightGroupBoxLabel );
+      this.weightSizer.add( this.sortOrderSizer );
       this.weightSizer.add( this.weightGroupBoxSizer );
       this.weightSizer.add( this.filterGroupBoxSizer );
       this.weightSizer.add( this.filterGroupBoxSizer2 );

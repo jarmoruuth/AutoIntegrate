@@ -3024,19 +3024,19 @@ function findOutlierMinMax(measurements, indexvalue)
 
 function filterOutliers(measurements, name, index, type, do_filtering, fileindex, filtered_files)
 {
+      if (!do_filtering) {
+            // console.writeln("Outliers are not filtered");
+            return measurements;
+      }
+
       if (measurements.length < 8) {
-            console.writeln("filterOutliers requires at last eight images, number of images is " + measurements.length);
+            console.criticalln("filterOutliers requires at last eight images, number of images is " + measurements.length);
             return measurements;
       }
 
       var minmax = findOutlierMinMax(measurements, index);
 
       console.writeln(name + " outliers min " + minmax.minValue + ", max " + minmax.maxValue);
-
-      if (!do_filtering) {
-            console.writeln("Outliers are not filtered");
-            return measurements;
-      }
 
       console.writeln("filterOutliers");
 
@@ -3256,11 +3256,94 @@ function findFilterIndex(name)
       }
 }
 
+// Check that measurement value is a valid number and return it as a text string
+function checkMeasurementValue(value)
+{
+      if (isNaN(value)) {
+            return "NaN";
+      } else if (value == null) {
+            return "null";
+      } else if (value == undefined) {
+            return "undefined";
+      } else {
+            return value.toFixed(10);
+      }
+}
+
+function measurementToText(measurement)
+{
+      var indexWeight = 4;
+      var indexFWHM = 5;
+      var indexEccentricity = 6;
+      var indexPSFSignal = 7;
+      var indexPSFPower = 8;
+      var indexStars = 14;
+      var text = "";
+      text += "SSWEIGHT: " + checkMeasurementValue(measurement[indexWeight]) + "<br>";
+      text += "FWHM: " + checkMeasurementValue(measurement[indexFWHM]) + "<br>";
+      text += "Eccentricity: " + checkMeasurementValue(measurement[indexEccentricity]) + "<br>";
+      text += "PSF Signal: " + checkMeasurementValue(measurement[indexPSFSignal]) + "<br>";
+      text += "PSF Power: " + checkMeasurementValue(measurement[indexPSFPower]) + "<br>";
+      text += "Stars: " + checkMeasurementValue(measurement[indexStars]) + "<br>";
+      return text;
+}
+
+// Binary search for measurement text in global.saved_measurements
+// Returns measurement text for filename or empty string if not found
+function measurementTextForFilename(filename)
+{
+      // console.writeln("measurementTextForFilenameBinary, filename " + filename);
+      if (global.saved_measurements == null) {
+            return "";
+      }
+      if (global.saved_measurements_sorted == null) {
+            // Make a sorted copy of global.saved_measurements
+            // console.writeln("measurementTextForFilenameBinary, sorting global.saved_measurements");
+            global.saved_measurements_sorted = global.saved_measurements.concat();
+            global.saved_measurements_sorted.sort( function(a, b) {
+                  let a0 = File.extractName(a[3]);
+                  let b0 = File.extractName(b[3]);
+                  if (a0 < b0) {
+                        return -1;
+                  } else if (a0 > b0) {
+                        return 1;
+                  } else {
+                        return 0;
+                  }
+            });
+      }
+      var indexPath = 3;
+      var low = 0;
+      var high = global.saved_measurements.length - 1;
+      var new_name = File.extractName(filename);
+      // We do binary search for file name prefix
+      // console.writeln("measurementTextForFilenameBinary, new_name " + new_name + ", low " + low + ", high " + high);
+      while (low <= high) {
+            var mid = Math.floor((low + high) / 2);
+            var mid_name = File.extractName(global.saved_measurements_sorted[mid][indexPath]);
+            if (mid_name.startsWith(new_name)) {
+                  // Found a match, return the measurement text
+                  // console.writeln("measurementTextForFilenameBinary, found match for " + new_name + " in " + mid_name);
+                  return measurementToText(global.saved_measurements_sorted[mid]);
+            } else if (mid_name < new_name) {
+                  // Search in the right half
+                  low = mid + 1;
+            } else {
+                  // Search in the left half
+                  high = mid - 1;
+            }
+      }
+      // If we reach here, no match was found
+      // console.writeln("measurementTextForFilenameBinary, no measurement found for " + filename);
+      // No measurement found for this filename
+      return "";
+}
+
 // If weight_filtering == true and treebox_filtering == true
 //    returns array of [ filename, checked, weight ]
 // else
 //    returns array of [ filename, weight ]
-function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames)
+function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames, sort_order = null)
 {
       console.writeln("subframeSelectorMeasure, input[0] " + fileNames[0]);
 
@@ -3283,7 +3366,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
                   ssFiles[ssFiles.length] = [ fileNames[i], 1 ];
             }
             return ssFiles;
-      }      
+      }
 
       /* Index for indexSNRWeight has changed at some point.
        * I assume it is in old position before version 1.8.8.10.
@@ -3300,10 +3383,11 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
             var node = flowchartOperation("SubframeSelector");
       }
 
-      if (measurements == null) {
+      if (global.saved_measurements == null) {
             // collect new measurements
             console.writeln("subframeSelectorMeasure, collect measurements");
             global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames);
+            global.saved_measurements_sorted = null;
       }
 
       // Find measurements from global.saved_measurements
@@ -3329,11 +3413,17 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
                         // something went wrong, list are not compatible, generate new ones
                         console.writeln("subframeSelectorMeasure, global.saved_measurements[0][indexPath] " + global.saved_measurements[0][indexPath]);
                         console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
+                        console.writeln("subframeSelectorMeasure, retry measurements");
                         measurements = null;
+                        console.writeln("subframeSelectorMeasure, collect measurements");
+                        global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames);
+                        global.saved_measurements_sorted = null;
                         break;
                   }
             }
       }
+
+      // Convert global.saved_measurements to a fast data structure to search names
 
       if (measurements == null) {
             util.throwFatalError("subframeSelectorMeasure, could not find measurements for all files. Please check that all files are available and that the measurement files are not corrupted.");
@@ -3486,7 +3576,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
             measurements = filterLimit(measurements, par.filter_limit4_type.val, findFilterIndex(par.filter_limit4_type.val), par.filter_limit4_val.val, indexPath, filtered_files);
       }
 
-      /* Collect FWHM values to a separat array to find median FWHM.*/
+      /* Collect FWHM values to a separate array to find median FWHM.*/
       var FWHMValues = [];
       for (var i = 0; i < measurements.length; i++) {
             let FWHM = measurements[i][indexFWHM];
@@ -3521,30 +3611,74 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       }
 
       if (weight_filtering) {
-            // sorting for files that are filtered out
-            if (global.pixinsight_version_num < 1080810) {
-                  var filteredSortIndex = indexFWHM;
+            var ascending_order = false;
+            if (sort_order == 'SSWEIGHT' || sort_order == null) {
+                  // Sort by SSWEIGHT
+                  // It is the default order
+                  console.writeln("subframeSelectorMeasure, sort by SSWEIGHT");
+                  var sortIndex = indexWeight;
             } else {
-                  var filteredSortIndex = indexPSFSignal;
+                  console.writeln("subframeSelectorMeasure, sort by " + sort_order);
+                  let filterIndex = findFilterIndex(sort_order);
+                  var sortIndex = filterIndex[0];
+                  var ascending_order = filterIndex[1];
             }
-            filtered_files.sort( function(a, b) {
-                  return b[filteredSortIndex] - a[filteredSortIndex];
-            });
-            // sorting for measurements files
-            measurements.sort( function(a, b) {
-                  return b[indexWeight] - a[indexWeight];
-            });
+
+            // Sorting for files that are filtered out
+            if (sortIndex == indexWeight) {
+                  // We have not calculated SSWEIGHT for filtered files so 
+                  // we use FWHM or PSFSignal
+                  if (global.pixinsight_version_num < 1080810) {
+                        // Use FWHM for old versions
+                        console.writeln("subframeSelectorMeasure, sort filtered files by FWHM");
+                        var filteredSortIndex = indexFWHM;
+                  } else {
+                        // Use PSFSignal for new versions
+                        console.writeln("subframeSelectorMeasure, sort filtered files by PSFSignal");
+                        var filteredSortIndex = indexPSFSignal;
+                  }
+            } else {
+                  // Use filterIndex for sorting
+                  var filteredSortIndex = sortIndex;
+            }
+            if (ascending_order) {
+                  // Sort by filteredSortIndex in ascending order
+                  filtered_files.sort( function(a, b) {
+                        return a[filteredSortIndex] - b[filteredSortIndex];
+                  });
+            } else {
+                  filtered_files.sort( function(a, b) {
+                        return b[filteredSortIndex] - a[filteredSortIndex];
+                  });
+            }
+
+            // Sorting for measurements files
+            if (ascending_order) {
+                  measurements.sort( function(a, b) {
+                        return a[sortIndex] - b[sortIndex];
+                  });
+            } else {
+                  // Sort by sortIndex in descending order
+                  measurements.sort( function(a, b) {
+                        return b[sortIndex] - a[sortIndex];
+                  });
+            }
             console.writeln("subframeSelectorMeasure, " + filtered_files.length + " discarded files");
-            for (var i = 0; i < filtered_files.length; i++) {
-                  console.writeln(filtered_files[i][indexPath]);
+            if (par.debug.val) {
+                  for (var i = 0; i < filtered_files.length; i++) {
+                        console.writeln(filtered_files[i][indexPath]);
+                  }
             }
             console.writeln("subframeSelectorMeasure, " + measurements.length + " accepted files");
-            for (var i = 0; i < measurements.length; i++) {
-                  console.writeln(measurements[i][indexPath]);
+            if (par.debug.val) {
+                  for (var i = 0; i < measurements.length; i++) {
+                        console.writeln(measurements[i][indexPath]);
+                  }
             }
             var treeboxfiles = [];
             // add selected files as checked
             for (var i = 0; i < measurements.length; i++) {
+                  // Create treeboxfiles as [ filename, checked, weight ]
                   treeboxfiles[treeboxfiles.length] =  [ measurements[i][indexPath], true, measurements[i][indexWeight] ];
             }
             // add filtered files as unchecked
@@ -19224,6 +19358,8 @@ this.closeAllWindows = closeAllWindows;
 // Utility processing functions
 this.subframeSelectorMeasure = subframeSelectorMeasure;
 this.getFilterValues = getFilterValues;
+this.measurementTextForFilename = measurementTextForFilename;
+
 this.runHistogramTransformSTFex = runHistogramTransformSTFex;
 this.autoStretch = autoStretch;
 this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
