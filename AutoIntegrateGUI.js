@@ -3468,6 +3468,40 @@ function lightsOptions(parent)
       });
       parent.rootingArr.push(monochrome_image_CheckBox);
 
+      var sortAndFilterButton = new PushButton( parent );
+      sortAndFilterButton.text = "Sort and filter";
+      sortAndFilterButton.icon = parent.scaledResource(":/icons/filter.png");
+      sortAndFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings in the " + 
+                                    "<i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                    "<p>Without any filtering rules files are just sorted by the sort order " + 
+                                    "given in the <i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                    "<p>Using the mouse hover over the file name you can see the " +
+                                    "filtering and weighting information for the file.</p>";
+      sortAndFilterButton.onClick = function()
+      {
+            filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+      };
+      parent.rootingArr.push(sortAndFilterButton);
+
+      var metricsVisualizerButton = new PushButton( parent );
+      metricsVisualizerButton.text = "Metrics visualizer";
+      metricsVisualizerButton.icon = parent.scaledResource(":/icons/chart.png");
+      metricsVisualizerButton.toolTip = metricsVisualizerToolTip;
+      metricsVisualizerButton.onClick = function()
+      {
+            metricsVisualizer(parent);
+      };
+      parent.rootingArr.push(metricsVisualizerButton);
+
+      var exclusionAreasButton = new PushButton( parent );
+      exclusionAreasButton.text = "Exclusion areas";
+      exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
+      exclusionAreasButton.onClick = function() 
+      {
+            getExclusionsAreas();
+      };
+      parent.rootingArr.push(exclusionAreasButton);
+
       sizer.add(debayerLabel);
       sizer.add(debayerCombobox);
       sizer.add(extractChannelsLabel);
@@ -3476,6 +3510,9 @@ function lightsOptions(parent)
       sizer.add(add_manually_checkbox);
       sizer.add(interated_lights_checkbox);
       sizer.addStretch();
+      sizer.add(sortAndFilterButton);
+      sizer.add(metricsVisualizerButton);
+      sizer.add(exclusionAreasButton);
 
       return sizer;
 }
@@ -4431,7 +4468,11 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
 function findBestImageFromTreeBoxFiles(treebox)
 {
       if (treebox.numberOfChildren == 0) {
-            console.writeln("findBestImageFromTreeBoxFiles, no files");
+            console.writeln("No files");
+            return false;
+      }
+
+      if (global.saved_measurements == null && !okToRunSubframeSelector()) {
             return false;
       }
       util.addStatusInfo("Finding...");
@@ -4779,6 +4820,53 @@ function metricsVisualizer(parent)
       }
 }
 
+function getExclusionsAreas() 
+{
+      console.writeln("Exclusion areas: " + JSON.stringify(global.exclusion_areas));
+      var tmpname = "AutoIntegrateExclusionAreas";
+      util.closeOneWindowById(tmpname);
+      if (exclusionAreasTargetImageName == "Auto") {
+            console.writeln("Exclusion areas target image is set to Auto, using the current image.");
+            var win = util.createWindowFromImage(preview_image, tmpname, true);
+      } else {
+            console.writeln("Exclusion areas target image is set to: " + exclusionAreasTargetImageName);
+            var target_win = util.findWindow(exclusionAreasTargetImageName);
+            if (target_win == null) {
+                  console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
+                  return;
+            }
+            var win = util.copyWindow(target_win, tmpname);
+      }
+      if (engine.imageIsLinear(win)) {
+            console.writeln("Exclusion areas target image is linear, stretching the image.");
+            engine.autoStretch(win);
+      }
+
+      console.writeln("Opening Exclusion Area dialog for target image: " + exclusionAreasTargetImageName);
+      let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
+      if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
+      
+            global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
+            this.dialog.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
+
+            console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
+      } else {
+            console.writeln("No changes");
+      }
+      util.closeOneWindow(win);
+}
+
+function okToRunSubframeSelector()
+{
+      var messagebox = new MessageBox("There are no measurements available. Do you want to run SubframeSelector now?",
+                                          "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
+      if (messagebox.execute() != StdButton_Yes) {
+            console.writeln("Cancelled.");
+            return false;
+      }
+      return true;
+}
+
 function measureTreeBoxFiles(parent, pageIndex)
 {
       console.show();
@@ -4788,13 +4876,8 @@ function measureTreeBoxFiles(parent, pageIndex)
             return false;
       }
 
-      if (global.saved_measurements == null) {
-            var messagebox = new MessageBox("There are no measurements available. Do you want to run SubframeSelector now?",
-                                             "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
-            if (!messagebox.execute != StdButton_Yes) {
-                  util.addStatusInfo("Cancelled.");
-                  return false;
-            }
+      if (global.saved_measurements == null && !okToRunSubframeSelector()) {
+            return false;
       }
       util.addStatusInfo("Measuring...");
 
@@ -6427,42 +6510,6 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
 
-      var filteringLabel = newLabel( parent, "Filtering", "Filtering and weighting current images.");
-
-      var currentPageFilterButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageFilterButton);
-      currentPageFilterButton.icon = parent.scaledResource(":/icons/filter.png");
-      currentPageFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings in the " + 
-                                        "<i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
-                                        "<p>Without any filtering rules files are just sorted by the sort order " + 
-                                        "given in the <i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
-                                        "<p>Using the mouse hover over the file name you can see the " +
-                                        "filtering and weighting information for the file.</p>" +
-                                        "<p>Note that the filtering is only available in the Lights page.</p>";
-      currentPageFilterButton.setScaledFixedSize( 20, 20 );
-      currentPageFilterButton.onClick = function()
-      {
-            if (parent.dialog.tabBox.currentPageIndex == global.pages.LIGHTS) {
-                  // Filter and sort files in the Lights page
-                  filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
-            } else {
-                  console.criticalln("Filtering is only available in the Lights page.");
-            }
-      };
-      var currentPageMetricsVisualizerButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageMetricsVisualizerButton);
-      currentPageMetricsVisualizerButton.icon = parent.scaledResource(":/icons/chart.png");
-      currentPageMetricsVisualizerButton.toolTip = metricsVisualizerToolTip;
-      currentPageMetricsVisualizerButton.setScaledFixedSize( 20, 20 );
-      currentPageMetricsVisualizerButton.onClick = function()
-      {
-            if (parent.dialog.tabBox.currentPageIndex != global.pages.LIGHTS) {
-                  console.criticalln("Metrics visualizer is only available in the Lights page.");
-                  return;
-            }
-            metricsVisualizer(this);
-      };
-
       var bestImageLabel = newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
 
       var setBestImageButton = new ToolButton( parent );
@@ -6577,10 +6624,6 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       buttonsSizer.add( currentPageRemoveSelectedButton );
       buttonsSizer.add( currentPageCollapseButton );
       buttonsSizer.add( currentPageExpandButton );
-      buttonsSizer.addSpacing( 4 );
-      buttonsSizer.add( filteringLabel );
-      buttonsSizer.add( currentPageFilterButton );
-      buttonsSizer.add( currentPageMetricsVisualizerButton );
 
       buttonsSizer.addSpacing( 12 );
       buttonsSizer.add( bestImageLabel );
@@ -8522,6 +8565,15 @@ function AutoIntegrateDialog()
       this.filterSortLabel = newLabel(this, "Sort order", "<p>Sort order for the filter and sort button.</p>");
       this.filterSortComboBox = newComboBox(this, par.sort_order_type, filter_sort_values, this.filterSortLabel.toolTip);
 
+      this.clearMetricsButton = new PushButton( this );
+      this.clearMetricsButton.text = "Clear metrics";
+      this.clearMetricsButton.toolTip = "<p>Clear metrics data cached in memory.</p>";
+      this.clearMetricsButton.onClick = function() 
+      {
+            global.saved_measurements = null;
+            global.saved_measurements_sorted = null;
+      };
+
       var filterLimitHelpToolTips= "<p>Choose filter measure and value. FWHM and Eccentricity are filtered for too high values (min), and all others are filtered for too low values (max).</p>" +
                                    "<p>Limit value zero (0.0000) means that there is no filtering.</p>";
       this.filterLimit1Label = newLabel(this, "Filter 1", filterLimitHelpToolTips);
@@ -8590,7 +8642,7 @@ function AutoIntegrateDialog()
       this.weightGroupBoxSizer.add( this.weightLimitEdit );
       this.weightGroupBoxSizer.addStretch();
 
-      this.sortOrderSizer = newHorizontalSizer(2, true, [ this.filterSortLabel, this.filterSortComboBox ]);
+      this.sortOrderSizer = newHorizontalSizer(4, true, [ this.filterSortLabel, this.filterSortComboBox, this.clearMetricsButton ]);
 
       this.filterGroupBoxSizer = new HorizontalSizer;
       this.filterGroupBoxSizer.margin = 6;
@@ -8785,41 +8837,10 @@ function AutoIntegrateDialog()
 
       this.exclusionAreasButton = new PushButton( this );
       this.exclusionAreasButton.text = "Exclusion areas";
-      this.exclusionAreasButton.toolTip = "<p>Select exclusion areas.</p>";
+      this.exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
       this.exclusionAreasButton.onClick = function() 
       {
-            console.writeln("Exclusion area button clicked, exclusion areas: " + JSON.stringify(global.exclusion_areas));
-            var tmpname = "AutoIntegrateExclusionAreas";
-            util.closeOneWindowById(tmpname);
-            if (exclusionAreasTargetImageName == "Auto") {
-                  console.writeln("Exclusion areas target image is set to Auto, using the current image.");
-                  var win = util.createWindowFromImage(preview_image, tmpname, true);
-            } else {
-                  console.writeln("Exclusion areas target image is set to: " + exclusionAreasTargetImageName);
-                  var target_win = util.findWindow(exclusionAreasTargetImageName);
-                  if (target_win == null) {
-                        console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
-                        return;
-                  }
-                  var win = util.copyWindow(target_win, tmpname);
-            }
-            if (engine.imageIsLinear(win)) {
-                  console.writeln("Exclusion areas target image is linear, stretching the image.");
-                  engine.autoStretch(win);
-            }
-
-            console.writeln("Opening Exclusion Area dialog for target image: " + exclusionAreasTargetImageName);
-            let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
-            if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
-            
-                  global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
-                  this.dialog.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
-
-                  console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
-            } else {
-                  console.writeln("No changes");
-            }
-            util.closeOneWindow(win);
+            getExclusionsAreas();
       };
       this.exclusionAreaCountLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
       exclusionAreaCountLabel = this.exclusionAreaCountLabel;
