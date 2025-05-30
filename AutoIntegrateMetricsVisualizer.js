@@ -29,7 +29,7 @@ var metricsData = [
 var metricsFilteredOut = [];
 
 // Custom plotting control
-function PlotControl(parent, metrics, color) {
+function PlotControl(parent, metrics, stats, color) {
     this.__base__ = Control;
     this.__base__(parent);
 
@@ -42,6 +42,13 @@ function PlotControl(parent, metrics, color) {
     this.preferredWidth = 500;
     this.preferredHeight = 250;
     this.plot_limit = metrics.limit || 0.0;
+
+    this.toolTip = "<p>Plot for " + this.title + " metric.<br>" +
+                   "Set a limit to filter out values.<br>" +
+                   "Current limit: " + this.plot_limit +
+                   (this.filter_high ? " (Max)" : " (Min)") + "<p>" +
+                   "<p>Green lines indicate one sigma limits.<br>" +
+                   "Red lines indicate two sigma limits.</p>";
 
     if (this.title == 'None') {
         this.enabled = false;
@@ -84,6 +91,37 @@ function PlotControl(parent, metrics, color) {
         for (var i = 1; i < 5; i++) {
             var y = plotY + (plotHeight * i / 5);
             graphics.drawLine(plotX, y, plotX + plotWidth, y);
+        }
+
+        // Draw one sigma and two sigma lines at the top and bottom
+        if (this.range > 0) {
+            // Draw upper limits
+            var oneSigma = stats.mean + stats.stdDev;
+            var twoSigma = stats.mean + (stats.stdDev * 2);
+            var oneSigmaY = plotY + plotHeight - (plotHeight * (oneSigma - this.minValue) / this.range);
+            var twoSigmaY = plotY + plotHeight - (plotHeight * (twoSigma - this.minValue) / this.range);
+            if (oneSigmaY > plotY) {
+                graphics.pen = new Pen(0xFF008000, 1); // Green for one sigma
+                graphics.drawLine(plotX, oneSigmaY, plotX + plotWidth, oneSigmaY);
+            }
+            if (twoSigmaY > plotY) {
+                graphics.pen = new Pen(0xFFCD5C5C, 1); // Red for two sigma
+                graphics.drawLine(plotX, twoSigmaY, plotX + plotWidth, twoSigmaY);
+            }
+            // Draw lower limits
+            var oneSigmaLow = stats.mean - stats.stdDev;
+            var twoSigmaLow = stats.mean - (stats.stdDev * 2);
+            var oneSigmaLowY = plotY + plotHeight - (plotHeight * (oneSigmaLow - this.minValue) / this.range);
+            var twoSigmaLowY = plotY + plotHeight - (plotHeight * (twoSigmaLow - this.minValue) / this.range);
+            if (oneSigmaLowY < plotY + plotHeight) {
+                graphics.pen = new Pen(0xFF008000, 1); // Green for one sigma
+                graphics.drawLine(plotX, oneSigmaLowY, plotX + plotWidth, oneSigmaLowY);
+            }
+            if (twoSigmaLowY < plotY + plotHeight) {
+                // Draw two sigma line
+                graphics.pen = new Pen(0xFFCD5C5C, 1); // Red for two sigma
+                graphics.drawLine(plotX, twoSigmaLowY, plotX + plotWidth, twoSigmaLowY);
+            }
         }
         
         // Draw data points and lines
@@ -284,18 +322,18 @@ function AstroMetricsDialog() {
     this.minWidth = 800;
     this.minHeight = 780;
     
-    // Create plot controls for each metric
-    this.data1Plot = new PlotControl(this, metricsData[0], 0xFF00AA00);
-    this.data2Plot = new PlotControl(this, metricsData[1], 0xFFFF6600);
-    this.data3Plot = new PlotControl(this, metricsData[2], 0xFF0066FF);
-    this.data4Plot = new PlotControl(this, metricsData[3], 0xFFCC0066);
-    
     // Create statistics panels
     this.data1Stats = new StatsControl(this, metricsData[0].name, metricsData[0].data);
     this.data2Stats = new StatsControl(this, metricsData[1].name, metricsData[1].data);
     this.data3Stats = new StatsControl(this, metricsData[2].name, metricsData[2].data);
     this.data4Stats = new StatsControl(this, metricsData[3].name, metricsData[3].data);
 
+    // Create plot controls for each metric
+    this.data1Plot = new PlotControl(this, metricsData[0], this.data1Stats, 0xFF00AA00);
+    this.data2Plot = new PlotControl(this, metricsData[1], this.data2Stats, 0xFFFF6600);
+    this.data3Plot = new PlotControl(this, metricsData[2], this.data3Stats, 0xFF0066FF);
+    this.data4Plot = new PlotControl(this, metricsData[3], this.data4Stats, 0xFFCC0066);
+    
     // Edit fields for limits
     this.data1LimitEdit = newLimitEdit(this, metricsData[0].name, this.data1Plot);
     this.data2LimitEdit = newLimitEdit(this, metricsData[1].name, this.data2Plot);
