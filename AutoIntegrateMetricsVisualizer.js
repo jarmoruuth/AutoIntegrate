@@ -27,6 +27,8 @@ var metricsData = [
 ];
 
 var metricsFilteredOut = [];
+var alwaysFilteredOut = [];         // Input metrics that are always filtered out
+var numberOfDataSets = 0;
 
 // Custom plotting control
 function PlotControl(parent, metrics, stats, color) {
@@ -45,8 +47,10 @@ function PlotControl(parent, metrics, stats, color) {
 
     this.toolTip = "<p>Plot for " + this.title + " metric.<br>" +
                    "Set a limit to filter out values.<br>" +
-                   "Current limit: " + this.plot_limit +
+                   "Current limit: " + this.plot_limit.toFixed(8) +
                    (this.filter_high ? " (Max)" : " (Min)") + "<p>" +
+                   "<p>Gray points indicate values filtered out by outliers.<br>" +
+                   "White points indicate values filtered out by the current limits.</p>" +
                    "<p>Green lines indicate one sigma limits.<br>" +
                    "Red lines indicate two sigma limits.</p>";
 
@@ -157,11 +161,13 @@ function PlotControl(parent, metrics, stats, color) {
                 }
             }            
             // Draw data points
-            graphics.brush = new Brush(this.plotColor);
             for (var i = 0; i < points.length; i++) {
-                if (metricsFilteredOut[i]) {
-                    // Gray out points filtered out
+                if (alwaysFilteredOut[i]) {
+                    // Gray points always filtered out by outliers
                     graphics.brush = new Brush(0xffC0C0C0);
+                } else if (metricsFilteredOut[i]) {
+                    // White points filtered out by limits
+                    graphics.brush = new Brush(0xFFFFFFFF);
                 } else {
                     graphics.brush = new Brush(this.plotColor);
                 }
@@ -223,7 +229,7 @@ function StatsControl(parent, title, data) {
     
     this.title = title;
     this.data = data;
-    this.preferredHeight = 120;
+    // this.preferredHeight = 120;
 
     if (title == 'None') {
         this.enabled = false;
@@ -258,13 +264,13 @@ function StatsControl(parent, title, data) {
         graphics.drawText(10, y, this.title + " Statistics:");
         y += lineHeight + 5;
         
-        graphics.drawText(10, y, "Mean: " + this.mean.toFixed(5));
+        graphics.drawText(10, y, "Mean: " + this.mean.toFixed(8));
         y += lineHeight;
-        graphics.drawText(10, y, "Min: " + this.min.toFixed(5));
+        graphics.drawText(10, y, "Min: " + this.min.toFixed(8));
         y += lineHeight;
-        graphics.drawText(10, y, "Max: " + this.max.toFixed(5));
+        graphics.drawText(10, y, "Max: " + this.max.toFixed(8));
         y += lineHeight;
-        graphics.drawText(10, y, "Std Dev: " + this.stdDev.toFixed(5));
+        graphics.drawText(10, y, "Std Dev: " + this.stdDev.toFixed(8));
         
         graphics.end();
     };
@@ -284,7 +290,7 @@ function newLimitEdit(parent, title, plot) {
     limitEdit.label.text = title + " Limit" + (plot.filter_high ? " (Max)" : " (Min)");
     limitEdit.label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
     limitEdit.minWidth = 50;
-    limitEdit.setPrecision( 5 );
+    limitEdit.setPrecision( 8 );
     limitEdit.setRange(0, 1000000);
     limitEdit.setValue(plot.plot_limit || 0.0);
     limitEdit.plot = plot;
@@ -320,7 +326,11 @@ function AstroMetricsDialog() {
     
     this.windowTitle = WINDOW_TITLE;
     this.minWidth = 800;
-    this.minHeight = 780;
+    if (numberOfDataSets > 2) {
+        this.minHeight = 780;
+    } else {
+        this.minHeight = 600;
+    }
     
     // Create statistics panels
     this.data1Stats = new StatsControl(this, metricsData[0].name, metricsData[0].data);
@@ -333,7 +343,7 @@ function AstroMetricsDialog() {
     this.data2Plot = new PlotControl(this, metricsData[1], this.data2Stats, 0xFFFF6600);
     this.data3Plot = new PlotControl(this, metricsData[2], this.data3Stats, 0xFF0066FF);
     this.data4Plot = new PlotControl(this, metricsData[3], this.data4Stats, 0xFFCC0066);
-    
+
     // Edit fields for limits
     this.data1LimitEdit = newLimitEdit(this, metricsData[0].name, this.data1Plot);
     this.data2LimitEdit = newLimitEdit(this, metricsData[1].name, this.data2Plot);
@@ -379,6 +389,25 @@ function AstroMetricsDialog() {
     this.data4LimitEditSizer.addStretch();
 
     this.totalLabel = newLabel(this);
+
+    if (metricsData[1].data.length == 0) {
+        // If no data for second metric, hide it
+        this.data2Plot.hide();
+        this.data2Stats.hide();
+        this.data2LimitEdit.hide();
+    }
+    if (metricsData[2].data.length == 0) {
+        // If no data for third metric, hide it
+        this.data3Plot.hide();
+        this.data3Stats.hide();
+        this.data3LimitEdit.hide();
+    }
+    if (metricsData[3].data.length == 0) {
+        // If no data for fourth metric, hide it
+        this.data4Plot.hide();
+        this.data4Stats.hide();
+        this.data4LimitEdit.hide();
+    }
 
     // Sizer for the total accepted frames
     this.totalLabelSizer = new HorizontalSizer;
@@ -540,7 +569,7 @@ AstroMetricsDialog.prototype.updateFilteredOut = function() {
     // Count accepted frames
     let accepted = 0;
     for (let i = 0; i < metricsFilteredOut.length; i++) {
-        if (!metricsFilteredOut[i]) {
+        if (!metricsFilteredOut[i] && !alwaysFilteredOut[i]) {
             accepted++;
         }
     }
@@ -548,10 +577,19 @@ AstroMetricsDialog.prototype.updateFilteredOut = function() {
 };
 
 // Main execution function
-function main(data) {
+function main(data, filtered_out) {
     //console.writeln("Starting AutoIntegrate Metrics Visualizer...");
 
     metricsData = data;
+    alwaysFilteredOut = filtered_out || []; // Input metrics that are always filtered out
+
+    // Count the number of n on-zero data sets
+    numberOfDataSets = 0;
+    for (let i = 0; i < metricsData.length; i++) {
+        if (metricsData[i].data.length > 0) {
+            numberOfDataSets++;
+        }
+    }
 
     dialog = new AstroMetricsDialog();
     dialog.updateFilteredOut();

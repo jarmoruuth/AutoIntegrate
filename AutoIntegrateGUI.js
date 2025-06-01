@@ -271,6 +271,8 @@ var use_hyperbolic = false;           // Use hyperbolic stretch, does not really
 
 var current_histogramInfo = null;
 
+var filtering_changed = false;        // Filtering settings have changed
+
 var tab_preview_index = 1;
 var is_some_preview = false;
 var preview_size_changed = false;
@@ -310,7 +312,7 @@ var extract_channel_mapping_values = [ "None", "LRGB", "HSO", "HOS" ];
 var RGBNB_mapping_values = [ 'H', 'S', 'O', '' ];
 var use_weight_values = [ 'Generic', 'Noise', 'Stars', 'PSF Signal', 'PSF Signal scaled', 'FWHM scaled', 'Eccentricity scaled', 'SNR scaled', 'Star count' ];
 var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
-var filter_sort_values = [ 'SSWEIGHT', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars'];
+var filter_sort_values = [ 'SSWEIGHT', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars', 'File name' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
 var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
@@ -2900,7 +2902,7 @@ function close_undo_images()
  *    Dialog functions are below this point
  * 
  */
- function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick )
+ function newCheckBoxEx( parent, checkboxText, param, toolTip, onClick, updatedCallback = null)
  {
        var cb = new CheckBox( parent );
        cb.text = checkboxText;
@@ -2920,6 +2922,9 @@ function close_undo_images()
        } else {
              cb.onClick = function(checked) { 
                   cb.aiParam.val = checked;
+                  if (updatedCallback != null) {
+                        updatedCallback();
+                  }
              }
        }
        if ( typeof toolTip !== 'undefined' && toolTip != null ) {
@@ -2933,9 +2938,9 @@ function close_undo_images()
        return cb;
  }
  
- function newCheckBox( parent, checkboxText, param, toolTip )
+ function newCheckBox( parent, checkboxText, param, toolTip, updatedCallback = null)
  {
-       return newCheckBoxEx(parent, checkboxText, param, toolTip, null);
+       return newCheckBoxEx(parent, checkboxText, param, toolTip, null, updatedCallback);
  }
  function newGenericCheckBox( parent, checkboxText, param, val, toolTip, onClick )
  {
@@ -3181,7 +3186,7 @@ function newGenericTextEdit(parent, param, val, tooltip, onTextUpdated)
       return edt;
 }
 
-function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision)
+function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precision, updatedCallback = null)
 {
       var edt = new NumericEdit( parent );
       edt.label.text = txt;
@@ -3198,6 +3203,9 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
       edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
+            if (updatedCallback != null) {
+                  updatedCallback();
+            }
       };
       edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       return edt;
@@ -3295,7 +3303,7 @@ function addArrayToComboBox(cb, arr)
       }
 }
 
-function newComboBox(parent, param, valarray, tooltip)
+function newComboBox(parent, param, valarray, tooltip, updatedCallback = null)
 {
       var cb = new ComboBox( parent );
       cb.toolTip = util.formatToolTip(tooltip);
@@ -3305,6 +3313,9 @@ function newComboBox(parent, param, valarray, tooltip)
       cb.currentItem = valarray.indexOf(cb.aiParam.val);
       cb.onItemSelected = function( itemIndex ) {
             cb.aiParam.val = cb.aiValarray[itemIndex];
+            if (updatedCallback != null) {
+                  updatedCallback();
+            }
       };
 
       cb.aiParam.reset = function() {
@@ -3489,7 +3500,7 @@ function lightsOptions(parent)
       metricsVisualizerButton.toolTip = metricsVisualizerToolTip;
       metricsVisualizerButton.onClick = function()
       {
-            metricsVisualizer(parent);
+            metricsVisualizerFilters(parent);
       };
       parent.rootingArr.push(metricsVisualizerButton);
 
@@ -4488,6 +4499,8 @@ function findBestImageFromTreeBoxFiles(treebox)
       // get array of [ filename, weight ]
       var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false, all_files);
 
+      filtering_changed = false;
+
       // create treeboxfiles array of [ filename, checked, weight ]
       var treeboxfiles = [];
       for (var i = 0; i < ssWeights.length; i++) {
@@ -4732,7 +4745,18 @@ function setExpandedTreeBoxNode(node, expanded)
       }
 }
 
-function metricsVisualizer(parent)
+function setFilteringChanged()
+{
+      // Set filtering changed flag to true so that we can re-measure
+      // the light files when metrics visualizer is called.
+      // This is needed when we change the filter limits.
+      // If we do not set this flag then metrics visualizer will not
+      // re-measure the light files and will use the old measurements.
+      console.writeln("setFilteringChanged, set filtering_changed to true");
+      filtering_changed = true;
+}
+
+function metricsVisualizerCheck(parent)
 {
       if (global.saved_measurements == null) {
             console.noteln("No measurements to visualize");
@@ -4741,9 +4765,71 @@ function metricsVisualizer(parent)
             console.writeln("Measurements are also saved to AutosaveSetup.json file. Loading this file will also load the measurements.");
 
             if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
-                  return;
+                  return false;
+            }
+      } else if (filtering_changed) {
+            console.writeln("Metrics visualizer, measurements changed, re-measuring...");
+            if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
+                  console.writeln("Metrics visualizer, re-measuring failed, no measurements to visualize");
+                  return false;
             }
       }
+      return true;
+}
+
+function metricsVisualizerSSWEIGHT(parent)
+{
+      var changes = filtering_changed;
+
+      if (!metricsVisualizerCheck(parent)) {
+            return;
+      }
+      var data  = [];
+      data[0] = {
+                  name: "SSWEIGHT",
+                  data: engine.getFilterValues(global.saved_measurements, "SSWEIGHT"),
+                  limit: par.ssweight_limit.val,
+                  filter_high: false,
+      };
+      // Add empty data for the rest of the filters
+      for (var i = 1; i < 4; i++) {
+            data[i] = {
+                        name: "SSWEIGHT",
+                        data: [],
+                        limit: 0,
+                        filter_high: false,
+            };
+      }
+      var metricsFilteredOut = engine.getMetricsFilteredOut(global.saved_measurements, true);
+
+      let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
+
+      if (metricsVisualizer.main(data, metricsFilteredOut)) {
+            // Update all changed data
+            if (data[0].limit != par.ssweight_limit.val || changes) {
+                  // Update limit
+                  par.ssweight_limit.val = data[0].limit;
+                  par.ssweight_limit.reset();
+                  console.writeln("Metrics visualizer, update SSWEIGHT limit to " + data[0].limit);
+                  // Mark all light files as checked
+                  checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
+                  // Update all treebox files with new limits
+                  filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
+            } else {
+                  console.writeln("Metrics visualizer, no changes to SSWEIGHT limit");
+            }
+      }
+
+}
+
+function metricsVisualizerFilters(parent)
+{
+      var changes = filtering_changed;
+
+      if (!metricsVisualizerCheck(parent)) {
+            return;
+      }
+
       if (par.filter_limit1_type.val == 'None' &&
           par.filter_limit2_type.val == 'None' &&
           par.filter_limit3_type.val == 'None' &&
@@ -4764,12 +4850,12 @@ function metricsVisualizer(parent)
                         filter_high: engine.getFilterHigh(filters[i]),
                    };
       }
+      var metricsFilteredOut = engine.getMetricsFilteredOut(global.saved_measurements);
 
       let metricsVisualizer = new AutoIntegrateMetricsVisualizer(global);
 
-      if (metricsVisualizer.main(data)) {
+      if (metricsVisualizer.main(data, metricsFilteredOut)) {
             // Update all changed data
-            var changes = false;
             for (var i = 0; i < filters.length; i++) {
                   if (data[i].limit != limits[i]) {
                         // Update limits
@@ -4814,6 +4900,8 @@ function metricsVisualizer(parent)
                   checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
                   filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
+            } else {
+                  console.writeln("Metrics visualizer, no changes to filter limits");
             }
       } else {
             console.writeln("Metrics visualizer, no changes");
@@ -4893,6 +4981,8 @@ function measureTreeBoxFiles(parent, pageIndex)
 
       engine.subframeSelectorMeasure(all_files, false, false, all_files);
 
+      filtering_changed = false;
+
       return global.saved_measurements != null && global.saved_measurements.length > 0;
 }
 
@@ -4928,6 +5018,8 @@ function filterTreeBoxFiles(parent, pageIndex)
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
       var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
+
+      filtering_changed = false;
 
       // mark old unchecked files as unchecked
       filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
@@ -8560,7 +8652,15 @@ function AutoIntegrateDialog()
                                "it is not included in the set of processed images.</p>" + 
                                "<p>Not that the value is written to FITS hedaer using 10 digits. Smaller than 10 digit limit values should not be used " + 
                                "if using the SSWEIGHT value that is written to FITS header.</p>";
-      this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 10);
+      this.weightLimitEdit = newNumericEditPrecision(this, "Limit", par.ssweight_limit, 0, 999999, weightLimitToolTip, 10, setFilteringChanged);
+      this.metricsVisualizerSSWEIGHTButton = new PushButton( this );
+      this.metricsVisualizerSSWEIGHTButton.icon = this.scaledResource(":/icons/chart.png");
+      this.metricsVisualizerSSWEIGHTButton.text = "Metrics visualizer";
+      this.metricsVisualizerSSWEIGHTButton.toolTip = metricsVisualizerToolTip;
+      this.metricsVisualizerSSWEIGHTButton.onClick = function() 
+      {
+            metricsVisualizerSSWEIGHT(this.dialog);
+      };
 
       this.filterSortLabel = newLabel(this, "Sort order", "<p>Sort order for the filter and sort button.</p>");
       this.filterSortComboBox = newComboBox(this, par.sort_order_type, filter_sort_values, this.filterSortLabel.toolTip);
@@ -8589,13 +8689,13 @@ function AutoIntegrateDialog()
       this.filterLimit4ComboBox = newComboBox(this, par.filter_limit4_type, filter_limit_values, filterLimitHelpToolTips);
       this.filterLimit4Edit = newNumericEditPrecision(this, "Limit", par.filter_limit4_val, 0, 999999, filterLimitHelpToolTips, 4);
 
-      this.metricsVisualizerButton = new PushButton( this );
-      this.metricsVisualizerButton.icon = this.scaledResource(":/icons/chart.png");
-      this.metricsVisualizerButton.text = "Metrics visualizer";
-      this.metricsVisualizerButton.toolTip = metricsVisualizerToolTip;
-      this.metricsVisualizerButton.onClick = function() 
+      this.metricsVisualizerFiltersButton = new PushButton( this );
+      this.metricsVisualizerFiltersButton.icon = this.scaledResource(":/icons/chart.png");
+      this.metricsVisualizerFiltersButton.text = "Metrics visualizer";
+      this.metricsVisualizerFiltersButton.toolTip = metricsVisualizerToolTip;
+      this.metricsVisualizerFiltersButton.onClick = function() 
       {
-            metricsVisualizer(this);
+            metricsVisualizerFilters(this.dialog);
       };
 
       this.outlierMethodLabel = new Label( this );
@@ -8608,7 +8708,7 @@ function AutoIntegrateDialog()
             "more outliers than the two other options.</p>" +
             "<p>Interquartile range (IQR) measurement is based on median calculations. It should be " + 
             "relatively close to two sigma method.</p>";
-      this.outlierMethodComboBox = newComboBox(this, par.outliers_method, outliers_methods, this.outlierMethodLabel.toolTip);
+      this.outlierMethodComboBox = newComboBox(this, par.outliers_method, outliers_methods, this.outlierMethodLabel.toolTip, setFilteringChanged);
 
       this.outlierMinMax_CheckBox = newCheckBox(this, "Min Max", par.outliers_minmax, 
             "<p>If checked outliers are filtered using both min and max outlier threshold values.</p>" + 
@@ -8624,13 +8724,13 @@ function AutoIntegrateDialog()
       this.outlierLabel.text = "Outlier filtering";
       this.outlierLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.outlierLabel.toolTip = outlier_filtering_tooltip;
-      this.outlier_ssweight_CheckBox = newCheckBox(this, "SSWEIGHT", par.outliers_ssweight, outlier_filtering_tooltip);
-      this.outlier_fwhm_CheckBox = newCheckBox(this, "FWHM", par.outliers_fwhm, outlier_filtering_tooltip);
-      this.outlier_ecc_CheckBox = newCheckBox(this, "Ecc", par.outliers_ecc, outlier_filtering_tooltip);
-      this.outlier_snr_CheckBox = newCheckBox(this, "SNR", par.outliers_snr, outlier_filtering_tooltip);
-      this.outlier_psfsignal_CheckBox = newCheckBox(this, "PSF Signal", par.outliers_psfsignal, outlier_filtering_tooltip);
-      this.outlier_psfpower_CheckBox = newCheckBox(this, "PSF Power", par.outliers_psfpower, outlier_filtering_tooltip);
-      this.outlier_stars_CheckBox = newCheckBox(this, "Stars", par.outliers_stars, outlier_filtering_tooltip);
+      this.outlier_ssweight_CheckBox = newCheckBox(this, "SSWEIGHT", par.outliers_ssweight, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_fwhm_CheckBox = newCheckBox(this, "FWHM", par.outliers_fwhm, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_ecc_CheckBox = newCheckBox(this, "Ecc", par.outliers_ecc, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_snr_CheckBox = newCheckBox(this, "SNR", par.outliers_snr, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_psfsignal_CheckBox = newCheckBox(this, "PSF Signal", par.outliers_psfsignal, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_psfpower_CheckBox = newCheckBox(this, "PSF Power", par.outliers_psfpower, outlier_filtering_tooltip, setFilteringChanged);
+      this.outlier_stars_CheckBox = newCheckBox(this, "Stars", par.outliers_stars, outlier_filtering_tooltip, setFilteringChanged   );
 
       this.weightGroupBoxLabel = newSectionLabel(this, "Image weight calculation settings");
 
@@ -8640,6 +8740,7 @@ function AutoIntegrateDialog()
       this.weightGroupBoxSizer.add( this.weightLabel );
       this.weightGroupBoxSizer.add( this.weightComboBox );
       this.weightGroupBoxSizer.add( this.weightLimitEdit );
+      this.weightGroupBoxSizer.add( this.metricsVisualizerSSWEIGHTButton );
       this.weightGroupBoxSizer.addStretch();
 
       this.sortOrderSizer = newHorizontalSizer(4, true, [ this.filterSortLabel, this.filterSortComboBox, this.clearMetricsButton ]);
@@ -8664,7 +8765,7 @@ function AutoIntegrateDialog()
       this.filterGroupBoxSizer2.add( this.filterLimit4Label );
       this.filterGroupBoxSizer2.add( this.filterLimit4ComboBox );
       this.filterGroupBoxSizer2.add( this.filterLimit4Edit );
-      this.filterGroupBoxSizer2.add( this.metricsVisualizerButton );
+      this.filterGroupBoxSizer2.add( this.metricsVisualizerFiltersButton );
       this.filterGroupBoxSizer2.addStretch();
 
       this.weightGroupBoxSizer2 = new HorizontalSizer;

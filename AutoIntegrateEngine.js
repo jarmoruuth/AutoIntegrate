@@ -2964,11 +2964,38 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       return fileNames;
 }
 
-function getStandardDeviationAndMean(array)
+// Calculate mean and standard deviation of an array
+function getStandardDeviationAndMean(data)
 {
-      const n = array.length;
-      const mean = array.reduce((a, b) => a + b) / n;
-      const std = Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+      if (!Array.isArray(data) || data.length === 0) {
+            console.criticalln("getStandardDeviationAndMean: Invalid input data");
+            return { mean: 0, std: 0 };
+      }
+      const array = data.filter(x => !isNaN(x)); // Filter out NaN values
+      if (array.length === 0) {
+            console.criticalln("getStandardDeviationAndMean: No valid numbers in input data");
+            return { mean: 0, std: 0 };
+      }
+      if (array.length === 1) {
+            console.writeln("getStandardDeviationAndMean: Only one valid number in input data, returning mean and std as that number");
+            return { mean: array[0], std: 0 };
+      }
+      // Calculate mean and standard deviation
+      // Using the formula: mean = sum(x) / n, std = sqrt(sum((x - mean)^2) / n)
+      // where n is the number of elements in the array
+      array.sort((a, b) => a - b); // Sort the array to ensure correct calculations
+      if (array[0] == array[array.length - 1]) {
+            console.writeln("getStandardDeviationAndMean: All values are equal, returning mean and std as that value");
+            return { mean: array[0], std: 0 };
+      }
+      // Calculate mean
+      const arraySum = array.reduce((a, b) => a + b, 0);
+      const mean = arraySum / array.length;
+      // Calculate standard deviation
+      const squaredDifferences = array.map(x => Math.pow(x - mean, 2));
+      const variance = squaredDifferences.reduce((a, b) => a + b, 0) / array.length;
+      const std = Math.sqrt(variance);
+      // Return mean and standard deviation
       return { mean: mean, std: std };
 }
 
@@ -3049,18 +3076,23 @@ function filterOutliers(measurements, name, index, type, do_filtering, fileindex
             if ((type == 'min' || par.outliers_minmax.val) && measurements[i][index] < minmax.minValue) {
                   console.writeln(name + " below limit " + minmax.maxValue + ", ignoring file " + measurements[i][fileindex]);
                   filtered_files[filtered_files.length] = measurements[i];
+                  measurements[i][1] = false; // measurementEnabled
+                  measurements[i][2] = 2;  // measurementLocked for metrics visualizer
             } else if ((type == 'max' || par.outliers_minmax.val) && measurements[i][index] > minmax.maxValue) {
                   console.writeln(name + " above limit " + minmax.maxValue + ", ignoring file " + measurements[i][fileindex]);
                   filtered_files[filtered_files.length] = measurements[i];
+                  measurements[i][1] = false; // measurementEnabled
+                  measurements[i][2] = 2;  // measurementLocked for metrics visualizer
             } else {
                   newMeasurements[newMeasurements.length] = measurements[i];
+                  measurements[i][1] = true; // measurementEnabled
             }
       }
       util.addProcessingStep(name + " outliers filtered " + (measurements.length - newMeasurements.length) + " files");
       return newMeasurements;
 }
 
-function filterLimit(measurements, name, index_info, limit_val, fileindex, filtered_files)
+function filterLimit(measurements, name, index_info, limit_val, fileindex, filtered_files, ssweight_limit = false)
 {
       var index = index_info[0];
       var filter_high = index_info[1];
@@ -3084,8 +3116,14 @@ function filterLimit(measurements, name, index_info, limit_val, fileindex, filte
             if (filter_out) {
                   console.writeln(name + " outside limit " + limit_val + ", ignoring file " + measurements[i][fileindex]);
                   filtered_files[filtered_files.length] = measurements[i];
+                  measurements[i][1] = false; // measurementEnabled
+                  if (ssweight_limit) {
+                        // If this is a SubframeSelector weight limit, then measurementLocked is 1
+                        measurements[i][2] = 1;  // measurementLocked for metrics visualizer
+                  }
             } else {
                   newMeasurements[newMeasurements.length] = measurements[i];
+                  measurements[i][1] = true; // measurementEnabled
             }
       }
       util.addProcessingStep(name + " limit filtered " + (measurements.length - newMeasurements.length) + " files");
@@ -3110,6 +3148,41 @@ function getFilterValues(measurements, name)
             values[values.length] = measurements[i][index];
       }
       return values;
+}
+
+// Get a boolean array of measurements that are filtered out
+function getMetricsFilteredOut(measurements, ssweight_limit = false)
+{
+      console.writeln("getMetricsFilteredOut");
+      var filteredOut = [];
+      var count = 0;
+      for (var i = 0; i < measurements.length; i++) {
+            if (ssweight_limit) {
+                  if (measurements[i][1] == false && measurements[i][2] == 2) {
+                        // measurementEnabled is false and measurementLocked is 2, 
+                        // so this measurement is filtered out by outliers.
+                        // Limits are checked by the metrics visualizer.
+                        filteredOut[filteredOut.length] = true;
+                        count++;
+                  } else {
+                        // measurementEnabled is true, so this measurement is not filtered out
+                        filteredOut[filteredOut.length] = false;
+                  }
+            } else {
+                  if (measurements[i][1] == false && measurements[i][2] != 0) {
+                        // measurementEnabled is false and measurementLocked is non-zero, 
+                        // so this measurement is filtered out by outliers or ssweight.
+                        // Limits are checked by the metrics visualizer.
+                        filteredOut[filteredOut.length] = true;
+                        count++;
+                  } else {
+                        // measurementEnabled is true, so this measurement is not filtered out
+                        filteredOut[filteredOut.length] = false;
+                  }
+            }
+      }
+      console.writeln("getMetricsFilteredOut, filtered out " + count + " measurements");
+      return filteredOut;
 }
 
 // Returns true if the filter is high limit, false if low limit
@@ -3163,15 +3236,15 @@ function getSubframeSelectorMeasurements(fileNames)
       /*
       ** PI 1.8.8-10
       P.measurements = [ 
-            measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                                              0-4
-            measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,                    5-9
-            measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                                   10-14
-            measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev, measurementAzimuth,      15-19
-            measurementAltitude                                                                                                                       20
+            measurementIndex, measurementEnabled, measurementLocked, measurementPath, measurementWeight,                             0-4
+            measurementFWHM, measurementEccentricity, measurementPSFSignalWeight, measurementPSFPowerWeight, measurementSNRWeight,   5-9
+            measurementMedian, measurementMedianMeanDev, measurementNoise, measurementNoiseRatio, measurementStars,                  10-14
+            measurementStarResidual, measurementFWHMMeanDev, measurementEccentricityMeanDev, measurementStarResidualMeanDev,         15-18
+            measurementAzimuth, measurementAltitude                                                                                  19-20
             *** New in PI 1.8.9-1
-                               measurementPSFFlux, measurementPSFFluxPower, measurementPSFTotalMeanFlux, measurementPSFTotalMeanPowerFlux,            21-24
-            measurementPSFCount, measurementMStar, measurementNStar, measurementPSFSNR, measurementPSFScale,                                          25-29
-            measurementPSFScaleSNR                                                                                                                    30
+            measurementPSFFlux, measurementPSFFluxPower, measurementPSFTotalMeanFlux, measurementPSFTotalMeanPowerFlux,              21-24
+            measurementPSFCount, measurementMStar, measurementNStar, measurementPSFSNR, measurementPSFScale,                         25-29
+            measurementPSFScaleSNR                                                                                                   30
       ];
      */
       
@@ -3181,6 +3254,12 @@ function getSubframeSelectorMeasurements(fileNames)
 
       printProcessValues(P);
       engine_end_process(node);
+
+      // Set measurementEnabled to true for all measurements
+      for (var i = 0; i < P.measurements.length; i++) {
+            P.measurements[i][1] = true; // measurementEnabled
+            P.measurements[i][2] = false; // measurementLocked
+      }
 
       return P.measurements;
 }
@@ -3238,6 +3317,8 @@ function getImagePSF(imgWin)
 function findFilterIndex(name)
 {
       switch (name) {
+            case 'SSWEIGHT':
+                  return [ 4, false ];
             case 'FWHM':
                   return [ 5, true ];
             case 'Eccentricity':
@@ -3339,6 +3420,95 @@ function measurementTextForFilename(filename)
       return "";
 }
 
+function sortMeasurements(measurements, filtered_files, sort_order)
+{
+      var indexWeight = 4;
+      var indexFWHM = 5;
+      var indexPSFSignal = 7;
+      var ascending_order = false;
+
+      if (sort_order == 'File name') {
+            // Sort by File name
+            var sortIndex = 3; // File name is the fourth column
+            measurements.sort( function(a, b) {
+                  let a0 = a[sortIndex];
+                  let b0 = b[sortIndex];
+                  if (a0 < b0) {
+                        return -1;
+                  } else if (a0 > b0) {
+                        return 1;
+                  } else {
+                        return 0;
+                  }
+            });
+            console.writeln("subframeSelectorMeasure, sort by File name");
+            // Sort filtered files by File name
+            filtered_files.sort( function(a, b) {
+                  let a0 = a[sortIndex];
+                  let b0 = b[sortIndex];
+                  if (a0 < b0) {
+                        return -1;
+                  } else if (a0 > b0) {
+                        return 1;
+                  } else {
+                        return 0;
+                  }
+            });
+      } else {
+            if (sort_order == 'SSWEIGHT' || sort_order == null) {
+                  // Sort by SSWEIGHT
+                  // It is the default order
+                  console.writeln("subframeSelectorMeasure, sort by SSWEIGHT");
+                  var sortIndex = indexWeight;
+            } else {
+                  console.writeln("subframeSelectorMeasure, sort by " + sort_order);
+                  let filterIndex = findFilterIndex(sort_order);
+                  var sortIndex = filterIndex[0];
+                  var ascending_order = filterIndex[1];
+            }
+
+            // Sorting for files that are filtered out
+            if (sortIndex == indexWeight) {
+                  // We have not calculated SSWEIGHT for filtered files so 
+                  // we use FWHM or PSFSignal
+                  if (global.pixinsight_version_num < 1080810) {
+                        // Use FWHM for old versions
+                        console.writeln("subframeSelectorMeasure, sort filtered files by FWHM");
+                        var filteredSortIndex = indexFWHM;
+                  } else {
+                        // Use PSFSignal for new versions
+                        console.writeln("subframeSelectorMeasure, sort filtered files by PSFSignal");
+                        var filteredSortIndex = indexPSFSignal;
+                  }
+            } else {
+                  // Use filterIndex for sorting
+                  var filteredSortIndex = sortIndex;
+            }
+            if (ascending_order) {
+                  // Sort by filteredSortIndex in ascending order
+                  filtered_files.sort( function(a, b) {
+                        return a[filteredSortIndex] - b[filteredSortIndex];
+                  });
+            } else {
+                  filtered_files.sort( function(a, b) {
+                        return b[filteredSortIndex] - a[filteredSortIndex];
+                  });
+            }
+
+            // Sorting for included measurements files
+            if (ascending_order) {
+                  measurements.sort( function(a, b) {
+                        return a[sortIndex] - b[sortIndex];
+                  });
+            } else {
+                  // Sort by sortIndex in descending order
+                  measurements.sort( function(a, b) {
+                        return b[sortIndex] - a[sortIndex];
+                  });
+            }
+      }
+}
+
 // If weight_filtering == true and treebox_filtering == true
 //    returns array of [ filename, checked, weight ]
 // else
@@ -3433,6 +3603,16 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
 
       // Close measurements and expressions windows
       util.closeAllWindowsSubstr("SubframeSelector");
+
+      // Reset measurementEnabled and measurementLocked
+      // measurementEnabled is true for all measurements, measurementLocked is 0
+      for (var i = 0; i < measurements.length; i++) {
+            measurements[i][1] = true; // measurementEnabled
+            measurements[i][2] = 0; // measurementLocked
+            // measurementLocked is used for metrics visualizer to show measurements that are filtered out
+            // measurementLocked is 0 for measurements that are not filtered out,
+            // 1 for measurements that are filtered out by SSWEIGHT limit and 2 for measurements that are filtered out by outliers
+      }
 
       // We filter outliers here so they are not included in the
       // min/max calculations below
@@ -3562,7 +3742,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       }
       console.writeln("SSWEIGHTMin " + findMin(measurements, indexWeight) + " SSWEIGHTMax " + findMax(measurements, indexWeight));
       measurements = filterOutliers(measurements, "SSWEIGHT", indexWeight, 'min', par.outliers_ssweight.val, indexPath, filtered_files);
-      measurements = filterLimit(measurements, "SSWEIGHT", [ indexWeight, filter_high ], par.ssweight_limit.val, indexPath, filtered_files);
+      measurements = filterLimit(measurements, "SSWEIGHT", [ indexWeight, filter_high ], par.ssweight_limit.val, indexPath, filtered_files, true);
       if (par.filter_limit1_type.val != 'None' && par.filter_limit1_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit1_type.val, findFilterIndex(par.filter_limit1_type.val), par.filter_limit1_val.val, indexPath, filtered_files);
       }
@@ -3611,58 +3791,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       }
 
       if (weight_filtering) {
-            var ascending_order = false;
-            if (sort_order == 'SSWEIGHT' || sort_order == null) {
-                  // Sort by SSWEIGHT
-                  // It is the default order
-                  console.writeln("subframeSelectorMeasure, sort by SSWEIGHT");
-                  var sortIndex = indexWeight;
-            } else {
-                  console.writeln("subframeSelectorMeasure, sort by " + sort_order);
-                  let filterIndex = findFilterIndex(sort_order);
-                  var sortIndex = filterIndex[0];
-                  var ascending_order = filterIndex[1];
-            }
-
-            // Sorting for files that are filtered out
-            if (sortIndex == indexWeight) {
-                  // We have not calculated SSWEIGHT for filtered files so 
-                  // we use FWHM or PSFSignal
-                  if (global.pixinsight_version_num < 1080810) {
-                        // Use FWHM for old versions
-                        console.writeln("subframeSelectorMeasure, sort filtered files by FWHM");
-                        var filteredSortIndex = indexFWHM;
-                  } else {
-                        // Use PSFSignal for new versions
-                        console.writeln("subframeSelectorMeasure, sort filtered files by PSFSignal");
-                        var filteredSortIndex = indexPSFSignal;
-                  }
-            } else {
-                  // Use filterIndex for sorting
-                  var filteredSortIndex = sortIndex;
-            }
-            if (ascending_order) {
-                  // Sort by filteredSortIndex in ascending order
-                  filtered_files.sort( function(a, b) {
-                        return a[filteredSortIndex] - b[filteredSortIndex];
-                  });
-            } else {
-                  filtered_files.sort( function(a, b) {
-                        return b[filteredSortIndex] - a[filteredSortIndex];
-                  });
-            }
-
-            // Sorting for measurements files
-            if (ascending_order) {
-                  measurements.sort( function(a, b) {
-                        return a[sortIndex] - b[sortIndex];
-                  });
-            } else {
-                  // Sort by sortIndex in descending order
-                  measurements.sort( function(a, b) {
-                        return b[sortIndex] - a[sortIndex];
-                  });
-            }
+            sortMeasurements(measurements, filtered_files, sort_order);
             console.writeln("subframeSelectorMeasure, " + filtered_files.length + " discarded files");
             if (par.debug.val) {
                   for (var i = 0; i < filtered_files.length; i++) {
@@ -3683,7 +3812,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
             }
             // add filtered files as unchecked
             for (var i = 0; i < filtered_files.length; i++) {
-                  treeboxfiles[treeboxfiles.length] =  [ filtered_files[i][indexPath], false, 0 ];
+                  treeboxfiles[treeboxfiles.length] = [ filtered_files[i][indexPath], false, 0 ];
             }
             if (treebox_filtering) {
                   return treeboxfiles;
@@ -19358,6 +19487,7 @@ this.closeAllWindows = closeAllWindows;
 // Utility processing functions
 this.subframeSelectorMeasure = subframeSelectorMeasure;
 this.getFilterValues = getFilterValues;
+this.getMetricsFilteredOut = getMetricsFilteredOut;
 this.measurementTextForFilename = measurementTextForFilename;
 
 this.runHistogramTransformSTFex = runHistogramTransformSTFex;
