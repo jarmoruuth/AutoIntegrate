@@ -142,14 +142,22 @@ this.lastDateFileInfo = null;
 
 var medianFWHM = null;
 
-var L_images;
-var R_images;
-var G_images;
-var B_images;
-var H_images;
-var S_images;
-var O_images;
-var C_images;
+// List of images used in processing
+// Images is an array of objects with properties (see init_images):
+//   images : array of image ids
+//   best_image: image id
+//   best_ssweight: ssweight value
+//   exptime: exposure time
+var L_images = [];
+var R_images = [];
+var G_images = [];
+var B_images = [];
+var H_images = [];
+var S_images = [];
+var O_images = [];
+var C_images = [];
+
+var astrobin_info = null; // Astrobin info for the generating CSV information
 
 // SPCC parameters that may be changed with spcc_auto_narrowband
 // so they are used from here.
@@ -195,14 +203,14 @@ var blue_id = null;
 
 var luminance_crop_id = null; // Not used for now, use Save cropped images
 
-var L_id;                     // Original integrated images
-var R_id;                     // We make copies of these images during processing
-var G_id;
-var B_id;
-var H_id;
-var S_id;
-var O_id;
-var RGB_color_id;              // Integrated RGB from OSC/DSLR data
+var L_id = null;                     // Original integrated images
+var R_id = null;                     // We make copies of these images during processing
+var G_id = null;
+var B_id = null;
+var H_id = null;
+var S_id = null;
+var O_id = null;
+var RGB_color_id = null;              // Integrated RGB from OSC/DSLR data
 
 var RGBHa_H_enhanced_info = {  // Ha RGB image info
                               nb_channel_id: null,    // Enhanced Ha channel image id
@@ -341,7 +349,7 @@ function filterFilesForFastMode(fileNames, auto_continue, filetype)
                   case global.pages.FLAT_DARKS:
                   case global.pages.LIGHTS:
                         // For each filter, get 10%, or at least 3 images from the list
-                        var fast_mode_filtered_files = engine.getFilterFiles(fileNames, filetype, '', false);
+                        var fast_mode_filtered_files = engine.getFilterFiles(fileNames, filetype, '');
                         var allfilesarr = fast_mode_filtered_files.allfilesarr;
                         fileNames = [];
                         for (var i = 0; i < allfilesarr.length; i++) {
@@ -4337,10 +4345,114 @@ function getFilterKeywordForImage(filter, filePath, filename_postfix)
       return filter_keyword;
 }
 
+// Group astrobin info so that for each date there are 
+// entries for each filter. Each filter has number of images 
+// for each exposure time.
+function addAstrobinInfo(date_obs, filter, exptime, binning)
+{
+      if (date_obs == null || date_obs == "") {
+            console.writeln("addAstrobinInfo: date_obs is null or empty, filter=" + filter + ", exptime=" + exptime);
+            return;
+      }
+      if (filter == null || filter == "") {
+            console.writeln("addAstrobinInfo: filter is null or empty, date_obs=" + date_obs + ", exptime=" + exptime);
+            return;
+      }
+      if (exptime == null || exptime == "") {
+            console.writeln("addAstrobinInfo: exptime is null or empty, date_obs=" + date_obs + ", filter=" + filter);
+            return;
+      }
+      // From date obs get only date part
+      date_obs = date_obs.split('T')[0];
+      // Initialize astrobin_info if not already done
+      if (!astrobin_info) {
+            astrobin_info = {};
+      }
+      if (!astrobin_info[date_obs]) {
+            astrobin_info[date_obs] = {};
+      }
+      if (!astrobin_info[date_obs][filter]) {
+            astrobin_info[date_obs][filter] = {};
+      }
+      if (!astrobin_info[date_obs][filter][exptime]) {
+            astrobin_info[date_obs][filter][exptime] = { count: 0, binning: binning };
+      }
+      var info = astrobin_info[date_obs][filter][exptime];
+      info.count++;
+      if (binning >  info.binning) {
+            // Update binning if it is bigger than the current one
+            info.binning = binning;
+      }
+      // console.writeln("addAstrobinInfo: date_obs=" + date_obs + ", filter=" + filter + ", exptime=" + exptime + ", count=" + info.count + ", binning=" + info.binning);
+}
+
+function getAstrobinFilterNumber(filter)
+{
+      var number_txt = "";
+      switch (filter) {
+            case 'L':
+                  number_txt = par.astrobin_L.val;
+                  break;
+            case 'R':
+                  number_txt = par.astrobin_R.val;
+                  break;
+            case 'G':
+                  number_txt = par.astrobin_G.val;
+                  break;
+            case 'B':
+                  number_txt = par.astrobin_B.val;
+                  break;
+            case 'H':
+                  number_txt = par.astrobin_H.val;
+                  break;
+            case 'S':
+                  number_txt = par.astrobin_S.val;
+                  break;
+            case 'O':
+                  number_txt = par.astrobin_O.val;
+                  break;
+            case 'C':
+                  number_txt = par.astrobin_C.val;
+                  break;
+            default:
+                  util.throwFatalError("Unknown filter " + filter + " for astrobin info");
+                  break;
+      }
+      if (number_txt == "") {
+            return filter;
+      } else {
+            return number_txt;
+      }
+}
+
+// Write astrobin info to a file in CSV format
+function writeAstrobinInfo()
+{
+      if (astrobin_info == null || Object.keys(astrobin_info).length == 0) {
+            return;
+      }
+      // Write astrobin_info to a file in CSV format
+      var outputDir = global.outputRootDir + global.AutoProcessedDir;
+      var outputFile = util.ensurePathEndSlash(outputDir) + "AstrobinInfo.csv";
+      console.writeln("Writing astrobin info to " + outputFile);
+      var file = new File();
+      file.createForWriting(outputFile);
+      file.outTextLn("date,filter,number,duration,binning");
+      for (var date in astrobin_info) {
+            for (var filter in astrobin_info[date]) {
+                  for (var exptime in astrobin_info[date][filter]) {
+                        var info = astrobin_info[date][filter][exptime];
+                        file.outTextLn(date + "," + getAstrobinFilterNumber(filter) + "," + info.count + "," + exptime + "," + info.binning);
+                  }
+            }
+      }
+      file.close();
+}
+
 // Filter files based on filter keyword/file name.
 // files array can be either simple file name array
 // or treeboxfiles array having [ filename, checked, weight ] members
-function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false)
+function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = false, generate_astrobin_info = false)
 {
       var luminance = false;
       var rgb = false;
@@ -4384,6 +4496,11 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
             narrowband = true;
       }
 
+      if (generate_astrobin_info) {
+            // Clear possible old info
+            astrobin_info = null;
+      }
+
       /* Collect all different file types and some information about them.
        */
       var n = 0;
@@ -4396,6 +4513,7 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
             var treebox_best_image = false;
             var treebox_reference_image = false;
             var date_obs = null;
+            var binning = 1;
             if (Array.isArray(obj)) {
                   // we have treeboxfiles array
                   var filePath = obj[0];
@@ -4493,6 +4611,20 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                               console.writeln(keywords[j].name + "=" + value);
                               date_obs = value;
                               break;
+                        case "XBINNING":
+                              console.writeln("XBINNING=" + value);
+                              var val = parseInt(value);
+                              if (val > binning) {
+                                    binning = val;
+                              }
+                              break;
+                        case "YBINNING":
+                              console.writeln("YBINNING=" + value);
+                              var val = parseInt(value);
+                              if (val > binning) {
+                                    binning = val;
+                              }
+                              break;
                         default:
                               break;
                   }
@@ -4501,6 +4633,10 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
             /* Resolve image filter.
              */
             var filter_keyword = getFilterKeywordForImage(filter, filePath, filename_postfix);
+
+            if (generate_astrobin_info) {
+                  addAstrobinInfo(date_obs, filter_keyword, exptime, binning);
+            }
 
             var file_info = { name: filePath, ssweight: ssweight, exptime: exptime, filter: filter_keyword, checked: checked,
                               best_image: treebox_best_image, reference_image: treebox_reference_image,
@@ -4705,7 +4841,7 @@ function findLRGBchannels(parent, alignedFiles, filename_postfix)
 
       /* Collect all different file types and some information about them.
        */
-      var filter_info = engine.getFilterFiles(alignedFiles, global.pages.LIGHTS, filename_postfix);
+      var filter_info = engine.getFilterFiles(alignedFiles, global.pages.LIGHTS, filename_postfix, false, true);
 
       var allfilesarr = filter_info.allfilesarr;
       var rgb = filter_info.rgb;
@@ -4984,7 +5120,7 @@ function replaceMappingImageNames(mapping, from, to, images, check_allfilesarr)
 
 /* Get custom channel mapping and replace target images with real names.
  * Tag is changed to a real image name with _map added to the end (H -> Integration_H_map) . 
- * Images names listed in the mapping are put into images array without _map added (Integration_H).
+ * Image names listed in the mapping are put into images array without _map added (Integration_H).
  */
 function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 {
@@ -6221,19 +6357,19 @@ function customMapping(RGBmapping, filtered_lights)
       /* Get updated mapping strings and collect images
        * used in mapping.
        */
-      var L_images = [];
-      var R_images = [];
-      var G_images = [];
-      var B_images = [];
+      var mapping_L_images = [];
+      var mapping_R_images = [];
+      var mapping_G_images = [];
+      var mapping_B_images = [];
 
       /* Get a modified mapping with tags replaced with real image names.
        */
       if (!process_narrowband) {
-            var luminance_mapping = mapCustomAndReplaceImageNames('L', L_images, check_allfilesarr);
+            var luminance_mapping = mapCustomAndReplaceImageNames('L', mapping_L_images, check_allfilesarr);
       }
-      var red_mapping = mapCustomAndReplaceImageNames('R', R_images, check_allfilesarr);
-      var green_mapping = mapCustomAndReplaceImageNames('G', G_images, check_allfilesarr);
-      var blue_mapping = mapCustomAndReplaceImageNames('B', B_images, check_allfilesarr);
+      var red_mapping = mapCustomAndReplaceImageNames('R', mapping_R_images, check_allfilesarr);
+      var green_mapping = mapCustomAndReplaceImageNames('G', mapping_G_images, check_allfilesarr);
+      var blue_mapping = mapCustomAndReplaceImageNames('B', mapping_B_images, check_allfilesarr);
 
       if (check_allfilesarr != null) {
             /* Just checking that all files exist. */
@@ -6267,9 +6403,9 @@ function customMapping(RGBmapping, filtered_lights)
              */
             var images = [];
 
-            arrayAppendCheckDuplicates(images, R_images);
-            arrayAppendCheckDuplicates(images, G_images);
-            arrayAppendCheckDuplicates(images, B_images);
+            arrayAppendCheckDuplicates(images, mapping_R_images);
+            arrayAppendCheckDuplicates(images, mapping_G_images);
+            arrayAppendCheckDuplicates(images, mapping_B_images);
 
             if (par.debug.val) console.writeln('customMapping: copyToMapImages(images)');
             copyToMapImages(images);
@@ -6433,14 +6569,14 @@ function customMapping(RGBmapping, filtered_lights)
             flowchartParentBegin("RGB+Narroband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
             if (par.custom_L_mapping.val != '') {
-                  luminance_id = mapRGBchannel(L_images, ppar.win_prefix + "Integration_L", luminance_mapping.mapping, true, 'L');
+                  luminance_id = mapRGBchannel(mapping_L_images, ppar.win_prefix + "Integration_L", luminance_mapping.mapping, true, 'L');
                   guiUpdatePreviewId(luminance_id);
                   is_luminance_images = true;
             }
 
-            red_id = mapRGBchannel(R_images, ppar.win_prefix + "Integration_R", red_mapping.mapping, false, 'R');
-            green_id = mapRGBchannel(G_images, ppar.win_prefix + "Integration_G", green_mapping.mapping, false, 'G');
-            blue_id = mapRGBchannel(B_images, ppar.win_prefix + "Integration_B", blue_mapping.mapping, false, 'B');
+            red_id = mapRGBchannel(mapping_R_images, ppar.win_prefix + "Integration_R", red_mapping.mapping, false, 'R');
+            green_id = mapRGBchannel(mapping_G_images, ppar.win_prefix + "Integration_G", green_mapping.mapping, false, 'G');
+            blue_id = mapRGBchannel(mapping_B_images, ppar.win_prefix + "Integration_B", blue_mapping.mapping, false, 'B');
 
             flowchartParentEnd("RGB+Narroband");
       }
@@ -7427,8 +7563,56 @@ function runImageIntegration(channel_images, name, save_to_file, flowchartname)
       }
       util.runGarbageCollection();
       flowchartChildEnd(flowchartname ? flowchartname : name);
+      if (!global.get_flowchart_data) {
+            // Update statistics to the image metadata
+            // Add exposure time and number of images to the image metadata
+            var win = ImageWindow.windowById(image_id);
+            if (win != null) {
+                  util.setFITSKeyword(win, "AutoIntegrateExposure", channel_images.exptime.toString(), "Exposure time in seconds");
+                  util.setFITSKeyword(win, "AutoIntegrateNumImages", images.length.toString(), "Number of images used for integration");
+            }
+      }
       console.writeln("runImageIntegration completed, new name " + image_id);
       return image_id;
+}
+
+// Calculate exptime and numimages from keywords in integrated images
+function setIntegrationInfoKeywords(imageId)
+{
+      var targetWin = ImageWindow.windowById(imageId);
+      if (targetWin == null) {
+            console.criticalln("Error, could not find image window for " + imageId);
+            return;
+      }
+      var exptime = 0;
+      var numImages = 0;
+      var image_ids = [ L_id, R_id, G_id, B_id, H_id, S_id, O_id, RGB_color_id ];
+
+      for (var i = 0; i < image_ids.length; i++) {
+            var id = image_ids[i];
+            if (id == null) {
+                  continue;
+            }
+            var win = ImageWindow.windowById(image_ids[i]);
+            if (win == null) {
+                  console.criticalln("Error, could not find image window for " + image_ids[i]);
+                  continue;
+            }
+            var exp = util.getKeywordValue(win, "AutoIntegrateExposure");
+            if (exp == null) {
+                  console.criticalln("Error, could not find AutoIntegrateExposure keyword in " + image_ids[i]);
+                  continue;
+            }
+            exptime += parseInt(exp);
+            var num = util.getKeywordValue(win, "AutoIntegrateNumImages");
+            if (num == null) {
+                  console.criticalln("Error, could not find AutoIntegrateNumImages keyword in " + image_ids[i]);
+                  continue;
+            }
+            numImages += parseInt(num);
+      }
+      util.setFITSKeyword(targetWin, "AutoIntegrateExposure", exptime.toString(), "Exposure time in seconds");
+      util.setFITSKeyword(targetWin, "AutoIntegrateNumImages", numImages.toString(), "Number of images used for integration");
 }
 
 function cropHandleDrizzle(name)
@@ -12705,7 +12889,7 @@ function CreateChannelImages(parent, auto_continue)
                   }
             }
 
-            var filtered_lights = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, '');
+            var filtered_lights = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, '', false, true);
             if (!par.image_weight_testing.val
                 && !par.debayer_only.val
                 && !par.binning_only.val
@@ -12755,7 +12939,7 @@ function CreateChannelImages(parent, auto_continue)
 
             if (filename_postfix != '') {
                   // We did run calibration, filter again with calibrated lights
-                  var filtered_files = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, filename_postfix);
+                  var filtered_files = engine.getFilterFiles(engine.lightFileNames, global.pages.LIGHTS, filename_postfix, false, true);
             } else {
                   // Calibration was not run
                   var filtered_files = filtered_lights;
@@ -18707,6 +18891,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        H_id = null;
        S_id = null;
        O_id = null;
+       astrobin_info = null;
        iconized_debug_image_ids = [];
        iconized_image_ids = [];
        RGB_color_id = null;
@@ -19035,6 +19220,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                          LRGB_processed_HT_id = util.windowRename(LRGB_processed_HT_id, ppar.win_prefix + "AutoRGB");
                    }
                    guiUpdatePreviewId(LRGB_processed_HT_id);
+                   setIntegrationInfoKeywords(LRGB_processed_HT_id);
              } else {
                    if (processed_l_image) {
                         flowchartChildEnd("RGB");
@@ -19237,6 +19423,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
              LRGB_processed_HT_id = util.windowRenameKeepifEx(LRGB_processed_HT_id, fname, true, true);
              saveProcessedWindow(LRGB_processed_HT_id);          /* Final renamed batch image. */
        }
+
+       writeAstrobinInfo();
  
        if (preprocessed_images == global.start_images.NONE 
            && !par.image_weight_testing.val

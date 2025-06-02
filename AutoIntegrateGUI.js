@@ -7920,8 +7920,58 @@ function AutoIntegrateDialog()
       this.systemParamsControl.sizer.add( this.systemParamsSet );
       this.systemParamsControl.visible = false;
       //this.systemParamsControl.sizer.addStretch();
+
+       // Create labels and edit controls for each filter
+      this.createAstrobinInput = function(parent, filterName, labelText, edit_par) {
+            var toolTip = "<p>Astrobin filter configuration for " + filterName + " filter.</p>" +
+                          "<p>Give Astrobin filter number to be used in AstrobinInfo.csv file.</p>";
+            var label = newLabel(parent, labelText, toolTip);
+            label.minWidth = 30;
+            var edit = newTextEdit(parent, edit_par, toolTip);
+            edit.minWidth = 20;
+            return {
+                  label: label,
+                  edit: edit,
+                  toolTip: toolTip
+            };
+      };
       
-      
+      // Create all filter inputs
+      this.astrobinLabel = newSectionLabel(this, "Astrobin filter configuration");
+      this.astrobinLabel.toolTip = "<p>Astrobin filter configuration is used to set filter numbers for AstrobinInfo.csv file.</p>";
+      this.luminanceInput = this.createAstrobinInput(this, "L", "Luminance (L)", par.astrobin_L);
+      this.redInput = this.createAstrobinInput(this, "R", "Red (R)", par.astrobin_R);
+      this.greenInput = this.createAstrobinInput(this, "G", "Green (G)", par.astrobin_G);
+      this.blueInput = this.createAstrobinInput(this, "B", "Blue (B)", par.astrobin_B);
+      this.hydrogenInput = this.createAstrobinInput(this, "H", "Hydrogen Alpha (H)", par.astrobin_H);
+      this.sulfurInput = this.createAstrobinInput(this, "S", "Sulfur II (S)", par.astrobin_S);
+      this.oxygenInput = this.createAstrobinInput(this, "O", "Oxygen III (O)", par.astrobin_O);
+      this.oscInput = this.createAstrobinInput(this, "C", "OSC/Color (C)", par.astrobin_C);
+
+      this.astrobinSizer1 = newHorizontalSizer(6, true, [
+            this.luminanceInput.label, this.luminanceInput.edit ]);
+      this.astrobinSizer2 = newHorizontalSizer(6, true, [
+            this.redInput.label, this.redInput.edit,
+            this.greenInput.label, this.greenInput.edit,
+            this.blueInput.label, this.blueInput.edit ]);
+      this.astrobinSizer3 = newHorizontalSizer(6, true, [
+            this.hydrogenInput.label, this.hydrogenInput.edit,
+            this.sulfurInput.label, this.sulfurInput.edit,
+            this.oxygenInput.label, this.oxygenInput.edit ]);
+      this.astrobinSizer4 = newHorizontalSizer(6, true, [
+            this.oscInput.label, this.oscInput.edit ]);
+
+      this.astrobinControl = new Control( this );
+      this.astrobinControl.sizer = new VerticalSizer;
+      this.astrobinControl.sizer.margin = 6;
+      this.astrobinControl.sizer.spacing = 4;
+      this.astrobinControl.sizer.add( this.astrobinLabel );
+      this.astrobinControl.sizer.add( this.astrobinSizer1 );
+      this.astrobinControl.sizer.add( this.astrobinSizer2 );
+      this.astrobinControl.sizer.add( this.astrobinSizer3 );
+      this.astrobinControl.sizer.add( this.astrobinSizer4 );
+      this.astrobinControl.visible = false;
+
       // LRGBCombination selection
       this.LRGBCombinationLinearFitCheckBox = newCheckBox(this, "Linear fit", par.LRGBCombination_linearfit,
             "<p>Do linear fit on luminance using RGB as a reference before LRGBCombination process.</p>");
@@ -10839,6 +10889,7 @@ function AutoIntegrateDialog()
       this.rightGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
       newSectionBarAdd(this, this.rightGroupBox, this.systemParamsControl, "System settings", "System1");
+      newSectionBarAdd(this, this.rightGroupBox, this.astrobinControl, "Astrobin", "Astrobin");
       newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
       this.rightGroupBox.sizer.addStretch();
 

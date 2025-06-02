@@ -48,7 +48,8 @@ this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Exclusion areas can now be defined in the GUI for DBE.",
-      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector."
+      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
+      "- Astrobin compatible .csv file is generated after a full processing."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -213,6 +214,16 @@ this.par = {
 
       open_directory: { val: false, def: false, name: "Open directory", type: 'B' },
       directory_files: { val: "*.fits *.fit", def: "*.fits *.fit", name : "Directory files", type : 'S' },
+
+      // astrobin variables
+      astrobin_L: { val: "", def: "", name : "AstroBin L", type : 'S', skip_reset: true },
+      astrobin_R: { val: "", def: "", name : "AstroBin R", type : 'S', skip_reset: true },
+      astrobin_G: { val: "", def: "", name : "AstroBin G", type : 'S', skip_reset: true },
+      astrobin_B: { val: "", def: "", name : "AstroBin B", type : 'S', skip_reset: true },
+      astrobin_H: { val: "", def: "", name : "AstroBin H", type : 'S', skip_reset: true },
+      astrobin_S: { val: "", def: "", name : "AstroBin S", type : 'S', skip_reset: true },
+      astrobin_O: { val: "", def: "", name : "AstroBin O", type : 'S', skip_reset: true },
+      astrobin_C: { val: "", def: "", name : "AstroBin C", type : 'S', skip_reset: true },
 
       // Narrowband processing
       narrowband_mapping: { val: 'SHO', def: 'SHO', name : "Narrowband mapping", type : 'S' },
