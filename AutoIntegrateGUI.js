@@ -9694,6 +9694,7 @@ function AutoIntegrateDialog()
       /* Luminance channel mapping.
        */
       this.narrowbandLuminancePalette_ComboBox = new ComboBox( this );
+      this.narrowbandLuminancePalette_ComboBox.addItem( "Auto" );
       this.narrowbandLuminancePalette_ComboBox.addItem( "" );
       this.narrowbandLuminancePalette_ComboBox.addItem( "L" );
       this.narrowbandLuminancePalette_ComboBox.addItem( "max(L, H)" );
@@ -9703,9 +9704,12 @@ function AutoIntegrateDialog()
       {
             switch (itemIndex) {
                   case 0:
-                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "";
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "Auto";
                         break;
                   case 1:
+                        this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "";
+                        break;
+                  case 2:
                         this.dialog.narrowbandCustomPalette_L_ComboBox.editText = "L";
                         break;
                   case 2:

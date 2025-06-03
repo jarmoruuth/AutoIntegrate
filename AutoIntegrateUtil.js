@@ -1278,6 +1278,16 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
       return targetWindow;
 }
 
+function arraysEqual(a, b) {
+      if (a === b) return true;
+      if (a == null || b == null) return false;
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+      }
+      return true;
+}
+
 function copyWindow(sourceWindow, name)
 {
       return util.copyWindowEx(sourceWindow, name, false);
@@ -2664,6 +2674,7 @@ this.setParameterDefaults = setParameterDefaults;
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;
 this.validateViewIdCharacters = validateViewIdCharacters;
+this.arraysEqual = arraysEqual;
 
 this.formatToolTip = formatToolTip;
 this.getScreenSize = getScreenSize;

@@ -226,11 +226,11 @@ this.par = {
       astrobin_C: { val: "", def: "", name : "AstroBin C", type : 'S', skip_reset: true },
 
       // Narrowband processing
-      narrowband_mapping: { val: 'SHO', def: 'SHO', name : "Narrowband mapping", type : 'S' },
-      custom_R_mapping: { val: 'S', def: 'S', name : "Narrowband R mapping", type : 'S' },
-      custom_G_mapping: { val: 'H', def: 'H', name : "Narrowband G mapping", type : 'S' },
-      custom_B_mapping: { val: 'O', def: 'O', name : "Narrowband B mapping", type : 'S' },
-      custom_L_mapping: { val: '', def: '', name : "Narrowband L mapping", type : 'S' },
+      narrowband_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband mapping", type : 'S' },
+      custom_R_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband R mapping", type : 'S' },
+      custom_G_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband G mapping", type : 'S' },
+      custom_B_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband B mapping", type : 'S' },
+      custom_L_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
       force_narrowband_mapping: { val: false, def: false, name : "Force narrowband mapping", type : 'B' },
@@ -848,7 +848,16 @@ this.final_windows = [
 
 this.test_image_ids = [];      // Test images
 
+// Available narrowband palettes.
+// Description of the fields
+//    name - name of the palette:
+//    R, G, B - channel expressions for the palette
+//    all - If true this palette is created if All is selected in the UI
+//    checkable - If true then the palette can be checked with multiple mappings in the UI
+//    sho_mappable - If true the palette can be used in SHO mapping in the extra processing
+//    stretched - True if the palette should be stretched before combing to RGB, like dynamic palettes
 this.narrowBandPalettes = [
+      { name: "Auto", R: "Auto", G: "Auto", B: "Auto", all: false, checkable: false, sho_mappable: false, stretched: false },
       { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false, stretched: false },
       { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
       { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
@@ -870,6 +879,17 @@ this.narrowBandPalettes = [
       { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false, stretched: false }, 
       { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false, stretched: false },
       { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false, stretched: false }
+];
+
+// If narrowBandPalettes is Auto, we use these mappings to create
+// the image.
+this.narrowbandAutoMapping = [
+      { input: ['L','R','G','B','H'], output: "max(R,H),G,B" },
+      { input: ['R','G','B','H'], output: "max(R,H),G,B" },
+      { input: ['L','R','G','B','H','O'], output: "max(RGB,HOO)" },
+      { input: ['R','G','B','H','O'], output: "max(RGB,HOO)" },
+      { input: ['S','H','O'], output: "SHO" },
+      { input: ['H','O'], output: "HOO" }
 ];
 
 this.getDirectoryInfo = function(simple_text) {

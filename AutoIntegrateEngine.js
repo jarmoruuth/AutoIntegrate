@@ -12753,6 +12753,137 @@ function preprocessedName(pi)
       }
 }
 
+function doAutoMapping(channel_list)
+{
+      // Sotr channel list
+      channel_list.sort();
+
+      // Find channel_list from global.narrowbandAutoMapping inputs
+      for (var i = 0; i < global.narrowbandAutoMapping.length; i++) {
+            // Sort the input channels
+            global.narrowbandAutoMapping[i].input.sort();
+            // Compare with channel_list
+            if (util.arraysEqual(global.narrowbandAutoMapping[i].input, channel_list)) {
+                  // We have a match, set the output channels
+                  console.writeln("doAutoMapping: Found auto mapping for " + channel_list.join(", ") + " -> " + global.narrowbandAutoMapping[i].output);
+                  // Set the output channels
+                  var palette = findNarrowBandPalette(global.narrowbandAutoMapping[i].output);
+                  par.narrowband_mapping.val = palette.name;
+                  par.custom_R_mapping.val = palette.R;
+                  par.custom_G_mapping.val = palette.G;
+                  par.custom_B_mapping.val = palette.B;
+                  // If we have L in channel_list, do L mapping too
+                  if (channel_list.indexOf("L") >= 0) {
+                        // Set the L mapping
+                        par.custom_L_mapping.val = "L";
+                  } else {
+                        // No L in channel_list, set L mapping to empty
+                        par.custom_L_mapping.val = "";
+                  }
+            }
+      }
+      // Auto mapping failed, throw an error
+      throw new Error("No auto mapping found for channels " + channel_list.join(", ") + ". Please select the mapping manually.");
+}
+
+function findAutoMappingForLights(filtered_lights)
+{
+      // Find the auto mapping for the given filtered lights
+      // as returned from engine.getFilterFiles()
+      if (filtered_lights == null || filtered_lights.allfilesarr.length == 0) {
+            console.writeln("findAutoMappingForLights: No filtered lights found");
+            return null;
+      }
+
+      // Find filters for which we have files
+      // and create an array of filters.
+      var channel_list = [];
+      for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
+            if (filtered_lights.allfilesarr[i].files.length == 0) {
+                  // console.writeln("findAutoMappingForLights: No files for channel " + filtered_lights.allfilesarr[i].filter);
+                  continue;
+            }
+            channel_list.push(filtered_lights.allfilesarr[i].filter);
+      }
+      if (channel_list.length == 0) {
+            util.throwFatalError("findAutoMappingForAutocontinue: No channels found, nothing to do");
+            return;
+      }
+      console.writeln("findAutoMappingForLights: auto mapping: " + channel_list.join(", "));
+      doAutoMapping(channel_list);
+}
+
+function findAutoMappingForAutocontinue(preprocessed_images)
+{
+      // Find the auto mapping for the given preprocessed images
+      // preprocessed_images is one of global.start_images values
+      var channel_list = [];
+      switch (preprocessed_images) {
+            case global.start_images.L_R_G_B:
+                  // We have L,R,G,B,H,S,O images
+                  if (checkAutoCont(L_GC_start_win)) {
+                        channel_list.push("L");
+                  }
+                  if (checkAutoCont(R_GC_start_win)) {
+                        channel_list.push("R");
+                  }
+                  if (checkAutoCont(G_GC_start_win)) {
+                        channel_list.push("G");
+                  }
+                  if (checkAutoCont(B_GC_start_win)) {
+                        channel_list.push("B");
+                  }
+                  if (checkAutoCont(H_GC_start_win)) {
+                        channel_list.push("H");
+                  }
+                  if (checkAutoCont(S_GC_start_win)) {
+                        channel_list.push("S");
+                  }
+                  if (checkAutoCont(O_GC_start_win)) {
+                        channel_list.push("O");
+                  }
+                  if (channel_list.length == 0) {
+                        util.throwFatalError("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                        return;
+                  }
+                  break;
+            case global.start_images.L_R_G_B_GC:
+                  // We have gradien corrected L,R,G,B,H,S,O images
+                  if (L_id != null) {
+                        channel_list.push("L");
+                  }
+                  if (R_id != null) {
+                        channel_list.push("R");
+                  }
+                  if (G_id != null) {
+                        channel_list.push("G");
+                  }
+                  if (B_id != null) {
+                        channel_list.push("B");
+                  }
+                  if (H_id != null) {
+                        channel_list.push("H");
+                  }
+                  if (S_id != null) {
+                        channel_list.push("S");
+                  }
+                  if (O_id != null) {
+                        channel_list.push("O");
+                  }
+                  if (channel_list.length == 0) {
+                        util.throwFatalError("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                        return;
+                  }
+                  break;
+            default:
+                  // We do not have L,R,G,B,H,S,O images, nothing to do
+                  console.writeln("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                  return;
+      }
+      console.writeln("findAutoMappingForAutocontinue: auto mapping: " + channel_list.join(", "));
+      doAutoMapping(channel_list);
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -12813,7 +12944,8 @@ function CreateChannelImages(parent, auto_continue)
       global.write_processing_log_file = true;
 
       if (preprocessed_images == global.start_images.FINAL) {
-            return true;
+            return retval.SUCCESS;
+
       } else if (preprocessed_images != global.start_images.NONE) {
             util.addProcessingStep("Using preprocessed images: " + preprocessedName(preprocessed_images));
             if (preprocessed_images == global.start_images.RGB_GC ||
@@ -12836,7 +12968,13 @@ function CreateChannelImages(parent, auto_continue)
                   mask_win_id = ppar.win_prefix + "AutoMask";
                   range_mask_win = util.findWindow(mask_win_id);
             }
+            if (process_narrowband && par.narrowband_mapping.val == 'Auto') {
+                  findAutoMappingForAutocontinue(preprocessed_images);
+            }
+            return retval.SUCCESS;
+
       } else {
+            // Here we have preprocessed_images == global.start_images.NONE
             util.addProcessingStepAndStatusInfo("Create channel images");
 
             /* Open dialog files and run SubframeSelector on them
@@ -12904,6 +13042,12 @@ function CreateChannelImages(parent, auto_continue)
                         // Do a check round in custom mapping to verify that all needed
                         // channels have files.
                         // We exit with fatal error if some files are missing
+                        // If we have Auto mapping, find filters available and
+                        // try to find a mapping for them
+                        if (par.narrowband_mapping.val == 'Auto') {
+                              findAutoMappingForLights(filtered_lights);
+                        }
+                        // Check files with the current mapping
                         global.write_processing_log_file = false;
                         customMapping(null, filtered_lights);
                         global.write_processing_log_file = true;
@@ -13342,8 +13486,8 @@ function CreateChannelImages(parent, auto_continue)
                   RGB_color_id = runImageIntegration(C_images, 'RGB', true);
                   flowchartParentEnd("RGB");
             }
+            return retval.SUCCESS;
       }
-      return retval.SUCCESS;
 }
 
 /* Create  a mask from linear image. This function
@@ -18858,7 +19002,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
             }
        }
 
-      // Save file list locally. In case of par.fast_mode wer make a new copy of the list
+      // Save file list locally. In case of par.fast_mode we make a new copy of the list
       engine.lightFileNames = filterFilesForFastMode(global.lightFileNames, auto_continue, global.pages.LIGHTS);
       engine.darkFileNames = filterFilesForFastMode(global.darkFileNames, auto_continue, global.pages.DARKS);
       engine.biasFileNames = filterFilesForFastMode(global.biasFileNames, auto_continue, global.pages.BIAS);
