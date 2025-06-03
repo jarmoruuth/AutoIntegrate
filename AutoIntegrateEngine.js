@@ -6571,6 +6571,10 @@ function customMapping(RGBmapping, filtered_lights)
             // them before PixelMath.
             flowchartParentBegin("RGB+Narroband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
+            if (par.custom_L_mapping.val == 'Auto' && L_id == null) {
+                  // Auto mapping with no L image, skip mapping
+                  par.custom_L_mapping.val = '';
+            }
             if (par.custom_L_mapping.val != '') {
                   luminance_id = mapRGBchannel(mapping_L_images, ppar.win_prefix + "Integration_L", luminance_mapping.mapping, true, 'L');
                   guiUpdatePreviewId(luminance_id);
@@ -6641,6 +6645,22 @@ function RGBcopyToMapIf(ch, id)
       return mapped_id;
 }
 
+// Check if we have any of LRGB channels listed in
+// narrowband mappings
+function hasLRGBchannelsInNarrowbandMapping()
+{
+      // Find one of LRGB chars from par.custom_R_mapping.val
+      for (var ch of ['L', 'R', 'G', 'B']) {
+            if (par.custom_R_mapping.val.indexOf(ch) != -1
+                || par.custom_G_mapping.val.indexOf(ch) != -1
+                ||  par.custom_B_mapping.val.indexOf(ch) != -1) 
+            {
+                  return true;
+            }
+      }
+      return false;
+}
+
 /* Map RGB channels. We do PixelMath mapping here if we have narrowband images.
  */
 function mapLRGBchannels(RGBmapping)
@@ -6661,8 +6681,12 @@ function mapLRGBchannels(RGBmapping)
       }
 
 
-      if (rgb && process_narrowband && !par.force_narrowband_mapping.val) {
-            util.addProcessingStep("There are both RGB and narrowband data, processing as RGB image");
+      if (rgb 
+          && process_narrowband 
+          && !par.force_narrowband_mapping.val
+          && hasLRGBchannelsInNarrowbandMapping()) 
+      {
+            util.addProcessingStep("There are both RGB and narrowband data in mappings, processing as RGB image");
             process_narrowband = false;
       }
       if (process_narrowband) {
