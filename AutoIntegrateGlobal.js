@@ -378,7 +378,7 @@ this.par = {
       fastintegration_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
       fastintegration_max_flux: { val: 0.5, def: 0.5, name : "FastIntegration max flux", type : 'R' },
       fastintegration_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
-      fastintegration_fast_subframeselector: { val: true, def: true, name : "FastIntegration fast SubframeSelector", type : 'B' },
+      fastintegration_fast_subframeselector: { val: false, def: false, name : "FastIntegration fast SubframeSelector", type : 'B' },
       fastintegration_skip_cosmeticcorrection: { val: true, def: true, name : "FastIntegration skip CosmeticCorrection", type : 'B' },
       drizzle_function: { val: 'Square', def: 'Square', name : "Drizzle function", type : 'S' },
       drizzle_fast_mode: { val: true, def: true, name : "Drizzle fast mode", type : 'B' },
@@ -884,12 +884,12 @@ this.narrowBandPalettes = [
 // If narrowBandPalettes is Auto, we use these mappings to create
 // the image.
 this.narrowbandAutoMapping = [
-      { input: ['L','R','G','B','H'], output: "max(R,H),G,B" },
-      { input: ['R','G','B','H'], output: "max(R,H),G,B" },
-      { input: ['L','R','G','B','H','O'], output: "max(RGB,HOO)" },
-      { input: ['R','G','B','H','O'], output: "max(RGB,HOO)" },
-      { input: ['S','H','O'], output: "SHO" },
-      { input: ['H','O'], output: "HOO" }
+      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true },
+      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true },
+      { input: ['L','R','G','B','H','O'], output: "max(RGB,HOO)", check_ha_mapping: false },
+      { input: ['R','G','B','H','O'], output: "max(RGB,HOO)", check_ha_mapping: false },
+      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false },
+      { input: ['H','O'], output: "HOO", check_ha_mapping: false }
 ];
 
 this.getDirectoryInfo = function(simple_text) {

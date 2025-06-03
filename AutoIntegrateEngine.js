@@ -535,6 +535,7 @@ function flowchartOperation(txt)
             return null;
       }
       flowchart_operation_level++;
+      console.writeln("Process begin " + txt);
       if (par.flowchart_debug.val) console.writeln("flowchartOperation " + txt + ", flowchart_operation_level: " + flowchart_operation_level);
       var node = flowchartCheckOperationList("process", txt);
       flowchartCurrent.list.push( node );
@@ -1190,10 +1191,13 @@ function copy_processed_image(imgWin, process_name)
 
 function engine_end_process(node, imgWin = null, process_name = null, copy_image = true)
 {
-      if (node && !global.get_flowchart_data) {
-            if (par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart_operation_level: " + flowchart_operation_level);
-            flowchart_operation_level--;
-            node.end_time = Date.now();
+      if (node) {
+            console.writeln("Process end " + node.txt);
+            if (!global.get_flowchart_data) {
+                  if (par.flowchart_debug.val) console.writeln("engine_end_process " + node.txt + ", flowchart_operation_level: " + flowchart_operation_level);
+                  flowchart_operation_level--;
+                  node.end_time = Date.now();
+            }
       }
       if (imgWin && global.is_processing == global.processing_state.processing) {
             saveProcessingStepToImage(imgWin, "Step " + stepno + ": " + process_name);
@@ -1265,11 +1269,7 @@ function extractIchannel(sourceWindow)
 
 function extractLchannel(sourceWindow, from_lights)
 {
-      if (!from_lights) {
-            var node = flowchartOperation("ChannelExtraction L");
-      } else {
-            var node = null;
-      }
+      var node = null;
       var P = new ChannelExtraction;
       P.colorSpace = ChannelExtraction.prototype.CIELab;
       P.channels = [ // enabled, id
@@ -3225,13 +3225,11 @@ function getScaledValPos(val, min, max)
       }
 }
 
-function getSubframeSelectorMeasurements(fileNames)
+function getSubframeSelectorMeasurements(fileNames, flowchart_name)
 {
       console.writeln("run SubframeSelector on " + fileNames.length + " files");
-      if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
-            var node = flowchartOperation("Fast SubframeSelector");
-      } else {
-            var node = flowchartOperation("SubframeSelector");
+      if (flowchart_name) {
+            var node = flowchartOperation(flowchart_name);
       }
 
       var P = new SubframeSelector;
@@ -3261,7 +3259,9 @@ function getSubframeSelectorMeasurements(fileNames)
       console.writeln("SubframeSelector completed");
 
       printProcessValues(P);
-      engine_end_process(node);
+      if (flowchart_name) {
+            engine_end_process(node);
+      }
 
       // Set measurementEnabled to true for all measurements
       for (var i = 0; i < P.measurements.length; i++) {
@@ -3280,7 +3280,7 @@ function filterBadPSFImages(fileNames)
       util.addProcessingStep("Filter bad PSF images");
       console.writeln("fileNames[0]=" + fileNames[0]);
 
-      var measurements = getSubframeSelectorMeasurements(fileNames);
+      var measurements = getSubframeSelectorMeasurements(fileNames, "Filter bad PSF");
 
       for (var i = 0; i < measurements.length; i++) {
             if (measurements[i][indexPSFSignal] >= par.ssweight_limit.val && !isNaN(measurements[i][indexPSFSignal])) {
@@ -3314,7 +3314,7 @@ function getImagePSF(imgWin)
 
       console.writeln("Using saved image " + fname);
 
-      var measurements = getSubframeSelectorMeasurements([ fname ]);
+      var measurements = getSubframeSelectorMeasurements([ fname ], "Get PSF");
 
       return measurements[0][indexFWHM];
 }
@@ -3449,7 +3449,7 @@ function sortMeasurements(measurements, filtered_files, sort_order)
                         return 0;
                   }
             });
-            console.writeln("subframeSelectorMeasure, sort by File name");
+            console.writeln("sortMeasurements, sort by File name");
             // Sort filtered files by File name
             filtered_files.sort( function(a, b) {
                   let a0 = a[sortIndex];
@@ -3466,10 +3466,10 @@ function sortMeasurements(measurements, filtered_files, sort_order)
             if (sort_order == 'SSWEIGHT' || sort_order == null) {
                   // Sort by SSWEIGHT
                   // It is the default order
-                  console.writeln("subframeSelectorMeasure, sort by SSWEIGHT");
+                  console.writeln("sortMeasurements, sort by SSWEIGHT");
                   var sortIndex = indexWeight;
             } else {
-                  console.writeln("subframeSelectorMeasure, sort by " + sort_order);
+                  console.writeln("sortMeasurements, sort by " + sort_order);
                   let filterIndex = findFilterIndex(sort_order);
                   var sortIndex = filterIndex[0];
                   var ascending_order = filterIndex[1];
@@ -3481,11 +3481,11 @@ function sortMeasurements(measurements, filtered_files, sort_order)
                   // we use FWHM or PSFSignal
                   if (global.pixinsight_version_num < 1080810) {
                         // Use FWHM for old versions
-                        console.writeln("subframeSelectorMeasure, sort filtered files by FWHM");
+                        console.writeln("sortMeasurements, sort filtered files by FWHM");
                         var filteredSortIndex = indexFWHM;
                   } else {
                         // Use PSFSignal for new versions
-                        console.writeln("subframeSelectorMeasure, sort filtered files by PSFSignal");
+                        console.writeln("sortMeasurements, sort filtered files by PSFSignal");
                         var filteredSortIndex = indexPSFSignal;
                   }
             } else {
@@ -3564,7 +3564,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       if (global.saved_measurements == null) {
             // collect new measurements
             console.writeln("subframeSelectorMeasure, collect measurements");
-            global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames);
+            global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames, null);
             global.saved_measurements_sorted = null;
       }
 
@@ -3594,7 +3594,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
                         console.writeln("subframeSelectorMeasure, retry measurements");
                         measurements = null;
                         console.writeln("subframeSelectorMeasure, collect measurements");
-                        global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames);
+                        global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames, null);
                         global.saved_measurements_sorted = null;
                         break;
                   }
@@ -4412,10 +4412,8 @@ function getAstrobinFilterNumber(filter)
                   number_txt = par.astrobin_O.val;
                   break;
             case 'C':
-                  number_txt = par.astrobin_C.val;
-                  break;
             default:
-                  util.throwFatalError("Unknown filter " + filter + " for astrobin info");
+                  number_txt = par.astrobin_C.val;
                   break;
       }
       if (number_txt == "") {
@@ -6353,6 +6351,11 @@ function customMapping(RGBmapping, filtered_lights)
       if (check_allfilesarr == null) {
             mapSPCCAutoNarrowband();
       }
+      if (par.narrowband_mapping.val == 'Auto') {
+            // Do auto mapping, we may get here without mapping
+            // when using extract channels option.
+            findAutoMappingForIntegratedImages(global.start_images.L_R_G_B);
+      }
 
       /* Get updated mapping strings and collect images
        * used in mapping.
@@ -7600,13 +7603,17 @@ function setIntegrationInfoKeywords(imageId)
             }
             var exp = util.getKeywordValue(win, "AutoIntegrateExposure");
             if (exp == null) {
-                  console.criticalln("Error, could not find AutoIntegrateExposure keyword in " + image_ids[i]);
+                  if (!global.get_flowchart_data) {
+                        console.criticalln("Error, could not find AutoIntegrateExposure keyword in " + image_ids[i]);
+                  }
                   continue;
             }
             exptime += parseInt(exp);
             var num = util.getKeywordValue(win, "AutoIntegrateNumImages");
             if (num == null) {
-                  console.criticalln("Error, could not find AutoIntegrateNumImages keyword in " + image_ids[i]);
+                  if (!global.get_flowchart_data) {
+                        console.criticalln("Error, could not find AutoIntegrateNumImages keyword in " + image_ids[i]);
+                  }
                   continue;
             }
             numImages += parseInt(num);
@@ -12764,7 +12771,16 @@ function doAutoMapping(channel_list)
             global.narrowbandAutoMapping[i].input.sort();
             // Compare with channel_list
             if (util.arraysEqual(global.narrowbandAutoMapping[i].input, channel_list)) {
-                  // We have a match, set the output channels
+                  // We have a match
+                  if (global.narrowbandAutoMapping[i].check_ha_mapping) {
+                        // Check if there is Ha mapping
+                        if (par.use_RGBHa_Mapping.val || par.use_RGBNB_Mapping.val) {
+                              // There is special Ha mapping.
+                              console.writeln("doAutoMapping: Found Ha mapping for " + channel_list.join(", "));
+                              return;
+                        }
+                  }
+                  // Set the output channels
                   console.writeln("doAutoMapping: Found auto mapping for " + channel_list.join(", ") + " -> " + global.narrowbandAutoMapping[i].output);
                   // Set the output channels
                   var palette = findNarrowBandPalette(global.narrowbandAutoMapping[i].output);
@@ -12780,6 +12796,7 @@ function doAutoMapping(channel_list)
                         // No L in channel_list, set L mapping to empty
                         par.custom_L_mapping.val = "";
                   }
+                  return;
             }
       }
       // Auto mapping failed, throw an error
@@ -12792,7 +12809,7 @@ function findAutoMappingForLights(filtered_lights)
       // as returned from engine.getFilterFiles()
       if (filtered_lights == null || filtered_lights.allfilesarr.length == 0) {
             console.writeln("findAutoMappingForLights: No filtered lights found");
-            return null;
+            return;
       }
 
       // Find filters for which we have files
@@ -12806,21 +12823,21 @@ function findAutoMappingForLights(filtered_lights)
             channel_list.push(filtered_lights.allfilesarr[i].filter);
       }
       if (channel_list.length == 0) {
-            util.throwFatalError("findAutoMappingForAutocontinue: No channels found, nothing to do");
+            util.throwFatalError("findAutoMappingForLights: No channels found, nothing to do");
             return;
       }
       console.writeln("findAutoMappingForLights: auto mapping: " + channel_list.join(", "));
       doAutoMapping(channel_list);
 }
 
-function findAutoMappingForAutocontinue(preprocessed_images)
+function findAutoMappingForIntegratedImages(preprocessed_images)
 {
       // Find the auto mapping for the given preprocessed images
       // preprocessed_images is one of global.start_images values
       var channel_list = [];
       switch (preprocessed_images) {
-            case global.start_images.L_R_G_B:
-                  // We have L,R,G,B,H,S,O images
+            case global.start_images.L_R_G_B_GC:
+                  // We have gradien corrected L,R,G,B,H,S,O images
                   if (checkAutoCont(L_GC_start_win)) {
                         channel_list.push("L");
                   }
@@ -12843,12 +12860,12 @@ function findAutoMappingForAutocontinue(preprocessed_images)
                         channel_list.push("O");
                   }
                   if (channel_list.length == 0) {
-                        util.throwFatalError("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                        util.throwFatalError("findAutoMappingForIntegratedImages: No L,R,G,B,H,S,O images found, nothing to do");
                         return;
                   }
                   break;
-            case global.start_images.L_R_G_B_GC:
-                  // We have gradien corrected L,R,G,B,H,S,O images
+            case global.start_images.L_R_G_B:
+                  // We have L,R,G,B,H,S,O images
                   if (L_id != null) {
                         channel_list.push("L");
                   }
@@ -12871,16 +12888,16 @@ function findAutoMappingForAutocontinue(preprocessed_images)
                         channel_list.push("O");
                   }
                   if (channel_list.length == 0) {
-                        util.throwFatalError("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                        util.throwFatalError("findAutoMappingForIntegratedImages: No L,R,G,B,H,S,O images found, nothing to do");
                         return;
                   }
                   break;
             default:
                   // We do not have L,R,G,B,H,S,O images, nothing to do
-                  console.writeln("findAutoMappingForAutocontinue: No L,R,G,B,H,S,O images found, nothing to do");
+                  console.writeln("findAutoMappingForIntegratedImages: No L,R,G,B,H,S,O images found, nothing to do");
                   return;
       }
-      console.writeln("findAutoMappingForAutocontinue: auto mapping: " + channel_list.join(", "));
+      console.writeln("findAutoMappingForIntegratedImages: auto mapping: " + channel_list.join(", "));
       doAutoMapping(channel_list);
 }
 
@@ -12969,7 +12986,7 @@ function CreateChannelImages(parent, auto_continue)
                   range_mask_win = util.findWindow(mask_win_id);
             }
             if (process_narrowband && par.narrowband_mapping.val == 'Auto') {
-                  findAutoMappingForAutocontinue(preprocessed_images);
+                  findAutoMappingForIntegratedImages(preprocessed_images);
             }
             return retval.SUCCESS;
 

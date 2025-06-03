@@ -4472,6 +4472,18 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
       }
 }
 
+function guiSubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames, sort_order = null)
+{
+      // Disable fast subframe selector while running this function to get measurements from all files
+      var saved_fastintegration_fast_subframeselector = par.fastintegration_fast_subframeselector.val;
+
+      var ret = engine.subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames, sort_order);
+
+      par.fastintegration_fast_subframeselector.val = saved_fastintegration_fast_subframeselector;
+
+      return ret;
+}
+
 // 1. Find image with biggest ssweight in treebox and update it in 
 //    global.user_selected_best_image.
 // 2. For each filter find image with biggest ssweight in treebox and 
@@ -4497,7 +4509,7 @@ function findBestImageFromTreeBoxFiles(treebox)
       var all_files = checked_files.concat(unchecked_files);
 
       // get array of [ filename, weight ]
-      var ssWeights = engine.subframeSelectorMeasure(checked_files, false, false, all_files);
+      var ssWeights = guiSubframeSelectorMeasure(checked_files, false, false, all_files);
 
       filtering_changed = false;
 
@@ -4979,7 +4991,7 @@ function measureTreeBoxFiles(parent, pageIndex)
 
       var all_files = checked_files.concat(unchecked_files);
 
-      engine.subframeSelectorMeasure(all_files, false, false, all_files);
+      guiSubframeSelectorMeasure(all_files, false, false, all_files);
 
       filtering_changed = false;
 
@@ -5017,7 +5029,7 @@ function filterTreeBoxFiles(parent, pageIndex)
 
       // get treeboxfiles which is array of [ filename, checked, weight ]
       // sorted by weight
-      var treeboxfiles = engine.subframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
+      var treeboxfiles = guiSubframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
 
       filtering_changed = false;
 
