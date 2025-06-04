@@ -128,7 +128,7 @@ this.par = {
       skip_SCNR: { val: false, def: false, name : "No SCNR", type : 'B' },
       force_new_mask: { val: false, def: false, name : "Force new mask", type : 'B' },
       crop_to_common_area: { val: false, def: false, name : "Crop to common area", type : 'B' },
-      unscreen_stars: { val: false, def: false, name : "Unscreen stars", type : 'B' },
+      unscreen_stars: { val: true, def: true, name : "Unscreen stars", type : 'B' },
 
       // Saving image
       save_final_image_tiff: { val: false, def: false, name : "Save final image as TIFF", type : 'B' },
@@ -238,6 +238,7 @@ this.par = {
       remove_stars_light: { val: false, def: false, name : "Remove stars light", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
       remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
+      RGB_stars: { val: false, def: false, name : "RGB stars", type : 'B' },
       use_narrowband_multiple_mappings: { val: false, def: false, name : "Use narrowband multiple mappings", type : 'B' },
       narrowband_multiple_mappings_list: { val: "", def: "", name : "Narrowband multiple mappings list", type : 'S' },
 

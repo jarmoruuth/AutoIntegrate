@@ -7211,7 +7211,7 @@ function AutoIntegrateDialog()
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Settings / Image processing parameters</i> section.</li>" +
             "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Settings / Tools and batching</i> section.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Other / Other parameters</i> section.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Processing 1 / Star stretching settings</i> section.</li>" +
             "<li>Check <i>No CosmeticCorrection</i> in <i>Other / Other parameters</i> section.</li>" +
             "<li>Go to the <i>Processing 2 / CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
@@ -7376,6 +7376,12 @@ function AutoIntegrateDialog()
             "<p>Use gradient correction on L and RGB images after they have been stretched to non-linear mode.</p>" +
             "<p>Note that thiis option should not be used with GradientCorrection process.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from <i>Processing 1 / Star stretching settings</i> section.</p>"
+      this.RGB_stars_CheckBox = newCheckBox(this, "RGB stars", par.RGB_stars, "<p>Create separate stars image from RGB channels. " + 
+                                                                              "Stars are removed from the processed image and in the end starless and " + 
+                                                                              "stars images are combined.<p>" +
+                                                                              "<p>To use this option RGB channels must be available.</p>" +
+                                                                              "<p>If no option to remove stars is selected, stars are removed from " + 
+                                                                              "channel images.</p>");
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
@@ -7395,7 +7401,7 @@ function AutoIntegrateDialog()
             "<p>Remove stars from light image.</p>" + 
             "<p>Stars are removed after after star alignment.</p>" + 
             "<p>If comet alignment is chosen then stars are removed before comet align.</p>");
-      this.remove_stars_stretched_CheckBox = newCheckBox(this, "Remove_stars after stretch", par.remove_stars_stretched, 
+      this.remove_stars_stretched_CheckBox = newCheckBox(this, "Remove stars after stretch", par.remove_stars_stretched, 
             "<p>Remove stars after image has been stretched to non-linear state. Start from RGB image are saved and they " + 
             "can be later added back to the image. This needs StarXTerminator.</p>" +
             remove_stars_Tooltip);
@@ -7821,18 +7827,13 @@ function AutoIntegrateDialog()
       this.otherParamsSet01.add( this.CosmeticCorrectionCheckBox );
       this.otherParamsSet01.add( this.SubframeSelectorCheckBox );
       this.otherParamsSet01.add( this.imageintegration_clipping_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_channel_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_before_stretch_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_stretched_CheckBox );
-      this.otherParamsSet01.add( this.remove_stars_light_CheckBox );
-      this.otherParamsSet01.add( this.unscreen_stars_CheckBox );
       this.otherParamsSet01.add( this.forceNewMask_CheckBox );
+      this.otherParamsSet01.add( this.no_mask_contrast_CheckBox );
+      this.otherParamsSet01.add( this.no_SCNR_CheckBox );
 
       this.otherParamsSet02 = new VerticalSizer;
       this.otherParamsSet02.margin = 6;
       this.otherParamsSet02.spacing = 4;
-      this.otherParamsSet02.add( this.no_mask_contrast_CheckBox );
-      this.otherParamsSet02.add( this.no_SCNR_CheckBox );
       this.otherParamsSet02.add( this.no_sharpening_CheckBox );
       this.otherParamsSet02.add( this.skip_noise_reduction_CheckBox );
       this.otherParamsSet02.add( this.skip_star_noise_reduction_CheckBox );
@@ -7858,6 +7859,7 @@ function AutoIntegrateDialog()
       this.otherParamsSet11.add( this.imageWeightTestingCheckBox );
       this.otherParamsSet11.add( this.earlyPSFCheckCheckBox );
       this.otherParamsSet11.add( this.start_from_imageintegration_CheckBox );
+      this.otherParamsSet11.add( this.save_processed_channel_images_CheckBox );
 
       this.otherParamsSet121 = new HorizontalSizer;
       this.otherParamsSet121.addSpacing( 20 );
@@ -7866,7 +7868,6 @@ function AutoIntegrateDialog()
       this.otherParamsSet12 = new VerticalSizer;
       this.otherParamsSet12.margin = 6;
       this.otherParamsSet12.spacing = 4;
-      this.otherParamsSet12.add( this.save_processed_channel_images_CheckBox );
       this.otherParamsSet12.add( this.save_stretched_starless_channel_images_CheckBox );
       this.otherParamsSet12.add( this.otherParamsSet121 );
       this.otherParamsSet12.add( this.RRGB_image_CheckBox );
@@ -9330,10 +9331,20 @@ function AutoIntegrateDialog()
       this.StretchingGroupBoxSizer.add( this.otherStrechingTargetValueSizer );
       this.StretchingGroupBoxSizer.addStretch();
 
+      this.StarStretchingGroupBoxSizer1 = newVerticalSizer(0, false, [this.remove_stars_channel_CheckBox,
+                                                                      this.remove_stars_before_stretch_CheckBox,
+                                                                      this.remove_stars_stretched_CheckBox ]);
+      this.StarStretchingGroupBoxSizer2 = newVerticalSizer(0, false, [this.unscreen_stars_CheckBox,
+                                                                      this.remove_stars_light_CheckBox ]);
+
+      this.StarStretchingGroupBoxSizer0 = newHorizontalSizer(0, false, [this.StarStretchingGroupBoxSizer1, 
+                                                                       this.StarStretchingGroupBoxSizer2]);
       this.StarStretchingGroupBoxSizer = new VerticalSizer;
       this.StarStretchingGroupBoxSizer.margin = 6;
       this.StarStretchingGroupBoxSizer.spacing = 4;
       this.StarStretchingGroupBoxSizer.add( this.starStretchingChoiceSizer );
+      this.StarStretchingGroupBoxSizer.add( this.RGB_stars_CheckBox );
+      this.StarStretchingGroupBoxSizer.add( this.StarStretchingGroupBoxSizer0 );          
       this.StarStretchingGroupBoxSizer.addStretch();
 
       //

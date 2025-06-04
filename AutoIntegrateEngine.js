@@ -119,9 +119,6 @@ function setGUI(aigui) {
 }
 
 var ssweight_set = false;
-var run_HT = true;
-var linear_fit_done = false;
-var spcc_color_calibration_done = false;
 var H_in_R_channel = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var autocontinue_prefix = "";       // prefix used to find base files for autocontinue
@@ -221,9 +218,9 @@ var RGBHa_H_enhanced_info = {  // Ha RGB image info
 var iconized_image_ids = [];        // Random images that are iconized at the end of processing
 var iconized_debug_image_ids = [];  // Random images that are iconized or closed at the end of processing
 
-var RGB_stars_win = null;     // linear combined RGB/narrowband/OSC stars
-var RGB_stars_HT_win = null;  // stretched/non-linear RGB stars win
-var RGB_stars = [];           // linear RGB channel star image ids
+var RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
+var RGB_stars_win_HT = null;        // stretched/non-linear RGB stars win
+var RGB_stars_channel_ids = [];     // linear RGB channel star image ids
 
 var script_start_time;
 
@@ -931,6 +928,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
             }
             if (util.findWindowStartsWith(arr[i])) {
                   util.closeOneWindowById(arr[i]+"_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars");
                   util.closeOneWindowById(arr[i]+"_starless");
                   util.closeOneWindowById(arr[i]+"_map");
                   util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
@@ -1129,9 +1127,12 @@ function boolToInteger(b)
 function checkOptions()
 {
       var intval = boolToInteger(par.remove_stars_before_stretch.val) + boolToInteger(par.remove_stars_channel.val) + 
-                   boolToInteger(par.remove_stars_stretched.val);
+                   boolToInteger(par.remove_stars_stretched.val) + boolToInteger(par.remove_stars_light.val);
       if (intval > 1) {
             util.throwFatalError("Only one remove stars option can be selected.")
+      }
+      if (par.remove_stars_light.val && par.RGB_stars.val) {
+            util.throwFatalError("Remove stars light and RGB stars cannot be used together.");
       }
       if (par.extra_combine_stars.val && !par.extra_remove_stars.val) {
             util.throwFatalError("Extra combine stars cannot be used during processing if extra remove stars is not set.");
@@ -1910,7 +1911,8 @@ function copySelectedFITSKeywords(sourceWindow, targetWindow)
       for (var i = 0; i < keywords.length; i++) {
             var keyword = keywords[i];
             if (keyword.name == 'AutoIntegrateDrizzle'
-                || keyword.name == 'AutoIntegrateMEDFWHM') 
+                || keyword.name == 'AutoIntegrateMEDFWHM'
+                || keyword.name == 'AutoLinearfit') 
             {
                   // copy keyword
                   console.writeln("Copy keyword " + keyword.name + " to " + targetWindow.mainView.id);
@@ -3966,7 +3968,6 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
             var ssweight_limit = par.ssweight_limit.val;
       }
 
-      run_HT = true;
       global.best_ssweight = 0;
       global.best_image = null;
 
@@ -3982,16 +3983,6 @@ function findBestSSWEIGHT(parent, names_and_weights, filename_postfix)
       var found_user_selected_best_image_ssweight = 0;
       for (var i = 0; i < fileNames.length; i++) {
             var filePath = fileNames[i];
-            if (0) {
-                  // Why this piece of code to disable HT?
-                  var ext = '.' + filePath.split('.').pop();
-                  console.writeln("File " +  filePath + " ext " +  ext);
-                  if (ext.toUpperCase() == '.FIT' || ext.toUpperCase() == '.XISF') {
-                        run_HT = true;
-                  } else {
-                        run_HT = false;
-                  }
-            }
             var keywords = getFileKeywords(filePath);
 
             n++;
@@ -5333,7 +5324,7 @@ function linearFitArray(refimage, targetimages, add_to_flowchart = false)
       }
       for (var i = 0; i < targetimages.length; i++) {
             if (targetimages[i] != null && targetimages[i] != refimage) {
-                  runLinearFit(refimage, targetimages[i]);
+                  linearFitImage(refimage, targetimages[i]);
             }
       }
       engine_end_process(node, null, "", false);
@@ -5439,11 +5430,22 @@ function processChannelImage(image_id, is_luminance)
             runGradientCorrectionBeforeChannelCombination(image_id);
       }
 
-      if (par.remove_stars_channel.val) {
+      let is_some_remove_stars_option = par.remove_stars_channel.val
+                                       || par.remove_stars_before_stretch.val
+                                       || par.remove_stars_stretched.val
+                                       || par.remove_stars_light.val;
+
+      if (par.remove_stars_channel.val ||
+          (par.RGB_stars.val && !is_some_remove_stars_option)) 
+      {
+            // Remove stars from channel images
             if (is_luminance) {
                   removeStars(util.findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
+            } else if (par.RGB_stars.val) {
+                  removeStars(util.findWindow(image_id), true, true, null, null, par.unscreen_stars.val);
             } else {
-                  removeStars(util.findWindow(image_id), true, true, RGB_stars, null, par.unscreen_stars.val);
+                  // For RGB channels we collect stars images into RGB_stars_channel_ids
+                  removeStars(util.findWindow(image_id), true, true, RGB_stars_channel_ids, null, par.unscreen_stars.val);
             }
       }
 }
@@ -6488,8 +6490,8 @@ function customMapping(RGBmapping, filtered_lights)
                    */
                   util.addProcessingStep("Custom mapping, stretched narrowband images");
                   if (par.remove_stars_before_stretch.val) {
-                        save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                        util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars early");
+                        save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+                        util.throwFatalError("Narrowband mapping using non-linear data is not compatible with Remove stars before stretch option.");
                   }
                   flowchartParentBegin("Stretch channels");
                   for (var i = 0; i < images.length; i++) {
@@ -6553,7 +6555,10 @@ function customMapping(RGBmapping, filtered_lights)
                   "Filters used");
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
-                  RGB_stars_HT_win = removeStars(RGB_win, false, true, null, null, par.unscreen_stars.val);
+                  let win = removeStars(RGB_win, false, !par.RGB_stars.val, null, null, par.unscreen_stars.val);
+                  if (win != null && !par.RGB_stars.val) {
+                        RGB_stars_win_HT = win;
+                  }
                   if (!is_luminance_images) {
                         // use starless RGB image as mask
                         ColorEnsureMask(RGB_win_id, true, true);
@@ -7089,7 +7094,7 @@ function runLocalNormalization(imagetable, refImage, filter)
       engine_end_process(node);
 }
 
-function runLinearFit(refViewId, targetId, add_to_flowchart = false)
+function linearFitImage(refViewId, targetId, add_to_flowchart = false)
 {
       if (refViewId == targetId) {
             return;
@@ -7105,7 +7110,6 @@ function runLinearFit(refViewId, targetId, add_to_flowchart = false)
       } else {
             var node = null;
       }
-      linear_fit_done = true;
 
       if (global.get_flowchart_data) {
             return;
@@ -7120,6 +7124,11 @@ function runLinearFit(refViewId, targetId, add_to_flowchart = false)
       targetWin.mainView.endProcess();
 
       printProcessValues(P);
+
+      util.setFITSKeyword(targetWin, "AutoLinearfit", "true", "Linear fit was done by AutoIntegrate");
+      var refWin = ImageWindow.windowById(refViewId);
+      util.setFITSKeyword(refWin, "AutoLinearfit", "true", "Linear fit was done by AutoIntegrate");
+
       engine_end_process(node, targetWin, "LinearFit", false);
 }
 
@@ -8582,7 +8591,7 @@ function applySTF(imgView, stf, iscolor)
       engine_end_process(null);
 }
 
-function getRgbLinked(iscolor)
+function getRgbLinked(win, iscolor)
 {
       if (par.STF_linking.val == 'Linked') {
             console.writeln("RGB channels linked selected by user");
@@ -8594,6 +8603,8 @@ function getRgbLinked(iscolor)
             // auto, use default
             var rgbLinked;
             if (process_narrowband) {
+                  let linear_fit_done = util.findKeywordName(win, "AutoLinearfit");
+                  let spcc_color_calibration_done = util.findKeywordName(win, "AutoSPCC");
                   if (linear_fit_done) {
                         console.writeln("Narrowband and linear fit done, use RGB channels linked");
                         rgbLinked = true;
@@ -8627,7 +8638,7 @@ function runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackgroun
       if (stf_to_use == null) {
             /* Apply autostretch on image */
             if (rgbLinked == null) {
-                  rgbLinked = getRgbLinked(iscolor);
+                  rgbLinked = getRgbLinked(GC_win, iscolor);
             }
             ApplyAutoSTF(GC_win.mainView,
                         DEFAULT_AUTOSTRETCH_SCLIP,
@@ -8870,7 +8881,7 @@ function stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, 
 
       if (rgbLinked == null) {
             if (GC_win.mainView.image.isColor) {
-                  rgbLinked = getRgbLinked(iscolor);
+                  rgbLinked = getRgbLinked(GC_win, iscolor);
             } else {
                   rgbLinked = true;
             }
@@ -8914,7 +8925,7 @@ function stretchFunctionIterations(GC_win, iscolor, image_stretching, stretch_ta
             rgbLinked = true;
       } else {
             if (GC_win.mainView.image.isColor) {
-                  var rgbLinked = getRgbLinked(iscolor);
+                  var rgbLinked = getRgbLinked(GC_win, iscolor);
             } else {
                   var rgbLinked = true;
             }
@@ -9076,7 +9087,7 @@ function histogramDirectStretch(win, image_stretching, iscolor, target_value)
       util.addProcessingStepAndStatusInfo("Run histogram transform on " + win.mainView.id + " using " + image_stretching + " with target value " + target_value);
 
       if (win.mainView.image.isColor) {
-            var rgbLinked = getRgbLinked(iscolor);
+            var rgbLinked = getRgbLinked(win, iscolor);
       } else {
             var rgbLinked = true;
       }
@@ -9714,10 +9725,6 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
                   break;
             default:
                   util.throwFatalError("Bad runHistogramTransform type value " + type);
-      }
-      if (!run_HT) {
-            util.addProcessingStep("Do not run histogram transform on " + GC_win.mainView.id);
-            return { win: GC_win, stf: null };
       }
       console.writeln("runHistogramTransform, type " + type + ", iscolor " + iscolor, ", run_adjust_shadows " + run_adjust_shadows + ", stretch_adjust_shadows " + par.stretch_adjust_shadows.val);
 
@@ -11755,7 +11762,7 @@ function runSPCC(imgWin, phase)
 
             guiUpdatePreviewId(imgWin.mainView.id);
 
-            spcc_color_calibration_done = true;
+            util.setFITSKeyword(imgWin, "AutoSPCC", "true", "Spectrophotometric Color Calibration was done by AutoIntegrate");
 
       } catch(err) {
             save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
@@ -11766,7 +11773,7 @@ function runSPCC(imgWin, phase)
       }
 }
 
-function runColorCalibration(imgWin, phase)
+function runColorCalibration(imgWin, phase, is_RGB = false)
 {
       console.writeln("runColorCalibration on " + imgWin.mainView.id + " in phase " + phase);
       console.writeln("  process_narrowband: " + process_narrowband + ", narrowband_mode: " + spcc_params.narrowband_mode + ", color_calibration_narrowband: " + par.color_calibration_narrowband.val);
@@ -11774,7 +11781,7 @@ function runColorCalibration(imgWin, phase)
       if (phase != 'linear' && phase != 'nonlinear') {
             util.throwFatalError("Incorrect phase value " + phase);
       }
-      if (process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
+      if (!is_RGB && process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
             util.addProcessingStep("No color calibration for narrowband");
             return;
       }
@@ -11953,7 +11960,7 @@ function runLRGBCombination(RGB_id, L_id)
                                     ImageWindow.windowById(RGB_id), 
                                     util.ensure_win_prefix(RGB_id + "GrayScale"));
             convert_to_grayscale(referenceWin);
-            runLinearFit(referenceWin.mainView.id, L_id, true);
+            linearFitImage(referenceWin.mainView.id, L_id, true);
             referenceWin.forceClose();
       }
 
@@ -12925,6 +12932,26 @@ function findAutoMappingForIntegratedImages(preprocessed_images)
       doAutoMapping(channel_list);
 }
 
+function isAllRGBImages(filtered_lights)
+{
+      // Check if we have R,G,B images in filtered_lights
+      if (filtered_lights == null || filtered_lights.allfilesarr.length == 0) {
+            console.writeln("isAllRGBImages: No filtered lights found");
+            return false;
+      }
+      let rgb_count = 0;
+      for (var i = 0; i < filtered_lights.allfilesarr.length; i++) {
+            if (filtered_lights.allfilesarr[i].files.length > 0 
+                  && (filtered_lights.allfilesarr[i].filter == 'R'
+                        || filtered_lights.allfilesarr[i].filter == 'G'
+                        || filtered_lights.allfilesarr[i].filter == 'B')) 
+            {
+                  rgb_count++;
+            }
+      }
+      return rgb_count == 3;
+}
+
 /* Create master L, R, G and B images, or a Color image
  *
  * check for preprocessed images
@@ -13012,6 +13039,11 @@ function CreateChannelImages(parent, auto_continue)
             if (process_narrowband && par.narrowband_mapping.val == 'Auto') {
                   findAutoMappingForIntegratedImages(preprocessed_images);
             }
+            if (par.RGB_stars.val) {
+                  if (R_id == null || G_id == null || B_id == null) {
+                        util.throwFatalError("RGB stars option is selected but no R, G, B images found.");
+                  }
+            }
             return retval.SUCCESS;
 
       } else {
@@ -13092,6 +13124,12 @@ function CreateChannelImages(parent, auto_continue)
                         global.write_processing_log_file = false;
                         customMapping(null, filtered_lights);
                         global.write_processing_log_file = true;
+                  }
+            }
+
+            if (par.RGB_stars.val) {
+                  if (!isAllRGBImages(filtered_lights)) {
+                        util.throwFatalError("RGB stars option is selected but not all RGB channels found.");
                   }
             }
 
@@ -14014,16 +14052,16 @@ function CombineRGBimageEx(target_name, images)
       return win;
 }
 
-/* Combine stars from channel images stored into RGB_stars.
+/* Combine stars from channel images stored into RGB_stars_image_ids.
  * we use three first images in the array. In case of less than
  * three images the last image is copied to make three images.
  */
-function combineRGBStars(RGB_stars)
+function combineRGBStars(RGB_stars_image_ids)
 {
-      while (RGB_stars.length < 3) {
-            RGB_stars[RGB_stars.length] = RGB_stars[RGB_stars.length-1];
+      while (RGB_stars_image_ids.length < 3) {
+            RGB_stars_image_ids[RGB_stars_image_ids.length] = RGB_stars_image_ids[RGB_stars_image_ids.length-1];
       }
-      return CombineRGBimageEx("Integration_RGB_stars", RGB_stars);
+      return CombineRGBimageEx("Integration_RGB_stars", RGB_stars_image_ids);
 }
 
 /* Combine RGB image from global red_id, green_id and blue_id images
@@ -14144,7 +14182,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       }
       if (par.RGBNB_linear_fit.val) {
             var node = flowchartOperation("LinearFit");
-            runLinearFit(channelId, NB_id);
+            linearFitImage(channelId, NB_id);
             engine_end_process(node);
       }
       if (par.use_starxterminator.val || par.use_starnet2.val) {
@@ -14186,7 +14224,7 @@ function RGBNB_Channel_Mapping(RGB_id, channel, channel_bandwidth, mapping, Boos
       
       if (par.RGBNB_linear_fit.val) {
             var node = flowchartOperation("LinearFit");
-            runLinearFit(mappedChannelId2, mappedChannelId);
+            linearFitImage(mappedChannelId2, mappedChannelId);
             engine_end_process(node);
       }
 
@@ -15095,6 +15133,89 @@ function extraHaMapping(extraWin)
       }
 }
 
+function createRGBstars()
+{
+      if (R_id == null || G_id == null || B_id == null) {
+            util.throwFatalError("RGB stars option is selected but no R, G, B images found.");
+      }
+
+      flowchartParentBegin("RGB stars creation");
+      flowchartChildBegin("RGB stars");
+
+      console.writeln("RGB stars, combine RGB stars from " + R_id + ", " + G_id + ", " + B_id);
+
+      // Make copies of original images
+      console.writeln("RGB stars, force copy of channel images");
+      let channel_wins = [ util.forceCopyWindow(util.findWindow(R_id), util.ensure_win_prefix(R_id + "_for_stars")),
+                           util.forceCopyWindow(util.findWindow(G_id), util.ensure_win_prefix(G_id + "_for_stars")),
+                           util.forceCopyWindow(util.findWindow(B_id), util.ensure_win_prefix(B_id + "_for_stars")) ];
+      for (let i = 0; i < channel_wins.length; i++) {
+            if (channel_wins[i] == null) {
+                  util.throwFatalError("Could not find channel image " + [R_id, G_id, B_id][i] + " for RGB stars creation.");
+            }
+      }
+
+      console.writeln("RGB stars, linear fit");
+      linearFitArray(channel_wins[0].mainView.id, [ channel_wins[1].mainView.id, channel_wins[2].mainView.id ]);
+
+      // Combine RGB image
+      console.writeln("RGB stars, combine RGB image from channel images");
+      let win = combineRGBStars([ channel_wins[0].mainView.id, channel_wins[1].mainView.id, channel_wins[2].mainView.id ]);
+      let tmp_id = ppar.win_prefix + "Integration_RGB_stars_tmp";
+      util.closeOneWindowById(tmp_id);
+      win.mainView.id = tmp_id;
+
+      console.writeln("RGB stars, color calibration on RGB stars image " + win.mainView.id);
+      runColorCalibration(win, 'linear', true);
+
+      console.writeln("RGB stars, saturation on RGB stars image " + win.mainView.id);
+      runCurvesTransformationSaturation(win, null);
+
+      if (par.use_blurxterminator.val) {
+            console.writeln("RGB stars, run BlurXTerminator on RGB stars image " + win.mainView.id);
+            runBlurXTerminator(win, false);
+      } else if (par.use_graxpert_deconvolution.val) {
+            console.writeln("RGB stars, run GraXpert deconvolution on RGB stars image " + win.mainView.id);
+            runGraXpertDeconvolution(win);
+      }
+
+      console.writeln("RGB stars, run noise reduction on RGB stars image " + win.mainView.id);
+      runNoiseReduction(win, null, true);
+
+      // Run HistogramTransform to stretch image to non-linear
+      console.writeln("RGB stars, stretching on RGB stars image " + win.mainView.id);
+      runHistogramTransform(win, null, true, 'stars');
+
+      console.writeln("RGB stars, run SCNR on RGB stars image " + win.mainView.id);
+      runSCNR(win, true);
+
+      // Save a copy of the RGB image before we remove stars
+      let win2 = util.forceCopyWindow(win, util.ensure_win_prefix("Integration_RGB_for_stars"));
+      iconized_image_ids.push(win2.mainView.id);
+
+      // Remove stars and get the stars image
+      console.writeln("RGB stars, remove stars from image " + win.mainView.id);
+      let stars_win_HT = removeStars(win, true, true, null, null, par.unscreen_stars.val);
+      if (stars_win_HT == null) {
+            util.throwFatalError("Could not create RGB stars image, removeStars failed.");
+      }
+      util.windowRename(stars_win_HT.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
+      console.writeln("Created RGB stars image " + stars_win_HT.mainView.id);
+
+      flowchartChildEnd("RGB stars");
+      flowchartParentEnd("RGB stars creation");
+
+      // Close temporary channel windows
+      for (let i = 0; i < channel_wins.length; i++) {
+            util.closeOneWindow(channel_wins[i]);
+      }
+      util.closeOneWindow(win);
+
+      console.noteln("RGB stars, completed, created image " + stars_win_HT.mainView.id);
+
+      return stars_win_HT;
+}
+
 /* Process RGB image
  *
  * optionally run background neutralization on RGB image
@@ -15217,10 +15338,16 @@ function ProcessRGBimage(RGBmapping)
                         /* Initialize RGBHa mapping using combined and color calibrated linear RGB image. */
                         RGBHa_init(RGB_processed_id, true, false);
                   }
-      
+
+                  if (par.RGB_stars.val) {
+                        // Create a separate stars image from RGB channels
+                        RGB_stars_win_HT = createRGBstars();
+                  }
+
                   if (par.remove_stars_before_stretch.val) {
-                        RGB_stars_win = removeStars(util.findWindow(RGB_processed_id), true, true, null, null, par.unscreen_stars.val);
-                        if (RGB_stars_win != null) {
+                        let win = removeStars(util.findWindow(RGB_processed_id), true, !par.RGB_stars.val, null, null, par.unscreen_stars.val);
+                        if (win != null && !par.RGB_stars.val) {
+                              RGB_stars_win = win;
                               util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         }
                         if (!is_luminance_images) {
@@ -15249,7 +15376,7 @@ function ProcessRGBimage(RGBmapping)
                   RGBmapping.stretched = true;
 
                   if (par.remove_stars_stretched.val) {
-                        RGB_stars_HT_win = removeStars(util.findWindow(RGB_processed_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        RGB_stars_win_HT = removeStars(util.findWindow(RGB_processed_HT_id), false, true, null, null, par.unscreen_stars.val);
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
                               ColorEnsureMask(RGB_processed_HT_id, true, true);
@@ -15279,9 +15406,9 @@ function ProcessRGBimage(RGBmapping)
                   stf,
                   true,
                   'stars');
-            RGB_stars_HT_win = util.findWindow(stars_id);
-      } else if (RGB_stars_HT_win != null)  {
-            RGB_stars_HT_win.mainView.id =  RGB_processed_HT_id + "_stars";
+            RGB_stars_win_HT = util.findWindow(stars_id);
+      } else if (RGB_stars_win_HT != null)  {
+            RGB_stars_win_HT.mainView.id =  RGB_processed_HT_id + "_stars";
       }
 
       if (process_narrowband && par.non_linear_increase_saturation.val > 0) {
@@ -19094,9 +19221,12 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        linear_fit_rerefence_id = null;
        solved_imageId = null;
  
-       RGB_stars_win = null;
-       RGB_stars_HT_win = null;
-       RGB_stars = [];
+       RGB_stars_win = null;        // linear combined RGB/narrowband/OSC stars
+       RGB_stars_win_HT = null;     // stretched/non-linear RGB stars win
+       RGB_stars_channel_ids = [];  // linear RGB channel star image ids
+
+       var starless_id = null;
+       var RGB_stars_id = null;
 
        save_id_list = [];
  
@@ -19113,13 +19243,9 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        global.processing_warnings = "";
        global.all_windows = [];
        global.iconPoint = null;
-       linear_fit_done = false;
-       spcc_color_calibration_done = false;
        H_in_R_channel = false;
        process_narrowband = autocontinue_narrowband;
        is_luminance_images = false;
-       var starless_id = null;
-       var stars_id = null;
  
        if (gui) {
             gui.switchtoPreviewTab();
@@ -19285,8 +19411,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    CombineRGBimage(RGB_processed_HT_id);
                    RGBmapping.combined = true;
              }
-             if (RGB_stars.length > 0) {
-                   RGB_stars_win = combineRGBStars(RGB_stars);
+             if (RGB_stars_channel_ids.length > 0) {
+                   RGB_stars_win = combineRGBStars(RGB_stars_channel_ids);
              }
  
              if (par.monochrome_image.val) {
@@ -19333,8 +19459,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                                "copy_" + LRGB_processed_HT_id);
                          LRGB_processed_HT_id = "copy_" + LRGB_processed_HT_id;
                    }
-                   if (RGB_stars_HT_win != null) {
-                         stars_id = RGB_stars_HT_win.mainView.id;
+                   if (RGB_stars_win_HT != null) {
+                         RGB_stars_id = RGB_stars_win_HT.mainView.id;
                    }
              
                    /* Optional ACDNR noise reduction for RGB. Used mostly to reduce black
@@ -19348,18 +19474,20 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                          runColorReduceNoise(ImageWindow.windowById(LRGB_processed_HT_id));
                    }
  
-                   if (stars_id != null && !par.skip_star_noise_reduction.val) {
-                         starReduceNoise(ImageWindow.windowById(stars_id));
+                   if (RGB_stars_id != null && !par.skip_star_noise_reduction.val) {
+                         starReduceNoise(ImageWindow.windowById(RGB_stars_id));
                    }
  
                    if (!process_narrowband && !par.use_RGBNB_Mapping.val  && !par.skip_SCNR.val && !par.comet_align.val) {
                          /* Remove green cast, run SCNR
                           */
                          runSCNR(ImageWindow.windowById(LRGB_processed_HT_id), false);
-                         if (stars_id != null) {
-                               runSCNR(ImageWindow.windowById(stars_id), false);
-                         }
                    }
+                   if (RGB_stars_id != null) {
+                        if ((!process_narrowband || par.RGB_stars.val) && !par.use_RGBNB_Mapping.val  && !par.skip_SCNR.val && !par.comet_align.val) {
+                              runSCNR(ImageWindow.windowById(RGB_stars_id), false);
+                        }
+                  }
            
                    /* Sharpen image, use mask to sharpen mostly the light parts of image.
                    */
@@ -19371,9 +19499,9 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                          runMultiscaleLinearTransformSharpen(
                                ImageWindow.windowById(LRGB_processed_HT_id),
                                mask_win);
-                         if (stars_id != null) {
+                         if (RGB_stars_id != null) {
                                runMultiscaleLinearTransformSharpen(
-                                     ImageWindow.windowById(stars_id),
+                                     ImageWindow.windowById(RGB_stars_id),
                                      null);
                          }
                    }
@@ -19382,8 +19510,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                         /* Color calibration on RGB
                          */
                         runColorCalibration(ImageWindow.windowById(LRGB_processed_HT_id), 'nonlinear');
-                        if (stars_id != null) {
-                              runColorCalibration(ImageWindow.windowById(stars_id), 'nonlinear');
+                        if (RGB_stars_id != null) {
+                              runColorCalibration(ImageWindow.windowById(RGB_stars_id), 'nonlinear');
                         }
                   } 
 
@@ -19412,10 +19540,10 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                         flowchartParentEnd("LRGB");
                    }
             }
-             if (stars_id != null) {
-                   console.writeln("Stars image is " + stars_id);
-                   setFinalImageKeyword(ImageWindow.windowById(stars_id));
-                   stars_id = util.windowRename(stars_id, LRGB_processed_HT_id + "_stars");
+             if (RGB_stars_id != null) {
+                   console.writeln("Stars image is " + RGB_stars_id);
+                   setFinalImageKeyword(ImageWindow.windowById(RGB_stars_id));
+                   RGB_stars_id = util.windowRename(RGB_stars_id, LRGB_processed_HT_id + "_stars");
        
                    starless_id = LRGB_processed_HT_id + "_starless";
                    console.writeln("Rename " + LRGB_processed_HT_id + " as " + starless_id);
@@ -19423,7 +19551,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    var new_image = combineStarsAndStarless(
                                      par.stars_combine.val,
                                      starless_id, 
-                                     stars_id);
+                                     RGB_stars_id);
                    // restore original final image name
                    console.writeln("Rename " + new_image + " as " + LRGB_processed_HT_id);
                    util.windowRename(new_image, LRGB_processed_HT_id);
@@ -19431,7 +19559,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        
                    setFinalImageKeyword(ImageWindow.windowById(starless_id));
        
-                   saveProcessedWindow(stars_id);
+                   saveProcessedWindow(RGB_stars_id);
                    saveProcessedWindow(starless_id);
 
                    guiUpdatePreviewId(LRGB_processed_HT_id);
@@ -19535,8 +19663,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        if (RGB_stars_win != null) {
              util.windowIconizeAndKeywordif(RGB_stars_win.mainView.id); /* Integration_RGB_stars (linear) */
        }
-       if (RGB_stars_HT_win != null) {
-             setFinalImageKeyword(ImageWindow.windowById(RGB_stars_HT_win.mainView.id));   /* Integration_RGB_stars (non-linear) */
+       if (RGB_stars_win_HT != null) {
+             setFinalImageKeyword(ImageWindow.windowById(RGB_stars_win_HT.mainView.id));   /* Integration_RGB_stars (non-linear) */
        }
 
        for (var i = 0; i < iconized_debug_image_ids.length; i++) {
@@ -19560,7 +19688,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        util.windowIconizeAndKeywordif(L_processed_id);
        util.windowIconizeAndKeywordif(RGB_processed_id);
  
-       closeAllWindowsFromArray(RGB_stars);
+       closeAllWindowsFromArray(RGB_stars_channel_ids);
  
        util.windowIconizeAndKeywordif(RGB_processed_HT_id);
        util.windowIconizeAndKeywordif(L_processed_HT_id);
@@ -19572,8 +19700,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        if (iconize_final_image) {
             util.windowIconizeif(LRGB_processed_HT_id, true);
        }
-       if (stars_id != null) {
-            util.windowIconizeif(stars_id, true);
+       if (RGB_stars_id != null) {
+            util.windowIconizeif(RGB_stars_id, true);
        }
        if (starless_id != null) {
             util.windowIconizeif(starless_id, true);
