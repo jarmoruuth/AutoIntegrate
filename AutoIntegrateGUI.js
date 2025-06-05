@@ -7376,12 +7376,13 @@ function AutoIntegrateDialog()
             "<p>Use gradient correction on L and RGB images after they have been stretched to non-linear mode.</p>" +
             "<p>Note that thiis option should not be used with GradientCorrection process.</p>" );
       var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from <i>Processing 1 / Star stretching settings</i> section.</p>"
-      this.RGB_stars_CheckBox = newCheckBox(this, "RGB stars", par.RGB_stars, "<p>Create separate stars image from RGB channels. " + 
-                                                                              "Stars are removed from the processed image and in the end starless and " + 
-                                                                              "stars images are combined.<p>" +
-                                                                              "<p>To use this option RGB channels must be available.</p>" +
-                                                                              "<p>If no option to remove stars is selected, stars are removed from " + 
-                                                                              "channel images.</p>");
+      this.RGB_stars_CheckBox = newCheckBox(this, "RGB stars", par.create_RGB_stars, 
+            "<p>Create separate stars image from RGB channels. " + 
+            "Stars are removed from the processed image and in the end starless and " + 
+            "stars images are combined.<p>" +
+            "<p>To use this option RGB channels must be available.</p>" +
+            "<p>If no option to remove stars is selected, stars are removed from " + 
+            "channel images.</p>");
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
@@ -10472,7 +10473,15 @@ function AutoIntegrateDialog()
             console.writeln("Save 8 bit TIFF");
             util.saveAllFinalImageWindows(8);
       };   
-      this.saveButtonsSizer = newHorizontalSizer(4, true, [ this.mosaicSaveXisfButton, this.mosaicSave16bitButton, this.mosaicSave8bitButton ]);
+      this.mosaicSaveJpgButton = new PushButton( this );
+      this.mosaicSaveJpgButton.text = "JPG";
+      this.mosaicSaveJpgButton.icon = this.scaledResource( ":/icons/save.png" );
+      this.mosaicSaveJpgButton.onClick = function()
+      {
+            console.writeln("Save JPG");
+            util.saveAllFinalImageWindows(1);
+      };   
+      this.saveButtonsSizer = newHorizontalSizer(4, true, [ this.mosaicSaveXisfButton, this.mosaicSave16bitButton, this.mosaicSave8bitButton, this.mosaicSaveJpgButton ]);
 
       this.saveFinalImageLabel = newLabel(this, "Autosave final image as");
       this.saveFinalImageTiffCheckBox = newCheckBox(this, "TIFF", par.save_final_image_tiff, 

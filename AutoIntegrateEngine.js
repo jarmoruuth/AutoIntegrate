@@ -222,6 +222,18 @@ var RGB_stars_win = null;           // linear combined RGB/narrowband/OSC stars
 var RGB_stars_win_HT = null;        // stretched/non-linear RGB stars win
 var RGB_stars_channel_ids = [];     // linear RGB channel star image ids
 
+// Local copies of parameter that may be changed during processing
+var local_RGB_stars = false;
+var local_narrowband_mapping = "";
+var local_L_mapping = "";
+var local_R_mapping = "";
+var local_G_mapping = "";
+var local_B_mapping = "";
+var local_image_stretching = "";
+var local_debayer_pattern = "";
+var local_RGBHa_prepare_method = "";
+var local_RGBHa_combine_method = "";
+
 var script_start_time;
 
 var L_GC_start_win;           // Gradient corrected and integrated start images for AutoContinue
@@ -878,11 +890,11 @@ function guiUpdatePreviewFilename(filename, run_autostf = false)
 function targetTypeSetup()
 {
       if (par.target_type.val == 'Galaxy') {
-            par.image_stretching.val = 'Masked Stretch';
-            console.writeln("Galaxy target using " + par.image_stretching.val);
+            local_image_stretching = 'Masked Stretch';
+            console.writeln("Galaxy target using " + local_image_stretching);
       } else if (par.target_type.val == 'Nebula') {
-            par.image_stretching.val = 'Auto STF';
-            console.writeln("Nebula target using " + par.image_stretching.val);
+            local_image_stretching = 'Auto STF';
+            console.writeln("Nebula target using " + local_image_stretching);
       }
 }
 
@@ -929,6 +941,7 @@ function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = fa
             if (util.findWindowStartsWith(arr[i])) {
                   util.closeOneWindowById(arr[i]+"_stars");
                   util.closeOneWindowById(arr[i]+"_for_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars_HT");
                   util.closeOneWindowById(arr[i]+"_starless");
                   util.closeOneWindowById(arr[i]+"_map");
                   util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
@@ -1131,7 +1144,7 @@ function checkOptions()
       if (intval > 1) {
             util.throwFatalError("Only one remove stars option can be selected.")
       }
-      if (par.remove_stars_light.val && par.RGB_stars.val) {
+      if (par.remove_stars_light.val && local_RGB_stars) {
             util.throwFatalError("Remove stars light and RGB stars cannot be used together.");
       }
       if (par.extra_combine_stars.val && !par.extra_remove_stars.val) {
@@ -2229,8 +2242,8 @@ function runCalibrateDarks(fileNames, masterbiasPath)
       var P = new ImageCalibration;
       P.targetFrames = fileNamesToEnabledPath(fileNames); // [ enabled, path ];
       P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
-      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
+      P.enableCFA = is_color_files && local_debayer_pattern != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(local_debayer_pattern)];
       P.masterBiasEnabled = true;
       P.masterBiasPath = matchMasterToImages(P.targetFrames, masterbiasPath);
       P.masterDarkEnabled = false;
@@ -2278,8 +2291,8 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
       var P = new ImageCalibration;
       P.targetFrames = images; // [ // enabled, path ];
       P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
-      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
+      P.enableCFA = is_color_files && local_debayer_pattern != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(local_debayer_pattern)];
       if (masterflatdarkPath != null) {
             console.writeln("runCalibrateFlats, master flat dark " + masterflatdarkPath);
             P.masterBiasEnabled = true;
@@ -2422,8 +2435,8 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       var P = new ImageCalibration;
       P.targetFrames = images; // [ enabled, path ];
-      P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
+      P.enableCFA = is_color_files && local_debayer_pattern != 'None';
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(local_debayer_pattern)];
       if (par.auto_output_pedestal.val) {
             console.writeln("runCalibrateLights, auto output pedestal");
             P.outputPedestalMode = ImageCalibration.prototype.OutputPedestal_Auto;
@@ -2937,7 +2950,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
       var P = new CosmeticCorrection;
       P.targetFrames = fileNamesToEnabledPath(fileNames);
       P.overwrite = true;
-      if (color_images && par.debayer_pattern.val != 'None') {
+      if (color_images && local_debayer_pattern != 'None') {
             P.cfa = true;
       } else {
             P.cfa = false;
@@ -4562,12 +4575,12 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                         case "TELESCOP":
                               console.writeln("TELESCOP=" +  value);
                               if (pageIndex == global.pages.LIGHTS
-                                  && par.debayer_pattern.val == 'Auto'
+                                  && local_debayer_pattern == 'Auto'
                                   && value.search(/slooh/i) != -1
                                   && value.search(/T3/) != -1) 
                               {
                                     console.writeln("Set debayer pattern from Auto to None");
-                                    par.debayer_pattern.val = 'None';
+                                    local_debayer_pattern = 'None';
                               }
                               current_telescope_name = value;
                               break;
@@ -4956,10 +4969,10 @@ function printMissingNarrowbandMappingError()
       } else {
             console.criticalln("There are narrowband files so narrowband mapping is used");
       }
-      console.criticalln("Selected narrowband mapping is: " + par.narrowband_mapping.val);
-      console.criticalln("- R: " + par.custom_R_mapping.val);
-      console.criticalln("- G: " + par.custom_G_mapping.val);
-      console.criticalln("- B: " + par.custom_B_mapping.val);
+      console.criticalln("Selected narrowband mapping is: " + local_narrowband_mapping);
+      console.criticalln("- R: " + local_R_mapping);
+      console.criticalln("- G: " + local_G_mapping);
+      console.criticalln("- B: " + local_B_mapping);
 }
 
 function ensureLightImages(ch, check_allfilesarr)
@@ -5115,16 +5128,16 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 {
       switch (targetChannel) {
             case 'R':
-                  var mapping = { mapping: par.custom_R_mapping.val, filters: "" };
+                  var mapping = { mapping: local_R_mapping, filters: "" };
                   break;
             case 'G':
-                  var mapping = { mapping: par.custom_G_mapping.val, filters: "" };
+                  var mapping = { mapping: local_G_mapping, filters: "" };
                   break;
             case 'B':
-                  var mapping = { mapping: par.custom_B_mapping.val, filters: "" };
+                  var mapping = { mapping: local_B_mapping, filters: "" };
                   break;
             case 'L':
-                  var mapping = { mapping: par.custom_L_mapping.val, filters: "" };
+                  var mapping = { mapping: local_L_mapping, filters: "" };
                   break;
             default:
                   console.writeln("ERROR: mapCustomAndReplaceImageNames " + targetChannel);
@@ -5436,12 +5449,12 @@ function processChannelImage(image_id, is_luminance)
                                        || par.remove_stars_light.val;
 
       if (par.remove_stars_channel.val ||
-          (par.RGB_stars.val && !is_some_remove_stars_option)) 
+          (local_RGB_stars && !is_some_remove_stars_option)) 
       {
             // Remove stars from channel images
             if (is_luminance) {
                   removeStars(util.findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
-            } else if (par.RGB_stars.val) {
+            } else if (local_RGB_stars) {
                   removeStars(util.findWindow(image_id), true, true, null, null, par.unscreen_stars.val);
             } else {
                   // For RGB channels we collect stars images into RGB_stars_channel_ids
@@ -6149,29 +6162,29 @@ function mapSPCCAutoNarrowband()
       }
       console.writeln("SPCC auto narrowband using " + spcc_params.white_reference + " white reference");
 
-      var values = getSPCCWavelengthBandWidth(par.custom_R_mapping.val, 'R');
+      var values = getSPCCWavelengthBandWidth(local_R_mapping, 'R');
       if (values) {
             spcc_params.wavelengths[0] = values[0];
             spcc_params.bandhwidths[0] = values[1];
-            console.writeln("SPCC auto narrowband for R mapping with filter " + par.custom_R_mapping.val + " use wavelength " + values[0] + " and bandwidth " + values[1]);
+            console.writeln("SPCC auto narrowband for R mapping with filter " + local_R_mapping + " use wavelength " + values[0] + " and bandwidth " + values[1]);
       } else {
-            console.writeln("SPCC auto narrowband for R mapping with filter " + par.custom_R_mapping.val + " use default wavelength " + spcc_params.wavelengths[0] + " and default bandwidth " + spcc_params.bandhwidths[0]);
+            console.writeln("SPCC auto narrowband for R mapping with filter " + local_R_mapping + " use default wavelength " + spcc_params.wavelengths[0] + " and default bandwidth " + spcc_params.bandhwidths[0]);
       }
-      var values = getSPCCWavelengthBandWidth(par.custom_G_mapping.val, 'G');
+      var values = getSPCCWavelengthBandWidth(local_G_mapping, 'G');
       if (values) {
             spcc_params.wavelengths[1] = values[0];
             spcc_params.bandhwidths[1] = values[1];
-            console.writeln("SPCC auto narrowband for G mapping with filter " + par.custom_G_mapping.val + " use wavelength " + values[0] + " and bandwidth " + values[1]);
+            console.writeln("SPCC auto narrowband for G mapping with filter " + local_G_mapping + " use wavelength " + values[0] + " and bandwidth " + values[1]);
       } else {
-            console.writeln("SPCC auto narrowband for G mapping with filter " + par.custom_G_mapping.val + " use default wavelength " + spcc_params.wavelengths[1] + " and default bandwidth " + spcc_params.bandhwidths[1]);
+            console.writeln("SPCC auto narrowband for G mapping with filter " + local_G_mapping + " use default wavelength " + spcc_params.wavelengths[1] + " and default bandwidth " + spcc_params.bandhwidths[1]);
       }
-      var values = getSPCCWavelengthBandWidth(par.custom_B_mapping.val, 'B');
+      var values = getSPCCWavelengthBandWidth(local_B_mapping, 'B');
       if (values) {
             spcc_params.wavelengths[2] = values[0];
             spcc_params.bandhwidths[2] = values[1];
-            console.writeln("SPCC auto narrowband for B mapping with filter " + par.custom_B_mapping.val + " use wavelength " + values[0] + " and bandwidth " + values[1]);
+            console.writeln("SPCC auto narrowband for B mapping with filter " + local_B_mapping + " use wavelength " + values[0] + " and bandwidth " + values[1]);
       } else {
-            console.writeln("SPCC auto narrowband for B mapping with filter " + par.custom_B_mapping.val + " use default wavelength " + spcc_params.wavelengths[2] + " and default bandwidth " + spcc_params.bandhwidths[2]);
+            console.writeln("SPCC auto narrowband for B mapping with filter " + local_B_mapping + " use default wavelength " + spcc_params.wavelengths[2] + " and default bandwidth " + spcc_params.bandhwidths[2]);
       }
 }
 
@@ -6353,7 +6366,7 @@ function customMapping(RGBmapping, filtered_lights)
       if (check_allfilesarr == null) {
             mapSPCCAutoNarrowband();
       }
-      if (par.narrowband_mapping.val == 'Auto') {
+      if (local_narrowband_mapping == 'Auto') {
             // Do auto mapping, we may get here without mapping
             // when using extract channels option.
             findAutoMappingForIntegratedImages(global.start_images.L_R_G_B);
@@ -6437,23 +6450,23 @@ function customMapping(RGBmapping, filtered_lights)
                    * If we stretch with MaskedStretch we use linear
                    * fit to balance channels better.
                    */
-                  if (par.image_stretching.val == 'Auto STF'
-                        || par.image_stretching.val == 'Histogram stretch')
+                  if (local_image_stretching == 'Auto STF'
+                        || local_image_stretching == 'Histogram stretch')
                   {
-                        console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", do not use linear fit.");
+                        console.writeln("Narrowband linear fit is Auto and stretching is " + local_image_stretching + ", do not use linear fit.");
                         narrowband_linear_fit = "None";
                   } else {
-                        console.writeln("Narrowband linear fit is Auto and stretching is " + par.image_stretching.val + ", use linear fit.");
+                        console.writeln("Narrowband linear fit is Auto and stretching is " + local_image_stretching + ", use linear fit.");
                   }
             }
 
-            // Narrowband mapping name is stored into par.narrowband_mapping.val
+            // Narrowband mapping name is stored into local_narrowband_mapping
             // Some predefined mapping work best with linear data, some with stretched data.
             // For example Dynamic Foraxx palettes should be used with stretched data
             // so we check if we should use stretched data for mapping.
 
-            if (useStretchedNarrowBandData(par.narrowband_mapping.val)) {
-                  console.writeln("Narrowband mapping using stretched data with palette " + par.narrowband_mapping.val);
+            if (useStretchedNarrowBandData(local_narrowband_mapping)) {
+                  console.writeln("Narrowband mapping using stretched data with palette " + local_narrowband_mapping);
                   var mapping_on_nonlinear_data = true;
             } else {
                   var mapping_on_nonlinear_data = par.mapping_on_nonlinear_data.val;
@@ -6555,8 +6568,8 @@ function customMapping(RGBmapping, filtered_lights)
                   "Filters used");
 
             if (par.remove_stars_stretched.val && RGBmapping.stretched) {
-                  let win = removeStars(RGB_win, false, !par.RGB_stars.val, null, null, par.unscreen_stars.val);
-                  if (win != null && !par.RGB_stars.val) {
+                  let win = removeStars(RGB_win, false, !local_RGB_stars, null, null, par.unscreen_stars.val);
+                  if (win != null && !local_RGB_stars) {
                         RGB_stars_win_HT = win;
                   }
                   if (!is_luminance_images) {
@@ -6574,13 +6587,13 @@ function customMapping(RGBmapping, filtered_lights)
             // then continue as normal RGB processing.
             // If we have multiple images in mapping we use linear fit to match
             // them before PixelMath.
-            flowchartParentBegin("RGB+Narroband");
+            flowchartParentBegin("RGB+Narrowband");
             util.addProcessingStep("RGB and narrowband mapping, create LRGB channel images and continue with RGB workflow");
-            if (par.custom_L_mapping.val == 'Auto' && L_id == null) {
+            if (local_L_mapping == 'Auto' && L_id == null) {
                   // Auto mapping with no L image, skip mapping
-                  par.custom_L_mapping.val = '';
+                  local_L_mapping = '';
             }
-            if (par.custom_L_mapping.val != '') {
+            if (local_L_mapping != '') {
                   luminance_id = mapRGBchannel(mapping_L_images, ppar.win_prefix + "Integration_L", luminance_mapping.mapping, true, 'L');
                   guiUpdatePreviewId(luminance_id);
                   is_luminance_images = true;
@@ -6590,7 +6603,7 @@ function customMapping(RGBmapping, filtered_lights)
             green_id = mapRGBchannel(mapping_G_images, ppar.win_prefix + "Integration_G", green_mapping.mapping, false, 'G');
             blue_id = mapRGBchannel(mapping_B_images, ppar.win_prefix + "Integration_B", blue_mapping.mapping, false, 'B');
 
-            flowchartParentEnd("RGB+Narroband");
+            flowchartParentEnd("RGB+Narrowband");
       }
 
       return RGBmapping;
@@ -6654,11 +6667,11 @@ function RGBcopyToMapIf(ch, id)
 // narrowband mappings
 function hasLRGBchannelsInNarrowbandMapping()
 {
-      // Find one of LRGB chars from par.custom_R_mapping.val
+      // Find one of LRGB chars from local_R_mapping
       for (var ch of ['L', 'R', 'G', 'B']) {
-            if (par.custom_R_mapping.val.indexOf(ch) != -1
-                || par.custom_G_mapping.val.indexOf(ch) != -1
-                ||  par.custom_B_mapping.val.indexOf(ch) != -1) 
+            if (local_R_mapping.indexOf(ch) != -1
+                || local_G_mapping.indexOf(ch) != -1
+                ||  local_B_mapping.indexOf(ch) != -1) 
             {
                   return true;
             }
@@ -7175,7 +7188,7 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
                   util.throwError("Unknown drizzle function " + par.drizzle_function.val);
                   break;
       }
-      // P.enableCFA = is_color_files && par.debayer_pattern.val != 'None';
+      // P.enableCFA = is_color_files && local_debayer_pattern != 'None';
 
       console.writeln("runDrizzleIntegration, P.scale " + P.scale + ", P.dropShrink " + P.dropShrink + ", P.useLUT " + P.useLUT + ", P.kernelFunction " + par.drizzle_function.val, ", P.enableLocalNormalization " + P.enableLocalNormalization);
 
@@ -9731,7 +9744,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       if (type == 'stars') {
             var image_stretching = par.stars_stretching.val;
       } else {
-            var image_stretching = par.image_stretching.val;
+            var image_stretching = local_image_stretching;
       }
       if (image_stretching == 'None') {
             if (type == 'mask') {
@@ -12355,7 +12368,7 @@ function debayerImages(fileNames)
       }
 
       var P = new Debayer;
-      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(par.debayer_pattern.val)];
+      P.cfaPattern = global.debayerPattern_enums[global.debayerPattern_values.indexOf(local_debayer_pattern)];
       P.targetItems = fileNamesToEnabledPath(fileNames);
       P.outputDirectory = global.outputRootDir + global.AutoOutputDir;
       P.overwriteExistingFiles = true;
@@ -12815,17 +12828,24 @@ function doAutoMapping(channel_list)
                   console.writeln("doAutoMapping: Found auto mapping for " + channel_list.join(", ") + " -> " + global.narrowbandAutoMapping[i].output);
                   // Set the output channels
                   var palette = findNarrowBandPalette(global.narrowbandAutoMapping[i].output);
-                  par.narrowband_mapping.val = palette.name;
-                  par.custom_R_mapping.val = palette.R;
-                  par.custom_G_mapping.val = palette.G;
-                  par.custom_B_mapping.val = palette.B;
+                  local_narrowband_mapping = palette.name;
+                  local_R_mapping = palette.R;
+                  local_G_mapping = palette.G;
+                  local_B_mapping = palette.B;
                   // If we have L in channel_list, do L mapping too
                   if (channel_list.indexOf("L") >= 0) {
                         // Set the L mapping
-                        par.custom_L_mapping.val = "L";
+                        local_L_mapping = "L";
                   } else {
                         // No L in channel_list, set L mapping to empty
-                        par.custom_L_mapping.val = "";
+                        local_L_mapping = "";
+                  }
+                  if (global.narrowbandAutoMapping[i].rgb_stars) {
+                        // Set the RGB stars flag
+                        local_RGB_stars = true;
+                  } else {
+                        // No RGB stars, set the flag to false
+                        local_RGB_stars = false;
                   }
                   return;
             }
@@ -13036,10 +13056,10 @@ function CreateChannelImages(parent, auto_continue)
                   mask_win_id = ppar.win_prefix + "AutoMask";
                   range_mask_win = util.findWindow(mask_win_id);
             }
-            if (process_narrowband && par.narrowband_mapping.val == 'Auto') {
+            if (process_narrowband && local_narrowband_mapping == 'Auto') {
                   findAutoMappingForIntegratedImages(preprocessed_images);
             }
-            if (par.RGB_stars.val) {
+            if (local_RGB_stars) {
                   if (R_id == null || G_id == null || B_id == null) {
                         util.throwFatalError("RGB stars option is selected but no R, G, B images found.");
                   }
@@ -13117,7 +13137,7 @@ function CreateChannelImages(parent, auto_continue)
                         // We exit with fatal error if some files are missing
                         // If we have Auto mapping, find filters available and
                         // try to find a mapping for them
-                        if (par.narrowband_mapping.val == 'Auto') {
+                        if (local_narrowband_mapping == 'Auto') {
                               findAutoMappingForLights(filtered_lights);
                         }
                         // Check files with the current mapping
@@ -13127,7 +13147,7 @@ function CreateChannelImages(parent, auto_continue)
                   }
             }
 
-            if (par.RGB_stars.val) {
+            if (local_RGB_stars) {
                   if (!isAllRGBImages(filtered_lights)) {
                         util.throwFatalError("RGB stars option is selected but not all RGB channels found.");
                   }
@@ -13274,7 +13294,7 @@ function CreateChannelImages(parent, auto_continue)
              * Debayer OSC/RAW images
              * Output is *_d.xisf files.
              ********************************************************************/
-            if (is_color_files && par.debayer_pattern.val != 'None' && !skip_early_steps) {
+            if (is_color_files && local_debayer_pattern != 'None' && !skip_early_steps) {
                   /* After cosmetic correction we need to debayer
                    * OSC/RAW images
                    */
@@ -14761,7 +14781,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
       RGBHa_H_enhanced_info.starless = false;
       RGBHa_H_enhanced_info.mapping_done = false;
 
-      util.addProcessingStepAndStatusInfo("Run Ha mapping init using " + par.RGBHa_prepare_method.val);
+      util.addProcessingStepAndStatusInfo("Run Ha mapping init using " + local_RGBHa_prepare_method);
 
       if (par.RGBHa_combine_time.val == 'SPCC linear') {
             if (!rgb_is_linear) {
@@ -14781,9 +14801,9 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
       console.writeln("RGBHa_init, prepare Ha");
       var nb_channel_id = RGBHaPrepareHa(rgb_is_linear, testmode);
 
-      console.writeln("RGBHa_init, " + par.RGBHa_prepare_method.val);
+      console.writeln("RGBHa_init, " + local_RGBHa_prepare_method);
 
-      switch (par.RGBHa_prepare_method.val) {
+      switch (local_RGBHa_prepare_method) {
             case 'Continuum Subtract':
                   if (RGB_win.mainView.image.isColor) {
                         console.writeln("RGBHa_init, extract R channel from " + RGB_id);
@@ -14871,16 +14891,16 @@ function RGBHa_mapping(RGB_id)
             util.throwFatalError("RGBHa_mapping, Ha image is not linear but RGBHa_combine_time is SPCC linear");
       }
 
-      util.addProcessingStepAndStatusInfo("Run Ha mapping " + par.RGBHa_combine_method.val + " on R using " + nb_channel_id);
+      util.addProcessingStepAndStatusInfo("Run Ha mapping " + local_RGBHa_combine_method + " on R using " + nb_channel_id);
       
       flowchartParentBegin("RGBHa mapping");
       flowchartChildBegin("RGBHa combine");
 
-      console.writeln("RGBHa_mapping, " + par.RGBHa_combine_method.val);
+      console.writeln("RGBHa_mapping, " + local_RGBHa_combine_method);
 
       util.add_test_image(RGB_id, "rgb_channel_id_before_mapping", testmode);
 
-      switch (par.RGBHa_combine_method.val) {
+      switch (local_RGBHa_combine_method) {
             case 'Add':
                   console.writeln("RGBHa_mapping, runPixelMathRGBMapping");
                   runPixelMathRGBMapping(
@@ -14931,7 +14951,7 @@ function RGBHa_mapping(RGB_id)
                   break;
 
             default:
-                  util.throwFatalError("Invalid RGBHa method " + par.RGBHa_combine_method.val + " for RGBHa mapping");
+                  util.throwFatalError("Invalid RGBHa method " + local_RGBHa_combine_method + " for RGBHa mapping");
       }
 
       if (par.RGBHa_combine_time.val == 'SPCC linear') {
@@ -15098,15 +15118,15 @@ function testRGBHaMapping()
       if (par.RGBHa_test_value.val == 'All mappings') {
             console.beginLog();
             for (var i = 0; i < gui.RGBHa_prepare_method_values.length; i++) {
-                  par.RGBHa_prepare_method.val = gui.RGBHa_prepare_method_values[i];
+                  local_RGBHa_prepare_method = gui.RGBHa_prepare_method_values[i];
                   for (var j = 0; j < gui.RGBHa_combine_method_values.length; j++) {
-                        par.RGBHa_combine_method.val = gui.RGBHa_combine_method_values[j];
-                        console.noteln("Testing RGBHa mapping with prepare method " + par.RGBHa_prepare_method.val + " and combine method " + par.RGBHa_combine_method.val);
+                        local_RGBHa_combine_method = gui.RGBHa_combine_method_values[j];
+                        console.noteln("Testing RGBHa mapping with prepare method " + local_RGBHa_prepare_method + " and combine method " + local_RGBHa_combine_method);
                         // Run test
                         testRGBHaMapping1(false);
                         // Rename final result based on methods
                         var test_win = util.findWindow(ppar.win_prefix + "RGBHa_RGB_mapped");
-                        test_win.mainView.id = ppar.win_prefix + "RGBHa_RGB_mapped_" + util.mapBadWindowNameChars(par.RGBHa_prepare_method.val) + "_" + util.mapBadWindowNameChars(par.RGBHa_combine_method.val);
+                        test_win.mainView.id = ppar.win_prefix + "RGBHa_RGB_mapped_" + util.mapBadWindowNameChars(local_RGBHa_prepare_method) + "_" + util.mapBadWindowNameChars(local_RGBHa_combine_method);
                         checkCancel();
                   }
             }
@@ -15156,7 +15176,7 @@ function createRGBstars()
       }
 
       console.writeln("RGB stars, linear fit");
-      linearFitArray(channel_wins[0].mainView.id, [ channel_wins[1].mainView.id, channel_wins[2].mainView.id ]);
+      linearFitArray(channel_wins[0].mainView.id, [ channel_wins[1].mainView.id, channel_wins[2].mainView.id ], true);
 
       // Combine RGB image
       console.writeln("RGB stars, combine RGB image from channel images");
@@ -15182,6 +15202,10 @@ function createRGBstars()
       console.writeln("RGB stars, run noise reduction on RGB stars image " + win.mainView.id);
       runNoiseReduction(win, null, true);
 
+      // Save a copy of the RGB image before streching
+      let win2 = util.forceCopyWindow(win, util.ensure_win_prefix("Integration_RGB_for_stars"));
+      iconized_image_ids.push(win2.mainView.id);
+
       // Run HistogramTransform to stretch image to non-linear
       console.writeln("RGB stars, stretching on RGB stars image " + win.mainView.id);
       runHistogramTransform(win, null, true, 'stars');
@@ -15190,7 +15214,7 @@ function createRGBstars()
       runSCNR(win, true);
 
       // Save a copy of the RGB image before we remove stars
-      let win2 = util.forceCopyWindow(win, util.ensure_win_prefix("Integration_RGB_for_stars"));
+      let win2 = util.forceCopyWindow(win, util.ensure_win_prefix("Integration_RGB_for_stars_HT"));
       iconized_image_ids.push(win2.mainView.id);
 
       // Remove stars and get the stars image
@@ -15339,14 +15363,14 @@ function ProcessRGBimage(RGBmapping)
                         RGBHa_init(RGB_processed_id, true, false);
                   }
 
-                  if (par.RGB_stars.val) {
+                  if (local_RGB_stars) {
                         // Create a separate stars image from RGB channels
                         RGB_stars_win_HT = createRGBstars();
                   }
 
                   if (par.remove_stars_before_stretch.val) {
-                        let win = removeStars(util.findWindow(RGB_processed_id), true, !par.RGB_stars.val, null, null, par.unscreen_stars.val);
-                        if (win != null && !par.RGB_stars.val) {
+                        let win = removeStars(util.findWindow(RGB_processed_id), true, !local_RGB_stars, null, null, par.unscreen_stars.val);
+                        if (win != null && !local_RGB_stars) {
                               RGB_stars_win = win;
                               util.windowRename(RGB_stars_win.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
                         }
@@ -16170,7 +16194,7 @@ function extraContrast(imgWin)
 
 function extraStretch(win)
 {
-      addExtraProcessingStep("Stretch image using " + par.image_stretching.val);
+      addExtraProcessingStep("Stretch image using " + local_image_stretching);
 
       win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
       return win;
@@ -17346,10 +17370,10 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
                   } else {
                         var txt = "Narrowband palette " + global.narrowBandPalettes[i].name + " batch run";
                   }
-                  par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
-                  par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
-                  par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
-                  util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
+                  local_R_mapping = global.narrowBandPalettes[i].R;
+                  local_G_mapping = global.narrowBandPalettes[i].G;
+                  local_B_mapping = global.narrowBandPalettes[i].B;
+                  util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + local_R_mapping + ", " + local_G_mapping + ", " + local_B_mapping);
 
                   flowchartReset();
 
@@ -19004,6 +19028,8 @@ function createCropInformationAutoContinue()
  */
  function extraProcessingEngine(parent, extra_target_image, extra_narrowband)
  {
+       get_local_copies_of_parameters();
+
        engineInit();
        engine.flowchartReset();
 
@@ -19108,6 +19134,20 @@ function save_images_in_save_id_list()
        save_id_list = [];
 }
 
+function get_local_copies_of_parameters()
+{
+      local_RGB_stars = par.create_RGB_stars.val;
+      local_narrowband_mapping = par.narrowband_mapping.val;
+      local_L_mapping = par.custom_L_mapping.val;
+      local_R_mapping = par.custom_R_mapping.val;
+      local_G_mapping = par.custom_G_mapping.val;
+      local_B_mapping = par.custom_B_mapping.val;
+      local_image_stretching = par.image_stretching.val;
+      local_debayer_pattern = par.debayer_pattern.val;
+      local_RGBHa_prepare_method = par.RGBHa_prepare_method.val;
+      local_RGBHa_combine_method = par.RGBHa_combine_method.val;
+}
+
 /***************************************************************************
  * 
  *    autointegrateProcessingEngine
@@ -19153,6 +19193,8 @@ function save_images_in_save_id_list()
  */
 function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, txt)
 {
+       get_local_copies_of_parameters();
+
        if (!check_engine_processing()) {
             return null;
        }
@@ -19484,7 +19526,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                          runSCNR(ImageWindow.windowById(LRGB_processed_HT_id), false);
                    }
                    if (RGB_stars_id != null) {
-                        if ((!process_narrowband || par.RGB_stars.val) && !par.use_RGBNB_Mapping.val  && !par.skip_SCNR.val && !par.comet_align.val) {
+                        if ((!process_narrowband || local_RGB_stars) && !par.use_RGBNB_Mapping.val  && !par.skip_SCNR.val && !par.comet_align.val) {
                               runSCNR(ImageWindow.windowById(RGB_stars_id), false);
                         }
                   }

@@ -238,7 +238,7 @@ this.par = {
       remove_stars_light: { val: false, def: false, name : "Remove stars light", type : 'B' },
       remove_stars_channel: { val: false, def: false, name : "Remove stars channel", type : 'B' },
       remove_stars_stretched: { val: false, def: false, name : "Remove stars stretched", type : 'B' },
-      RGB_stars: { val: false, def: false, name : "RGB stars", type : 'B' },
+      create_RGB_stars: { val: false, def: false, name : "RGB stars", type : 'B' },
       use_narrowband_multiple_mappings: { val: false, def: false, name : "Use narrowband multiple mappings", type : 'B' },
       narrowband_multiple_mappings_list: { val: "", def: "", name : "Narrowband multiple mappings list", type : 'S' },
 
@@ -885,12 +885,14 @@ this.narrowBandPalettes = [
 // If narrowBandPalettes is Auto, we use these mappings to create
 // the image.
 this.narrowbandAutoMapping = [
-      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true },
-      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true },
-      { input: ['L','R','G','B','H','O'], output: "max(RGB,HOO)", check_ha_mapping: false },
-      { input: ['R','G','B','H','O'], output: "max(RGB,HOO)", check_ha_mapping: false },
-      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false },
-      { input: ['H','O'], output: "HOO", check_ha_mapping: false }
+      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true }
 ];
 
 this.getDirectoryInfo = function(simple_text) {

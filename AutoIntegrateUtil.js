@@ -1118,8 +1118,14 @@ function saveFinalImageWindow(win, dir, name, bits)
       var save_name;
       var save_win = win;
 
-      // 8 and 16 bite are TIFF, 32 is XISF
-      if (bits != 32) {
+      // Bits 1 mean JPG
+      if (bits == 1) {
+            saveWindowAsJpg(win, util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".jpg", par.save_final_image_jpg_quality.val);
+            return;
+      }
+
+      if (bits == 8 || bits == 16) {
+            // 8 and 16 bite are TIFF, 32 is XISF
             copy_win = util.copyWindow(win, util.ensure_win_prefix(name + "_savetmp"));
             if (bits == 16) {
                   var new_postfix = "";
@@ -1139,8 +1145,11 @@ function saveFinalImageWindow(win, dir, name, bits)
                   copy_win.setSampleFormat(bits, false);
             }
             save_win = copy_win;
-      } else {
+      } else if (bits == 32) {
+            // 32 bits is XISF
             save_name = util.ensurePathEndSlash(dir) + name + util.getOptionalUniqueFilenamePart() + ".xisf";
+      } else  {
+            util.throwFatalError("Unsupported bits per sample: " + bits);
       }
       console.writeln("saveFinalImageWindow:save name " + name);
       // Save image. No format options, no warning messages, 
