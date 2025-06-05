@@ -5422,6 +5422,17 @@ function findLinearFitHSOMapRefimage(images, suggestion)
       return(images[0]);
 }
 
+function remove_stars_for_RGB_stars()
+{
+      let is_some_remove_stars_option = par.remove_stars_channel.val
+                                        || par.remove_stars_before_stretch.val
+                                        || par.remove_stars_stretched.val
+                                        || par.remove_stars_light.val;
+
+      
+      return local_RGB_stars && !is_some_remove_stars_option;
+}
+
 /* Process channel image for channel specific steps.
  * This is called from:
  *    mapLRGBchannels for normal LRGB images
@@ -5443,19 +5454,10 @@ function processChannelImage(image_id, is_luminance)
             runGradientCorrectionBeforeChannelCombination(image_id);
       }
 
-      let is_some_remove_stars_option = par.remove_stars_channel.val
-                                       || par.remove_stars_before_stretch.val
-                                       || par.remove_stars_stretched.val
-                                       || par.remove_stars_light.val;
-
-      if (par.remove_stars_channel.val ||
-          (local_RGB_stars && !is_some_remove_stars_option)) 
-      {
+      if (par.remove_stars_channel.val) {
             // Remove stars from channel images
             if (is_luminance) {
                   removeStars(util.findWindow(image_id), true, false, null, null, par.unscreen_stars.val);
-            } else if (local_RGB_stars) {
-                  removeStars(util.findWindow(image_id), true, true, null, null, par.unscreen_stars.val);
             } else {
                   // For RGB channels we collect stars images into RGB_stars_channel_ids
                   removeStars(util.findWindow(image_id), true, true, RGB_stars_channel_ids, null, par.unscreen_stars.val);
@@ -6254,7 +6256,7 @@ function createStarlessChannelImages(images, basenames = null)
             image_win = util.copyWindow(image_win, copy_id);
             
             // Stretch image
-            image_win = runHistogramTransform(image_win, null, false, 'channel').win;
+            image_win = runHistogramTransform(image_win, false, 'channel');
 
             // Remove stars
             removeStars(image_win, false, false, null, null, false, false);
@@ -6520,7 +6522,7 @@ function customMapping(RGBmapping, filtered_lights)
                                     runGraXpertDeconvolution(ImageWindow.windowById(images[i]));
                               }
                         }
-                        runHistogramTransform(util.findWindow(images[i]), null, false, findChannelFromName(images[i]));
+                        runHistogramTransform(util.findWindow(images[i]), false, findChannelFromName(images[i]));
                         flowchartChildEnd(findChannelFromName(images[i]));
                   }
                   flowchartParentEnd("Stretch channels");
@@ -8642,24 +8644,22 @@ function getRgbLinked(win, iscolor)
       }
 }
 
-function runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackground, silent, rgbLinked)
+function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked)
 {
       if (!silent) {
             util.addProcessingStep("Run histogram transform on " + GC_win.mainView.id + " based on autostretch, targetBackground " + targetBackground);
       }
 
-      if (stf_to_use == null) {
-            /* Apply autostretch on image */
-            if (rgbLinked == null) {
-                  rgbLinked = getRgbLinked(GC_win, iscolor);
-            }
-            ApplyAutoSTF(GC_win.mainView,
-                        DEFAULT_AUTOSTRETCH_SCLIP,
-                        targetBackground,
-                        rgbLinked,
-                        silent);
-            stf_to_use = GC_win.mainView.stf;
+      /* Apply autostretch on image */
+      if (rgbLinked == null) {
+            rgbLinked = getRgbLinked(GC_win, iscolor);
       }
+      ApplyAutoSTF(GC_win.mainView,
+                  DEFAULT_AUTOSTRETCH_SCLIP,
+                  targetBackground,
+                  rgbLinked,
+                  silent);
+      var stf_to_use = GC_win.mainView.stf;
 
       /* Run histogram transfer function based on autostretch */
       applySTF(GC_win.mainView, stf_to_use, iscolor);
@@ -8680,18 +8680,16 @@ function runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackgroun
       GC_win.mainView.endProcess();
 
       engine_end_process(null);
-
-      return stf_to_use;
 }
 
 function autoStretch(imgWin, silent = true)
 {
-      engine.runHistogramTransformSTFex(imgWin, null, imgWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, silent, null);
+      runAutoSTFex(imgWin, imgWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, silent, null);
 }
 
-function runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground)
+function runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground)
 {
-      return engine.runHistogramTransformSTFex(GC_win, stf_to_use, iscolor, targetBackground, false, null);
+      return runAutoSTFex(GC_win, iscolor, targetBackground, false, null);
 }
 
 function histogramPrestretch(GC_win, target_val)
@@ -9716,7 +9714,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
       return window_updated;
 }
 
-function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
+function runHistogramTransform(GC_win, iscolor, type)
 {
       // Check for valid type values
       switch (type) {
@@ -9750,7 +9748,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             if (type == 'mask') {
                   image_stretching = 'Auto STF';
             } else {
-                  return { win: GC_win, stf: null };
+                  return GC_win;
             }
       }
       if (run_adjust_shadows && (par.stretch_adjust_shadows.val == "before" || par.stretch_adjust_shadows.val == "both")) {
@@ -9775,7 +9773,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       }
       var node = flowchartOperation(image_stretching + flowchart_name);
       if (global.get_flowchart_data) {
-            return { win: GC_win, stf: null };
+            return GC_win;
       }
 
       var stf = null;
@@ -9803,7 +9801,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
             } else {
                   targetBackground = par.STF_targetBackground.val;
             }
-            stf = runHistogramTransformSTF(GC_win, stf_to_use, iscolor, targetBackground);
+            runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground);
 
       } else if (image_stretching == 'Masked Stretch') {
             GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, false);
@@ -9853,7 +9851,7 @@ function runHistogramTransform(GC_win, stf_to_use, iscolor, type)
       }
 
       guiUpdatePreviewWin(GC_win);
-      return { win: GC_win, stf: stf };
+      return GC_win;
 }
 
 function runACDNRReduceNoise(imgWin, maskWin)
@@ -13600,7 +13598,7 @@ function CreateNewTempMaskFromLinearWin(imgWin, is_color)
       var winCopy = util.copyWindowEx(imgWin, imgWin.mainView.id + "_tmp", true);
 
       /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
-      winCopy = runHistogramTransform(winCopy, null, is_color, 'mask').win;
+      winCopy = runHistogramTransform(winCopy, is_color, 'mask');
 
       /* Create mask.
        */
@@ -13638,7 +13636,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
                   util.addProcessingStep("Using image " + L_id_for_mask + " for a mask");
                   L_win = util.copyWindowEx(ImageWindow.windowById(L_id_for_mask), ppar.win_prefix + "L_win_mask", true);
                   if (!stretched) {
-                        L_win = runHistogramTransform(L_win, null, false, 'mask').win;
+                        L_win = runHistogramTransform(L_win, false, 'mask');
                   }
             } else if (preprocessed_images == global.start_images.L_RGB_HT) {
                   /* We have run HistogramTransformation. */
@@ -13661,7 +13659,7 @@ function LRGBEnsureMaskEx(L_id_for_mask, stretched)
                   L_win = util.copyWindowEx(L_win, ppar.win_prefix + "L_win_mask", true);
 
                   /* Run HistogramTransform based on auto stretch because mask should be non-linear. */
-                  L_win = runHistogramTransform(L_win, null, false, 'mask').win;
+                  L_win = runHistogramTransform(L_win, false, 'mask');
             }
             /* Create mask.
              */
@@ -13701,7 +13699,7 @@ function ColorEnsureMask(color_img_id, RGBstretched, force_new_mask)
 
             if (!RGBstretched) {
                   /* Run HistogramTransform based on autostretch because mask should be non-linear. */
-                  color_win_copy = runHistogramTransform(color_win_copy, null, true, 'mask').win;
+                  color_win_copy = runHistogramTransform(color_win_copy, true, 'mask');
             }
 
             /* Create mask.
@@ -13841,7 +13839,7 @@ function ProcessLimage(RGBmapping)
                   if (checkNoiseReduction('L', 'processed')) {
                         luminanceNoiseReduction(ImageWindow.windowById(L_processed_id), mask_win);
                   }
-                  if (par.remove_stars_before_stretch.val) {
+                  if (par.remove_stars_before_stretch.val || remove_stars_for_RGB_stars()) {
                         removeStars(
                               ImageWindow.windowById(L_processed_id), 
                               true,
@@ -13864,7 +13862,6 @@ function ProcessLimage(RGBmapping)
                   }
                   runHistogramTransform(
                               util.copyWindow(ImageWindow.windowById(L_processed_id), L_processed_HT_id), 
-                              null,
                               false,
                               'L');
                   if (par.remove_stars_stretched.val) {
@@ -14415,7 +14412,7 @@ function RGBHaPrepareHa(rgb_is_linear, testmode)
        */
       if (!rgb_is_linear) {
             console.writeln("RGBHaPrepareHa, runHistogramTransform on " + nb_channel_id);
-            var win = runHistogramTransform(util.findWindow(nb_channel_id), null, false, 'RGB').win;
+            var win = runHistogramTransform(util.findWindow(nb_channel_id), false, 'RGB');
             nb_channel_id = win.mainView.id;
             util.add_test_image(nb_channel_id, "nb_channel_id_stretched", testmode);
       }     
@@ -14597,7 +14594,7 @@ function boost_Ha(imgWin, boost_factor)
 
 function HRR_stretch(imgWin, targetBackground)
 {
-      engine.runHistogramTransformSTFex(imgWin, null, false, targetBackground, false, true);
+      runAutoSTFex(imgWin, false, targetBackground, false, true);
 }
 
 // Continuum Subtract for linear images
@@ -14837,7 +14834,7 @@ function RGBHa_init(RGB_id, rgb_is_linear, testmode)
                   var enhanced_channel_id = nb_channel_id;
                   var enhanced_channel_win = util.findWindow(enhanced_channel_id);
                   if (rgb_is_linear && par.RGBHa_combine_time.val != 'SPCC linear') {
-                        enhanced_channel_win = runHistogramTransform(enhanced_channel_win, null, false, 'H').win;
+                        enhanced_channel_win = runHistogramTransform(enhanced_channel_win, false, 'H');
                         enhanced_channel_id = enhanced_channel_win.mainView.id;
                   }
                   break;
@@ -15081,13 +15078,13 @@ function testRGBHaMapping1(savelog)
 
             var color_win_HT = util.copyWindow(color_win, ppar.win_prefix + "RGBHa_RGB_original_HT");
             console.writeln("testRGBHaMapping, stretch image " + color_win_HT.mainView.id);
-            color_win_HT = runHistogramTransform(color_win_HT, null, false, 'RGB').win;
+            color_win_HT = runHistogramTransform(color_win_HT, false, 'RGB');
 
             var test_win = util.copyWindow(color_win, ppar.win_prefix + "RGBHa_RGB_mapped");
 
             RGBHa_init(test_win.mainView.id, true, true);
 
-            test_win = runHistogramTransform(test_win, null, false, 'RGB').win;
+            test_win = runHistogramTransform(test_win, false, 'RGB');
             
             RGBHa_mapping(test_win.mainView.id);
 
@@ -15173,6 +15170,7 @@ function createRGBstars()
             if (channel_wins[i] == null) {
                   util.throwFatalError("Could not find channel image " + [R_id, G_id, B_id][i] + " for RGB stars creation.");
             }
+            CropImageIf(channel_wins[i].mainView.id, false);
       }
 
       console.writeln("RGB stars, linear fit");
@@ -15208,7 +15206,7 @@ function createRGBstars()
 
       // Run HistogramTransform to stretch image to non-linear
       console.writeln("RGB stars, stretching on RGB stars image " + win.mainView.id);
-      runHistogramTransform(win, null, true, 'stars');
+      runHistogramTransform(win, true, 'stars');
 
       console.writeln("RGB stars, run SCNR on RGB stars image " + win.mainView.id);
       runSCNR(win, true);
@@ -15368,7 +15366,7 @@ function ProcessRGBimage(RGBmapping)
                         RGB_stars_win_HT = createRGBstars();
                   }
 
-                  if (par.remove_stars_before_stretch.val) {
+                  if (par.remove_stars_before_stretch.val || remove_stars_for_RGB_stars()) {
                         let win = removeStars(util.findWindow(RGB_processed_id), true, !local_RGB_stars, null, null, par.unscreen_stars.val);
                         if (win != null && !local_RGB_stars) {
                               RGB_stars_win = win;
@@ -15390,11 +15388,10 @@ function ProcessRGBimage(RGBmapping)
                   /* On RGB image run HistogramTransform to stretch image to non-linear
                   */
                   RGB_processed_HT_id = util.ensure_win_prefix(util.replacePostfixOrAppend(RGB_processed_id, ["_processed"], "_HT"));
-                  var stf = runHistogramTransform(
+                  runHistogramTransform(
                               util.copyWindow(
                                     ImageWindow.windowById(RGB_processed_id), 
                                     RGB_processed_HT_id), 
-                              null,
                               true,
                               'RGB');
                   RGBmapping.stretched = true;
@@ -15427,7 +15424,6 @@ function ProcessRGBimage(RGBmapping)
             let stars_id = util.ensure_win_prefix(RGB_processed_HT_id + "_stars");
             runHistogramTransform(
                   util.copyWindow(RGB_stars_win, stars_id), 
-                  stf,
                   true,
                   'stars');
             RGB_stars_win_HT = util.findWindow(stars_id);
@@ -16196,7 +16192,7 @@ function extraStretch(win)
 {
       addExtraProcessingStep("Stretch image using " + local_image_stretching);
 
-      win = runHistogramTransform(win, null, win.mainView.image.isColor, 'RGB').win;
+      win = runHistogramTransform(win, win.mainView.image.isColor, 'RGB');
       return win;
 }
 
@@ -16205,7 +16201,7 @@ function extraAutoSTF(win)
 {
       addExtraProcessingStep("AutoSTF on image");
 
-      engine.runHistogramTransformSTFex(win, null, win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, true);
+      runAutoSTFex(win, win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, true);
 
       return win;
 }
@@ -18505,7 +18501,7 @@ function CreateCrop(left,top,right,bottom)
 
 
 // Crop an image if it exists
-function CropImageIf(id)
+function CropImageIf(id, show_in_flowchart = true)
 {
       if (par.debug.val) console.writeln("CropImageIf ", id);
       var window = util.findWindow(id);
@@ -18520,7 +18516,11 @@ function CropImageIf(id)
             console.writeln("Image ", window.mainView.id, " already cropped, skipping crop");
             return true;
       }
-      var node = flowchartOperation("Crop");
+      if (show_in_flowchart) {
+            var node = flowchartOperation("Crop");
+      } else {
+            var node = null;
+      }
       if (global.get_flowchart_data) {
             util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
             return true;
@@ -20033,7 +20033,6 @@ this.getFilterValues = getFilterValues;
 this.getMetricsFilteredOut = getMetricsFilteredOut;
 this.measurementTextForFilename = measurementTextForFilename;
 
-this.runHistogramTransformSTFex = runHistogramTransformSTFex;
 this.autoStretch = autoStretch;
 this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
 this.imageIsLinear = imageIsLinear;

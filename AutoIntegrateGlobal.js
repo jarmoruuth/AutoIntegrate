@@ -42,14 +42,15 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.76 test4";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.76 test5";         // Version, also updated into updates.xri
 this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Exclusion areas can now be defined in the GUI for DBE.",
       "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
-      "- Astrobin compatible .csv file is generated after a full processing."
+      "- Astrobin compatible .csv file is generated after a full processing.",
+      "- Optionally create RGB stars when RGB channels are present."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

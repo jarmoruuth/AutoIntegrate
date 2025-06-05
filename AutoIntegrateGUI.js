@@ -7380,9 +7380,8 @@ function AutoIntegrateDialog()
             "<p>Create separate stars image from RGB channels. " + 
             "Stars are removed from the processed image and in the end starless and " + 
             "stars images are combined.<p>" +
-            "<p>To use this option RGB channels must be available.</p>" +
-            "<p>If no option to remove stars is selected, stars are removed from " + 
-            "channel images.</p>");
+            "<p>To use this option RGB channels must be available. This options is mostly useful when both RGB and narrowband data is used.</p>" +
+            "<p>If no option to remove stars is selected, stars are removed before streching.");
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
