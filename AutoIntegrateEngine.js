@@ -72,6 +72,15 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+/* 
+      Some functions that are main steps during the processing.
+      - autointegrateProcessingEngine
+      - CreateChannelImages - create channel images, or find existing ones for AutoContinue
+      - mapLRGBchannels
+            - customMapping - create RGB in case there are narrowband images
+      - CombineRGBimage - used in case of LRGB processing
+*/
+
 #ifndef NO_SOLVER_LIBRARY
 /* Settings to ImageSolver script. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
@@ -5842,11 +5851,10 @@ function channelNoiseReduction(image_id)
 
 function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscreen)
 {
-      if (!from_lights) {
-            var node = flowchartOperation("StarXTerminator");
-      } else {
-            var node = null;
+      if (global.get_flowchart_data) {
+            return {};
       }
+      var node = null;
       try {
             console.writeln("createNewStarXTerminator, linear_data " + linear_data + ", star_mask "+ star_mask + ", use_unscreen " + use_unscreen);
             var P = new StarXTerminator;
@@ -5880,11 +5888,10 @@ function createNewStarXTerminator(star_mask, linear_data, from_lights, use_unscr
 
 function createNewStarNet(star_mask, from_lights)
 {
-      if (!from_lights) {
-            var node = flowchartOperation("StarNet");
-      } else {
-            var node = null;
+      if (global.get_flowchart_data) {
+            return {};
       }
+      var node = null;
       try {
             var P = new StarNet;
             P.stride = StarNet.prototype.Stride_128;
@@ -5902,11 +5909,10 @@ function createNewStarNet(star_mask, from_lights)
 
 function createNewStarNet2(star_mask, from_lights)
 {
-      if (!from_lights) {
-            var node = flowchartOperation("StarNet2");
-      } else {
-            var node = null;
+      if (global.get_flowchart_data) {
+            return {};
       }
+      var node = null;
       try {
             var P = new StarNet2;
             P.mask = star_mask;
@@ -5950,9 +5956,17 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       } else {
             util.addProcessingStepAndStatusInfo("Remove stars from non-linear image " + imgWin.mainView.id);
       }
+      if (par.use_starxterminator.val) {
+            var process_name = "StarXTerminator";
+      } else if (par.use_starnet2.val) {
+            var process_name = "StarNet2";
+      } else {
+            save_images_in_save_id_list(); // Save images so we can return with AutoContinue
+            util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
+      }
 
       if (!from_lights) {
-            var node = flowchartOperation("Remove stars");
+            var node = flowchartOperation(process_name);
       } else {
             var node = null;
       }
@@ -5970,13 +5984,11 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
       if (par.use_starxterminator.val) {
             util.addProcessingStep("Run StarXTerminator on " + imgWin.mainView.id);
             var P = createNewStarXTerminator(create_star_mask, linear_data, from_lights, use_unscreen);
-            var process_name = "StarXTerminator";
       } else if (par.use_starnet2.val) {
             util.addProcessingStep("Run StarNet2 on " + imgWin.mainView.id);
             var P = createNewStarNet2(create_star_mask, from_lights);
-            var process_name = "StarNet2";
       } else {
-            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
+            save_images_in_save_id_list(); // Save images so we can return with AutoContinue
             util.throwFatalError("StarNet2 or StarXTerminator must be selected to remove stars.");
       }
 
@@ -15150,14 +15162,13 @@ function extraHaMapping(extraWin)
       }
 }
 
+// This is called when we have local_RGB_stars set to true.
+// It creates RGB_stars_win_HT (assigned by the caller) and returns it.
 function createRGBstars()
 {
       if (R_id == null || G_id == null || B_id == null) {
             util.throwFatalError("RGB stars option is selected but no R, G, B images found.");
       }
-
-      flowchartParentBegin("RGB stars creation");
-      flowchartChildBegin("RGB stars");
 
       console.writeln("RGB stars, combine RGB stars from " + R_id + ", " + G_id + ", " + B_id);
 
@@ -15208,9 +15219,6 @@ function createRGBstars()
       console.writeln("RGB stars, stretching on RGB stars image " + win.mainView.id);
       runHistogramTransform(win, true, 'stars');
 
-      console.writeln("RGB stars, run SCNR on RGB stars image " + win.mainView.id);
-      runSCNR(win, true);
-
       // Save a copy of the RGB image before we remove stars
       let win2 = util.forceCopyWindow(win, util.ensure_win_prefix("Integration_RGB_for_stars_HT"));
       iconized_image_ids.push(win2.mainView.id);
@@ -15223,9 +15231,6 @@ function createRGBstars()
       }
       util.windowRename(stars_win_HT.mainView.id, ppar.win_prefix + "Integration_RGB_stars");
       console.writeln("Created RGB stars image " + stars_win_HT.mainView.id);
-
-      flowchartChildEnd("RGB stars");
-      flowchartParentEnd("RGB stars creation");
 
       // Close temporary channel windows
       for (let i = 0; i < channel_wins.length; i++) {
@@ -15361,11 +15366,6 @@ function ProcessRGBimage(RGBmapping)
                         RGBHa_init(RGB_processed_id, true, false);
                   }
 
-                  if (local_RGB_stars) {
-                        // Create a separate stars image from RGB channels
-                        RGB_stars_win_HT = createRGBstars();
-                  }
-
                   if (par.remove_stars_before_stretch.val || remove_stars_for_RGB_stars()) {
                         let win = removeStars(util.findWindow(RGB_processed_id), true, !local_RGB_stars, null, null, par.unscreen_stars.val);
                         if (win != null && !local_RGB_stars) {
@@ -15397,7 +15397,10 @@ function ProcessRGBimage(RGBmapping)
                   RGBmapping.stretched = true;
 
                   if (par.remove_stars_stretched.val) {
-                        RGB_stars_win_HT = removeStars(util.findWindow(RGB_processed_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        let win = removeStars(util.findWindow(RGB_processed_HT_id), false, true, null, null, par.unscreen_stars.val);
+                        if (win != null && !local_RGB_stars) {
+                              RGB_stars_win_HT = win;
+                        }
                         if (!is_luminance_images) {
                               // use starless RGB image as mask
                               ColorEnsureMask(RGB_processed_HT_id, true, true);
@@ -19442,11 +19445,31 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    ProcessLimage(RGBmapping);
                    
                    flowchartChildEnd("L");
+                   if (local_RGB_stars) {
+                        // Maybe not a very good idea but running RGB stars
+                        // creation here also for LRGB data
+                        flowchartChildBegin("RGB stars");
+
+                        RGB_stars_win_HT = createRGBstars();
+
+                        flowchartChildEnd("RGB stars");
+                   }
                    flowchartChildBegin("RGB");
-                   var processed_l_image = true;
+                   var flowchart_parent_begin = true;
+
+             } else if (local_RGB_stars) {
+                  // Create a separate stars image from RGB channels
+                  flowchartParentBegin("LRGB");
+                  flowchartChildBegin("RGB stars");
+
+                  RGB_stars_win_HT = createRGBstars();
+
+                  flowchartChildEnd("RGB stars");
+                  flowchartChildBegin("RGB");
+                  var flowchart_parent_begin = true;
 
              } else {
-                  var processed_l_image = false;
+                  var flowchart_parent_begin = false;
              }
 
              if (processRGB && !RGBmapping.combined) {
@@ -19461,7 +19484,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    console.writeln("monochrome image, rename windows")
                    LRGB_processed_HT_id = util.windowRename(L_processed_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
                    guiUpdatePreviewId(LRGB_processed_HT_id);
-                   if (processed_l_image) {
+                   if (flowchart_parent_begin) {
                         flowchartChildEnd("RGB");
                         flowchartParentEnd("LRGB");
                    }
@@ -19475,7 +19498,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    if (checkNoiseReduction(is_color_files ? 'color' : 'RGB', 'nonlinear')) {
                          runNoiseReduction(ImageWindow.windowById(RGB_processed_HT_id), mask_win, false);
                    }
-                   if (processed_l_image) {
+                   if (flowchart_parent_begin) {
                         flowchartChildEnd("RGB");
                         flowchartParentEnd("LRGB");
                    }
@@ -19577,7 +19600,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    guiUpdatePreviewId(LRGB_processed_HT_id);
                    setIntegrationInfoKeywords(LRGB_processed_HT_id);
              } else {
-                   if (processed_l_image) {
+                   if (flowchart_parent_begin) {
                         flowchartChildEnd("RGB");
                         flowchartParentEnd("LRGB");
                    }
