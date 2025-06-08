@@ -4474,6 +4474,15 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
 
 function guiSubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames, sort_order = null)
 {
+      console.writeln("guiSubframeSelectorMeasure: fileNames.length " +  fileNames.length +", saved_measurements.length " + (global.saved_measurements ? global.saved_measurements.length : 0));
+      if (fileNames.length != global.saved_measurements.length) {
+            if (okToMeasureAllFiles(fileNames.length, global.saved_measurements.length)) {
+                  // User confirmed, clear old measuremenets
+                  console.writeln("guiSubframeSelectorMeasure: clearing old measurements");
+                  global.saved_measurements = null;
+                  global.saved_measurements_sorted = null;
+            }
+      }
       // Disable fast subframe selector while running this function to get measurements from all files
       var saved_fastintegration_fast_subframeselector = par.fastintegration_fast_subframeselector.val;
 
@@ -4771,7 +4780,7 @@ function setFilteringChanged()
 function metricsVisualizerCheck(parent)
 {
       if (global.saved_measurements == null) {
-            console.noteln("No measurements to visualize");
+            util.updateStatusInfoLabel("No measurements to visualize", true);
             console.writeln("Use Light files tab to load light files and measure them first using the filter and sort button.");
             console.writeln("Once measurements are done they can be saved to a Json file using the save button.");
             console.writeln("Measurements are also saved to AutosaveSetup.json file. Loading this file will also load the measurements.");
@@ -4822,13 +4831,13 @@ function metricsVisualizerSSWEIGHT(parent)
                   // Update limit
                   par.ssweight_limit.val = data[0].limit;
                   par.ssweight_limit.reset();
-                  console.writeln("Metrics visualizer, update SSWEIGHT limit to " + data[0].limit);
+                  util.updateStatusInfoLabel("Metrics visualizer, update SSWEIGHT limit to " + data[0].limit, true);
                   // Mark all light files as checked
                   checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
                   filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
             } else {
-                  console.writeln("Metrics visualizer, no changes to SSWEIGHT limit");
+                  util.updateStatusInfoLabel("Metrics visualizer, no changes to SSWEIGHT limit", true);
             }
       }
 
@@ -4908,15 +4917,16 @@ function metricsVisualizerFilters(parent)
                   }
             }
             if (changes) {
+                  util.updateStatusInfoLabel("Metrics visualizer, filter limits changed", true);
                   // Mark all light files as checked
                   checkAllTreeBoxFiles(parent.dialog.treeBox[global.pages.LIGHTS], true);
                   // Update all treebox files with new limits
                   filterTreeBoxFiles(parent.dialog, global.pages.LIGHTS);
             } else {
-                  console.writeln("Metrics visualizer, no changes to filter limits");
+                  util.updateStatusInfoLabel("Metrics visualizer, no changes to filter limits", true);
             }
       } else {
-            console.writeln("Metrics visualizer, no changes");
+            util.updateStatusInfoLabel("Metrics visualizer, no changes", true);
       }
 }
 
@@ -4947,7 +4957,7 @@ function getExclusionsAreas()
       if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
       
             global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
-            this.dialog.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
+            exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
 
             console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
       } else {
@@ -4967,6 +4977,19 @@ function okToRunSubframeSelector()
       return true;
 }
 
+function okToMeasureAllFiles(num_files, num_measurements)
+{
+      var messagebox = new MessageBox("There are " + num_files + " files and " + num_measurements + " measurements available. Do you want to measure files again?", 
+                                          "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
+      if (messagebox.execute() == StdButton_Yes) {
+            console.writeln("Yes.");
+            return true;
+      } else {
+            console.writeln("No.");
+            return false;
+      }
+}
+
 function measureTreeBoxFiles(parent, pageIndex)
 {
       console.show();
@@ -4981,7 +5004,7 @@ function measureTreeBoxFiles(parent, pageIndex)
       }
       util.addStatusInfo("Measuring...");
 
-      console.writeln("measureTreeBoxFiles " + pageIndex);
+      // console.writeln("measureTreeBoxFiles " + pageIndex);
 
       var checked_files = [];
       var unchecked_files = [];
@@ -4995,6 +5018,8 @@ function measureTreeBoxFiles(parent, pageIndex)
 
       filtering_changed = false;
 
+      util.updateStatusInfoLabel("Measurements done", true);
+
       return global.saved_measurements != null && global.saved_measurements.length > 0;
 }
 
@@ -5004,18 +5029,18 @@ function filterTreeBoxFiles(parent, pageIndex)
 
       if (global.saved_measurements == null) {
             if (!measureTreeBoxFiles(parent, pageIndex)) {
-                  util.addStatusInfo("No measurements available, cannot filter files.");
+                  util.updateStatusInfoLabel("No measurements available, cannot filter files.", true);
                   return;
             }
       }
 
       var treebox = parent.treeBox[pageIndex];
       if (treebox.numberOfChildren == 0) {
-            console.writeln("No files to filter.");
+            util.updateStatusInfoLabel("No files to filter.", true);
             return;
       }
 
-      util.addStatusInfo("Filtering...");
+      util.updateStatusInfoLabel("Filtering...");
 
       console.writeln("filterTreeBoxFiles " + pageIndex);
 
@@ -5032,6 +5057,7 @@ function filterTreeBoxFiles(parent, pageIndex)
       var treeboxfiles = guiSubframeSelectorMeasure(checked_files, true, true, all_files, par.sort_order_type.val);
 
       filtering_changed = false;
+      util.updateStatusInfoLabel("Filtering done, " + treeboxfiles.length + " files", true);
 
       // mark old unchecked files as unchecked
       filenamesToTreeboxfiles(treeboxfiles, unchecked_files, false);
@@ -7380,8 +7406,10 @@ function AutoIntegrateDialog()
             "<p>Create separate stars image from RGB channels. " + 
             "Stars are removed from the processed image and in the end starless and " + 
             "stars images are combined.<p>" +
-            "<p>To use this option RGB channels must be available. This options is mostly useful when both RGB and narrowband data is used.</p>" +
-            "<p>If no option to remove stars is selected, stars are removed before streching.");
+            "<p>This option is primarily for narrowband processing to automatically create RGB stars for narrowband images. " + 
+            "It can be used for RGB only processing but the end result is basically the same as using separate remove stars options.<p>" +
+            "<p>To use this option RGB channels must be available. " +
+            "If no option to remove stars is selected, stars are removed before streching.");
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
             "<p>Remove stars from combined RGB or narrowband images just before stretching while it still is in linear stage. " + 
             "Stars are used only from RGB image, stars from L image are not used. " + 
@@ -9502,7 +9530,7 @@ function AutoIntegrateDialog()
                   "<p>Alignment error tolerance. You can try increasing the value if alignment fails.</p>");
       this.fastIntegrationSubframeSelectorCheckBox = newCheckBox(this, "Fast SubframeSelector", par.fastintegration_fast_subframeselector, 
             "<p>Run SubframeSelector only to a subset of images when using FastIntegration. SubframeSelector is used only to find the reference image.</p>" +
-            "<p>When this option is used then the first 10 images in the list are used to find the reference image unless reference image is selected manually.</p>");
+            "<p>When this option is used then the first 32 images in the list are used to find the reference image unless reference image is selected manually.</p>");
       this.fastIntegrationCosmeticCorrectionCheckBox = newCheckBox(this, "Skip CosmeticCorrection", par.fastintegration_skip_cosmeticcorrection, 
             "<p>Do not run CosmeticCorrection when using FastIntegration.</p>" +
             "<p>With a very large number of files it usually should not be necessary.</p>" );

@@ -1577,10 +1577,13 @@ function addProcessingStep(txt)
       global.processing_steps = global.processing_steps + "\n" + txt;
 }
 
-function updateStatusInfoLabel(txt)
+function updateStatusInfoLabel(txt, write_to_console = false)
 {
       if (global.get_flowchart_data) {
             return;
+      }
+      if (write_to_console) {
+            console.noteln(txt);
       }
       if (txt.length > 100) {
             txt = txt.substring(0, 100);

@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.76 test6";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.76 test7";         // Version, also updated into updates.xri
 this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates.xri
 
 this.autointegrate_version_info = [
@@ -50,7 +50,7 @@ this.autointegrate_version_info = [
       "- Exclusion areas can now be defined in the GUI for DBE.",
       "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
       "- Astrobin compatible .csv file is generated after a full processing.",
-      "- Optionally create RGB stars when RGB channels are present."
+      "- Create RGB stars for narrowband when RGB channels are present."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -380,7 +380,7 @@ this.par = {
       fastintegration_iterations: { val: 2, def: 2, name : "FastIntegration iterations", type : 'I' },
       fastintegration_max_flux: { val: 0.5, def: 0.5, name : "FastIntegration max flux", type : 'R' },
       fastintegration_errortolerance: { val: 1.5, def: 1.5, name : "FastIntegration error tolerance", type : 'R' },
-      fastintegration_fast_subframeselector: { val: false, def: false, name : "FastIntegration fast SubframeSelector", type : 'B' },
+      fastintegration_fast_subframeselector: { val: true, def: true, name : "FastIntegration fast SubframeSelector", type : 'B' },
       fastintegration_skip_cosmeticcorrection: { val: true, def: true, name : "FastIntegration skip CosmeticCorrection", type : 'B' },
       drizzle_function: { val: 'Square', def: 'Square', name : "Drizzle function", type : 'S' },
       drizzle_fast_mode: { val: true, def: true, name : "Drizzle fast mode", type : 'B' },
@@ -684,7 +684,7 @@ this.star_alignment_image = null;
 this.exclusion_areas = [];
 
 
-
+this.subframeselector_call_count = 0;     // number of times SubframeSelector was called, for debugging
 this.substack_number = 0;
 
 this.processed_channel_images = [];
@@ -912,6 +912,7 @@ this.getDirectoryInfo = function(simple_text) {
 }
 
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
+this.testmode = false;                          // true if we are running in test mode
 
 if (this.autointegrate_version.indexOf("test") > 0) {
       this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";

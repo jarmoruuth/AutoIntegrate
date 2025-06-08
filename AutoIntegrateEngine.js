@@ -3286,6 +3286,7 @@ function getSubframeSelectorMeasurements(fileNames, flowchart_name)
       if (flowchart_name) {
             engine_end_process(node);
       }
+      global.subframeselector_call_count++;
 
       // Set measurementEnabled to true for all measurements
       for (var i = 0; i < P.measurements.length; i++) {
@@ -3556,6 +3557,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       var indexPSFSignal = 7;
       var indexPSFPower = 8;
       var indexStars = 14;
+      var fast_mode = false;
 
       if (global.get_flowchart_data) {
             if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
@@ -3581,6 +3583,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
 
       if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
             var node = flowchartOperation("Fast SubframeSelector");
+            fast_mode = true;
       } else {
             var node = flowchartOperation("SubframeSelector");
       }
@@ -3593,39 +3596,53 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       }
 
       // Find measurements from global.saved_measurements
-      // We may collected more measurements in measurementFileNames than we 
-      // have in fileNames so we create a new array
+      // We may have collected more measurements using measurementFileNames than we
+      // have in files in fileNames so we create a new array
       console.writeln("subframeSelectorMeasure, use saved measurements");
       var measurements = null;
       for (var retrycount = 0; retrycount < 2; retrycount++) {
             measurements = [];
+            // Loop through all fileNames and find matching measurements
             for (var i = 0; i < fileNames.length; i++) {
-                  var found = false;
                   for (var j = 0; j < global.saved_measurements.length; j++) {
                         var saved_name = File.extractName(global.saved_measurements[j][indexPath]);
                         var new_name = File.extractName(fileNames[i]);
                         if (saved_name.startsWith(new_name)) {
                               measurements[measurements.length] = global.saved_measurements[j];
                               measurements[measurements.length-1][indexPath] = fileNames[i];
-                              found = true;
                               break;
                         }
                   }
-                  if (!found) {
-                        // something went wrong, list are not compatible, generate new ones
-                        console.writeln("subframeSelectorMeasure, global.saved_measurements[0][indexPath] " + global.saved_measurements[0][indexPath]);
-                        console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
-                        console.writeln("subframeSelectorMeasure, retry measurements");
-                        measurements = null;
-                        console.writeln("subframeSelectorMeasure, collect measurements");
-                        global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames, null);
-                        global.saved_measurements_sorted = null;
-                        break;
-                  }
+            }
+            if (fast_mode && measurements.length == global.saved_measurements.length) {
+                  // Fast mode, we have less measurements than files, found all measurements
+                  console.writeln("subframeSelectorMeasure, fast mode, found all " + measurements.length + " measurements");
+                  break;
+            } else if (measurements.length == fileNames.length) {
+                  // We have found all measurements for the files
+                  console.writeln("subframeSelectorMeasure, found all measurements for " + fileNames.length + " files");
+                  break;
+            } else {
+                  // We have found some measurements, but not all
+                  // something went wrong, list are not compatible, generate new ones
+                  console.writeln("subframeSelectorMeasure, found " + measurements.length + " measurements for " + fileNames.length + " files");
+                  console.writeln("subframeSelectorMeasure, global.saved_measurements[0][indexPath] " + global.saved_measurements[0][indexPath]);
+                  console.writeln("subframeSelectorMeasure, saved measurements not found for " + fileNames[i]);
+                  console.writeln("subframeSelectorMeasure, retry measurements");
+                  measurements = null;
+                  console.writeln("subframeSelectorMeasure, collect new measurements");
+                  global.saved_measurements = getSubframeSelectorMeasurements(measurementFileNames, null);
+                  global.saved_measurements_sorted = null;
+                  continue; // Retry to find measurements
             }
       }
 
-      // Convert global.saved_measurements to a fast data structure to search names
+      if (global.testmode) {
+            if (global.subframeselector_call_count > 0) {
+                  // We should call subframe selector only once in normal processing
+                  util.throwFatalError("subframeSelectorMeasure, subframe selector called multiple times, this is not allowed in test mode.");
+            }
+      }
 
       if (measurements == null) {
             util.throwFatalError("subframeSelectorMeasure, could not find measurements for all files. Please check that all files are available and that the measurement files are not corrupted.");
@@ -3884,10 +3901,10 @@ function runSubframeSelector(fileNames)
       if (par.use_fastintegration.val && par.fastintegration_fast_subframeselector.val) {
             util.addProcessingStepAndStatusInfo("Run SubframeSelector on subset of files");
             var fast_measure = true;
-            // Measure only 10 first images
-            var measured_files = fileNames.slice(0, 10);
+            // Measure only 32 first images
+            var measured_files = fileNames.slice(0, 32);
             // save rest of files
-            var rest_files = fileNames.slice(10);
+            var rest_files = fileNames.slice(32);
       } else {
             util.addProcessingStepAndStatusInfo("Run SubframeSelector");
             var fast_measure = false;
@@ -14968,6 +14985,8 @@ function RGBHa_mapping(RGB_id)
             runColorCalibration(util.findWindow(RGB_id), 'linear');
       }
 
+      setAutoIntegrateFilters(RGB_id, [ RGB_id, nb_channel_id ]);
+
       flowchartChildEnd("RGBHa add H");
       flowchartParentEnd("RGBHa mapping");
 }
@@ -19208,6 +19227,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        console.show();
 
        stepno = 1;
+       global.subframeselector_call_count = 0;
 
        if (par.fast_mode.val) {
             if (ppar.win_prefix == "")  {
