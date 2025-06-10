@@ -1547,6 +1547,12 @@ function createWindowFromImage(image, name, allow_duplicate_name)
       if (image == null) {
             util.throwFatalError("Image not found, cannot create " + name);
       }
+      if (par.debug.val) {
+            console.writeln("createWindowFromImage, create new image, width " + image.width + "x" + image.height);
+      }
+      if (image.width <= 0 || image.height <= 0) {
+            util.throwFatalError("Image has invalid size " + image.width + "x" + image.height + ", cannot create " + name);
+      }
       var targetWindow = new ImageWindow(image.width, image.height);
       targetWindow.mainView.id = name;
 
@@ -1568,6 +1574,9 @@ function createWindowFromImage(image, name, allow_duplicate_name)
             global.flowchartWindows[global.flowchartWindows.length] = targetWindow.mainView.id;
       }
 
+      if (par.debug.val) {
+            console.writeln("createWindowFromImage, return image, name " + targetWindow.mainView.id);
+      }
       return targetWindow;
 }
 

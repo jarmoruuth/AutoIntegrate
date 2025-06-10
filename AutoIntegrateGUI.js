@@ -3490,7 +3490,12 @@ function lightsOptions(parent)
                                     "filtering and weighting information for the file.</p>";
       sortAndFilterButton.onClick = function()
       {
-            filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+            try {
+                  util.addStatusInfo("Sorting and filtering files");
+                  filterTreeBoxFiles(parent.dialog, parent.dialog.tabBox.currentPageIndex);
+            } catch (e) {
+                  console.criticalln("Sorting and filtering files: " + e);
+            } 
       };
       parent.rootingArr.push(sortAndFilterButton);
 
@@ -3500,7 +3505,11 @@ function lightsOptions(parent)
       metricsVisualizerButton.toolTip = metricsVisualizerToolTip;
       metricsVisualizerButton.onClick = function()
       {
-            metricsVisualizerFilters(parent);
+            try {
+                  metricsVisualizerFilters(parent);
+            } catch (e) {
+                  console.criticalln("Metrics visualizer: " + e);
+            }
       };
       parent.rootingArr.push(metricsVisualizerButton);
 
@@ -3509,7 +3518,11 @@ function lightsOptions(parent)
       exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
       exclusionAreasButton.onClick = function() 
       {
-            getExclusionsAreas();
+            try {
+                  getExclusionsAreas();
+            } catch (e) {
+                  console.criticalln("Exclusion areas: " + e);
+            }
       };
       parent.rootingArr.push(exclusionAreasButton);
 
@@ -3821,7 +3834,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, copy_image = true)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
-            console.writeln("Preview image:" + imgWin.mainView.id + " " + txt);
+            console.writeln("Preview image:" + imgWin.mainView.id + ", " + txt);
             if (par.debug.val) var start_time = Date.now();
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
@@ -3863,6 +3876,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             if (run_autostf) {
                   // Image is linear, run AutoSTF
                   if (copy_image) {
+                        if (par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, copy image");
                         util.closeOneWindowById("AutoIntegrate_preview_tmp");
                         var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
                         engine.autoStretch(copy_win);
@@ -3872,6 +3886,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                         preview_image = preview_images[1].image;
                         preview_image_txt = preview_images[1].txt;
                   } else {
+                        if (par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, do not copy image");
                         preview_images[1] = preview_images[0];
                         var copy_win = null;
                         preview_image = preview_images[0].image;
@@ -3879,11 +3894,13 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                         engine.autoStretch(imgWin);
                   }
             } else {
+                  if (par.debug.val) console.writeln("updatePreviewWinTxt:no autostf");
                   preview_images[1] = preview_images[0];
                   var copy_win = null;
                   preview_image = preview_images[0].image;
                   preview_image_txt = preview_images[0].txt;
             }
+            if (par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + preview_image.width + "x" + preview_image.height);
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (global.is_processing != global.processing_state.none) {
@@ -4475,7 +4492,8 @@ function setReferenceImageInTreeBox(parent, node, reference_image, filename_post
 function guiSubframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering, measurementFileNames, sort_order = null)
 {
       console.writeln("guiSubframeSelectorMeasure: fileNames.length " +  fileNames.length +", saved_measurements.length " + (global.saved_measurements ? global.saved_measurements.length : 0));
-      if (fileNames.length != global.saved_measurements.length) {
+      if (global.saved_measurements && fileNames.length != global.saved_measurements.length) {
+            console.writeln("guiSubframeSelectorMeasure: fileNames.length != global.saved_measurements.length, need to measure all files");
             if (okToMeasureAllFiles(fileNames.length, global.saved_measurements.length)) {
                   // User confirmed, clear old measuremenets
                   console.writeln("guiSubframeSelectorMeasure: clearing old measurements");
@@ -4800,6 +4818,9 @@ function metricsVisualizerCheck(parent)
 
 function metricsVisualizerSSWEIGHT(parent)
 {
+      util.addStatusInfo("Metrics visualizer SSWEIGHT");
+      console.writeln("metricsVisualizerSSWEIGHT, filtering_changed: " + filtering_changed);
+
       var changes = filtering_changed;
 
       if (!metricsVisualizerCheck(parent)) {
@@ -4845,6 +4866,9 @@ function metricsVisualizerSSWEIGHT(parent)
 
 function metricsVisualizerFilters(parent)
 {
+      util.addStatusInfo("Metrics visualizer filters");
+      console.writeln("metricsVisualizerFilters, filtering_changed: " + filtering_changed);
+
       var changes = filtering_changed;
 
       if (!metricsVisualizerCheck(parent)) {
@@ -4937,7 +4961,16 @@ function getExclusionsAreas()
       util.closeOneWindowById(tmpname);
       if (exclusionAreasTargetImageName == "Auto") {
             console.writeln("Exclusion areas target image is set to Auto, using the current image.");
+            if (preview_image == null) {
+                  console.criticalln("Exclusion areas target preview image is not set, cannot use Auto.");
+                  return;
+            }
+            if (par.debug.val) console.writeln("getExclusionsAreas: preview image size " + preview_image.width + "x" + preview_image.height);
             var win = util.createWindowFromImage(preview_image, tmpname, true);
+            if (win == null) {
+                  console.criticalln("Exclusion areas target preview image window not found for Auto");
+                  return;
+            }
       } else {
             console.writeln("Exclusion areas target image is set to: " + exclusionAreasTargetImageName);
             var target_win = util.findWindow(exclusionAreasTargetImageName);
@@ -4946,6 +4979,10 @@ function getExclusionsAreas()
                   return;
             }
             var win = util.copyWindow(target_win, tmpname);
+            if (win == null) {
+                  console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
+                  return;
+            }
       }
       if (engine.imageIsLinear(win)) {
             console.writeln("Exclusion areas target image is linear, stretching the image.");
@@ -4979,6 +5016,7 @@ function okToRunSubframeSelector()
 
 function okToMeasureAllFiles(num_files, num_measurements)
 {
+      console.writeln("okToMeasureAllFiles, num_files: " + num_files + ", num_measurements: " + num_measurements);
       var messagebox = new MessageBox("There are " + num_files + " files and " + num_measurements + " measurements available. Do you want to measure files again?", 
                                           "AutoIntegrate", StdIcon_Warning, StdButton_Yes, StdButton_No);
       if (messagebox.execute() == StdButton_Yes) {
@@ -5002,7 +5040,7 @@ function measureTreeBoxFiles(parent, pageIndex)
       if (global.saved_measurements == null && !okToRunSubframeSelector()) {
             return false;
       }
-      util.addStatusInfo("Measuring...");
+      console.noteln("Measuring...");
 
       // console.writeln("measureTreeBoxFiles " + pageIndex);
 
@@ -5700,6 +5738,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                     imageWindow.position = new Point(0, 0);
                               }
                         }
+                        if (par.debug.val) console.writeln("onCurrentNodeUpdated:read image name " + imageWindow.mainView.id);
                         if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:read " + (Date.now()-start_time)/1000 + " sec");
                         if (par.debug.val) start_time = Date.now();
                         if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
@@ -5718,6 +5757,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
+                        if (par.debug.val) console.writeln("onCurrentNodeUpdated:imageInfoTxt " + imageInfoTxt);
                         if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:properties " + (Date.now()-start_time)/1000 + " sec");
                         if (par.debug.val) start_time = Date.now();
                         if (!global.use_preview) {
@@ -5746,7 +5786,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                     File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
                                     null,
                                     true,
-                              false);
+                                    true);
                               if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
                               if (par.debug.val) start_time = Date.now();
                               util.updateStatusInfoLabel(imageInfoTxt);
@@ -8750,7 +8790,11 @@ function AutoIntegrateDialog()
       this.metricsVisualizerSSWEIGHTButton.toolTip = metricsVisualizerToolTip;
       this.metricsVisualizerSSWEIGHTButton.onClick = function() 
       {
-            metricsVisualizerSSWEIGHT(this.dialog);
+            try {
+                  metricsVisualizerSSWEIGHT(this.dialog);
+            } catch (e) {
+                  console.criticalln("Metrics visualizer: " + e);
+            }
       };
 
       this.filterSortLabel = newLabel(this, "Sort order", "<p>Sort order for the filter and sort button.</p>");
@@ -8786,7 +8830,11 @@ function AutoIntegrateDialog()
       this.metricsVisualizerFiltersButton.toolTip = metricsVisualizerToolTip;
       this.metricsVisualizerFiltersButton.onClick = function() 
       {
-            metricsVisualizerFilters(this.dialog);
+            try {
+                  metricsVisualizerFilters(this.dialog);
+            } catch (e) {
+                  console.criticalln("Metrics visualizer: " + e);
+            }
       };
 
       this.outlierMethodLabel = new Label( this );
@@ -9032,7 +9080,11 @@ function AutoIntegrateDialog()
       this.exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
       this.exclusionAreasButton.onClick = function() 
       {
-            getExclusionsAreas();
+            try {
+                  getExclusionsAreas();
+            } catch (e) {
+                  console.criticalln("Exclusion areas: " + e);
+            }
       };
       this.exclusionAreaCountLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
       exclusionAreaCountLabel = this.exclusionAreaCountLabel;
