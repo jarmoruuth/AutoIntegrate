@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.76 test8";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.76 test9";         // Version, also updated into updates.xri
 this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates.xri
 
 this.autointegrate_version_info = [
@@ -641,7 +641,8 @@ this.ppar = {
 this.run_results = {
       processing_steps_file: '',    // file where processing steps were written
       final_image_file: '',         // final image file
-      fatal_error: ''               // if non-empty, fatal error during processing
+      fatal_error: '',              // if non-empty, fatal error during processing
+      testmode_log_name: ''         // test mode log file name
 };
 
 this.console_hidden = false;  // true if console is hidden
@@ -681,8 +682,11 @@ this.best_image = null;
 this.user_selected_best_image = null;
 this.user_selected_reference_image = [];  // array of [image, filter]
 this.star_alignment_image = null;
-this.exclusion_areas = [];
-
+this.exclusion_areas = {
+      polygons: [],     // array of polygons for exclusion areas
+      image_width: 0,   // image width for exclusion areas
+      image_height: 0   // image height for exclusion areas
+};
 
 this.subframeselector_call_count = 0;     // number of times SubframeSelector was called, for debugging
 this.substack_number = 0;
@@ -913,6 +917,7 @@ this.getDirectoryInfo = function(simple_text) {
 
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 this.testmode = false;                          // true if we are running in test mode
+this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
 
 if (this.autointegrate_version.indexOf("test") > 0) {
       this.autointegrateinfo_link = "https://ruuth.xyz/test/AutoIntegrateInfo.html";

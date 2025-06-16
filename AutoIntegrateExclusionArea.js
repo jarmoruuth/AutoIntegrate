@@ -14,7 +14,7 @@
 #include <pjsr/TextAlign.jsh>
 #include <pjsr/UndoFlag.jsh>
 
-function AutoIntegrateExclusionArea(global)
+function AutoIntegrateExclusionArea(util)
 {
 
 this.__base__ = Object;
@@ -23,7 +23,7 @@ this.__base__();
 var dialog;
 
 // Global variables
-var exclusionAreas = []; // Array of arrays, each containing points for a polygon
+var exclusionAreaPolygons = []; // Array of arrays, each containing points for a polygon
 var activePolygon = []; // Current polygon being drawn
 var isDrawing = false;
 var targetView = null;
@@ -107,7 +107,7 @@ function ExclusionAreaDialog() {
    };
    
    this.exclusionCount_Label = new Label(this);
-   this.exclusionCount_Label.text = "Exclusion areas: " + exclusionAreas.length;
+   this.exclusionCount_Label.text = "Exclusion areas: " + exclusionAreaPolygons.length;
    this.exclusionCount_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
    
    this.preview_Control = new Control(this);
@@ -131,10 +131,10 @@ function ExclusionAreaDialog() {
    this.clearAll_Button.text = "Clear All Areas";
    this.clearAll_Button.icon = this.scaledResource(":/icons/delete.png");
    this.clearAll_Button.onClick = function() {
-      if (exclusionAreas.length > 0) {
+      if (exclusionAreaPolygons.length > 0) {
          if ((new MessageBox("Do you really want to delete all exclusion areas?",
                title, StdIcon_Warning, StdButton_Yes, StdButton_No)).execute() == StdButton_Yes) {
-            exclusionAreas = [];
+            exclusionAreaPolygons = [];
             updateExclusionCount();
             updatePreview();
          }
@@ -220,8 +220,8 @@ function drawPreview(control) {
    // Draw existing exclusion areas
    g.pen = new Pen(0xFFFF6600, 1);
    
-   for (var i = 0; i < exclusionAreas.length; i++) {
-      var polygon = exclusionAreas[i];
+   for (var i = 0; i < exclusionAreaPolygons.length; i++) {
+      var polygon = exclusionAreaPolygons[i];
       if (polygon.length > 0) {
          for (var j = 1; j < polygon.length; j++) {
             // console.writeln("Drawing line: " + polygon[j-1].x + ", " + polygon[j-1].y + " to " + polygon[j].x + ", " + polygon[j].y);
@@ -321,7 +321,7 @@ function finishPolygon() {
       activePolygon.push(activePolygon[0]);
       // console.writeln("Closing polygon: " + activePolygon[0].x + ", " + activePolygon[0].y);
       // Add a copy of the active polygon to our exclusion areas
-      exclusionAreas.push(activePolygon.slice());
+      exclusionAreaPolygons.push(activePolygon.slice());
       updateExclusionCount();
    }
    
@@ -338,7 +338,7 @@ function finishPolygon() {
 
 // Update the exclusion count label
 function updateExclusionCount() {
-   dialog.exclusionCount_Label.text = "Exclusion areas: " + exclusionAreas.length;
+   dialog.exclusionCount_Label.text = "Exclusion areas: " + exclusionAreaPolygons.length;
 }
 
 // Force a preview update
@@ -378,10 +378,10 @@ function setPreviewForView() {
 }
 
 // Export mask image to be used with other processes
-function exportExclusionMask(targetWindow, exclusionAreas) {
+function exportExclusionMask(targetWindow, exclusionAreaPolygons) {
    targetView = targetWindow.mainView;
    
-   if (exclusionAreas.length == 0) {
+   if (exclusionAreaPolygons.length == 0) {
       // No exclusion areas defined
       return null;
    }
@@ -414,38 +414,34 @@ function exportExclusionMask(targetWindow, exclusionAreas) {
    return maskWindow;
 }
 
-// Get exclusion areas scaled to the target image size
-function getScaledExclusionAreas() {
-   var scaleX = targetView.image.width / previewControl.width;
-   var scaleY = targetView.image.height / previewControl.height;
+// Get exclusion areas.
+// Exclusion area points are references to the preview image.
+// To scale them to the current image size, we need to scale them
+// using a function util.getScaledExclusionAreas.
+function getExclusionAreas() {
 
-   var scaledExclusionAreas = [];
-   for (var i = 0; i < exclusionAreas.length; i++) {
-      var polygon = exclusionAreas[i];
-      var scaledPolygon = [];
-      for (var j = 0; j < polygon.length; j++) {
-         // console.writeln("Scaling point: " + polygon[j].x + ", " + polygon[j].y);
-         scaledPolygon.push({ x: Math.floor(polygon[j].x * scaleX), y: Math.floor(polygon[j].y * scaleY) });
-      }
-      scaledExclusionAreas.push(scaledPolygon);
-   }
-
-   return scaledExclusionAreas;
+   return { polygons: exclusionAreaPolygons, image_width: previewControl.width, image_height: previewControl.height };
 }
 
-function scaleExclusionAreasToImage(exclusionAreas, targetView) {
-   var scaledExclusionAreas = [];
-   for (var i = 0; i < exclusionAreas.length; i++) {
-      var polygon = exclusionAreas[i];
+// Scale current exclusion areas to match the image dimensions.
+function scaleExclusionAreasToImage(currentExclusionAreas, targetWindow) {
+
+   // Scale the exclusion areas to match the image dimensions
+   var exclusionAreas = util.getScaledExclusionAreas(currentExclusionAreas, targetWindow);
+   
+   // Scale target image exclusion areas to the dialog image size
+   var scaledExclusionAreaPolygons = [];
+   for (var i = 0; i < exclusionAreas.polygons.length; i++) {
+      var polygon = exclusionAreas.polygons[i];
       var scaledPolygon = [];
       for (var j = 0; j < polygon.length; j++) {
          // console.writeln("Scaling point: " + polygon[j].x + ", " + polygon[j].y);
          scaledPolygon.push({ x: Math.floor(polygon[j].x * scale), y: Math.floor(polygon[j].y * scale) });
       }
-      scaledExclusionAreas.push(scaledPolygon);
+      scaledExclusionAreaPolygons.push(scaledPolygon);
    }
 
-   return scaledExclusionAreas;
+   return scaledExclusionAreaPolygons;
 }
 
 // Main script entry point
@@ -454,10 +450,11 @@ function main(activeWindow, currentExclusionAreas) {
    targetWindow = activeWindow;
    targetView = targetWindow.currentView;
 
-   // Get the image scale
+   // Get the image scale and save it to use for scaling exclusion areas
    getScale(targetView);
 
-   exclusionAreas = scaleExclusionAreasToImage(currentExclusionAreas, targetView);
+   // Scale saved exclusions area points to current image size
+   exclusionAreaPolygons = scaleExclusionAreasToImage(currentExclusionAreas, targetWindow);
 
    // Create and execute dialog
    dialog = new ExclusionAreaDialog();
@@ -466,7 +463,7 @@ function main(activeWindow, currentExclusionAreas) {
 
 this.main = main;
 this.exportExclusionMask = exportExclusionMask;
-this.getScaledExclusionAreas = getScaledExclusionAreas;
+this.getExclusionAreas = getExclusionAreas;
 
 }  /* AutoIntegrateExclusionArea */
 

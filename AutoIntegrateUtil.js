@@ -695,6 +695,29 @@ function findDrizzleScale(imageWindow)
       return scale;
 }
 
+function findDrizzle(imgWin)
+{
+      for (var i = 0; i < imgWin.keywords.length; i++) {
+            switch (imgWin.keywords[i].name) {
+                  case "AutoIntegrateDrizzle":
+                        var value = imgWin.keywords[i].strippedValue.trim();
+                        console.writeln("AutoIntegrateDrizzle=" + value);
+                        var drizzle = parseInt(value);
+                        return drizzle;
+                  default:
+                        break;
+            }
+      }
+      var scale = util.findDrizzleScale(imgWin);
+      if (scale > 1) {
+            console.writeln("Using image metadata drizzle scale " + scale);
+            return scale;
+      }
+
+      return 1;
+}
+
+
 function copyKeywords(imageWindow) 
 {
       var newKeywords = [];
@@ -1959,7 +1982,13 @@ function readJsonFile(fname, lights_only)
       }
       if (saveInfo.exclusion_areas != null && saveInfo.exclusion_areas != undefined) {
             console.writeln("Restored exclusion areas");
-            global.exclusion_areas = saveInfo.exclusion_areas;
+            // Check if saveInfo.exclusion_areas is an array
+            if (Array.isArray(saveInfo.exclusion_areas)) {
+                  console.criticalln("Restored old format exclusion areas, it is recommended to recreate exclusion areas");
+                  global.exclusion_areas.polygons = saveInfo.exclusion_areas;
+            } else {
+                  global.exclusion_areas = saveInfo.exclusion_areas;
+            }
       }
       if (saveInfo.saved_measurements != null && saveInfo.saved_measurements != undefined) {
             console.writeln("Restored subframe selector measurements");
@@ -2115,7 +2144,7 @@ function initJsonSaveInfo(fileInfoList, save_settings, saveDir)
             if (global.LDDDefectInfo.length > 0) {
                   saveInfo.defectInfo = global.LDDDefectInfo;
             }
-            if (global.exclusion_areas.length > 0) {
+            if (global.exclusion_areas.polygons.length > 0) {
                   saveInfo.exclusion_areas = global.exclusion_areas;
             }
             if (global.saved_measurements != null) {
@@ -2554,6 +2583,77 @@ function get_node_execute_time_str(node)
       }
 }
 
+// Get exclusion areas scaled to the target image size
+function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true) 
+{
+      if (exclusionAreas.polygons.length == 0) {
+            // No exclusion areas
+            return exclusionAreas;
+      }
+
+      // By default we do rescale when we do checks for image size
+      if (rescale) {
+            // Check if image dimensions in exclusionAreas are the same as in targetImage
+            if (exclusionAreas.image_width == targetImage.mainView.image.width &&
+                  exclusionAreas.image_height == targetImage.mainView.image.height) 
+            {
+                  // No scaling needed
+                  return exclusionAreas;
+            }
+
+            // Check for old format without image dimensions
+            if (exclusionAreas.image_width == 0 || exclusionAreas.image_height == 0) {
+                  if (global.is_processing != global.processing_state.none) {
+                        util.addCriticalStatus("Exclusion areas image size is not defined, please recreate exclusion areas");
+                  } else {
+                        console.criticalln("Exclusion areas image size is not defined, please recreate exclusion areas");
+                  }
+                  return exclusionAreas;
+            }
+
+            // Check image aspect ratio, we allow some different because of cropping
+            var exclusionAreasScale = exclusionAreas.image_width / exclusionAreas.image_height;
+            var targetImageScale = targetImage.mainView.image.width / targetImage.mainView.image.height;
+            if (Math.abs(exclusionAreasScale - targetImageScale) > 0.05) {
+                  if (global.is_processing != global.processing_state.none) {
+                        util.addCriticalStatus("Exclusion areas aspect ratio " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target aspect ratio " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  } else {
+                        console.criticalln("Exclusion areas aspect ratio " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target aspect ratio " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  }
+            }
+
+            var drizzle = util.findDrizzle(targetImage);
+
+            // Give a message if exclusionAreas image size is more than 5% different from target image size
+            // Drizzle in target image may change the image size, so we that in the calculation
+            var limit = par.crop_check_limit.val / 100;
+            if (Math.abs(exclusionAreas.image_width * drizzle - targetImage.mainView.image.width) > limit * targetImage.mainView.image.width ||
+            Math.abs(exclusionAreas.image_height * drizzle - targetImage.mainView.image.height) > limit * targetImage.mainView.image.height) 
+            {
+                  if (global.is_processing != global.processing_state.none) {
+                        util.addCriticalStatus("Exclusion areas size " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target image size " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  } else {
+                        console.criticalln("Exclusion areas size " + exclusionAreas.image_width + "x" + exclusionAreas.image_height + " does not match target image size " + targetImage.mainView.image.width + "x" + targetImage.mainView.image.height);
+                  }
+            }
+      }
+      var scaleX = targetImage.mainView.image.width / exclusionAreas.image_width;
+      var scaleY = targetImage.mainView.image.height / exclusionAreas.image_height;
+
+      var scaledExclusionAreas = [];
+      for (var i = 0; i < exclusionAreas.polygons.length; i++) {
+            var polygon = exclusionAreas.polygons[i];
+            var scaledPolygon = [];
+            for (var j = 0; j < polygon.length; j++) {
+                  // console.writeln("Scaling point: " + polygon[j].x + ", " + polygon[j].y);
+                  scaledPolygon.push({ x: Math.floor(polygon[j].x * scaleX), y: Math.floor(polygon[j].y * scaleY) });
+            }
+            scaledExclusionAreas.push(scaledPolygon);
+      }
+
+      return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
+}
+
 /* Interface functions.
  */
 
@@ -2622,6 +2722,7 @@ this.batchWindowSetPosition = batchWindowSetPosition;
 // History and keywords
 this.autointegrateProcessingHistory = autointegrateProcessingHistory;
 this.filterKeywords = filterKeywords;
+this.findDrizzle = findDrizzle;
 this.findDrizzleScale = findDrizzleScale;
 this.copyKeywords = copyKeywords;
 this.setFITSKeyword = setFITSKeyword;
@@ -2703,6 +2804,8 @@ this.adjustDialogToScreen = adjustDialogToScreen;
 
 this.get_execute_time_str = get_execute_time_str;
 this.get_node_execute_time_str = get_node_execute_time_str;
+
+this.getScaledExclusionAreas = getScaledExclusionAreas;
 
 }  /* AutoIntegrateUtil */
 

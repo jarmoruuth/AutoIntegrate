@@ -557,7 +557,6 @@ function readParametersFromPersistentModuleSettings()
 
 this.test_initdebug = function()
 {
-      global.testmode = true;
       global.par.debug.val = true;
       global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
 
@@ -570,6 +569,8 @@ this.test_initialize = function()
       init_pixinsight_version();
 
       global.do_not_write_settings = true;
+      global.testmode = true;
+      global.testmode_log = "";
 
       util.setDefaultDirs();
 

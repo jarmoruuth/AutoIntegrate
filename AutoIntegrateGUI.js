@@ -278,9 +278,13 @@ var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
 
-var preview_image = null;
-var preview_image_txt = null;
-var preview_images = [];
+var current_preview = {
+      image: null,
+      txt: null,
+      image_versions: [],     // 0 = original image, 1 = stretched image
+      imgWin: null,           // Sometimes we keep preview window, but often can be null
+      resampled: false
+};
 
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
@@ -746,10 +750,10 @@ function flowchartGraph(rootnode)
             console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
       }
 
-      if (preview_image != null && par.flowchart_background_image.val) {
+      if (current_preview.image != null && par.flowchart_background_image.val) {
             var bitmap = createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
             flowchart_is_background_image = true;
-            var txt = preview_image_txt;
+            var txt = current_preview.txt;
       } else {
             var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
             flowchart_is_background_image = false;
@@ -772,26 +776,26 @@ function flowchartGraph(rootnode)
       if (flowchart_is_background_image) {
             // Scale bitmap to image size
             if (par.flowchart_debug.val || par.debug.val) {
-                  console.writeln("flowchartGraph:image " + preview_image.width + "x" + preview_image.height);
+                  console.writeln("flowchartGraph:image " + current_preview.image.width + "x" + current_preview.image.height);
             }
-            if (bitmap.height != preview_image.height) {
-                  var scale = preview_image.height / bitmap.height;
+            if (bitmap.height != current_preview.image.height) {
+                  var scale = current_preview.image.height / bitmap.height;
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
                   bitmap = scaled_bitmap;
             }
-            if (bitmap.width > preview_image.width) {
-                  var scale = preview_image.width / bitmap.width;
+            if (bitmap.width > current_preview.image.width) {
+                  var scale = current_preview.image.width / bitmap.width;
                   var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
                   bitmap = scaled_bitmap;
             }
             // A new Image should not be needed
-            // var background_image = new Image(preview_image);
+            // var background_image = new Image(current_preview.image);
             // var background_bitmap = background_image.render();
-            var background_bitmap = preview_image.render();
+            var background_bitmap = current_preview.image.render();
             graphics = new Graphics(background_bitmap);
             // draw bitmap to the middle of the image
-            var x = (preview_image.width - bitmap.width) / 2;
-            var y = (preview_image.height - bitmap.height) / 2;
+            var x = (current_preview.image.width - bitmap.width) / 2;
+            var y = (current_preview.image.height - bitmap.height) / 2;
             graphics.drawBitmap(x, y, bitmap);
             graphics.end();
             var flowchartImage = util.createImageFromBitmap(background_bitmap);
@@ -863,8 +867,8 @@ function generateNewFlowchartData(parent)
       }
 
       var succp = true;
-      preview_image = null;
-      preview_images = [];
+      current_preview.image = null;
+      current_preview.image_versions = [];
 
       engine.flowchartReset();
 
@@ -2444,12 +2448,25 @@ function variableCleanup()
 
 function exitCleanup(dialog)
 {
-      console.writeln("exitCleanup");
+      // console.writeln("exitCleanup");
+      if (blink_window != null) {
+            blink_window.forceClose();
+            blink_window = null;
+      }
+      close_undo_images(true);
       if (global.use_preview) {
-            previewCleanup(dialog.tabPreviewObj);
-            dialog.tabPreviewObj = null;
-            previewCleanup(dialog.sidePreviewObj);
-            dialog.sidePreviewObj = null;
+            if (dialog.tabPreviewObj != null) {
+                  previewCleanup(dialog.tabPreviewObj);
+                  dialog.tabPreviewObj = null;
+            }
+            if (dialog.sidePreviewObj != null) {
+                  previewCleanup(dialog.sidePreviewObj);
+                  dialog.sidePreviewObj = null;
+            }
+      }
+      if (current_preview.imgWin != null) {
+            current_preview.imgWin.forceClose();
+            current_preview.imgWin = null;
       }
       variableCleanup();
       util.checkEvents();
@@ -2887,13 +2904,15 @@ function save_as_undo()
       }
 }
 
-function close_undo_images()
+function close_undo_images(at_exit = false)
 {
       if (extra_gui_info.undo_images.length > 0) {
             console.writeln("Close undo images");
             extra_gui_info.undo_images = [];
             extra_gui_info.undo_images_pos = -1;
-            update_undo_buttons();
+            if (!at_exit) {
+                  update_undo_buttons();
+            }
       }
 }
 
@@ -3831,11 +3850,24 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       return { histogramBitmap: bitmap, cumulativeValues: cumulativeValues, percentageValues: percentageValues, log_x_scale: log_x_scale };
 }
 
-function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, copy_image = true)
+function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgWin_from_file = null, resampled = false)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             console.writeln("Preview image:" + imgWin.mainView.id + ", " + txt);
             if (par.debug.val) var start_time = Date.now();
+            if (current_preview.imgWin != null) {
+                  current_preview.imgWin.forceClose();
+                  current_preview.imgWin = null;
+            }
+            if (imgWin_from_file == null) {
+                  var copy_image = true;
+            } else {
+                  // Save possible imageWindow loaded from file
+                  var copy_image = false;
+                  current_preview.imgWin = imgWin_from_file;
+            }
+            current_preview.resampled = resampled;
+            if (par.debug.val) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
             if (preview_size_changed) {
                   if (tabPreviewControl != null) {
                         tabPreviewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
@@ -3869,9 +3901,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:histogram " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (copy_image) {
-                  preview_images[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
+                  current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
             } else {
-                  preview_images[0] = { image: imgWin.mainView.image, txt: txt };
+                  current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt };
             }
             if (run_autostf) {
                   // Image is linear, run AutoSTF
@@ -3882,25 +3914,25 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                         engine.autoStretch(copy_win);
                         imgWin = copy_win;
                         txt = txt + " (AutoSTF)";
-                        preview_images[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
-                        preview_image = preview_images[1].image;
-                        preview_image_txt = preview_images[1].txt;
+                        current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
+                        current_preview.image = current_preview.image_versions[1].image;
+                        current_preview.txt = current_preview.image_versions[1].txt;
                   } else {
                         if (par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, do not copy image");
-                        preview_images[1] = preview_images[0];
+                        current_preview.image_versions[1] = current_preview.image_versions[0];
                         var copy_win = null;
-                        preview_image = preview_images[0].image;
-                        preview_image_txt = preview_images[0].txt;
+                        current_preview.image = current_preview.image_versions[0].image;
+                        current_preview.txt = current_preview.image_versions[0].txt;
                         engine.autoStretch(imgWin);
                   }
             } else {
                   if (par.debug.val) console.writeln("updatePreviewWinTxt:no autostf");
-                  preview_images[1] = preview_images[0];
+                  current_preview.image_versions[1] = current_preview.image_versions[0];
                   var copy_win = null;
-                  preview_image = preview_images[0].image;
-                  preview_image_txt = preview_images[0].txt;
+                  current_preview.image = current_preview.image_versions[0].image;
+                  current_preview.txt = current_preview.image_versions[0].txt;
             }
-            if (par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + preview_image.width + "x" + preview_image.height);
+            if (par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + current_preview.image.width + "x" + current_preview.image.height);
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (global.is_processing != global.processing_state.none) {
@@ -4961,12 +4993,12 @@ function getExclusionsAreas()
       util.closeOneWindowById(tmpname);
       if (exclusionAreasTargetImageName == "Auto") {
             console.writeln("Exclusion areas target image is set to Auto, using the current image.");
-            if (preview_image == null) {
+            if (current_preview.image == null) {
                   console.criticalln("Exclusion areas target preview image is not set, cannot use Auto.");
                   return;
             }
-            if (par.debug.val) console.writeln("getExclusionsAreas: preview image size " + preview_image.width + "x" + preview_image.height);
-            var win = util.createWindowFromImage(preview_image, tmpname, true);
+            console.writeln("Preview image size " + current_preview.image.width + "x" + current_preview.image.height);
+            var win = util.createWindowFromImage(current_preview.image, tmpname, true);
             if (win == null) {
                   console.criticalln("Exclusion areas target preview image window not found for Auto");
                   return;
@@ -4990,11 +5022,17 @@ function getExclusionsAreas()
       }
 
       console.writeln("Opening Exclusion Area dialog for target image: " + exclusionAreasTargetImageName);
-      let exclusionAreaDialog = new AutoIntegrateExclusionArea(global);
+      let exclusionAreaDialog = new AutoIntegrateExclusionArea(util);
       if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
       
-            global.exclusion_areas = exclusionAreaDialog.getScaledExclusionAreas();
-            exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
+            var exclusion_areas = exclusionAreaDialog.getExclusionAreas();
+            if (current_preview.imgWin != null) {
+                  // We have saved original image window, scale exclusion areas to the original image size
+                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, current_preview.imgWin, false);
+            } else {
+                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, win, false);
+            }
+            exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
 
             console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
       } else {
@@ -5772,6 +5810,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               }
                               blink_window = imageWindow;
                         } else {
+                              let resampled = false;
                               if (par.preview_resample.val) {
                                     var maxlen = Math.max(imageWindow.mainView.image.width, imageWindow.mainView.image.height);
                                     var resample_factor = par.preview_resample_target.val / maxlen;
@@ -5779,6 +5818,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                           engine.runResample(imageWindow, resample_factor);
                                           if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:runResample " + (Date.now()-start_time)/1000 + " sec, resample_factor " + resample_factor);
                                           console.writeln("Resampled image size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+                                          resampled = true;
                                     }
                               }
                               updatePreviewWinTxt(
@@ -5786,11 +5826,12 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                     File.extractName(files_TreeBox.currentNode.filename) + File.extractExtension(files_TreeBox.currentNode.filename),
                                     null,
                                     true,
-                                    true);
+                                    imageWindow,
+                                    resampled
+                              );
                               if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
                               if (par.debug.val) start_time = Date.now();
                               util.updateStatusInfoLabel(imageInfoTxt);
-                              imageWindow.forceClose();
                               switchtoPreviewTab();
                         }
                         current_selected_file_name = files_TreeBox.currentNode.filename;
@@ -5853,7 +5894,7 @@ function updateInfoLabel(parent)
 
 function updateExclusionAreaLabel(parent)
 {
-      exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.length;
+      exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
 }
 
 function updateImageInfoLabel(txt)
@@ -5957,8 +5998,8 @@ function runAction(parent)
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
       }
-      preview_image = null;
-      preview_images = [];
+      current_preview.image = null;
+      current_preview.image_versions = [];
       updateWindowPrefix();
       getFilesFromTreebox(parent.dialog);
       global.haveIconized = 0;
@@ -6015,7 +6056,6 @@ function newExitButton(parent, toolbutton)
             // save settings at the end
             savePersistentSettings(true);
             exitFromDialog();
-            close_undo_images();
             exitCleanup(parent.dialog);
             console.noteln("Close dialog");
             parent.dialog.cancel();
@@ -6062,8 +6102,8 @@ function newAutoContinueButton(parent, toolbutton)
 
             // Do not create subdirectory structure with AutoContinue
 
-            preview_image = null;
-            preview_images = [];
+            current_preview.image = null;
+            current_preview.image_versions = [];
             util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
             if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
@@ -7208,6 +7248,13 @@ function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
       this.__base__();
+
+      this.onClose = function() {
+            // This fires when dialog closes by ANY method
+            // Including X button, Escape key, or programmatic close
+            exitCleanup(this);
+            console.noteln("Dialog is closing");
+      };
 
       let sz = util.getScreenSize(this);
       let use_restored_preview_size = true;
@@ -9086,7 +9133,7 @@ function AutoIntegrateDialog()
                   console.criticalln("Exclusion areas: " + e);
             }
       };
-      this.exclusionAreaCountLabel = newLabel(this, "Count: " + global.exclusion_areas.length);
+      this.exclusionAreaCountLabel = newLabel(this, "Count: " + global.exclusion_areas.polygons.length);
       exclusionAreaCountLabel = this.exclusionAreaCountLabel;
 
       this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
@@ -10399,11 +10446,11 @@ function AutoIntegrateDialog()
                               console.noteln("No flowchart data available");
                         }
                   } else {
-                        if (preview_image != null) {
+                        if (current_preview.image != null) {
                               if (ppar.preview.side_preview_visible) {
-                                    sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                                    sidePreviewControl.SetImage(current_preview.image, current_preview.txt);
                               } else {
-                                    tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                                    tabPreviewControl.SetImage(current_preview.image, current_preview.txt);
                               }
                         }
                   }
@@ -10462,13 +10509,13 @@ function AutoIntegrateDialog()
             "<p>Stretched format can be useful for visualizing the current processed image.</p>",
             function(checked) { 
                   par.preview_autostf.val = checked;
-                  if (preview_image != null) {
+                  if (current_preview.image != null) {
                         if (checked) {
-                              preview_image = preview_images[1].image;
-                              preview_image_txt = preview_images[1].txt;
+                              current_preview.image = current_preview.image_versions[1].image;
+                              current_preview.txt = current_preview.image_versions[1].txt;
                         } else {
-                              preview_image = preview_images[0].image;
-                              preview_image_txt = preview_images[0].txt;
+                              current_preview.image = current_preview.image_versions[0].image;
+                              current_preview.txt = current_preview.image_versions[0].txt;
                         }
                   }
                   if (par.show_flowchart.val) {
@@ -10478,11 +10525,11 @@ function AutoIntegrateDialog()
                               // console.noteln("No flowchart data available");
                         }
                   } else {
-                        if (preview_image != null) {
+                        if (current_preview.image != null) {
                               if (ppar.preview.side_preview_visible) {
-                                    sidePreviewControl.SetImage(preview_image, preview_image_txt);
+                                    sidePreviewControl.SetImage(current_preview.image, current_preview.txt);
                               } else {
-                                    tabPreviewControl.SetImage(preview_image, preview_image_txt);
+                                    tabPreviewControl.SetImage(current_preview.image, current_preview.txt);
                               }
                         }
                   }

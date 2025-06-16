@@ -749,36 +749,38 @@ function flowchartCleanup(parent)
       return removed;
 }
 
-function flowchartPrintList(list, indent)
+function flowchartPrintList(list, indent, testmode = false)
 {
       for (var i = 0; i < list.length; i++) {
             var item = list[i];
-            if (item.type == "header") {
-                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
-                  flowchartPrintList(item.list, indent + "  ");
-            } else if (item.type == "child") {
-                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
-                  flowchartPrintList(item.list, indent + "  ");
-            } else if (item.type == "parent") {
-                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
-                  flowchartPrintList(item.list, indent + "  ");
-            } else if (item.type == "mask") {
-                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
-                  flowchartPrintList(item.list, indent + "  ");
+            var txt = indent + item.txt;
+            if (testmode) {
+                  global.testmode_log += txt + "\n";
             } else {
-                  console.writeln(indent + item.txt + util.get_node_execute_time_str(item));
+                  console.writeln(txt + util.get_node_execute_time_str(item));
+            }
+            if (item.type == "header") {
+                  flowchartPrintList(item.list, indent + "  ", testmode);
+            } else if (item.type == "child") {
+                  flowchartPrintList(item.list, indent + "  ", testmode);
+            } else if (item.type == "parent") {
+                  flowchartPrintList(item.list, indent + "  ", testmode);
+            } else if (item.type == "mask") {
+                  flowchartPrintList(item.list, indent + "  ", testmode);
             }
       }
 }
 
-function flowchartPrint(rootnode)
+function flowchartPrint(rootnode, testmode = false)
 {
       if (rootnode == null) {
             console.writeln("No flowchart");
             return;
       }
-      console.noteln("Flowchart:");      
-      flowchartPrintList(rootnode.list, "  ");
+      if (!testmode) {
+            console.noteln("Flowchart:");
+      }
+      flowchartPrintList(rootnode.list, "  ", testmode);
 }
 
 function flowchartReset()
@@ -1223,6 +1225,9 @@ function engine_end_process(node, imgWin = null, process_name = null, copy_image
             }
       }
       if (imgWin && global.is_processing == global.processing_state.processing) {
+            if (global.testmode) {
+                  global.testmode_log += process_name + "\n";
+            }
             saveProcessingStepToImage(imgWin, "Step " + stepno + ": " + process_name);
             stepno++;
       }
@@ -3638,7 +3643,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       }
 
       if (global.testmode) {
-            if (global.subframeselector_call_count > 0) {
+            if (global.subframeselector_call_count > 1) {
                   // We should call subframe selector only once in normal processing
                   util.throwFatalError("subframeSelectorMeasure, subframe selector called multiple times, this is not allowed in test mode.");
             }
@@ -5154,15 +5159,27 @@ function mapCustomAndReplaceImageNames(targetChannel, images, check_allfilesarr)
 {
       switch (targetChannel) {
             case 'R':
+                  if (local_R_mapping == 'Auto') {
+                        util.throwFatalError("Cannot use 'Auto' mapping for R channel");
+                  }
                   var mapping = { mapping: local_R_mapping, filters: "" };
                   break;
             case 'G':
+                  if (local_G_mapping == 'Auto') {
+                        util.throwFatalError("Cannot use 'Auto' mapping for G channel");
+                  }
                   var mapping = { mapping: local_G_mapping, filters: "" };
                   break;
             case 'B':
+                  if (local_B_mapping == 'Auto') {
+                        util.throwFatalError("Cannot use 'Auto' mapping for B channel");
+                  }
                   var mapping = { mapping: local_B_mapping, filters: "" };
                   break;
             case 'L':
+                  if (local_L_mapping == 'Auto') {
+                        util.throwFatalError("Cannot use 'Auto' mapping for L channel");
+                  }
                   var mapping = { mapping: local_L_mapping, filters: "" };
                   break;
             default:
@@ -6174,7 +6191,7 @@ function getSPCCWavelengthBandWidth(filter, channel)
       }
 }
 
-function mapSPCCAutoNarrowband()
+function mapSPCCAutoNarrowband(is_RGB)
 {
       if (!par.use_spcc.val || 
           par.skip_color_calibration.val ||
@@ -6182,7 +6199,7 @@ function mapSPCCAutoNarrowband()
       {
             return;
       }
-      if (process_narrowband) {
+      if (process_narrowband && !is_RGB) {
             spcc_params.narrowband_mode = true;
             console.writeln("SPCC auto narrowband using SPCC narrowband mode");
             spcc_params.white_reference = "Photon Flux";
@@ -6193,6 +6210,7 @@ function mapSPCCAutoNarrowband()
       }
       console.writeln("SPCC auto narrowband using " + spcc_params.white_reference + " white reference");
 
+      // We allow 'Auto' mapping for SPCC and use default values
       var values = getSPCCWavelengthBandWidth(local_R_mapping, 'R');
       if (values) {
             spcc_params.wavelengths[0] = values[0];
@@ -6394,9 +6412,6 @@ function customMapping(RGBmapping, filtered_lights)
             var check_allfilesarr = null;
       }
 
-      if (check_allfilesarr == null) {
-            mapSPCCAutoNarrowband();
-      }
       if (local_narrowband_mapping == 'Auto') {
             // Do auto mapping, we may get here without mapping
             // when using extract channels option.
@@ -6698,15 +6713,24 @@ function RGBcopyToMapIf(ch, id)
 // narrowband mappings
 function hasLRGBchannelsInNarrowbandMapping()
 {
-      // Find one of LRGB chars from local_R_mapping
+      if (local_R_mapping == 'Auto' || local_G_mapping == 'Auto' || local_B_mapping == 'Auto') {
+            // We allow 'Auto' mapping and assume RGB
+            console.writeln("hasLRGBchannelsInNarrowbandMapping: found Auto mapping, assume RGB");
+            return true;
+      }
+      // Find one of RGB chars from mappings
       for (var ch of ['L', 'R', 'G', 'B']) {
             if (local_R_mapping.indexOf(ch) != -1
                 || local_G_mapping.indexOf(ch) != -1
                 ||  local_B_mapping.indexOf(ch) != -1) 
             {
+                  console.writeln("hasLRGBchannelsInNarrowbandMapping: found " + ch + " in narrowband mapping, R: " + local_R_mapping +
+                                 ", G: " + local_G_mapping + ", B: " + local_B_mapping);
                   return true;
             }
       }
+      console.writeln("hasLRGBchannelsInNarrowbandMapping: not found " + ch + " in narrowband mapping, R: " + local_R_mapping +
+                      ", G: " + local_G_mapping + ", B: " + local_B_mapping);
       return false;
 }
 
@@ -6728,7 +6752,6 @@ function mapLRGBchannels(RGBmapping)
       } else if (L_id != null) {
             console.writeln("mapLRGBchannels, L_id " + L_id);
       }
-
 
       if (rgb 
           && process_narrowband 
@@ -7535,6 +7558,31 @@ function setAutoIntegrateFilters(target_id, idlist)
       var win = ImageWindow.windowById(target_id);
       util.setFITSKeyword(win, "AutoIntegrateFilters", filter_keywords, "Filters used");
       console.writeln("setAutoIntegrateFilters, target_id " + target_id + ", filter_keywords " + filter_keywords);
+}
+
+function getAutoIntegrateFilters(imgWindow)
+{
+      console.writeln("getAutoIntegrateFilters, imgWindow " + imgWindow.mainView.id);
+      var filter_keywords = util.getKeywordValue(imgWindow, "AutoIntegrateFilters");
+      if (filter_keywords == null) {
+            return "";
+      } else {
+            return filter_keywords;
+      }
+}
+
+// Check is all RGB filters are listed in the image
+function checkRGBfilters(imgWindow)
+{
+      var filter_keywords = getAutoIntegrateFilters(imgWindow);
+      var rgb_filters = ["R", "G", "B"];
+      for (var i = 0; i < rgb_filters.length; i++) {
+            if (filter_keywords.indexOf(rgb_filters[i]) === -1) {
+                  console.writeln("Missing RGB filter: " + rgb_filters[i]);
+                  return false;
+            }
+      }
+      return true;
 }
 
 function runImageIntegrationEx(images, name, local_normalization)
@@ -10431,25 +10479,26 @@ function findBackgroundRegions(w, windowSize, imageStats, testmode)
       // Iterate over the image with the defined window size
       var nchecked = 0;
       var tiles_excluded = 0;
+      var scaled_exclusion_areas = util.getScaledExclusionAreas(global.exclusion_areas, w);
+      var polygons = scaled_exclusion_areas.polygons;
       for (var y = windowSize, cnt = 0; y <= height - windowSize; y += 10, cnt++) {
             for (var x = windowSize; x <= width - windowSize; x += 10) {
                   var rect = new Rect(x, y, x + windowSize, y + windowSize);
-
-                  if (global.exclusion_areas.length > 0) {
+                  if (polygons.length > 0) {
                         // Check if some part of the tile is inside the exclusion area
-                        if (isPointExcluded(x, y, global.exclusion_areas)) {
+                        if (isPointExcluded(x, y, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x, y + windowSize, global.exclusion_areas)) {
+                        if (isPointExcluded(x, y + windowSize, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x + windowSize, y, global.exclusion_areas)) {
+                        if (isPointExcluded(x + windowSize, y, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x + windowSize, y + windowSize, global.exclusion_areas)) {
+                        if (isPointExcluded(x + windowSize, y + windowSize, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
@@ -10704,7 +10753,6 @@ function findSampleFromTile(tileNumber, x, y, x_size, y_size, backgroundRegions,
                   return a.median - b.median;
             });
             // Pick the first region outside of the exclusion area as the sample
-            global.exclusion_areas
             let sample = foundRegions[0];
             selectedRegions.push(sample);
             console.writeln("Tile " + tileNumber + ", " + foundRegions.length + " samples" + ", best sample at x " + sample.x + ", y " + sample.y + ", median " + sample.median + ", std dev " + sample.stdDev);
@@ -10963,25 +11011,26 @@ function findDBEsamples(w)
       var print_x = Math.floor(tile_x_size / 2);
       var print_y = Math.floor(tile_y_size / 2);
       var tiles_excluded = 0;
+      var scaled_exclusion_areas = util.getScaledExclusionAreas(global.exclusion_areas, w);
+      var polygons = scaled_exclusion_areas.polygons;
       for (var y = windowSize, cnt = 0; y < height - 2 * windowSize - 1; y += stepsize, cnt++) {
             for (var x = windowSize; x < width - 2 * windowSize - 1; x += stepsize) {
                   var rect = new Rect(x, y, x + windowSize, y + windowSize);
-
-                  if (global.exclusion_areas.length > 0) {
+                  if (polygons.length > 0) {
                         // Check if some part of the tile is inside the exclusion area
-                        if (isPointExcluded(x, y, global.exclusion_areas)) {
+                        if (isPointExcluded(x, y, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x, y + windowSize, global.exclusion_areas)) {
+                        if (isPointExcluded(x, y + windowSize, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x + windowSize, y, global.exclusion_areas)) {
+                        if (isPointExcluded(x + windowSize, y, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
-                        if (isPointExcluded(x + windowSize, y + windowSize, global.exclusion_areas)) {
+                        if (isPointExcluded(x + windowSize, y + windowSize, polygons)) {
                               tiles_excluded++;
                               continue;
                         }
@@ -11139,11 +11188,11 @@ function findDBEsamples(w)
                         // Create a rectangle
                         graphics.drawRect(x, y, x + windowSize, y + windowSize);
                   }
-                  if (global.exclusion_areas.length > 0) {
+                  if (global.exclusion_areas.polygons.length > 0) {
                         // Draw exclusion areas
                         graphics.pen = new Pen(0xFF00FF00, 4);
-                        for (var i = 0; i < global.exclusion_areas.length; i++) {
-                              var exclusion_area = global.exclusion_areas[i];
+                        for (var i = 0; i < global.exclusion_areas.polygons.length; i++) {
+                              var exclusion_area = global.exclusion_areas.polygons[i];
                               for (var j = 1; j < exclusion_area.length; j++) {
                                     var x = exclusion_area[j].x;
                                     var y = exclusion_area[j].y;
@@ -11250,28 +11299,6 @@ function findCurrentTelescope(imgWin)
                         break;
             }
       }
-}
-
-function findDrizzle(imgWin)
-{
-      for (var i = 0; i < imgWin.keywords.length; i++) {
-            switch (imgWin.keywords[i].name) {
-                  case "AutoIntegrateDrizzle":
-                        var value = imgWin.keywords[i].strippedValue.trim();
-                        console.writeln("AutoIntegrateDrizzle=" + value);
-                        var drizzle = parseInt(value);
-                        return drizzle;
-                  default:
-                        break;
-            }
-      }
-      var scale = util.findDrizzleScale(imgWin);
-      if (scale > 1) {
-            console.writeln("Using image metadata drizzle scale " + scale);
-            return scale;
-      }
-
-      return 1;
 }
 
 function findBinning(imgWin)
@@ -11493,7 +11520,7 @@ function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)
                   }
                   if (par.target_drizzle.val != 'None') {
                         if (par.target_drizzle.val == 'Auto') {
-                              var scale = findDrizzle(imgWin);
+                              var scale = util.findDrizzle(imgWin);
                               if (scale > 1) {
                                     pixel_size = pixel_size / scale;
                                     console.writeln("Using drizzle scale " + scale + ", adjusted pixel size: " + pixel_size);
@@ -11815,12 +11842,20 @@ function runSPCC(imgWin, phase)
 
 function runColorCalibration(imgWin, phase, is_RGB = false)
 {
+      if (checkRGBfilters(imgWin)) {
+            console.writeln("We have RGB filters, run color calibration as RGB image");
+            is_RGB = true;
+      }
+
+      mapSPCCAutoNarrowband(is_RGB);
+
       console.writeln("runColorCalibration on " + imgWin.mainView.id + " in phase " + phase);
       console.writeln("  process_narrowband: " + process_narrowband + ", narrowband_mode: " + spcc_params.narrowband_mode + ", color_calibration_narrowband: " + par.color_calibration_narrowband.val);
       // check for correct phase values
       if (phase != 'linear' && phase != 'nonlinear') {
             util.throwFatalError("Incorrect phase value " + phase);
       }
+
       if (!is_RGB && process_narrowband && !(spcc_params.narrowband_mode || par.color_calibration_narrowband.val)) {
             util.addProcessingStep("No color calibration for narrowband");
             return;
@@ -11847,7 +11882,7 @@ function runColorCalibration(imgWin, phase, is_RGB = false)
       if (par.use_spcc.val && phase == 'linear') {
             /* Use SPCC. SPCC is run only in linear phase.
              */
-            runSPCC(imgWin, phase);
+            runSPCC(imgWin, phase, is_RGB);
       }
 }
 
@@ -12218,6 +12253,21 @@ function writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, ise
                   global.processing_errors = "";
             }
       }
+      file.close();
+}
+
+function writeTestmodeLog(text, fname)
+{
+      console.writeln("writeTestmodeLog: " + fname);
+      fname = util.ensure_win_prefix(fname);
+      var processedPath = util.combinePath(global.outputRootDir, global.AutoProcessedDir);
+      processedPath = util.ensurePathEndSlash(processedPath);
+
+      global.run_results.testmode_log_name = processedPath + fname;
+
+      var file = new File();
+      file.createForWriting(global.run_results.testmode_log_name);
+      file.outTextLn(text);
       file.close();
 }
 
@@ -17388,10 +17438,10 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
                   } else {
                         var txt = "Narrowband palette " + global.narrowBandPalettes[i].name + " batch run";
                   }
-                  local_R_mapping = global.narrowBandPalettes[i].R;
-                  local_G_mapping = global.narrowBandPalettes[i].G;
-                  local_B_mapping = global.narrowBandPalettes[i].B;
-                  util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + local_R_mapping + ", " + local_G_mapping + ", " + local_B_mapping);
+                  par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
+                  par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
+                  par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
+                  util.addProcessingStepAndStatusInfo("Narrowband palette " + global.narrowBandPalettes[i].name + " batch using " + par.custom_R_mapping.val + ", " + par.custom_G_mapping.val + ", " + par.custom_B_mapping.val);
 
                   flowchartReset();
 
@@ -19875,6 +19925,9 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        if (global.flowchartData != null) {
             // Print flowchart
             engine.flowchartPrint(global.flowchartData);
+            if (global.testmode) {
+                  engine.flowchartPrint(global.flowchartData, true);
+            }
             if (par.flowchart_saveimage.val && global.flowchart_image != null && gui) {
                   // Save flowchart image
                   var flowchart_imagename = util.ensure_win_prefix("AutoIntegrateFlowchart");
@@ -19941,6 +19994,13 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        console.writeln("Run Garbage Collection");
        util.runGarbageCollection();
  
+       console.writeln("global.testmode " + global.testmode);
+       if (global.testmode) {
+            global.testmode_log += "\n" + global.processing_steps;
+            writeTestmodeLog(global.testmode_log, "TestMode.log");
+            global.testmode_log = "";
+       }
+
        console.noteln("Engine processing completed.");
 
        if (!global.get_flowchart_data && preprocessed_images != global.start_images.FINAL) {
