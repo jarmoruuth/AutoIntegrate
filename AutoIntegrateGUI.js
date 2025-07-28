@@ -853,6 +853,8 @@ function copyFileNames(fileNames)
 
 function generateNewFlowchartData(parent)
 {
+      var savedOutputRootDir = global.outputRootDir;
+
       console.beginLog();
 
       console.writeln("generateNewFlowchartData");
@@ -929,6 +931,8 @@ function generateNewFlowchartData(parent)
       engine.writeProcessingStepsAndEndLog(null, false, "AutoFlowchart", false);
       console.writeln("AutoFlowchart log written");
       console.flush();
+
+      global.outputRootDir = savedOutputRootDir;
 
       return succp;
 }
@@ -3019,7 +3023,7 @@ function Autorun(parent)
                   console.noteln("Click Cancel when all files are selected.");
                   var caption = "Select files for batch " + (i + 1) + ", Cancel ends the batch files";
                   if (par.open_directory.val) {
-                        var lights = engine.openDirectoryFiles(caption, par.directory_files.val, true, true);
+                        var lights = engine.openDirectoryFiles(caption, par.directory_files.val, true, true, global.pages.LIGHTS);
                   } else {
                         var lights = engine.openImageFiles(caption, true, false, true);
                   }
@@ -3047,7 +3051,7 @@ function Autorun(parent)
                   if (par.batch_mode.val) {
                         global.lightFileNames = batch_files.shift();
                   } else if (par.open_directory.val) {
-                        global.lightFileNames = engine.openDirectoryFiles("Lights", par.directory_files.val, true, false);
+                        global.lightFileNames = engine.openDirectoryFiles("Lights", par.directory_files.val, true, false, global.pages.LIGHTS);
                   } else {
                         global.lightFileNames = engine.openImageFiles("Lights", true, false, false);
                   }
@@ -4216,7 +4220,7 @@ function createCombinedMosaicPreviewWin(imgWinArr)
 
 function updateOutputDirEdit(path)
 {
-      global.outputRootDir = util.ensurePathEndSlash(path);
+      util.setOutputRootDir(util.ensurePathEndSlash(path));
       console.writeln("updateOutputDirEdit, set global.outputRootDir ", global.outputRootDir);
       outputDirEdit.text = global.outputRootDir;
 }
@@ -4244,7 +4248,7 @@ function addOutputDir(parent)
       outputDirEdit.text = global.outputRootDir;
       outputDirEdit.toolTip = lbl.toolTip;
       outputDirEdit.onEditCompleted = function() {
-            global.outputRootDir = util.ensurePathEndSlash(outputDirEdit.text.trim());
+            util.setOutputRootDir(util.ensurePathEndSlash(outputDirEdit.text.trim()));
             console.writeln("addOutputDir, set global.outputRootDir ", global.outputRootDir);
       };
 
@@ -5430,7 +5434,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
       filesAdd_Button.onClick = function()
       {
             if (par.open_directory.val) {
-                  var pagearray = engine.openDirectoryFiles(filetype, par.directory_files.val, false, false);
+                  var pagearray = engine.openDirectoryFiles(filetype, par.directory_files.val, false, false, pageIndex);
             } else {
                   var pagearray = engine.openImageFiles(filetype, false, false, false);
             }
@@ -5525,9 +5529,13 @@ function addFilesButtons(parent, targetSizer)
 
       var directoryCheckBox = newCheckBox(parent, "Directory", par.open_directory, 
                   "<p>Open directory dialog instead of files dialog.</p>" + 
-                  "<p>All files that match the file pattern will be added as image files.</p>" +
+                  "<p>All files that match the file pattern on the right will be added as image files. " +
+                  "Files are searched recursively from the selected directory and all subdirectories.</p>" +
+                  "<p>Directory used for light files will be used as the default output directory.</p>" +
                   "<p>File pattern can have multiple file types separated by space.</p>");
-      var directoryFilesEdit = newTextEdit(parent, par.directory_files, directoryCheckBox.toolTip);
+      var directoryFilesEdit = newTextEdit(parent, par.directory_files,
+                  "<p>File pattern for files that will be added as image files.</p>" +
+                  "<p>File pattern can have multiple file types separated by space.</p>");
       directoryFilesEdit.setFixedWidth(8 * parent.font.width( 'M' ));
 
       var filesButtons_Sizer1 = new HorizontalSizer;

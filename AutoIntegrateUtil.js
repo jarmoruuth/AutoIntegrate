@@ -1004,6 +1004,14 @@ function fixAllWindowArrays(new_prefix)
       fixWindowArray(global.final_windows, old_prefix, new_prefix);
 }
 
+function setOutputRootDir(path)
+{
+      if (global.outputRootDir != path) {
+            console.noteln("setOutputRootDir, new outputRootDir " + path);
+            global.outputRootDir = path;
+      }
+}
+
 function getOutputDir(filePath)
 {
       var outputDir = global.outputRootDir;
@@ -1015,6 +1023,21 @@ function getOutputDir(filePath)
             } else {
                   outputDir = "";
                   console.writeln("outputDir empty filePath");
+            }
+            // Check if some directory in global.openedLightsDirectories is a prefix
+            // for the outputDir, then we use the directory from the list
+            if (global.openedLightsDirectories.length > 0) {
+                  for (var i = 0; i < global.openedLightsDirectories.length; i++) {
+                        var dir = util.ensurePathEndSlash(global.openedLightsDirectories[i]);
+                        console.writeln("getOutputDir, openedLightsDirectories[ " + i + "] " + dir);
+                        if (outputDir.startsWith(dir)) {
+                              outputDir = dir;
+                              console.noteln("getOutputDir, using openedLightsDirectory " + outputDir);
+                              break;
+                        }
+                  }
+            } else {
+                  console.writeln("getOutputDir, no openedLightsDirectories, using outputRootDir " + outputDir);
             }
       }
       return outputDir;
@@ -1825,9 +1848,9 @@ function ensureDialogFilePath(names)
                   return 0;
             }
             util.saveLastDir(gdd.directory);
-            global.outputRootDir = gdd.directory;
+            util.setOutputRootDir(gdd.directory);
             if (global.outputRootDir != "") {
-                  global.outputRootDir = util.ensurePathEndSlash(global.outputRootDir);
+                  util.setOutputRootDir(util.ensurePathEndSlash(global.outputRootDir));
             }
             console.writeln("ensureDialogFilePath, set global.outputRootDir ", global.outputRootDir);
             return 1;
@@ -1932,12 +1955,15 @@ function readJsonFile(fname, lights_only)
       if (saveInfo.output_dir != null && saveInfo.output_dir != undefined) {
             // in saveInfo.output_dir replace text "$(setupDir)" with saveDir
             console.writeln("Restored output directory " + saveInfo.output_dir);
-            var outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
+            let outputDir = saveInfo.output_dir.replace("$(setupDir)", saveDir);
             outputDir = outputDir.replace("$(saveDir)", saveDir);   // for compatibility check also saveDir
             console.writeln("Updated output directory " + outputDir);
             if (gui) {
                   gui.updateOutputDirEdit(outputDir);
             }
+      } else {
+            // Use saveDir as output root directory
+            util.setOutputRootDir(util.ensurePathEndSlash(saveDir));
       }
 
       saveInfoMakeFullPaths(saveInfo, saveDir);
@@ -2681,6 +2707,7 @@ this.removePathEndDot = removePathEndDot;
 this.parseNewOutputDir = parseNewOutputDir;
 this.pathIsRelative = pathIsRelative;
 this.getOutputDir = getOutputDir;
+this.setOutputRootDir = setOutputRootDir;
 this.testDirectoryIsWriteable = testDirectoryIsWriteable;
 this.ensureDir = ensureDir;
 this.saveLastDir = saveLastDir;

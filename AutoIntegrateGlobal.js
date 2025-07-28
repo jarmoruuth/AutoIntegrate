@@ -42,15 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.76";               // Version, also updated into updates.xri
-this.autointegrate_info = "Exclusion areas, metrics visualizer";  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.77 test1";               // Version, also updated into updates.xri
+this.autointegrate_info = "Find files recursively from a directory";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Exclusion areas can now be defined in the GUI for DBE.",
-      "- Metrics visualizer can now be used to visualize metrics from SubframeSelector.",
-      "- Astrobin compatible .csv file is generated after a full processing.",
-      "- Create RGB stars for narrowband when RGB channels are present."
+      "- Find files recursively from a directory.",
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -672,6 +669,7 @@ this.is_gc_process = true;          // true if we have GradientCorrection proces
 this.is_mgc_process = true;         // true if we have MultiscaleGradientCorrection process available
 
 this.outputRootDir = "";
+this.openedLightsDirectories = []; // we keep track of directories where we have opened lights files
 this.lightFileNames = null;
 this.darkFileNames = null;
 this.biasFileNames = null;

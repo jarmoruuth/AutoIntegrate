@@ -925,17 +925,17 @@ function winIsValid(w)
       return w != null;
 }
 
-function checkWinFilePath(w)
+function checkWinFilePathForOutputDir(w)
 {
       if (w.filePath) {
-            global.outputRootDir = util.getOutputDir(w.filePath);
+            util.setOutputRootDir(util.getOutputDir(w.filePath));
       }
 }
 
 function checkAutoCont(w)
 {
       if (winIsValid(w))  {
-            checkWinFilePath(w);
+            checkWinFilePathForOutputDir(w);
             return true;
       } else {
             return false;
@@ -1797,7 +1797,7 @@ function openImageFiles(filetype, lights_only, json_only, filetype_is_full_capti
       }
 }
 
-function openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption)
+function openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full_caption, pageIndex)
 {
       console.writeln("openDirectoryFiles: " + filetype + " " + file_filter);
 
@@ -1829,7 +1829,7 @@ function openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full
       var fileNames = [];
       for (var i = 0; i < file_filter_array.length; i++) {
             console.writeln("openDirectoryFiles: file_filter_array[" + i + "]=" + file_filter_array[i]);
-            var filelist = searchDirectory(gdd.directory + "/" + file_filter_array[i], false /*recursive*/ );
+            var filelist = searchDirectory(gdd.directory + "/" + file_filter_array[i], true /*recursive*/ );
             fileNames = fileNames.concat(filelist);
       }
       if (fileNames.length < 1) {
@@ -1839,6 +1839,13 @@ function openDirectoryFiles(filetype, file_filter, lights_only, filetype_is_full
       console.writeln("openDirectoryFiles: fileNames[0]=" + fileNames[0]);
 
       util.saveLastDir(gdd.directory);
+
+      if (pageIndex == global.pages.LIGHTS) {
+            // If we opened lights files we save the directory
+            // We may want to use it as outputRootDir
+            console.writeln("openDirectoryFiles: save to openedLightsDirectories, directory=" + gdd.directory);
+            global.openedLightsDirectories.push(gdd.directory);
+      }
 
       if (lights_only) {
             return fileNames;
@@ -3887,7 +3894,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
                         let weightsFile = util.ensure_win_prefix("AutoWeights.json");
                         let outputDir = util.getOutputDir(treeboxfiles[0][0]);
                         let outputFile = outputDir + weightsFile;
-                        console.noteln("Write processing steps to " + outputFile);
+                        console.noteln("Write weights to " + outputFile);
                         var file = new File();
                         file.createForWriting(outputFile);
                         file.outTextLn(saveInfoJson);
@@ -13169,11 +13176,10 @@ function CreateChannelImages(parent, auto_continue)
             // added extensions.
             var filename_postfix = '';
 
-            if (global.outputRootDir == "" || util.pathIsRelative(global.outputRootDir)) {
-                  /* Get path to current directory. */
-                  global.outputRootDir = util.parseNewOutputDir(engine.lightFileNames[0], global.outputRootDir);
-                  console.writeln("CreateChannelImages, set global.outputRootDir ", global.outputRootDir);
-            }
+            /* Get path to current directory. */
+            util.setOutputRootDir(util.getOutputDir(engine.lightFileNames[0]));
+            console.writeln("CreateChannelImages, using global.outputRootDir ", global.outputRootDir);
+
 
             util.ensureDir(global.outputRootDir);
             util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
@@ -13600,7 +13606,7 @@ function CreateChannelImages(parent, auto_continue)
                   console.writeln("Option start_from_imageintegration or cropinfo_only selected, fix output directory");
                   console.writeln("Current global.outputRootDir " + global.outputRootDir);
 
-                  global.outputRootDir = util.normalizePath(global.outputRootDir.replace("AutoOutput", "."));
+                  util.setOutputRootDir(util.normalizePath(global.outputRootDir.replace("AutoOutput", ".")));
 
                   console.writeln("Fixes global.outputRootDir " + global.outputRootDir);
             }
@@ -14417,7 +14423,7 @@ function testRGBNBmapping()
             var color_win = util.findWindow(test_RGB_color_id);
       }
 
-      checkWinFilePath(color_win);
+      checkWinFilePathForOutputDir(color_win);
 
       var test_win = util.copyWindow(color_win, util.ensure_win_prefix("RGBNB_RGB_mapped"));
 
@@ -15155,7 +15161,7 @@ function testRGBHaMapping1(savelog)
                   }
             }
 
-            checkWinFilePath(color_win);
+            checkWinFilePathForOutputDir(color_win);
 
             var color_win_HT = util.copyWindow(color_win, ppar.win_prefix + "RGBHa_RGB_original_HT");
             console.writeln("testRGBHaMapping, stretch image " + color_win_HT.mainView.id);
@@ -17748,7 +17754,7 @@ function extraProcessing(parent, id, apply_directly)
 
       extra_stars_id = null;
 
-      checkWinFilePath(extraWin);
+      checkWinFilePathForOutputDir(extraWin);
       util.ensureDir(global.outputRootDir);
       util.ensureDir(util.combinePath(global.outputRootDir, global.AutoOutputDir));
       util.ensureDir(util.combinePath(global.outputRootDir, global.AutoProcessedDir));

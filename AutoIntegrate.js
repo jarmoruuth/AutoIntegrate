@@ -632,7 +632,7 @@ this.get_autointegrate_version = function()
 
 this.set_outputRootDir = function(dir)
 {
-      global.outputRootDir = dir;
+      util.setOutputRootDir(dir);
 }
 
 this.set_dialog = function(dialog)
