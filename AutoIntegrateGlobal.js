@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.77 test1";               // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.77";                     // Version, also updated into updates.xri
 this.autointegrate_info = "Find files recursively from a directory";    // For updates.xri
 
 this.autointegrate_version_info = [
