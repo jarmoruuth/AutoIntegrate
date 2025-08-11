@@ -379,7 +379,9 @@ function filterFilesForFastMode(fileNames, auto_continue, filetype)
                               var cnt = Math.max(3, Math.floor(len / 10));
                               var nth = Math.max(1, Math.floor(len / cnt));
                               for (var j = 0; j < cnt; j++) {
-                                    fileNames[fileNames.length] = allfilesarr[i].files[j * nth].name;
+                                    if (j * nth < allfilesarr[i].files.length) {
+                                          fileNames[fileNames.length] = allfilesarr[i].files[j * nth].name;
+                                    }
                               }
                         }
                         break;
@@ -5288,7 +5290,8 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       if (newId != null) {
             var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
       }
-      var node = flowchartOperation("PixelMath:combine RGB");
+      var mapping_channels = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
+      var node = flowchartOperation("PixelMath:combine RGB" + mapping_channels);
 
       var P = new PixelMath;
       P.expression = mapping_R;
@@ -5322,7 +5325,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
                   new_win.copyAstrometricSolution(idWin);
             }
       }
-      engine_end_process(node, new_win, "PixelMath:combine RGB");
+      engine_end_process(node, new_win, "PixelMath:combine RGB" + mapping_channels);
 
       return newId;
 }
@@ -5348,7 +5351,8 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
       }
-      var node = flowchartOperation("PixelMath:combine RGB");
+      var mapping_channels = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
+      var node = flowchartOperation("PixelMath:combine RGB" + mapping_channels);
 
       var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
 
@@ -5372,7 +5376,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
             new_win.copyAstrometricSolution(idWin);
       }
       setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
-      engine_end_process(node, new_win, "PixelMath:combine RGB");
+      engine_end_process(node, new_win, "PixelMath:combine RGB" + mapping_channels);
 
       return newId;
 }
@@ -5584,6 +5588,48 @@ function findChannelFromName(name)
             return findChannelFromName2(name);
       }
 }
+
+function findChannelsFromOneMapping(onemapping)
+{
+      // Split onemapping text to image names
+      // Then for each image name find onemapping and discard duplicates
+      console.writeln("findChannelsFromOneMapping: " + onemapping);
+      var image_names = onemapping.split(", +");
+      var unique_names = [];
+      for (var i = 0; i < image_names.length; i++) {
+            console.writeln("findChannelsFromOneMapping, image name " + image_names[i]);
+            var name = image_names[i].trim();
+            var channel = findChannelFromName(name);
+            if (channel != null && unique_names.indexOf(channel) == -1) {
+                  unique_names.push(channel);
+            }
+      }
+      console.writeln("findChannelsFromOneMapping, unique names " + unique_names);
+      return unique_names;
+}
+
+function findChannelsFromMappings(mappings)
+{
+      console.writeln("findChannelsFromMappings, mappings " + mappings);
+      var channels = [];
+      for (var i = 0; i < mappings.length; i++) {
+            // Find channels from single mapping and save new ones to channels
+            var unique_names = findChannelsFromOneMapping(mappings[i]);
+            for (var j = 0; j < unique_names.length; j++) {
+                  if (unique_names[j] != null && channels.indexOf(unique_names[j]) == -1) {
+                        channels.push(unique_names[j]);
+                  }
+            }
+      }
+      if (channels.length == 0) {
+            console.writeln("findChannelsFromMappings, no valid channels found");
+            return "";
+      } else {
+            // Return channels as text
+            return ' (' + channels.join(",") + ')';
+      }
+}
+
 
 /* Copy images with _map name so we do not change the original
  * images (Integration_H -> Integration_H_map).
@@ -6435,7 +6481,7 @@ function customMapping(RGBmapping, filtered_lights)
 
       /* Get a modified mapping with tags replaced with real image names.
        */
-      if (!process_narrowband) {
+      if (!process_narrowband && is_luminance_images) {
             var luminance_mapping = mapCustomAndReplaceImageNames('L', mapping_L_images, check_allfilesarr);
       }
       var red_mapping = mapCustomAndReplaceImageNames('R', mapping_R_images, check_allfilesarr);
@@ -15252,12 +15298,18 @@ function createRGBstars()
       let channel_wins = [ util.forceCopyWindow(util.findWindow(R_id), util.ensure_win_prefix(R_id + "_for_stars")),
                            util.forceCopyWindow(util.findWindow(G_id), util.ensure_win_prefix(G_id + "_for_stars")),
                            util.forceCopyWindow(util.findWindow(B_id), util.ensure_win_prefix(B_id + "_for_stars")) ];
+      flowchartParentBegin("Channels");
       for (let i = 0; i < channel_wins.length; i++) {
             if (channel_wins[i] == null) {
                   util.throwFatalError("Could not find channel image " + [R_id, G_id, B_id][i] + " for RGB stars creation.");
             }
-            CropImageIf(channel_wins[i].mainView.id, false);
+            flowchartChildBegin(findChannelFromName(channel_wins[i].mainView.id));
+
+            CropImageIf(channel_wins[i].mainView.id, true);
+            
+            flowchartChildEnd(findChannelFromName(channel_wins[i].mainView.id));
       }
+      flowchartParentEnd("Channels");
 
       console.writeln("RGB stars, linear fit");
       linearFitArray(channel_wins[0].mainView.id, [ channel_wins[1].mainView.id, channel_wins[2].mainView.id ], true);
@@ -17444,6 +17496,7 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
                   } else {
                         var txt = "Narrowband palette " + global.narrowBandPalettes[i].name + " batch run";
                   }
+                  par.narrowband_mapping.val = global.narrowBandPalettes[i].name;
                   par.custom_R_mapping.val = global.narrowBandPalettes[i].R;
                   par.custom_G_mapping.val = global.narrowBandPalettes[i].G;
                   par.custom_B_mapping.val = global.narrowBandPalettes[i].B;
@@ -17453,14 +17506,14 @@ function autointegrateNarrowbandPaletteBatch(parent, auto_continue)
 
                   var finalImageId = engine.autointegrateProcessingEngine(parent, auto_continue, util.is_narrowband_option(), txt);
                   if (finalImageId == null) {
-                        util.addProcessingStep("Narrowband palette batch could not process all palettes");
+                        util.throwFatalError("Narrowband palette batch could not process all palettes");
                   }
                   // rename and save the final image
-                  var image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + finalImageId, false);
+                  var image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, util.ensure_win_prefix(finalImageId), false);
                   util.batchWindowSetPosition(image_name, batch_image_cnt);
                   batch_image_cnt++;
                   if (util.findWindow(ppar.win_prefix + finalImageId + "_extra") != null) {
-                        image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, ppar.win_prefix + finalImageId + "_extra", true);
+                        image_name = narrowbandPaletteBatchFinalImage(global.narrowBandPalettes[i].name, util.ensure_win_prefix(finalImageId) + "_extra", true);
                         util.batchWindowSetPosition(image_name, batch_image_cnt);
                         batch_image_cnt++;
                   }
@@ -18585,9 +18638,11 @@ function CropImageIf(id, show_in_flowchart = true)
       var window = util.findWindow(id);
       var truncate_amount = crop_truncate_amount;
       if (window == null) { 
+            console.writeln("CropImageIf, window == null");
             return false;
       }
       if (truncate_amount == null) {
+            console.writeln("CropImageIf, truncate_amount == null");
             return false;
       }
       if (util.findKeywordName(window, "AutoCrop")) {
@@ -18600,6 +18655,7 @@ function CropImageIf(id, show_in_flowchart = true)
             var node = null;
       }
       if (global.get_flowchart_data) {
+            console.writeln("CropImageIf, flowchart data, mark as done");
             util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
             return true;
       }
@@ -19530,8 +19586,8 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
 
                         flowchartChildEnd("RGB stars");
                    }
-                   flowchartChildBegin("RGB");
-                   var flowchart_parent_begin = true;
+                   var flowchart_parent_begin = "RGB";
+                   flowchartChildBegin(flowchart_parent_begin);
 
              } else if (local_RGB_stars) {
                   // Create a separate stars image from RGB channels
@@ -19541,11 +19597,11 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                   RGB_stars_win_HT = createRGBstars();
 
                   flowchartChildEnd("RGB stars");
-                  flowchartChildBegin("RGB");
-                  var flowchart_parent_begin = true;
+                  var flowchart_parent_begin = "Starless";
+                  flowchartChildBegin(flowchart_parent_begin);
 
              } else {
-                  var flowchart_parent_begin = false;
+                  var flowchart_parent_begin = null;
              }
 
              if (processRGB && !RGBmapping.combined) {
@@ -19561,7 +19617,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    LRGB_processed_HT_id = util.windowRename(L_processed_HT_win.mainView.id, ppar.win_prefix + "AutoMono");
                    guiUpdatePreviewId(LRGB_processed_HT_id);
                    if (flowchart_parent_begin) {
-                        flowchartChildEnd("RGB");
+                        flowchartChildEnd(flowchart_parent_begin);
                         flowchartParentEnd("LRGB");
                    }
  
@@ -19575,7 +19631,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                          runNoiseReduction(ImageWindow.windowById(RGB_processed_HT_id), mask_win, false);
                    }
                    if (flowchart_parent_begin) {
-                        flowchartChildEnd("RGB");
+                        flowchartChildEnd(flowchart_parent_begin);
                         flowchartParentEnd("LRGB");
                    }
        
@@ -19677,7 +19733,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                    setIntegrationInfoKeywords(LRGB_processed_HT_id);
              } else {
                    if (flowchart_parent_begin) {
-                        flowchartChildEnd("RGB");
+                        flowchartChildEnd(flowchart_parent_begin);
                         flowchartParentEnd("LRGB");
                    }
             }

@@ -5934,6 +5934,13 @@ function saveParametersToPersistentModuleSettings()
             return;
       }
       console.writeln("saveParametersToPersistentModuleSettings");
+      // Ask from user before saving
+      var txt = "Do you want to save current settings to persistent module settings?";
+      var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
+      if (response != StdButton_Yes) {
+            console.noteln("User canceled saving settings");
+            return false;
+      }
       for (let x in par) {
             var param = par[x];
             var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
