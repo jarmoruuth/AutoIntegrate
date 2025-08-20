@@ -5290,8 +5290,8 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       if (newId != null) {
             var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
       }
-      var mapping_channels = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
-      var node = flowchartOperation("PixelMath:combine RGB" + mapping_channels);
+      var channels_from_mappings = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
+      var node = flowchartOperation("PixelMath:combine RGB" + channels_from_mappings);
 
       var P = new PixelMath;
       P.expression = mapping_R;
@@ -5325,7 +5325,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
                   new_win.copyAstrometricSolution(idWin);
             }
       }
-      engine_end_process(node, new_win, "PixelMath:combine RGB" + mapping_channels);
+      engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
       return newId;
 }
@@ -5334,7 +5334,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
    We find reference image from existing images.
    We always create a new image.
 */
-function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
+function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B, channels_from_mappings = null)
 {
       util.addProcessingStepAndStatusInfo("Run PixelMath RGB mapping");
 
@@ -5351,8 +5351,11 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
       if (idWin == null) {
             console.writeln("ERROR: No reference window found for PixelMath");
       }
-      var mapping_channels = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
-      var node = flowchartOperation("PixelMath:combine RGB" + mapping_channels);
+      if (channels_from_mappings == null) {
+            // Find channels from mappings
+            channels_from_mappings = findChannelsFromMappings([mapping_R, mapping_G, mapping_B]);
+      }
+      var node = flowchartOperation("PixelMath:combine RGB" + channels_from_mappings);
 
       var targetFITSKeywords = getTargetFITSKeywordsForPixelmath(idWin);
 
@@ -5376,7 +5379,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B)
             new_win.copyAstrometricSolution(idWin);
       }
       setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
-      engine_end_process(node, new_win, "PixelMath:combine RGB" + mapping_channels);
+      engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
       return newId;
 }
@@ -5608,9 +5611,32 @@ function findChannelsFromOneMapping(onemapping)
       return unique_names;
 }
 
+// Find channels from narrowband mappings
+// We assume that mappings are in channel order R, G, B
+// If all R, G and B channels are found in narrowband mappings
+// we return the palette name, otherwise we return channels as text
+// Note that the returnd text has a spece added at the beginning if
+// a non-empty text is returned.
 function findChannelsFromMappings(mappings)
 {
       console.writeln("findChannelsFromMappings, mappings " + mappings);
+
+      if (mappings.length == 3) {
+            // First check is mappings channels mach to predined mappings in global.narrowBandPalettes
+            // We assume that mappings are in channel order R, G, B
+            for (var j = 0; j < global.narrowBandPalettes.length; j++) {
+                  if (mappings[0] == global.narrowBandPalettes[j].R 
+                      && mappings[1] == global.narrowBandPalettes[j].G
+                      && mappings[2] == global.narrowBandPalettes[j].B) 
+                  {
+                        // We have a match, use the palette name
+                        console.writeln("findChannelsFromMappings, found narrowband palette " + global.narrowBandPalettes[j].name);
+                        return ' ' + global.narrowBandPalettes[j].name;
+                  }
+            }
+      }
+
+      // Find invidual channles from mapping text.
       var channels = [];
       for (var i = 0; i < mappings.length; i++) {
             // Find channels from single mapping and save new ones to channels
@@ -6493,6 +6519,8 @@ function customMapping(RGBmapping, filtered_lights)
             return null;
       }
 
+      RGBmapping.channels_from_mappings = findChannelsFromMappings([local_R_mapping, local_G_mapping, local_B_mapping]);
+
       if (process_narrowband) {
             /* For narrowband we have two options:
              *
@@ -6652,7 +6680,8 @@ function customMapping(RGBmapping, filtered_lights)
                               ppar.win_prefix + "Integration_RGB_combined", 
                               red_mapping.mapping, 
                               green_mapping.mapping, 
-                              blue_mapping.mapping);
+                              blue_mapping.mapping,
+                              RGBmapping.channels_from_mappings);
 
             RGBmapping.combined = true;
 
@@ -19531,7 +19560,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
                               (preprocessed_images == global.start_images.NONE ||
                                preprocessed_images == global.start_images.L_R_G_B_GC ||
                                preprocessed_images == global.start_images.L_R_G_B);
-             var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false };
+             var RGBmapping = { combined: false, stretched: false, channel_noise_reduction: false, channels_from_mappings: "" };
  
              util.runGarbageCollection();
 
@@ -19598,6 +19627,9 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
 
                   flowchartChildEnd("RGB stars");
                   var flowchart_parent_begin = "Starless";
+                  if (RGBmapping.channels_from_mappings != "") {
+                        flowchart_parent_begin += RGBmapping.channels_from_mappings;
+                  }
                   flowchartChildBegin(flowchart_parent_begin);
 
              } else {
