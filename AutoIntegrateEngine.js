@@ -1973,11 +1973,31 @@ function setSSWEIGHTkeyword(imageWindow, SSWEIGHT)
 function setFinalImageKeyword(imageWindow) 
 {
       console.writeln("setFinalImageKeyword to " + imageWindow.mainView.id);
+      setAutoIntegrateVersionIfNeeded(imageWindow);
       util.setFITSKeyword(
             imageWindow,
             "AutoIntegrate",
             "finalimage",
             "AutoIntegrate processed final image");
+}
+
+function setAutoIntegrateVersionIfNeeded(imageWindow)
+{
+      if (!imageWindow) {
+            return;
+      }
+      if (!imageWindow.keywords) {
+            imageWindow.keywords = [];
+      }
+      var version = global.autointegrate_version;
+      var existingVersion = util.getKeywordValue(imageWindow, "AutoIntegrateVersion");
+      if (existingVersion == null) {
+            util.setFITSKeyword(
+                  imageWindow,
+                  "AutoIntegrateVersion",
+                  version,
+                  "AutoIntegrate version");
+      }
 }
 
 function getProcessingInfo()
@@ -2004,6 +2024,7 @@ function getProcessingInfo()
 function saveProcessingStepToImage(imageWindow, step) 
 {
       console.writeln("saveProcessingStepToImage to " + imageWindow.mainView.id + ", step " + step);
+      setAutoIntegrateVersionIfNeeded(imageWindow);
       util.appenFITSKeyword(
             imageWindow,
             "HISTORY",
@@ -2014,6 +2035,7 @@ function saveProcessingStepToImage(imageWindow, step)
 function saveProcessingHistoryToImage(imageWindow) 
 {
       console.writeln("saveProcessingHistoryToImage to " + imageWindow.mainView.id);
+      setAutoIntegrateVersionIfNeeded(imageWindow);
       var processing_info = getProcessingInfo();
       for (var i = 0; i < processing_info.header.length; i++) {
             util.appenFITSKeyword(
@@ -2034,6 +2056,7 @@ function saveProcessingHistoryToImage(imageWindow)
 function saveExtraProcessingHistoryToImage(imageWindow) 
 {
       console.writeln("saveExtraProcessingHistoryToImage to " + imageWindow.mainView.id);
+      setAutoIntegrateVersionIfNeeded(imageWindow);
       var extracount = util.getKeywordValue(imageWindow, "AutoIntegrateExtraCount");
       if (extracount == null) {
             extracount = 0;
@@ -2161,6 +2184,8 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       printProcessValues(P);
       engine_end_process(node);
+
+      setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
 
       console.writeln("runImageIntegrationBiasDarks, integrated image " + new_name);
 
@@ -2413,6 +2438,8 @@ function runImageIntegrationFlats(images, name)
 
       printProcessValues(P);
       engine_end_process(node);
+
+      setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
 
       console.writeln("runImageIntegrationFlats, integrated image " + new_name);
 
@@ -5264,6 +5291,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       printProcessValues(P);
       engine_end_process(node, new_win, "PixelMath:" + reason, false);
 
+      setAutoIntegrateVersionIfNeeded(util.findWindow(P.newImageId));
 
       return P.newImageId;
 }
@@ -5327,6 +5355,8 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       }
       engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
+      setAutoIntegrateVersionIfNeeded(util.findWindow(newId));
+
       return newId;
 }
 
@@ -5380,6 +5410,8 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B, c
       }
       setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
       engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
+
+      setAutoIntegrateVersionIfNeeded(util.findWindow(newId));
 
       return newId;
 }
@@ -6176,6 +6208,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             }
             console.writeln("Removed stars from " + imgWin.mainView.id + " and created stars image " + star_win.mainView.id);
             util.setFITSKeyword(imgWin, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
+            setAutoIntegrateVersionIfNeeded(star_win);
             return star_win;
       } else {
             return null;
@@ -7616,6 +7649,8 @@ function runBasicIntegration(images, name, local_normalization)
             setMEDFWHMKeyword(ImageWindow.windowById(P.integrationImageId), medianFWHM);
       }
 
+      setAutoIntegrateVersionIfNeeded(util.findWindow(P.integrationImageId));
+
       return P.integrationImageId;
 }
 
@@ -7988,6 +8023,8 @@ function runImageIntegrationForCrop(images)
             }
       }
       engine_end_process(null);
+
+      setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
 
       if (par.crop_use_rejection_low.val) {
             // We use the low rejection map to find the area common to all images
@@ -9822,6 +9859,7 @@ function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iter
             engine_end_process(null);
 
             var new_win = util.findWindow(P.newImageId);
+            setAutoIntegrateVersionIfNeeded(new_win);
       }
 
       // util.copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
@@ -17076,6 +17114,8 @@ function extraColorizeChannelUsingPixelMath(ch_win, channel)
       util.closeOneWindow(ch_win);
 
       ch_win = util.findWindow(P.newImageId);
+
+      setAutoIntegrateVersionIfNeeded(ch_win);
 
       console.writeln("extraColorizeChannelUsingPixelMath: mean after " + ch_win.mainView.image.mean());
 
