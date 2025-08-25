@@ -92,6 +92,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/WCSmetadata.jsh"
 #include "../AdP/ImageSolver.js"
 #include "../AdP/SearchCoordinatesDialog.js"
+#undef TITLE
 #include "../AdP/AnnotateImage.js"
 #endif
 

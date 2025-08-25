@@ -4240,7 +4240,7 @@ function addOutputDir(parent)
                     "<p>If no directory is given then the path to the " + 
                     "first light file is used as the output root directory." + 
                     "If lights files are read using a directory option then the selected directory " +
-                    "is used as an output directory."
+                    "is used as an output directory." +
                     "</p><p>" + 
                     "If a relative path is given then it will be appended " + 
                     "to the first light file path.</p>" +
@@ -5942,7 +5942,7 @@ function saveParametersToPersistentModuleSettings()
       var response = new MessageBox(txt, "AutoIntegrate", StdIcon_Question, StdButton_Yes, StdButton_No ).execute();
       if (response != StdButton_Yes) {
             console.noteln("User canceled saving settings");
-            return false;
+            return;
       }
       for (let x in par) {
             var param = par[x];
