@@ -5355,9 +5355,8 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       }
       engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
-      let win = util.findWindow(newId);
-      setAutoIntegrateVersionIfNeeded(win);
-      setImagetypKeyword(win, "Master light");
+      setAutoIntegrateVersionIfNeeded(new_win);
+      setImagetypKeyword(new_win, "Master light");
 
       return newId;
 }
@@ -5413,7 +5412,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B, c
       setTargetFITSKeywordsForPixelmath(new_win, targetFITSKeywords);
       engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
-      setAutoIntegrateVersionIfNeeded(util.findWindow(newId));
+      setAutoIntegrateVersionIfNeeded(new_win);
 
       return newId;
 }
