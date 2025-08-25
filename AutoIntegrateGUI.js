@@ -4238,8 +4238,11 @@ function addOutputDir(parent)
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give output root directory.</p>" +
                     "<p>If no directory is given then the path to the " + 
-                    "first light file is used as the output root directory.</p>" +
-                    "<p>If a relative path is given then it will be appended " + 
+                    "first light file is used as the output root directory." + 
+                    "If lights files are read using a directory option then the selected directory " +
+                    "is used as an output directory."
+                    "</p><p>" + 
+                    "If a relative path is given then it will be appended " + 
                     "to the first light file path.</p>" +
                     "<p>If output directory is given with AutoContinue then output " + 
                     "goes to that directory and not into directory subtree.</p>" +
@@ -5531,7 +5534,7 @@ function addFilesButtons(parent, targetSizer)
                   "<p>Open directory dialog instead of files dialog.</p>" + 
                   "<p>All files that match the file pattern on the right will be added as image files. " +
                   "Files are searched recursively from the selected directory and all subdirectories.</p>" +
-                  "<p>Directory used for light files will be used as the default output directory.</p>" +
+                  "<p>Selected directory is used as the default output directory.</p>" +
                   "<p>File pattern can have multiple file types separated by space.</p>");
       var directoryFilesEdit = newTextEdit(parent, par.directory_files,
                   "<p>File pattern for files that will be added as image files.</p>" +
