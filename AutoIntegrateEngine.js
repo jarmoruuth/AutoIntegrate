@@ -5355,7 +5355,9 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       }
       engine_end_process(node, new_win, "PixelMath:combine RGB" + channels_from_mappings);
 
-      setAutoIntegrateVersionIfNeeded(util.findWindow(newId));
+      let win = util.findWindow(newId);
+      setAutoIntegrateVersionIfNeeded(win);
+      setImagetypKeyword(win, "Master light");
 
       return newId;
 }
@@ -5684,7 +5686,7 @@ function findChannelsFromMappings(mappings)
             return "";
       } else {
             // Return channels as text
-            return ' (' + channels.join(",") + ')';
+            return ' (channels:' + channels.join(",") + ')';
       }
 }
 
@@ -6209,6 +6211,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             console.writeln("Removed stars from " + imgWin.mainView.id + " and created stars image " + star_win.mainView.id);
             util.setFITSKeyword(imgWin, "AutoIntegrateStars", "true", "Stars image created by AutoIntegrate");
             setAutoIntegrateVersionIfNeeded(star_win);
+            setImagetypKeyword(star_win, "Master light");
             return star_win;
       } else {
             return null;
@@ -7649,7 +7652,9 @@ function runBasicIntegration(images, name, local_normalization)
             setMEDFWHMKeyword(ImageWindow.windowById(P.integrationImageId), medianFWHM);
       }
 
-      setAutoIntegrateVersionIfNeeded(util.findWindow(P.integrationImageId));
+      let win = util.findWindow(P.integrationImageId);
+      setAutoIntegrateVersionIfNeeded(win);
+      setImagetypKeyword(win, "Master light");
 
       return P.integrationImageId;
 }
@@ -14260,6 +14265,8 @@ function CombineRGBimageEx(target_name, images)
             win.copyAstrometricSolution(model_win);
       }
 
+      setAutoIntegrateVersionIfNeeded(win);
+      setImagetypKeyword(win, "Master light");
       setAutoIntegrateFilters(win.mainView.id, images);
 
       guiUpdatePreviewWin(win);
