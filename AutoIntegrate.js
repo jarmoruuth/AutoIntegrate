@@ -390,6 +390,9 @@ function readPersistentSettings()
             if (preview.side_histogram_height == undefined) {
                   preview.side_histogram_height = ppar.preview.side_histogram_height;
             }
+            if (preview.black_background == undefined) {
+                  preview.black_background = ppar.preview.black_background;
+            }
             ppar.preview = preview;
             global.use_preview = ppar.preview.use_preview;
       } else {

@@ -10688,6 +10688,10 @@ function AutoIntegrateDialog()
             "<p>Show image histogram.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.preview.show_histogram = checked; });
 
+      this.show_black_background_CheckBox = newGenericCheckBox(this, "Black background", ppar, ppar.preview.black_background, 
+            "<p>Use pure black as image background. It may help to check that background is not made too dark.</p>",
+            function(checked) { this.dialog.show_black_background_CheckBox.aiParam.preview.black_background = checked; });
+
       this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
             "<p>File listing is in a separate tab instead of on top of the window.</p>",
             function(checked) { this.dialog.files_in_tab_CheckBox.aiParam.files_in_tab = checked; });
@@ -10724,6 +10728,7 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.files_in_tab_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
+      this.preview1Sizer.add( this.show_black_background_CheckBox );
       this.preview1Sizer.addStretch();
 
       this.preview11Sizer = new HorizontalSizer;

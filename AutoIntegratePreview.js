@@ -506,8 +506,15 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
             var preview = this.parent.parent;
             if (par.debug.val) console.writeln(preview.name + ":onPaint");
              var graphics = new VectorGraphics(this);
- 
-             graphics.fillRect(x0,y0, x1, y1, new Brush(0xff202020));
+             if (global.ppar.preview.black_background) {
+                  var background_color = 0xff000000; // black
+                  var border_color = 0xff000000;     // black
+             } else {
+                  var background_color = 0xff202020; // very dark grey
+                  var border_color = 0xffffffff;     // white
+             }
+
+             graphics.fillRect(x0,y0, x1, y1, new Brush(background_color));
              if (preview.scaledBitmap != null) {
                    var offsetX = this.parent.maxHorizontalScrollPosition>0 ? -this.parent.horizontalScrollPosition : (this.width-preview.scaledBitmap.width)/2;
                    var offsetY = this.parent.maxVerticalScrollPosition>0 ? -this.parent.verticalScrollPosition: (this.height-preview.scaledBitmap.height)/2;
@@ -516,7 +523,7 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
                          graphics.drawBitmap(0, 0, preview.scaledBitmap);
                    else
                          graphics.fillRect(0, 0, preview.scaledBitmap.width, preview.scaledBitmap.height, new Brush(0xff000000));
-                   graphics.pen = new Pen(0xffffffff,0);
+                   graphics.pen = new Pen(border_color,0);
                    graphics.drawRect(-1, -1, preview.scaledBitmap.width + 1, preview.scaledBitmap.height + 1);
              }
  

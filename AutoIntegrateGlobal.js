@@ -626,7 +626,8 @@ this.ppar = {
             side_preview_height: 0,       // Current side preview height, default set in getPreviewSize.
             show_histogram: true,         // Show histogram in preview window
             histogram_height: 0,          // Histogram height in preview window, default set in getPreviewSize.
-            side_histogram_height: 0      // Histogram height in side preview window, default set in getPreviewSize.
+            side_histogram_height: 0,     // Histogram height in side preview window, default set in getPreviewSize.
+            black_background: false       // Use pure black as image background
       },
       use_single_column: false, // show all options in a single column
       use_more_tabs: true,      // use more tabs for parameters and settings
