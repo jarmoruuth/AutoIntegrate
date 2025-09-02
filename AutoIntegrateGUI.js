@@ -400,7 +400,7 @@ var MGCToolTip =                          "<p>When MultiscaleGradientCorrection 
 var clippedPixelsToolTip =                "<p>Show clipped pixels in the preview image.</p>" + 
                                           "<p>Pixes with value 0 are shown as black, pixels with value 1 are shown as white. Other pixes are shown as gray.</p>";
 var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visualizer dialog.</p>" +
-                                          "<p>Filtering settings in the <i>Processing 2 / Weighting and filtering settings</i> section " +
+                                          "<p>Filtering settings in the <i>Preprocessing / Weighting and filtering settings</i> section " +
                                           "are used for visualization.</p>" +
                                           "<p>If no filtering rules are set then default settings are used.</p>";
 
@@ -1846,7 +1846,7 @@ function extraProcessingGUI(parent)
             "<p>Run ColorCalibration on image.</p>" );
       this.extra_solve_image_CheckBox = newCheckBox(parent, "Solve", par.extra_solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" + 
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>");
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p>");
 
       this.extra_solve_image_Button = new ToolButton( parent );
       this.extra_solve_image_Button.icon = parent.scaledResource(":/icons/select-file.png");
@@ -1927,7 +1927,7 @@ function extraProcessingGUI(parent)
             "<li>Option 'MLT' uses MultiscaleLinearTransform sharpening on high pass image. " + 
             "Settings for iterations are taken from the <i>Extra processing / Generic extra processing</i> section <i>Sharpening</i> options.</li>" +
             "<li>Option 'UnsharpMask' uses UnsharpMask on high pass image. Settings are taken from the <i>Generic extra processing</i> section.</li>" +
-            "<li>Option 'BlurXTerminator' uses BlurXTerminator on high pass image. Settings are taken from the <i>Processing 1 / BlurXTerminator</i> section.</li>" +
+            "<li>Option 'BlurXTerminator' uses BlurXTerminator on high pass image. Settings are taken from the <i>Tools / BlurXTerminator</i> section.</li>" +
             "</ul>"
       );
       this.extra_highpass_sharpen_Label = newLabel(parent, "Layers", "<p>Number of layers used to blur the original image.</p>");
@@ -3506,9 +3506,9 @@ function lightsOptions(parent)
       sortAndFilterButton.text = "Sort and filter";
       sortAndFilterButton.icon = parent.scaledResource(":/icons/filter.png");
       sortAndFilterButton.toolTip = "<p>Filter and sort files based on current weighting and filtering settings in the " + 
-                                    "<i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                    "<i>Preprocessing / Weighting and filtering settings</i> section.</p>" +
                                     "<p>Without any filtering rules files are just sorted by the sort order " + 
-                                    "given in the <i>Processing 2 / Weighting and filtering settings</i> section.</p>" +
+                                    "given in the <i>Preprocessing / Weighting and filtering settings</i> section.</p>" +
                                     "<p>Using the mouse hover over the file name you can see the " +
                                     "filtering and weighting information for the file.</p>";
       sortAndFilterButton.onClick = function()
@@ -4830,7 +4830,7 @@ function setFilteringChanged()
       // This is needed when we change the filter limits.
       // If we do not set this flag then metrics visualizer will not
       // re-measure the light files and will use the old measurements.
-      console.writeln("setFilteringChanged, set filtering_changed to true");
+      if (global.debug) console.writeln("setFilteringChanged, set filtering_changed to true");
       filtering_changed = true;
 }
 
@@ -5553,23 +5553,11 @@ function addFilesButtons(parent, targetSizer)
       filesButtons_Sizer1.add( directoryCheckBox );
       filesButtons_Sizer1.add( directoryFilesEdit );
 
-      if (ppar.use_single_column || ppar.use_more_tabs) {
-            var filesButtons_Sizer = new VerticalSizer;
-            parent.rootingArr.push(filesButtons_Sizer);
-            filesButtons_Sizer.add( filesButtons_Sizer1 );
-            if (!ppar.files_in_tab) {
-                  filesButtons_Sizer.add( targetSizer );
-            }
-            filesButtons_Sizer1.addStretch();
-      } else {
-            var filesButtons_Sizer = new HorizontalSizer;
-            parent.rootingArr.push(filesButtons_Sizer);
-            filesButtons_Sizer.add( filesButtons_Sizer1 );
-            if ( !ppar.files_in_tab) {
-                  filesButtons_Sizer.addSpacing( 12 );
-                  filesButtons_Sizer.add( targetSizer );
-            }
-      }
+      var filesButtons_Sizer = new VerticalSizer;
+      parent.rootingArr.push(filesButtons_Sizer);
+      filesButtons_Sizer.add( filesButtons_Sizer1 );
+      filesButtons_Sizer1.addStretch();
+
       return filesButtons_Sizer;
 }
 
@@ -6467,9 +6455,7 @@ function newMinimizeDialogButton(parent)
                               }
                         }
                   }
-                  if (ppar.files_in_tab) {
-                        parent.top2ndRowControl.show();
-                  }
+                  parent.top2ndRowControl.show();
                   mainTabBox.show();
                   parent.dialog.move(dialog_old_position);
                   dialog_mode = 1;
@@ -6489,9 +6475,7 @@ function newMinimizeDialogButton(parent)
                         }
                   }
                   mainTabBox.hide();
-                  if (ppar.files_in_tab) {
-                        parent.top2ndRowControl.hide();
-                  }
+                  parent.top2ndRowControl.hide();
                   if (dialog_min_position == null) {
                         parent.dialog.move(Math.floor(screen_width / 2), Math.floor(screen_height / 2)); // move to center of screen
                   } else {
@@ -6840,11 +6824,6 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             buttonsSizer.addSpacing( 12 );
       }
 
-      if (!ppar.files_in_tab) {
-            buttonsSizer.add( jsonSizer );
-            buttonsSizer.addSpacing( 12 );
-      }
-
       buttonsSizer.add( currentPageLabel );
       buttonsSizer.add( currentPageCheckButton );
       buttonsSizer.add( currentPageUncheckButton );
@@ -7090,7 +7069,7 @@ function updateSidePreviewState()
                   tabHistogramControl.hide();
             }
 
-            if (!ppar.use_single_column && mainTabBox != null) {
+            if (mainTabBox != null) {
                   mainTabBox.setPageLabel(tab_preview_index, "Extra processing");
             }
 
@@ -7115,7 +7094,7 @@ function updateSidePreviewState()
                   tabHistogramControl.show();
             }
 
-            if (!ppar.use_single_column && mainTabBox != null) {
+            if (mainTabBox != null) {
                   mainTabBox.setPageLabel(tab_preview_index, "Preview and extra processing");
             }
 
@@ -7341,10 +7320,10 @@ function AutoIntegrateDialog()
             "<li>Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.</li>" + 
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Settings / Image processing parameters</i> section.</li>" +
-            "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Settings / Tools and batching</i> section.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Processing 1 / Star stretching settings</i> section.</li>" +
+            "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Settings / Tools</i> section.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Postprocessing 1 / Star stretching and removing</i> section.</li>" +
             "<li>Check <i>No CosmeticCorrection</i> in <i>Other / Other parameters</i> section.</li>" +
-            "<li>Go to the <i>Processing 2 / CometAlignment</i> section.</li>" +
+            "<li>Go to the <i>Preprocessing / CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
                   "<i>Preview</i> button for the first or last image, go to preview, zoom " + 
                   "to 1:1 view and click the comet nucleus with the left mouse button. Note that the " + 
@@ -7430,7 +7409,7 @@ function AutoIntegrateDialog()
       /* Parameters check boxes. */
       this.useLocalNormalizationCheckBox = newCheckBox(this, "Local Normalization", par.local_normalization, 
             "<p>Use local normalization data for ImageIntegration</p>" +
-            "<p>For local normalization settings see section <i>Processing 2 / LocalNormalization</i></p>");
+            "<p>For local normalization settings see section <i>Integration / LocalNormalization</i></p>");
       this.FixColumnDefectsCheckBox = newCheckBox(this, "Fix column defects", par.fix_column_defects, 
             "If checked, fix linear column defects by using linear defect detection algorithm from LinearDefectDetection.js script. " + 
             "Defect information is used by CosmeticCorrection to fix the defects." );
@@ -7444,11 +7423,11 @@ function AutoIntegrateDialog()
             "<p>Do not run SubframeSelector to get image weights.</p>" +
             "<p>When this option is used then the first image in the list is used as a reference image unless reference image is selected manually.</p>");
       this.CometAlignCheckBox = newCheckBox(this, "Comet align", par.comet_align, 
-            "<p>If checked, run CometAlign process using settings in the <i>Processing 2 / CometAlignment settings</i> section.</p>" +
+            "<p>If checked, run CometAlign process using settings in the <i>Preprocessing / CometAlignment settings</i> section.</p>" +
             "<p>For more details see the help icon in <i>CometAlignment settings</i> section.</p>");
       this.fastIntegrationCheckBox = newCheckBox(this, "Fast integration", par.use_fastintegration, 
             "<p>If checked, use FastIntegration process instead of ImageIntegration process when integrating light images.</p>" +
-            "<p>In <i>Processing 2</i> tab there are some settings for FastIntegration.</p>");
+            "<p>In <i>Integration</i> tab there are some settings for FastIntegration.</p>");
       this.CalibrateOnlyCheckBox = newCheckBox(this, "Calibrate only", par.calibrate_only, 
             "<p>Stop after image calibration step.</p>" +
             "<p>Stopping after calibration could be useful if you for example want to check the quality of calibrated light files " + 
@@ -7475,7 +7454,7 @@ function AutoIntegrateDialog()
             "<p>With this option no output image files are written.</p>" );
       this.earlyPSFCheckCheckBox = newCheckBox(this, "Early PSF check", par.early_PSF_check, 
             "<p>Checking this box will enable early PSF signal test. Then light files are filtered for PSF signal values below weight limit before any processing.</p>" +
-            "<p>Weight limit is set in <i>Processing 2 / filtering</i> section.</p>" );
+            "<p>Weight limit is set in <i>Preprocessing / Filtering</i> section.</p>" );
       this.ChannelCombinationOnlyCheckBox = newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No auto stretch or color calibration.</p>" );
       /* this.relaxedStartAlignCheckBox = newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
@@ -7497,22 +7476,21 @@ function AutoIntegrateDialog()
       this.printProcessValuesCheckBox = newCheckBox(this, "Print process values", par.print_process_values, 
             "<p>Print PixInsight process values to the console and to the AutoIntegrate log file.</p>" );
       this.GC_before_channel_combination_CheckBox = newCheckBox(this, "Gradient correction on channel images", par.GC_before_channel_combination, 
-            "<p>Use gradient correction on L, R, G and B images separately before channels are combined.</p>" +
+            "<p>Use gradient correction on channel images (L,R,G,B,H,S,O) separately before channels are combined.</p>" +
             "<p>With color/OSC images this does the same thing as <i>Gradient correction on combined images</i>.</p>" );
       this.GC_on_lights_CheckBox = newCheckBox(this, "Gradient correction on light images", par.GC_on_lights, 
             "<p>Use gradient correction on all light images. It is run very early in the processing before cosmetic correction.</p>" );
       this.use_GC_L_RGB_CheckBox = newCheckBox(this, "Gradient correction on combined images", par.use_GC_on_L_RGB, 
-            "<p>Use gradient correction on L and RGB images while image is still in linear mode.</p>" );
+            "<p>Use gradient correction on L and combined RGB images while image is still in linear mode.</p>" );
       this.use_GC_L_RGB_stretched_CheckBox = newCheckBox(this, "Gradient correction on stretched images", par.use_GC_on_L_RGB_stretched, 
             "<p>Use gradient correction on L and RGB images after they have been stretched to non-linear mode.</p>" +
-            "<p>Note that thiis option should not be used with GradientCorrection process.</p>" );
-      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from <i>Processing 1 / Star stretching settings</i> section.</p>"
+            "<p>Note that this option should not be used with GradientCorrection process.</p>" );
+      var remove_stars_Tooltip = "<p>Choose star image stretching and combining settings from <i>Postprocessing / Star stretching and removing</i> section.</p>"
       this.RGB_stars_CheckBox = newCheckBox(this, "RGB stars", par.create_RGB_stars, 
-            "<p>Create separate stars image from RGB channels. " + 
-            "Stars are removed from the processed image and in the end starless and " + 
-            "stars images are combined.<p>" +
-            "<p>This option is primarily for narrowband processing to automatically create RGB stars for narrowband images. " + 
-            "It can be used for RGB only processing but the end result is basically the same as using separate remove stars options.<p>" +
+            "<p>When both RGB and narrowband data is available, process stars image from RGB channels and " + 
+            "process background image from the narrowband data. In the end of processing starless and " + 
+            "stars images are combined to create a narrowband image with RGB stars.</p>" +
+            "<p>This option can be used for RGB only processing but the end result is basically the same as using separate remove stars options.<p>" +
             "<p>To use this option RGB channels must be available. " +
             "If no option to remove stars is selected, stars are removed before streching.");
       this.remove_stars_before_stretch_CheckBox = newCheckBox(this, "Remove stars before stretch", par.remove_stars_before_stretch, 
@@ -7542,14 +7520,13 @@ function AutoIntegrateDialog()
       this.solve_image_CheckBox = newCheckBox(this, "Solve image", par.solve_image, 
             "<p>Solve image by running ImageSolver script.</p>" +
             "<p>Note that if <i>Color calibration using SPCC</i> is selected image is solved automatically with checking this box.</p>" +
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>" +
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postrocessing / Image solving</i> section.</p>" +
             "<p>Consider also using Drizzle with scale 1 or 2 when using SPCC.</p>");
       this.use_spcc_CheckBox = newCheckBox(this, "Color calibration using SPCC", par.use_spcc, 
-            "<p>NOTE! Using SPCC will clear the dialog window. Everything still runs fine. This is a problem in the SPCC process which hopefully gets fixed soon.</p>" +
             "<p>Run color calibration using SpectrophotometricColorCalibration (SPCC). This requires image solving which is done automatically on " + 
             "Integration_RGB image if it is not already done.</p>" +
-            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Processing 2 / Image solving</i> section.</p>" +
-            "<p>SPCC settings can be updated at <i>Processing 2 / Color calibration</i> section.</p>");
+            "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p>" +
+            "<p>SPCC settings can be updated at <i>Postprocessing / Color calibration</i> section.</p>");
       this.use_background_neutralization_CheckBox = newCheckBox(this, "Use BackgroundNeutralization", par.use_background_neutralization, 
             "<p>Run BackgroundNeutralization before ColorCalibration.</p>" +
             "<p>By default the script tries automatically detect an area with true background. If it finds one, an image with name AutoBackgroundModel is created.</p>" +
@@ -7601,7 +7578,7 @@ function AutoIntegrateDialog()
             "<p>Drizzle scale 1 does not change the image size but may help with fine details like stars in the image.</p>" +
             "<p>Drizzle scale 2 doubles the image resolution and may help with small details in the image.</p>" +
             "<p>Consider using drizzle when selecting SPCC for color calibration.</p>" +
-            "<p>For Drizzle settings see <i>Processing 2 / Drizzle</i> section.</p>");
+            "<p>For Drizzle settings see <i>Integration / Drizzle</i> section.</p>");
       this.drizzle_scale_SpinBox = newSpinBox(this, par.drizzle_scale, 1, 10, this.use_drizzle_CheckBox.toolTip);
 
       this.drizzleSizer = new HorizontalSizer;
@@ -7628,7 +7605,7 @@ function AutoIntegrateDialog()
             "<p>Use unique file names by adding a timestamp when saving to disk.</p>" );
       this.skip_noise_reduction_CheckBox = newCheckBox(this, "No noise reduction", par.skip_noise_reduction, 
             "<p>Do not use noise reduction. This option disables all noise reduction regardless of what other noise reduction settings are selected.</p>" + 
-            "<p>More fine grained noise reduction settings can be found in the <i>Processing 1 / noise reduction</i> section.</p>" );
+            "<p>More fine grained noise reduction settings can be found in the <i>Postprocessing / Noise reduction</i> section.</p>" );
       this.skip_star_noise_reduction_CheckBox = newCheckBox(this, "No star noise reduction", par.skip_star_noise_reduction, 
             "<p>Do not use star noise reduction. Star noise reduction is used when stars are removed from image.</p>" );
       this.no_mask_contrast_CheckBox = newCheckBox(this, "No extra contrast on mask", par.skip_mask_contrast, 
@@ -7647,10 +7624,10 @@ function AutoIntegrateDialog()
             "<p>Do not try to find background area.</p>" );
       this.use_StarXTerminator_CheckBox = newCheckBox(this, "StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
-            "<p>You can change some StarXTerminator settings in the <i>Processing 1 / StarXTerminator</i> section.</p>" );
+            "<p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>" );
       this.use_noisexterminator_CheckBox = newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
             "<p>Use NoiseXTerminator for noise reduction.</p>" +
-            "<p>You can change noise reduction settings in the <i>Processing 1 / noise reduction</i> section.</p>" );
+            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
       this.use_starnet2_CheckBox = newCheckBox(this, "StarNet2", par.use_starnet2, 
             "<p>Use StarNet2 to remove stars from an image.</p>" );
       this.use_deepsnr_CheckBox = newCheckBox(this, "DeepSNR", par.use_deepsnr, 
@@ -7660,7 +7637,7 @@ function AutoIntegrateDialog()
             "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
             "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Extra processing " +
             "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
-            "<p>Some options for BlurXTerminator can be adjusted in the <i>Processing 1 / BlurXTerminator</i> section.</p>" +
+            "<p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p>" +
             "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
             "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
             "But it is always good to experiment what " +
@@ -7674,39 +7651,41 @@ function AutoIntegrateDialog()
       use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
                               "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>";
       
-      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Processing 1 / GraXpert</i> section before it can be used.</p>" +
+      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
                           "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
 
       this.use_graxpert_CheckBox = newCheckBox(this, "GraXpert gradient", par.use_graxpert, 
             use_graxpert_toolTip + 
-            "<p>GraXpert always uses the AI background model. In the <i>Processing 1 / GraXpert</i> section " +
+            "<p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section " +
             "it is possible to set some settings.</p>" +
             GraXpert_note);
       this.use_graxpert_denoise_CheckBox = newCheckBox(this, "GraXpert denoise", par.use_graxpert_denoise, 
             "<p>Use GraXpert for noise reduction.</p>" +
-            "<p>In the <i>Processing 1 / GraXpert</i> section it is possible to set some settings.</p>" +
+            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
             GraXpert_note);
 
       this.use_graxpert_deconvolution_CheckBox = newCheckBox(this, "GraXpert deconvolution", par.use_graxpert_deconvolution, 
             "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
-            "<p>In the <i>Processing 1 / GraXpert</i> section it is possible to set some settings.</p>" +
+            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
             GraXpert_note);
       if (global.is_gc_process) {
             this.use_abe_CheckBox = newCheckBox(this, "ABE", par.use_abe, 
             "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>");
+            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
+            "<p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>");
       }
       this.use_dbe_CheckBox = newCheckBox(this, "DBE", par.use_dbe, 
             "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p>" +
             "</p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of " +
             "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-            "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Processing 1 / DBE settings</i> section.</p>");
+            "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / DBE settings</i> section.</p>");
       if (global.is_mgc_process) {
             this.use_multiscalegradientcorrection_CheckBox = newCheckBox(this, "MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
                   "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
                   "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
                   "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
+                  "<p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" +
                   "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
                   "using this option.</p>" +
                   MGCToolTip);
@@ -7732,7 +7711,7 @@ function AutoIntegrateDialog()
             "<p>For mono narrowband images, channel images are saved before RGB mapping.</p>" +
             "<p>For OSC/color images, channel images are extracted and saved before stretching.</p>" +
             "<p>When using this options is is often useful to select <i>Gradient correction on channel images</i> in <i>Settings</i> tab, " + 
-            "Noise reduction on <i>Channel image</i> in <i>Processing 1</i> tab and BlurXTerminator option <i>Correct only on channel images</i> in <i>Processing 1</i> tab.</p>");
+            "Noise reduction on <i>Channel image</i> in <i>Postprocessing</i> tab and BlurXTerminator option <i>Correct only on channel images</i> in <i>Postprocessing</i> tab.</p>");
       this.stretched_channel_auto_contrast_CheckBox = newCheckBox(this, "Auto contrast on channel images", par.stretched_channel_auto_contrast, 
             "<p>Run auto contrast on stretched channel images.</p>");
       this.generate_xdrz_CheckBox = newCheckBox(this, "Generate .xdrz files", par.generate_xdrz, 
@@ -7820,31 +7799,31 @@ function AutoIntegrateDialog()
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
             "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.<br>" + 
-                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Processing 1</i> tab to a smaller value, like 0.10</i><br>" +
-                 "Parameters are set in <i>Processing 1 / AutoSTF settings</i> section.</p></li>" +
+                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing</i> tab to a smaller value, like 0.10</i><br>" +
+                 "Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li>" +
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
                    "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
-                   "Parameters are set in <i>Processing 1 / Masked stretch settings</i> section</p></li>" +
+                   "Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li>" +
             "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>" + 
                    "Prestretch help with stars that can be too pointlike with Masked Stretch.<br>" +
-                   "Parameters are set in <i>Processing 1 / Masked stretch settings</i> and <i>Processing 1 / Histogram stretching settings</i> sections</p></li>" +
+                   "Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
-                   "Parameters are set in <i>Processing 1 / Histogram stretching settings</i> section</p></li>" +
+                   "Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li>" +
             Hyperbolic_li +
             "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
                    "Can be useful when stretching stars to keep good star color.<br>" + 
-                   "Parameters are set in <i>Processing 1 / Arcsinh stretch settings</i> section</p></li>" +
+                   "Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li>" +
             "</ul>" +
             "<p>There are also some experimental stretches.</p>" +
             "<ul>" +
-            "<li><p>Logarithmic stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
-            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>Processing 1 / Arcsinh stretch settings</i> and <i>Processing 1 / Histogram stretching settings</i> sections</p></li>" +
-            "<li><p>Square root stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
-            "<li><p>Shadow stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
-            "<li><p>Highlight stretch - Parameters are set in <i>Processing 1 / Other stretching settings</i> section</p></li>" +
+            "<li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
+            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li>" +
+            "<li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
+            "<li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
+            "<li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
             "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
             "</ul>" + 
-            "<p>See <i>Processing 1 / Stretching settings</i> section for stretching specific parameters.</p>" +
+            "<p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>" +
             "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       stretchingComboBox = this.stretchingComboBox;
@@ -7866,7 +7845,7 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       this.imageParamsControl.sizer.addStretch();
 
-      // Image tools and batching set 1, built in tools.
+      // Tools set 1, built in tools.
       if (global.is_gc_process || global.is_mgc_process) {
             this.imageToolsSet1 = new VerticalSizer;
             this.imageToolsSet1.margin = 6;
@@ -7882,7 +7861,7 @@ function AutoIntegrateDialog()
             this.imageToolsSet1 = null;
       }
 
-      // Image tools and batching set 2, RC Astro.
+      // Tools set 2, RC Astro.
       this.imageToolsSet2 = new VerticalSizer;
       this.imageToolsSet2.margin = 6;
       this.imageToolsSet2.spacing = 4;
@@ -7890,7 +7869,7 @@ function AutoIntegrateDialog()
       this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
       this.imageToolsSet2.add( this.use_StarXTerminator_CheckBox );
 
-      // Image tools and batching set 3, GraXpert.
+      // Tools set 3, GraXpert.
       this.imageToolsSet3 = new VerticalSizer;
       this.imageToolsSet3.margin = 6;
       this.imageToolsSet3.spacing = 4;
@@ -7898,14 +7877,14 @@ function AutoIntegrateDialog()
       this.imageToolsSet3.add( this.use_graxpert_deconvolution_CheckBox );
       this.imageToolsSet3.add( this.use_graxpert_denoise_CheckBox );
 
-      // Image tools and batching set 4, StarNet2.
+      // Tools set 4, StarNet2.
       this.imageToolsSet4 = new VerticalSizer;
       this.imageToolsSet4.margin = 6;
       this.imageToolsSet4.spacing = 4;
       this.imageToolsSet4.add( this.use_starnet2_CheckBox );
       this.imageToolsSet4.add( this.use_deepsnr_CheckBox );
       
-      // Image tools and batching par.
+      // Tools par.
       this.imageToolsControl = new Control( this );
       this.imageToolsControl.sizer = new HorizontalSizer;
       this.imageToolsControl.sizer.margin = 6;
@@ -8130,7 +8109,7 @@ function AutoIntegrateDialog()
       this.LRGBCombinationGroupBoxLabel.toolTip = 
             "<p>LRGBCombination settings can be used to fine tune image. For relatively small " +
             "and bright objects like galaxies it may be useful to reduce brightness and increase saturation.</p>";
-      this.LRGBCombinationSizer = newVerticalSizer(6, true, [this.LRGBCombinationGroupBoxLabel, this.LRGBCombinationLinearFitCheckBox, this.LRGBCombinationLightnessControl, this.LRGBCombinationSaturationControl] );
+      this.LRGBCombinationSizer = newHorizontalSizer(6, true, [this.LRGBCombinationLinearFitCheckBox, this.LRGBCombinationLightnessControl, this.LRGBCombinationSaturationControl] );
 
       // StarAlignment selection
       var starAlignmentValuesToolTip = "<p>If star aligment fails you can try change values. Here is one suggestion of values that might help:<br>" +
@@ -8518,7 +8497,7 @@ function AutoIntegrateDialog()
       // NoiseXterminator info
       //
       this.NoiseXTerminatorInfoGroupBoxLabel = newSectionLabel(this, "NoiseXTerminator");
-      this.NoiseXTerminatorInfoTxt = newLabel(this, "NoiseXTerminator settings are in the noise reduction section.", ".", true);
+      this.NoiseXTerminatorInfoTxt = newLabel(this, "NoiseXTerminator settings are in the Postprocessing / Noise reduction section.", ".", true);
       this.NoiseXTerminatorInfoSizer = new VerticalSizer;
       this.NoiseXTerminatorInfoSizer.margin = 6;
       this.NoiseXTerminatorInfoSizer.spacing = 4;
@@ -9034,7 +9013,7 @@ function AutoIntegrateDialog()
 
       // Linear Fit selection
 
-      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values,
+      this.linearFitLabel = newLabel(this, "Linear fit", 
             "<p>Choose how to do linear fit of RGB images. Linear fit is done only on RGB channels.</p>" + 
             "<p>For narrowband images linear fit settings are in the <i>Settings / Narrowband processing</i> section.</p>" +
             "<ul>" + 
@@ -9046,11 +9025,11 @@ function AutoIntegrateDialog()
             "</ul>" +
             "<p>When a channel is selected it uses that channel as the the reference image for RGB images.<p>" +
             "<p>When Luminance channel is selected also the luminance channel is used for linear fit. If the luminance " + 
-            "channel is not present then the red channel is used as the refence image.</p>"
-      );
+            "channel is not present then the red channel is used as the refence image.</p>");
+      this.linearFitComboBox = newComboBox(this, par.use_linear_fit, use_linear_fit_values, this.linearFitLabel.toolTip);
 
       this.linearFitGroupBoxLabel = newSectionLabel(this, "Linear fit settings");
-      this.linearFitSizer = newVerticalSizer(6, true, [this.linearFitGroupBoxLabel, this.linearFitComboBox]);
+      this.linearFitSizer = newHorizontalSizer(6, true, [this.linearFitLabel, this.linearFitComboBox]);
 
       if (global.is_gc_process) {
             this.gc_automatic_convergence_CheckBox = newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
@@ -9197,12 +9176,13 @@ function AutoIntegrateDialog()
 
       // Deconvolution
       //
-      this.graxpertDenconvolutionStellarStrengthEdit = newNumericEdit(this, "Deconvolution stars strength", par.graxpert_deconvolution_stellar_strength, 0, 1, "Strength for GraXpert stars deconvolution.");
-      this.graxpertDenconvolutionStellarPsfEdit = newNumericEdit(this, "Stars FWHM", par.graxpert_deconvolution_stellar_psf, 0, 14, "FWHM in pixels for GraXpert stars deconvolution.");
+      var graxpertDenconvolutionToolTip = "<p>GraXpert deconvolution is used for stellar and non-stellar sharpening.</p>";
+      this.graxpertDenconvolutionStellarStrengthEdit = newNumericEdit(this, "Deconvolution stars strength", par.graxpert_deconvolution_stellar_strength, 0, 1, "<p>Strength for GraXpert stars deconvolution.</p>" + graxpertDenconvolutionToolTip);
+      this.graxpertDenconvolutionStellarPsfEdit = newNumericEdit(this, "Stars FWHM", par.graxpert_deconvolution_stellar_psf, 0, 14, "<p>FWHM in pixels for GraXpert stars deconvolution.</p>" + graxpertDenconvolutionToolTip);
       this.graxpertDenconvolutionStellarSizer = newHorizontalSizer(2, true, [this.graxpertDenconvolutionStellarStrengthEdit, this.graxpertDenconvolutionStellarPsfEdit]);
 
-      this.graxpertDenconvolutionNonStellarStrengthEdit = newNumericEdit(this, "Deconvolution object strength", par.graxpert_deconvolution_nonstellar_strength, 0, 1, "Strength for GraXpert object deconvolution.");
-      this.graxpertDenconvolutionNonStellarPsfEdit = newNumericEdit(this, "Object FWHM", par.graxpert_deconvolution_nonstellar_psf, 0, 14, "FWHM in pixels for GraXpert stars deconvolution.");
+      this.graxpertDenconvolutionNonStellarStrengthEdit = newNumericEdit(this, "Deconvolution object strength", par.graxpert_deconvolution_nonstellar_strength, 0, 1, "<p>Strength for GraXpert object deconvolution.</p>" + graxpertDenconvolutionToolTip);
+      this.graxpertDenconvolutionNonStellarPsfEdit = newNumericEdit(this, "Object FWHM", par.graxpert_deconvolution_nonstellar_psf, 0, 14, "<p>FWHM in pixels for GraXpert object deconvolution.</p>" + graxpertDenconvolutionToolTip);
       this.graxpertDenconvolutionNonStellarSizer = newHorizontalSizer(2, true, [this.graxpertDenconvolutionNonStellarStrengthEdit, this.graxpertDenconvolutionNonStellarPsfEdit]);
 
       this.graxpertDenconvolutionMedianPSF = newCheckBox(this, "Use median FWHM", par.graxpert_median_psf, 
@@ -9210,12 +9190,14 @@ function AutoIntegrateDialog()
             "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>");
 
       this.graxpertDenconvolutionLabel = newSectionLabel(this, "Deconvolution settings");
+      this.graxpertDenconvolutionLabel.toolTip = graxpertDenconvolutionToolTip;
+
       this.graxpertDenconvolutionSizer = newVerticalSizer(2, true, [this.graxpertDenconvolutionStellarSizer, this.graxpertDenconvolutionNonStellarSizer, this.graxpertDenconvolutionMedianPSF]);
 
       // Noise reduction
       //
       this.graxpertInfoDenoiseLabel = newSectionLabel(this, "Denoise settings");
-      this.graxpertInfoDenoiseText = newLabel(this, "GraXpert denoise settings are in the noise reduction section.", "", true);
+      this.graxpertInfoDenoiseText = newLabel(this, "GraXpert denoise settings are in the Postprocessing / Noise reduction section.", "", true);
       this.graxpertInfoDenoiseSizer = newVerticalSizer(6, true, [this.graxpertInfoDenoiseText]);
 
       // Graxpert all settings
@@ -9244,10 +9226,9 @@ function AutoIntegrateDialog()
       this.CropToleranceSizer = newHorizontalSizer(0, true, [this.CropToleranceLabel, this.CropToleranceSpinBox]);
 
       this.CropToleranceGroupBoxLabel = newSectionLabel(this, "Crop settings");
-      this.CropSizer = newVerticalSizer(6, true, [this.CropToleranceGroupBoxLabel, this.cropUseRejectionLowCheckBox, 
+      this.CropSizer = newHorizontalSizer(6, true, [this.cropUseRejectionLowCheckBox, 
                                                   this.CropToleranceSizer, this.cropRejectionLowLimitEdit, this.cropCheckLimitEdit]);
 
-      this.linearFitAndLRGBCombinationCropSizer = newHorizontalSizer(0, true, [this.linearFitSizer, this.LRGBCombinationSizer, this.CropSizer]);
 
       var processes = [];
       if (global.is_mgc_process) {
@@ -9488,9 +9469,14 @@ function AutoIntegrateDialog()
       this.StarStretchingGroupBoxSizer.margin = 6;
       this.StarStretchingGroupBoxSizer.spacing = 4;
       this.StarStretchingGroupBoxSizer.add( this.starStretchingChoiceSizer );
-      this.StarStretchingGroupBoxSizer.add( this.RGB_stars_CheckBox );
       this.StarStretchingGroupBoxSizer.add( this.StarStretchingGroupBoxSizer0 );          
       this.StarStretchingGroupBoxSizer.addStretch();
+
+      this.RGBStarsGroupBoxSizer = new VerticalSizer;
+      this.RGBStarsGroupBoxSizer.margin = 6;
+      this.RGBStarsGroupBoxSizer.spacing = 4;
+      this.RGBStarsGroupBoxSizer.add( this.RGB_stars_CheckBox );
+      this.RGBStarsGroupBoxSizer.addStretch();
 
       //
       // Image integration
@@ -10671,15 +10657,6 @@ function AutoIntegrateDialog()
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { this.dialog.show_preview_CheckBox.aiParam.preview.use_preview = checked; });
 
-      this.use_single_column_CheckBox = newGenericCheckBox(this, "Single column", ppar, ppar.use_single_column, 
-            "Show all dialog settings in a single column. You need to restart the script before this setting is effective.",
-            function(checked) { this.dialog.use_single_column_CheckBox.aiParam.use_single_column = checked; });
-
-      this.use_more_tabs_CheckBox = newGenericCheckBox(this, "More tabs", ppar, ppar.use_more_tabs, 
-            "<p>Use more tabs to show settings.</p>" +
-            "<p>Can be useful when using the side preview.</p>",
-            function(checked) { this.dialog.use_more_tabs_CheckBox.aiParam.use_more_tabs = checked; });
-
       this.use_large_preview_CheckBox = newGenericCheckBox(this, "Side preview", ppar, ppar.preview.use_large_preview, 
             "<p>Use a large preview window on the side of the main dialog.</p>",
             function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
@@ -10691,10 +10668,6 @@ function AutoIntegrateDialog()
       this.show_black_background_CheckBox = newGenericCheckBox(this, "Black background", ppar, ppar.preview.black_background, 
             "<p>Use pure black as image background. It may help to check that background is not made too dark.</p>",
             function(checked) { this.dialog.show_black_background_CheckBox.aiParam.preview.black_background = checked; });
-
-      this.files_in_tab_CheckBox = newGenericCheckBox(this, "Files tab", ppar, ppar.files_in_tab, 
-            "<p>File listing is in a separate tab instead of on top of the window.</p>",
-            function(checked) { this.dialog.files_in_tab_CheckBox.aiParam.files_in_tab = checked; });
 
       this.show_startup_image_CheckBox = newGenericCheckBox(this, "Startup image", ppar, ppar.show_startup_image, 
             "<p>Show startup image in preview window.</p>",
@@ -10723,9 +10696,6 @@ function AutoIntegrateDialog()
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
       this.preview1Sizer.add( this.show_preview_CheckBox );
-      this.preview1Sizer.add( this.use_single_column_CheckBox );
-      this.preview1Sizer.add( this.use_more_tabs_CheckBox );
-      this.preview1Sizer.add( this.files_in_tab_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
       this.preview1Sizer.add( this.show_black_background_CheckBox );
@@ -10872,13 +10842,6 @@ function AutoIntegrateDialog()
             this.interfaceSizer2.add( this.previewToggleButton );
       }
       this.interfaceSizer2.addStretch();
-      this.processDefaultsButton = new PushButton( this );
-      this.processDefaultsButton.text = "Print process defaults";
-      this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
-      this.processDefaultsButton.onClick = function() {
-            engine.getProcessDefaultValues();
-      }
-      this.interfaceSizer2.add( this.processDefaultsButton );
 
       this.interfaceControl = new Control( this );
       this.interfaceControl.sizer = new VerticalSizer;
@@ -10925,6 +10888,18 @@ function AutoIntegrateDialog()
       this.flowchartControl.sizer.addStretch();
       this.flowchartControl.visible = false;
 
+      this.processDefaultsButton = new PushButton( this );
+      this.processDefaultsButton.text = "Print process defaults";
+      this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
+      this.processDefaultsButton.onClick = function() {
+            engine.getProcessDefaultValues();
+      }
+      this.processDefaultsSizer = new HorizontalSizer;
+      this.processDefaultsSizer.margin = 6;
+      this.processDefaultsSizer.spacing = 4;
+      this.processDefaultsSizer.add( this.processDefaultsButton );
+      this.processDefaultsSizer.addStretch();
+
       this.debugControl = new Control( this );
       this.debugControl.sizer = new VerticalSizer;
       this.debugControl.sizer.margin = 6;
@@ -10934,6 +10909,7 @@ function AutoIntegrateDialog()
       this.debugControl.sizer.add( this.flowchartDebugCheckBox );
       this.debugControl.sizer.add( this.keepProcessedImagesCheckBox );
       this.debugControl.sizer.add( this.keepTemporaryImagesCheckBox );
+      this.debugControl.sizer.add( this.processDefaultsSizer );
       this.debugControl.sizer.addStretch();
       this.debugControl.visible = false;
 
@@ -11035,10 +11011,6 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.adjusttocontent_Button );
-      if (0) {
-            this.buttons_Sizer.addSpacing( 6 );
-            this.buttons_Sizer.add( this.info_Sizer );
-      }
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.newFlowchartButton );
       this.buttons_Sizer.add( this.showFlowchartCheckBox );
@@ -11057,101 +11029,134 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.exit_Button );
       this.buttons_Sizer.add( this.helpTips );
 
-      /* 
+      /***********************************************\
        * Collect all items into GroupBox objects.
-       */
+      \***********************************************/
 
-      // Settings left group box
-      this.leftGroupBox = newGroupBoxSizer(this);
+      // ---------------------------------------------
+      // Settings group box
+      // ---------------------------------------------
+      this.settingsGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.settingsGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
+      newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsControl, "Tools", "ImageTools");
+      newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
+      newSectionBarAdd(this, this.settingsGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      this.settingsGroupBox.sizer.addStretch();
 
-      newSectionBarAdd(this, this.leftGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
-      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsControl, "Tools", "ImageTools");
-      newSectionBarAdd(this, this.leftGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
-      newSectionBarAdd(this, this.leftGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
-      this.leftGroupBox.sizer.addStretch();
+      // ---------------------------------------------
+      // Other group box
+      // ---------------------------------------------
+      this.otherGroupBox = newGroupBoxSizer(this);
+      newSectionBarAdd(this, this.otherGroupBox, this.otherParamsControl, "Other parameters", "Other1");
+      newSectionBarAdd(this, this.otherGroupBox, this.systemParamsControl, "System settings", "System1");
+      newSectionBarAdd(this, this.otherGroupBox, this.astrobinControl, "Astrobin", "Astrobin");
+      newSectionBarAdd(this, this.otherGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+      this.otherGroupBox.sizer.addStretch();
 
-      // Settings right group box
-      this.rightGroupBox = newGroupBoxSizer(this);
-      newSectionBarAdd(this, this.rightGroupBox, this.otherParamsControl, "Other parameters", "Other1");
-      newSectionBarAdd(this, this.rightGroupBox, this.systemParamsControl, "System settings", "System1");
-      newSectionBarAdd(this, this.rightGroupBox, this.astrobinControl, "Astrobin", "Astrobin");
-      newSectionBarAdd(this, this.rightGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
-      this.rightGroupBox.sizer.addStretch();
+      // ---------------------------------------------
+      // Preprocessing group box
+      // ---------------------------------------------
+      if (global.debug) console.writeln("Create preprocessing group box");
+      this.preprocessingGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.preprocessingGroupBox, "Image calibration", "ps_calibration",
+            [ this.calibrationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.preprocessingGroupBox, "Cosmetic correction", "ps_CC",
+            [ this.cosmeticCorrectionGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.preprocessingGroupBox, "Star and comet alignment ", "ps_alignment",
+            [ this.StarAlignmentGroupBoxLabel,
+            this.StarAlignmentGroupBoxSizer,
+            this.cometAlignmentGroupBoxLabel,
+            this.cometAlignmentGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.preprocessingGroupBox, "Weighting and filtering", "ps_weighting",
+            [ this.weightSizer ]);
+      newSectionBarAddArray(this, this.preprocessingGroupBox, "Banding and binning", "ps_binning_banding",
+            [ this.bandingGroupBoxLabel,
+            this.bandingGroupBoxSizer,
+            this.binningGroupBoxLabel,
+            this.binningGroupBoxSizer ]);
+      this.preprocessingGroupBox.sizer.addStretch();
 
-      // Left processing group box
-      this.leftProcessingGroupBox = newGroupBoxSizer(this);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Stretching settings", "ps_stretching",
-            [ this.StretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Star stretching settings", "ps_starstretching",
-            [ this.StarStretchingGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Linear fit, LRGB combination, and Crop settings", "ps_linearfit_combination",
-            [ this.linearFitAndLRGBCombinationCropSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Gradient correction, ABE settings, DBE settings", "ps_ave_graxpert",
-            [ this.GCStarXSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "Saturation, noise reduction settings", "ps_saturation_noise",
-            [ this.saturationGroupBoxLabel,
-              this.saturationGroupBoxSizer,
-              this.noiseReductionGroupBoxLabel1,
-              this.noiseReductionGroupBoxSizer1,
-              this.noiseReductionGroupBoxLabel2,
-              this.noiseReductionGroupBoxSizer2,
-              this.noiseReductionGroupBoxLabel3,
-              this.noiseReductionGroupBoxSizer3,
-              this.noiseReductionGroupBoxLabel4,
-              this.noiseReductionGroupBoxSizer4,
-              this.noiseReductionGroupBoxLabel5,
-              this.noiseReductionGroupBoxSizer5 ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "StarXTerminator, BlurXTerminator settings", "ps_rcastro",
-            [ this.StarXTerminatorGroupBoxLabel,
-              this.StarXTerminatorSizer,
-              this.blurxterminatorGroupBoxLabel,
-              this.blurxterminatorGroupBoxSizer,
-              this.NoiseXTerminatorInfoGroupBoxLabel,
-              this.NoiseXTerminatorInfoSizer ]);
-      newSectionBarAddArray(this, this.leftProcessingGroupBox, "GraXpert settings", "ps_graxpert",
-            [ this.graxpertGroupBoxSizer  ]);
-            
-      this.leftProcessingGroupBox.sizer.addStretch();
-
-      // Right processing group box
-      this.rightProcessingGroupBox = newGroupBoxSizer(this);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image integration and FastIntegration settings", "ps_integration",
+      // ---------------------------------------------
+      // Integration Group box
+      // ---------------------------------------------
+      if (global.debug) console.writeln("Create integration group box");
+      this.integrationGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.integrationGroupBox, "Image integration", "ps_integration",
             [ this.clippingGroupBoxLabel,
-              this.clippingGroupBoxSizer,
-              this.fastIntegrationGroupBoxLabel,
-              this.fastIntegrationGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Local normalization and drizzle settings", "ps_localnorm",
-          [ this.localNormalizationGroupBoxLabel,
+            this.clippingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.integrationGroupBox, "FastIntegration", "ps_fastintegration",
+            [ this.fastIntegrationGroupBoxLabel,
+            this.fastIntegrationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.integrationGroupBox, "Local normalization and drizzle", "ps_localnorm",
+            [ this.localNormalizationGroupBoxLabel,
             this.localNormalizationGroupBoxSizer,
             this.drizzleGroupBoxLabel,
             this.drizzleGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image calibration", "ps_calibration",
-            [ this.calibrationGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Star and comet alignment settings", "ps_alignment",
-            [ this.StarAlignmentGroupBoxLabel,
-              this.StarAlignmentGroupBoxSizer,
-              this.cometAlignmentGroupBoxLabel,
-              this.cometAlignmentGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Weighting and filtering settings", "ps_weighting",
-            [ this.weightSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Banding, binning and cosmetic correction settings", "ps_binning_CC",
-            [ this.bandingGroupBoxLabel,
-              this.bandingGroupBoxSizer,
-              this.binningGroupBoxLabel,
-              this.binningGroupBoxSizer,
-              this.cosmeticCorrectionGroupBoxSizer ]);
-      newSectionBarAddArray(this, this.rightProcessingGroupBox, "Image solving and color calibration", "ps_imagesolving",
+      newSectionBarAddArray(this, this.integrationGroupBox, "Crop", "ps_crop",
+            [ this.CropToleranceGroupBoxLabel, this.CropSizer ]);
+      newSectionBarAddArray(this, this.integrationGroupBox, "Linear fit, LRGB combination settings", "ps_linearfit_combination",
+            [ this.linearFitGroupBoxLabel, this.linearFitSizer, 
+              this.LRGBCombinationGroupBoxLabel, this.LRGBCombinationSizer ]);
+      this.integrationGroupBox.sizer.addStretch();
+
+      // ---------------------------------------------
+      // Postprocessing group box
+      // ---------------------------------------------
+      if (global.debug) console.writeln("Create postprocessing group box");
+      this.postProcessingGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Stretching", "ps_stretching",
+            [ this.StretchingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Star stretching and removing", "ps_starstretching",
+            [ this.StarStretchingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "RGB stars", "ps_rgb_stars",
+            [ this.RGBStarsGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Gradient correction, ABE settings, DBE settings", "ps_ave_graxpert",
+            [ this.GCStarXSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Saturation", "ps_saturation",
+            [ this.saturationGroupBoxLabel,
+            this.saturationGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Noise reduction", "ps_noise",
+            [ this.noiseReductionGroupBoxLabel1,
+            this.noiseReductionGroupBoxSizer1,
+            this.noiseReductionGroupBoxLabel2,
+            this.noiseReductionGroupBoxSizer2,
+            this.noiseReductionGroupBoxLabel3,
+            this.noiseReductionGroupBoxSizer3,
+            this.noiseReductionGroupBoxLabel4,
+            this.noiseReductionGroupBoxSizer4,
+            this.noiseReductionGroupBoxLabel5,
+            this.noiseReductionGroupBoxSizer5 ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Image solving", "ps_imagesolving",
             [ this.imageSolvingGroupBoxLabel,
-              this.imageSolvingGroupBoxSizer,
-              this.colorCalibrationGroupBoxLabel,
-              this.colorCalibrationSizer,
-              this.spccGroupBoxLabel,
-              this.spccGroupBoxSizer ]);
-      newSectionBarAdd(this, this.rightProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
-      newSectionBarAdd(this, this.rightProcessingGroupBox, this.RGBHaMappingControl, "Ha to RGB mapping", "NarrowbandRGB2");
-      this.rightProcessingGroupBox.sizer.addStretch();
-        
+            this.imageSolvingGroupBoxSizer ]);
+      newSectionBarAddArray(this, this.postProcessingGroupBox, "Color calibration", "ps_colorcalibration",
+            [ this.colorCalibrationGroupBoxLabel,
+            this.colorCalibrationSizer,
+            this.spccGroupBoxLabel,
+            this.spccGroupBoxSizer ]);
+      newSectionBarAdd(this, this.postProcessingGroupBox, this.narrowbandRGBmappingControl, "Narrowband to RGB mapping", "NarrowbandRGB1");
+      newSectionBarAdd(this, this.postProcessingGroupBox, this.RGBHaMappingControl, "Ha to RGB mapping", "NarrowbandRGB2");
+      this.postProcessingGroupBox.sizer.addStretch();
+
+      // ---------------------------------------------
+      // Tools group box
+      // ---------------------------------------------
+      if (global.debug) console.writeln("Create tools group box");
+      this.toolsGroupBox = newGroupBoxSizer(this);
+      newSectionBarAddArray(this, this.toolsGroupBox, "StarXTerminator, BlurXTerminator, NoiseXTerminator", "ps_rcastro",
+            [ this.StarXTerminatorGroupBoxLabel,
+            this.StarXTerminatorSizer,
+            this.blurxterminatorGroupBoxLabel,
+            this.blurxterminatorGroupBoxSizer,
+            this.NoiseXTerminatorInfoGroupBoxLabel,
+            this.NoiseXTerminatorInfoSizer ]);
+      newSectionBarAddArray(this, this.toolsGroupBox, "GraXpert", "ps_graxpert",
+            [ this.graxpertGroupBoxSizer  ]);
+      this.toolsGroupBox.sizer.addStretch();
+
+      // ---------------------------------------------
       // Extra processing group box
+      // ---------------------------------------------
       this.extraGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.extraGroupBox, this.extraImageControl, "Target image for extra processing", "ExtraTarget");
       newSectionBarAdd(this, this.extraGroupBox, this.extraControl2, "Narrowband extra processing", "Extra2");
@@ -11179,179 +11184,114 @@ function AutoIntegrateDialog()
             updateSidePreviewState();
       }
 
+      // ---------------------------------------------
+      // Interface group box
+      // ---------------------------------------------
       this.interfaceGroupBox = newGroupBoxSizer(this);
       newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
       newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
       newSectionBarAdd(this, this.interfaceGroupBox, this.debugControl, "Debug settings", "debugsettings");
       this.interfaceGroupBox.sizer.addStretch();
 
-      /* ------------------------------- */
-      /* Create tabs.                    */
-      /* ------------------------------- */
+      /***********************************************\
+       * Create tabs.
+      \***********************************************/
 
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
       let tab_index = 0;
 
-      if (ppar.files_in_tab) {
-            // Files in a tab
-            this.pageButtonsSizer = newPageButtonsSizer(this);
-            this.filesTabSizer = new VerticalSizer;
-            this.filesTabSizer.margin = 6;
-            this.filesTabSizer.spacing = 4;
-            this.filesTabSizer.add( this.tabBox );
-            this.filesTabSizer.add( this.filesButtonsSizer );
-            this.filesTabSizer.add( this.pageButtonsSizer );
-            this.mainTabBox.addPage( mainSizerTab(this, this.filesTabSizer), "Files" );
-            tab_index++;
+      this.pageButtonsSizer = newPageButtonsSizer(this);
+      this.filesTabSizer = new VerticalSizer;
+      this.filesTabSizer.margin = 6;
+      this.filesTabSizer.spacing = 4;
+      this.filesTabSizer.add( this.tabBox );
+      this.filesTabSizer.add( this.filesButtonsSizer );
+      this.filesTabSizer.add( this.pageButtonsSizer );
+      this.mainTabBox.addPage( mainSizerTab(this, this.filesTabSizer), "Files" );
+      tab_index++;
+
+      this.settingsTabSizer = new HorizontalSizer;
+      this.settingsTabSizer.margin = 6;
+      this.settingsTabSizer.spacing = 4;
+      this.settingsTabSizer.add( this.settingsGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.settingsTabSizer), "Settings" );
+      tab_index++;
+
+      this.otherTabSizer = new HorizontalSizer;
+      this.otherTabSizer.margin = 6;
+      this.otherTabSizer.spacing = 4;
+      this.otherTabSizer.add( this.otherGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.otherTabSizer), "Other" );
+      tab_index++;
+
+      if (global.debug) console.writeln("Create preprocessing tab");
+      this.preProcessingsTabSizer = new HorizontalSizer;
+      this.preProcessingsTabSizer.margin = 6;
+      this.preProcessingsTabSizer.spacing = 4;
+      this.preProcessingsTabSizer.add( this.preprocessingGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.preProcessingsTabSizer), "Preprocessing" );
+      tab_index++;
+
+      if (global.debug) console.writeln("Create integration tab");
+      this.integrationTabSizer = new HorizontalSizer;
+      this.integrationTabSizer.margin = 6;
+      this.integrationTabSizer.spacing = 4;
+      this.integrationTabSizer.add( this.integrationGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.integrationTabSizer), "Integration" );
+      tab_index++;
+
+      if (global.debug) console.writeln("Create postprocessing tab");
+      this.postProcessingsTabSizer = new HorizontalSizer;
+      this.postProcessingsTabSizer.margin = 6;
+      this.postProcessingsTabSizer.spacing = 4;
+      this.postProcessingsTabSizer.add( this.postProcessingGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.postProcessingsTabSizer), "Postprocessing" );
+      tab_index++;
+
+      if (global.debug) console.writeln("Create tools tab");
+      this.toolsTabSizer = new HorizontalSizer;
+      this.toolsTabSizer.margin = 6;
+      this.toolsTabSizer.spacing = 4;
+      this.toolsTabSizer.add( this.toolsGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.toolsTabSizer), "Tools" );
+      tab_index++;
+
+      this.previewSizer = new HorizontalSizer;
+      this.previewSizer.margin = 6;
+      this.previewSizer.spacing = 4;
+      if (global.use_preview) {
+            this.previewSizer2 = new VerticalSizer;
+            this.previewSizer2.margin = 6;
+            this.previewSizer2.spacing = 4;
+            this.previewSizer2.add( this.tabPreviewObj.sizer );
+            if (tabHistogramControl != null) {
+                  this.previewSizer2.add( tabHistogramControl );
+            }
+            this.previewSizer2.addStretch();
+            this.previewSizer.add( this.previewSizer2 );
       }
-
-      if (ppar.use_single_column) {
-            /* Collect all into a single sizer.
-             */
-            this.singleColumnSizer = new VerticalSizer;
-            this.singleColumnSizer.margin = 6;
-            this.singleColumnSizer.spacing = 4;
-            this.singleColumnSizer.add( this.leftGroupBox );
-            this.singleColumnSizer.add( this.rightGroupBox );
-            this.singleColumnSizer.add( this.leftProcessingGroupBox );
-            this.singleColumnSizer.add( this.rightProcessingGroupBox );
-            this.singleColumnSizer.add( this.extraGroupBox );
-            this.singleColumnSizer.add( this.interfaceGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.singleColumnSizer), "Settings" );
-            tab_index++;
-
-            if (global.use_preview) {
-                  this.mainTabBox.addPage( mainSizerTab(this, this.tabPreviewObj.sizer), "Preview" );
-                  tab_preview_index = tab_index;
-                  tab_index++;
-                  if (tabHistogramControl != null) {
-                        this.mainTabBox.addPage( mainSizerTab(this, tabHistogramControl), "Histogram" );
-                        tab_index++;
-                  }
-            }
-      } else if (ppar.use_more_tabs) {
-            /* More tabs view. 
-             */
-            this.settingsSizer = new HorizontalSizer;
-            this.settingsSizer.margin = 6;
-            this.settingsSizer.spacing = 4;
-            this.settingsSizer.add( this.leftGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer), "Settings" );
-            tab_index++;
-
-            this.settingsSizer2 = new HorizontalSizer;
-            this.settingsSizer2.margin = 6;
-            this.settingsSizer2.spacing = 4;
-            this.settingsSizer2.add( this.rightGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer2), "Other" );
-            tab_index++;
-
-            this.processingsSizer = new HorizontalSizer;
-            this.processingsSizer.margin = 6;
-            this.processingsSizer.spacing = 4;
-            this.processingsSizer.add( this.leftProcessingGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer), "Processing 1" );
-            tab_index++;
-
-            this.processingsSizer2 = new HorizontalSizer;
-            this.processingsSizer2.margin = 6;
-            this.processingsSizer2.spacing = 4;
-            this.processingsSizer2.add( this.rightProcessingGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer2), "Processing 2" );
-            tab_index++;
-
-            this.previewSizer = new HorizontalSizer;
-            this.previewSizer.margin = 6;
-            this.previewSizer.spacing = 4;
-            if (global.use_preview) {
-                  this.previewSizer2 = new VerticalSizer;
-                  this.previewSizer2.margin = 6;
-                  this.previewSizer2.spacing = 4;
-                  this.previewSizer2.add( this.tabPreviewObj.sizer );
-                  if (tabHistogramControl != null) {
-                        this.previewSizer2.add( tabHistogramControl );
-                  }
-                  this.previewSizer2.addStretch();
-                  this.previewSizer.add( this.previewSizer2 );
-            }
-            this.previewSizer.add( this.extraGroupBox );
-            let tabname;
-            if (global.use_preview) {
-                  if (ppar.preview.side_preview_visible) {
-                        tabname = "Extra processing";
-                  } else {
-                        tabname = "Preview and extra processing";
-                  }
-            } else {
+      this.previewSizer.add( this.extraGroupBox );
+      let tabname;
+      if (global.use_preview) {
+            if (ppar.preview.side_preview_visible) {
                   tabname = "Extra processing";
+            } else {
+                  tabname = "Preview and extra processing";
             }
-            this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
-            tab_preview_index = tab_index;
-            tab_index++;
-
-            this.interfaceTabSizer = new HorizontalSizer;
-            this.interfaceTabSizer.margin = 6;
-            this.interfaceTabSizer.spacing = 4;
-            this.interfaceTabSizer.add( this.interfaceGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.interfaceTabSizer), "Interface" );
-            tab_index++;
-
       } else {
-            /* Default view. 
-             */
-            this.settingsSizer = new HorizontalSizer;
-            this.settingsSizer.margin = 6;
-            this.settingsSizer.spacing = 4;
-            this.settingsSizer.add( this.leftGroupBox );
-            this.settingsSizer.add( this.rightGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.settingsSizer), "Settings" );
-            tab_index++;
-
-            this.processingsSizer = new HorizontalSizer;
-            this.processingsSizer.margin = 6;
-            this.processingsSizer.spacing = 4;
-            this.processingsSizer.add( this.leftProcessingGroupBox );
-            this.processingsSizer.add( this.rightProcessingGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.processingsSizer), "Processing" );
-            tab_index++;
-
-            this.previewSizer = new HorizontalSizer;
-            this.previewSizer.margin = 6;
-            this.previewSizer.spacing = 4;
-            if (global.use_preview) {
-                  this.previewSizer2 = new VerticalSizer;
-                  this.previewSizer2.margin = 6;
-                  this.previewSizer2.spacing = 4;
-                  this.previewSizer2.add( this.tabPreviewObj.sizer );
-                  if (tabHistogramControl != null) {
-                        this.previewSizer2.add( tabHistogramControl );
-                  }
-                  this.previewSizer2.addStretch();
-                  this.previewSizer.add( this.previewSizer2 );
-            }
-            this.previewSizer.add( this.extraGroupBox );
-            let tabname;
-            if (global.use_preview) {
-                  if (ppar.preview.side_preview_visible) {
-                        tabname = "Extra processing";
-                  } else {
-                        tabname = "Preview and extra processing";
-                  }
-            } else {
-                  tabname = "Extra processing";
-            }
-            this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
-            tab_preview_index = tab_index;
-            tab_index++;
-
-            this.interfaceTabSizer = new HorizontalSizer;
-            this.interfaceTabSizer.margin = 6;
-            this.interfaceTabSizer.spacing = 4;
-            this.interfaceTabSizer.add( this.interfaceGroupBox );
-            this.mainTabBox.addPage( mainSizerTab(this, this.interfaceTabSizer), "Interface" );
-            tab_index++;
+            tabname = "Extra processing";
       }
+      this.mainTabBox.addPage( mainSizerTab(this, this.previewSizer), tabname );
+      tab_preview_index = tab_index;
+      tab_index++;
+
+      this.interfaceTabSizer = new HorizontalSizer;
+      this.interfaceTabSizer.margin = 6;
+      this.interfaceTabSizer.spacing = 4;
+      this.interfaceTabSizer.add( this.interfaceGroupBox );
+      this.mainTabBox.addPage( mainSizerTab(this, this.interfaceTabSizer), "Interface" );
+      tab_index++;
 
       this.mainTabsSizer = new HorizontalSizer;
       this.mainTabsSizer.margin = 6;
@@ -11374,35 +11314,25 @@ function AutoIntegrateDialog()
       this.baseSizer = new VerticalSizer;
       this.baseSizer.margin = 6;
       this.baseSizer.spacing = 4;
-      if (!ppar.files_in_tab) {
-            this.baseSizer.add( this.tabBox);             // Files tabs
-      }
 
       this.actionSizer = newActionSizer(this);
       this.jsonSizer = newJsonSizer(this);
 
-      if (ppar.files_in_tab) {
-            this.topButtonsSizer = new HorizontalSizer;
-            this.topButtonsSizer.spacing = 4;
-            this.topButtonsSizer.add( this.actionSizer );
-            this.baseSizer.add( this.topButtonsSizer );
+      this.topButtonsSizer = new HorizontalSizer;
+      this.topButtonsSizer.spacing = 4;
+      this.topButtonsSizer.add( this.actionSizer );
+      this.baseSizer.add( this.topButtonsSizer );
 
-            this.topButtonsSizer2 = new HorizontalSizer;
-            this.topButtonsSizer2.spacing = 4;
-            this.topButtonsSizer2.add( this.jsonSizer );
-            this.topButtonsSizer2.addSpacing( 12 );
-            this.topButtonsSizer2.add( this.targetSizer );
-            this.top2ndRowControl = new Control( this );
-            this.top2ndRowControl.sizer = new HorizontalSizer;
-            this.top2ndRowControl.sizer.add(this.topButtonsSizer2);
-            this.baseSizer.add( this.top2ndRowControl );
-      } else {
-            this.pageButtonsSizer = newPageButtonsSizer(this, this.jsonSizer, this.actionSizer);
-            this.baseSizer.add( this.pageButtonsSizer );
-      }
-      if (!ppar.files_in_tab) {
-            this.baseSizer.add( this.filesButtonsSizer);  // Buttons row below files
-      }
+      this.topButtonsSizer2 = new HorizontalSizer;
+      this.topButtonsSizer2.spacing = 4;
+      this.topButtonsSizer2.add( this.jsonSizer );
+      this.topButtonsSizer2.addSpacing( 12 );
+      this.topButtonsSizer2.add( this.targetSizer );
+      this.top2ndRowControl = new Control( this );
+      this.top2ndRowControl.sizer = new HorizontalSizer;
+      this.top2ndRowControl.sizer.add(this.topButtonsSizer2);
+      this.baseSizer.add( this.top2ndRowControl );
+
       this.baseSizer.add( this.mainTabsSizer );     // Main view with tabs
       this.baseSizer.add( this.info_Sizer );
       // this.baseSizer.add( this.buttons_Sizer );     // Buttons at the bottom

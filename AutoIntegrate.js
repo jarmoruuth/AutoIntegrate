@@ -436,9 +436,6 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored useMoreTabs '" + tempSetting + "' from settings.");
             ppar.use_more_tabs = tempSetting;
       }
-      if (ppar.use_single_column) {
-            ppar.use_more_tabs = false;
-      }
       var tempSetting = Settings.read(SETTINGSKEY + "/filesInTab", DataType_Boolean);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored filesInTab '" + tempSetting + "' from settings.");

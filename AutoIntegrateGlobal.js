@@ -42,14 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.78";         // Version, also updated into updates.xri
-this.autointegrate_info = "Small updates and fixes.";       // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.79 test1";   // Version, also updated into updates.xri
+this.autointegrate_info = "GUI tabs reorganized";          // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Updates to flowchart.",
-      "- Fixes to multiple palettes with Auto palette option.",
-      "- interface option to use pure black as image background."
+      "- Reorganized some tabs in the GUI"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -630,10 +628,10 @@ this.ppar = {
             side_histogram_height: 0,     // Histogram height in side preview window, default set in getPreviewSize.
             black_background: false       // Use pure black as image background
       },
-      use_single_column: false, // show all options in a single column
-      use_more_tabs: true,      // use more tabs for parameters and settings
-      files_in_tab: true,         // show files in a tab
-      show_startup_image: true,   // show startup image
+      use_single_column: false,     // deprecated, always false: show all options in a single column
+      use_more_tabs: true,          // deprecated, always true: use more tabs for parameters and settings
+      files_in_tab: true,           // deprecated, always true: show files in a tab
+      show_startup_image: true,     // show startup image
       startup_image_name: this.default_startup_image_name
 };
 
