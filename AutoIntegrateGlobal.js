@@ -42,12 +42,13 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.79 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "GUI tabs reorganized";          // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.79 test2";                     // Version, also updated into updates.xri
+this.autointegrate_info = "GUI tabs reorganized, run from command line";      // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Reorganized some tabs in the GUI"
+      "- Reorganized some tabs in the GUI",
+      "- Added ability to run from command line with JSON setup file"
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

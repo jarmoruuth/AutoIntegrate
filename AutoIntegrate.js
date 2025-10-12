@@ -589,11 +589,11 @@ this.test_initialize = function()
       console.writeln("test_initialize done");
 }
 
-this.test_autosetup = function(autosetup_path)
+this.load_setup = function(setup_path)
 {
-      console.writeln("test_autosetup");
+      console.writeln("load_setup " + setup_path);
 
-      var pagearray = util.readJsonFile(autosetup_path, false);
+      var pagearray = util.readJsonFile(setup_path, false);
 
       for (var i = 0; i < pagearray.length; i++) {
             if (pagearray[i] != null) {
@@ -601,6 +601,15 @@ this.test_autosetup = function(autosetup_path)
             }
       }
       gui.updateInfoLabel(this.dialog);
+
+      console.writeln("load_setup done");
+}
+
+this.test_autosetup = function(autosetup_path)
+{
+      console.writeln("test_autosetup");
+
+      this.load_setup(autosetup_path);
 
       console.writeln("test_autosetup done");
 }
@@ -652,29 +661,60 @@ this.openImageWindowFromFile = function(name)
  */
 this.autointegrate_main = function()
 {
+      var runsetuppath = null;
+      var errors = false;
+
+      // Start logging in case we have some error during startup
+      console.beginLog();
       console.writeln("autointegrate_main");
       try {
             /* Check command line arguments. Arguments can be given by starting the script from
-             * the command line in the Process Console window. Arguments are given using syntax:
-             *    -a="value"
+             * the operating system command prompt or command line in the Process Console window. 
+             *
+             * The following arguments are recognized:
+             * - runsetup=<path-to-json-setup-file>
+             * - do_not_read_settings
+             * - do_not_write_settings
+             * 
+             * In the operating system command prompt the arguments can be given when the
+             * script is started with a run option.
+             * 
              * For example:
-             *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/Users/jarmo_000/GitHub/AutoIntegrate/AutoIntegrate.js"
-             * You can find the start command line by checking the Process Console window after starting
-             * the scrip.
+             *   <path_to_pixinsight>/pixinsight -run="<path_to_script>/AutoIntegrate.js,runsetup=<json-file>" --force-exit
+             * 
+             * In the Process Console window arguments are given using syntax: a="value"
+             * 
+             * For example:
+             *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/path_to_script/AutoIntegrate.js"
              */
             for (let i = 0; i < jsArguments.length; i++) {
-                  if (jsArguments[i] == "do_not_read_settings") {
+                  if (jsArguments[i].startsWith("runsetup=")) {
+                        var eqpos = jsArguments[i].indexOf('=');
+                        if (eqpos > 0) {
+                              runsetuppath = jsArguments[i].substring(eqpos + 1).trim();
+                              if (runsetuppath.length > 0) {
+                                    console.writeln("Found runsetup argument, file " + runsetuppath);
+                              } else {
+                                    console.criticalln("Error: runsetup argument missing file name");
+                                    errors = true;
+                              }
+                        } else {
+                              console.criticalln("Error: runsetup argument missing file name");
+                              errors = true;
+                        }
+                  } else if (jsArguments[i] == "do_not_read_settings") {
                         console.writeln("Found do_not_read_settings argument, no parameters are read from persistent module settings or from icon.");
                         global.do_not_read_settings = true;
-                  } 
-                  if (jsArguments[i] == "do_not_write_settings") {
+                  } else if (jsArguments[i] == "do_not_write_settings") {
                         console.writeln("Found do_not_write_settings argument, no parameters are written to persistent module settings.");
                         global.do_not_write_settings = true;
-                  } 
+                  } else {
+                        console.criticalln("Unknown argument " + jsArguments[i]);
+                        errors = true;
+                  }
             }
 
             util.setDefaultDirs();
-
 
             if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
                   // 1. Read parameters saved to process icon, these overwrite default settings
@@ -684,6 +724,7 @@ this.autointegrate_main = function()
                         readParametersFromProcessIcon();
                   } catch(err) {
                         console.writeln("Error reading parameters from process icon: " + err);
+                        errors = true;
                   }
             } else {
                   // 2. Read saved parameters from persistent module settings
@@ -755,11 +796,29 @@ this.autointegrate_main = function()
       }
       catch (x) {
             console.writeln( x );
+            errors = true;
       }
 
       this.dialog = new gui.AutoIntegrateDialog();
       global.dialog = this.dialog;
-      this.dialog.execute();
+      if (errors) {
+            // Write errors to a file, if we have --force-exit option we cannot see
+            // the console output
+            console.criticalln("Errors during startup, see AutoIntegrateErrorLog.txt for details");
+            var file = new File();
+            file.createForWriting("AutoIntegrateErrorLog.txt");
+            file.write(console.endLog());
+            file.close();
+      }
+      if (runsetuppath != null) {
+            console.noteln("Using JSON file: " + runsetuppath);
+            // Load Json file
+            this.load_setup(runsetuppath);
+            // Run processing directly
+            this.dialog.run_Button.onClick();
+      } else {
+            this.dialog.execute();
+      }
 }
 
 } // AutoIntegrate wrapper end

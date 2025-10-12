@@ -7321,7 +7321,7 @@ function AutoIntegrateDialog()
             "<li>Set a Window prefix to avoid overwriting files in the first step.</li>" + 
             "<li>Check <i>Comet align</i> in <i>Settings / Image processing parameters</i> section.</li>" +
             "<li>Check star removal option (StarXTerminator or StarNet2) in <i>Settings / Tools</i> section.</li>" +
-            "<li>Check <i>Remove stars from lights</i> in <i>Postprocessing 1 / Star stretching and removing</i> section.</li>" +
+            "<li>Check <i>Remove stars from lights</i> in <i>Postprocessing / Star stretching and removing</i> section.</li>" +
             "<li>Check <i>No CosmeticCorrection</i> in <i>Other / Other parameters</i> section.</li>" +
             "<li>Go to the <i>Preprocessing / CometAlignment</i> section.</li>" +
             "<li>Fill in first and last comet position coordinates. To get the coordinates click the " + 
