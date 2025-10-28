@@ -38,6 +38,381 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateExclusionArea.js"
 #include "AutoIntegrateMetricsVisualizer.js"
 
+// ============================================================================
+// Tutorial System for AutoIntegrate
+// ============================================================================
+
+function TutorialSystem(dialog) {
+      this.dialog = dialog;
+      this.currentStep = 0;
+      this.isActive = false;
+      this.steps = [];
+
+      // Overlay to dim the background
+      this.overlay = new Control(dialog);
+      this.overlay.visible = false;
+      this.overlay.cursor = new Cursor(StdCursor_Arrow);
+      this.overlay.styleSheet = "QWidget { background-color: rgba(0, 0, 0, 128); }";
+
+      // Tutorial tooltip
+      this.tooltip = new Control(dialog);
+      this.tooltip.visible = false;
+      this.tooltip.setFixedSize(300, 300);
+
+      // Tooltip content
+      this.tooltipText = new Label(this.tooltip);
+      this.tooltipText.wordWrapping = true;
+      this.tooltipText.styleSheet = "QLabel { color: #FFFFFF; padding: 10px; }";
+
+      this.tooltipTitle = new Label(this.tooltip);
+      this.tooltipTitle.styleSheet = "QLabel { color: #FFFFFF; font-weight: bold; font-size: 12px; padding: 10px; background: #0066CC; }";
+
+      // Navigation buttons
+
+      // Next button - Blue with white text
+      this.nextButton = new PushButton(this.tooltip);
+      this.nextButton.text = "Next";
+      this.nextButton.defaultButton = true;
+      this.nextButton.styleSheet = "QPushButton { color: #FFFFFF; }";
+      var self = this;
+      this.nextButton.onClick = function() {
+            self.nextStep();
+      };
+
+      // Previous button - Gray with white text
+      this.prevButton = new PushButton(this.tooltip);
+      this.prevButton.text = "Previous";
+      this.prevButton.styleSheet = "QPushButton { color: #FFFFFF; }";
+      this.prevButton.onClick = function() {
+            self.previousStep();
+      };
+
+      // Skip button - Red/Orange with white text
+      this.skipButton = new PushButton(this.tooltip);
+      this.skipButton.text = "Skip Tutorial";
+      this.skipButton.styleSheet = "QPushButton { color: #FFFFFF; }";
+      
+      this.skipButton.onClick = function() {
+            self.endTutorial();
+      };
+
+      // Counter label
+      this.counterLabel = new Label(this.tooltip);
+      this.counterLabel.styleSheet = "QLabel { color: #FFFFFF; }";
+
+      // Layout tooltip
+      var buttonSizer = new HorizontalSizer;
+      buttonSizer.spacing = 4;
+      buttonSizer.add(this.prevButton);
+      buttonSizer.addStretch();
+      buttonSizer.add(this.counterLabel);
+      buttonSizer.addStretch();
+      buttonSizer.add(this.nextButton);
+
+      var tooltipSizer = new VerticalSizer;
+      tooltipSizer.margin = 0;
+      tooltipSizer.spacing = 8;
+      tooltipSizer.add(this.tooltipTitle);
+      tooltipSizer.add(this.tooltipText);
+      tooltipSizer.addStretch();
+      tooltipSizer.add(buttonSizer);
+      tooltipSizer.add(this.skipButton);
+
+      this.tooltip.sizer = tooltipSizer;
+      this.tooltip.styleSheet = "QWidget { background: #2C3E50; border: 2px solid #3498DB; border-radius: 5px; }";
+
+      // Highlight frame
+      this.highlightFrame = new Control(dialog);
+      this.highlightFrame.visible = false;
+      this.highlightFrame.styleSheet = "QWidget { border: 3px solid #FFD700; background: transparent; border-radius: 3px; }";
+
+      // Blink timer for highlighted elements
+      this.blinkTimer = new Timer();
+      this.blinkTimer.interval = 0.5;
+      this.blinkCount = 0;
+      this.blinkTimer.onTimeout = function() {
+            if (self.blinkCount % 2 === 0) {
+                  self.highlightFrame.styleSheet = "QWidget { border: 3px solid #FFD700; background: rgba(255, 215, 0, 50); border-radius: 3px; }";
+            } else {
+                  self.highlightFrame.styleSheet = "QWidget { border: 3px solid #FFD700; background: transparent; border-radius: 3px; }";
+            }
+            self.blinkCount++;
+
+            if (self.blinkCount >= 6) {
+                  self.blinkTimer.stop();
+                  self.highlightFrame.styleSheet = "QWidget { border: 3px solid #FFD700; background: rgba(255, 215, 0, 30); border-radius: 3px; }";
+            }
+      };
+}
+
+// Define tutorial steps
+TutorialSystem.prototype.defineSteps = function(steps) {
+      this.steps = steps;
+};
+
+// Start tutorial
+TutorialSystem.prototype.start = function() {
+      this.isActive = true;
+      this.currentStep = 0;
+      this.showStep(0);
+};
+
+// Show specific step
+TutorialSystem.prototype.showStep = function(stepIndex) {
+      if (stepIndex < 0 || stepIndex >= this.steps.length) {
+            this.endTutorial();
+            return;
+      }
+
+      this.currentStep = stepIndex;
+      var step = this.steps[stepIndex];
+
+      // AUTO-SWITCH TO TAB if specified
+      if (step.switchToTab !== undefined && step.switchToTab !== null) {
+            // console.writeln("Tutorial: Switching to tab index " + step.switchToTab);
+            this.dialog.mainTabBox.currentPageIndex = step.switchToTab;
+            processEvents();  // Force UI update
+      }
+      // Update tooltip content
+      this.tooltipTitle.text = step.title;
+      this.tooltipText.text = step.description;
+      this.counterLabel.text = "Step " + (stepIndex + 1) + " of " + this.steps.length;
+
+      // Update button states
+      this.prevButton.enabled = stepIndex > 0;
+      this.nextButton.text = (stepIndex === this.steps.length - 1) ? "Finish" : "Next";
+
+      // Show overlay
+      this.overlay.visible = true;
+      this.overlay.setFixedSize(this.dialog.width, this.dialog.height);
+      this.overlay.move(0, 0);
+      this.overlay.bringToFront();
+
+      // Highlight target element
+      if (step.target) {
+            this.highlightElement(step.target);
+      } else {
+            this.highlightFrame.visible = false;
+      }
+
+      // Position tooltip
+      this.positionTooltip(step.target, step.tooltipPosition);
+
+      // Show tooltip
+      this.tooltip.visible = true;
+      this.tooltip.bringToFront();
+
+      // Start blink animation
+      this.blinkCount = 0;
+      this.blinkTimer.start();
+
+      // Bring target to front if needed
+      if (step.target) {
+            step.target.bringToFront();
+      }
+
+      processEvents();
+};
+
+// Highlight an element
+TutorialSystem.prototype.highlightElement = function(element) {
+      if (!element) {
+            this.highlightFrame.visible = false;
+            return;
+      }
+      
+      // Get element's global screen position
+      var globalPos = element.localToGlobal(new Point(0, 0));
+      
+      // Get dialog's global screen position
+      var dialogGlobal = this.dialog.localToGlobal(new Point(0, 0));
+
+      // Calculate relative position
+      var x = globalPos.x - dialogGlobal.x;
+      var y = globalPos.y - dialogGlobal.y;
+      
+      // Set highlight frame size and position
+      this.highlightFrame.setFixedSize(element.width + 6, element.height + 6);
+      this.highlightFrame.move(x - 3, y - 3);
+      this.highlightFrame.visible = true;
+      this.highlightFrame.bringToFront();
+};
+
+// Position tooltip relative to target
+TutorialSystem.prototype.positionTooltip2 = function(target, position) {
+      position = position || "left";
+
+      var tooltipWidth = 300;
+      var tooltipHeight = 300;
+      var margin = 20;
+
+      var x, y;
+
+      target = this.dialog.mainTabBox;
+      position = "left";
+
+      if (target) {
+            var pos = target.localToGlobal(target.position);
+            var dialogPos = this.dialog.localToGlobal(this.dialog.position);
+            var targetX = pos.x - dialogPos.x;
+            var targetY = pos.y - dialogPos.y;
+
+            switch (position) {
+                  case "right":
+                        x = targetX + target.width + margin;
+                        y = targetY;
+                        break;
+                  case "left":
+                        x = targetX - tooltipWidth - margin;
+                        y = targetY;
+                        break;
+                  case "top":
+                        x = targetX;
+                        y = targetY - tooltipHeight - margin;
+                        break;
+                  case "bottom":
+                        x = targetX;
+                        y = targetY + target.height + margin;
+                        break;
+                  case "center":
+                  default:
+                        x = (this.dialog.width - tooltipWidth) / 2;
+                        y = (this.dialog.height - tooltipHeight) / 2;
+                        break;
+            }
+      } else {
+            // Center if no target
+            x = (this.dialog.width - tooltipWidth) / 2;
+            y = (this.dialog.height - tooltipHeight) / 2;
+      }
+
+      // Keep within dialog bounds
+      x = Math.max(10, Math.min(x, this.dialog.width - tooltipWidth - 10));
+      y = Math.max(10, Math.min(y, this.dialog.height - tooltipHeight - 10));
+
+      this.tooltip.move(x, y);
+};
+
+TutorialSystem.prototype.positionTooltip = function(target, position) {
+      position = position || "right";
+      
+      var tooltipWidth = 320;
+      var tooltipHeight = 180;
+      var margin = 20;
+      
+      var x, y;
+
+      target = this.dialog.mainTabBox;
+      position = "left";
+    
+    if (target) {
+        // Use the same method as highlightElement
+        var targetGlobal = target.localToGlobal(new Point(0, 0));
+        var dialogGlobal = this.dialog.localToGlobal(new Point(0, 0));
+        var targetX = targetGlobal.x - dialogGlobal.x;
+        var targetY = targetGlobal.y - dialogGlobal.y;
+        
+        switch (position) {
+            case "right":
+                x = targetX + target.width + margin;
+                y = targetY;
+                break;
+            case "left":
+                x = targetX - tooltipWidth - margin;
+                y = targetY;
+                break;
+            case "top":
+                x = targetX;
+                y = targetY - tooltipHeight - margin;
+                break;
+            case "bottom":
+                x = targetX;
+                y = targetY + target.height + margin;
+                break;
+            case "top-right":
+                x = targetX + target.width + margin;
+                y = targetY - tooltipHeight - margin;
+                break;
+            case "bottom-right":
+                x = targetX + target.width + margin;
+                y = targetY + target.height + margin;
+                break;
+            case "top-left":
+                x = targetX - tooltipWidth - margin;
+                y = targetY - tooltipHeight - margin;
+                break;
+            case "bottom-left":
+                x = targetX - tooltipWidth - margin;
+                y = targetY + target.height + margin;
+                break;
+            case "center":
+            default:
+                x = (this.dialog.width - tooltipWidth) / 2;
+                y = (this.dialog.height - tooltipHeight) / 2;
+                break;
+        }
+        
+        // Center vertically relative to target for left/right positions
+        if (position === "right" || position === "left") {
+            y = targetY + (target.height / 2) - (tooltipHeight / 2);
+        }
+        
+        // Center horizontally relative to target for top/bottom positions
+        if (position === "top" || position === "bottom") {
+            x = targetX + (target.width / 2) - (tooltipWidth / 2);
+        }
+    } else {
+        // Center if no target
+        x = (this.dialog.width - tooltipWidth) / 2;
+        y = (this.dialog.height - tooltipHeight) / 2;
+    }
+    
+    // Keep within dialog bounds
+    x = Math.max(10, Math.min(x, this.dialog.width - tooltipWidth - 10));
+    y = Math.max(10, Math.min(y, this.dialog.height - tooltipHeight - 10));
+    
+    this.tooltip.move(x, y);
+};
+
+// Navigate to next step
+TutorialSystem.prototype.nextStep = function() {
+      this.blinkTimer.stop();
+      if (this.currentStep < this.steps.length - 1) {
+            this.showStep(this.currentStep + 1);
+      } else {
+            this.endTutorial();
+      }
+};
+
+// Navigate to previous step
+TutorialSystem.prototype.previousStep = function() {
+      this.blinkTimer.stop();
+      if (this.currentStep > 0) {
+            this.showStep(this.currentStep - 1);
+      }
+};
+
+// End tutorial
+TutorialSystem.prototype.endTutorial = function() {
+      this.isActive = false;
+      this.blinkTimer.stop();
+      this.overlay.visible = false;
+      this.tooltip.visible = false;
+      this.highlightFrame.visible = false;
+      this.dialog.tutorialButton.styleSheet = "";
+
+      // Save that user has seen tutorial
+      Settings.write("AutoIntegrate_TutorialShown", DataType_Boolean, true);
+
+      processEvents();
+};
+
+// Check if tutorial should be shown
+TutorialSystem.prototype.shouldShowTutorial = function() {
+      var shown = Settings.read("AutoIntegrate_TutorialShown", DataType_Boolean);
+      return !shown;
+};
+
 function AutoIntegrateSelectStarsImageDialog( util )
 {
       this.__base__ = Dialog;
@@ -5524,11 +5899,13 @@ function newTargetSizer(parent)
 
 function addFilesButtons(parent, targetSizer)
 {
-      var addLightsButton = addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]);
-      var addBiasButton = addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]);
-      var addDarksButton = addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]);
-      var addFlatsButton = addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]);
-      var addFlatDarksButton = addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS]);
+      var buttons = {
+            addLightsButton: addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]),
+            addBiasButton: addOneFilesButton(parent, "Bias", global.pages.BIAS, parent.filesToolTip[global.pages.BIAS]),
+            addDarksButton: addOneFilesButton(parent, "Darks", global.pages.DARKS, parent.filesToolTip[global.pages.DARKS]),
+            addFlatsButton: addOneFilesButton(parent, "Flats", global.pages.FLATS, parent.filesToolTip[global.pages.FLATS]),
+            addFlatDarksButton: addOneFilesButton(parent, "Flat Darks", global.pages.FLAT_DARKS, parent.filesToolTip[global.pages.FLAT_DARKS])
+      };
 
       var directoryCheckBox = newCheckBox(parent, "Directory", par.open_directory, 
                   "<p>Open directory dialog instead of files dialog.</p>" + 
@@ -5544,11 +5921,11 @@ function addFilesButtons(parent, targetSizer)
       var filesButtons_Sizer1 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer1);
       filesButtons_Sizer1.spacing = 4;
-      filesButtons_Sizer1.add( addLightsButton );
-      filesButtons_Sizer1.add( addBiasButton );
-      filesButtons_Sizer1.add( addDarksButton );
-      filesButtons_Sizer1.add( addFlatsButton );
-      filesButtons_Sizer1.add( addFlatDarksButton );
+      filesButtons_Sizer1.add( buttons.addLightsButton );
+      filesButtons_Sizer1.add( buttons.addBiasButton );
+      filesButtons_Sizer1.add( buttons.addDarksButton );
+      filesButtons_Sizer1.add( buttons.addFlatsButton );
+      filesButtons_Sizer1.add( buttons.addFlatDarksButton );
       filesButtons_Sizer1.addSpacing( 4 );
       filesButtons_Sizer1.add( directoryCheckBox );
       filesButtons_Sizer1.add( directoryFilesEdit );
@@ -5558,7 +5935,7 @@ function addFilesButtons(parent, targetSizer)
       filesButtons_Sizer.add( filesButtons_Sizer1 );
       filesButtons_Sizer1.addStretch();
 
-      return filesButtons_Sizer;
+      return { sizer: filesButtons_Sizer, buttons: buttons };
 }
 
 function addOneFileManualFilterButton(parent, filetype, pageIndex)
@@ -6328,7 +6705,7 @@ function newJsonSizer(parent)
       }
       jsonSizer.add( jsonSaveWithSettingsButton );
 
-      return jsonSizer;
+      return { sizer: jsonSizer, label: jsonLabel };
 }
 
 function newMaximizeDialogButton(parent)
@@ -7382,7 +7759,9 @@ function AutoIntegrateDialog()
       this.treeBox = [];
       this.treeBoxRootingArr = [];
       this.targetSizer = newTargetSizer(this);
-      this.filesButtonsSizer = addFilesButtons(this, this.targetSizer);
+      var ret = addFilesButtons(this, this.targetSizer);
+      this.filesButtonsSizer = ret.sizer;
+      this.filesButtons = ret.buttons;
 
       this.tabBox = new TabBox( this );
 
@@ -10408,6 +10787,14 @@ function AutoIntegrateDialog()
             console.noteln("Close all prefixes completed");
       };
 
+      var tutorialButton = new PushButton(this);
+      tutorialButton.text = "Tutorial";
+      tutorialButton.icon = this.scaledResource(":/icons/help.png");
+      tutorialButton.onClick = function() {
+            this.dialog.startTutorial();
+      };
+      this.tutorialButton = tutorialButton;
+
       var flowchartToolTip = "<p>Flowchart information is always generated during the processing. It is saved to the " + 
                              "setup file and AutosaveSetup file so it can be loaded later.</p>" +
                              "<p>A graphical version of the flowchart is printed to the preview window and " + 
@@ -10892,7 +11279,28 @@ function AutoIntegrateDialog()
       this.processDefaultsButton.text = "Print process defaults";
       this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
       this.processDefaultsButton.onClick = function() {
-            engine.getProcessDefaultValues();
+            console.noteln("Button clicked: Print process defaults");
+            // engine.getProcessDefaultValues();
+            var dialog = this.dialog;
+            var blinkTimer = new Timer();
+            blinkTimer.interval = 0.5;
+            blinkTimer.onTimeout = function() {
+                  console.noteln("Blink " + blinkTimer.blinkCount);
+                  if (blinkTimer.blinkCount % 2 === 0) {
+                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #CC0000; font-weight: bold; }";
+                  } else {
+                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #000000; }";
+                  }
+                  blinkTimer.blinkCount++;
+
+                  if (blinkTimer.blinkCount >= 6) {
+                        blinkTimer.stop();
+                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #000000; }";
+                  }
+            };
+            blinkTimer.blinkCount = 0;
+            blinkTimer.start();
+            processEvents();
       }
       this.processDefaultsSizer = new HorizontalSizer;
       this.processDefaultsSizer.margin = 6;
@@ -11018,6 +11426,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
       this.buttons_Sizer.add( this.resampleCheckBox );
       this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.add( tutorialButton );
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 48 );
       this.buttons_Sizer.add( this.closeAllButton );
@@ -11208,7 +11617,8 @@ function AutoIntegrateDialog()
       this.filesTabSizer.add( this.tabBox );
       this.filesTabSizer.add( this.filesButtonsSizer );
       this.filesTabSizer.add( this.pageButtonsSizer );
-      this.mainTabBox.addPage( mainSizerTab(this, this.filesTabSizer), "Files" );
+      this.filesPage = mainSizerTab(this, this.filesTabSizer);
+      this.mainTabBox.addPage( this.filesPage, "Files" );
       tab_index++;
 
       this.settingsTabSizer = new HorizontalSizer;
@@ -11316,7 +11726,10 @@ function AutoIntegrateDialog()
       this.baseSizer.spacing = 4;
 
       this.actionSizer = newActionSizer(this);
-      this.jsonSizer = newJsonSizer(this);
+
+      var res = newJsonSizer(this);
+      this.jsonSizer = res.sizer;
+      this.jsonLabel = res.label;
 
       this.topButtonsSizer = new HorizontalSizer;
       this.topButtonsSizer.spacing = 4;
@@ -11435,11 +11848,109 @@ function AutoIntegrateDialog()
                             ", tab histogram height " + ppar.preview.histogram_height + 
                             ", dialog size " + this.width + "x" + this.height);
       }
+
+      // Initialize tutorial system
+      this.tutorial = new TutorialSystem(this);
+      this.setupTutorial();
+
+      // Color tutorial button on first launch
+      if (this.tutorial.shouldShowTutorial()) {
+            this.tutorialButton.styleSheet = 
+                  "QPushButton { " +
+                  "  color: #FFFFFF; " +
+                  "  background-color: #3498DB; " +
+                  "  border: 2px solid #FFD700; " +
+                  "  font-weight: bold; " +
+                  "  padding: 6px 12px; " +
+                  "}";
+      }
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
 
 this.AutoIntegrateDialog = AutoIntegrateDialog;
+
+// Setup tutorial steps
+AutoIntegrateDialog.prototype.setupTutorial = function() {
+    this.tutorial.defineSteps([
+        {
+            title: "Welcome to AutoIntegrate!",
+            description: "This quick tutorial will guide you through the most important features. You can restart this tutorial anytime by clicking the 'Tutorial' button.",
+            target: null,
+            tooltipPosition: "left",
+            switchToTab: null  // No tab switch
+        },
+        {
+            title: "Files Tab",
+            description: "Start here by adding your light frames, bias, darks, and flat frames. Click on the Files tab to see all calibration frame options.",
+            target: this.filesPage,
+            tooltipPosition: "left",
+            switchToTab: 0  // Switch to Files tab
+        },
+        {
+            title: "Add Light Frames",
+            description: "Click this button to add your light frames (the actual images of your target). You can add multiple files at once. You can calibrate your light frames using bias, dark, and flat frames.",
+            target: this.filesButtons.addLightsButton,
+            tooltipPosition: "left",
+            switchToTab: 0  // Stay on Files tab
+        },
+        {
+            title: "Settings Tab",
+            description: "The Settings tab contains most important processing options. Let's check it out!",
+            target: this.tabBox,
+            tooltipPosition: "left",
+            switchToTab: 1  // Switch to Settings tab
+        },
+        {
+            title: "Stretching",
+            description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.",
+            target: this.stretchingLabel,
+            tooltipPosition: "left",
+            switchToTab: 1  // Stay on Settings tab
+        },
+        {
+            title: "Narrowband Color Palette",
+            description: "If you have narrowband data you can select a color palette here to map the narrowband channels to RGB colors. You can also use the Auto options to let AutoIntegrate choose the palette for your data.",
+            target: this.narrowbandColorPaletteLabel,
+            tooltipPosition: "left",
+            switchToTab: 1  // Stay on Settings tab
+        },
+        {
+            title: "Extra processing Tab",
+            description: "The Extra processing tab lets you apply additional processing steps to a target image after the main integration workflow is complete. There are undo and redo buttons so you can easily experiment with different settings.",
+            target: this.tabBox,
+            tooltipPosition: "left",
+            switchToTab: 7  // Switch on Extra processing tab
+        },
+        {
+            title: "Load/Save Configuration",
+            description: "Save your file selections and settings to a JSON file, so you can easily reload them later or share with others.",
+            target: this.jsonLabel,
+            tooltipPosition: "left",
+            switchToTab: null  // No tab switch
+        },
+        {
+            title: "Run Button",
+            description: "When you're ready, click Run to start the integration workflow. AutoIntegrate will calibrate, align, and integrate your images automatically!",
+            target: this.run_Button,
+            tooltipPosition: "left",
+            switchToTab: null  // No tab switch
+        },
+        {
+            title: "You're Ready!",
+            description: "That's it! You now know the basics of AutoIntegrate. Start by adding your files and explore the other tabs for more advanced options. Happy processing!",
+            target: null,
+            tooltipPosition: "left",
+            switchToTab: 0  // Back to Files tab
+        }
+    ]);
+};
+
+// Start tutorial manually
+AutoIntegrateDialog.prototype.startTutorial = function() {
+    this.tutorial.start();
+};
+
 
 /* Interface functions.
  */
