@@ -67,6 +67,9 @@ this.processing_state = {
 // GUI variables
 this.tabStatusInfoLabel = null;         // For update processing status
 this.sideStatusInfoLabel = null;        // For update processing status
+this.sectionBarControls = [];
+this.sectionBars = [];
+
 
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings

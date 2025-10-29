@@ -1,4 +1,12 @@
 /*
+TODO 
+
+- Collapse and expand sections
+- Welcome screen for first time
+- Add Interface, save settings button
+- Add advanced tutorial
+
+
         AutoIntegrate GUI components.
 
 Interface functions:
@@ -39,11 +47,285 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateMetricsVisualizer.js"
 
 // ============================================================================
+// Tutorial Manager - Dialog to select and launch tutorials
+// ============================================================================
+
+function TutorialManagerDialog(parentDialog) {
+      this.__base__ = Dialog;
+      this.__base__();
+      
+      this.parentDialog = parentDialog;
+      this.windowTitle = "AutoIntegrate Tutorials";
+      this.minWidth = 500;
+      this.minHeight = 400;
+
+      this.useAdvancedOptions = false;
+      
+      // Title
+      this.titleLabel = new Label(this);
+      this.titleLabel.text = "Welcome to AutoIntegrate Tutorials";
+      this.titleLabel.styleSheet = 
+            "QLabel { " +
+            "  font-size: 16px; " +
+            "  font-weight: bold; " +
+            "  color: #2C3E50; " +
+            "  padding: 10px; " +
+            "}";
+      
+      // Description
+      this.descLabel = new Label(this);
+      this.descLabel.text = "Select a tutorial to learn about AutoIntegrate features:";
+      this.descLabel.wordWrapping = true;
+      this.descLabel.styleSheet = "QLabel { padding: 5px 10px; color: #7F8C8D; }";
+      
+      // Tutorial list
+      this.tutorialList = new TreeBox(this);
+      this.tutorialList.alternateRowColor = true;
+      this.tutorialList.setMinHeight(250);
+      this.tutorialList.headerVisible = false;
+      this.tutorialList.numberOfColumns = 1;
+      
+      var manager = this;
+      this.tutorialList.onNodeDoubleClicked = function(node) {
+            manager.launchSelectedTutorial();
+      };
+      
+      // Populate tutorials
+      this.populateTutorials();
+      
+      // Buttons
+      this.startButton = new PushButton(this);
+      this.startButton.text = "Start Tutorial";
+      this.startButton.icon = this.scaledResource(":/icons/play.png");
+      this.startButton.defaultButton = true;
+      this.startButton.styleSheet = 
+            "QPushButton { " +
+            "  background: rgb(46, 204, 113); " +
+            "  color: white; " +
+            "  font-weight: bold; " +
+            "  padding: 8px 20px; " +
+            "}";
+      this.startButton.onClick = function() {
+            manager.launchSelectedTutorial();
+      };
+      
+      this.closeButton = new PushButton(this);
+      this.closeButton.text = "Close";
+      this.closeButton.icon = this.scaledResource(":/icons/close.png");
+      this.closeButton.onClick = function() {
+            manager.cancel();
+      };
+      
+      if (this.useAdvancedOptions) {
+            // Mark as completed checkbox
+            this.markCompletedCheckBox = new CheckBox(this);
+            this.markCompletedCheckBox.checked = false;
+            
+            this.markCompletedLabel = new Label(this);
+            this.markCompletedLabel.text = "Mark selected as completed";
+            this.markCompletedLabel.cursor = new Cursor(StdCursor_PointingHand);
+            this.markCompletedLabel.onMousePress = function() {
+                  manager.markCompletedCheckBox.checked = !manager.markCompletedCheckBox.checked;
+                  if (manager.markCompletedCheckBox.checked) {
+                        manager.markSelectedAsCompleted();
+                  }
+            };
+            
+            var markCompletedSizer = new HorizontalSizer;
+            markCompletedSizer.spacing = 4;
+            markCompletedSizer.add(this.markCompletedCheckBox);
+            markCompletedSizer.add(this.markCompletedLabel);
+            markCompletedSizer.addStretch();
+      }      
+      // Button sizer
+      var buttonSizer = new HorizontalSizer;
+      buttonSizer.spacing = 6;
+      buttonSizer.addStretch();
+      buttonSizer.add(this.startButton);
+      buttonSizer.add(this.closeButton);
+      
+      // Main layout
+      this.sizer = new VerticalSizer;
+      this.sizer.margin = 10;
+      this.sizer.spacing = 10;
+      this.sizer.add(this.titleLabel);
+      this.sizer.add(this.descLabel);
+      this.sizer.add(this.tutorialList, 100);
+      if (this.useAdvancedOptions) {
+            this.sizer.add(markCompletedSizer);
+      }
+      this.sizer.add(buttonSizer);
+      
+      this.adjustToContents();
+}
+
+TutorialManagerDialog.prototype = new Dialog;
+
+// Define available tutorials
+TutorialManagerDialog.prototype.getTutorials = function() {
+      return [
+        {
+            id: "getting-started",
+            name: "Getting Started",
+            description: "Learn the basics of AutoIntegrate: adding files, configuring settings, and processing your first images.",
+            difficulty: "Beginner",
+            duration: "5 minutes",
+            icon: "🚀"
+        },
+        {
+            id: "file-management",
+            name: "File Management",
+            description: "Master organizing your light frames, calibration frames (bias, darks, flats), and output files.",
+            difficulty: "Beginner",
+            duration: "3 minutes",
+            icon: "📁"
+        },
+        {
+            id: "processing-settings",
+            name: "Processing Settings",
+            description: "Explore processing options including cropping, gradient correction and stretching.",
+            difficulty: "Intermediate",
+            duration: "7 minutes",
+            icon: "⚙️"
+        },
+        {
+            id: "comet-processing",
+            name: "Comet Processing",
+            description: "Learn how to process comet images using specialized techniques.",
+            difficulty: "Advanced",
+            duration: "10 minutes",
+            icon: "☄️"
+        }
+      ];
+};
+
+// Populate the tutorial list
+TutorialManagerDialog.prototype.populateTutorials = function() {
+      this.tutorialList.clear();
+      
+      var tutorials = this.getTutorials();
+      
+      for (var i = 0; i < tutorials.length; i++) {
+            var tutorial = tutorials[i];
+            var isCompleted = this.isTutorialCompleted(tutorial.id);
+            
+            var node = new TreeBoxNode(this.tutorialList);
+            
+            // Format: Icon Name - Description
+            if (this.useAdvancedOptions) {
+                  var displayText = tutorial.icon + "  " + tutorial.name;
+            } else {
+                  var displayText = tutorial.name;
+            }
+            if (isCompleted) {
+                  displayText = "✓ " + displayText + " (Completed)";
+            }
+            
+            node.setText(0, displayText);
+            node.tutorialId = tutorial.id;
+            node.tutorialData = tutorial;
+            
+            if (this.useAdvancedOptions) {
+                  // Style based on difficulty
+                  if (isCompleted) {
+                        node.setIcon(0, this.scaledResource(":/icons/ok.png"));
+                  } else if (tutorial.difficulty === "Beginner") {
+                        node.setIcon(0, this.scaledResource(":/icons/information.png"));
+                  } else if (tutorial.difficulty === "Advanced") {
+                        node.setIcon(0, this.scaledResource(":/icons/warning.png"));
+                  }
+            }            
+            // Set tooltip with full info
+            node.setToolTip(0, 
+                  tutorial.name + "\n\n" +
+                  tutorial.description + 
+                  this.useAdvancedOptions 
+                        ? "\n\n" +
+                          "Difficulty: " + tutorial.difficulty + "\n" +
+                          "Duration: " + tutorial.duration
+                        : ""
+            );
+      }
+      
+      // Select first tutorial by default
+      if (this.tutorialList.numberOfChildren > 0) {
+            this.tutorialList.currentNode = this.tutorialList.child(0);
+      }
+};
+
+// Check if tutorial is completed
+TutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
+      if (this.useAdvancedOptions === false) {
+            return false;
+      }
+      var key = "AutoIntegrate_Tutorial_" + tutorialId + "_Completed";
+      return Settings.read(key, DataType_Boolean);
+};
+
+// Mark tutorial as completed
+TutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
+      if (this.useAdvancedOptions === false) {
+            return;
+      }
+      var key = "AutoIntegrate_Tutorial_" + tutorialId + "_Completed";
+      Settings.write(key, DataType_Boolean, true);
+};
+
+// Mark selected tutorial as completed
+TutorialManagerDialog.prototype.markSelectedAsCompleted = function() {
+      var node = this.tutorialList.currentNode;
+      if (!node) {
+            return;
+      }
+      
+      this.markTutorialCompleted(node.tutorialId);
+      this.populateTutorials();
+      
+      Console.noteln("Tutorial marked as completed: " + node.tutorialData.name);
+};
+
+// Reset all tutorials
+TutorialManagerDialog.prototype.resetAllTutorials = function() {
+      var tutorials = this.getTutorials();
+      for (var i = 0; i < tutorials.length; i++) {
+            var key = "AutoIntegrate_Tutorial_" + tutorials[i].id + "_Completed";
+            Settings.remove(key);
+      }
+      this.populateTutorials();
+};
+
+// Launch selected tutorial
+TutorialManagerDialog.prototype.launchSelectedTutorial = function() {
+      var node = this.tutorialList.currentNode;
+      if (!node) {
+            var msg = new MessageBox(
+                  "Please select a tutorial from the list.",
+                  "No Tutorial Selected",
+                  StdIcon_Information,
+                  StdButton_Ok
+            );
+            msg.execute();
+            return;
+      }
+      
+      var tutorialId = node.tutorialId;
+      
+      // Close this dialog
+      this.ok();
+      
+      // Launch the specific tutorial
+      if (this.parentDialog && this.parentDialog.startTutorialById) {
+            this.parentDialog.startTutorialById(tutorialId);
+      }
+};
+
+// ============================================================================
 // Tutorial System for AutoIntegrate
 // ============================================================================
 
 function TutorialSystem(dialog) {
       this.dialog = dialog;
+      this.global = dialog.global;
       this.currentStep = 0;
       this.isActive = false;
       this.steps = [];
@@ -154,7 +436,27 @@ TutorialSystem.prototype.defineSteps = function(steps) {
 TutorialSystem.prototype.start = function() {
       this.isActive = true;
       this.currentStep = 0;
+      this.hideSections();
       this.showStep(0);
+};
+
+TutorialSystem.prototype.hideSections = function() {
+      for (var i = 0; i < this.global.sectionBars.length; i++) {
+            this.global.sectionBars[i].aiControl.hide();
+      }
+};
+
+TutorialSystem.prototype.showSections = function(sectionBarsToShow) {
+      console.writeln("Tutorial: Showing section bars " + sectionBarsToShow);
+      for (var i = 0; i < this.global.sectionBars.length; i++) {
+            console.writeln("Tutorial: Checking section bar " + this.global.sectionBars[i].aiName);
+            for (var j = 0; j < sectionBarsToShow.length; j++) {
+                  if (sectionBarsToShow[j] === this.global.sectionBars[i].aiName) {
+                        console.writeln("Tutorial: Showing section bar " + this.global.sectionBars[i].aiName);
+                        this.global.sectionBars[i].aiControl.show();
+                  }
+            }
+      }
 };
 
 // Show specific step
@@ -168,9 +470,18 @@ TutorialSystem.prototype.showStep = function(stepIndex) {
       var step = this.steps[stepIndex];
 
       // AUTO-SWITCH TO TAB if specified
+      let updateUI = false;
       if (step.switchToTab !== undefined && step.switchToTab !== null) {
             // console.writeln("Tutorial: Switching to tab index " + step.switchToTab);
             this.dialog.mainTabBox.currentPageIndex = step.switchToTab;
+            updateUI = true;
+      }
+      if (step.sectionBars !== undefined && step.sectionBars !== null) {
+            console.writeln("Tutorial: Showing section bars " + step.sectionBars);
+            this.showSections(step.sectionBars);
+            updateUI = true;
+      }
+      if (updateUI) {
             processEvents();  // Force UI update
       }
       // Update tooltip content
@@ -394,23 +705,30 @@ TutorialSystem.prototype.previousStep = function() {
 
 // End tutorial
 TutorialSystem.prototype.endTutorial = function() {
-      this.isActive = false;
-      this.blinkTimer.stop();
-      this.overlay.visible = false;
-      this.tooltip.visible = false;
-      this.highlightFrame.visible = false;
-      this.dialog.tutorialButton.styleSheet = "";
-
-      // Save that user has seen tutorial
-      Settings.write("AutoIntegrate_TutorialShown", DataType_Boolean, true);
-
-      processEvents();
+    this.isActive = false;
+    this.blinkTimer.stop();
+    this.overlay.visible = false;
+    this.tooltip.visible = false;
+    this.highlightFrame.visible = false;
+    
+    // Mark tutorial as completed
+    if (this.currentTutorialId &&  !this.dialog.global.do_not_write_settings) {
+        var key = "AutoIntegrate_Tutorial_" + this.currentTutorialId + "_Completed";
+        Settings.write(key, DataType_Boolean, true);
+        Console.noteln("Tutorial completed: " + this.currentTutorialId);
+    }
+    
+    processEvents();
 };
 
 // Check if tutorial should be shown
 TutorialSystem.prototype.shouldShowTutorial = function() {
-      var shown = Settings.read("AutoIntegrate_TutorialShown", DataType_Boolean);
-      return !shown;
+      if (this.dialog.global.do_not_read_settings) {
+            return true;
+      } else {
+            var shown = Settings.read("AutoIntegrate_TutorialShown", DataType_Boolean);
+            return !shown;
+      }
 };
 
 function AutoIntegrateSelectStarsImageDialog( util )
@@ -4443,7 +4761,18 @@ function updatePreviewNoImageInControl(control)
       }
 
       var startup_text = [ global.autointegrate_version ];
-      if (ppar.savedVersion != global.autointegrate_version) {
+      if (ppar.savedVersion == "") {
+            // First run, show the welcome text
+            startup_text.push("");
+            startup_text.push("Welcome to AutoIntegrate!");
+            startup_text.push("");
+            startup_text.push("Click the Tutorials button below to get started.");
+            startup_text.push("");
+            startup_text.push("Visit the following resources for more information:");
+            startup_text.push(" - AutoIntegrate documentation: https://ruuth.xyz/AutoIntegrateInfo.html");
+            startup_text.push(" - AutoIntegrate user support forum: https://forums.ruuth.xyz/");
+            startup_text.push(" - AutoIntegrate video tutorials: https://www.youtube.com/@JarmoRuuth");
+      } else if (ppar.savedVersion != global.autointegrate_version) {
             // Started with a new version, show the version info
             startup_text.push("");
             for (var i = 0; i < global.autointegrate_version_info.length; i++) {
@@ -4652,7 +4981,7 @@ function addOutputDir(parent)
       outputdir_Sizer.add( outputDirEdit );
       outputdir_Sizer.add( dirbutton );
 
-      return outputdir_Sizer;
+      return { sizer: outputdir_Sizer, label: lbl };
 }
 
 function validateWindowPrefix(p)
@@ -4725,7 +5054,7 @@ function addWinPrefix(parent)
       winprefix_Sizer.add( windowPrefixComboBox );
       winprefix_Sizer.add( windowPrefixHelpTips );
 
-      return winprefix_Sizer;
+      return { sizer: winprefix_Sizer, label: lbl  };
 }
 
 function addAutoContinueWinPrefix(parent)
@@ -5881,8 +6210,10 @@ function newTargetSizer(parent)
 {
       var target_type_sizer = addTargetType(parent);
 
-      var winprefix_sizer = addWinPrefix(parent);
-      var outputdir_sizer = addOutputDir(parent);
+      var wpobj = addWinPrefix(parent);
+      var winprefix_sizer = wpobj.sizer;
+      var otobj = addOutputDir(parent);
+      var outputdir_sizer = otobj.sizer;
 
       var filesButtons_Sizer2 = new HorizontalSizer;
       parent.rootingArr.push(filesButtons_Sizer2);
@@ -5894,7 +6225,7 @@ function newTargetSizer(parent)
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
 
-      return filesButtons_Sizer2;
+      return { sizer: filesButtons_Sizer2, window_prefix_label: wpobj.label, output_dir_label: otobj.label };
 }
 
 function addFilesButtons(parent, targetSizer)
@@ -6603,9 +6934,6 @@ function newAdjustToContentButton(parent)
 }
 
 
-var sectionBarControls = [];
-var sectionBars = [];
-
 function newCollapeSectionsButton(parent)
 {
       var button = new ToolButton(parent);
@@ -6617,15 +6945,15 @@ function newCollapeSectionsButton(parent)
       button.onClick = function()
       {
             if (0) {
-                  for (var i = 0; i < sectionBarControls.length; i++) {
-                        sectionBarControls[i].hide();
+                  for (var i = 0; i < global.sectionBarControls.length; i++) {
+                        global.sectionBarControls[i].hide();
                   }
                   parent.adjustToContents();
             } else {
-                  for (var i = 0; i < sectionBars.length; i++) {
-                        sectionBars[i].aiControl.hide();
+                  for (var i = 0; i < global.sectionBars.length; i++) {
+                        global.sectionBars[i].aiControl.hide();
                         if (!global.do_not_write_settings) {
-                              Settings.write(sectionBars[i].aiName, DataType_Boolean, sectionBars[i].aiControl.visible);
+                              Settings.write(global.sectionBars[i].aiName, DataType_Boolean, global.sectionBars[i].aiControl.visible);
                         }
                         parent.adjustToContents();
                   }
@@ -7269,8 +7597,8 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       groupbox.sizer.add( sb );
       groupbox.sizer.add( control );
 
-      sectionBarControls.push(control);
-      sectionBars.push(sb);
+      global.sectionBarControls.push(control);
+      global.sectionBars.push(sb);
 }
 
 function newSectionBarAddArray(parent, groupbox, title, name, objarray)
@@ -7623,6 +7951,8 @@ function AutoIntegrateDialog()
       this.__base__ = Dialog;
       this.__base__();
 
+      this.global = global;
+
       this.onClose = function() {
             // This fires when dialog closes by ANY method
             // Including X button, Escape key, or programmatic close
@@ -7684,7 +8014,7 @@ function AutoIntegrateDialog()
       "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
       "Copyright (c) 2021 rob pfile<br>" +
       "Copyright (c) 2013 Andres del Pozo<br>" +
-      "Copyright (C) 2009-2013 Georg Viehoever" +
+      "Copyright (C) 2009-2013 Georg Viehoever<br>" +
       "Copyright (c) 2019 Vicent Peris<br>" +
       "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
       "</p>";
@@ -7758,7 +8088,10 @@ function AutoIntegrateDialog()
 
       this.treeBox = [];
       this.treeBoxRootingArr = [];
-      this.targetSizer = newTargetSizer(this);
+      var obj = newTargetSizer(this);
+      this.targetSizer = obj.sizer;
+      this.window_prefix_label = obj.window_prefix_label;
+      this.output_dir_label = obj.output_dir_label;
       var ret = addFilesButtons(this, this.targetSizer);
       this.filesButtonsSizer = ret.sizer;
       this.filesButtons = ret.buttons;
@@ -10788,10 +11121,10 @@ function AutoIntegrateDialog()
       };
 
       var tutorialButton = new PushButton(this);
-      tutorialButton.text = "Tutorial";
+      tutorialButton.text = "Tutorials";
       tutorialButton.icon = this.scaledResource(":/icons/help.png");
       tutorialButton.onClick = function() {
-            this.dialog.startTutorial();
+            this.dialog.showTutorialManager();
       };
       this.tutorialButton = tutorialButton;
 
@@ -11011,13 +11344,13 @@ function AutoIntegrateDialog()
       
       this.saveFinalImageSizer = newHorizontalSizer(4, true, [ this.saveFinalImageLabel, this.saveFinalImageTiffCheckBox, this.saveFinalImageJpgCheckBox, this.saveFinalImageJpgQualityEdit ]);
       
-      this.mosaicSaveControl = new Control( this );
-      this.mosaicSaveControl.sizer = new VerticalSizer;
-      this.mosaicSaveControl.sizer.margin = 6;
-      this.mosaicSaveControl.sizer.spacing = 4;
-      this.mosaicSaveControl.sizer.add( this.saveButtonsSizer );
-      this.mosaicSaveControl.sizer.add( this.saveFinalImageSizer );
-      this.mosaicSaveControl.visible = false;
+      this.saveFinalImageControl = new Control( this );
+      this.saveFinalImageControl.sizer = new VerticalSizer;
+      this.saveFinalImageControl.sizer.margin = 6;
+      this.saveFinalImageControl.sizer.spacing = 4;
+      this.saveFinalImageControl.sizer.add( this.saveButtonsSizer );
+      this.saveFinalImageControl.sizer.add( this.saveFinalImageSizer );
+      this.saveFinalImageControl.visible = false;
 
       /* Interface.
        */
@@ -11436,7 +11769,7 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
-      this.buttons_Sizer.add( this.helpTips );
+      this.buttons_Sizer.add( this.helpTips );"No cosmet"
 
       /***********************************************\
        * Collect all items into GroupBox objects.
@@ -11459,7 +11792,7 @@ function AutoIntegrateDialog()
       newSectionBarAdd(this, this.otherGroupBox, this.otherParamsControl, "Other parameters", "Other1");
       newSectionBarAdd(this, this.otherGroupBox, this.systemParamsControl, "System settings", "System1");
       newSectionBarAdd(this, this.otherGroupBox, this.astrobinControl, "Astrobin", "Astrobin");
-      newSectionBarAdd(this, this.otherGroupBox, this.mosaicSaveControl, "Save final image files", "Savefinalimagefiles");
+      newSectionBarAdd(this, this.otherGroupBox, this.saveFinalImageControl, "Save final image files", "Savefinalimagefiles");
       this.otherGroupBox.sizer.addStretch();
 
       // ---------------------------------------------
@@ -11851,7 +12184,9 @@ function AutoIntegrateDialog()
 
       // Initialize tutorial system
       this.tutorial = new TutorialSystem(this);
-      this.setupTutorial();
+      this.setupAllTutorials();
+      // this.setupGettingStartedTutorial();
+      // this.setupProcessingTutorial();
 
       // Color tutorial button on first launch
       if (this.tutorial.shouldShowTutorial()) {
@@ -11870,9 +12205,42 @@ AutoIntegrateDialog.prototype = new Dialog;
 
 this.AutoIntegrateDialog = AutoIntegrateDialog;
 
-// Setup tutorial steps
-AutoIntegrateDialog.prototype.setupTutorial = function() {
-    this.tutorial.defineSteps([
+// Show tutorial manager
+AutoIntegrateDialog.prototype.showTutorialManager = function() {
+    
+    var manager = new TutorialManagerDialog(this);
+    manager.execute();
+};
+
+// Setup all tutorials
+AutoIntegrateDialog.prototype.setupAllTutorials = function() {
+    this.tutorials = {
+        "getting-started": this.getGettingStartedSteps(),
+        "file-management": this.getFileManagementSteps(),
+        "processing-settings": this.getProcessingSettingsSteps(),
+        "comet-processing": this.getCometProcessingSteps()
+    };
+};
+
+// Start tutorial by ID
+AutoIntegrateDialog.prototype.startTutorialById = function(tutorialId) {
+    var steps = this.tutorials[tutorialId];
+    
+    if (!steps) {
+        Console.warningln("Tutorial not found: " + tutorialId);
+        return;
+    }
+    
+    this.tutorial.defineSteps(steps);
+    this.tutorial.currentTutorialId = tutorialId;
+    this.tutorial.start();
+};
+
+// ============================================================================
+// Tutorial Step Definitions
+// ============================================================================
+AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
+    return [
         {
             title: "Welcome to AutoIntegrate!",
             description: "This quick tutorial will guide you through the most important features. You can restart this tutorial anytime by clicking the 'Tutorial' button.",
@@ -11882,45 +12250,61 @@ AutoIntegrateDialog.prototype.setupTutorial = function() {
         },
         {
             title: "Files Tab",
-            description: "Start here by adding your light frames, bias, darks, and flat frames. Click on the Files tab to see all calibration frame options.",
+            description: "Start here by adding your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
             target: this.filesPage,
             tooltipPosition: "left",
             switchToTab: 0  // Switch to Files tab
         },
         {
             title: "Add Light Frames",
-            description: "Click this button to add your light frames (the actual images of your target). You can add multiple files at once. You can calibrate your light frames using bias, dark, and flat frames.",
+            description: "Click this button to add your light frames (the actual images of your target). You can add multiple files at once.\n\n" + 
+                         "If your light files are already calibrated, you can skip adding calibration frames.\n\n" +
+                         "AutoIntegrate will automatically select the best images as referenbce images.\n\n" +
+                         "You can calibrate your light frames using bias, dark, and flat frames.",
             target: this.filesButtons.addLightsButton,
             tooltipPosition: "left",
-            switchToTab: 0  // Stay on Files tab
+            switchToTab: 0,                     // Stay on Files tab
         },
         {
             title: "Settings Tab",
-            description: "The Settings tab contains most important processing options. Let's check it out!",
+            description: "The Settings tab contains most important processing options.",
             target: this.tabBox,
             tooltipPosition: "left",
-            switchToTab: 1  // Switch to Settings tab
+            switchToTab: 1,               // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
         },
         {
             title: "Stretching",
-            description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.",
+            description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
+                         "For targets like galaxy, star cluster and small bright nebula you should start with masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
             tooltipPosition: "left",
             switchToTab: 1  // Stay on Settings tab
         },
         {
-            title: "Narrowband Color Palette",
-            description: "If you have narrowband data you can select a color palette here to map the narrowband channels to RGB colors. You can also use the Auto options to let AutoIntegrate choose the palette for your data.",
-            target: this.narrowbandColorPaletteLabel,
-            tooltipPosition: "left",
-            switchToTab: 1  // Stay on Settings tab
-        },
-        {
             title: "Extra processing Tab",
-            description: "The Extra processing tab lets you apply additional processing steps to a target image after the main integration workflow is complete. There are undo and redo buttons so you can easily experiment with different settings.",
+            description: "The Extra processing tab lets you apply additional processing steps to a final image after the main processing workflow is complete. " + 
+                         "There are undo and redo buttons so you can easily experiment with different settings.",
             target: this.tabBox,
             tooltipPosition: "left",
-            switchToTab: 7  // Switch on Extra processing tab
+            switchToTab: 7,                           // Switch on Extra processing tab
+            sectionBars: ["ExtraTarget", "Extra1"]    // Show some sections
+        },
+        {
+            title: "Interface settings Tab",
+            description: "The Interface settings tab allows you to customize the AutoIntegrate user interface, including preview options and flowchart settings.",
+            target: this.tabBox,
+            tooltipPosition: "left",
+            switchToTab: 8,  // Switch to Interface tab
+            sectionBars: ["interface"]    // Show some sections
+        },
+        {
+            title: "Save current parameter values",
+            description: "Click this button to save all current parameter values using the PixInsight persistent module settings mechanism. " + 
+                         "Saved parameter values are remembered and automatically restored when the script starts.",
+            target: this.savedefaults_Button,
+            tooltipPosition: "left",
+            switchToTab: null  // No tab switch
         },
         {
             title: "Load/Save Configuration",
@@ -11931,26 +12315,268 @@ AutoIntegrateDialog.prototype.setupTutorial = function() {
         },
         {
             title: "Run Button",
-            description: "When you're ready, click Run to start the integration workflow. AutoIntegrate will calibrate, align, and integrate your images automatically!",
+            description: "When you're ready, click Run to start the processing workflow. AutoIntegrate will calibrate, align, integrate and process your images automatically!",
             target: this.run_Button,
             tooltipPosition: "left",
             switchToTab: null  // No tab switch
         },
         {
             title: "You're Ready!",
-            description: "That's it! You now know the basics of AutoIntegrate. Start by adding your files and explore the other tabs for more advanced options. Happy processing!",
+            description: "That's it! You now know the basics of AutoIntegrate. Start by adding your files and explore the other tabs for more advanced options.\n\n" + 
+                         "Check out also other tutorials in the Interface section!",
             target: null,
             tooltipPosition: "left",
             switchToTab: 0  // Back to Files tab
         }
-    ]);
+    ];
 };
 
-// Start tutorial manually
-AutoIntegrateDialog.prototype.startTutorial = function() {
-    this.tutorial.start();
+AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
+    return [
+        {
+            title: "File Management Tutorial",
+            description: "Learn how to organize and manage your imaging files efficiently.",
+            target: null,
+            tooltipPosition: "center"
+        },
+        {
+            title: "Files Tab",
+            description: "In Files tab you can manage your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
+            target: this.filesPage,
+            tooltipPosition: "left",
+            switchToTab: 0  // Switch to Files tab
+        },
+        {
+            title: "Windows prefixes",
+            description: "Use window prefixes to group related files together.\n\n" + 
+                         "This is especially useful when working with multiple targets or sessions.\n\n" + 
+                         "By default AutoIntegrate always generates files with the same names. Using prefixes helps to avoid name conflicts.",
+            target: this.window_prefix_label,
+            tooltipPosition: "left",
+            switchToTab: 0  // Switch to Files tab
+        },
+        {
+            title: "Output directory",
+            description: "Specify the directory where processed files will be saved.\n\n" + 
+                         "By default AutoIntegrate saves files in the same directory as the light frames.",
+            target: this.output_dir_label,
+            tooltipPosition: "left",
+            switchToTab: 0  // Switch to Files tab
+        },
+        {
+            title: "Saving final image in different formats",
+            description: "By default AutoIntegrate saves all files in XISF format.\n\n" +
+                         "You can save final image also in other formats like TIFF or JPEG here.",
+            target: this.saveFinalImageControl,
+            tooltipPosition: "left",
+            switchToTab: 2,  // Switch to Other tab
+            sectionBars: ["Savefinalimagefiles"]    // Show some sections
+        },
+        {
+            title: "Tutorial Complete!",
+            description: "You now know how to manage files in AutoIntegrate!",
+            target: null,
+            tooltipPosition: "center"
+        }
+    ];
 };
 
+AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
+    return [
+        {
+            title: "Processing Settings",
+            description: "Explore powerful processing options to get the most from your data.\n\n" +
+                         "Most commonly used settings can be found from the Settings tab.",
+            target: null,
+            tooltipPosition: "center"
+        },
+        {
+            title: "Cropping",
+            description: "Automatically crop your final image to remove unwanted edges and artifacts after integration.",
+            target: this.crop_to_common_area_CheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,               // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
+        },
+        {
+            title: "Local normalization",
+            description: "You can use LocalNormalization during the integration of your images.\n\n" +
+                         "When you take sub-exposures over several nights or across changing weather, " +
+                         "each sub-frame will have slight variations in background brightness and gradients. " +
+                         "LocalNormalization can help to correct these variations before combining the images.",
+            target: this.useLocalNormalizationCheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,               // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
+        },
+        {
+            title: "Color calibration using SPCC",
+            description: "You can use SpectrophotometricColorCalibration (SPCC) for color calibration.\n\n" +
+                         "The SPCC process is the recommended method for color calibration.\n\n" +
+                         "Note that SPCC should be used only for RGB images.\n\n" +
+                         "To use SPCC you need to download Gaia DR3/SP Catalogs to PixInsight.",
+            target: this.use_spcc_CheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,               // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
+        },
+        {
+            title: "Gradient correction",
+            description: "You can select if gradient correction is done and when it is done for your images.\n\n" +
+                         "Using the checkboxes here you can choose to apply gradient correction channel images, combined linear image or stretched image.\n\n" +
+                         "In the Tools section below you can select which gradient correction method is used.\n\n" +
+                         "Note that if none of these options are checked no gradient correction is applied.",
+            target: this.GC_before_channel_combination_CheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,               // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
+        },
+        {
+            title: "Drizzle",
+            description: "Here you can specify drizzle integration for your images.\n\n" +
+                         "Drizzle is a powerful digital image processing algorithm used to increase the resolution and preserve detail when stacking multiple images, especially those that are undersampled.",
+            target: this.use_drizzle_CheckBox,
+            tooltipPosition: "left",
+            switchToTab: 1  // Stay on Settings tab
+        },
+        {
+            title: "Stretching",
+            description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
+                         "For targets like galaxy, star cluster and small bright nebula you should start with masked stretch. For others the Auto STF is a good starting point.",
+            target: this.stretchingLabel,
+            tooltipPosition: "left",
+            switchToTab: 1  // Stay on Settings tab
+        },
+        {
+            title: "Tools",
+            description: "Here you can specify various tools for your image processing tasks.\n\n" +
+                         "Some of these tools are external to PixInsight and need to be installed separately.",
+            target: this.imageToolsControl,
+            tooltipPosition: "left",
+            switchToTab: 1,  // Stay on Settings tab
+            sectionBars: ["ImageTools"]       // Show Image processing parameters
+        },
+        {
+            title: "Narrowband processing",
+            description: "Here you can set narrowband image processing settings. You can specify how narrowband images are mapped to RGB channels.\n\n" +
+                         "There are several predefined mappings available, or you can create your own custom mapping.\n\n" +
+                         "The Auto option creates either SHO or HOO mapping depending on available narrowband channels.",
+            target: this.narrowbandControl,
+            tooltipPosition: "left",
+            switchToTab: 1,  // Stay on Settings tab
+            sectionBars: ["Narrowband1"]       // Show Image processing parameters
+        },
+        {
+            title: "Tutorial Complete!",
+            description: "You now know some of the powerful processing settings in AutoIntegrate!",
+            target: null,
+            tooltipPosition: "center"
+        }
+    ];
+};
+
+AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
+    return [
+        {
+            title: "Comet processing",
+            description: "AutoIntegrate can do comet processing. It involves several steps that are described here.\n\n" +
+                         "Comet processing steps are described also in the Preprocessing / Comet alignment section using the help button.",
+            target: null,
+            tooltipPosition: "center"
+        },
+        {
+            title: "Run a normal workflow first",
+            description: "First run a normal workflow to get correct stars and background objects.",
+            target: this.run_Button,
+            tooltipPosition: "right",
+            switchToTab: 0               // Switch to Files tab
+        },
+        {
+            title: "Load star aligned files",
+            description: "Next run the comet processing.\n\n" + 
+                         "Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.",
+            target: this.filesButtons.addLightsButton,
+            tooltipPosition: "right",
+            switchToTab: 0               // Switch to Files tab
+        },
+        {
+            title: "Set window prefix",
+            description: "Set a Window prefix to avoid overwriting files in the first step.",
+            target: this.window_prefix_label,
+            tooltipPosition: "right",
+            switchToTab: 0               // Switch to Files tab
+        },
+        {
+            title: "Check comet align",
+            description: "Check Comet align in Settings / Image processing parameters section.",
+            target: this.CometAlignCheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,              // Switch to Settings tab
+            sectionBars: ["Image1"]       // Show Image processing parameters
+        },
+        {
+            title: "Select star removal tool",
+            description: "Check desired star removal tool (StarXTerminator or StarNet2) in Settings / Tools section.",
+            target: this.use_StarXTerminator_CheckBox,
+            tooltipPosition: "right",
+            switchToTab: 1,                   // Switch to Tools tab
+            sectionBars: ["ImageTools"]       // Show Image processing parameters
+        },
+        {
+            title: "Remove stars",
+            description: "Check Remove stars from lights in Postprocessing / Star stretching and removing section.",
+            target: this.remove_stars_light_CheckBox,
+            tooltipPosition: "right",
+            switchToTab: 5,               // Switch to Tools tab
+            sectionBars: ["ps_starstretching"]  // Show Image processing parameters
+        },
+        {
+            title: "No cosmetic correction",
+            description: "Check No CosmeticCorrection in Other / Other parameters section.",
+            target: this.CosmeticCorrectionCheckBox,
+            tooltipPosition: "right",
+            switchToTab: 2,               // Switch to Other tab
+            sectionBars: ["Other1"]       // Show Other parameters
+        },
+        {
+            title: "Show the first comet image",
+            description: "Go to the Preprocessing / CometAlignment section. Click the Preview button for the first image " + 
+                         "to show the first image in the preview window.",
+            target: this.cometAlignFirstXYButton,
+            tooltipPosition: "right",
+            switchToTab: 3,                     // Switch to Preprocessing tab
+            sectionBars: ["ps_alignment"]       // Show Comet alignment
+        },
+        {
+            title: "Get first comet position coordinates",
+            description: "Zoom to 1:1 view in the preview and click the comet nucleus with the left mouse button to get coordinates to the coordinates box.\n\n" +
+                         "Use the arrow buttons next to preview window coordinates box to automatically copy coordinates to the First image box.",
+            target: this.cometAlignFirstLabel,
+            tooltipPosition: "right",
+            switchToTab: 3,                     // Switch to Preprocessing tab
+            sectionBars: ["ps_alignment"]       // Show Comet alignment
+        },
+        {
+            title: "Get last comet position coordinates",
+            description: "Repeat the same steps for the last comet image. Click the Preview button for the last image " +
+                         "to show the last image in the preview window and then get the coordinates.",
+            target: this.cometAlignLastXYButton,
+            tooltipPosition: "right",
+        },
+        {
+            title: "Process the comet image",
+            description: "Use the Run button to process comet image.",
+            target: this.run_Button,
+            tooltipPosition: "right",
+        },
+        {
+            title: "Tutorial Complete!",
+            description: "You now have a normally processed image for the background and stars and a comet processed image with stars removed!",
+            target: null,
+            tooltipPosition: "center"
+        }
+    ];
+};
 
 /* Interface functions.
  */
