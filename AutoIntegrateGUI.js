@@ -1,12 +1,4 @@
 /*
-TODO 
-
-- Collapse and expand sections
-- Welcome screen for first time
-- Add Interface, save settings button
-- Add advanced tutorial
-
-
         AutoIntegrate GUI components.
 
 Interface functions:
