@@ -8557,11 +8557,14 @@ function AutoIntegrateDialog()
       this.imageParamsControl.visible = false;
       this.imageParamsControl.sizer.addStretch();
 
-      // Tools set 1, built in tools.
+      // Tools set 1, gradient correction
+      this.imageToolsSet1SectionLabel = newSectionLabel(this, "Gradient correction");
+      this.imageToolsSet1SectionLabel.toolTip = "<p>Select tools for gradient correction if you do not want to use the default gradient correction.</p>";
+      this.imageToolsSet1 = new VerticalSizer;
+      this.imageToolsSet1.margin = 6;
+      this.imageToolsSet1.spacing = 4;
+      this.imageToolsSet1.add( this.imageToolsSet1SectionLabel );
       if (global.is_gc_process || global.is_mgc_process) {
-            this.imageToolsSet1 = new VerticalSizer;
-            this.imageToolsSet1.margin = 6;
-            this.imageToolsSet1.spacing = 4;
             if (global.is_gc_process) {
                   this.imageToolsSet1.add( this.use_abe_CheckBox );
             }
@@ -8569,41 +8572,53 @@ function AutoIntegrateDialog()
             if (global.is_mgc_process) {
                   this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
             }
-      } else {
-            this.imageToolsSet1 = null;
       }
+      this.imageToolsSet1.add( this.use_graxpert_CheckBox );
+      this.imageToolsSet1.addStretch();
 
-      // Tools set 2, RC Astro.
+      // Tools set 2, noise removal
+      this.imageToolsSet2SectionLabel = newSectionLabel(this, "Noise removal");
+      this.imageToolsSet2SectionLabel.toolTip = "<p>Select tools for noise removal if you do not want to use the default noise removal.</p>" + 
+                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
       this.imageToolsSet2 = new VerticalSizer;
       this.imageToolsSet2.margin = 6;
       this.imageToolsSet2.spacing = 4;
+      this.imageToolsSet2.add( this.imageToolsSet2SectionLabel );
       this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
-      this.imageToolsSet2.add( this.use_blurxterminator_CheckBox );
-      this.imageToolsSet2.add( this.use_StarXTerminator_CheckBox );
+      this.imageToolsSet2.add( this.use_graxpert_denoise_CheckBox );
+      this.imageToolsSet2.add( this.use_deepsnr_CheckBox );
+      this.imageToolsSet2.addStretch();
 
-      // Tools set 3, GraXpert.
+      // Tools set 3, star removal
+      this.imageToolsSet3SectionLabel = newSectionLabel(this, "Star removal");
+      this.imageToolsSet3SectionLabel.toolTip = "<p>Select tools for star removal.</p>" + 
+                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
       this.imageToolsSet3 = new VerticalSizer;
       this.imageToolsSet3.margin = 6;
       this.imageToolsSet3.spacing = 4;
-      this.imageToolsSet3.add( this.use_graxpert_CheckBox );
-      this.imageToolsSet3.add( this.use_graxpert_deconvolution_CheckBox );
-      this.imageToolsSet3.add( this.use_graxpert_denoise_CheckBox );
+      this.imageToolsSet3.add( this.imageToolsSet3SectionLabel );
+      this.imageToolsSet3.add( this.use_StarXTerminator_CheckBox );
+      this.imageToolsSet3.add( this.use_starnet2_CheckBox );
+      this.imageToolsSet3.addStretch();
 
-      // Tools set 4, StarNet2.
+      // Tools set 4, deconvolution
+      this.imageToolsSet4SectionLabel = newSectionLabel(this, "Deconvolution/sharpening");
+      this.imageToolsSet4SectionLabel.toolTip = "<p>Select tools for deconvolution and sharpening if you do not want to use the default sharpening.</p>" + 
+                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
       this.imageToolsSet4 = new VerticalSizer;
       this.imageToolsSet4.margin = 6;
       this.imageToolsSet4.spacing = 4;
-      this.imageToolsSet4.add( this.use_starnet2_CheckBox );
-      this.imageToolsSet4.add( this.use_deepsnr_CheckBox );
-      
+      this.imageToolsSet4.add( this.imageToolsSet4SectionLabel );
+      this.imageToolsSet4.add( this.use_blurxterminator_CheckBox );
+      this.imageToolsSet4.add( this.use_graxpert_deconvolution_CheckBox );
+      this.imageToolsSet4.addStretch();
+
       // Tools par.
       this.imageToolsControl = new Control( this );
       this.imageToolsControl.sizer = new HorizontalSizer;
       this.imageToolsControl.sizer.margin = 6;
       this.imageToolsControl.sizer.spacing = 4;
-      if (this.imageToolsSet1) {
-            this.imageToolsControl.sizer.add( this.imageToolsSet1 );
-      }
+      this.imageToolsControl.sizer.add( this.imageToolsSet1 );
       this.imageToolsControl.sizer.add( this.imageToolsSet2 );
       this.imageToolsControl.sizer.add( this.imageToolsSet3 );
       this.imageToolsControl.sizer.add( this.imageToolsSet4 );
@@ -11429,20 +11444,29 @@ function AutoIntegrateDialog()
       this.preview11Sizer.add( this.startup_image_name_Button );
       this.preview11Sizer.addStretch();
 
-      this.preview_width_label = newLabel(this, 'Preview width', "Preview image width.");
-      this.preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
+      this.tab_preview_width_label = newLabel(this, 'Tab preview width', "Preview image width.");
+      this.tab_preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
                   updatePreviewSize(value, 0, 0, 0, 0); 
             }
       );
-      this.preview_height_label = newLabel(this, 'height', "Preview image height.");
-      this.preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
+      this.tab_preview_height_label = newLabel(this, 'height', "Preview image height.");
+      this.tab_preview_height_edit = newGenericSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
                   updatePreviewSize(0, value, 0, 0, 0); 
             }
       );
+
+      this.tabPreviewSizer = new HorizontalSizer;
+      this.tabPreviewSizer.margin = 6;
+      this.tabPreviewSizer.spacing = 4;
+      this.tabPreviewSizer.add( this.tab_preview_width_label );
+      this.tabPreviewSizer.add( this.tab_preview_width_edit );
+      this.tabPreviewSizer.add( this.tab_preview_height_label );
+      this.tabPreviewSizer.add( this.tab_preview_height_edit );
+      this.tabPreviewSizer.addStretch();
 
       this.side_preview_width_label = newLabel(this, 'Side preview width', "Side preview image width.");
       this.side_preview_width_edit = newGenericSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
@@ -11462,14 +11486,11 @@ function AutoIntegrateDialog()
       this.preview2Sizer = new HorizontalSizer;
       this.preview2Sizer.margin = 6;
       this.preview2Sizer.spacing = 4;
-      this.preview2Sizer.add( this.preview_width_label );
-      this.preview2Sizer.add( this.preview_width_edit );
-      this.preview2Sizer.add( this.preview_height_label );
-      this.preview2Sizer.add( this.preview_height_edit );
       this.preview2Sizer.add( this.side_preview_width_label );
       this.preview2Sizer.add( this.side_preview_width_edit );
       this.preview2Sizer.add( this.side_preview_height_label );
       this.preview2Sizer.add( this.side_preview_height_edit );
+      this.preview2Sizer.add( this.tabPreviewSizer );
       this.preview2Sizer.addStretch();
       this.preview2Sizer.add( this.saveInterfaceButton );
 
@@ -12270,8 +12291,8 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "The Settings tab contains most important processing options.",
             target: this.tabBox,
             tooltipPosition: "left",
-            switchToTab: 1,               // Switch to Settings tab
-            sectionBars: ["Image1"]       // Show Image processing parameters
+            switchToTab: 1,                           // Switch to Settings tab
+            sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
         {
             title: "Stretching",
@@ -12293,7 +12314,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
         {
             title: "Interface settings Tab",
             description: "The Interface settings tab allows you to customize the AutoIntegrate user interface, including preview options and flowchart settings.",
-            target: this.tabBox,
+            target: this.side_preview_width_label,
             tooltipPosition: "left",
             switchToTab: 8,  // Switch to Interface tab
             sectionBars: ["interface"]    // Show some sections
