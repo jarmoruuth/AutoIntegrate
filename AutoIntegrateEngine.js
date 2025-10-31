@@ -901,14 +901,26 @@ function guiUpdatePreviewFilename(filename, run_autostf = false)
       }
 }
 
+function targetTypeToStretching(targetType)
+{
+      if (targetType == 'Galaxy' ||
+          targetType == 'Small bright nebula' ||
+          targetType == 'Star cluster'
+      ) {
+            return 'Masked Stretch';
+      } else if (targetType == 'Large nebula') {
+            return 'Auto STF';
+      } else {
+            return null;
+      }
+}
+
 function targetTypeSetup()
 {
-      if (par.target_type.val == 'Galaxy') {
-            local_image_stretching = 'Masked Stretch';
-            console.writeln("Galaxy target using " + local_image_stretching);
-      } else if (par.target_type.val == 'Nebula') {
-            local_image_stretching = 'Auto STF';
-            console.writeln("Nebula target using " + local_image_stretching);
+      let stretching = targetTypeToStretching(par.target_type.val);
+      if (stretching != null) {
+            local_image_stretching = stretching;
+            console.writeln(par.target_type.val + " target using " + local_image_stretching);
       }
 }
 
@@ -20280,6 +20292,7 @@ this.measurementTextForFilename = measurementTextForFilename;
 this.autoStretch = autoStretch;
 this.extraColorizedNarrowbandImages = extraColorizedNarrowbandImages;
 this.imageIsLinear = imageIsLinear;
+this.targetTypeToStretching = targetTypeToStretching;
 
 this.openImageFiles = openImageFiles;
 this.openDirectoryFiles = openDirectoryFiles;

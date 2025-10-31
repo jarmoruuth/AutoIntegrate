@@ -490,6 +490,13 @@ TutorialSystem.prototype.showStep = function(stepIndex) {
       this.overlay.bringToFront();
 
       // Highlight target element
+      if (step.named_target) {
+            if (step.named_target == "coordinatesCopyFirstButton") {
+                  if (this.global.use_preview && this.global.ppar.preview.side_preview_visible && this.dialog.sidePreviewObj) {
+                        step.target = this.dialog.sidePreviewObj.control.coordinatesCopyFirstButton;
+                  }
+            }
+      }
       if (step.target) {
             this.highlightElement(step.target);
       } else {
@@ -1020,7 +1027,7 @@ var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ];
 var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
-var target_type_values = [ 'Default', 'Galaxy', 'Nebula' ];
+var target_type_values = [ 'Default', 'Galaxy', 'Small bright nebula', 'Large nebula', 'Star cluster' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_batch_size_values = [ '1', '2', '4', '8', '16', '32' ];
@@ -6184,6 +6191,14 @@ function addTargetType(parent)
       targetTypeComboBox.onItemSelected = function(itemIndex) {
             targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
             stretchingComboBox.enabled = itemIndex == 0;
+            let stretching = engine.targetTypeToStretching(par.target_type.val);
+            if (stretching != null) {
+                  stretchingComboBox.currentItem = stretchingComboBox.aiValarray.indexOf(stretching);
+                  stretchingComboBox.aiParam.val = stretching;
+            } else {
+                  stretchingComboBox.currentItem = 0;
+                  stretchingComboBox.aiParam.val = stretchingComboBox.aiValarray[0];
+            }
       }
 
       var outputdir_Sizer = new HorizontalSizer;
@@ -6193,12 +6208,13 @@ function addTargetType(parent)
       outputdir_Sizer.addStretch();
       parent.rootingArr.push(outputdir_Sizer);
 
-      return outputdir_Sizer;
+      return { sizer: outputdir_Sizer, label: lbl };
 }
 
 function newTargetSizer(parent)
 {
-      var target_type_sizer = addTargetType(parent);
+      var ttobj = addTargetType(parent);
+      var target_type_sizer = ttobj.sizer;
 
       var wpobj = addWinPrefix(parent);
       var winprefix_sizer = wpobj.sizer;
@@ -6215,7 +6231,7 @@ function newTargetSizer(parent)
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
 
-      return { sizer: filesButtons_Sizer2, window_prefix_label: wpobj.label, output_dir_label: otobj.label };
+      return { sizer: filesButtons_Sizer2, window_prefix_label: wpobj.label, output_dir_label: otobj.label, target_type_label: ttobj.label };
 }
 
 function addFilesButtons(parent, targetSizer)
@@ -6256,7 +6272,7 @@ function addFilesButtons(parent, targetSizer)
       filesButtons_Sizer.add( filesButtons_Sizer1 );
       filesButtons_Sizer1.addStretch();
 
-      return { sizer: filesButtons_Sizer, buttons: buttons };
+      return { sizer: filesButtons_Sizer, buttons: buttons, directoryCheckBox: directoryCheckBox };
 }
 
 function addOneFileManualFilterButton(parent, filetype, pageIndex)
@@ -8082,9 +8098,12 @@ function AutoIntegrateDialog()
       this.targetSizer = obj.sizer;
       this.window_prefix_label = obj.window_prefix_label;
       this.output_dir_label = obj.output_dir_label;
+      this.target_type_label = obj.target_type_label;
+
       var ret = addFilesButtons(this, this.targetSizer);
       this.filesButtonsSizer = ret.sizer;
       this.filesButtons = ret.buttons;
+      this.directoryCheckBox = ret.directoryCheckBox;
 
       this.tabBox = new TabBox( this );
 
@@ -12017,21 +12036,21 @@ function AutoIntegrateDialog()
       this.mainTabBox.addPage( this.toolsPage.page, this.toolsPage.name );
       tab_index++;
 
-      this.previewSizer = new HorizontalSizer;
-      this.previewSizer.margin = 6;
-      this.previewSizer.spacing = 4;
+      this.extraProcessingSizer = new HorizontalSizer;
+      this.extraProcessingSizer.margin = 6;
+      this.extraProcessingSizer.spacing = 4;
       if (global.use_preview) {
-            this.previewSizer2 = new VerticalSizer;
-            this.previewSizer2.margin = 6;
-            this.previewSizer2.spacing = 4;
-            this.previewSizer2.add( this.tabPreviewObj.sizer );
+            this.extraProcessingSizer2 = new VerticalSizer;
+            this.extraProcessingSizer2.margin = 6;
+            this.extraProcessingSizer2.spacing = 4;
+            this.extraProcessingSizer2.add( this.tabPreviewObj.sizer );
             if (tabHistogramControl != null) {
-                  this.previewSizer2.add( tabHistogramControl );
+                  this.extraProcessingSizer2.add( tabHistogramControl );
             }
-            this.previewSizer2.addStretch();
-            this.previewSizer.add( this.previewSizer2 );
+            this.extraProcessingSizer2.addStretch();
+            this.extraProcessingSizer.add( this.extraProcessingSizer2 );
       }
-      this.previewSizer.add( this.extraGroupBox );
+      this.extraProcessingSizer.add( this.extraGroupBox );
       let tabname;
       if (global.use_preview) {
             if (ppar.preview.side_preview_visible) {
@@ -12042,7 +12061,7 @@ function AutoIntegrateDialog()
       } else {
             tabname = "Extra processing";
       }
-      this.extraPage = { page: mainSizerTab(this, this.previewSizer), name: tabname, index: tab_index };
+      this.extraPage = { page: mainSizerTab(this, this.extraProcessingSizer), name: tabname, index: tab_index };
       this.mainTabBox.addPage( this.extraPage.page, this.extraPage.name );
       tab_preview_index = tab_index;
       tab_index++;
@@ -12269,7 +12288,9 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
         },
         {
             title: "Files Tab",
-            description: "Start here in the Files tab by adding your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
+            description: "Start here in the Files tab by adding your light frames, bias, darks, and flat frames.\n\n" +
+                         "You can load all files supported by PixInsight, including files from mono camera, OSC camera and RAW files from your DSLR camera.\n\n" +
+                         "AutoIntegrate will automatically detect the filter used on each file based on its metadata.",
             target: this.filesPage.page,
             tooltipPosition: "left",
             switchToTab: this.filesPage.index  // Switch to Files tab
@@ -12297,6 +12318,13 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
                          "For targets like galaxy, star cluster and small bright nebula you should start with masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
+            tooltipPosition: "left"
+        },
+        {
+            title: "Target type",
+            description: "Here you can specify the type of your target object. This information is used to optimize some of the processing parameters.\n\n" +
+                         "Currently only the stretching setting is affected by this selection.",
+            target: this.target_type_label,
             tooltipPosition: "left"
         },
         {
@@ -12351,16 +12379,23 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
     return [
         {
             title: "File Management Tutorial",
-            description: "Learn how to organize and manage your imaging files efficiently.",
+            description: "Learn how to load and save your imaging files.",
             target: null,
             tooltipPosition: "center"
         },
         {
             title: "Files Tab",
-            description: "In Files tab you can manage your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
+            description: "In Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
             target: this.filesPage.page,
             tooltipPosition: "left",
             switchToTab: this.filesPage.index  // Switch to Files tab
+        },
+        {
+            title: "Directory Checkbox",
+            description: "Use the directory checkbox to recursively load files from a specific directory.\n\n" +
+                         "When this option is enabled, AutoIntegrate will scan the selected directory and all its subdirectories for files matching the search pattern.",
+            target: this.directoryCheckBox,
+            tooltipPosition: "left"
         },
         {
             title: "Windows prefixes",
@@ -12385,6 +12420,15 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             tooltipPosition: "left",
             switchToTab: this.otherPage.index,        // Switch to Other tab
             sectionBars: ["Savefinalimagefiles"]      // Show some sections
+        },
+        {
+            title: "Save in extra processing",
+            description: "If you use extra processing options for the final image, " +
+                         "there is a button where you can save the image in XISF and 16-bit TIFF formats.",
+            target: this.extraProcessingGUI.extraSaveButton,
+            tooltipPosition: "left",
+            switchToTab: this.extraPage.index,        // Switch to Extra processing tab
+            sectionBars: ["ExtraTarget"]              // Show some sections
         },
         {
             title: "Tutorial Complete!",
@@ -12460,18 +12504,21 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
                          "Some of these tools are external to PixInsight and need to be installed separately.",
             target: this.imageToolsControl,
             tooltipPosition: "left",
-            switchToTab: this.settingsPage.index,     // Stay on Settings tab
             sectionBars: ["ImageTools"]               // Show Image processing parameters
         },
         {
             title: "Narrowband processing",
-            description: "Here you can set narrowband image processing settings. You can specify how narrowband images are mapped to RGB channels.\n\n" +
-                         "There are several predefined mappings available, or you can create your own custom mapping.\n\n" +
-                         "The Auto option creates either SHO or HOO mapping depending on available narrowband channels.",
+            description: "Here you can set narrowband image processing settings. You can specify how narrowband images are mapped to RGB channels.",
             target: this.narrowbandControl,
             tooltipPosition: "left",
-            switchToTab: this.settingsPage.index,     // Stay on Settings tab
             sectionBars: ["Narrowband1"]              // Show Image processing parameters
+        },
+        {
+            title: "Narrowband mapping",
+            description: "There are several predefined mappings available, or you can create your own custom mapping.\n\n" +
+                         "The Auto option creates either SHO or HOO mapping depending on available narrowband channels.",
+            target: this.narrowbandCustomPalette_ComboBox,
+            tooltipPosition: "left"
         },
         {
             title: "Tutorial Complete!",
@@ -12555,6 +12602,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Zoom to 1:1 view in the preview and click the comet nucleus with the left mouse button to get coordinates to the coordinates box.\n\n" +
                          "Use the arrow buttons next to preview window coordinates box to automatically copy coordinates to the First image box.",
             target: this.cometAlignFirstLabel,
+            named_target: "coordinatesCopyFirstButton",
             tooltipPosition: "right"
         },
         {
