@@ -1,11 +1,337 @@
-// AutoIntegrate Astro Image Metrics Visualizer Dialog
-// For SubFrame Selector metrics visualization
+// AutoIntegrate Tutorial and Welcome systems
+// - AutoIntegrateCreditsDialog
+// - AutoIntegrateWelcomeDialog
+// - AutoIntegrateTutorialManagerDialog
+// - AutoIntegrateTutorialSystem
+
+// ============================================================================
+// Welcome Dialog with Credits - First Run Experience
+// ============================================================================
+
+// ============================================================================
+// Credits Dialog
+// ============================================================================
+
+function AutoIntegrateCreditsDialog(global) {
+        this.__base__ = Dialog;
+        this.__base__();
+
+        this.global = global;
+        
+        this.windowTitle = "About AutoIntegrate";
+        this.minWidth = 500;
+        this.minHeight = 450;
+        
+        // Header
+        this.headerLabel = new Label(this);
+        this.headerLabel.text = "AutoIntegrate";
+        this.headerLabel.styleSheet = 
+            "QLabel { " +
+            "  font-size: 24px; " +
+            "  font-weight: bold; " +
+            "  color: #2C3E50; " +
+            "  padding: 15px; " +
+            "}";
+        this.headerLabel.textAlignment = TextAlign_Center;
+        
+        this.versionLabel = new Label(this);
+        this.versionLabel.text = this.global.autointegrate_version;
+        this.versionLabel.styleSheet = 
+            "QLabel { " +
+            "  font-size: 12px; " +
+            "  color: #7F8C8D; " +
+            "  padding: 5px; " +
+            "}";
+        this.versionLabel.textAlignment = TextAlign_Center;
+        
+        // Credits text
+        this.creditsText = new TextBox(this);
+        this.creditsText.readOnly = true;
+        this.creditsText.styleSheet = 
+            "QTextEdit { " +
+            "  background-color: #FFFFFF; " +
+            "  border: 1px solid #BDC3C7; " +
+            "  border-radius: 3px; " +
+            "  padding: 10px; " +
+            "}";
+        this.creditsText.setMinSize(450, 280);
+        
+        this.creditsText.text = 
+            "This product is based on software from the PixInsight project, developed\n" +
+            "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)\n" +
+            "\n" +
+            "Copyright (c) 2018-2025 Jarmo Ruuth\n" +
+            "Copyright (c) 2022 Jean-Marc Lugrin\n" +
+            "Copyright (c) 2021 rob pfile\n" +
+            "Copyright (c) 2013 Andres del Pozo\n" +
+            "Copyright (C) 2009-2013 Georg Viehoever\n" +
+            "Copyright (c) 2019 Vicent Peris\n" +
+            "Copyright (c) 2003-2020 Pleiades Astrophoto S.L.\n" +
+            "\n" +
+            "This script is distributed under the terms of the\n" +
+            "PixInsight Software License Agreement.";
+        
+        // Close button
+        this.closeButton = new PushButton(this);
+        this.closeButton.text = "Close";
+        this.closeButton.icon = this.scaledResource(":/icons/close.png");
+        this.closeButton.defaultButton = true;
+        var creditsDialog = this;
+        this.closeButton.onClick = function() {
+            creditsDialog.ok();
+        };
+        
+        var buttonSizer = new HorizontalSizer;
+        buttonSizer.addStretch();
+        buttonSizer.add(this.closeButton);
+        
+        // Main layout
+        this.sizer = new VerticalSizer;
+        this.sizer.margin = 10;
+        this.sizer.spacing = 6;
+        this.sizer.add(this.headerLabel);
+        this.sizer.add(this.versionLabel);
+        this.sizer.add(this.creditsText, 100);
+        this.sizer.addSpacing(6);
+        this.sizer.add(buttonSizer);
+        
+        this.adjustToContents();
+}
+
+AutoIntegrateCreditsDialog.prototype = new Dialog;
+
+// ============================================================================
+// Welcome Dialog
+// ============================================================================
+
+function AutoIntegrateWelcomeDialog(global) {
+        this.__base__ = Dialog;
+        this.__base__();
+
+        this.global = global;
+        
+        this.windowTitle = "Welcome to AutoIntegrate";
+        this.minWidth = 600;
+        this.minHeight = 500;
+        
+        // Header with logo/title
+        this.headerLabel = new Label(this);
+        this.headerLabel.text = "🌟 Welcome to AutoIntegrate! 🌟";
+        this.headerLabel.styleSheet = 
+            "QLabel { " +
+            "  font-size: 20px; " +
+            "  font-weight: bold; " +
+            "  color: #2C3E50; " +
+            "  padding: 20px; " +
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, " +
+            "    stop:0 #E8F4F8, stop:1 #D5E8F0); " +
+            "  border-radius: 5px; " +
+            "}";
+        this.headerLabel.textAlignment = TextAlign_Center;
+        
+        // Welcome message
+        this.welcomeText = new TextBox(this);
+        this.welcomeText.readOnly = true;
+        this.welcomeText.styleSheet = 
+            "QTextEdit { " +
+            "  background-color: #FFFFFF; " +
+            "  border: 1px solid #BDC3C7; " +
+            "  border-radius: 3px; " +
+            "  padding: 10px; " +
+            "}";
+        this.welcomeText.text = 
+            "Welcome to AutoIntegrate!\n\n" +
+            
+            "AutoIntegrate automates the PixInsight workflow for calibrating, aligning, and " +
+            "integrating your astrophotography images. Whether you're processing galaxies, nebulae, " +
+            "or star clusters, AutoIntegrate simplifies the process.\n\n" +
+            
+            "Get started by:\n" +
+            "1. Adding your light frames and optionally calibration files\n" +
+            "2. Selecting your target type\n" +
+            "3. Clicking Run!\n\n" +
+            
+            "For best results, we recommend starting with the 'Getting Started' tutorial below.";
+        this.welcomeText.setMinSize(550, 250);
+        
+        // Tutorials section
+        this.tutorialsGroupBox = new GroupBox(this);
+        this.tutorialsGroupBox.title = "🎓 Tutorials";
+        this.tutorialsGroupBox.sizer = new VerticalSizer;
+        this.tutorialsGroupBox.sizer.margin = 10;
+        this.tutorialsGroupBox.sizer.spacing = 6;
+        
+        this.tutorialLabel = new Label(this.tutorialsGroupBox);
+        this.tutorialLabel.text = "Learn AutoIntegrate with interactive tutorials:";
+        this.tutorialLabel.wordWrapping = true;
+        
+        this.gettingStartedButton = new PushButton(this.tutorialsGroupBox);
+        this.gettingStartedButton.text = "▶ Getting Started Tutorial (Recommended)";
+        this.gettingStartedButton.icon = this.scaledResource(":/icons/play.png");
+        this.gettingStartedButton.styleSheet = 
+            "QPushButton { " +
+            "  background: rgb(46, 204, 113); " +
+            "  color: white; " +
+            "  font-weight: bold; " +
+            "  padding: 8px 16px; " +
+            "  text-align: left; " +
+            "}" +
+            "QPushButton:hover { " +
+            "  background: rgb(39, 174, 96); " +
+            "}";
+        var welcomeDialog = this;
+        this.gettingStartedButton.onClick = function() {
+            welcomeDialog.selectedTutorial = "getting-started";
+            welcomeDialog.ok();
+        };
+        
+        this.allTutorialsButton = new PushButton(this.tutorialsGroupBox);
+        this.allTutorialsButton.text = "View All Tutorials";
+        this.allTutorialsButton.icon = this.scaledResource(":/icons/book.png");
+        this.allTutorialsButton.onClick = function() {
+            welcomeDialog.selectedTutorial = "show-manager";
+            welcomeDialog.ok();
+        };
+        
+        this.tutorialsGroupBox.sizer.add(this.tutorialLabel);
+        this.tutorialsGroupBox.sizer.addSpacing(4);
+        this.tutorialsGroupBox.sizer.add(this.gettingStartedButton);
+        this.tutorialsGroupBox.sizer.add(this.allTutorialsButton);
+        
+        // Resources section
+        this.resourcesGroupBox = new GroupBox(this);
+        this.resourcesGroupBox.title = "📚 Resources";
+        this.resourcesGroupBox.sizer = new VerticalSizer;
+        this.resourcesGroupBox.sizer.margin = 10;
+        this.resourcesGroupBox.sizer.spacing = 4;
+        
+        this.resourcesLabel = new Label(this.resourcesGroupBox);
+        this.resourcesLabel.text = "Additional help and documentation:";
+        
+        // Documentation link
+        this.docsButton = new PushButton(this.resourcesGroupBox);
+        this.docsButton.text = "📖 Online Documentation";
+        this.docsButton.toolTip = "Open AutoIntegrate documentation in browser";
+        this.docsButton.onClick = function() {
+            Console.writeln("Documentation: " + global.autointegrateinfo_link);
+            Dialog.openBrowser(global.autointegrateinfo_link);
+        };
+        
+        // Forum link
+        this.forumButton = new PushButton(this.resourcesGroupBox);
+        this.forumButton.text = "💬 Support Forum";
+        this.forumButton.toolTip = "Visit the AutoIntegrate forum for help and discussion";
+        this.forumButton.onClick = function() {
+            Console.writeln("Forum: https://forums.ruuth.xyz/");
+            Dialog.openBrowser("https://forums.ruuth.xyz/");
+        };
+        
+        // Video tutorials link
+        this.videoButton = new PushButton(this.resourcesGroupBox);
+        this.videoButton.text = "🎥 Video Tutorials";
+        this.videoButton.toolTip = "Watch video guides on YouTube";
+        this.videoButton.onClick = function() {
+            Console.writeln("Videos: https://www.youtube.com/watch?v=so8T765h-Kc");
+            Dialog.openBrowser("https://www.youtube.com/watch?v=so8T765h-Kc");
+        };
+        
+        // Credits button
+        this.creditsButton = new PushButton(this.resourcesGroupBox);
+        this.creditsButton.text = "Credits";
+        this.creditsButton.toolTip = "View credits and version information";
+        this.creditsButton.onClick = function() {
+            var credits = new AutoIntegrateCreditsDialog(global);
+            credits.execute();
+        };
+        
+        this.resourcesGroupBox.sizer.add(this.resourcesLabel);
+        this.resourcesGroupBox.sizer.addSpacing(4);
+        
+        var resourceButtonSizer1 = new HorizontalSizer;
+        resourceButtonSizer1.spacing = 6;
+        resourceButtonSizer1.add(this.docsButton);
+        resourceButtonSizer1.add(this.forumButton);
+        
+        var resourceButtonSizer2 = new HorizontalSizer;
+        resourceButtonSizer2.spacing = 6;
+        resourceButtonSizer2.add(this.videoButton);
+        // resourceButtonSizer2.add(this.creditsButton);
+        
+        this.resourcesGroupBox.sizer.add(resourceButtonSizer1);
+        this.resourcesGroupBox.sizer.add(resourceButtonSizer2);
+        
+        // Show on startup checkbox
+        this.showOnStartupCheckBox = new CheckBox(this);
+        this.showOnStartupCheckBox.checked = false;  // Disabled by default
+        
+        this.showOnStartupLabel = new Label(this);
+        this.showOnStartupLabel.text = "Show this welcome screen on startup";
+        this.showOnStartupLabel.cursor = new Cursor(StdCursor_PointingHand);
+        this.showOnStartupLabel.onMousePress = function() {
+            welcomeDialog.showOnStartupCheckBox.checked = !welcomeDialog.showOnStartupCheckBox.checked;
+        };
+        
+        var showOnStartupSizer = new HorizontalSizer;
+        showOnStartupSizer.spacing = 4;
+        showOnStartupSizer.add(this.showOnStartupCheckBox);
+        showOnStartupSizer.add(this.showOnStartupLabel);
+        showOnStartupSizer.addStretch();
+        
+        // Bottom buttons
+        this.skipButton = new PushButton(this);
+        this.skipButton.text = "Skip - Start Using AutoIntegrate";
+        this.skipButton.icon = this.scaledResource(":/icons/forward.png");
+        this.skipButton.onClick = function() {
+            welcomeDialog.selectedTutorial = null;
+            welcomeDialog.ok();
+        };
+        
+        this.closeButton = new PushButton(this);
+        this.closeButton.text = "Close";
+        this.closeButton.icon = this.scaledResource(":/icons/close.png");
+        this.closeButton.onClick = function() {
+            welcomeDialog.selectedTutorial = null;
+            welcomeDialog.cancel();
+        };
+        
+        var buttonSizer = new HorizontalSizer;
+        buttonSizer.spacing = 6;
+        buttonSizer.add(this.creditsButton);
+        buttonSizer.addStretch();
+        buttonSizer.add(this.skipButton);
+        buttonSizer.add(this.closeButton);
+        
+        // Main layout
+        this.sizer = new VerticalSizer;
+        this.sizer.margin = 10;
+        this.sizer.spacing = 10;
+        this.sizer.add(this.headerLabel);
+        this.sizer.add(this.welcomeText);
+        this.sizer.add(this.tutorialsGroupBox);
+        this.sizer.add(this.resourcesGroupBox);
+        this.sizer.addSpacing(6);
+        this.sizer.add(showOnStartupSizer);
+        this.sizer.add(buttonSizer);
+        
+        this.adjustToContents();
+        
+        // Store selected tutorial
+        this.selectedTutorial = null;
+}
+
+AutoIntegrateWelcomeDialog.prototype = new Dialog;
+
+AutoIntegrateWelcomeDialog.prototype.saveShowOnStartup = function() {
+        if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean, this.showOnStartupCheckBox.checked);
+        }
+};
 
 // ============================================================================
 // Tutorial Manager - Dialog to select and launch tutorials
 // ============================================================================
 
-function TutorialManagerDialog(parentDialog) {
+function AutoIntegrateTutorialManagerDialog(parentDialog) {
       this.__base__ = Dialog;
       this.__base__();
       
@@ -114,10 +440,10 @@ function TutorialManagerDialog(parentDialog) {
       this.adjustToContents();
 }
 
-TutorialManagerDialog.prototype = new Dialog;
+AutoIntegrateTutorialManagerDialog.prototype = new Dialog;
 
 // Define available tutorials
-TutorialManagerDialog.prototype.getTutorials = function() {
+AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
       return [
         {
             id: "getting-started",
@@ -155,7 +481,7 @@ TutorialManagerDialog.prototype.getTutorials = function() {
 };
 
 // Populate the tutorial list
-TutorialManagerDialog.prototype.populateTutorials = function() {
+AutoIntegrateTutorialManagerDialog.prototype.populateTutorials = function() {
       this.tutorialList.clear();
       
       var tutorials = this.getTutorials();
@@ -209,7 +535,7 @@ TutorialManagerDialog.prototype.populateTutorials = function() {
 };
 
 // Check if tutorial is completed
-TutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
+AutoIntegrateTutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
       if (this.useAdvancedOptions === false) {
             return false;
       }
@@ -218,7 +544,7 @@ TutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
 };
 
 // Mark tutorial as completed
-TutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
+AutoIntegrateTutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
       if (this.useAdvancedOptions === false) {
             return;
       }
@@ -227,7 +553,7 @@ TutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
 };
 
 // Mark selected tutorial as completed
-TutorialManagerDialog.prototype.markSelectedAsCompleted = function() {
+AutoIntegrateTutorialManagerDialog.prototype.markSelectedAsCompleted = function() {
       var node = this.tutorialList.currentNode;
       if (!node) {
             return;
@@ -240,7 +566,7 @@ TutorialManagerDialog.prototype.markSelectedAsCompleted = function() {
 };
 
 // Reset all tutorials
-TutorialManagerDialog.prototype.resetAllTutorials = function() {
+AutoIntegrateTutorialManagerDialog.prototype.resetAllTutorials = function() {
       var tutorials = this.getTutorials();
       for (var i = 0; i < tutorials.length; i++) {
             var key = "AutoIntegrate_Tutorial_" + tutorials[i].id + "_Completed";
@@ -250,7 +576,7 @@ TutorialManagerDialog.prototype.resetAllTutorials = function() {
 };
 
 // Launch selected tutorial
-TutorialManagerDialog.prototype.launchSelectedTutorial = function() {
+AutoIntegrateTutorialManagerDialog.prototype.launchSelectedTutorial = function() {
       var node = this.tutorialList.currentNode;
       if (!node) {
             var msg = new MessageBox(
@@ -278,7 +604,7 @@ TutorialManagerDialog.prototype.launchSelectedTutorial = function() {
 // Tutorial System for AutoIntegrate
 // ============================================================================
 
-function TutorialSystem(dialog) {
+function AutoIntegrateTutorialSystem(dialog) {
       this.dialog = dialog;
       this.global = dialog.global;
       this.currentStep = 0;
@@ -383,12 +709,12 @@ function TutorialSystem(dialog) {
 }
 
 // Define tutorial steps
-TutorialSystem.prototype.defineSteps = function(steps) {
+AutoIntegrateTutorialSystem.prototype.defineSteps = function(steps) {
       this.steps = steps;
 };
 
 // Start tutorial
-TutorialSystem.prototype.start = function() {
+AutoIntegrateTutorialSystem.prototype.start = function() {
       this.isActive = true;
       this.currentStep = 0;
       // this.hideSections(); Maybe better to leave as is
@@ -396,13 +722,13 @@ TutorialSystem.prototype.start = function() {
       this.showStep(0);
 };
 
-TutorialSystem.prototype.hideSections = function() {
+AutoIntegrateTutorialSystem.prototype.hideSections = function() {
       for (var i = 0; i < this.global.sectionBars.length; i++) {
             this.global.sectionBars[i].aiControl.hide();
       }
 };
 
-TutorialSystem.prototype.showSelectedSections = function() {
+AutoIntegrateTutorialSystem.prototype.showSelectedSections = function() {
       for (var step = 0; step < this.steps.length; step++) {
             if (this.steps[step].sectionBars === undefined || this.steps[step].sectionBars === null) {
                   continue;
@@ -422,7 +748,7 @@ TutorialSystem.prototype.showSelectedSections = function() {
 };
 
 // Show specific step
-TutorialSystem.prototype.showStep = function(stepIndex) {
+AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
       if (stepIndex < 0 || stepIndex >= this.steps.length) {
             this.endTutorial();
             return;
@@ -486,7 +812,7 @@ TutorialSystem.prototype.showStep = function(stepIndex) {
 };
 
 // Highlight an element
-TutorialSystem.prototype.highlightElement = function(element) {
+AutoIntegrateTutorialSystem.prototype.highlightElement = function(element) {
       if (!element) {
             this.highlightFrame.visible = false;
             return;
@@ -510,7 +836,7 @@ TutorialSystem.prototype.highlightElement = function(element) {
 };
 
 // Position tooltip relative to target
-TutorialSystem.prototype.positionTooltip2 = function(target, position) {
+AutoIntegrateTutorialSystem.prototype.positionTooltip2 = function(target, position) {
       position = position || "left";
 
       var tooltipWidth = 300;
@@ -564,7 +890,7 @@ TutorialSystem.prototype.positionTooltip2 = function(target, position) {
       this.tooltip.move(x, y);
 };
 
-TutorialSystem.prototype.positionTooltip = function(target, position) {
+AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, position) {
       position = position || "right";
       
       var tooltipWidth = 320;
@@ -646,7 +972,7 @@ TutorialSystem.prototype.positionTooltip = function(target, position) {
 };
 
 // Navigate to next step
-TutorialSystem.prototype.nextStep = function() {
+AutoIntegrateTutorialSystem.prototype.nextStep = function() {
       this.blinkTimer.stop();
       if (this.currentStep < this.steps.length - 1) {
             this.showStep(this.currentStep + 1);
@@ -656,7 +982,7 @@ TutorialSystem.prototype.nextStep = function() {
 };
 
 // Navigate to previous step
-TutorialSystem.prototype.previousStep = function() {
+AutoIntegrateTutorialSystem.prototype.previousStep = function() {
       this.blinkTimer.stop();
       if (this.currentStep > 0) {
             this.showStep(this.currentStep - 1);
@@ -664,7 +990,7 @@ TutorialSystem.prototype.previousStep = function() {
 };
 
 // End tutorial
-TutorialSystem.prototype.endTutorial = function() {
+AutoIntegrateTutorialSystem.prototype.endTutorial = function() {
     this.isActive = false;
     this.blinkTimer.stop();
     this.overlay.visible = false;
@@ -682,7 +1008,7 @@ TutorialSystem.prototype.endTutorial = function() {
 };
 
 // Check if tutorial should be shown
-TutorialSystem.prototype.shouldShowTutorial = function() {
+AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
       if (this.dialog.global.do_not_read_settings) {
             return true;
       } else {
@@ -690,4 +1016,3 @@ TutorialSystem.prototype.shouldShowTutorial = function() {
             return !shown;
       }
 };
-

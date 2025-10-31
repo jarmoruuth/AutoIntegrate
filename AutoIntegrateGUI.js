@@ -4077,7 +4077,7 @@ function updatePreviewNoImageInControl(control)
             startup_text.push("Click the Tutorials button below to get started.");
             startup_text.push("");
             startup_text.push("Visit the following resources for more information:");
-            startup_text.push(" - AutoIntegrate documentation: https://ruuth.xyz/AutoIntegrateInfo.html");
+            startup_text.push(" - AutoIntegrate documentation: " + global.autointegrateinfo_link);
             startup_text.push(" - AutoIntegrate user support forum: https://forums.ruuth.xyz/");
             startup_text.push(" - AutoIntegrate video tutorials: https://www.youtube.com/@JarmoRuuth");
       } else if (ppar.savedVersion != global.autointegrate_version) {
@@ -7270,6 +7270,8 @@ function AutoIntegrateDialog()
 
       this.global = global;
 
+      this.windowTitle = "AutoIntegrate";
+
       this.onClose = function() {
             // This fires when dialog closes by ANY method
             // Including X button, Escape key, or programmatic close
@@ -7292,49 +7294,6 @@ function AutoIntegrateDialog()
       this.numericEditWidth = 6 * this.font.width( "0" );
 
       this.rootingArr = [];    // for rooting objects
-
-      var mainHelpTips = 
-      "<p>" +
-      "<b>" + global.autointegrate_version + " - Automatic image processing utility</b>" +
-      "</p><p>" +
-      "Script automates initial steps of image processing in PixInsight. "+ 
-      "It can calibrate images or it can be used with already calibrated images. "+ 
-      "Often you get the good results by running the script with default " +
-      "settings and then continue processing in PixInsight." +
-      "</p><p>"+
-      global.getDirectoryInfo(false) +
-      "</p><p>" +
-      "Always remember to check you data with AutoIntegrate preview or Blink tool and remove all bad images." +
-      "</p><p>" +
-      "Mosaic/batch mode is intended to be used with mosaic images. In Batch mode script " +
-      "automatically asks files for mosaic panels before processing. All mosaic panels are left open " +
-      "and can be saved with Save batch result files buttons." +
-      "</p><p>" +
-      "When using color/OSC/RAW files it is recommended to set Pure RAW in PixInsight settings." +
-      "</p><p>" +
-      "For more details see:" +
-      "</p>" +
-      "<ul>" +
-      '<li>Web site: <a href="' + global.autointegrateinfo_link + '">' + global.autointegrateinfo_link + '</a></li>' +
-      '<li>Discussion forums: <a href="https://forums.ruuth.xyz">https://forums.ruuth.xyz</a></li>' +
-      '<li>Discord: <a href="https://discord.gg/baqMqmKS3N">https://discord.gg/baqMqmKS3N</a></li>' +
-      "</ul>" +
-      "<p>" +
-      "For a full list of credits and acknowledgements please see the <a href='" + global.autointegrateinfo_link + "#credits'>" + global.autointegrateinfo_link + "#credits</a>." +
-      "</p>" +
-      "<p>" +
-      "This product is based on software from the PixInsight project, developed " +
-      "by Pleiades Astrophoto and its contributors (" +
-      '<a href="https://pixinsight.com/">https://pixinsight.com/</a>)' + 
-      "</p><p>" +
-      "Copyright (c) 2018-2025 Jarmo Ruuth<br>" +
-      "Copyright (c) 2022 Jean-Marc Lugrin<br>" +
-      "Copyright (c) 2021 rob pfile<br>" +
-      "Copyright (c) 2013 Andres del Pozo<br>" +
-      "Copyright (C) 2009-2013 Georg Viehoever<br>" +
-      "Copyright (c) 2019 Vicent Peris<br>" +
-      "Copyright (c) 2003-2020 Pleiades Astrophoto S.L." +
-      "</p>";
 
       var BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
       var comet_alignment_toolTip = 
@@ -7370,15 +7329,6 @@ function AutoIntegrateDialog()
             "<li>Check <i>Start from ImageIntegration</i> in <i>Other parameters</i>.</li>" +
             "<li>Use the <i>Run</i> button to process images.</li>" +
             "</ul>";
-
-      this.helpTips = new ToolButton( this );
-      this.helpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.helpTips.setScaledFixedSize( 20, 20 );
-      this.helpTips.toolTip = mainHelpTips;
-      this.helpTips.onClick = function()
-      {
-            new MessageBox(mainHelpTips, global.autointegrate_version, StdIcon_Information ).execute();
-      }
 
       // Run, Exit and AutoContinue buttons
       this.run_Button = newRunButton(this, false);
@@ -10455,6 +10405,15 @@ function AutoIntegrateDialog()
             console.noteln("Close all prefixes completed");
       };
 
+      // Add "Welcome" button to menu or toolbar
+      this.welcomeButton = new PushButton(this);
+      this.welcomeButton.text = "Welcome";
+      this.welcomeButton.icon = this.scaledResource(":/icons/info.png");
+      this.welcomeButton.toolTip = "Show welcome screen";
+      this.welcomeButton.onClick = function() {
+            this.dialog.showWelcomeDialog(this.dialog.global);
+      };
+    
       this.tutorialButton = new PushButton(this);
       this.tutorialButton.text = "Tutorials";
       this.tutorialButton.icon = this.scaledResource(":/icons/help.png");
@@ -10752,8 +10711,17 @@ function AutoIntegrateDialog()
       this.preview1Sizer.add( this.show_preview_CheckBox );
       this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
-      this.preview1Sizer.add( this.show_black_background_CheckBox );
       this.preview1Sizer.addStretch();
+
+      this.preview10SizerLabel = newLabel(this, 'Preview options', "Options for preview image.");
+      this.preview10Sizer = new HorizontalSizer;
+      this.preview10Sizer.margin = 6;
+      this.preview10Sizer.spacing = 4;
+      this.preview10Sizer.add( this.preview10SizerLabel );
+      this.preview10Sizer.add( this.previewAutoSTFCheckBox );
+      this.preview10Sizer.add( this.resampleCheckBox );
+      this.preview10Sizer.add( this.show_black_background_CheckBox );
+      this.preview10Sizer.addStretch();
 
       this.preview11Sizer = new HorizontalSizer;
       this.preview11Sizer.margin = 6;
@@ -10909,6 +10877,7 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.spacing = 4;
       this.interfaceControl.sizer.add( this.preview0Sizer );
       this.interfaceControl.sizer.add( this.preview1Sizer );
+      this.interfaceControl.sizer.add( this.preview10Sizer );
       this.interfaceControl.sizer.add( this.preview11Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
       this.interfaceControl.sizer.add( this.preview3Sizer );
@@ -11096,12 +11065,14 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.newFlowchartButton );
       this.buttons_Sizer.add( this.showFlowchartCheckBox );
       this.buttons_Sizer.add( this.showFlowchartHelpTips );
-      this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
-      this.buttons_Sizer.add( this.resampleCheckBox );
+      // this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
+      // this.buttons_Sizer.add( this.resampleCheckBox );
       this.buttons_Sizer.addStretch();
+      this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.tutorialButton );
+      this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( closeAllPrefixButton );
-      this.buttons_Sizer.addSpacing( 48 );
+      this.buttons_Sizer.addSpacing( 24 );
       this.buttons_Sizer.add( this.closeAllButton );
       this.buttons_Sizer.add( this.autoContinueButton );
       this.buttons_Sizer.add( this.autoContinuePrefixSizer);
@@ -11109,7 +11080,6 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( this.run_Button );
       this.buttons_Sizer.add( this.exit_Button );
-      this.buttons_Sizer.add( this.helpTips );
 
       /***********************************************\
        * Collect all items into GroupBox objects.
@@ -11414,6 +11384,9 @@ function AutoIntegrateDialog()
 
       this.topButtonsSizer = new HorizontalSizer;
       this.topButtonsSizer.spacing = 4;
+      this.topButtonsSizer.add( this.welcomeButton );
+      this.topButtonsSizer.addStretch();
+      // this.topButtonsSizer.addSpacing( 12 );
       this.topButtonsSizer.add( this.actionSizer );
       this.baseSizer.add( this.topButtonsSizer );
 
@@ -11531,7 +11504,7 @@ function AutoIntegrateDialog()
       }
 
       // Initialize tutorial system
-      this.tutorial = new TutorialSystem(this);
+      this.tutorial = new AutoIntegrateTutorialSystem(this);
       this.setupAllTutorials();
       // this.setupGettingStartedTutorial();
       // this.setupProcessingTutorial();
@@ -11547,41 +11520,116 @@ function AutoIntegrateDialog()
                   "  padding: 6px 12px; " +
                   "}";
       }
+
+      // Show welcome dialog on first run
+      if (this.shouldShowWelcome()) {
+            var self = this;
+            var timer = new Timer();
+            timer.singleShot = true;
+            timer.interval = 0.5;  // Delay to ensure main dialog is shown
+            timer.onTimeout = function() {
+                  self.showWelcomeDialog(self.global);
+            };
+            timer.start();
+      }
 }
 
 AutoIntegrateDialog.prototype = new Dialog;
 
 this.AutoIntegrateDialog = AutoIntegrateDialog;
 
+// ============================================================================
+// Welcome Dialog  Integration with AutoIntegrateDialog
+// ============================================================================
+
+
+// Check if welcome dialog should be shown
+AutoIntegrateDialog.prototype.shouldShowWelcome = function() {
+      if (this.global.do_not_read_settings) {
+            return true;
+      }
+      // Check if this is first run
+      var firstRun = !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
+    
+      if (firstRun) {
+            return true;
+      }
+    
+      // Check if user wants to see it on startup
+      if (this.global.do_not_read_settings) {
+            return true;
+      } else {
+            var showOnStartup = Settings.read("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean);
+            return showOnStartup;
+      }
+};
+
+// Mark that AutoIntegrate has been run
+AutoIntegrateDialog.prototype.markAsRun = function() {
+      if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate_HasRun", DataType_Boolean, true);
+      }
+};
+
+// Show welcome dialog
+AutoIntegrateDialog.prototype.showWelcomeDialog = function(global) {
+      var welcome = new AutoIntegrateWelcomeDialog(global);
+      var result = welcome.execute();
+      
+      // Save preference
+      welcome.saveShowOnStartup();
+      
+      // Mark as run on first launch
+      this.markAsRun();
+      
+      if (result) {
+            // User clicked OK or a tutorial button
+            if (welcome.selectedTutorial === "getting-started") {
+                  // Launch getting started tutorial
+                  this.startTutorialById("getting-started");
+            } else if (welcome.selectedTutorial === "show-manager") {
+                  // Show tutorial manager
+                  this.showTutorialManager();
+            }
+            // else: User clicked "Skip" - just continue
+      }
+      // else: User clicked "Close" or X - dialog closes
+};
+
+
+// ============================================================================
+// Tutorial System Integration with AutoIntegrateDialog
+// ============================================================================
+
 // Show tutorial manager
 AutoIntegrateDialog.prototype.showTutorialManager = function() {
     
-    var manager = new TutorialManagerDialog(this);
-    manager.execute();
+      var manager = new AutoIntegrateTutorialManagerDialog(this);
+      manager.execute();
 };
 
 // Setup all tutorials
 AutoIntegrateDialog.prototype.setupAllTutorials = function() {
-    this.tutorials = {
-        "getting-started": this.getGettingStartedSteps(),
-        "file-management": this.getFileManagementSteps(),
-        "processing-settings": this.getProcessingSettingsSteps(),
-        "comet-processing": this.getCometProcessingSteps()
-    };
+      this.tutorials = {
+            "getting-started": this.getGettingStartedSteps(),
+            "file-management": this.getFileManagementSteps(),
+            "processing-settings": this.getProcessingSettingsSteps(),
+            "comet-processing": this.getCometProcessingSteps()
+      };
 };
 
 // Start tutorial by ID
 AutoIntegrateDialog.prototype.startTutorialById = function(tutorialId) {
-    var steps = this.tutorials[tutorialId];
-    
-    if (!steps) {
-        Console.warningln("Tutorial not found: " + tutorialId);
-        return;
-    }
-    
-    this.tutorial.defineSteps(steps);
-    this.tutorial.currentTutorialId = tutorialId;
-    this.tutorial.start();
+      var steps = this.tutorials[tutorialId];
+      
+      if (!steps) {
+            Console.warningln("Tutorial not found: " + tutorialId);
+            return;
+      }
+      
+      this.tutorial.defineSteps(steps);
+      this.tutorial.currentTutorialId = tutorialId;
+      this.tutorial.start();
 };
 
 // ============================================================================
@@ -11623,13 +11671,15 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             switchToTab: this.settingsPage.index,      // Switch to Settings tab
             sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
+        /*
         {
             title: "Stretching",
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
-                         "For targets like galaxy, star cluster and small bright nebula you should start with masked stretch. For others the Auto STF is a good starting point.",
+                         "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
             tooltipPosition: "left"
         },
+        */
         {
             title: "Target type",
             description: "Here you can specify the type of your target object. This information is used to optimize some of the processing parameters.\n\n" +
@@ -11648,7 +11698,8 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
         },
         {
             title: "Interface settings Tab",
-            description: "The Interface settings tab allows you to customize the AutoIntegrate user interface, including preview options and flowchart settings.",
+            description: "The Interface settings tab allows you to customize the AutoIntegrate user interface, including preview options and flowchart settings.\n\n" +
+                         "It is recommended that you adjust the preview size to match your screen size for optimal experience.",
             target: this.side_preview_width_label,
             tooltipPosition: "left",
             switchToTab: this.interfacePage.index,    // Switch to Interface tab
@@ -11695,7 +11746,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
         },
         {
             title: "Files Tab",
-            description: "In Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
+            description: "In the Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
             target: this.filesPage.page,
             tooltipPosition: "left",
             switchToTab: this.filesPage.index  // Switch to Files tab
@@ -11804,7 +11855,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
         {
             title: "Stretching",
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
-                         "For targets like galaxy, star cluster and small bright nebula you should start with masked stretch. For others the Auto STF is a good starting point.",
+                         "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
             tooltipPosition: "left"
         },
