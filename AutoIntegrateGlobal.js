@@ -56,6 +56,7 @@ this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
 
+this.interactiveMode = true;        // true if running in interactive mode
 this.processingDate = null;
 
 this.processing_state = {

@@ -11548,6 +11548,9 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function() {
       if (this.global.do_not_read_settings) {
             return true;
       }
+      if (!global.interactiveMode) {
+            return false;
+      }
       // Check if this is first run
       var firstRun = !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
     
@@ -11556,12 +11559,8 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function() {
       }
     
       // Check if user wants to see it on startup
-      if (this.global.do_not_read_settings) {
-            return true;
-      } else {
-            var showOnStartup = Settings.read("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean);
-            return showOnStartup;
-      }
+      var showOnStartup = Settings.read("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean);
+      return showOnStartup;
 };
 
 // Mark that AutoIntegrate has been run
@@ -11641,7 +11640,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             title: "Welcome to AutoIntegrate!",
             description: "This quick tutorial will guide you through the most important features. You can restart this tutorial anytime by clicking the 'Tutorial' button.",
             target: null,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: null  // No tab switch
         },
         {
@@ -11650,7 +11649,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "You can load all files supported by PixInsight, including files from mono camera, OSC camera and RAW files from your DSLR camera.\n\n" +
                          "AutoIntegrate will automatically detect the filter used on each file based on its metadata.",
             target: this.filesPage.page,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.filesPage.index  // Switch to Files tab
         },
         {
@@ -11660,14 +11659,14 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "AutoIntegrate will automatically select the best images as reference images.\n\n" +
                          "You can calibrate your light frames using bias, dark, and flat frames.",
             target: this.filesButtons.addLightsButton,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.filesPage.index  // Switch to Files tab
         },
         {
             title: "Settings Tab",
             description: "The Settings tab contains most important processing options.",
             target: this.settingsPage.page,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.settingsPage.index,      // Switch to Settings tab
             sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
@@ -11677,7 +11676,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
                          "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         */
         {
@@ -11685,14 +11684,14 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "Here you can specify the type of your target object. This information is used to optimize some of the processing parameters.\n\n" +
                          "Currently only the stretching setting is affected by this selection.",
             target: this.target_type_label,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Extra processing Tab",
             description: "The Extra processing tab lets you apply additional processing steps to a final image after the main processing workflow is complete. " + 
                          "There are undo and redo buttons so you can easily experiment with different settings.",
             target: this.extraPage.page,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.extraPage.index,        // Switch on Extra processing tab
             sectionBars: ["ExtraTarget", "Extra1"]    // Show some sections
         },
@@ -11701,7 +11700,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "The Interface settings tab allows you to customize the AutoIntegrate user interface, including preview options and flowchart settings.\n\n" +
                          "It is recommended that you adjust the preview size to match your screen size for optimal experience.",
             target: this.side_preview_width_label,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.interfacePage.index,    // Switch to Interface tab
             sectionBars: ["interface"]                // Show some sections
         },
@@ -11711,26 +11710,26 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "Parameters are saved using the PixInsight persistent module settings mechanism. " + 
                          "Saved parameter values are remembered and automatically restored when the script starts.",
             target: this.savedefaults_Button,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Load/Save Configuration",
             description: "Save your file selections and settings to a JSON file, so you can easily reload them later or share with others.",
             target: this.jsonLabel,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Run Button",
             description: "When you're ready, click Run to start the processing workflow. AutoIntegrate will calibrate, align, integrate and process your images automatically!",
             target: this.run_Button,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "You're Ready!",
             description: "That's it! You now know the basics of AutoIntegrate. Start by adding your files and explore the other tabs for more advanced options.\n\n" + 
                          "Check out also other tutorials in the Interface section!",
             target: null,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.filesPage.index   // Back to Files tab
         }
     ];
@@ -11748,7 +11747,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             title: "Files Tab",
             description: "In the Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
             target: this.filesPage.page,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.filesPage.index  // Switch to Files tab
         },
         {
@@ -11756,7 +11755,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             description: "Use the directory checkbox to recursively load files from a specific directory.\n\n" +
                          "When this option is enabled, AutoIntegrate will scan the selected directory and all its subdirectories for files matching the search pattern.",
             target: this.directoryCheckBox,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Windows prefixes",
@@ -11764,21 +11763,21 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
                          "This is especially useful when working with multiple targets or sessions.\n\n" + 
                          "By default AutoIntegrate always generates files with the same names. Using prefixes helps to avoid name conflicts.",
             target: this.window_prefix_label,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Output directory",
             description: "Specify the directory where processed files will be saved.\n\n" + 
                          "By default AutoIntegrate saves files in the same directory as the light frames.",
             target: this.output_dir_label,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Saving final image in different formats",
             description: "By default AutoIntegrate saves all files in XISF format.\n\n" +
                          "You can save final image also in other formats like TIFF or JPEG here.",
             target: this.saveFinalImageControl,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.otherPage.index,        // Switch to Other tab
             sectionBars: ["Savefinalimagefiles"]      // Show some sections
         },
@@ -11787,7 +11786,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             description: "If you use extra processing options for the final image, " +
                          "there is a button where you can save the image in XISF and 16-bit TIFF formats.",
             target: this.extraProcessingGUI.extraSaveButton,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             switchToTab: this.extraPage.index,        // Switch to Extra processing tab
             sectionBars: ["ExtraTarget"]              // Show some sections
         },
@@ -11814,7 +11813,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             title: "Cropping",
             description: "Automatically crop your final image to remove unwanted edges and artifacts after integration.",
             target: this.crop_to_common_area_CheckBox,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.settingsPage.index,     // Switch to Settings tab
             sectionBars: ["Image1"]                   // Show Image processing parameters
         },
@@ -11825,7 +11824,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
                          "each sub-frame will have slight variations in background brightness and gradients. " +
                          "LocalNormalization can help to correct these variations before combining the images.",
             target: this.useLocalNormalizationCheckBox,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Color calibration using SPCC",
@@ -11834,7 +11833,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
                          "Note that SPCC should be used only for RGB images.\n\n" +
                          "To use SPCC you need to download Gaia DR3/SP Catalogs to PixInsight.",
             target: this.use_spcc_CheckBox,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Gradient correction",
@@ -11843,35 +11842,35 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
                          "In the Tools section below you can select which gradient correction method is used.\n\n" +
                          "Note that if none of these options are checked no gradient correction is applied.",
             target: this.GC_before_channel_combination_CheckBox,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Drizzle",
             description: "Here you can specify drizzle integration for your images.\n\n" +
                          "Drizzle is a powerful digital image processing algorithm used to increase the resolution and preserve detail when stacking multiple images, especially those that are undersampled.",
             target: this.use_drizzle_CheckBox,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Stretching",
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
                          "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Tools",
             description: "Here you can specify various tools for your image processing tasks.\n\n" +
                          "Some of these tools are external to PixInsight and need to be installed separately.",
             target: this.imageToolsControl,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             sectionBars: ["ImageTools"]               // Show Image processing parameters
         },
         {
             title: "Narrowband processing",
             description: "Here you can set narrowband image processing settings. You can specify how narrowband images are mapped to RGB channels.",
             target: this.narrowbandControl,
-            tooltipPosition: "left",
+            tooltipPosition: "center",
             sectionBars: ["Narrowband1"]              // Show Image processing parameters
         },
         {
@@ -11879,7 +11878,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             description: "There are several predefined mappings available, or you can create your own custom mapping.\n\n" +
                          "The Auto option creates either SHO or HOO mapping depending on available narrowband channels.",
             target: this.narrowbandCustomPalette_ComboBox,
-            tooltipPosition: "left"
+            tooltipPosition: "center"
         },
         {
             title: "Tutorial Complete!",
@@ -11903,7 +11902,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             title: "Run a normal workflow first",
             description: "First run a normal workflow to get correct stars and background objects.",
             target: this.run_Button,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.filesPage.index         // Switch to Files tab
         },
         {
@@ -11911,19 +11910,19 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Next run the comet processing.\n\n" + 
                          "Load star aligned *_r.xisf files as light files. Those can be found from the AutoOutput directory.",
             target: this.filesButtons.addLightsButton,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Set window prefix",
             description: "Set a Window prefix to avoid overwriting files in the first step.",
             target: this.window_prefix_label,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Check comet align",
             description: "Check Comet align in Settings / Image processing parameters section.",
             target: this.CometAlignCheckBox,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.settingsPage.index,           // Switch to Settings tab
             sectionBars: ["Image1"]                         // Show Image processing parameters
         },
@@ -11931,13 +11930,13 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             title: "Select star removal tool",
             description: "Check desired star removal tool (StarXTerminator or StarNet2) in Settings / Tools section.",
             target: this.use_StarXTerminator_CheckBox,
-            tooltipPosition: "right"
+            tooltipPosition: "center"
         },
         {
             title: "Remove stars",
             description: "Check Remove stars from lights in Postprocessing / Star stretching and removing section.",
             target: this.remove_stars_light_CheckBox,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.postProcessingPage.index,     // Switch to postprocessing tab
             sectionBars: ["ps_starstretching"]              // Show Image processing parameters
         },
@@ -11945,7 +11944,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             title: "No cosmetic correction",
             description: "Check No CosmeticCorrection in Other / Other parameters section.",
             target: this.CosmeticCorrectionCheckBox,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.otherPage.index,        // Switch to Other tab
             sectionBars: ["Other1"]                   // Show Other parameters
         },
@@ -11954,7 +11953,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Go to the Preprocessing / CometAlignment section. Click the Preview button for the first image " + 
                          "to show the first image in the preview window.",
             target: this.cometAlignFirstXYButton,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
             switchToTab: this.preProcessingsPage.index,     // Switch to Preprocessing tab
             sectionBars: ["ps_alignment"]                   // Show Comet alignment
         },
@@ -11964,20 +11963,20 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
                          "Use the arrow buttons next to preview window coordinates box to automatically copy coordinates to the First image box.",
             target: this.cometAlignFirstLabel,
             named_target: "coordinatesCopyFirstButton",
-            tooltipPosition: "right"
+            tooltipPosition: "top-right"
         },
         {
             title: "Get last comet position coordinates",
             description: "Repeat the same steps for the last comet image. Click the Preview button for the last image " +
                          "to show the last image in the preview window and then get the coordinates.",
             target: this.cometAlignLastXYButton,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
         },
         {
             title: "Process the comet image",
             description: "Use the Run button to process comet image.",
             target: this.run_Button,
-            tooltipPosition: "right",
+            tooltipPosition: "center",
         },
         {
             title: "Tutorial Complete!",

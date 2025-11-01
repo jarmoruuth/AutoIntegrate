@@ -568,6 +568,7 @@ this.test_initialize = function()
 
       init_pixinsight_version();
 
+      global.interactiveMode = false;
       global.do_not_write_settings = true;
       global.testmode = true;
       global.testmode_log = "";
@@ -812,6 +813,7 @@ this.autointegrate_main = function()
       }
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
+            global.interactiveMode = false;
             // Load Json file
             this.load_setup(runsetuppath);
             // Run processing directly

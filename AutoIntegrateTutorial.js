@@ -57,7 +57,7 @@ function AutoIntegrateCreditsDialog(global) {
         this.creditsText.setMinSize(450, 280);
         
         this.creditsText.text = 
-            "This product is based on software from the PixInsight project, developed\n" +
+            "This product is based on software from the PixInsight project, developed " +
             "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)\n" +
             "\n" +
             "Copyright (c) 2018-2025 Jarmo Ruuth\n" +
@@ -456,7 +456,7 @@ AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
         {
             id: "file-management",
             name: "File Management",
-            description: "Master organizing your light frames, calibration frames (bias, darks, flats), and output files.",
+            description: "Master organizing your input and and output files.",
             difficulty: "Beginner",
             duration: "3 minutes",
             icon: "📁"
@@ -464,7 +464,7 @@ AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
         {
             id: "processing-settings",
             name: "Processing Settings",
-            description: "Explore processing options including cropping, gradient correction and stretching.",
+            description: "Explore processing options like cropping, gradient correction and stretching.",
             difficulty: "Intermediate",
             duration: "7 minutes",
             icon: "⚙️"
@@ -836,62 +836,8 @@ AutoIntegrateTutorialSystem.prototype.highlightElement = function(element) {
 };
 
 // Position tooltip relative to target
-AutoIntegrateTutorialSystem.prototype.positionTooltip2 = function(target, position) {
-      position = position || "left";
-
-      var tooltipWidth = 300;
-      var tooltipHeight = 300;
-      var margin = 20;
-
-      var x, y;
-
-      target = this.dialog.mainTabBox;
-      position = "left";
-
-      if (target) {
-            var pos = target.localToGlobal(target.position);
-            var dialogPos = this.dialog.localToGlobal(this.dialog.position);
-            var targetX = pos.x - dialogPos.x;
-            var targetY = pos.y - dialogPos.y;
-
-            switch (position) {
-                  case "right":
-                        x = targetX + target.width + margin;
-                        y = targetY;
-                        break;
-                  case "left":
-                        x = targetX - tooltipWidth - margin;
-                        y = targetY;
-                        break;
-                  case "top":
-                        x = targetX;
-                        y = targetY - tooltipHeight - margin;
-                        break;
-                  case "bottom":
-                        x = targetX;
-                        y = targetY + target.height + margin;
-                        break;
-                  case "center":
-                  default:
-                        x = (this.dialog.width - tooltipWidth) / 2;
-                        y = (this.dialog.height - tooltipHeight) / 2;
-                        break;
-            }
-      } else {
-            // Center if no target
-            x = (this.dialog.width - tooltipWidth) / 2;
-            y = (this.dialog.height - tooltipHeight) / 2;
-      }
-
-      // Keep within dialog bounds
-      x = Math.max(10, Math.min(x, this.dialog.width - tooltipWidth - 10));
-      y = Math.max(10, Math.min(y, this.dialog.height - tooltipHeight - 10));
-
-      this.tooltip.move(x, y);
-};
-
 AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, position) {
-      position = position || "right";
+      position = position || "center";
       
       var tooltipWidth = 320;
       var tooltipHeight = 180;
@@ -899,8 +845,11 @@ AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, positio
       
       var x, y;
 
-      target = this.dialog.mainTabBox;
-      position = "left";
+      if (position == "center") {
+        // Keep the dialog in the center left of tab sections
+        target = this.dialog.mainTabBox;
+        position = "left";
+      }
     
     if (target) {
         // Use the same method as highlightElement
