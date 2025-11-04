@@ -11384,9 +11384,9 @@ function AutoIntegrateDialog()
 
       this.topButtonsSizer = new HorizontalSizer;
       this.topButtonsSizer.spacing = 4;
-      this.topButtonsSizer.add( this.welcomeButton );
       this.topButtonsSizer.addStretch();
-      // this.topButtonsSizer.addSpacing( 12 );
+      this.topButtonsSizer.add( this.welcomeButton );
+      this.topButtonsSizer.addSpacing( 24 );
       this.topButtonsSizer.add( this.actionSizer );
       this.baseSizer.add( this.topButtonsSizer );
 
