@@ -7733,29 +7733,54 @@ function AutoIntegrateDialog()
       this.saveCroppedImagesBox = newCheckBox(this, "Save cropped images", par.save_cropped_images, "Save cropped image files with _crop postfix.");
 
       // Image parameters set 1.
-      this.imageParamsSet1 = new VerticalSizer;
+      this.imageParamsSet1_left = new VerticalSizer;
+      this.imageParamsSet1_left.margin = 6;
+      this.imageParamsSet1_left.spacing = 4;
+      this.imageParamsSet1_left.add( this.CalibrateOnlyCheckBox );
+      this.imageParamsSet1_left.add( this.IntegrateOnlyCheckBox );
+      this.imageParamsSet1_left.add( this.FixColumnDefectsCheckBox );
+      this.imageParamsSet1_left.add( this.FixRowDefectsCheckBox );
+      this.imageParamsSet1_left.add( this.CometAlignCheckBox );
+
+      this.imageParamsSet1_right = new VerticalSizer;
+      this.imageParamsSet1_right.margin = 6;
+      this.imageParamsSet1_right.spacing = 4;
+      this.imageParamsSet1_right.add( this.crop_to_common_area_CheckBox );
+      this.imageParamsSet1_right.add( this.imageintegration_ssweight_CheckBox );
+      this.imageParamsSet1_right.add( this.fastIntegrationCheckBox );
+      this.imageParamsSet1_right.add( this.useLocalNormalizationCheckBox );
+      this.imageParamsSet1_right.add( this.drizzleSizer );
+
+      this.imageParamsSet1Label = newSectionLabel( this, "Preprocessing" );
+      this.imageParamsSet1 = new HorizontalSizer;
       this.imageParamsSet1.margin = 6;
       this.imageParamsSet1.spacing = 4;
-      this.imageParamsSet1.add( this.CalibrateOnlyCheckBox );
-      this.imageParamsSet1.add( this.IntegrateOnlyCheckBox );
-      this.imageParamsSet1.add( this.FixColumnDefectsCheckBox );
-      this.imageParamsSet1.add( this.FixRowDefectsCheckBox );
-      this.imageParamsSet1.add( this.CometAlignCheckBox );
-      this.imageParamsSet1.add( this.fastIntegrationCheckBox );
-      this.imageParamsSet1.add( this.imageintegration_ssweight_CheckBox );
-      this.imageParamsSet1.add( this.crop_to_common_area_CheckBox );
-      
+      this.imageParamsSet1.add( this.imageParamsSet1_left );
+      this.imageParamsSet1.add( this.imageParamsSet1_right );
+      this.imageParamsSet1.addStretch();
+
       // Image parameters set 2.
-      this.imageParamsSet2 = new VerticalSizer;
+
+      this.imageParamsSet2_left = new VerticalSizer;
+      this.imageParamsSet2_left.margin = 6;
+      this.imageParamsSet2_left.spacing = 4;
+      this.imageParamsSet2_left.add( this.GC_before_channel_combination_CheckBox );
+      this.imageParamsSet2_left.add( this.use_GC_L_RGB_CheckBox );
+      this.imageParamsSet2_left.add( this.use_GC_L_RGB_stretched_CheckBox );
+
+      this.imageParamsSet2_right = new VerticalSizer;
+      this.imageParamsSet2_right.margin = 6;
+      this.imageParamsSet2_right.spacing = 4;
+      this.imageParamsSet2_right.add( this.use_background_neutralization_CheckBox );
+      this.imageParamsSet2_right.add( this.use_spcc_CheckBox );
+
+      this.imageParamsSet2Label = newSectionLabel( this, "Postprocessing" );
+      this.imageParamsSet2 = new HorizontalSizer;
       this.imageParamsSet2.margin = 6;
       this.imageParamsSet2.spacing = 4;
-      this.imageParamsSet2.add( this.useLocalNormalizationCheckBox );
-      this.imageParamsSet2.add( this.use_background_neutralization_CheckBox );
-      this.imageParamsSet2.add( this.use_spcc_CheckBox );
-      this.imageParamsSet2.add( this.GC_before_channel_combination_CheckBox );
-      this.imageParamsSet2.add( this.use_GC_L_RGB_CheckBox );
-      this.imageParamsSet2.add( this.use_GC_L_RGB_stretched_CheckBox );
-      this.imageParamsSet2.add( this.drizzleSizer );
+      this.imageParamsSet2.add( this.imageParamsSet2_left );
+      this.imageParamsSet2.add( this.imageParamsSet2_right );
+      this.imageParamsSet2.addStretch();
 
       //
       // Stretching choice
@@ -7815,7 +7840,7 @@ function AutoIntegrateDialog()
       this.stretchingLabel = newLabel(this, "Stretching", stretchingTootip, true);
       this.stretchingSizer = newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
 
-      this.imageParamsControlSubSizer = newHorizontalSizer(4, true, [ this.imageParamsSet1, this.imageParamsSet2 ]);
+      this.imageParamsControlSubSizer = newVerticalSizer(0, true, [ this.imageParamsSet1Label, this.imageParamsSet1, this.imageParamsSet2Label, this.imageParamsSet2 ]);
 
       // Image group par.
       this.imageParamsControl = new Control( this );
@@ -10921,28 +10946,7 @@ function AutoIntegrateDialog()
       this.processDefaultsButton.text = "Print process defaults";
       this.processDefaultsButton.toolTip = "<p>Print process default values to the console. For debugging purposes.</p>";
       this.processDefaultsButton.onClick = function() {
-            console.noteln("Button clicked: Print process defaults");
-            // engine.getProcessDefaultValues();
-            var dialog = this.dialog;
-            var blinkTimer = new Timer();
-            blinkTimer.interval = 0.5;
-            blinkTimer.onTimeout = function() {
-                  console.noteln("Blink " + blinkTimer.blinkCount);
-                  if (blinkTimer.blinkCount % 2 === 0) {
-                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #CC0000; font-weight: bold; }";
-                  } else {
-                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #000000; }";
-                  }
-                  blinkTimer.blinkCount++;
-
-                  if (blinkTimer.blinkCount >= 6) {
-                        blinkTimer.stop();
-                        dialog.printProcessValuesCheckBox.styleSheet = "QCheckBox { color: #000000; }";
-                  }
-            };
-            blinkTimer.blinkCount = 0;
-            blinkTimer.start();
-            processEvents();
+            engine.getProcessDefaultValues();
       }
       this.processDefaultsSizer = new HorizontalSizer;
       this.processDefaultsSizer.margin = 6;
@@ -11827,12 +11831,10 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             tooltipPosition: "center"
         },
         {
-            title: "Color calibration using SPCC",
-            description: "You can use SpectrophotometricColorCalibration (SPCC) for color calibration.\n\n" +
-                         "The SPCC process is the recommended method for color calibration.\n\n" +
-                         "Note that SPCC should be used only for RGB images.\n\n" +
-                         "To use SPCC you need to download Gaia DR3/SP Catalogs to PixInsight.",
-            target: this.use_spcc_CheckBox,
+            title: "Drizzle",
+            description: "Here you can specify drizzle integration for your images.\n\n" +
+                         "Drizzle is a powerful digital image processing algorithm used to increase the resolution and preserve detail when stacking multiple images, especially those that are undersampled.",
+            target: this.use_drizzle_CheckBox,
             tooltipPosition: "center"
         },
         {
@@ -11845,10 +11847,12 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             tooltipPosition: "center"
         },
         {
-            title: "Drizzle",
-            description: "Here you can specify drizzle integration for your images.\n\n" +
-                         "Drizzle is a powerful digital image processing algorithm used to increase the resolution and preserve detail when stacking multiple images, especially those that are undersampled.",
-            target: this.use_drizzle_CheckBox,
+            title: "Color calibration using SPCC",
+            description: "You can use SpectrophotometricColorCalibration (SPCC) for color calibration.\n\n" +
+                         "The SPCC process is the recommended method for color calibration.\n\n" +
+                         "Note that SPCC should be used only for RGB images.\n\n" +
+                         "To use SPCC you need to download Gaia DR3/SP Catalogs to PixInsight.",
+            target: this.use_spcc_CheckBox,
             tooltipPosition: "center"
         },
         {
@@ -11861,7 +11865,12 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
         {
             title: "Tools",
             description: "Here you can specify various tools for your image processing tasks.\n\n" +
-                         "Some of these tools are external to PixInsight and need to be installed separately.",
+                         "It is recommended that you install the necessary external tools for your workflow.\n\n" +
+                         "External tools that are supported are:\n\n" +
+                         "- RC Astro tools\n" +
+                         "- GraXpert tools\n" +
+                         "- StarNet and DeepSNR\n\n" +
+                         "Note that external tools need to be installed separately.",
             target: this.imageToolsControl,
             tooltipPosition: "center",
             sectionBars: ["ImageTools"]               // Show Image processing parameters
