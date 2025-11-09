@@ -1897,7 +1897,7 @@ function getSettingsFromJson(settings)
                         var name_found = false;
                   }
                   if (name_found && !param.skip_reset) {
-                        param.val = settings[i][1];
+                        global.setParameterValue(param, settings[i][1]);
                         if (param.reset != undefined) {
                               param.reset();
                         }

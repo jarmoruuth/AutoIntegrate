@@ -498,7 +498,7 @@ function readParametersFromProcessIcon()
                   val = readOneParameterFromProcessIcon(param.oldname, param.type);
             }
             if (val != null) {
-                  param.val = val;
+                  global.setParameterValue(param, val);
             }
       }
 }
@@ -550,7 +550,7 @@ function readParametersFromPersistentModuleSettings()
                   val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
             }
             if (val != null) {
-                  param.val = val;
+                  global.setParameterValue(param, val);
             }
       }
 }
@@ -724,7 +724,7 @@ this.autointegrate_main = function()
                   try {
                         readParametersFromProcessIcon();
                   } catch(err) {
-                        console.writeln("Error reading parameters from process icon: " + err);
+                        console.criticalln("Error reading parameters from process icon: " + err);
                         errors = true;
                   }
             } else {
@@ -796,13 +796,14 @@ this.autointegrate_main = function()
             }
       }
       catch (x) {
-            console.writeln( x );
+            console.criticalln( x );
             errors = true;
       }
 
       this.dialog = new gui.AutoIntegrateDialog();
       global.dialog = this.dialog;
-      if (errors) {
+      if (0 && errors) {
+            // Access problem with this, I guess because we are ion some PixInsight directory
             // Write errors to a file, if we have --force-exit option we cannot see
             // the console output
             console.criticalln("Errors during startup, see AutoIntegrateErrorLog.txt for details");

@@ -338,7 +338,7 @@ var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ];
 var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
-var target_type_values = [ 'Default', 'Galaxy', 'Small bright nebula', 'Large nebula', 'Star cluster' ];
+var target_type_values = [ 'Default', 'Galaxy', 'Nebula', 'Star cluster' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_batch_size_values = [ '1', '2', '4', '8', '16', '32' ];
@@ -5437,6 +5437,7 @@ function loadJsonFile(parent)
       if (par.show_flowchart.val && global.flowchartData != null) {
             flowchartUpdated();
       }
+      updateParameterDependencies(parent.dialog);
 }
 
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
@@ -5501,15 +5502,7 @@ function addTargetType(parent)
       parent.rootingArr.push(targetTypeComboBox);
       targetTypeComboBox.onItemSelected = function(itemIndex) {
             targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
-            stretchingComboBox.enabled = itemIndex == 0;
-            let stretching = engine.targetTypeToStretching(par.target_type.val);
-            if (stretching != null) {
-                  stretchingComboBox.currentItem = stretchingComboBox.aiValarray.indexOf(stretching);
-                  stretchingComboBox.aiParam.val = stretching;
-            } else {
-                  stretchingComboBox.currentItem = 0;
-                  stretchingComboBox.aiParam.val = stretchingComboBox.aiValarray[0];
-            }
+            updateParameterDependencies(this.dialog);
       }
 
       var outputdir_Sizer = new HorizontalSizer;
@@ -6297,6 +6290,21 @@ function blinkArrowButton(parent, icon, x, y)
             }
       };
       return blinkArrowButton;
+}
+
+function updateParameterDependencies(dialog)
+{
+      // Update the enabled state of the stretchingComboBox based on the target_type
+      dialog.stretchingComboBox.enabled = (par.target_type.val === "Default");
+      let stretching = engine.targetTypeToStretching(par.target_type.val);
+      if (stretching != null) {
+            dialog.stretchingComboBox.currentItem = dialog.stretchingComboBox.aiValarray.indexOf(stretching);
+            dialog.stretchingComboBox.aiParam.val = stretching;
+      } else {
+            dialog.stretchingComboBox.currentItem = 0;
+            dialog.stretchingComboBox.aiParam.val = dialog.stretchingComboBox.aiValarray[0];
+      }
+      // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
 }
 
 function newJsonSizer(parent)
@@ -7834,9 +7842,8 @@ function AutoIntegrateDialog()
             "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
       this.stretchingComboBox = newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
       stretchingComboBox = this.stretchingComboBox;
-      if (par.target_type.val != 'Default') {
-            stretchingComboBox.enabled = false;
-      }
+      updateParameterDependencies(this);
+      // console.writeln("Setting stretchingComboBox.enabled to " + stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
       this.stretchingLabel = newLabel(this, "Stretching", stretchingTootip, true);
       this.stretchingSizer = newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
 

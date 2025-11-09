@@ -904,11 +904,10 @@ function guiUpdatePreviewFilename(filename, run_autostf = false)
 function targetTypeToStretching(targetType)
 {
       if (targetType == 'Galaxy' ||
-          targetType == 'Small bright nebula' ||
           targetType == 'Star cluster'
       ) {
             return 'Masked Stretch';
-      } else if (targetType == 'Large nebula') {
+      } else if (targetType == 'Nebula') {
             return 'Auto STF';
       } else {
             return null;

@@ -79,6 +79,17 @@ this.cancel_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 
+// Set parameter value and check possible mappings
+this.setParameterValue = function(param, val) {
+      if (param.name == "Target type") {
+            if (val == "Small bright nebula" || val == "Large nebula") {
+                  param.val = "Nebula";
+                  return;
+            }
+      }
+      param.val = val;
+};
+
 /*
       Parameters that can be adjusted in the GUI
       These can be saved to persistent module settings or 
