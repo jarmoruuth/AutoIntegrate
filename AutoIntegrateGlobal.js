@@ -42,12 +42,14 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.80 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Fixes";                          // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.80 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "Process Icons";                  // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Fixes"
+      "- Save executed processes as process icons to a .xpsm file.",
+      "- Process icons can be loaded to the PixInsight desktop",
+      "  and used for manual reprocessing or fine tuning."
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -669,6 +671,9 @@ this.debayerPattern_enums = [ Debayer.prototype.Auto, Debayer.prototype.RGGB, De
 
 this.saved_measurements = null;
 this.saved_measurements_sorted = null;
+
+this.screen_width = 1680;      // This is updated in initialization
+this.screen_height = 1050;     // This is updated in initialization
 
 this.get_flowchart_data = false;    // true if we are running in flowchart mode
 this.flowchartWindows = [];   // array of flowchart window ids

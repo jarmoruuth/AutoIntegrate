@@ -116,6 +116,8 @@ this.biasFileNames = null;
 this.flatdarkFileNames = null;
 this.flatFileNames = null;
 
+var executed_processes = [];
+
 var flowchart_active = false;
 var flowchartCurrent = null;
 var flowchartStack = [];
@@ -2194,7 +2196,7 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      printProcessValues(P);
+      printProcessValues(P, type);
       engine_end_process(node);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
@@ -2313,7 +2315,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printProcessValues(P, "darks");
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2388,7 +2390,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printProcessValues(P, "flats");
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2448,7 +2450,7 @@ function runImageIntegrationFlats(images, name)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      printProcessValues(P);
+      printProcessValues(P, "flats");
       engine_end_process(node);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
@@ -2558,7 +2560,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printProcessValues(P, "lights");
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -5353,7 +5355,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "RGB");
       if (newId != null) {
             var new_win = util.findWindow(newId);
       } else {
@@ -5416,7 +5418,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B, c
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "RGB");
       var new_win = util.findWindow(newId);
       if (global.pixinsight_version_num >= 1080902) {
             new_win.copyAstrometricSolution(idWin);
@@ -5637,6 +5639,21 @@ function findChannelFromName(name)
       }
 }
 
+function findChannelFromNameIf(name)
+{
+      var ch = findChannelFromName(name);
+      if (ch == name) {
+            if (name.indexOf("RGB") != -1) {
+                  return 'RGB';
+            } else {
+                  return name;
+            }
+      } else {
+            return ch;
+      }
+}
+
+
 function findChannelsFromOneMapping(onemapping)
 {
       // Split onemapping text to image names
@@ -5681,7 +5698,7 @@ function findChannelsFromMappings(mappings)
             }
       }
 
-      // Find invidual channles from mapping text.
+      // Find invidual channels from mapping text.
       var channels = [];
       for (var i = 0; i < mappings.length; i++) {
             // Find channels from single mapping and save new ones to channels
@@ -7319,7 +7336,7 @@ function linearFitImage(refViewId, targetId, add_to_flowchart = false)
       P.executeOn(targetWin.mainView);
       targetWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(targetId));
 
       util.setFITSKeyword(targetWin, "AutoLinearfit", "true", "Linear fit was done by AutoIntegrate");
       var refWin = ImageWindow.windowById(refViewId);
@@ -7377,7 +7394,7 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printProcessValues(P, name);
       engine_end_process(node);
 
       util.closeOneWindowById(P.weightImageId);
@@ -7518,7 +7535,7 @@ function runFastIntegration(integration_images, name, refImage)
             console.writeln("P.outputData = " + JSON.stringify(P.outputData));
       }
 
-      printProcessValues(P);
+      printProcessValues(P, name);
       engine_end_process(node);
 
       if (!succ) {
@@ -7651,7 +7668,7 @@ function runBasicIntegration(images, name, local_normalization)
       util.closeOneWindowById(P.lowRejectionMapImageId);
       util.closeOneWindowById(P.slopeMapImageId);
 
-      printProcessValues(P);
+      printProcessValues(P, name);
       engine_end_process(node);
 
       util.copyKeywordsFromFile(P.integrationImageId, images[0][1]);
@@ -8334,7 +8351,7 @@ function runABEex(win, replaceTarget, postfix, skip_flowchart, degree = null, no
 
       win.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
       engine_end_process(null);
 
       util.addScriptWindow(GC_id);
@@ -8403,7 +8420,7 @@ function runGCProcess(win, replaceTarget, postfix, from_lights)
             }
       }
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
 
       engine_end_process(node, util.findWindow(GC_id), "GradientCorrection");
 
@@ -8521,7 +8538,7 @@ function runMultiscaleGradientCorrectionProcess(win)
                   util.copyWindowEx(win, win.mainView.id + "_MGC_after", true);
             }
       }
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
       engine_end_process(node, win, "MultiscaleGradientCorrection");
 
       return succp;
@@ -8788,7 +8805,7 @@ function ApplyAutoSTF(view, shadowsClipping, targetBackground, rgbLinked, silent
 
 /* applySTF routine is from PixInsight scripts.
  */
-function applySTF(imgView, stf, iscolor)
+function applySTF(imgView, stf, iscolor, save_process = false)
 {
       console.writeln("  Apply STF on " + imgView.id);
       var HT = new HistogramTransformation;
@@ -8815,6 +8832,9 @@ function applySTF(imgView, stf, iscolor)
 
       imgView.endProcess();
 
+      if (save_process) {
+            printProcessValues(HT, "autostf");
+      }     
       engine_end_process(null);
 }
 
@@ -8856,7 +8876,7 @@ function getRgbLinked(win, iscolor)
       }
 }
 
-function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked)
+function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked, save_process = false)
 {
       if (!silent) {
             util.addProcessingStep("Run histogram transform on " + GC_win.mainView.id + " based on autostretch, targetBackground " + targetBackground);
@@ -8864,6 +8884,7 @@ function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked)
 
       /* Apply autostretch on image */
       if (rgbLinked == null) {
+            // null means undefined, use default
             rgbLinked = getRgbLinked(GC_win, iscolor);
       }
       ApplyAutoSTF(GC_win.mainView,
@@ -8874,7 +8895,7 @@ function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked)
       var stf_to_use = GC_win.mainView.stf;
 
       /* Run histogram transfer function based on autostretch */
-      applySTF(GC_win.mainView, stf_to_use, iscolor);
+      applySTF(GC_win.mainView, stf_to_use, iscolor, save_process);
 
       /* Undo autostretch */
       if (!silent) {
@@ -8896,12 +8917,23 @@ function runAutoSTFex(GC_win, iscolor, targetBackground, silent, rgbLinked)
 
 function autoStretch(imgWin, silent = true)
 {
-      runAutoSTFex(imgWin, imgWin.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, silent, null);
+      runAutoSTFex(
+            imgWin, 
+            imgWin.mainView.image.isColor, 
+            DEFAULT_AUTOSTRETCH_TBGND, 
+            silent, 
+            null);     // rgbLinked, null = use default
 }
 
 function runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground)
 {
-      return runAutoSTFex(GC_win, iscolor, targetBackground, false, null);
+      return runAutoSTFex(
+                  GC_win, 
+                  iscolor, 
+                  targetBackground, 
+                  false,      // silent
+                  null,       // rgbLinked, null = use default
+                  true);      // save_process
 }
 
 function histogramPrestretch(GC_win, target_val)
@@ -8929,7 +8961,7 @@ function runHistogramTransformMaskedStretch(GC_win, image_stretching, histogram_
 
       GC_win.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
       engine_end_process(null);
 
       return GC_win;
@@ -8959,7 +8991,7 @@ function runHistogramTransformArcsinhStretch(GC_win, image_stretching, histogram
 
             GC_win.mainView.endProcess();
 
-            printProcessValues(P);
+            printProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
             engine_end_process(null);
             util.runGarbageCollection();
 
@@ -10099,6 +10131,8 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
+      printProcessValues(P);
+
       engine_end_process(node, imgWin, "ACDNR:noise");
 
       guiUpdatePreviewWin(imgWin);
@@ -10241,7 +10275,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
             imgWin.removeMask();
       }
 
-      printProcessValues(P);
+      printProcessValues(P, "noise" + findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "MultiscaleLinearTransform:noise");
 
       imgWin.mainView.endProcess();
@@ -10330,7 +10364,7 @@ function runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "BlurXTerminator");
 }
 
@@ -10383,7 +10417,7 @@ function runNoiseXTerminator(imgWin, linear)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "NoiseXTerminator");
 }
 
@@ -10420,7 +10454,7 @@ function runDeepSNR(imgWin, linear)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "DeepSNR");
 }
 
@@ -10497,7 +10531,7 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "TGVDenoise");
 
       guiUpdatePreviewWin(imgWin);
@@ -10948,8 +10982,7 @@ function runDBEprocess(imgWin, image_samples)
 
       imgWin.mainView.endProcess();
 
-      // printProcessValues(P);
-      console.writeln(P.toSource());
+      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
 
       engine_end_process(null);
 
@@ -12054,7 +12087,7 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "colorsaturation");
       engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
@@ -12095,7 +12128,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "saturation");
       engine_end_process(node, imgWin, "CurvesTransformation:saturation");
 
       guiUpdatePreviewWin(imgWin);
@@ -12135,7 +12168,7 @@ function runCurvesTransformationChrominance (imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "chrominance");
       engine_end_process(node, imgWin, "CurvesTransformation:chrominance");
 
       guiUpdatePreviewWin(imgWin);
@@ -12171,7 +12204,7 @@ function runLRGBCombination(RGB_id, L_id)
                                     ImageWindow.windowById(RGB_id), 
                                     util.ensure_win_prefix(RGB_id + "GrayScale"));
             convert_to_grayscale(referenceWin);
-            linearFitImage(referenceWin.mainView.id, L_id, true);
+            linearFitImage(referenceWin.mainView.id, L_id, true, "L");
             referenceWin.forceClose();
       }
 
@@ -12310,7 +12343,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, "sharpen");
       engine_end_process(node, imgWin, "MultiscaleLinearTransform:sharpen");
 
       guiUpdatePreviewWin(imgWin);
@@ -14715,7 +14748,7 @@ function create_HRR(nb_channel_id, rgb_channel_id)
       ];
 
       P.executeGlobal();
-      printProcessValues(P);
+      printProcessValues(P, "HRR");
       
       return ImageWindow.activeWindow;
 }
@@ -14751,7 +14784,7 @@ function create_continuum_subtracted_image(hrr_win)
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       P.executeOn(hrr_win.mainView);
-      printProcessValues(P);
+      printProcessValues(P, "continuum_subtracted");
 }
 
 function normalize_image(imgWin)
@@ -14785,7 +14818,7 @@ function normalize_image(imgWin)
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       P.executeOn(imgWin.mainView);
-      printProcessValues(P);
+      printProcessValues(P, "normalize");
 }
 
 function convert_to_grayscale(imgWin)
@@ -14805,12 +14838,19 @@ function boost_Ha(imgWin, boost_factor)
       P.useLightnessMask = true;
 
       P.executeOn(imgWin.mainView);
-      printProcessValues(P);
+      printProcessValues(P, "boostHA");
 }
 
 function HRR_stretch(imgWin, targetBackground)
 {
-      runAutoSTFex(imgWin, false, targetBackground, false, true);
+      runAutoSTFex(
+            imgWin, 
+            false,                  // iscolor
+            targetBackground, 
+            false,                  // silent
+            true,                   // rgbLinked
+            false                   // save_process
+      );
 }
 
 // Continuum Subtract for linear images
@@ -15674,7 +15714,7 @@ function invertImage(targetView)
       P.executeOn(targetView, true);
       targetView.endProcess();
 
-      printProcessValues(P);
+      printProcessValues(P, findChannelFromNameIf(targetView.mainView.id));
       engine_end_process(node);
 }
 
@@ -16416,7 +16456,12 @@ function extraAutoSTF(win)
 {
       addExtraProcessingStep("AutoSTF on image");
 
-      runAutoSTFex(win, win.mainView.image.isColor, DEFAULT_AUTOSTRETCH_TBGND, true, true);
+      runAutoSTFex(
+            win, 
+            win.mainView.image.isColor, 
+            DEFAULT_AUTOSTRETCH_TBGND, 
+            true,       // silent
+            true);      // rgbLinked
 
       return win;
 }
@@ -18760,6 +18805,7 @@ function CropImageIf(id, show_in_flowchart = true)
       // Add keyword to indicate that the image has been cropped
       util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
 
+      printProcessValues(crop, findChannelFromNameIf(window.mainView.id));
       engine_end_process(node, window, "Crop");
 
       if (par.save_cropped_images.val) {
@@ -19453,6 +19499,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        var RGB_processed_HT_id = null;
        var LRGB_Combined = null;
  
+       executed_processes = [];
        is_rgb_files = false;
        is_narrowband_files = false;
        is_color_files = false;
@@ -20160,12 +20207,17 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
             console.noteln("Console output is written into file " + logfname);
       }
 
-       global.is_processing = global.processing_state.none;
+      if (executed_processes.length > 0) {
+            let filename = util.ensure_win_prefix("ExecutedProcesses.xpsm");
+            console.writeln("Write executed processes as process icons");
+            writeExecutedProcessesToXPSM(util.ensurePathEndSlash(global.outputRootDir) + filename);
+      }
+      global.is_processing = global.processing_state.none;
 
-       return LRGB_processed_HT_id;
+       return LRGB_processed_HT_id; // end: autointegrateProcessingEngine
 }
  
-function printProcessValues(obj)
+function printProcessValues(obj, txt = "")
 {
       if (par.print_process_values.val 
           && !global.get_flowchart_data
@@ -20173,12 +20225,68 @@ function printProcessValues(obj)
       {
             console.writeln(obj.toSource());
       }
+      if (!global.get_flowchart_data
+          && global.is_processing != global.processing_state.none
+          && !creating_mask)
+      {
+            executed_processes.push({ obj: obj, txt: txt });
+      }
 }
 
 function printProcessDefaultValues(name, obj)
 {
       console.writeln("Default values for " + name);
       console.writeln(obj.toSource());
+}
+
+function writeExecutedProcessesToXPSM(filename)
+{
+      console.writeln("Write executed processes to XPSM file " + filename);
+      var file = new File();
+      file.createForWriting(filename);
+
+      file.outTextLn('<?xml version="1.0" encoding="UTF-8"?>');
+      file.outTextLn('<!--');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('PixInsight XML Process Serialization Module - XPSM 1.0');
+      file.outTextLn('AutoIntegrate processings steps');
+      file.outTextLn('********************************************************************');
+      file.outTextLn('Generated on ' + (new Date()).toString());
+      file.outTextLn('PixInsight version ' + global.pixinsight_version_str);
+      file.outTextLn('AutoIntegrate version ' + global.autointegrate_version);
+      file.outTextLn('********************************************************************');
+      file.outTextLn('-->');
+
+      file.outText('<xpsm version=\"1.0\"');
+      file.outText(' mlns="http://www.pixinsight.com/xpsm"');
+      file.outText(' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+      file.outText(' xsi:schemaLocation="http://www.pixinsight.com/xpsm');
+      file.outTextLn(' http://pixinsight.com/xpsm/xpsm-1.0.xsd">');
+
+      // Write process instances
+      for (var i = 0; i < executed_processes.length; i++) {
+            var src = executed_processes[i].obj.toSource("XPSM 1.0");
+            var processId = executed_processes[i].obj.processId();
+            file.outTextLn('<!-- ' + processId + (i+1) + ' -->');
+            src = src.replace(processId + "_instance", "ai_" + processId + "_instance" + (i+1));
+            src = src.replace(/Integration_([LRGBSHOC])_map/g, "Integration_$1");
+            src = src.replace(/Integration_RGB_map/g, "Integration_RGB");
+            file.outTextLn(src);
+      }
+
+      // write icons
+      for (var i = 0; i < executed_processes.length; i++) {
+            var processId = executed_processes[i].obj.processId();
+            var txt = executed_processes[i].txt;
+            if (txt != "" && txt != null) {
+                  txt = '_' + txt;
+            }
+            file.outTextLn('<icon id="ai_' + processId + txt + '_' + (i+1) + '"' +
+                           ' instance="ai_' + processId + '_instance' + (i+1) + '"' +
+                           ' xpos="' + (global.screen_width - 600) + '" ypos="' + (5 + 32 * (i+1)) + '" workspace="Workspace01"/>');
+      }
+      file.outTextLn('</xpsm>\n');
+      file.close();
 }
 
 function getProcessDefaultValues()

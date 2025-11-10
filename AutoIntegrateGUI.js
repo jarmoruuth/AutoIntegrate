@@ -7294,6 +7294,9 @@ function AutoIntegrateDialog()
       screen_height = sz[1];
       screen_size = screen_width + "x" + screen_height;
 
+      global.screen_width = screen_width;
+      global.screen_height = screen_height;
+
        if (ppar.preview.use_preview) {
             use_restored_preview_size = getPreviewSize();
       }
@@ -11714,6 +11717,16 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             tooltipPosition: "center",
             switchToTab: this.interfacePage.index,    // Switch to Interface tab
             sectionBars: ["interface"]                // Show some sections
+        },
+        {
+            title: "Flowchart settings",
+            description: "By default flowchart is created to the preview window as the processing progresses.\n\n" +
+                         "Checking the Get flowchart data before processing option created the full flowchart before processing starts. " + 
+                         "This may take a little extra time but allows you to see the full processing plan in advance.",
+            target: this.runGetFlowchartDataCheckBox,
+            tooltipPosition: "center",
+            switchToTab: this.interfacePage.index,    // Switch to Interface tab
+            sectionBars: ["Flowchart"]                // Show some sections
         },
         {
             title: "Save current parameter values",
