@@ -7566,6 +7566,8 @@ function AutoIntegrateDialog()
                         util.setDefaultDirs();
                   }
             });
+      this.create_process_icons_CheckBox = newCheckBox(this, "Create process icons", par.create_process_icons, 
+            "<p>If selected process icons will be created for all processing steps.</p>" );
       this.use_drizzle_CheckBox = newCheckBox(this, "Drizzle, scale", par.use_drizzle, 
             "<p>Use Drizzle integration</p>" +
             "<p>Drizzle scale 1 does not change the image size but may help with fine details like stars in the image.</p>" +
@@ -8038,6 +8040,7 @@ function AutoIntegrateDialog()
       this.systemParamsSet1.add( this.unique_file_names_CheckBox );
       this.systemParamsSet1.add( this.win_prefix_to_log_files_CheckBox );
       this.systemParamsSet1.add( this.no_subdirs_CheckBox );
+      this.systemParamsSet1.add( this.create_process_icons_CheckBox );
 
       this.systemParamsSet2 = new VerticalSizer;
       this.systemParamsSet2.margin = 6;
@@ -11684,20 +11687,19 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             switchToTab: this.settingsPage.index,      // Switch to Settings tab
             sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
-        /*
-        {
-            title: "Stretching",
-            description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
-                         "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
-            target: this.stretchingLabel,
-            tooltipPosition: "center"
-        },
-        */
         {
             title: "Target type",
-            description: "Here you can specify the type of your target object. This information is used to optimize some of the processing parameters.\n\n" +
+            description: "If you are just starting out, here you can specify the type of your target object. This information is used to optimize some of the processing parameters.\n\n" +
                          "Currently only the stretching setting is affected by this selection.",
             target: this.target_type_label,
+            tooltipPosition: "center"
+        },
+        {
+            title: "Stretching",
+            description: "Usually it is better specify the stretching method instead of the target type. For the best results it is important to select stretching method that suits your data best.\n\n" +
+                         "For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.\n\n" +
+                         "If you are not happy with the results, you should try with a different stretching by adjusting the parameters.",
+            target: this.stretchingLabel,
             tooltipPosition: "center"
         },
         {
@@ -11878,7 +11880,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
         {
             title: "Stretching",
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
-                         "For targets like galaxy, star cluster and small bright nebula you should start with a masked stretch. For others the Auto STF is a good starting point.",
+                         "For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.",
             target: this.stretchingLabel,
             tooltipPosition: "center"
         },

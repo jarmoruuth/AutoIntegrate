@@ -1462,7 +1462,7 @@ function addMildBlur(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(null);
 }
 
@@ -1596,7 +1596,7 @@ function adjustShadows(win, perc)
 
       view.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, win, "HistogramTransformation:adjust shadows");
 
       printImageStatistics(win);
@@ -2196,7 +2196,7 @@ function runImageIntegrationBiasDarks(images, name, type)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      printProcessValues(P, type);
+      printAndSaveProcessValues(P, type);
       engine_end_process(node);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
@@ -2228,7 +2228,7 @@ function runSuberBias(biasWin)
 
       util.windowRenameKeepif(targetWindow.mainView.id, ppar.win_prefix + "AutoMasterSuperBias", true);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, biasWin, "Superbias", false);
       
       return targetWindow.mainView.id
@@ -2315,7 +2315,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
       P.executeGlobal();
 
-      printProcessValues(P, "darks");
+      printAndSaveProcessValues(P, "darks");
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2323,7 +2323,7 @@ function runCalibrateDarks(fileNames, masterbiasPath)
 
 // Run ImageCalibration to flats using master bias and master dark images
 // Output will be _c.xisf images
-function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdarkPath)
+function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdarkPath, filterName)
 {
       if (masterbiasPath == null && masterdarkPath == null && masterflatdarkPath == null) {
             console.noteln("runCalibrateFlats, no master bias or dark");
@@ -2390,7 +2390,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 
       P.executeGlobal();
 
-      printProcessValues(P, "flats");
+      printAndSaveProcessValues(P, "flats_" + filterName);
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -2400,7 +2400,7 @@ function runCalibrateFlats(images, masterbiasPath, masterdarkPath, masterflatdar
 // If you have stars in flat frames, set
 // P.pcClipLow and P.pcClipHigh to a 
 // tiny value like 0.010
-function runImageIntegrationFlats(images, name)
+function runImageIntegrationFlats(images, name, filterName)
 {
       console.writeln("runImageIntegrationFlats, images[0] " + images[0][1] + ", name " + name);
       var node = flowchartOperation("ImageIntegration:flats");
@@ -2450,7 +2450,7 @@ function runImageIntegrationFlats(images, name)
 
       var new_name = util.windowRename(P.integrationImageId, name);
 
-      printProcessValues(P, "flats");
+      printAndSaveProcessValues(P, "flats_" + filterName);
       engine_end_process(node);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(new_name));
@@ -2468,7 +2468,7 @@ function appendTxtWithComma(txt, append)
       return txt + append;
 }
 
-function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath)
+function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPath, filterName)
 {
       if (masterbiasPath == null && masterdarkPath == null && masterflatPath == null) {
             console.noteln("runCalibrateLights, no master bias, dark or flat");
@@ -2560,7 +2560,7 @@ function runCalibrateLights(images, masterbiasPath, masterdarkPath, masterflatPa
 
       P.executeGlobal();
 
-      printProcessValues(P, "lights");
+      printAndSaveProcessValues(P, "lights_" + filterName);
       engine_end_process(node);
 
       return fileNamesFromOutputData(P.outputData);
@@ -3042,7 +3042,7 @@ function runCosmeticCorrection(fileNames, defects, color_images)
             util.throwFatalError("CosmeticCorrection failed, maybe a problem in some of the files or in output directory´" + P.outputDir);
       }
       
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       fileNames = generateNewFileNames(fileNames, P.outputDir, P.postfix, P.outputExtension);
@@ -3337,7 +3337,7 @@ function getSubframeSelectorMeasurements(fileNames, flowchart_name)
 
       console.writeln("SubframeSelector completed");
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       if (flowchart_name) {
             engine_end_process(node);
       }
@@ -3971,7 +3971,7 @@ function runSubframeSelector(fileNames)
       // SubframeSelectorOutput(P.measurements); Does not write weight keyword
 
       if (global.get_flowchart_data) {
-            var names_and_weights = { filenames: fileNames, ssweights: ssWeights, postfix: "_a" };
+            var names_and_weights = { filenames: fileNames, ssweights: ssWeights, postfix: "" /* "_a" */ };
             return names_and_weights;
       }
 
@@ -4007,7 +4007,7 @@ function runSubframeSelector(fileNames)
             * output files with SSWEIGHT on them.
             */
             var outputDir = global.outputRootDir + global.AutoOutputDir;
-            var postfix = "_a";
+            var postfix = "" /* "_a" */;
             var outputExtension = ".xisf";
             for (var i = 0; i < ssWeights.length; i++) {
                   var filePath = ssWeights[i][0];
@@ -5302,7 +5302,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       } else {
             var new_win = idWin;
       }
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, new_win, "PixelMath:" + reason, false);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(P.newImageId));
@@ -5355,7 +5355,7 @@ function runPixelMathRGBMapping(newId, idWin, mapping_R, mapping_G, mapping_B)
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      printProcessValues(P, "RGB");
+      printAndSaveProcessValues(P, "RGB");
       if (newId != null) {
             var new_win = util.findWindow(newId);
       } else {
@@ -5418,7 +5418,7 @@ function runPixelMathRGBMappingFindRef(newId, mapping_R, mapping_G, mapping_B, c
       P.executeOn(idWin.mainView);
       idWin.mainView.endProcess();
 
-      printProcessValues(P, "RGB");
+      printAndSaveProcessValues(P, "RGB");
       var new_win = util.findWindow(newId);
       if (global.pixinsight_version_num >= 1080902) {
             new_win.copyAstrometricSolution(idWin);
@@ -6179,7 +6179,7 @@ function removeStars(imgWin, linear_data, save_stars, save_array, stars_image_na
             var succp = P.executeOn(imgWin.mainView, false);
             
             imgWin.mainView.endProcess();
-            printProcessValues(P);
+            printAndSaveProcessValues(P);
       } else {
             var succp = true;
       }
@@ -6961,8 +6961,10 @@ function append_image_for_integrate(images, new_image, ssweight)
       images[len][1] = new_image;
 }
 
-/* After SubframeSelector run StarAlignment on *_a.xisf files.
-   The output will be *_a_r.xisf files.
+/* After SubframeSelector run StarAlignment on *.xisf files.
+   The output will be *_r.xisf files.
+   old: After SubframeSelector run StarAlignment on *_a.xisf files.
+   old: The output will be *_a_r.xisf files.
 */
 function runStarAlignment(imagetable, refImage)
 {
@@ -7005,7 +7007,7 @@ function runStarAlignment(imagetable, refImage)
        ];
        */
       P.executeGlobal();
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
 
       engine_end_process(node);
 
@@ -7163,7 +7165,7 @@ function runCometAlignment(filenames, filename_postfix)
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       var alignedFiles = [];
@@ -7303,7 +7305,7 @@ function runLocalNormalization(imagetable, refImage, filter)
 
       P.executeGlobal();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 }
 
@@ -7336,7 +7338,7 @@ function linearFitImage(refViewId, targetId, add_to_flowchart = false)
       P.executeOn(targetWin.mainView);
       targetWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(targetId));
+      printAndSaveProcessValues(P, findChannelFromNameIf(targetId));
 
       util.setFITSKeyword(targetWin, "AutoLinearfit", "true", "Linear fit was done by AutoIntegrate");
       var refWin = ImageWindow.windowById(refViewId);
@@ -7394,7 +7396,7 @@ function runDrizzleIntegration(integrationImageId, images, name, local_normaliza
 
       P.executeGlobal();
 
-      printProcessValues(P, name);
+      printAndSaveProcessValues(P, name);
       engine_end_process(node);
 
       util.closeOneWindowById(P.weightImageId);
@@ -7535,7 +7537,7 @@ function runFastIntegration(integration_images, name, refImage)
             console.writeln("P.outputData = " + JSON.stringify(P.outputData));
       }
 
-      printProcessValues(P, name);
+      printAndSaveProcessValues(P, name);
       engine_end_process(node);
 
       if (!succ) {
@@ -7583,6 +7585,8 @@ function runBasicIntegration(images, name, local_normalization)
       }
 
       var P = new ImageIntegration;
+
+      var savedWeightMode = P.weightMode;
 
       P.images = images; // [ enabled, path, drizzlePath, localNormalizationDataPath ]
       if (ssweight_set && par.use_imageintegration_ssweight.val) {
@@ -7669,6 +7673,12 @@ function runBasicIntegration(images, name, local_normalization)
       util.closeOneWindowById(P.slopeMapImageId);
 
       printProcessValues(P, name);
+
+      // For saving restore original weight mode
+      // In manual mode we have no way of writing SSWEIGHT to the output images
+      P.weightMode = savedWeightMode;
+      saveProcessValues(P, name);
+      
       engine_end_process(node);
 
       util.copyKeywordsFromFile(P.integrationImageId, images[0][1]);
@@ -8351,7 +8361,7 @@ function runABEex(win, replaceTarget, postfix, skip_flowchart, degree = null, no
 
       win.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(win.mainView.id));
       engine_end_process(null);
 
       util.addScriptWindow(GC_id);
@@ -8420,7 +8430,7 @@ function runGCProcess(win, replaceTarget, postfix, from_lights)
             }
       }
 
-      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(win.mainView.id));
 
       engine_end_process(node, util.findWindow(GC_id), "GradientCorrection");
 
@@ -8487,7 +8497,7 @@ function runSpectrophotometricFluxCalibration(win)
             util.addCriticalStatus("SpectrophotometricFluxCalibration failed");
       }
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, win, "SpectrophotometricFluxCalibration");
 }
 
@@ -8538,7 +8548,7 @@ function runMultiscaleGradientCorrectionProcess(win)
                   util.copyWindowEx(win, win.mainView.id + "_MGC_after", true);
             }
       }
-      printProcessValues(P, findChannelFromNameIf(win.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(win.mainView.id));
       engine_end_process(node, win, "MultiscaleGradientCorrection");
 
       return succp;
@@ -8833,7 +8843,7 @@ function applySTF(imgView, stf, iscolor, save_process = false)
       imgView.endProcess();
 
       if (save_process) {
-            printProcessValues(HT, "autostf");
+            printAndSaveProcessValues(HT, "autostf_" + findChannelFromNameIf(imgView.id));
       }     
       engine_end_process(null);
 }
@@ -8961,7 +8971,7 @@ function runHistogramTransformMaskedStretch(GC_win, image_stretching, histogram_
 
       GC_win.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
       engine_end_process(null);
 
       return GC_win;
@@ -8991,7 +9001,7 @@ function runHistogramTransformArcsinhStretch(GC_win, image_stretching, histogram
 
             GC_win.mainView.endProcess();
 
-            printProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
+            printAndSaveProcessValues(P, findChannelFromNameIf(GC_win.mainView.id));
             engine_end_process(null);
             util.runGarbageCollection();
 
@@ -10131,7 +10141,7 @@ function runACDNRReduceNoise(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
 
       engine_end_process(node, imgWin, "ACDNR:noise");
 
@@ -10275,7 +10285,7 @@ function runMultiscaleLinearTransformReduceNoise(imgWin, maskWin, strength)
             imgWin.removeMask();
       }
 
-      printProcessValues(P, "noise" + findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, "noise_" + findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "MultiscaleLinearTransform:noise");
 
       imgWin.mainView.endProcess();
@@ -10364,7 +10374,7 @@ function runBlurXTerminator(imgWin, correct_only, for_image_solver = false)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "BlurXTerminator");
 }
 
@@ -10417,7 +10427,7 @@ function runNoiseXTerminator(imgWin, linear)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "NoiseXTerminator");
 }
 
@@ -10454,7 +10464,7 @@ function runDeepSNR(imgWin, linear)
       
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "DeepSNR");
 }
 
@@ -10531,7 +10541,7 @@ function runColorReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
       engine_end_process(node, imgWin, "TGVDenoise");
 
       guiUpdatePreviewWin(imgWin);
@@ -10576,7 +10586,7 @@ function starReduceNoise(imgWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, imgWin, "TGVDenoise");
 }
 
@@ -10870,7 +10880,7 @@ function runBackgroundNeutralization(imgWin, find_true_background = true, skip_f
 
       imgView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, imgWin, "BackgroundNeutralization");
 
       guiUpdatePreviewId(imgView.id);
@@ -10982,7 +10992,7 @@ function runDBEprocess(imgWin, image_samples)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(imgWin.mainView.id));
 
       engine_end_process(null);
 
@@ -11876,7 +11886,7 @@ function runColorCalibrationProcess(imgWin, roi)
 
             imgWin.mainView.endProcess();
 
-            printProcessValues(P);
+            printAndSaveProcessValues(P);
             engine_end_process(node, imgWin, "ColorCalibration");
 
             guiUpdatePreviewId(imgWin.mainView.id);
@@ -11993,7 +12003,7 @@ function runSPCC(imgWin, phase)
                   util.throwFatalError("SpectrophotometricColorCalibration failed");
             }
 
-            printProcessValues(P);
+            printAndSaveProcessValues(P);
             engine_end_process(node, imgWin, "SpectrophotometricColorCalibration");
 
             guiUpdatePreviewId(imgWin.mainView.id);
@@ -12087,7 +12097,7 @@ function runColorSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, "colorsaturation");
+      printAndSaveProcessValues(P, "colorsaturation");
       engine_end_process(node);
 
       guiUpdatePreviewWin(imgWin);
@@ -12128,7 +12138,7 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, "saturation");
+      printAndSaveProcessValues(P, "saturation");
       engine_end_process(node, imgWin, "CurvesTransformation:saturation");
 
       guiUpdatePreviewWin(imgWin);
@@ -12168,7 +12178,7 @@ function runCurvesTransformationChrominance (imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, "chrominance");
+      printAndSaveProcessValues(P, "chrominance");
       engine_end_process(node, imgWin, "CurvesTransformation:chrominance");
 
       guiUpdatePreviewWin(imgWin);
@@ -12235,7 +12245,7 @@ function runLRGBCombination(RGB_id, L_id)
 
       RGBimgView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, targetWin, "LRGBCombination");
 
       guiUpdatePreviewId(RGBimgView.id);
@@ -12270,7 +12280,7 @@ function runSCNR(imgWin, fixing_stars)
 
       RGBimgView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, imgWin, "SCNR");
 
       guiUpdatePreviewId(RGBimgView.id);
@@ -12343,7 +12353,7 @@ function runMultiscaleLinearTransformSharpen(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P, "sharpen");
+      printAndSaveProcessValues(P, "sharpen");
       engine_end_process(node, imgWin, "MultiscaleLinearTransform:sharpen");
 
       guiUpdatePreviewWin(imgWin);
@@ -12626,7 +12636,7 @@ function debayerImages(fileNames)
             util.addCriticalStatus(err.toString());
       }
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       if (!succ) {
@@ -13632,14 +13642,14 @@ function CreateChannelImages(parent, auto_continue)
              * SubframeSelector
              * 
              * Run SubframeSelector that assigns SSWEIGHT for each file.
-             * Output is *_a.xisf files.
+             * We overwite existing .xisf files (old: Output is *_a.xisf files.)
              ********************************************************************/
             if (!par.skip_subframeselector.val 
                 && !par.start_from_imageintegration.val
                 && !par.cropinfo_only.val) 
             {
                   /* Run SubframeSelector that assigns SSWEIGHT for each file.
-                   * Output is *_a.xisf files.
+                   * We overwite existing .xisf files (old: Output is *_a.xisf files.)
                    */
                   if (par.image_weight_testing.val) {
                         var names_and_weights = runSubframeSelector(fileNames);
@@ -13648,11 +13658,11 @@ function CreateChannelImages(parent, auto_continue)
                               // Cannot use previously processed files.
                               var fileProcessedStatus = { processed: [], unprocessed: fileNames };
                         } else {
-                              var fileProcessedStatus = getFileProcessedStatus(fileNames, '_a');
+                              var fileProcessedStatus = getFileProcessedStatus(fileNames, '' /* '_a' */);
                         }
                         if (fileProcessedStatus.unprocessed.length == 0) {
                               var node = flowchartOperation("SubframeSelector");
-                              var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '_a' };
+                              var names_and_weights = { filenames: fileProcessedStatus.processed, ssweights: [], postfix: '' /* '_a' */ };
                               engine_end_process(node);     // Update procesing time
                         } else {
                               var names_and_weights = runSubframeSelector(fileProcessedStatus.unprocessed);
@@ -14302,7 +14312,7 @@ function CombineRGBimageEx(target_name, images)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node, win, "ChannelCombination");
 
       if (global.pixinsight_version_num >= 1080902) {
@@ -14748,7 +14758,7 @@ function create_HRR(nb_channel_id, rgb_channel_id)
       ];
 
       P.executeGlobal();
-      printProcessValues(P, "HRR");
+      printAndSaveProcessValues(P, "HRR");
       
       return ImageWindow.activeWindow;
 }
@@ -14784,7 +14794,7 @@ function create_continuum_subtracted_image(hrr_win)
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       P.executeOn(hrr_win.mainView);
-      printProcessValues(P, "continuum_subtracted");
+      printAndSaveProcessValues(P, "continuum_subtracted");
 }
 
 function normalize_image(imgWin)
@@ -14818,7 +14828,7 @@ function normalize_image(imgWin)
       P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
 
       P.executeOn(imgWin.mainView);
-      printProcessValues(P, "normalize");
+      printAndSaveProcessValues(P, "normalize");
 }
 
 function convert_to_grayscale(imgWin)
@@ -14826,7 +14836,7 @@ function convert_to_grayscale(imgWin)
       var P = new ConvertToGrayscale;
 
       P.executeOn(imgWin.mainView);
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
 }
 
 function boost_Ha(imgWin, boost_factor)
@@ -14838,7 +14848,7 @@ function boost_Ha(imgWin, boost_factor)
       P.useLightnessMask = true;
 
       P.executeOn(imgWin.mainView);
-      printProcessValues(P, "boostHA");
+      printAndSaveProcessValues(P, "boostHA");
 }
 
 function HRR_stretch(imgWin, targetBackground)
@@ -15714,7 +15724,7 @@ function invertImage(targetView)
       P.executeOn(targetView, true);
       targetView.endProcess();
 
-      printProcessValues(P, findChannelFromNameIf(targetView.mainView.id));
+      printAndSaveProcessValues(P, findChannelFromNameIf(targetView.id));
       engine_end_process(node);
 }
 
@@ -15747,7 +15757,7 @@ function createStarFixMask(imgView)
       P.executeOn(imgView, false);
       imgView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       star_fix_mask_win = ImageWindow.activeWindow;
@@ -15846,7 +15856,7 @@ function extraFixStarCores(targetWin)
 
       P.executeOn(targetWin.mainView, false);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
 
       console.writeln("extraFixStarCores:set star mask");
 
@@ -15873,7 +15883,7 @@ function extraFixStarCores(targetWin)
 
       P.executeOn(targetWin.mainView, false);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
            
       // Cleanup
       targetWin.removeMask();
@@ -15961,7 +15971,7 @@ function extraDarkerBackground(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -15992,7 +16002,7 @@ function extraDarkerHighlights(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -16027,7 +16037,7 @@ function extraAdjustChannels(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 }
 
@@ -16077,7 +16087,7 @@ function extraHDRMultiscaleTransform(imgWin, maskWin)
 
             imgWin.mainView.endProcess();
 
-            printProcessValues(P);
+            printAndSaveProcessValues(P);
             engine_end_process(node);
 
             if (par.extra_HDRMLT_color.val == 'Color corrected'
@@ -16165,7 +16175,7 @@ function extraLocalHistogramEqualization(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -16221,7 +16231,7 @@ function extraExponentialTransformation(imgWin, maskWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -16241,7 +16251,7 @@ function createNewStarMaskWin(imgWin)
       P.executeOn(imgWin.mainView, false);
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       return ImageWindow.activeWindow;
@@ -16412,7 +16422,7 @@ function extraSmallerStars(imgWin, is_star_image)
 
       targetWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(targetWin);
@@ -16437,7 +16447,7 @@ function extraContrast(imgWin)
 
       imgWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // guiUpdatePreviewWin(imgWin);
@@ -16617,7 +16627,7 @@ function combineLowPassandHighPass(extraWin, low_pass_win, high_pass_win)
 
       P.executeOn(extraWin.mainView, false);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 }
 
@@ -16678,7 +16688,7 @@ function extraHighPassSharpen(extraWin, mask_win)
 
       P.executeOn(low_pass_win.mainView, false);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       // ---------------------------------------------
@@ -16699,7 +16709,7 @@ function extraHighPassSharpen(extraWin, mask_win)
 
       P.executeOn(high_pass_win.mainView, false);
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       if (par.extra_highpass_sharpen_noise_reduction.val) {
@@ -16759,7 +16769,7 @@ function extraUnsharpMask(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       if (mask_win != null) {
@@ -16793,7 +16803,7 @@ function extraClarity(extraWin, mask_win)
       P.executeOn(extraWin.mainView, false);
       extraWin.mainView.endProcess();
 
-      printProcessValues(P);
+      printAndSaveProcessValues(P);
       engine_end_process(node);
 
       if (mask_win != null) {
@@ -18805,7 +18815,7 @@ function CropImageIf(id, show_in_flowchart = true)
       // Add keyword to indicate that the image has been cropped
       util.setFITSKeyword(window, "AutoCrop", "true", "Image cropped by AutoIntegrate");
 
-      printProcessValues(crop, findChannelFromNameIf(window.mainView.id));
+      printAndSaveProcessValues(crop, findChannelFromNameIf(window.mainView.id));
       engine_end_process(node, window, "Crop");
 
       if (par.save_cropped_images.val) {
@@ -19230,13 +19240,13 @@ function createCropInformationAutoContinue()
                    util.addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
                    var flatcalimages = fileNamesToEnabledPathFromFilearr(filterFiles);
                    console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
-                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath ? masterflatdarkPath[i] : null);
+                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath ? masterflatdarkPath[i] : null, filterName);
                    console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
  
                    // integrate flats to generate master flat for each filter
                    var flatimages = filesForImageIntegration(flatcalFileNames);
                    console.writeln("flatimages[0] " + flatimages[0][1]);
-                   let masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName);
+                   let masterflatid = runImageIntegrationFlats(flatimages, ppar.win_prefix + "AutoMasterFlat_" + filterName, filterName);
                    console.writeln("masterflatid " + masterflatid);
                    setImagetypKeyword(util.findWindow(masterflatid), "Master flat");
                    setFilterKeyword(util.findWindow(masterflatid), filterFiles[0].filter);
@@ -19268,7 +19278,7 @@ function createCropInformationAutoContinue()
                          util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
                          let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
  
-                         let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i]);
+                         let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i], filterName);
  
                          calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
                    }
@@ -20207,7 +20217,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
             console.noteln("Console output is written into file " + logfname);
       }
 
-      if (executed_processes.length > 0) {
+      if (executed_processes.length > 0 && par.create_process_icons.val) {
             let filename = util.ensure_win_prefix("ExecutedProcesses.xpsm");
             console.writeln("Write executed processes as process icons");
             writeExecutedProcessesToXPSM(util.ensurePathEndSlash(global.outputRootDir) + filename);
@@ -20225,12 +20235,22 @@ function printProcessValues(obj, txt = "")
       {
             console.writeln(obj.toSource());
       }
+}
+
+function saveProcessValues(obj, txt = "")
+{
       if (!global.get_flowchart_data
           && global.is_processing != global.processing_state.none
           && !creating_mask)
       {
             executed_processes.push({ obj: obj, txt: txt });
       }
+}
+
+function printAndSaveProcessValues(obj, txt = "")
+{
+      printProcessValues(obj, txt);
+      saveProcessValues(obj, txt);
 }
 
 function printProcessDefaultValues(name, obj)

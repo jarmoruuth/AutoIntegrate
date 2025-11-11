@@ -174,6 +174,7 @@ this.par = {
       save_stretched_starless_channel_images: { val: false, def: false, name: "Save starless channel images", type: 'B' },
       stretched_channel_auto_contrast: { val: false, def: false, name : "Stretched channel auto contrast", type : 'B' },
       no_subdirs: { val: false, def: false, name : "No subdirectories", type : 'B' },
+      create_process_icons: { val: true, def: true, name : "Create process icons", type : 'B' },
       use_drizzle: { val: false, def: false, name : "Drizzle", type : 'B' },
       drizzle_scale: { val: 2, def: 2, name : "Drizzle scale", type : 'I' },
       drizzle_drop_shrink: { val: 0.9, def: 0.9, name : "Drizzle drop shrink", type : 'R' },
