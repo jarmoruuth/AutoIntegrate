@@ -135,6 +135,7 @@ var H_in_R_channel = false;
 var is_luminance_images = false;    // Do we have luminance files from autocontinue or FITS
 var autocontinue_prefix = "";       // prefix used to find base files for autocontinue
 var creating_mask = false;          // flag for creating mask
+var skip_process_value_save = false;   // flag for iterative stretching
 
 var crop_truncate_amount = null;       // used when cropping channel images
 var crop_lowClipImageName = null;      // integrated image used to calculate crop_truncate_amount
@@ -1462,7 +1463,7 @@ function addMildBlur(imgWin)
       P.executeOn(imgWin.mainView);
       imgWin.mainView.endProcess();
 
-      printAndSaveProcessValues(P);
+      printAndSaveProcessValues(P, "blur");
       engine_end_process(null);
 }
 
@@ -1596,7 +1597,7 @@ function adjustShadows(win, perc)
 
       view.endProcess();
 
-      printAndSaveProcessValues(P);
+      printAndSaveProcessValues(P, "shadows");
       engine_end_process(node, win, "HistogramTransformation:adjust shadows");
 
       printImageStatistics(win);
@@ -5302,7 +5303,7 @@ function runPixelMathSingleMappingEx(id, reason, mapping, createNewImage, symbol
       } else {
             var new_win = idWin;
       }
-      printAndSaveProcessValues(P);
+      printAndSaveProcessValues(P, reason);
       engine_end_process(node, new_win, "PixelMath:" + reason, false);
 
       setAutoIntegrateVersionIfNeeded(util.findWindow(P.newImageId));
@@ -9337,6 +9338,7 @@ function adjustHistogram(win, target_value, channel = -1)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
+      saveProcessValues(P, findChannelFromNameIf(win.mainView.id));
       engine_end_process(null);
 
       if (channel >= 0) {
@@ -9388,6 +9390,7 @@ function histogramDirectStretch(win, image_stretching, iscolor, target_value)
       P.executeOn(win.mainView);
       win.mainView.endProcess();
 
+      saveProcessValues(P, "stretch");
       engine_end_process(null);
 
       if (rgbLinked) {
@@ -9433,6 +9436,8 @@ function stretchHistogramTransformAdjustShadows(new_win, channel, use_median)
       new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(new_win.mainView);
       new_win.mainView.endProcess();
+
+      printAndSaveProcessValues(P, "shadows_" + findChannelFromNameIf(new_win.mainView.id));
 
       engine_end_process(null);
 
@@ -10065,30 +10070,39 @@ function runHistogramTransform(GC_win, iscolor, type)
             GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, true);
 
       } else if (image_stretching == 'Arcsinh Stretch') {
+            skip_process_value_save = true;
             GC_win = runHistogramTransformArcsinhStretch(GC_win, image_stretching, false);
 
       } else if (image_stretching == 'Asinh+Histogram stretch') {
+            skip_process_value_save = true;
             GC_win = runHistogramTransformArcsinhStretch(GC_win, image_stretching, true);
 
       } else if (image_stretching == 'Hyperbolic formulas not used') {
+            skip_process_value_save = true;
             GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, false);
 
       } else if (image_stretching == 'Hyperbolic') {
+            skip_process_value_save = true;
             GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
+            skip_process_value_save = true;
             GC_win = stretchHistogramTransformIterations(GC_win, iscolor, image_stretching, par.histogram_stretch_target.val, null);
 
       } else if (image_stretching == 'Logarithmic stretch') {
+            skip_process_value_save = true;
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 10);
 
       } else if (image_stretching == 'Square root stretch') {
+            skip_process_value_save = true;
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
 
       } else if (image_stretching == 'Shadow stretch') {
+            skip_process_value_save = true;
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
 
       } else if (image_stretching == 'Highlight stretch') {
+            skip_process_value_save = true;
             GC_win = stretchFunctionIterations(GC_win, iscolor, image_stretching, par.other_stretch_target.val, 1);
 
       } else if (image_stretching == 'Histogram direct') {
@@ -10097,6 +10111,7 @@ function runHistogramTransform(GC_win, iscolor, type)
       } else {
             util.throwFatalError("Bad image stretching value " + image_stretching + " with type " + type);
       }
+      skip_process_value_save = false;
       util.setFITSKeyword(GC_win, "AutoIntegrateNonLinear", image_stretching, "");
       engine_end_process(node, GC_win, image_stretching);
 
@@ -19380,6 +19395,7 @@ function engineInit()
       }
       initSPCCvalues();
       creating_mask = false;
+      skip_process_value_save = false;
 }
 
 // Check possible conflicting settings before stating the processing
@@ -20241,7 +20257,8 @@ function saveProcessValues(obj, txt = "")
 {
       if (!global.get_flowchart_data
           && global.is_processing != global.processing_state.none
-          && !creating_mask)
+          && !creating_mask
+          && !skip_process_value_save)
       {
             executed_processes.push({ obj: obj, txt: txt });
       }
