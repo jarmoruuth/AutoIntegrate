@@ -11564,11 +11564,11 @@ this.AutoIntegrateDialog = AutoIntegrateDialog;
 
 // Check if welcome dialog should be shown
 AutoIntegrateDialog.prototype.shouldShowWelcome = function() {
-      if (this.global.do_not_read_settings) {
-            return true;
-      }
       if (!global.interactiveMode) {
             return false;
+      }
+      if (this.global.do_not_read_settings) {
+            return true;
       }
       // Check if this is first run
       var firstRun = !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
