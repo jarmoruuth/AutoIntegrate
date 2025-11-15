@@ -1736,7 +1736,7 @@ function is_non_starless_option()
              par.extra_GC.val || 
              par.extra_banding_reduction.val ||
              par.extra_darker_background.val || 
-             par.extra_darker_hightlights.val ||
+             par.extra_darker_highlights.val ||
              par.extra_ET.val || 
              par.extra_HDRMLT.val || 
              par.extra_LHE.val || 

@@ -109,7 +109,7 @@ var par = global.par;
 var ppar = global.ppar;
 var engine = this;
 
-// Copy of files grom glolobal object
+// Copy of files from global object
 this.lightFileNames = null;
 this.darkFileNames = null;
 this.biasFileNames = null;
@@ -17948,7 +17948,7 @@ function extraProcessing(parent, id, apply_directly)
       var extra_stars_id = null;
       var extra_starless_id = null;
       var need_L_mask = par.extra_darker_background.val || 
-                        par.extra_darker_hightlights.val ||
+                        par.extra_darker_highlights.val ||
                         par.extra_ET.val || 
                         par.extra_HDRMLT.val || 
                         par.extra_LHE.val ||
@@ -18098,9 +18098,9 @@ function extraProcessing(parent, id, apply_directly)
             extraDarkerBackground(extraWin, mask_win);
             extraOptionCompleted(par.extra_darker_background);
       }
-      if (par.extra_darker_hightlights.val) {
+      if (par.extra_darker_highlights.val) {
             extraDarkerHighlights(extraWin, mask_win);
-            extraOptionCompleted(par.extra_darker_hightlights);
+            extraOptionCompleted(par.extra_darker_highlights);
       }
       if (par.extra_shadow_enhance.val) {
             extraEnhanceShadows(extraWin);

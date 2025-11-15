@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.80 test2";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.80 test3";   // Version, also updated into updates.xri
 this.autointegrate_info = "Process Icons";                  // For updates.xri
 
 this.autointegrate_version_info = [
@@ -503,7 +503,7 @@ this.par = {
       extra_GC_method: { val: 'Auto', def: 'Auto', name : "Extra GC method", type : 'S' },
       extra_banding_reduction: { val: false, def: false, name : "Extra banding reduction", type : 'B' },
       extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
-      extra_darker_hightlights: { val: false, def: false, name : "Extra Darker highlights", type : 'B' },
+      extra_darker_highlights: { val: false, def: false, name : "Extra Darker highlights", type : 'B' },
       extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
       extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
       extra_ET_adjusttype: { val: 'Lights', def: 'Lights', name : "Extra ExponentialTransformation adjust type", type : 'S' },
