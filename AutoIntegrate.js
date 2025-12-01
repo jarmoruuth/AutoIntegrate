@@ -714,6 +714,9 @@ this.autointegrate_main = function()
                         errors = true;
                   }
             }
+            if (runsetuppath != null) {
+                  global.interactiveMode = false;
+            }
 
             util.setDefaultDirs();
 
@@ -814,7 +817,6 @@ this.autointegrate_main = function()
       }
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
-            global.interactiveMode = false;
             // Load Json file
             this.load_setup(runsetuppath);
             // Run processing directly

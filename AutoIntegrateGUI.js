@@ -11541,7 +11541,7 @@ function AutoIntegrateDialog()
       }
 
       // Show welcome dialog on first run
-      if (this.shouldShowWelcome()) {
+      if (this.shouldShowWelcome(global)) {
             var self = this;
             var timer = new Timer();
             timer.singleShot = true;
@@ -11563,11 +11563,11 @@ this.AutoIntegrateDialog = AutoIntegrateDialog;
 
 
 // Check if welcome dialog should be shown
-AutoIntegrateDialog.prototype.shouldShowWelcome = function() {
+AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
       if (!global.interactiveMode) {
             return false;
       }
-      if (this.global.do_not_read_settings) {
+      if (global.do_not_read_settings) {
             return true;
       }
       // Check if this is first run

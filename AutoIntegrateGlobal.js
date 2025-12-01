@@ -42,8 +42,8 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.80";         // Version, also updated into updates.xri
-this.autointegrate_info = "Process Icons";                  // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.81 test1";   // Version, also updated into updates.xri
+this.autointegrate_info = "Process Icons, fixes";           // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
