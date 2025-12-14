@@ -42,7 +42,7 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.81 test1";   // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.81 test2";   // Version, also updated into updates.xri
 this.autointegrate_info = "Process Icons, fixes";           // For updates.xri
 
 this.autointegrate_version_info = [
@@ -424,7 +424,7 @@ this.par = {
       stretch_adjust_shadows_perc: { val: 0.00, def: 0.00, name : "Stretch adjust shadows perc", type : 'R' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 
       histogram_stretch_target: { val: 0.25, def: 0.25, name : "Histogram stretch target", type : 'I' }, 
-      other_stretch_target: { val: 0.25, def: 0.25, name : "Logarithmic stretch target", type : 'I' }, 
+      other_stretch_target: { val: 0.15, def: 0.15, name : "Logarithmic stretch target", type : 'I' }, 
       smoothbackground: { val: 0, def: 0, name : "Smooth background", type : 'R' },
       target_name: { val: '', def: '', name : "Target name", type : 'S' }, 
       target_radec: { val: '', def: '', name : "Target RA/DEC", type : 'S' }, 
