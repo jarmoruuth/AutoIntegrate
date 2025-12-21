@@ -9462,7 +9462,6 @@ function AutoIntegrateDialog()
             "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
             "like large nebulas or dust you should try with 0.25.</p>");
 
-      this.histogramStretchingSectionLabel = newSectionLabel(this, "Histogram stretching settings");
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
       this.histogramStretchingSizer.margin = 6;
