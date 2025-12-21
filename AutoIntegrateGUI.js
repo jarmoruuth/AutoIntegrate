@@ -268,9 +268,6 @@ var mainTabBox = null;                 // For switching to preview tab
 var sidePreviewInfoLabel = null;       // For updating preview info text
 var stretchingComboBox = null;         // For disabling stretching method if Target type is selected
 
-var use_hyperbolic = false;           // Use hyperbolic stretch, does not really work here so disabled
-                                      // If enabled, add it to image_stretching_values and documentation
-
 var current_histogramInfo = null;
 
 var filtering_changed = false;        // Filtering settings have changed
@@ -321,7 +318,7 @@ var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPow
 var filter_sort_values = [ 'SSWEIGHT', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars', 'File name' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
+var image_stretching_values = [ 'Auto STF', 'VeraLuxHMS', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
                                 'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 
                                 'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
@@ -7803,26 +7800,15 @@ function AutoIntegrateDialog()
       var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
                                     "Works best with images that are processed with the Crop to common area option.";
 
-      if (use_hyperbolic) {
-            var Hyperbolic_tips = "<p>Generalized Hyperbolic Stretching (GHS) is most useful on bright targets where AutoSTF may not work well. " + 
-                              "It often preserves background and stars well and also saturation is good. For very dim or small targets " + 
-                              "the implementation in AutoIntegrate does not work that well.</p>" + 
-                              "<p>It is recommended that dark background is as clean as possible from any gradients with GHS. " + 
-                              "Consider using ABE or GraXpert on combined images and maybe also BackgroundNeutralization to clean the image background. Local Normalization can be useful too.</p>" +
-                              "<p>It is also recommended that the Crop to common area option is used. It cleans the image from bad data and makes " + 
-                              "finding the symmetry point more robust.</p>" + 
-                              "<p>Generalized Hyperbolic Stretching is using PixelMath formulas from PixInsight forum member dapayne (David Payne).</p>";
-            var Hyperbolic_li = "<li><p>Hyperbolic - Experimental, Generalized Hyperbolic Stretching using GeneralizedHyperbolicStretch process.</p>" + Hyperbolic_tips + "</li>";
-      } else {
-            var Hyperbolic_li = "";
-      }
-
       var stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
             "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.<br>" + 
                  "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing</i> tab to a smaller value, like 0.10</i><br>" +
                  "Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li>" +
+            "<li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>" + 
+                   "VeraLuxHMS can work well on many targets. Typically it is greater if you want saturated results.<br>" + 
+                   "Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li>" +
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
                    "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
                    "Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li>" +
@@ -7831,7 +7817,6 @@ function AutoIntegrateDialog()
                    "Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li>" +
             "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
                    "Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li>" +
-            Hyperbolic_li +
             "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
                    "Can be useful when stretching stars to keep good star color.<br>" + 
                    "Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li>" +
@@ -9326,27 +9311,35 @@ function AutoIntegrateDialog()
             "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
             3);
 
-      this.STFLinkSectionLabel = newSectionLabel(this, "Generic settings");
-      this.STFLinkSizer = new HorizontalSizer;
-      this.STFLinkSizer.spacing = 4;
-      this.STFLinkSizer.toolTip = this.STFLinkLabel.toolTip;
-      this.STFLinkSizer.add( this.STFLinkLabel );
-      this.STFLinkSizer.add( this.STFComboBox );
-      this.STFLinkSizer.add( this.stretchAdjustShadowsLabel );
-      this.STFLinkSizer.add( this.stretchAdjustShadowsComboBox );
-      this.STFLinkSizer.add( this.stretchAdjustShadowsControl );
-      this.STFLinkSizer.addStretch();
+      this.StretchGenericSizer = new HorizontalSizer;
+      this.StretchGenericSizer.spacing = 4;
+      this.StretchGenericSizer.margin = 6;
+      this.StretchGenericSizer.toolTip = this.STFLinkLabel.toolTip;
+      this.StretchGenericSizer.add( this.STFLinkLabel );
+      this.StretchGenericSizer.add( this.STFComboBox );
+      this.StretchGenericSizer.add( this.stretchAdjustShadowsLabel );
+      this.StretchGenericSizer.add( this.stretchAdjustShadowsComboBox );
+      this.StretchGenericSizer.add( this.stretchAdjustShadowsControl );
+      this.StretchGenericSizer.addStretch();
                                     
+      this.StretchGenericGroupBox = new GroupBox(this);
+      this.StretchGenericGroupBox.title = "Generic settings";
+      this.StretchGenericGroupBox.sizer = this.StretchGenericSizer;
+
       this.STFTargetBackgroundControl = newNumericEdit(this, "targetBackground", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
 
-      this.STFSectionLabel = newSectionLabel(this, "Auto STF settings");
       this.STFSizer = new HorizontalSizer;
       this.STFSizer.spacing = 4;
+      this.STFSizer.margin = 6;
       this.STFSizer.toolTip = this.STFTargetBackgroundControl.toolTip;
       this.STFSizer.add( this.STFTargetBackgroundControl );
       this.STFSizer.addStretch();
+
+      this.autoSTFGroupBox = new GroupBox(this);
+      this.autoSTFGroupBox.title = "Auto STF settings";
+      this.autoSTFGroupBox.sizer = this.STFSizer;
 
       /* Masked.
        */
@@ -9356,14 +9349,17 @@ function AutoIntegrateDialog()
             "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
             "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
 
-      this.MaskedStretchSectionLabel = newSectionLabel(this, "Masked Stretch settings");
       this.MaskedStretchSizer = new HorizontalSizer;
       this.MaskedStretchSizer.spacing = 4;
-      // this.MaskedStretchSizer.margin = 2;
+      this.MaskedStretchSizer.margin = 6;
       this.MaskedStretchSizer.add( this.MaskedStretchTargetBackgroundEdit );
       this.MaskedStretchSizer.add( this.MaskedStretchPrestretchTargetEdit );
       this.MaskedStretchSizer.addStretch();
       
+      this.MaskedStretchGroupBox = new GroupBox(this);
+      this.MaskedStretchGroupBox.title = "Masked Stretch settings";
+      this.MaskedStretchGroupBox.sizer = this.MaskedStretchSizer;
+
       /* Arcsinh.
        */
       this.Arcsinh_stretch_factor_Edit = newNumericEdit(this, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
@@ -9378,74 +9374,85 @@ function AutoIntegrateDialog()
       this.Arcsinh_iterations_Label = newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
       this.Arcsinh_iterations_SpinBox = newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
 
-      this.ArcsinhSectionLabel = newSectionLabel(this, "Arcsinh Stretch settings");
       this.ArcsinhSizer = new HorizontalSizer;
       this.ArcsinhSizer.spacing = 4;
-      // this.ArcsinhSizer.margin = 2;
+      this.ArcsinhSizer.margin = 6;
       this.ArcsinhSizer.add( this.Arcsinh_stretch_factor_Edit );
       this.ArcsinhSizer.add( this.Arcsinh_black_point_Control );
       this.ArcsinhSizer.add( this.Arcsinh_iterations_Label );
       this.ArcsinhSizer.add( this.Arcsinh_iterations_SpinBox );
       this.ArcsinhSizer.addStretch();
 
-      if (use_hyperbolic) {
-            /* Hyperbolic.
-            */
-            this.Hyperbolic_D_Control = newNumericEdit(this, "Hyperbolic Stretch D value", par.Hyperbolic_D, 1, 15,
-                  "<p>Experimental, Hyperbolic Stretch factor D value, with 0 meaning no stretch/change at all.</p>" + 
-                  "<p>This value is a starting value that we use for iteration. The value is decreased until histogram " +
-                  "target is below the given limit.</p>" + Hyperbolic_tips);
-            this.Hyperbolic_b_Control = newNumericEdit(this, "b value", par.Hyperbolic_b, 1, 15,
-                  "<p>Experimental, Hyperbolic Stretch b value that can be thought of as the stretch intensity. For bigger b, the stretch will be greater " + 
-                  "focused around a single intensity, while a lower b will spread the stretch around.</p>" + Hyperbolic_tips);
-            this.Hyperbolic_SP_Control = newNumericEdit(this, "SP value %", par.Hyperbolic_SP, 0, 99,
-                  "<p>Experimental, Hyperbolic Stretch symmetry point value specifying the pixel value around which the stretch is applied. " + 
-                  "The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>" + 
-                  "<p>As a general rule for small targets you should use a relatively small value so SP stays on the left side of the histogram (for example 0.1 or 1). " + 
-                  "For large targets that cover more of the image you should use a values that are closer to the histogram peak (maybe something between 40 and 50).</p>" +
-                  Hyperbolic_tips);
-            this.Hyperbolic_target_Control = newNumericEdit(this, "Hyperbolic histogram target", par.Hyperbolic_target, 0, 1,
-                  "<p>Experimental, Hyperbolic Stretch histogram target value. Stops stretching when histogram peak is within 10% of this value. Value is given in scale of [0, 1].</p>" + Hyperbolic_tips);
-            this.hyperbolicIterationsLabel = new Label(this);
-            this.hyperbolicIterationsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.hyperbolicIterationsLabel.text = "Iterations";
-            this.hyperbolicIterationsLabel.toolTip = "<p>Experimental, Hyperbolic Stretch number of iterations.</p>" + Hyperbolic_tips;
-            this.hyperbolicIterationsSpinBox = newSpinBox(this, par.Hyperbolic_iterations, 1, 20, this.hyperbolicIterationsLabel.toolTip);
-            this.hyperbolicModeLabel = new Label(this);
-            this.hyperbolicModeLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-            this.hyperbolicModeLabel.text = "Mode";
-            this.hyperbolicModeLabel.toolTip = "<p>Experimental, Hyperbolic Stretch test mode.</p>" +
-                                          "<ul>" +
-                                          "<li>1 - Decrease D for every iteration</li>" +
-                                          "<li>2 - Decrease D for every iteration, use histogram peak as symmetry point (ignore SP value %)</li>" +
-                                          "</ul>" + Hyperbolic_tips;
-            this.hyperbolicModeSpinBox = newSpinBox(this, par.Hyperbolic_mode, 1, 2, this.hyperbolicModeLabel.toolTip);
-            
-            this.hyperbolicSizer1 = new HorizontalSizer;
-            this.hyperbolicSizer1.spacing = 4;
-            // this.hyperbolicSizer1.margin = 2;
-            this.hyperbolicSizer1.add( this.Hyperbolic_D_Control );
-            this.hyperbolicSizer1.add( this.Hyperbolic_b_Control );
-            this.hyperbolicSizer1.add( this.Hyperbolic_SP_Control );
-            this.hyperbolicSizer1.addStretch();
-            
-            this.hyperbolicSizer2 = new HorizontalSizer;
-            this.hyperbolicSizer2.spacing = 4;
-            // this.hyperbolicSizer2.margin = 2;
-            this.hyperbolicSizer2.add( this.Hyperbolic_target_Control );
-            this.hyperbolicSizer2.add( this.hyperbolicIterationsLabel );
-            this.hyperbolicSizer2.add( this.hyperbolicIterationsSpinBox );
-            this.hyperbolicSizer2.add( this.hyperbolicModeLabel );
-            this.hyperbolicSizer2.add( this.hyperbolicModeSpinBox );
-            this.hyperbolicSizer2.addStretch();
-            
-            this.hyperbolicSizer = new VerticalSizer;
-            this.hyperbolicSizer.spacing = 4;
-            // this.hyperbolicSizer.margin = 2;
-            this.hyperbolicSizer.add( this.hyperbolicSizer1 );
-            this.hyperbolicSizer.add( this.hyperbolicSizer2 );
-            this.hyperbolicSizer.addStretch();
+      this.ArcsinhGroupBox = new GroupBox(this);
+      this.ArcsinhGroupBox.title = "Arcsinh Stretch settings";
+      this.ArcsinhGroupBox.sizer = this.ArcsinhSizer;
+
+      /* VeraLuxHMS.
+       */
+      this.veraluxProcessingModeLabel = newLabel(this, "Processing Mode", 
+                                          "VeraLux processing mode selection.\n" +
+                                          "Ready-to-Use (Aesthetic)\n" +
+                                          "Produces an aesthetic, export-ready image with adaptive expansion and soft-clipping.\n" +
+                                          "Scientific (Preserve)\n" +
+                                          "Produces 100% mathematically consistent output. Ideal for manual tone mapping.",
+                                          true);
+      this.veraluxProcessingMode = newComboBox(this, par.veralux_processing_mode, [ "Ready-to-Use", "Scientific" ], 
+                                          this.veraluxProcessingModeLabel.toolTip);
+      this.veraluxSensorProfileLabel = newLabel(this, "Sensor Profile", 
+                                          "VeraLux sensor profile selection.\n" + 
+                                          "Defines the Luminance coefficients (Weights) used for the stretch.",
+                                          true);
+      this.veraluxSensorProfile = newComboBox(this, par.veralux_sensor_profile, engine.veralux.getSensorProfileNames(true), 
+                                          this.veraluxSensorProfileLabel.toolTip);
+      this.veraluxTargetEdit = newNumericEdit(this, "Target Bg:", par.veralux_target_bg, 0.05, 0.50, "Target background median (0.05-0.50). Standard is 0.20.");
+      this.veraluxAdaptiveAnchorCheckBox = newCheckBox(this, "Adaptive Anchor", par.veralux_adaptive_anchor, 
+                                          "Analyzes histogram shape to find true signal start. Recommended for images with gradients.");
+      this.veraluxAutoCalcDCheckBox = newCheckBox(this, "Auto-Calc Log D", par.veralux_auto_calc_D, 
+                                          "Analyzes image to find optimal Stretch Factor (Log D).");
+      this.veraluxValDEdit = newNumericEdit(this, "Log D:", par.veralux_D_value, 0.1, 10,
+                                          "Hyperbolic Intensity (Log D). Controls the strength of the stretch.");
+      this.veraluxbEdit = newNumericEdit(this, "Protect b:", par.veralux_b_value, 0.1, 15,
+                                          "Highlight Protection. Controls the 'knee' of the hyperbolic curve.");
+      this.veraluxStarCoreRecoveryEdit = newNumericEdit(this, "Star Core Recovery:", par.veralux_convergence_power, 0, 10,
+                                          "Controls how quickly saturated colors transition to white.");
+
+      this.veraluxReadyToUseLabel = newLabel(this, "Ready-to-Use settings", "Setting for VeraLux Ready-to-Use mode.", true);
+      this.veraluxColorStrategyEdit = newNumericEdit(this, "Color Strategy:", par.veralux_color_strategy, -100, 100,
+                                          "Negative: Clean Noise | Center: Balanced | Positive: Soften Highlights.\n" +
+                                          "Only for Ready-to-Use mode.");
+
+      this.veraluxScientificLabel = newLabel(this, "Scientific settings", "Setting for VeraLux Scientific mode.", true);
+      this.veraluxColorGripEdit = newNumericEdit(this, "Color Grip:", par.veralux_color_grip, 0, 1,
+                                          "Controls vector color preservation. 1.0 = Pure VeraLux.\n" + 
+                                          "Only for Scientific mode.");
+      this.veraluxShadowConvEdit = newNumericEdit(this, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 1,
+                                          "Damps vector preservation in shadows to prevent color noise.\n" +
+                                          "Only for Scientific mode.");
+
+      this.veraluxHelpTips = new ToolButton( this );
+      this.veraluxHelpTips.icon = this.scaledResource( ":/icons/help.png" );
+      this.veraluxHelpTips.setScaledFixedSize( 20, 20 );
+      this.veraluxHelpTips.toolTip = engine.veralux.getHelpText();
+      this.veraluxHelpTips.onClick = function()
+      {
+            new MessageBox(engine.veralux.getHelpText(), "Veralux help", StdIcon_Information ).execute();
       }
+
+      this.veraluxSizer1 = newHorizontalSizer(0, true, [ this.veraluxProcessingModeLabel, this.veraluxProcessingMode, this.veraluxSensorProfileLabel, this.veraluxSensorProfile, this.veraluxHelpTips ]);
+      this.veraluxSizer2 = newHorizontalSizer(0, true, [ this.veraluxTargetEdit, this.veraluxAdaptiveAnchorCheckBox ]);
+      this.veraluxSizer3 = newHorizontalSizer(0, true, [ this.veraluxAutoCalcDCheckBox, this.veraluxValDEdit, this.veraluxbEdit, this.veraluxStarCoreRecoveryEdit ]);
+      this.veraluxSizer4 = newHorizontalSizer(0, true, [ this.veraluxReadyToUseLabel, this.veraluxColorStrategyEdit ]);
+      this.veraluxSizer5 = newHorizontalSizer(0, true, [ this.veraluxScientificLabel, this.veraluxColorGripEdit, this.veraluxShadowConvEdit ]);
+
+      // this.VeraLuxHMSSectionLabel = newSectionLabel(this, "VeraLux HMS Stretch settings");
+      this.VeraLuxHMSSizer = newVerticalSizer(6, true, [ this.veraluxSizer1, this.veraluxSizer2, this.veraluxSizer3, this.veraluxSizer4, this.veraluxSizer5 ]);
+
+      this.veraluxGroupBox = new GroupBox(this);
+      this.veraluxGroupBox.title = "VeraLux HMS Stretch";
+      this.veraluxGroupBox.sizer = this.VeraLuxHMSSizer;
+
+      /* Histogram stretching.
+       */
 
       this.histogramTypeLabel = newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       this.histogramTypeComboBox = newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
@@ -9458,40 +9465,43 @@ function AutoIntegrateDialog()
       this.histogramStretchingSectionLabel = newSectionLabel(this, "Histogram stretching settings");
       this.histogramStretchingSizer = new HorizontalSizer;
       this.histogramStretchingSizer.spacing = 4;
-      // this.histogramStretchingSizer.margin = 2;
+      this.histogramStretchingSizer.margin = 6;
       this.histogramStretchingSizer.add( this.histogramTypeLabel );
       this.histogramStretchingSizer.add( this.histogramTypeComboBox );
       this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
       this.histogramStretchingSizer.addStretch();
 
-      this.otherStretchingSectionLabel = newSectionLabel(this, "Other stretching settings");
+      this.histogramStretchingGroupBox = new GroupBox(this);
+      this.histogramStretchingGroupBox.title = "Histogram stretching settings";
+      this.histogramStretchingGroupBox.sizer = this.histogramStretchingSizer;
+
       this.otherStrechingTargetValue_Control = newNumericEdit(this, "Target value", par.other_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the histogram median value.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
             "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
             "like large nebulas or dust you should try with 0.25.</p>");
       this.otherStrechingTargetValueSizer = new HorizontalSizer;
+      this.otherStrechingTargetValueSizer.spacing = 4;
+      this.otherStrechingTargetValueSizer.margin = 6;
       this.otherStrechingTargetValueSizer.add( this.otherStrechingTargetValue_Control );
       this.otherStrechingTargetValueSizer.addStretch();
+
+      this.othertretchingGroupBox = new GroupBox(this);
+      this.othertretchingGroupBox.title = "Other stretching settings";
+      this.othertretchingGroupBox.sizer = this.otherStrechingTargetValueSizer;
 
       this.StretchingGroupBoxSizer = new VerticalSizer;
       this.StretchingGroupBoxSizer.margin = 6;
       this.StretchingGroupBoxSizer.spacing = 4;
-      this.StretchingGroupBoxSizer.add( this.STFLinkSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.STFLinkSizer );
-      this.StretchingGroupBoxSizer.add( this.STFSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.STFSizer );
-      this.StretchingGroupBoxSizer.add( this.MaskedStretchSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.MaskedStretchSizer );
-      this.StretchingGroupBoxSizer.add( this.ArcsinhSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.ArcsinhSizer );
-      this.StretchingGroupBoxSizer.add( this.histogramStretchingSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.histogramStretchingSizer );
-      if (use_hyperbolic) {
-            this.StretchingGroupBoxSizer.add( this.hyperbolicSizer );
-      }
-      this.StretchingGroupBoxSizer.add( this.otherStretchingSectionLabel );
-      this.StretchingGroupBoxSizer.add( this.otherStrechingTargetValueSizer );
+      this.StretchingGroupBoxSizer.add( this.StretchGenericGroupBox );
+      this.StretchingGroupBoxSizer.add( this.autoSTFGroupBox );
+      // this.StretchingGroupBoxSizer.add( this.VeraLuxHMSSectionLabel );
+      // this.StretchingGroupBoxSizer.add( this.VeraLuxHMSSizer );
+      this.StretchingGroupBoxSizer.add( this.veraluxGroupBox );
+      this.StretchingGroupBoxSizer.add( this.MaskedStretchGroupBox );
+      this.StretchingGroupBoxSizer.add( this.ArcsinhGroupBox );
+      this.StretchingGroupBoxSizer.add( this.histogramStretchingGroupBox );
+      this.StretchingGroupBoxSizer.add( this.othertretchingGroupBox );
       this.StretchingGroupBoxSizer.addStretch();
 
       this.StarStretchingGroupBoxSizer1 = newVerticalSizer(0, false, [this.remove_stars_channel_CheckBox,

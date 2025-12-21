@@ -254,7 +254,7 @@ Linear Defect Detection:
 "use strict;"
 #endif
 
-#feature-id   AutoIntegrate : Batch Processing > AutoIntegrate
+#feature-id   AutoIntegrate : AutoIntegrate > AutoIntegrate
 
 #feature-info A script for running basic image processing workflow
 

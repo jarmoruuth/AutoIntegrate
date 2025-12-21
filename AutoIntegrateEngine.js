@@ -96,6 +96,8 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/AnnotateImage.js"
 #endif
 
+#include "AutoIntegrateVeraLuxHMS.js"
+
 function AutoIntegrateEngine(global, util)
 {
 
@@ -922,6 +924,7 @@ function targetTypeSetup()
       let stretching = targetTypeToStretching(par.target_type.val);
       if (stretching != null) {
             local_image_stretching = stretching;
+            local_image_stretching = 'VeraLuxHMS'; // XXX TEMP XXX
             console.writeln(par.target_type.val + " target using " + local_image_stretching);
       }
 }
@@ -8978,6 +8981,30 @@ function runHistogramTransformMaskedStretch(GC_win, image_stretching, histogram_
       return GC_win;
 }
 
+function runHistogramTransformVeraLuxHMS(GC_win, image_stretching)
+{
+      util.addProcessingStepAndStatusInfo("Run histogram transform using VeraLuxHMS on " + GC_win.mainView.id + " using " + image_stretching);
+
+      // Set parameters
+      if (par.veralux_sensor_profile.val != 'Default') {
+            engine.veralux.parameters.sensorProfile = par.veralux_sensor_profile.val;
+      }
+      engine.veralux.parameters.processingMode = par.veralux_processing_mode.val;
+      engine.veralux.parameters.targetBg = par.veralux_target_bg.val;
+      engine.veralux.parameters.useAdaptiveAnchor = par.veralux_adaptive_anchor.val;
+      engine.veralux.parameters.useAutoD = par.veralux_auto_calc_D.val;
+      engine.veralux.parameters.logD = par.veralux_D_value.val;
+      engine.veralux.parameters.protectB = par.veralux_b_value.val;
+      engine.veralux.parameters.convergencePower = par.veralux_convergence_power.val;
+      engine.veralux.parameters.colorStrategy = par.veralux_color_strategy.val;
+      engine.veralux.parameters.colorGrip = par.veralux_color_grip.val;
+      engine.veralux.parameters.shadowConvergence = par.veralux_shadow_convergence.val;
+
+      engine.veralux.execute(GC_win, util);
+
+      return GC_win;
+}
+
 function runHistogramTransformArcsinhStretch(GC_win, image_stretching, histogram_poststretch)
 {
       util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using " + image_stretching);
@@ -9014,42 +9041,6 @@ function runHistogramTransformArcsinhStretch(GC_win, image_stretching, histogram
             GC_win = stretchHistogramTransformIterations(GC_win, GC_win.mainView.image.isColor, 'Histogram stretch', par.histogram_stretch_target.val, null);
       }
       return GC_win;
-}
-
-function runHistogramTransformHyperbolicIterations(GC_win, iscolor, use_GHS_process)
-{
-      if (use_GHS_process) {
-            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using Generalized Hyperbolic Stretching process");
-      } else {
-            util.addProcessingStepAndStatusInfo("Run histogram transform on " + GC_win.mainView.id + " using Generalized Hyperbolic Stretching PixelMath formulas");
-      }
-      console.writeln("Start values D = " + par.Hyperbolic_D.val + ", b = " + par.Hyperbolic_b.val + ", SP = " + par.Hyperbolic_SP.val);
-
-      var res = { 
-                  win: GC_win, 
-                  iteration_number: 0, 
-                  completed: false, 
-                  skipped: 0,
-                  Hyperbolic_D_val: par.Hyperbolic_D.val,
-                  Hyperbolic_b_val: par.Hyperbolic_b.val,
-                  Hyperbolic_SP_val: par.Hyperbolic_SP.val,
-                  peak_val: 0
-      };
-
-      for (var i = 0; i < par.Hyperbolic_iterations.val; i++) {
-            res.iteration_number = i + 1;
-            var window_updated = runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, par.Hyperbolic_iterations.val);
-            if (window_updated && i > 0 && i % 5 == 0) {
-                  guiUpdatePreviewWin(res.win);
-            }
-            engine_end_process(null);
-            util.runGarbageCollection();
-            if (res.completed) {
-                  break;
-            }
-      }
-      guiUpdatePreviewWin(res.win);
-      return res.win;
 }
 
 /*
@@ -9774,206 +9765,6 @@ function stretchHistogramTransformIterationStep(res, image_stretching, channel)
       return window_updated;
 }
 
-function runHistogramTransformHyperbolic(res, iscolor, use_GHS_process, max_iterations)
-{
-      var iteration_number = res.iteration_number;
-      var image_id = res.win.mainView.id;
-
-      console.writeln("--");
-      console.writeln("Iteration " + iteration_number);
-      console.writeln("Skipped " + res.skipped);
-
-      var iteration_Hyperbolic_D_val = res.Hyperbolic_D_val - (iteration_number - 1) / 2;
-      var Hyperbolic_b_val = res.Hyperbolic_b_val;
-
-      if (use_GHS_process) {
-            var Hyperbolic_D_val = iteration_Hyperbolic_D_val;
-      } else {
-            /* expect D to be ln(D+1) as in GeneralizedHyperbolicStretch script. */
-            var Hyperbolic_D_val = Math.exp(iteration_Hyperbolic_D_val) - 1.0;
-      }
-
-      console.writeln("D " + res.Hyperbolic_D_val + 
-                      " b " + res.Hyperbolic_b_val +
-                      " iter " + iteration_number +
-                      " iter D " + iteration_Hyperbolic_D_val +
-                      " iter ln(D+1) " + Hyperbolic_D_val +
-                      " skipped " + res.skipped);
-
-      switch (par.Hyperbolic_mode.val) {
-            case 1:
-                  // User given symmetry point
-                  var Hyperbolic_SP_val = findSymmetryPoint(res.win, res.Hyperbolic_SP_val);
-                  break;
-            case 2:
-                  // Use histogram peak as symmetry point
-                  var Hyperbolic_SP_val = findHistogramPeak(res.win).normalizedPeakCol;
-                  break;
-      }
-
-      console.writeln("Adjusted values D = " + Hyperbolic_D_val + ", b = " + Hyperbolic_b_val + ", SP = " + Hyperbolic_SP_val);
-
-      if (Hyperbolic_D_val <= 1) {
-            console.writeln("We are done, too low D " + Hyperbolic_D_val);
-            res.completed = true;
-            return false;
-      }
-      if (Hyperbolic_b_val < 1) {
-            console.writeln("We are done, too low b " + Hyperbolic_b_val);
-            res.completed = true;
-            return false;
-      }
-
-      if (use_GHS_process) {
-
-            try {
-                  // var new_win = util.copyWindow(res.win, res.win.mainView.id + "_GHStmp");
-                  var new_win = res.win;  // We now update original window
-
-                  var P = new GeneralizedHyperbolicStretch;
-                  P.stretchType = GeneralizedHyperbolicStretch.prototype.ST_GeneralisedHyperbolic;
-                  P.stretchChannel = GeneralizedHyperbolicStretch.prototype.SC_RGB;
-                  P.inverse = false;
-                  P.stretchFactor = Hyperbolic_D_val;
-                  P.localIntensity = Hyperbolic_b_val;
-                  P.symmetryPoint = Hyperbolic_SP_val;
-                  P.highlightProtection = 1.000000;
-                  P.shadowProtection = 0.000000;
-                  P.blackPoint = 0.000000;
-                  P.whitePoint = 1.000000;
-                  P.colourBlend = 1.000;
-                  P.clipType = GeneralizedHyperbolicStretch.prototype.CT_Clip;
-                  P.useRGBWorkingSpace = false;
-
-                  new_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-                  P.executeOn(new_win.mainView);
-
-                  new_win.mainView.endProcess();
-                  engine_end_process(null);
-            } catch(err) {
-                  console.criticalln("GeneralizedHyperbolicStretch failed");
-                  console.criticalln(err);
-                  util.addProcessingStep("Maybe GeneralizedHyperbolicStretch is not installed");
-                  // util.closeOneWindowById(new_win.mainView.id);
-                  save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-                  util.throwFatalError("GeneralizedHyperbolicStretch failed to run");
-            }
-      
-      } else {
-            save_images_in_save_id_list(); // Save images so we can retur with AutoContinue
-            util.throwFatalError("Only GHS process is supported");      
-
-            var P = new PixelMath;
-
-            var expression = 
-                  "Ds=D*b;\n"+
-                  "q0=(1+Ds*SP)^(-1/b);\n"+
-                  "q1=2-2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-SP-1))^(-1/b);\n"+
-                  "iif($T<SP,"+
-                        "(1+Ds*(SP-$T))^(-1/b)-q0, "+
-                        "iif($T>1.0, "+
-                              "2-(2*(1+Ds*(1.0-SP))^(-1/b)+(1+Ds*(2-$T-SP))^(-1/b))-q0, "+
-                              "2-(1+Ds*($T-SP))^(-1/b)-q0)) / (q1-q0);\n";
-            var symbols = 
-                  "D = " + Hyperbolic_D_val + ";\n" +
-                  "b = " + Hyperbolic_b_val + ";\n" +
-                  "SP = " + Hyperbolic_SP_val + ";\n" +
-                  "q0;\n" +
-                  "q1;\n" +
-                  "Ds;\n";
-
-            P.expression = expression;
-            P.expression1 = "";
-            P.expression2 = "";
-            P.expression3 = "";
-            P.symbols = symbols;
-            P.useSingleExpression = true;
-
-            P.clearImageCacheAndExit = false;
-            P.cacheGeneratedImages = false;
-            P.generateOutput = true;
-            P.singleThreaded = false;
-            P.optimization = true;
-            P.use64BitWorkingImage = false;
-            P.rescale = false;
-            P.rescaleLower = 0;
-            P.rescaleUpper = 1;
-            P.truncate = true;
-            P.truncateLower = 0;
-            P.truncateUpper = 1;
-            P.createNewImage = true;
-            P.showNewImage = true;
-            P.newImageId = image_id + "_pm";
-            P.newImageWidth = 0;
-            P.newImageHeight = 0;
-            P.newImageAlpha = false;
-            P.newImageColorSpace = PixelMath.prototype.SameAsTarget;
-            P.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
-
-            console.writeln("Symbols " + P.symbols);
-
-            res.win.mainView.beginProcess(UndoFlag_NoSwapFile);
-
-            P.executeOn(res.win.mainView);
-
-            res.win.mainView.endProcess();
-
-            engine_end_process(null);
-
-            var new_win = util.findWindow(P.newImageId);
-            setAutoIntegrateVersionIfNeeded(new_win);
-      }
-
-      // util.copyWindowEx(new_win, image_id+"_iteration_"+iteration_number+"_D_"+parseInt(Hyperbolic_D_val)+"_b_"+parseInt(Hyperbolic_b_val), true);
-
-      var median = findSymmetryPoint(new_win, 50);
-      var peak_val = findHistogramPeak(new_win).normalizedPeakCol;
-      console.writeln("peak_val " + peak_val + ", median "+ median);
-
-      var window_updated = false;
-      var keep_image = false;
-
-      if (max_iterations == 1) {
-            console.writeln("Stretch completed, single iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            keep_image = true;
-      } else if (median >= 0.5 && max_iterations) {
-            // We are past the median limit value, ignore this iteration and keep old image
-            console.writeln("We are past median limit of 0.5, skip this iteration, median=" + median);
-            // util.closeOneWindowById(new_win.mainView.id);
-            res.skipped++;
-      } else if (peak_val > par.Hyperbolic_target.val + 0.1 * par.Hyperbolic_target.val) {
-            // We are past the target value, ignore this iteration and keep old image
-            console.writeln("We are past the target, skip this iteration, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            // util.closeOneWindowById(new_win.mainView.id);
-            res.skipped++;
-      } else if (peak_val < res.peak_val) {
-            console.writeln("Histogram peak moved to left from " + res.peak_val + " to " + peak_val + ", skip this iteration");
-            // util.closeOneWindowById(new_win.mainView.id);
-            res.skipped++;
-      } else {
-            // we are close enough, we are done
-            console.writeln("Stretch completed, we are close enough, current=" + peak_val + ", target=" + par.Hyperbolic_target.val);
-            keep_image = true;
-      }
-      if (keep_image) {
-            res.completed = true;
-            window_updated = true;
-            if (0) {
-                  // we now update directly to the original window
-                  // find new window and copy keywords
-                  setTargetFITSKeywordsForPixelmath(new_win, getTargetFITSKeywordsForPixelmath(res.win));
-                  // close old image
-                  util.closeOneWindowById(image_id);
-                  // rename new as old
-                  util.windowRename(new_win.mainView.id, image_id);
-            }
-            res.win = new_win;
-            res.peak_val = peak_val;
-      }
-      return window_updated;
-}
-
 function runHistogramTransform(GC_win, iscolor, type)
 {
       // Check for valid type values
@@ -10063,6 +9854,9 @@ function runHistogramTransform(GC_win, iscolor, type)
             }
             runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground);
 
+      } else if (image_stretching == 'VeraLuxHMS') {
+            GC_win = runHistogramTransformVeraLuxHMS(GC_win, image_stretching);
+
       } else if (image_stretching == 'Masked Stretch') {
             GC_win = runHistogramTransformMaskedStretch(GC_win, image_stretching, false);
 
@@ -10076,14 +9870,6 @@ function runHistogramTransform(GC_win, iscolor, type)
       } else if (image_stretching == 'Asinh+Histogram stretch') {
             skip_process_value_save = true;
             GC_win = runHistogramTransformArcsinhStretch(GC_win, image_stretching, true);
-
-      } else if (image_stretching == 'Hyperbolic formulas not used') {
-            skip_process_value_save = true;
-            GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, false);
-
-      } else if (image_stretching == 'Hyperbolic') {
-            skip_process_value_save = true;
-            GC_win = runHistogramTransformHyperbolicIterations(GC_win, iscolor, true);
 
       } else if (image_stretching == 'Histogram stretch') {
             skip_process_value_save = true;
@@ -19436,6 +19222,7 @@ function get_local_copies_of_parameters()
       local_G_mapping = par.custom_G_mapping.val;
       local_B_mapping = par.custom_B_mapping.val;
       local_image_stretching = par.image_stretching.val;
+      local_image_stretching = 'VeraLuxHMS'; // XXX TEMP XXX
       local_debayer_pattern = par.debayer_pattern.val;
       local_RGBHa_prepare_method = par.RGBHa_prepare_method.val;
       local_RGBHa_combine_method = par.RGBHa_combine_method.val;
@@ -20382,11 +20169,6 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new MorphologicalTransformation", new MorphologicalTransformation);
       printProcessDefaultValues("new ArcsinhStretch", new ArcsinhStretch);
       try {
-            printProcessDefaultValues("new GeneralizedHyperbolicStretch", new GeneralizedHyperbolicStretch);
-      } catch (e) {
-            console.criticalln("GeneralizedHyperbolicStretch not available");
-      }
-      try {
             printProcessDefaultValues("new StarXTerminator", new StarXTerminator);
       } catch (e) {
             console.criticalln("StarXTerminator not available");
@@ -20402,7 +20184,6 @@ function getProcessDefaultValues()
             console.criticalln("BlurXTerminator not available");
       }
       printProcessDefaultValues("new SpectrophotometricColorCalibration", new SpectrophotometricColorCalibration);
-      // printProcessDefaultValues("new Colourise", new Colourise);
       printProcessDefaultValues("new GradientCorrection", new GradientCorrection);
       printProcessDefaultValues("new FastIntegration", new FastIntegration);
       printProcessDefaultValues("new SpectrophotometricFluxCalibration", new SpectrophotometricFluxCalibration);
@@ -20452,6 +20233,8 @@ this.autocontinueHasNarrowband = autocontinueHasNarrowband;
 
 this.testRGBNBmapping = testRGBNBmapping;
 this.testRGBHaMapping = testRGBHaMapping;
+
+this.veralux = new AutoIntegrateVeraLuxHMS();
 
 }  /* AutoIntegrateEngine*/
 

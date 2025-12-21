@@ -42,14 +42,12 @@ this.__base__();
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.81 test1";   // Version, also updated into updates.xri
-this.autointegrate_info = "Process Icons, fixes";           // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.81 test2";   // Version, also updated into updates.xri
+this.autointegrate_info = "VeraLux HyperMetric Stretch";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Save executed processes as process icons to a .xpsm file.",
-      "- Process icons can be loaded to the PixInsight desktop",
-      "  and used for manual reprocessing or fine tuning."
+      "- Added VeraLux HyperMetric Stretch (HMS) as a new stretch option.",
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -408,18 +406,25 @@ this.par = {
       Arcsinh_stretch_factor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
       Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'R' }, 
       Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
+
+      veralux_processing_mode: { val: 'Ready-to-Use', def: 'Ready-to-Use', name : "VeraLux processing mode", type : 'S' },
+      veralux_sensor_profile: { val: 'Default', def: 'Default', name : "VeraLux sensor profile", type : 'S' },
+      veralux_target_bg: { val: 0.20, def: 0.20, name : "VeraLux target background", type : 'R' },
+      veralux_adaptive_anchor: { val: true, def: true, name : "VeraLux adaptive anchors", type : 'B' },
+      veralux_auto_calc_D: { val: false, def: false, name : "VeraLux auto calculate D", type : 'B' },
+      veralux_D_value: { val: 2.0, def: 2.0, name : "VeraLux D value", type : 'R' },
+      veralux_b_value: { val: 6.0, def: 6.0, name : "VeraLux b value", type : 'R' },
+      veralux_convergence_power: { val: 3.5, def: 3.5, name : "VeraLux convergence power", type : 'R' },
+      veralux_color_strategy: { val: 0, def: 0, name : "VeraLux color strategy", type : 'I' },
+      veralux_color_grip: { val: 1.0, def: 1.0, name : "VeraLux color grip", type : 'R' },
+      veralux_shadow_convergence: { val: 1.0, def: 1.0, name : "VeraLux shadow convergence", type : 'R' },
+
       LRGBCombination_lightness: { val: 0.5, def: 0.5, name : "LRGBCombination lightness", type : 'R' },    
       LRGBCombination_saturation: { val: 0.5, def: 0.5, name : "LRGBCombination saturation", type : 'R' },    
       LRGBCombination_linearfit: { val: false, def: false, name : "LRGBCombination linear fit", type : 'B' },
       linear_increase_saturation: { val: 1, def: 1, name : "Linear saturation increase", type : 'I' },    
       non_linear_increase_saturation: { val: 1, def: 1, name : "Non-linear saturation increase", type : 'I' },    
       use_chrominance: { val: false, def: false, name : "Use chrominance", type : 'B' },
-      Hyperbolic_D: { val: 5, def: 5, name : "Hyperbolic Stretch D value", type : 'I' },
-      Hyperbolic_b: { val: 3, def: 3, name : "Hyperbolic Stretch b value", type : 'I' }, 
-      Hyperbolic_SP: { val: 10, def: 10, name : "Hyperbolic Stretch symmetry point value", type : 'I' }, 
-      Hyperbolic_target: { val: 0.25, def: 0.25, name : "Hyperbolic Stretch target", type : 'I' }, 
-      Hyperbolic_iterations: { val: 10, def: 10, name : "Hyperbolic Stretch iterations", type : 'I' }, 
-      Hyperbolic_mode: { val: 1, def: 1, name : "Hyperbolic Stretch mode", type : 'I' }, 
       stretch_adjust_shadows: { val: "none", def: "none", name : "Stretch adjust shadows", type : 'S' }, 
       stretch_adjust_shadows_perc: { val: 0.00, def: 0.00, name : "Stretch adjust shadows perc", type : 'R' }, 
       histogram_stretch_type: { val: 'Median', def: 'Median', name : "Histogram stretch type", type : 'S' }, 

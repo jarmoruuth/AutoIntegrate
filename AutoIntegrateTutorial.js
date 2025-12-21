@@ -66,6 +66,7 @@ function AutoIntegrateCreditsDialog(global) {
             "Copyright (c) 2013 Andres del Pozo\n" +
             "Copyright (C) 2009-2013 Georg Viehoever\n" +
             "Copyright (c) 2019 Vicent Peris\n" +
+            "Copyright (c) 2025 Riccardo Paterniti\n" +
             "Copyright (c) 2003-2020 Pleiades Astrophoto S.L.\n" +
             "\n" +
             "This script is distributed under the terms of the\n" +
