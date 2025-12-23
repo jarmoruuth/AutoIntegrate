@@ -949,6 +949,86 @@ function closeTempWindows()
       global.temporary_windows = [];
 }
 
+// close all windows from an array
+function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
+{
+      for (var i = 0; i < arr.length; i++) {
+            if (print_names) {
+                  console.writeln("closeAllWindowsFromArray: " + arr[i]);
+            }
+            if (util.findWindowStartsWith(arr[i])) {
+                  util.closeOneWindowById(arr[i]+"_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars_HT");
+                  util.closeOneWindowById(arr[i]+"_starless");
+                  util.closeOneWindowById(arr[i]+"_map");
+                  util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
+                  util.closeOneWindowById(arr[i]+"_model");
+                  util.closeOneWindowById(arr[i]+"_highpass");
+                  util.closeOneWindowById(arr[i]+"_lowpass");
+                  util.closeOneWindowById(arr[i]+"_DBEsamples");
+                  util.closeOneWindowById(arr[i]+"_map_DBEsamples");
+                  if (!keep_base_image) {
+                        util.closeOneWindowById(arr[i]);
+                  }
+                  if (arr[i].indexOf("Integration_") != -1) {
+                        // For possible old images
+                        util.closeOneWindowById(arr[i] + "_NB_enhanced");
+                        util.closeOneWindowById(arr[i] + "_NB_combine");
+                        util.closeOneWindowById(arr[i] + "_NB_max");
+                        util.closeOneWindowById(arr[i] + "_processed_starless");
+                        util.closeOneWindowById(arr[i] + "_background");
+                        util.closeOneWindowById(arr[i] + "_map_background");
+                  }
+            }
+      }
+}
+
+// close all windows created by this script
+function closeAllWindows(keep_integrated_imgs, force_close)
+{
+      util.closeTempWindows();
+
+      if (keep_integrated_imgs) {
+            var isLRGB = false;
+            for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
+                  if (util.findWindow(global.integration_LRGB_windows[i]) != null) {
+                        // we have LRGB images
+                        isLRGB = true;
+                        break;
+                  }
+            }
+            if (isLRGB) {
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, true);        // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_color_windows, false);
+                  var integration_windows = global.integration_LRGB_windows;
+            } else {
+                  closeAllWindowsFromArray(global.integration_color_windows, true);       // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, false);
+                  var integration_windows = global.integration_color_windows;
+            }
+            for (var i = 0; i < global.all_windows.length; i++) {
+                  // check that we do not close integration windows
+                  if (!util.findFromArray(integration_windows, global.all_windows[i]) &&
+                      !util.findFromArray(global.integration_data_windows, global.all_windows[i]))
+                  {
+                        util.closeOneWindowById(global.all_windows[i]);
+                  }
+            }
+      } else {
+            closeAllWindowsFromArray(global.all_windows);
+            closeAllWindowsFromArray(global.integration_LRGB_windows);
+            closeAllWindowsFromArray(global.integration_color_windows);
+            closeAllWindowsFromArray(global.integration_data_windows);
+      }
+      closeAllWindowsFromArray(global.fixed_windows);
+      closeAllWindowsFromArray(global.calibrate_windows);
+
+      util.closeFinalWindowsFromArray(global.final_windows, force_close);
+
+      util.runGarbageCollection();
+}
+
 function findFromArray(arr, id)
 {
       for (var i = 0; i < arr.length; i++) {
@@ -1542,6 +1622,15 @@ function copyKeywordsFromFile(targetId, fname)
 
       imgWin.forceClose();
       return true;
+}
+
+function createEmptyBitmap(width, height, fill_color)
+{
+      var bitmap = new Bitmap(width, height);
+
+      bitmap.fill(fill_color);
+
+      return bitmap;
 }
 
 function createImageFromBitmap(bitmap)
@@ -2775,6 +2864,8 @@ this.closeWindowsFromArray = closeWindowsFromArray;
 this.closeFinalWindowsFromArray = closeFinalWindowsFromArray;
 this.closeTempWindowsForOneImage = closeTempWindowsForOneImage;
 this.closeTempWindows = closeTempWindows;
+this.closeAllWindowsFromArray = closeAllWindowsFromArray;
+this.closeAllWindows = closeAllWindows;
 
 // Window arrays
 this.findFromArray = findFromArray;
@@ -2801,6 +2892,7 @@ this.createImageFromBitmap = createImageFromBitmap;
 this.createWindowFromBitmap = createWindowFromBitmap;
 this.getWindowBitmap = getWindowBitmap;
 this.createWindowFromImage = createWindowFromImage;
+this.createEmptyBitmap = createEmptyBitmap;
 
 // Prefix and postfix handling
 this.ensure_win_prefix_ex = ensure_win_prefix_ex;

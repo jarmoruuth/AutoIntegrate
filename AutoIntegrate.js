@@ -284,6 +284,8 @@ Linear Defect Detection:
 
 #include "AutoIntegratePreview.js"
 #include "AutoIntegrateGUI.js"
+#include "AutoIntegrateFlowchart.js"
+#include "AutoIntegrateEnhancements.js"
 
 function AutoIntegrate() {
 
@@ -293,10 +295,12 @@ this.__base__();
 var global = new AutoIntegrateGlobal();
 var util = new AutoIntegrateUtil(global);
 var engine = new AutoIntegrateEngine(global, util);
-var gui = new AutoIntegrateGUI(global, util, engine);
+var flowchart = new AutoIntegrateFlowchart(global, util);
+var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
 
 util.setGUI(gui);
 engine.setGUI(gui);
+flowchart.setGUI(gui);
 
 var par = global.par;
 var ppar = global.ppar;

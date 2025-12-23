@@ -39,109 +39,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateExclusionArea.js"
 #include "AutoIntegrateMetricsVisualizer.js"
 #include "AutoIntegrateTutorial.js"
-
-function AutoIntegrateSelectStarsImageDialog( util )
-{
-      this.__base__ = Dialog;
-      this.__base__();
-      this.restyle();
-   
-      this.labelWidth = this.font.width( "Object identifier:M" );
-      this.editWidth = this.font.width( 'M' )*40;
-
-      this.starsImageLabel = new Label( this );
-      this.starsImageLabel.text = "Select stars image:"
-   
-      this.starsImageComboBox = new ComboBox( this );
-      this.starsImageComboBox.minItemCharWidth = 20;
-
-      this.window_list = util.getWindowListReverse();
-      if (this.window_list.length == 0) {
-            this.name = "";
-      } else {
-            this.name = this.window_list[0];
-            for (var i = 0; i < this.window_list.length; i++) {
-                  this.starsImageComboBox.addItem( this.window_list[i] );
-            }
-      }
-
-      this.starsImageComboBox.onItemSelected = function( itemIndex )
-      {
-            this.dialog.name = this.dialog.window_list[itemIndex];
-      };
-
-      // Common Buttons
-      this.ok_Button = new PushButton( this );
-      this.ok_Button.text = "OK";
-      this.ok_Button.icon = this.scaledResource( ":/icons/ok.png" );
-      this.ok_Button.onClick = function()
-      {
-            this.dialog.ok();
-      };
-
-      this.cancel_Button = new PushButton( this );
-      this.cancel_Button.text = "Cancel";
-      this.cancel_Button.icon = this.scaledResource( ":/icons/cancel.png" );
-      this.cancel_Button.onClick = function()
-      {
-            this.dialog.cancel();
-      };
-
-      this.buttons_Sizer = new HorizontalSizer;
-      this.buttons_Sizer.spacing = 6;
-      this.buttons_Sizer.addStretch();
-      this.buttons_Sizer.add( this.ok_Button );
-      this.buttons_Sizer.add( this.cancel_Button );
-
-      this.sizer = new VerticalSizer;
-      this.sizer.margin = 6;
-      this.sizer.spacing = 4;
-      this.sizer.add( this.starsImageLabel );
-      this.sizer.add( this.starsImageComboBox );
-      this.sizer.add( this.buttons_Sizer );
-   
-      this.windowTitle = "Select stars image";
-      this.adjustToContents();
-      this.setFixedSize();
-}
-
-AutoIntegrateSelectStarsImageDialog.prototype = new Dialog;
-
-function AutoIntegrateHueColors(par)
-{
-      this.__base__ = Frame;
-      this.__base__();
-   
-      this.hueColorsBitmap = new Bitmap( File.extractDrive( #__FILE__ ) + File.extractDirectory( #__FILE__ ) + "/hue.png" );
-
-      function drawHueLine(g, bmp_startpos, bmp_width, bmp_height, hue)
-      {
-            // console.writeln("drawHueLine " + hue + " " + bmp_startpos + " " + bmp_width + " " + bmp_height);
-            var line_x = bmp_startpos + hue * bmp_width;
-            g.drawLine(line_x, 0, line_x, bmp_height);
-      }
-
-      this.onPaint = function(x0, y0, x1, y1) {
-            // console.writeln("AutoIntegrateHueColors onPaint");
-            var width = this.width;
-            var height = this.height;
-            var pos = 23;
-            var bmp_width = (100 - pos) * width / 100;
-            var bmp_startpos = pos * width / 100;
-
-            var bmp = this.hueColorsBitmap.scaledTo(bmp_width, height);
-
-            var graphics = new Graphics(this);
-            graphics.drawBitmap(bmp_startpos, 0, bmp);
-            graphics.pen = new Pen(0xFFFFFFFF,0);      // white
-            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_R_hue.val);
-            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_G_hue.val);
-            drawHueLine(graphics, bmp_startpos, bmp_width, height, par.narrowband_colorized_B_hue.val);
-            graphics.end();
-      }
-}
-
-AutoIntegrateHueColors.prototype = new Frame;
+#include "AutoIntegrateFlowchart.js"
 
 function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
 {
@@ -237,7 +135,7 @@ function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
 
 AutoIntegrateNarrowbandSelectMultipleDialog.prototype = new Dialog;
 
-function AutoIntegrateGUI(global, util, engine)
+function AutoIntegrateGUI(global, util, engine, flowchart)
 {
 
 this.__base__ = Object;
@@ -404,434 +302,17 @@ var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visu
                                           "are used for visualization.</p>" +
                                           "<p>If no filtering rules are set then default settings are used.</p>";
 
-// Settings for flowchart graph
-var flowchart_text_margin = 4;                                                // Margin between box and text
-var flowchart_box_margin = 4;                                                 // Margin outside of the box
-var flowchart_line_margin = 12;                                               // Margin for lines with child nodes
-var flowchart_margin = 2 * (flowchart_text_margin + flowchart_box_margin);    // Margin for elements in the graph
-
-// light orange 0xffffd7b5
-// light orange 0xffFFD580
-// light red 0xffffb3b3
-// red       0xffff0000
-//                          blue        green       orange      magenta     cyan        yellow      black
-var flowchart_colors =    [ 0xffb3d1ff, 0xffc2f0c2, 0xffffd7b5, 0xffffb3ff, 0xffb3f0ff, 0xffffffb3, 0xff000000 ];      // For background
-var flowchart_active_id_color = 0xffff0000;      // For active node, red
-var flowchart_inactive_id_color = 0xFFD3D3D3;    // For inactive node, light gray
-
-var flowchart_is_background_image = false;
-var flowchart_garbagecollection_ctr = 0;
-
-// Node structure elements for flowchart graph
-// txt: text to be displayed
-// type: "header", "parent", "child", "process", "mask"
-// list: list of child nodes
-// width: width of the node including margins for text and box
-// height: height of the node including margins for text and box
-// level: level in the graph
-// boxwidth: width of the box, this is max box width in the level
-
-function node_get_txt(node)
-{
-      if (par.flowchart_time.val) {
-            return node.txt + util.get_node_execute_time_str(node);
-      } else {
-            return node.txt;
-      }
-}
-
-// Iterate size of the flowchart childs graph
-function flowchartGraphIterateChilds(parent, font, level)
-{
-      parent.level = level;
-      var list = parent.list;
-      var width = 0;
-      var height = 0;
-      var node_boxwidth = 0;
-      // iterate childs to get size
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (par.flowchart_debug.val) {
-                  console.writeln("flowchartGraphIterateChilds: " + node.type + " " + node_get_txt(node));
-            }
-            node.width = font.width(node_get_txt(node)) + flowchart_margin;
-            node.height = font.height + flowchart_margin;
-            node_boxwidth = Math.max(node_boxwidth, node.width);
-
-            var size = flowchartGraphIterate(node, font, level);  // Iterate childs, parent node is a dummy node
-            node.width = Math.max(size[0], node.width);
-            node.height += size[1];
-
-            width += node.width;
-            height = Math.max(height, node.height);
-      }
-      for (var i = 0; i < list.length; i++) {
-            if (list[i].type == "process" || list[i].type == "mask") {
-                  list[i].level = parent.level;
-            }
-            list[i].boxwidth = node_boxwidth;
-      }
-      return [ width, height ];
-}
-
-// Iterate size of the flowchart graph
-function flowchartGraphIterate(parent, font, level)
-{
-      parent.level = level;
-      var list = parent.list;
-      var width = 0;
-      var height = 0;
-      var node_boxwidth = 0;
-      // iterate childs to get size
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (par.flowchart_debug.val) {
-                  console.writeln("flowchartGraphIterate: " + node.type + " " + node_get_txt(node));
-            }
-            node.width = font.width(node_get_txt(node)) + flowchart_margin;
-            node.height = font.height + flowchart_margin;
-            node_boxwidth = Math.max(node_boxwidth, node.width);
-            if (node.type == "header") {
-                  if (node.list.length > 0) {
-                        var size = flowchartGraphIterate(node, font, level + 1);
-                        node.width = Math.max(size[0], node.width);
-                        node.height += size[1];
-                  }
-            } else if (node.type == "parent") {
-                  if (node.list.length > 0) {
-                        var size = flowchartGraphIterateChilds(node, font, level + 1);
-                        node.width = Math.max(size[0], node.width);
-                        node.height = size[1];
-                        if (node.list.length > 1) {
-                              // parent has no text but add space for connecting lines
-                              node.height += 2 * flowchart_line_margin;
-                        }
-                  }
-            } else if (node.type == "mask") {
-                  // Ignore process steps to create a mask in graph
-                  if (0 && node.list.length > 0) {
-                        var size = flowchartGraphIterate(node, font, level + 1);
-                        node.width = Math.max(size[0], node.width);
-                        node.height += size[1];
-                  }
-            }
-            width = Math.max(width, node.width);
-            height += node.height;
-      }
-      for (var i = 0; i < list.length; i++) {
-            if (list[i].type == "process" || list[i].type == "mask") {
-                  list[i].level = parent.level;
-            }
-            list[i].boxwidth = node_boxwidth;
-      }
-      return [ width, height ];
-}
-
-function flowchartLineColor()
-{
-      if (flowchart_is_background_image) {
-            return 0xffffffff;      // white
-      } else {
-            return 0xff000000;      // black
-      }
-}
-
-function flowchartDrawText(graphics, x, y, node)
-{
-      if (!node.boxwidth) {
-            util.throwFatalError("flowchartDrawText: boxwidth == null");
-      }
-
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " in: " + x + " " + y);
-      }
-
-      var drawbox = (node.type == "process" || node.type == "mask");
-
-      var x0 = x + flowchart_box_margin;
-      var y0 = y + flowchart_box_margin;
-      var x1 = x + node.boxwidth - flowchart_box_margin;
-      if (drawbox) {
-            var y1 = y + node.height - flowchart_box_margin;
-      } else {
-            var y1 = y + graphics.font.height + 2 * flowchart_text_margin;
-      }
-
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartDrawText: " + node.type + " " + node_get_txt(node) + " rect:" + x0 + " " + y0 + " " + x1 + " " + y1);
-      }
-
-      if (node.id && drawbox && global.flowchartActiveId > 0) {
-            var check_special_color = true;
-      } else {
-            var check_special_color = false;
-      }
-
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartDrawText: node.id " + node.id + ", global.flowchartActiveId " + global.flowchartActiveId);
-      }
-      if (check_special_color && node.id == global.flowchartActiveId) {
-            graphics.brush = new Brush( flowchart_active_id_color );
-            graphics.pen = new Pen(0xffffffff, 1);       // white
-      } else if (check_special_color && node.id > global.flowchartActiveId) {
-            graphics.brush = new Brush( flowchart_inactive_id_color );
-            graphics.pen = new Pen(0xff000000, 1);       // black
-      } else {
-            graphics.brush = new Brush( flowchart_colors[node.level % flowchart_colors.length] );
-            graphics.pen = new Pen(drawbox ? 0xff000000 : flowchartLineColor(), 1);       // black
-      }
-      if (drawbox) {
-            graphics.drawRect(x0, y0, x1, y1);
-      }
-      graphics.drawTextRect(x0, y0, x1, y1, node_get_txt(node), TextAlign_Center | TextAlign_VertCenter);
-      graphics.pen = new Pen(flowchartLineColor(), 1);
-}
-
-// draw vertical lines for each child position
-// lines are always drawn to down direction
-// position is the top left corner of the graph
-function flowchartGraphDrawChildsConnectLines(parent, pos, graphics)
-{
-      var list = parent.list;
-      var p = pos;
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (par.flowchart_debug.val) {
-                  console.writeln("flowchartGraphDrawChildsConnectLines: " + node.type + " " + node_get_txt(node) + " " + p.x + " " + p.y);
-            }
-            graphics.drawLine(p.x + node.width / 2, p.y, p.x + node.width / 2, p.y + flowchart_line_margin / 2);
-            p.x += node.width;
-      }
-}
-
-// draw a line connecting child nodes
-// position is the top left corner of the graph
-function flowchartGraphDrawChildsLine(parent, pos, graphics, loc)
-{
-      var p = pos;
-
-      p.y += flowchart_line_margin / 2;
-
-      var childlen1 = parent.list[0].width;
-      var childlen2 = parent.list[parent.list.length - 1].width;
-
-      // draw horizontal line connecting child nodes
-      graphics.drawLine(p.x + childlen1 / 2, p.y, p.x + parent.width - childlen2 / 2, p.y);
-
-      if (loc == "top") {
-            flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y }, graphics);
-      } else if (loc == "bottom") {
-            flowchartGraphDrawChildsConnectLines(parent, { x: p.x, y: p.y -  + flowchart_line_margin / 2 }, graphics);
-      } else {
-            throwFatalError("flowchartGraphDrawChildsLine: loc != top or bottom, " + loc);
-      }
-}
-
-// Iterate size of the flowchart childs graph
-// position is the middle position of the graph
-function flowchartGraphDrawChilds(parent, pos, graphics)
-{
-      var list = parent.list;
-      var p = pos;
-      // calculate child width
-      var width = 0;
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            width += node.width;
-      }
-      // Calculate lest start position
-      p.x -= width / 2;
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (node.type != "child") {
-                  util.throwFatalError("flowchartGraphDrawChilds: node.type != child, type " + node.type + ", txt " + node_get_txt(node));
-            }
-            if (node.list.length == 0) {
-                  continue;
-            }
-            var middle_x = p.x + node.width / 2;
-            var x = middle_x - node.boxwidth / 2;
-            var y = p.y;
-            if (par.flowchart_debug.val) {
-                  console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
-            }
-            flowchartDrawText(graphics, x, y, node);
-            flowchartGraphDraw(node, { x: middle_x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
-            p.x += node.width;
-      }
-}
-
-// Iterate size of the flowchart graph
-// pos is middle position of the node
-function flowchartGraphDraw(parent, pos, graphics)
-{
-      var list = parent.list;
-      var p = pos;
-      for (var i = 0; i < list.length; i++) {
-            var node = list[i];
-            if (node.type == "header") {
-                  if (node.list.length > 0) {
-                        var x = p.x - node.boxwidth / 2;
-                        var y = p.y;
-                        if (par.flowchart_debug.val) {
-                              console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
-                        }
-                        flowchartDrawText(graphics, x, y, node);
-                        flowchartGraphDraw(node, { x: p.x, y: p.y + graphics.font.height + flowchart_margin }, graphics);
-                  }
-            } else if (node.type == "parent") {
-                  if (par.flowchart_debug.val) {
-                        console.writeln("flowchartGraphDraw: " + node.type + " " + node.type + " " + node_get_txt(node));
-                  }
-                  if (node.list.length > 0) {
-                        if (node.list.length > 1) {
-                              var parent_margin = flowchart_line_margin;
-                              flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y }, graphics, "top");
-                        } else {
-                              var parent_margin = 0;
-                        }
-                        flowchartGraphDrawChilds(node, { x: p.x, y: p.y + parent_margin }, graphics);
-                        if (node.list.length > 1) {
-                              flowchartGraphDrawChildsLine(node, { x: p.x - node.width / 2, y: p.y + node.height - parent_margin }, graphics, "bottom");
-                        }
-                  }
-            } else {
-                  // process or mask
-                  var x = p.x - node.boxwidth / 2;
-                  var y = p.y;
-                  if (par.flowchart_debug.val) {
-                        console.writeln("flowchartGraphDraw: " + node.type + " " + node_get_txt(node) + " " + x + " " + y);
-                  }
-                  flowchartDrawText(graphics, x, y, node);
-            }
-            p.y += node.height;
-      }
-}
-
-// Draw a graphical version of the workflow
-function flowchartGraph(rootnode)
-{
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchart Graph");
-      }
-
-      if (rootnode == null) {
-            console.writeln("No flowchart");
-            return;
-      }
-
-      if (global.is_processing == global.processing_state.none) {
-            engine.flowchartPrint(rootnode);
-      }
-
-      if (!global.use_preview) {
-            return;
-      }
-
-      var fontsize = 8;
-      var font = new Font( FontFamily_SansSerif, fontsize );
-
-      var size = flowchartGraphIterate(rootnode, font, 0);
-
-      var margin = 50;
-      var width = size[0] + margin;
-      var height = size[1] + margin;
-
-      if (ppar.preview.side_preview_visible) {
-            // We have " / 2" below to keep text size readable
-            width = Math.max(width, ppar.preview.side_preview_width / 2);
-            height = Math.max(height, ppar.preview.side_preview_height / 2);
-      } else {
-            width = Math.max(width, ppar.preview.preview_width);
-            height = Math.max(height, ppar.preview.preview_height);
-      }
-
-      if (par.flowchart_debug.val || par.debug.val) {
-            console.writeln("flowchartGraph:background bitmap " + width + "x" + height);
-      }
-
-      if (current_preview.image != null && par.flowchart_background_image.val) {
-            var bitmap = createEmptyBitmap(width, height, 0x00C0C0C0);  // transparent background
-            flowchart_is_background_image = true;
-            var txt = current_preview.txt;
-      } else {
-            var bitmap = createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
-            flowchart_is_background_image = false;
-            var txt = null;
-      }
-
-      var graphics = new Graphics(bitmap);
-      graphics.font = font;
-      graphics.transparentBackground = true;
-      graphics.pen = new Pen(flowchartLineColor(), 1);
-
-      flowchartGraphDraw(rootnode, { x: width / 2, y: margin / 2 }, graphics, font);
-
-      graphics.end();
-
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartGraph:show bitmap");
-      }
-
-      if (flowchart_is_background_image) {
-            // Scale bitmap to image size
-            if (par.flowchart_debug.val || par.debug.val) {
-                  console.writeln("flowchartGraph:image " + current_preview.image.width + "x" + current_preview.image.height);
-            }
-            if (bitmap.height != current_preview.image.height) {
-                  var scale = current_preview.image.height / bitmap.height;
-                  var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
-                  bitmap = scaled_bitmap;
-            }
-            if (bitmap.width > current_preview.image.width) {
-                  var scale = current_preview.image.width / bitmap.width;
-                  var scaled_bitmap = bitmap.scaledTo(scale * bitmap.width, scale * bitmap.height);
-                  bitmap = scaled_bitmap;
-            }
-            // A new Image should not be needed
-            // var background_image = new Image(current_preview.image);
-            // var background_bitmap = background_image.render();
-            var background_bitmap = current_preview.image.render();
-            graphics = new Graphics(background_bitmap);
-            // draw bitmap to the middle of the image
-            var x = (current_preview.image.width - bitmap.width) / 2;
-            var y = (current_preview.image.height - bitmap.height) / 2;
-            graphics.drawBitmap(x, y, bitmap);
-            graphics.end();
-            var flowchartImage = util.createImageFromBitmap(background_bitmap);
-            // background_image.free();
-            // background_image = null;
-      } else {
-            var flowchartImage = util.createImageFromBitmap(bitmap);
-      }
-      if (global.flowchart_image != null) {
-            global.flowchart_image.free();
-            global.flowchart_image = null;
-      }
-      global.flowchart_image = flowchartImage;
-
-      if (ppar.preview.side_preview_visible) {
-            updatePreviewImage(sidePreviewControl, flowchartImage, txt, sideHistogramControl, current_histogramInfo, true);
-      } else {
-            updatePreviewImage(tabPreviewControl, flowchartImage, txt, tabHistogramControl, current_histogramInfo, true);
-      }
-
-      if (flowchart_garbagecollection_ctr++ > 5) {
-            util.runGarbageCollection();
-            flowchart_garbagecollection_ctr = 0;
-      }
-
-      if (par.flowchart_debug.val) {
-            console.writeln("flowchartGraph:end");
-      }
-}
-
 function flowchartUpdated()
 {
       if (par.show_flowchart.val && !global.get_flowchart_data) {
             // console.writeln("flowchartUpdated");
             try {
-                  flowchartGraph(global.flowchartData);
+                  var obj = flowchart.flowchartGraph(global.flowchartData, current_preview.image, current_preview.txt);
+                  if (ppar.preview.side_preview_visible) {
+                        updatePreviewImage(sidePreviewControl, obj.image, obj.text, sideHistogramControl, current_histogramInfo, true);
+                  } else {
+                        updatePreviewImage(tabPreviewControl, obj.image, obj.text, tabHistogramControl, current_histogramInfo, true);
+                  }
             } catch (ex) {
                   console.writeln("flowchartUpdated: " + ex);
             }
@@ -872,7 +353,7 @@ function generateNewFlowchartData(parent)
       current_preview.image = null;
       current_preview.image_versions = [];
 
-      engine.flowchartReset();
+      flowchart.flowchartReset();
 
       console.writeln("generateNewFlowchartData: copy file names");
       var lightFileNamesCopy = copyFileNames(global.lightFileNames);
@@ -890,7 +371,7 @@ function generateNewFlowchartData(parent)
       global.all_windows = [];
 
       util.fixAllWindowArrays(ppar.win_prefix);
-      engine.closeAllWindows(false, false);
+      util.closeAllWindows(false, false);
 
       global.get_flowchart_data = true;
       try {
@@ -905,13 +386,13 @@ function generateNewFlowchartData(parent)
 
       // Close all windows with flowchart prefix
       util.fixAllWindowArrays(ppar.win_prefix);
-      engine.closeAllWindows(false, false);
+      util.closeAllWindows(false, false);
 
       // restore original prefix
       ppar.win_prefix = saved_win_prefix;
       util.fixAllWindowArrays(ppar.win_prefix);
 
-      engine.closeAllWindowsFromArray(global.flowchartWindows);
+      util.closeAllWindowsFromArray(global.flowchartWindows);
       global.flowchartWindows = [];
 
       console.writeln("generateNewFlowchartData: restore original file names");
@@ -1072,7 +553,7 @@ function getNarrowbandColorizedSizer(parent)
             // make a copy if the current image
             if (global.extra_target_image == 'Auto') {
                   var extraWin = null;
-                  var bitmap = createEmptyBitmap(2048, 2048, 0x80808080);
+                  var bitmap = util.createEmptyBitmap(2048, 2048, 0x80808080);
                   var originalWin = util.createWindowFromBitmap(bitmap, "AutoIntegrate_NoImage");
             } else {
                   var extraWin = ImageWindow.windowById(global.extra_target_image);
@@ -3103,7 +2584,7 @@ function Autorun(parent)
                               console.writeln("AutoRun in substack mode, substack " + global.substack_number);
                         }
                   }
-                  engine.flowchartReset();
+                  flowchart.flowchartReset();
                   if (par.run_get_flowchart_data.val) {
                         if (substack_mode) {
                               console.writeln("Do not get flowchart data for substack mode");
@@ -3135,11 +2616,11 @@ function Autorun(parent)
                         global.outputRootDir = savedOutputRootDir;
                         global.lightFileNames = null;
                         console.writeln("AutoRun in batch mode");
-                        engine.closeAllWindows(par.keep_integrated_images.val, true);
+                        util.closeAllWindows(par.keep_integrated_images.val, true);
                   }
                   if (substack_mode) {
                         console.writeln("AutoRun in substack mode, close windows");
-                        engine.closeAllWindows(par.keep_integrated_images.val, true);
+                        util.closeAllWindows(par.keep_integrated_images.val, true);
                         console.writeln("AutoRun in substack mode, continue to next substack.");
                   }
             } else {
@@ -4015,15 +3496,6 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
       }
 }
 
-function createEmptyBitmap(width, height, fill_color)
-{
-      var bitmap = new Bitmap(width, height);
-
-      bitmap.fill(fill_color);
-
-      return bitmap;
-}
-
 function updatePreviewNoImageInControl(control)
 {
       let show_startup_image = ppar.show_startup_image;
@@ -4064,7 +3536,7 @@ function updatePreviewNoImageInControl(control)
             let ratio = width / height;
             height = 1080;
             width = height * ratio;
-            var bitmap = createEmptyBitmap(width, height, 0xff808080);
+            var bitmap = util.createEmptyBitmap(width, height, 0xff808080);
       }
 
       var startup_text = [ global.autointegrate_version ];
@@ -6162,7 +5634,7 @@ function newAutoContinueButton(parent, toolbutton)
                               global.iconStartRow = 11;
                               console.writeln('Using user icon column ' + global.columnCount);
                         }
-                        engine.flowchartReset();
+                        flowchart.flowchartReset();
 
                         engine.autointegrateProcessingEngine(parent.dialog, true, util.is_narrowband_option(), "AutoContinue");
 
@@ -10379,7 +9851,7 @@ function AutoIntegrateDialog()
             console.noteln("Close prefix");
             updateWindowPrefix();
             // Close all using the current ppar.win_prefix
-            engine.closeAllWindows(par.keep_integrated_images.val, false);
+            util.closeAllWindows(par.keep_integrated_images.val, false);
             var index = findPrefixIndex(ppar.win_prefix);
             if (index != -1) {
                   // If prefix was found update array
@@ -10415,13 +9887,13 @@ function AutoIntegrateDialog()
                   // names with the prefix we use for closing
                   util.fixAllWindowArrays("");
                   console.writeln("Close default empty prefix");
-                  engine.closeAllWindows(par.keep_integrated_images.val, false);
+                  util.closeAllWindows(par.keep_integrated_images.val, false);
                   if (ppar.win_prefix != "" && findPrefixIndex(ppar.win_prefix) == -1) {
                         // Window prefix box has unsaved prefix, clear that too.
                         var prefix = validateWindowPrefix(ppar.win_prefix);
                         console.writeln("Close prefix '" + prefix + "'");
                         util.fixAllWindowArrays(prefix);
-                        engine.closeAllWindows(par.keep_integrated_images.val, false);
+                        util.closeAllWindows(par.keep_integrated_images.val, false);
                   }
                   // Go through the prefix list
                   for (var i = 0; i < ppar.prefixArray.length; i++) {
@@ -10429,7 +9901,7 @@ function AutoIntegrateDialog()
                               var prefix = validateWindowPrefix(ppar.prefixArray[i][1]);
                               console.writeln("Close prefix '" + prefix + "'");
                               util.fixAllWindowArrays(prefix);
-                              engine.closeAllWindows(par.keep_integrated_images.val, false);
+                              util.closeAllWindows(par.keep_integrated_images.val, false);
                               if (par.keep_integrated_images.val) {
                                     // If we keep integrated images then we can start
                                     // from zero icon position
@@ -10490,7 +9962,7 @@ function AutoIntegrateDialog()
 
             console.noteln("New flowchart");
             if (generateNewFlowchartData(this.parent)) {
-                  flowchartGraph(global.flowchartData);
+                  flowchartUpdated();
                   console.noteln("Flowchart updated");
             } else {
                   console.noteln("No flowchart data available");
@@ -12048,7 +11520,6 @@ this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
 this.switchtoPreviewTab = switchtoPreviewTab;
 this.flowchartUpdated = flowchartUpdated;
-this.createEmptyBitmap = createEmptyBitmap;
 
 this.RGBHa_prepare_method_values = RGBHa_prepare_method_values;
 this.RGBHa_combine_method_values = RGBHa_combine_method_values;
