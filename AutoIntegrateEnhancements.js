@@ -4,14 +4,6 @@
 
 */
 
-#ifndef NO_SOLVER_LIBRARY
-#include "../AdP/SearchCoordinatesDialog.js"
-#endif
-
-#include "AutoIntegrateExclusionArea.js"
-#include "AutoIntegrateMetricsVisualizer.js"
-#include "AutoIntegrateTutorial.js"
-
 function AutoIntegrateSelectStarsImageDialog( util )
 {
       this.__base__ = Dialog;

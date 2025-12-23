@@ -349,7 +349,7 @@ function flowchartGraph(rootnode, current_preview_image, txt)
 
       if (rootnode == null) {
             console.writeln("No flowchart");
-            return;
+            return null;
       }
 
       if (global.is_processing == global.processing_state.none) {
@@ -357,7 +357,7 @@ function flowchartGraph(rootnode, current_preview_image, txt)
       }
 
       if (!global.use_preview) {
-            return;
+            return null;
       }
 
       var fontsize = 8;
@@ -388,7 +388,7 @@ function flowchartGraph(rootnode, current_preview_image, txt)
       } else {
             var bitmap = util.createEmptyBitmap(width, height, 0xffC0C0C0);  // gray background
             flowchart_is_background_image = false;
-            var txt = null;
+            txt = null;
       }
 
       var graphics = new Graphics(bitmap);

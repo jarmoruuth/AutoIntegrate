@@ -294,8 +294,8 @@ this.__base__();
 
 var global = new AutoIntegrateGlobal();
 var util = new AutoIntegrateUtil(global);
-var engine = new AutoIntegrateEngine(global, util);
 var flowchart = new AutoIntegrateFlowchart(global, util);
+var engine = new AutoIntegrateEngine(global, util, flowchart);
 var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
 
 util.setGUI(gui);

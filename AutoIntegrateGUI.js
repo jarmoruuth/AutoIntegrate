@@ -39,7 +39,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateExclusionArea.js"
 #include "AutoIntegrateMetricsVisualizer.js"
 #include "AutoIntegrateTutorial.js"
-#include "AutoIntegrateFlowchart.js"
 
 function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
 {
@@ -308,10 +307,12 @@ function flowchartUpdated()
             // console.writeln("flowchartUpdated");
             try {
                   var obj = flowchart.flowchartGraph(global.flowchartData, current_preview.image, current_preview.txt);
-                  if (ppar.preview.side_preview_visible) {
-                        updatePreviewImage(sidePreviewControl, obj.image, obj.text, sideHistogramControl, current_histogramInfo, true);
-                  } else {
-                        updatePreviewImage(tabPreviewControl, obj.image, obj.text, tabHistogramControl, current_histogramInfo, true);
+                  if (obj) {
+                        if (ppar.preview.side_preview_visible) {
+                              updatePreviewImage(sidePreviewControl, obj.image, obj.text, sideHistogramControl, current_histogramInfo, true);
+                        } else {
+                              updatePreviewImage(tabPreviewControl, obj.image, obj.text, tabHistogramControl, current_histogramInfo, true);
+                        }
                   }
             } catch (ex) {
                   console.writeln("flowchartUpdated: " + ex);
@@ -377,7 +378,7 @@ function generateNewFlowchartData(parent)
       try {
             engine.autointegrateProcessingEngine(parent.dialog, false, false, "Generate flowchart data");
       } catch (x) {
-            util.addCriticalStatus("generateNewFlowchartData failed:" + x);
+            util.addCriticalStatus("generateNewFlowchartData failed calling autointegrateProcessingEngine:" + x);
             global.flowchartData = null;
             global.is_processing = global.processing_state.none;
             succp = false;

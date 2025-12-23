@@ -8,8 +8,6 @@
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/Color.jsh>
 
-#define WINDOW_TITLE "AutoIntegrate Metrics Visualizer"
-
 function AutoIntegrateMetricsVisualizer(global)
 {
 
@@ -17,6 +15,8 @@ this.__base__ = Object;
 this.__base__();
 
 var dialog;
+
+var WINDOW_TITLE = "AutoIntegrate Metrics Visualizer";
 
 // Sample data structure - replace with your actual metrics arrays
 var metricsData = [
