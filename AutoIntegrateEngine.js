@@ -589,7 +589,6 @@ function targetTypeSetup()
       let stretching = targetTypeToStretching(par.target_type.val);
       if (stretching != null) {
             local_image_stretching = stretching;
-            local_image_stretching = 'VeraLuxHMS'; // XXX TEMP XXX
             console.writeln(par.target_type.val + " target using " + local_image_stretching);
       }
 }
@@ -18812,7 +18811,6 @@ function get_local_copies_of_parameters()
       local_G_mapping = par.custom_G_mapping.val;
       local_B_mapping = par.custom_B_mapping.val;
       local_image_stretching = par.image_stretching.val;
-      local_image_stretching = 'VeraLuxHMS'; // XXX TEMP XXX
       local_debayer_pattern = par.debayer_pattern.val;
       local_RGBHa_prepare_method = par.RGBHa_prepare_method.val;
       local_RGBHa_combine_method = par.RGBHa_combine_method.val;
