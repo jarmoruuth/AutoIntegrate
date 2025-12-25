@@ -9409,11 +9409,11 @@ function AutoIntegrateDialog()
                                           "Analyzes histogram shape to find true signal start. Recommended for images with gradients.");
       this.veraluxAutoCalcDCheckBox = newCheckBox(this, "Auto-Calc Log D", par.veralux_auto_calc_D, 
                                           "Analyzes image to find optimal Stretch Factor (Log D).");
-      this.veraluxValDEdit = newNumericEdit(this, "Log D:", par.veralux_D_value, 0.1, 10,
+      this.veraluxValDEdit = newNumericEdit(this, "Log D:", par.veralux_D_value, 0.0, 7.0,
                                           "Hyperbolic Intensity (Log D). Controls the strength of the stretch.");
       this.veraluxbEdit = newNumericEdit(this, "Protect b:", par.veralux_b_value, 0.1, 15,
                                           "Highlight Protection. Controls the 'knee' of the hyperbolic curve.");
-      this.veraluxStarCoreRecoveryEdit = newNumericEdit(this, "Star Core Recovery:", par.veralux_convergence_power, 0, 10,
+      this.veraluxStarCoreRecoveryEdit = newNumericEdit(this, "Star Core Recovery:", par.veralux_convergence_power, 1, 10,
                                           "Controls how quickly saturated colors transition to white.");
 
       this.veraluxReadyToUseLabel = newLabel(this, "Ready-to-Use settings", "Setting for VeraLux Ready-to-Use mode.", true);
@@ -9425,7 +9425,7 @@ function AutoIntegrateDialog()
       this.veraluxColorGripEdit = newNumericEdit(this, "Color Grip:", par.veralux_color_grip, 0, 1,
                                           "Controls vector color preservation. 1.0 = Pure VeraLux.\n" + 
                                           "Only for Scientific mode.");
-      this.veraluxShadowConvEdit = newNumericEdit(this, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 1,
+      this.veraluxShadowConvEdit = newNumericEdit(this, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 3,
                                           "Damps vector preservation in shadows to prevent color noise.\n" +
                                           "Only for Scientific mode.");
 

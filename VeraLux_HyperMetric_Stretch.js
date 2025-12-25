@@ -489,7 +489,7 @@ function VeraLuxPreviewDialog(veralux) {
    this.sensorGroupBox.sizer = this.sensorGroupBoxSizer;
 
    // Top row (Mode + Sensor)
-   this.topRowSizer = new HorizontalSizer;
+   this.topRowSizer = new VerticalSizer;
    this.topRowSizer.spacing = 8;
    this.topRowSizer.add(this.modeGroupBox);
    this.topRowSizer.add(this.sensorGroupBox);
@@ -525,12 +525,12 @@ function VeraLuxPreviewDialog(veralux) {
    };
 
    // Auto-Calculate checkbox
-   this.autoCalcCheckBox = new CheckBox(this.stretchGroupBox);
-   this.autoCalcCheckBox.text = "⚡ Auto-Calc Log D";
-   this.autoCalcCheckBox.toolTip = "Automatically calculate optimal Stretch Factor (Log D) when updating preview.";
-   this.autoCalcCheckBox.checked = parameters.useAutoD;
-   this.autoCalcCheckBox.onCheck = function(checked) {
-      parameters.useAutoD = checked;
+      // Auto-Calculate button
+   this.autoCalcButton = new PushButton(this.stretchGroupBox);
+   this.autoCalcButton.text = "⚡ Auto-Calc Log D";
+   this.autoCalcButton.toolTip = "Analyzes image to find optimal Stretch Factor (Log D).";
+   this.autoCalcButton.onClick = function() {
+      self.runAutoSolver();
    };
 
    this.calibRowSizer = new HorizontalSizer;
@@ -539,14 +539,14 @@ function VeraLuxPreviewDialog(veralux) {
    this.calibRowSizer.addSpacing(8);
    this.calibRowSizer.add(this.adaptiveAnchorCheckBox);
    this.calibRowSizer.addStretch();
-   this.calibRowSizer.add(this.autoCalcCheckBox);
+   this.calibRowSizer.add(this.autoCalcButton);
 
    // Log D control
    this.logDControl = new NumericControl(this.stretchGroupBox);
    this.logDControl.label.text = "Log D:";
    this.logDControl.label.minWidth = 60;
-   this.logDControl.setRange(0, 7);
-   this.logDControl.slider.setRange(0, 700);
+   this.logDControl.setRange(0.0, 7);
+   this.logDControl.slider.setRange(0, 1000);
    this.logDControl.slider.scaledMinWidth = 200;
    this.logDControl.setPrecision(2);
    this.logDControl.setValue(parameters.logD);
@@ -601,16 +601,16 @@ function VeraLuxPreviewDialog(veralux) {
    // Ready-to-Use Section (Unified Color Strategy)
    this.readyToUseSection = new Control(this.physicsGroupBox);
 
-   this.colorStrategyLabel = new Label(this.readyToUseSection);
-   this.colorStrategyLabel.text = "Color Strategy:";
-   this.colorStrategyLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
-   this.colorStrategyLabel.minWidth = 120;
-
-   this.colorStrategySlider = new Slider(this.readyToUseSection);
-   this.colorStrategySlider.setRange(-100, 100);
-   this.colorStrategySlider.value = parameters.colorStrategy;
-   this.colorStrategySlider.toolTip = "Left: Clean Noise | Center: Balanced | Right: Soften Highlights. Double-click to reset.";
-   this.colorStrategySlider.onValueUpdated = function(value) {
+   this.colorStrategyControl = new NumericControl(this.readyToUseSection);
+   this.colorStrategyControl.label.text = "Color Strategy:";
+   this.colorStrategyControl.label.minWidth = 120;
+   this.colorStrategyControl.setRange(-100, 100);
+   this.colorStrategyControl.slider.setRange(-100, 100);
+   this.colorStrategyControl.slider.scaledMinWidth = 150;
+   this.colorStrategyControl.setPrecision(1);
+   this.colorStrategyControl.setValue(parameters.colorStrategy);
+   this.colorStrategyControl.toolTip = "Left: Clean Noise | Center: Balanced | Right: Soften Highlights";
+   this.colorStrategyControl.onValueUpdated = function(value) {
       parameters.colorStrategy = value;
       self.updateStrategyFeedback();
    };
@@ -622,12 +622,7 @@ function VeraLuxPreviewDialog(veralux) {
    this.readyToUseSizer.margin = 0;
    this.readyToUseSizer.spacing = 2;
 
-   this.strategyRowSizer = new HorizontalSizer;
-   this.strategyRowSizer.spacing = 4;
-   this.strategyRowSizer.add(this.colorStrategyLabel);
-   this.strategyRowSizer.add(this.colorStrategySlider, 100);
-
-   this.readyToUseSizer.add(this.strategyRowSizer);
+   this.readyToUseSizer.add(this.colorStrategyControl);
    this.readyToUseSizer.add(this.strategyFeedbackLabel);
    this.readyToUseSection.sizer = this.readyToUseSizer;
 
@@ -773,19 +768,47 @@ function VeraLuxPreviewDialog(veralux) {
       this.profileComboBox.currentItem = this.profileComboBox.findItem(parameters.sensorProfile);
       this.targetBgControl.setValue(parameters.targetBg);
       this.adaptiveAnchorCheckBox.checked = parameters.useAdaptiveAnchor;
-      this.autoCalcCheckBox.checked = parameters.useAutoD;
       this.logDControl.setValue(parameters.logD);
       this.protectBControl.setValue(parameters.protectB);
       this.convergenceControl.setValue(parameters.convergencePower);
       this.colorGripControl.setValue(parameters.colorGrip);
       this.shadowConvControl.setValue(parameters.shadowConvergence);
-      this.colorStrategySlider.value = parameters.colorStrategy;
+      this.colorStrategyControl.setValue(parameters.colorStrategy);
 
       this.updateProfileInfo();
       this.updateModeUI();
       this.updateStrategyFeedback();
    };
 
+   this.runAutoSolver = function() {
+      if (!this.previewImage || !this.selectedWindow) {
+         this.statusLabel.text = "No image loaded for preview.";
+         return;
+      }
+
+      console.show();
+
+      this.statusLabel.text = "Solving for optimal Log D...";
+      this.autoCalcButton.enabled = false;
+      processEvents();
+
+      var weights = SENSOR_PROFILES[parameters.sensorProfile].weights;
+      var logD = veralux.VeraLuxCore.solveLogD(
+         this.previewImage,
+         parameters.targetBg,
+         parameters.protectB,
+         weights,
+         parameters.useAdaptiveAnchor
+      );
+
+      parameters.logD = logD;
+      this.logDControl.setValue(logD);
+      this.statusLabel.text = format("Solved: Log D = %.2f", logD);
+      this.autoCalcButton.enabled = true;
+
+      console.writeln(format("VeraLux Solver: Optimal Log D = %.2f [%s]", logD, parameters.sensorProfile));
+   };
+   
    // Initialize
    this.updateImageList();
    this.updateControls();
