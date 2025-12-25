@@ -1,5 +1,5 @@
 // ****************************************************************************
-// VeraLux — HyperMetric Stretch
+// VeraLux — HyperMetric Stretch with Preview
 // Photometric Hyperbolic Stretch Engine for PixInsight
 //
 // This version is converted from the original Python implementation,
@@ -16,7 +16,7 @@
 // (c) 2025 Riccardo Paterniti
 // VeraLux — HyperMetric Stretch
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Version 1.3.0 (PixInsight JavaScript Port)
+// Version 1.3.0 (PixInsight JavaScript Port with Preview)
 //
 // Credits / Origin
 // ----------------
@@ -28,21 +28,9 @@
 //   • Python Source Repository: https://gitlab.com/free-astro/siril-scripts/-/blob/main/processing/VeraLux_HyperMetric_Stretch.py?ref_type=heads
 //
 // ****************************************************************************
-//
-// Overview
-// --------
-// A precision linear-to-nonlinear stretching engine designed to maximize sensor
-// fidelity while managing the transition to the visible domain.
-//
-// HyperMetric Stretch (HMS) operates on a fundamental axiom: standard histogram
-// transformations often destroy the photometric relationships between color channels
-// (hue shifts) and clip high-dynamic range data. HMS solves this by decoupling
-// Luminance geometry from Chromatic vectors.
-//
-// ****************************************************************************
 
 #feature-id    AutoIntegrate  > VeraLux HyperMetric Stretch
-#feature-info  Photometric Hyperbolic Stretch Engine with True Color preservation.\
+#feature-info  Photometric Hyperbolic Stretch Engine with True Color preservation and Preview.\
                <br/><br/>\
                Version 1.3.0\
                <br/><br/>\
@@ -61,14 +49,15 @@
 #include <pjsr/ColorSpace.jsh>
 
 #include "AutoIntegrateVeraLuxHMS.js"
+#include "BasicPreviewControl.js"
 
 #define TITLE   "VeraLux HyperMetric Stretch"
 
 // =============================================================================
-//  DIALOG
+//  DIALOG WITH PREVIEW
 // =============================================================================
 
-function VeraLuxDialog(veralux) {
+function VeraLuxPreviewDialog(veralux) {
    this.__base__ = Dialog;
    this.__base__();
 
@@ -78,7 +67,12 @@ function VeraLuxDialog(veralux) {
    var self = this;
 
    this.windowTitle = TITLE + " v" + VERALUX_VERSION;
-   this.minWidth = 550;
+   this.minWidth = 1000;
+
+   // Store original image for reset functionality
+   this.originalImage = null;
+   this.previewImage = null;
+   this.selectedWindow = null;
 
    // -------------------------------------------------------------------------
    // Helper functions
@@ -120,8 +114,284 @@ function VeraLuxDialog(veralux) {
       }
    };
 
+   this.getOpenWindows = function() {
+      var windows = [];
+      var allWindows = ImageWindow.windows;
+      for (var i = 0; i < allWindows.length; i++) {
+         if (!allWindows[i].isNull && !allWindows[i].mainView.isNull) {
+            windows.push(allWindows[i]);
+         }
+      }
+      return windows;
+   };
+
+   this.updateImageList = function() {
+      this.imageComboBox.clear();
+      var windows = this.getOpenWindows();
+      
+      if (windows.length === 0) {
+         this.imageComboBox.addItem("<No images>");
+         this.previewButton.enabled = false;
+         this.resetButton.enabled = false;
+         this.processButton.enabled = false;
+         return;
+      }
+
+      for (var i = 0; i < windows.length; i++) {
+         this.imageComboBox.addItem(windows[i].mainView.id);
+      }
+
+      this.previewButton.enabled = true;
+      this.resetButton.enabled = true;
+      this.processButton.enabled = true;
+   };
+
+   this.loadOriginalImage = function() {
+      var windows = this.getOpenWindows();
+      if (windows.length === 0 || this.imageComboBox.currentItem < 0) {
+         return false;
+      }
+
+      this.selectedWindow = windows[this.imageComboBox.currentItem];
+      var sourceImage = this.selectedWindow.mainView.image;
+
+      // Create a copy of the original image
+      if (this.originalImage) {
+         this.originalImage.free();
+      }
+      this.originalImage = new Image(sourceImage);
+
+      // Create preview image (copy of original)
+      if (this.previewImage) {
+         this.previewImage.free();
+      }
+      this.previewImage = new Image(sourceImage);
+
+      // Update preview control
+      this.previewControl.SetImage(this.previewImage, this.selectedWindow.mainView.id);
+
+      this.statusLabel.text = "Loaded: " + this.selectedWindow.mainView.id;
+      return true;
+   };
+
+   this.resetPreview = function() {
+      if (!this.originalImage) {
+         this.statusLabel.text = "No image loaded.";
+         return;
+      }
+
+      // Reset preview image to original
+      if (this.previewImage) {
+         this.previewImage.free();
+      }
+      this.previewImage = new Image(this.originalImage);
+
+      this.previewControl.UpdateImage(this.previewImage, this.selectedWindow.mainView.id);
+      this.statusLabel.text = "Preview reset to original image.";
+   };
+
+   this.applyPreview = function() {
+      if (!this.previewImage || !this.selectedWindow) {
+         this.statusLabel.text = "No image loaded for preview.";
+         return;
+      }
+
+      console.show();
+      console.writeln("Applying VeraLux stretch to preview...");
+
+      this.previewButton.enabled = false;
+      this.statusLabel.text = "Processing preview...";
+      processEvents();
+
+      try {
+         // Get effective parameters
+         var effectiveParams = parameters.getEffectiveParams();
+
+         var logD;
+         if (parameters.useAutoD) {
+            console.writeln("Auto-solving Log D for preview...");
+            var weights = SENSOR_PROFILES[parameters.sensorProfile].weights;
+            logD = veralux.VeraLuxCore.solveLogD(
+               this.previewImage,
+               parameters.targetBg,
+               parameters.protectB,
+               weights,
+               parameters.useAdaptiveAnchor
+            );
+            this.logDControl.setValue(logD);
+            parameters.logD = logD;
+         } else {
+            logD = parameters.logD;
+         }
+
+         var procParams = {
+            sensorProfile: parameters.sensorProfile,
+            processingMode: parameters.processingMode,
+            targetBg: parameters.targetBg,
+            logD: logD,
+            protectB: parameters.protectB,
+            convergencePower: parameters.convergencePower,
+            colorGrip: effectiveParams.grip,
+            shadowConvergence: effectiveParams.shadow,
+            useAdaptiveAnchor: parameters.useAdaptiveAnchor
+         };
+
+         console.writeln("Preview Parameters:");
+         console.writeln(format("  Log D: %.2f", procParams.logD));
+         console.writeln(format("  Color Grip: %.2f", procParams.colorGrip));
+         console.writeln(format("  Shadow Conv: %.2f", procParams.shadowConvergence));
+
+         // Create a temporary view for processing
+         var tempWindow = new ImageWindow(
+            this.previewImage.width,
+            this.previewImage.height,
+            this.previewImage.numberOfChannels,
+            32,
+            true,
+            this.previewImage.colorSpace != ColorSpace_Gray,
+            "VeraLux_temp"
+         );
+
+         tempWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+         tempWindow.mainView.image.assign(this.previewImage);
+         tempWindow.mainView.endProcess();
+
+         // Process the temp view
+         tempWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+         veralux.processVeraLux(tempWindow.mainView, procParams, function(msg) {
+            console.writeln(msg);
+            processEvents();
+         });
+         tempWindow.mainView.endProcess();
+
+         // Copy result back to preview image
+         this.previewImage.free();
+         this.previewImage = new Image(tempWindow.mainView.image);
+         tempWindow.forceClose();
+
+         // Update preview
+         this.previewControl.UpdateImage(this.previewImage, this.selectedWindow.mainView.id + " [Preview]");
+
+         this.statusLabel.text = "Preview updated successfully.";
+         console.writeln("Preview processing complete.");
+
+      } catch (error) {
+         this.statusLabel.text = "Error during preview: " + error.message;
+         console.criticalln("Preview Error: " + error.message);
+      }
+
+      this.previewButton.enabled = true;
+   };
+
+   this.processFinal = function() {
+      if (!this.selectedWindow) {
+         this.statusLabel.text = "No image selected.";
+         return;
+      }
+
+      console.show();
+      console.writeln("Creating final processed image...");
+
+      this.processButton.enabled = false;
+      processEvents();
+
+      try {
+         var sourceWindow = this.selectedWindow;
+
+         // Create new window with processed result
+         var targetWindow = new ImageWindow(
+            sourceWindow.mainView.image.width,
+            sourceWindow.mainView.image.height,
+            sourceWindow.mainView.image.numberOfChannels,
+            sourceWindow.mainView.window.bitsPerSample,
+            sourceWindow.mainView.window.isFloatSample,
+            sourceWindow.mainView.image.colorSpace != ColorSpace_Gray,
+            sourceWindow.mainView.id + "_VeraLux"
+         );
+
+         targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
+         targetWindow.mainView.image.assign(sourceWindow.mainView.image);
+         targetWindow.mainView.endProcess();
+
+         targetWindow.keywords = sourceWindow.keywords;
+         targetWindow.show();
+
+         // Execute the stretch
+         veralux.execute(targetWindow);
+
+         this.statusLabel.text = "Final image created: " + targetWindow.mainView.id;
+         console.writeln("Final processing complete.");
+
+      } catch (error) {
+         this.statusLabel.text = "Error during final processing: " + error.message;
+         console.criticalln("Processing Error: " + error.message);
+      }
+
+      this.processButton.enabled = true;
+   };
+
    // -------------------------------------------------------------------------
-   // Title
+   // Left Side: Preview Control
+   // -------------------------------------------------------------------------
+
+   this.previewControl = new BasicPreviewControl(this, "veralux_preview", 400, 400);
+
+   // Image selection
+   this.imageLabel = new Label(this);
+   this.imageLabel.text = "Select Image:";
+   this.imageLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+   this.imageLabel.minWidth = 80;
+
+   this.imageComboBox = new ComboBox(this);
+   this.imageComboBox.toolTip = "Select an image to preview stretch parameters.";
+   this.imageComboBox.onItemSelected = function(index) {
+      self.loadOriginalImage();
+   };
+
+   this.refreshButton = new ToolButton(this);
+   this.refreshButton.icon = this.scaledResource(":/icons/reload.png");
+   this.refreshButton.setScaledFixedSize(24, 24);
+   this.refreshButton.toolTip = "Refresh image list";
+   this.refreshButton.onClick = function() {
+      self.updateImageList();
+   };
+
+   this.imageSelectSizer = new HorizontalSizer;
+   this.imageSelectSizer.spacing = 4;
+   this.imageSelectSizer.add(this.imageLabel);
+   this.imageSelectSizer.add(this.imageComboBox, 100);
+   this.imageSelectSizer.add(this.refreshButton);
+
+   // Preview buttons
+   this.previewButton = new PushButton(this);
+   this.previewButton.text = "Update Preview";
+   this.previewButton.icon = this.scaledResource(":/icons/play.png");
+   this.previewButton.toolTip = "Apply stretch to preview image.";
+   this.previewButton.onClick = function() {
+      self.applyPreview();
+   };
+
+   this.resetPreviewButton = new PushButton(this);
+   this.resetPreviewButton.text = "Reset Preview";
+   this.resetPreviewButton.icon = this.scaledResource(":/icons/reload.png");
+   this.resetPreviewButton.toolTip = "Reset preview to original image.";
+   this.resetPreviewButton.onClick = function() {
+      self.resetPreview();
+   };
+
+   this.previewButtonsSizer = new HorizontalSizer;
+   this.previewButtonsSizer.spacing = 4;
+   this.previewButtonsSizer.add(this.previewButton, 50);
+   this.previewButtonsSizer.add(this.resetPreviewButton, 50);
+
+   this.leftSizer = new VerticalSizer;
+   this.leftSizer.spacing = 4;
+   this.leftSizer.add(this.imageSelectSizer);
+   this.leftSizer.add(this.previewControl, 100);
+   this.leftSizer.add(this.previewButtonsSizer);
+
+   // -------------------------------------------------------------------------
+   // Right Side: Title and Controls
    // -------------------------------------------------------------------------
 
    this.titleLabel = new Label(this);
@@ -219,7 +489,7 @@ function VeraLuxDialog(veralux) {
    this.sensorGroupBox.sizer = this.sensorGroupBoxSizer;
 
    // Top row (Mode + Sensor)
-   this.topRowSizer = new HorizontalSizer;
+   this.topRowSizer = new VerticalSizer;
    this.topRowSizer.spacing = 8;
    this.topRowSizer.add(this.modeGroupBox);
    this.topRowSizer.add(this.sensorGroupBox);
@@ -232,20 +502,18 @@ function VeraLuxDialog(veralux) {
    this.stretchGroupBox.title = "2. Stretch Engine & Calibration";
 
    // Target Background
-   this.targetBgLabel = new Label(this.stretchGroupBox);
-   this.targetBgLabel.text = "Target Bg:";
-   this.targetBgLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
-
-   this.targetBgSpinBox = new SpinBox(this.stretchGroupBox);
-   this.targetBgSpinBox.setRange(5, 50);
-   this.targetBgSpinBox.value = Math.round(parameters.targetBg * 100);
-   this.targetBgSpinBox.toolTip = "Target background median (0.05-0.50). Standard is 0.20.";
-   this.targetBgSpinBox.onValueUpdated = function(value) {
-      parameters.targetBg = value / 100.0;
+   this.targetBgControl = new NumericControl(this.stretchGroupBox);
+   this.targetBgControl.label.text = "Target Bg:";
+   this.targetBgControl.label.minWidth = 60;
+   this.targetBgControl.setRange(0.0, 0.50);
+   this.targetBgControl.slider.setRange(0.0, 500.0);
+   this.targetBgControl.slider.scaledMinWidth = 200;
+   this.targetBgControl.setPrecision(2);
+   this.targetBgControl.setValue(parameters.targetBg);
+   this.targetBgControl.toolTip = "Target background median (0.05-0.50). Standard is 0.20.";
+   this.targetBgControl.onValueUpdated = function(value) {
+      parameters.targetBg = value;
    };
-
-   this.targetBgPercentLabel = new Label(this.stretchGroupBox);
-   this.targetBgPercentLabel.text = "%";
 
    // Adaptive Anchor checkbox
    this.adaptiveAnchorCheckBox = new CheckBox(this.stretchGroupBox);
@@ -256,7 +524,8 @@ function VeraLuxDialog(veralux) {
       parameters.useAdaptiveAnchor = checked;
    };
 
-   // Auto-Calculate button
+   // Auto-Calculate checkbox
+      // Auto-Calculate button
    this.autoCalcButton = new PushButton(this.stretchGroupBox);
    this.autoCalcButton.text = "⚡ Auto-Calc Log D";
    this.autoCalcButton.toolTip = "Analyzes image to find optimal Stretch Factor (Log D).";
@@ -266,9 +535,7 @@ function VeraLuxDialog(veralux) {
 
    this.calibRowSizer = new HorizontalSizer;
    this.calibRowSizer.spacing = 4;
-   this.calibRowSizer.add(this.targetBgLabel);
-   this.calibRowSizer.add(this.targetBgSpinBox);
-   this.calibRowSizer.add(this.targetBgPercentLabel);
+   this.calibRowSizer.add(this.targetBgControl);
    this.calibRowSizer.addSpacing(8);
    this.calibRowSizer.add(this.adaptiveAnchorCheckBox);
    this.calibRowSizer.addStretch();
@@ -278,8 +545,8 @@ function VeraLuxDialog(veralux) {
    this.logDControl = new NumericControl(this.stretchGroupBox);
    this.logDControl.label.text = "Log D:";
    this.logDControl.label.minWidth = 60;
-   this.logDControl.setRange(0, 7);
-   this.logDControl.slider.setRange(0, 700);
+   this.logDControl.setRange(0.0, 7);
+   this.logDControl.slider.setRange(0, 1000);
    this.logDControl.slider.scaledMinWidth = 200;
    this.logDControl.setPrecision(2);
    this.logDControl.setValue(parameters.logD);
@@ -334,16 +601,16 @@ function VeraLuxDialog(veralux) {
    // Ready-to-Use Section (Unified Color Strategy)
    this.readyToUseSection = new Control(this.physicsGroupBox);
 
-   this.colorStrategyLabel = new Label(this.readyToUseSection);
-   this.colorStrategyLabel.text = "Color Strategy:";
-   this.colorStrategyLabel.textAlignment = TextAlign_Right | TextAlign_VertCenter;
-   this.colorStrategyLabel.minWidth = 120;
-
-   this.colorStrategySlider = new Slider(this.readyToUseSection);
-   this.colorStrategySlider.setRange(-100, 100);
-   this.colorStrategySlider.value = parameters.colorStrategy;
-   this.colorStrategySlider.toolTip = "Left: Clean Noise | Center: Balanced | Right: Soften Highlights. Double-click to reset.";
-   this.colorStrategySlider.onValueUpdated = function(value) {
+   this.colorStrategyControl = new NumericControl(this.readyToUseSection);
+   this.colorStrategyControl.label.text = "Color Strategy:";
+   this.colorStrategyControl.label.minWidth = 120;
+   this.colorStrategyControl.setRange(-100, 100);
+   this.colorStrategyControl.slider.setRange(-100, 100);
+   this.colorStrategyControl.slider.scaledMinWidth = 150;
+   this.colorStrategyControl.setPrecision(1);
+   this.colorStrategyControl.setValue(parameters.colorStrategy);
+   this.colorStrategyControl.toolTip = "Left: Clean Noise | Center: Balanced | Right: Soften Highlights";
+   this.colorStrategyControl.onValueUpdated = function(value) {
       parameters.colorStrategy = value;
       self.updateStrategyFeedback();
    };
@@ -355,12 +622,7 @@ function VeraLuxDialog(veralux) {
    this.readyToUseSizer.margin = 0;
    this.readyToUseSizer.spacing = 2;
 
-   this.strategyRowSizer = new HorizontalSizer;
-   this.strategyRowSizer.spacing = 4;
-   this.strategyRowSizer.add(this.colorStrategyLabel);
-   this.strategyRowSizer.add(this.colorStrategySlider, 100);
-
-   this.readyToUseSizer.add(this.strategyRowSizer);
+   this.readyToUseSizer.add(this.colorStrategyControl);
    this.readyToUseSizer.add(this.strategyFeedbackLabel);
    this.readyToUseSection.sizer = this.readyToUseSizer;
 
@@ -413,7 +675,7 @@ function VeraLuxDialog(veralux) {
    // -------------------------------------------------------------------------
 
    this.statusLabel = new Label(this);
-   this.statusLabel.text = "Ready. Configure parameters and click Process.";
+   this.statusLabel.text = "Ready. Select image and configure parameters.";
    this.statusLabel.textAlignment = TextAlign_Center;
    this.statusLabel.styleSheet = "color: #AAAAAA;";
 
@@ -448,18 +710,18 @@ function VeraLuxDialog(veralux) {
    };
 
    this.processButton = new PushButton(this);
-   this.processButton.text = "Process";
+   this.processButton.text = "Process Final";
    this.processButton.icon = this.scaledResource(":/icons/power.png");
-   this.processButton.toolTip = "Apply the stretch to the active image.";
+   this.processButton.toolTip = "Create final processed image (does not overwrite original).";
    this.processButton.onClick = function() {
-      self.applyVeraLux();
+      self.processFinal();
    };
 
    this.closeButton = new PushButton(this);
    this.closeButton.text = "Close";
    this.closeButton.icon = this.scaledResource(":/icons/close.png");
    this.closeButton.onClick = function() {
-      self.cancel();
+      self.ok();
    };
 
    this.buttonsSizer = new HorizontalSizer;
@@ -472,20 +734,29 @@ function VeraLuxDialog(veralux) {
    this.buttonsSizer.add(this.closeButton);
 
    // -------------------------------------------------------------------------
-   // Main Layout
+   // Right Side Layout
    // -------------------------------------------------------------------------
 
-   this.sizer = new VerticalSizer;
+   this.rightSizer = new VerticalSizer;
+   this.rightSizer.spacing = 8;
+   this.rightSizer.add(this.titleLabel);
+   this.rightSizer.add(this.subtitleLabel);
+   this.rightSizer.add(this.copyrightLabel);
+   this.rightSizer.add(this.topRowSizer);
+   this.rightSizer.add(this.stretchGroupBox);
+   this.rightSizer.add(this.physicsGroupBox);
+   this.rightSizer.add(this.statusLabel);
+   this.rightSizer.add(this.buttonsSizer);
+
+   // -------------------------------------------------------------------------
+   // Main Layout (Preview on Left, Controls on Right)
+   // -------------------------------------------------------------------------
+
+   this.sizer = new HorizontalSizer;
    this.sizer.margin = 8;
    this.sizer.spacing = 8;
-   this.sizer.add(this.titleLabel);
-   this.sizer.add(this.subtitleLabel);
-   this.sizer.add(this.copyrightLabel);
-   this.sizer.add(this.topRowSizer);
-   this.sizer.add(this.stretchGroupBox);
-   this.sizer.add(this.physicsGroupBox);
-   this.sizer.add(this.statusLabel);
-   this.sizer.add(this.buttonsSizer);
+   this.sizer.add(this.leftSizer);
+   this.sizer.add(this.rightSizer);
 
    // -------------------------------------------------------------------------
    // Methods
@@ -495,14 +766,14 @@ function VeraLuxDialog(veralux) {
       this.readyToUseRadio.checked = parameters.processingMode === "Ready-to-Use";
       this.scientificRadio.checked = parameters.processingMode === "Scientific";
       this.profileComboBox.currentItem = this.profileComboBox.findItem(parameters.sensorProfile);
-      this.targetBgSpinBox.value = Math.round(parameters.targetBg * 100);
+      this.targetBgControl.setValue(parameters.targetBg);
       this.adaptiveAnchorCheckBox.checked = parameters.useAdaptiveAnchor;
       this.logDControl.setValue(parameters.logD);
       this.protectBControl.setValue(parameters.protectB);
       this.convergenceControl.setValue(parameters.convergencePower);
       this.colorGripControl.setValue(parameters.colorGrip);
       this.shadowConvControl.setValue(parameters.shadowConvergence);
-      this.colorStrategySlider.value = parameters.colorStrategy;
+      this.colorStrategyControl.setValue(parameters.colorStrategy);
 
       this.updateProfileInfo();
       this.updateModeUI();
@@ -510,11 +781,12 @@ function VeraLuxDialog(veralux) {
    };
 
    this.runAutoSolver = function() {
-      var window = ImageWindow.activeWindow;
-      if (window.isNull) {
-         this.statusLabel.text = "Error: No active image.";
+      if (!this.previewImage || !this.selectedWindow) {
+         this.statusLabel.text = "No image loaded for preview.";
          return;
       }
+
+      console.show();
 
       this.statusLabel.text = "Solving for optimal Log D...";
       this.autoCalcButton.enabled = false;
@@ -522,7 +794,7 @@ function VeraLuxDialog(veralux) {
 
       var weights = SENSOR_PROFILES[parameters.sensorProfile].weights;
       var logD = veralux.VeraLuxCore.solveLogD(
-         window.currentView.image,
+         this.previewImage,
          parameters.targetBg,
          parameters.protectB,
          weights,
@@ -536,55 +808,19 @@ function VeraLuxDialog(veralux) {
 
       console.writeln(format("VeraLux Solver: Optimal Log D = %.2f [%s]", logD, parameters.sensorProfile));
    };
-
-   this.applyVeraLux = function() {
-      console.show();
-
-      var window = ImageWindow.activeWindow;
-      if (window.isNull) {
-         this.statusLabel.text = "Error: No active image.";
-         return;
-      }
-
-      var view = window.currentView;
-      var image = view.image;
-
-      if (image.numberOfChannels < 1) {
-         this.statusLabel.text = "Error: Invalid image.";
-         return;
-      }
-
-      console.writeln("Make copy of the image for processing...");
-
-      var sourceWindow = window;
-
-      var targetWindow = new ImageWindow(
-                        sourceWindow.mainView.image.width,
-                        sourceWindow.mainView.image.height,
-                        sourceWindow.mainView.image.numberOfChannels,
-                        sourceWindow.mainView.window.bitsPerSample,
-                        sourceWindow.mainView.window.isFloatSample,
-                        sourceWindow.mainView.image.colorSpace != ColorSpace_Gray,
-                        sourceWindow.mainView.id + "_VeraLux");
-      targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-      targetWindow.mainView.image.assign(sourceWindow.mainView.image);
-      targetWindow.keywords = sourceWindow.keywords;
-      targetWindow.mainView.endProcess();
-
-      targetWindow.show();
-
-      this.processButton.enabled = false;
-
-      veralux.execute(targetWindow);
-
-      this.processButton.enabled = true;
-   };
-
+   
    // Initialize
+   this.updateImageList();
    this.updateControls();
+   
+   // Load first image if available
+   if (this.imageComboBox.numberOfItems > 0 && 
+       this.imageComboBox.itemText(0) !== "<No images>") {
+      this.loadOriginalImage();
+   }
 }
 
-VeraLuxDialog.prototype = new Dialog;
+VeraLuxPreviewDialog.prototype = new Dialog;
 
 // =============================================================================
 //  MAIN ENTRY POINT
@@ -595,19 +831,7 @@ function main() {
 
    var veralux = new AutoIntegrateVeraLuxHMS();
 
-   // Check for active image
-   if (ImageWindow.activeWindow.isNull) {
-      var msg = new MessageBox(
-         "No active image. Please open a linear image first.",
-         TITLE,
-         StdIcon_Error,
-         StdButton_Ok
-      );
-      msg.execute();
-      return;
-   }
-
-   var dialog = new VeraLuxDialog(veralux);
+   var dialog = new VeraLuxPreviewDialog(veralux);
    dialog.execute();
 }
 

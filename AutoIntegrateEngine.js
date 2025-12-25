@@ -18861,6 +18861,9 @@ function get_local_copies_of_parameters()
  */
 function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narrowband, txt)
 {
+       console.writeln("autointegrateProcessingEngine");
+       console.writeln("gllobal.outputRootDir: " + global.outputRootDir);
+       
        get_local_copies_of_parameters();
 
        if (!check_engine_processing()) {

@@ -932,6 +932,7 @@ this.getSensorProfiles = getSensorProfiles;
 this.getHelpText = getHelpText;
 
 this.VeraLuxCore = VeraLuxCore;
+this.processVeraLux = processVeraLux;
 
 } // AutoIntegrateVeraLuxHMS
 
