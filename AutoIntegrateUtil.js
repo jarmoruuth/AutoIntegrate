@@ -623,7 +623,7 @@ function autointegrateProcessingHistory(imageWindow)
             info: [],
             options: [],
             steps: [],
-            extra: []
+            enhancements: []
       };
       var is_history = false;
       // AutoIntegrate keyword first
@@ -650,8 +650,8 @@ function autointegrateProcessingHistory(imageWindow)
                   history.options[history.options.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }
-            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate extra")) {
-                  history.extra[history.extra.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate enhancements")) {
+                  history.enhancements[history.enhancements.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }
       }
@@ -913,10 +913,10 @@ function closeFinalWindowsFromArray(arr, force_close)
             util.closeOneWindowById(arr[i], force_close);
             util.closeOneWindowById(arr[i]+"_stars", force_close);
             util.closeOneWindowById(arr[i]+"_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_extra", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_stars", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_combined", force_close);
+            util.closeOneWindowById(arr[i]+"_enh", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_starless", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_stars", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_combined", force_close);
       }
 }
 
@@ -1821,47 +1821,47 @@ function remove_autocontinue_prefix(id)
 
 function is_non_starless_option()
 {
-      return par.extra_backgroundneutralization.val ||
-             par.extra_GC.val || 
-             par.extra_banding_reduction.val ||
-             par.extra_darker_background.val || 
-             par.extra_darker_highlights.val ||
-             par.extra_ET.val || 
-             par.extra_HDRMLT.val || 
-             par.extra_LHE.val || 
-             par.extra_contrast.val ||
-             par.extra_stretch.val ||
-             par.extra_autostf.val ||
-             par.extra_shadowclipping.val ||
-             par.extra_smoothbackground.val ||
-             par.extra_noise_reduction.val ||
-             par.extra_ACDNR.val ||
-             par.extra_color_noise.val ||
-             par.extra_sharpen.val ||
-             par.extra_unsharpmask.val ||
-             par.extra_highpass_sharpen.val ||
-             par.extra_saturation.val ||
-             par.extra_clarity.val ||
-             par.extra_smaller_stars.val ||
-             par.extra_normalize_channels.val ||
-             par.extra_adjust_channels.val ||
-             par.extra_shadow_enhance.val ||
-             par.extra_highlight_enhance.val ||
-             par.extra_gamma.val ||
-             par.extra_auto_contrast.val ||
-             par.extra_color_calibration.val ||
-             par.extra_ha_mapping.val ||
-             par.extra_solve_image.val ||
-             par.extra_annotate_image.val ||
-             par.extra_signature.val ||
-             par.extra_rotate.val ||
-             par.extra_fix_star_cores.val;
+      return par.enhancements_backgroundneutralization.val ||
+             par.enhancements_GC.val || 
+             par.enhancements_banding_reduction.val ||
+             par.enhancements_darker_background.val || 
+             par.enhancements_darker_highlights.val ||
+             par.enhancements_ET.val || 
+             par.enhancements_HDRMLT.val || 
+             par.enhancements_LHE.val || 
+             par.enhancements_contrast.val ||
+             par.enhancements_stretch.val ||
+             par.enhancements_autostf.val ||
+             par.enhancements_shadowclipping.val ||
+             par.enhancements_smoothbackground.val ||
+             par.enhancements_noise_reduction.val ||
+             par.enhancements_ACDNR.val ||
+             par.enhancements_color_noise.val ||
+             par.enhancements_sharpen.val ||
+             par.enhancements_unsharpmask.val ||
+             par.enhancements_highpass_sharpen.val ||
+             par.enhancements_saturation.val ||
+             par.enhancements_clarity.val ||
+             par.enhancements_smaller_stars.val ||
+             par.enhancements_normalize_channels.val ||
+             par.enhancements_adjust_channels.val ||
+             par.enhancements_shadow_enhance.val ||
+             par.enhancements_highlight_enhance.val ||
+             par.enhancements_gamma.val ||
+             par.enhancements_auto_contrast.val ||
+             par.enhancements_color_calibration.val ||
+             par.enhancements_ha_mapping.val ||
+             par.enhancements_solve_image.val ||
+             par.enhancements_annotate_image.val ||
+             par.enhancements_signature.val ||
+             par.enhancements_rotate.val ||
+             par.enhancements_fix_star_cores.val;
 }
 
-function is_extra_option()
+function is_enhancements_option()
 {
-      return par.extra_remove_stars.val || 
-             par.extra_combine_stars.val ||
+      return par.enhancements_remove_stars.val || 
+             par.enhancements_combine_stars.val ||
              is_non_starless_option();
 }
 
@@ -1872,7 +1872,7 @@ function is_narrowband_option()
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_foraxx_mapping.val ||
-             par.run_extra_narrowband_mapping.val ||
+             par.run_enhancements_narrowband_mapping.val ||
              par.run_orangeblue_colors.val ||
              par.run_colorized_narrowband.val ||
              par.run_narrowband_SCNR.val ||
@@ -2908,7 +2908,7 @@ this.saveJsonFileEx = saveJsonFileEx;
 this.saveJsonFile = saveJsonFile;
 
 // Parameters and options
-this.is_extra_option = is_extra_option;
+this.is_enhancements_option = is_enhancements_option;
 this.is_narrowband_option = is_narrowband_option;
 this.setParameterDefaults = setParameterDefaults;
 

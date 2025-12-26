@@ -285,7 +285,6 @@ Linear Defect Detection:
 #include "AutoIntegratePreview.js"
 #include "AutoIntegrateGUI.js"
 #include "AutoIntegrateFlowchart.js"
-#include "AutoIntegrateEnhancements.js"
 
 function AutoIntegrate() {
 
@@ -807,7 +806,7 @@ this.autointegrate_main = function()
             errors = true;
       }
 
-      this.dialog = new gui.AutoIntegrateDialog();
+      this.dialog = new gui.AutoIntegrateDialog(global);
       global.dialog = this.dialog;
       if (0 && errors) {
             // Access problem with this, I guess because we are ion some PixInsight directory
