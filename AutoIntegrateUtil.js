@@ -1166,6 +1166,39 @@ function saveLastDir(dirname)
       }
 }
 
+function saveParameter(param)
+{
+      var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
+      if (param.val != param.def) {
+            // not a default value, save setting
+            console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
+            switch (param.type) {
+                  case 'S':
+                        Settings.write(name, DataType_String, param.val);
+                        break;
+                  case 'B':
+                        Settings.write(name, DataType_Boolean, param.val);
+                        break;
+                  case 'I':
+                        Settings.write(name, DataType_Int32, param.val);
+                        break;
+                  case 'R':
+                        Settings.write(name, DataType_Real32, param.val);
+                        break;
+                  default:
+                        util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                        break;
+            }
+            if (param.oldname != undefined) {
+                  // remove old name
+                  Settings.remove(SETTINGSKEY + '/' + util.mapBadChars(param.oldname));
+            }
+      } else {
+            // default value, remove possible setting
+            Settings.remove(name);
+      }
+}
+
 function combinePath(p1, p2)
 {
       if (p1 == "") {
@@ -2911,6 +2944,7 @@ this.saveJsonFile = saveJsonFile;
 this.is_enhancements_option = is_enhancements_option;
 this.is_narrowband_option = is_narrowband_option;
 this.setParameterDefaults = setParameterDefaults;
+this.saveParameter = saveParameter;
 
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;

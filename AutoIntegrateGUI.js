@@ -243,11 +243,7 @@ var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
 var screen_height = 0;             // Screen height in pixels
 
-var skip_reset_tooltip =                  "<p>Note that this parameter is not reset or saved to Json file.</p>";   
 
-var MGCToolTip =                          "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
-                                          "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another " + 
-                                          "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection<./p>";
 var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visualizer dialog.</p>" +
                                           "<p>Filtering settings in the <i>Preprocessing / Weighting and filtering settings</i> section " +
                                           "are used for visualization.</p>" +
@@ -1373,6 +1369,11 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
             is_some_preview = false;
             global.is_processing = global.processing_state.none;
       }
+}
+
+function setPreviewIdReset(id, keep_zoom, histogramInfo)
+{
+      updatePreviewIdReset(id, keep_zoom, histogramInfo);
 }
 
 function updatePreviewNoImageInControl(control)
@@ -3296,36 +3297,7 @@ function saveParametersToPersistentModuleSettings()
             return;
       }
       for (let x in par) {
-            var param = par[x];
-            var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
-            if (param.val != param.def) {
-                  // not a default value, save setting
-                  console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
-                  switch (param.type) {
-                        case 'S':
-                              Settings.write(name, DataType_String, param.val);
-                              break;
-                        case 'B':
-                              Settings.write(name, DataType_Boolean, param.val);
-                              break;
-                        case 'I':
-                              Settings.write(name, DataType_Int32, param.val);
-                              break;
-                        case 'R':
-                              Settings.write(name, DataType_Real32, param.val);
-                              break;
-                        default:
-                              util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
-                              break;
-                  }
-                  if (param.oldname != undefined) {
-                        // remove old name
-                        Settings.remove(SETTINGSKEY + '/' + util.mapBadChars(param.oldname));
-                  }
-            } else {
-                  // default value, remove possible setting
-                  Settings.remove(name);
-            }
+            util.saveParameter(par[x]);
       }
 }
 
@@ -4210,6 +4182,7 @@ function newPreviewObj(parent, side_preview)
       } else {
             var newPreviewControl = new AutoIntegratePreviewControl(parent, "tab", engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
       }
+      enhancements.setPreviewControl(newPreviewControl);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -4496,7 +4469,6 @@ function AutoIntegrateDialog()
 
       this.rootingArr = [];    // for rooting objects
 
-      var BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
       var comet_alignment_toolTip = 
             "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
             "<ul>" +
@@ -4520,7 +4492,7 @@ function AutoIntegrateDialog()
             "<p>Comet alignment will automatically skip star alignment and SCNR. Since already star aligned images (*_r.xisf) " + 
                "are used then Star alignment could invalidate coordinates given here and thus it is not used.</p>" +
             "<p>Note that using starless images may cause problems for example with ImageIntegration or BlurXTerminator. With missing PSF error in ImageIntegration " +
-            "you can use an option <i>ImageIntegration use ssweight</i>. " + BXT_no_PSF_tip + "</p>" + 
+            "you can use an option <i>ImageIntegration use ssweight</i>. " + guitools.BXT_no_PSF_tip + "</p>" + 
             "<p>It is also possible to manually run the CometAlignment process. Below are the steps to use AutoIntegrate with manual comet alignment:</p>" + 
             "<ul>" + 
             "<li>Run normal workflow to get correct stars and background objects.</li>" +
@@ -4807,74 +4779,7 @@ function AutoIntegrateDialog()
             "<p>Do not run color calibration. Color calibration is run by default on RGB data.</p>" );
       this.skip_auto_background_CheckBox = guitools.newCheckBox(this, "No auto background", par.skip_auto_background, 
             "<p>Do not try to find background area.</p>" );
-      this.use_StarXTerminator_CheckBox = guitools.newCheckBox(this, "StarXTerminator", par.use_starxterminator, 
-            "<p>Use StarXTerminator to remove stars from an image.</p>" +
-            "<p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>" );
-      this.use_noisexterminator_CheckBox = guitools.newCheckBox(this, "NoiseXTerminator", par.use_noisexterminator, 
-            "<p>Use NoiseXTerminator for noise reduction.</p>" +
-            "<p>You can change noise reduction settings in the <i>Postprocessing / Noise reduction</i> section.</p>" );
-      this.use_starnet2_CheckBox = guitools.newCheckBox(this, "StarNet2", par.use_starnet2, 
-            "<p>Use StarNet2 to remove stars from an image.</p>" );
-      this.use_deepsnr_CheckBox = guitools.newCheckBox(this, "DeepSNR", par.use_deepsnr, 
-            "<p>Use DeepSNR for noise reduction.</p>" +
-            "<p>Note that with DeepSNR increasing the noise reduction strength value will decrease the noise reduction.</p>" );
-      this.use_blurxterminator_CheckBox = guitools.newCheckBox(this, "BlurXTerminator", par.use_blurxterminator, 
-            "<p>Use BlurXTerminator for sharpening and deconvolution.</p>" +
-            "<p>BlurXTerminator is applied on the linear image just before it is stretched to non-linear. Enhancements " +
-            "option for sharpening can be used to apply BlurXTerminator on non-linear image.</p>" +
-            "<p>Some options for BlurXTerminator can be adjusted in the <i>Tools / BlurXTerminator</i> section.</p>" +
-            "<p>When using BlurXTerminator it is recommended to do noise reduction after BluxXTerminator " + 
-            "by checking option <i>Combined image noise reduction</i> or <i>Non-linear noise reduction</i>. " + 
-            "But it is always good to experiment what " +
-            "is best for your own data.</p>" + 
-            "<p>" + BXT_no_PSF_tip + "</p>");
-      if (global.is_gc_process) {
-            var use_graxpert_toolTip = "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p>";
-      } else {
-            var use_graxpert_toolTip = "<p>Use GraXpert instead of AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>";
-      }
-      use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
-                              "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>";
-      
-      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
-                          "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
 
-      this.use_graxpert_CheckBox = guitools.newCheckBox(this, "GraXpert gradient", par.use_graxpert, 
-            use_graxpert_toolTip + 
-            "<p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section " +
-            "it is possible to set some settings.</p>" +
-            GraXpert_note);
-      this.use_graxpert_denoise_CheckBox = guitools.newCheckBox(this, "GraXpert denoise", par.use_graxpert_denoise, 
-            "<p>Use GraXpert for noise reduction.</p>" +
-            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
-            GraXpert_note);
-
-      this.use_graxpert_deconvolution_CheckBox = guitools.newCheckBox(this, "GraXpert deconvolution", par.use_graxpert_deconvolution, 
-            "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
-            "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
-            GraXpert_note);
-      if (global.is_gc_process) {
-            this.use_abe_CheckBox = guitools.newCheckBox(this, "ABE", par.use_abe, 
-            "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
-            "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-            "<p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>");
-      }
-      this.use_dbe_CheckBox = guitools.newCheckBox(this, "DBE", par.use_dbe, 
-            "<p>Use DynamicBackgroundExtraction (DBE) to correct gradients in images.</p>" +
-            "</p>By default no gradient correction is done. To use DBE for gradient correction you need to also check one of " +
-            "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-            "<p>Sample points are automatically generated for DBE. Settings for DBE are in <i>Postprocessing / DBE settings</i> section.</p>");
-      if (global.is_mgc_process) {
-            this.use_multiscalegradientcorrection_CheckBox = guitools.newCheckBox(this, "MultiscaleGradientCorrection", par.use_multiscalegradientcorrection, 
-                  "<p>Use MultiscaleGradientCorrection instead of GradientCorrection process to correct gradients in images.</p>" +
-                  "</p>By default no gradient correction is done. To use MultiscaleGradientCorrection for gradient correction you need to also check one of " +
-                  "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
-                  "<p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" +
-                  "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
-                  "using this option.</p>" +
-                  MGCToolTip);
-            }
       this.win_prefix_to_log_files_CheckBox = guitools.newCheckBox(this, "Add window prefix to log files", par.win_prefix_to_log_files, 
             "<p>Add window prefix to AutoIntegrate.log and AutoContinue.log files.</p>" );
       this.start_from_imageintegration_CheckBox = guitools.newCheckBox(this, "Start from ImageIntegration", par.start_from_imageintegration, 
@@ -5041,74 +4946,6 @@ function AutoIntegrateDialog()
       this.imageParamsControl.sizer.add( this.stretchingSizer );
       this.imageParamsControl.visible = true;
       this.imageParamsControl.sizer.addStretch();
-
-      // Tools set 1, gradient correction
-      this.imageToolsSet1SectionLabel = guitools.newSectionLabel(this, "Gradient correction");
-      this.imageToolsSet1SectionLabel.toolTip = "<p>Select tools for gradient correction if you do not want to use the default gradient correction.</p>";
-      this.imageToolsSet1 = new VerticalSizer;
-      this.imageToolsSet1.margin = 6;
-      this.imageToolsSet1.spacing = 4;
-      this.imageToolsSet1.add( this.imageToolsSet1SectionLabel );
-      if (global.is_gc_process || global.is_mgc_process) {
-            if (global.is_gc_process) {
-                  this.imageToolsSet1.add( this.use_abe_CheckBox );
-            }
-            this.imageToolsSet1.add( this.use_dbe_CheckBox );
-            if (global.is_mgc_process) {
-                  this.imageToolsSet1.add( this.use_multiscalegradientcorrection_CheckBox );
-            }
-      }
-      this.imageToolsSet1.add( this.use_graxpert_CheckBox );
-      this.imageToolsSet1.addStretch();
-
-      // Tools set 2, noise removal
-      this.imageToolsSet2SectionLabel = guitools.newSectionLabel(this, "Noise removal");
-      this.imageToolsSet2SectionLabel.toolTip = "<p>Select tools for noise removal if you do not want to use the default noise removal.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
-      this.imageToolsSet2 = new VerticalSizer;
-      this.imageToolsSet2.margin = 6;
-      this.imageToolsSet2.spacing = 4;
-      this.imageToolsSet2.add( this.imageToolsSet2SectionLabel );
-      this.imageToolsSet2.add( this.use_noisexterminator_CheckBox );
-      this.imageToolsSet2.add( this.use_graxpert_denoise_CheckBox );
-      this.imageToolsSet2.add( this.use_deepsnr_CheckBox );
-      this.imageToolsSet2.addStretch();
-
-      // Tools set 3, star removal
-      this.imageToolsSet3SectionLabel = guitools.newSectionLabel(this, "Star removal");
-      this.imageToolsSet3SectionLabel.toolTip = "<p>Select tools for star removal.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
-      this.imageToolsSet3 = new VerticalSizer;
-      this.imageToolsSet3.margin = 6;
-      this.imageToolsSet3.spacing = 4;
-      this.imageToolsSet3.add( this.imageToolsSet3SectionLabel );
-      this.imageToolsSet3.add( this.use_StarXTerminator_CheckBox );
-      this.imageToolsSet3.add( this.use_starnet2_CheckBox );
-      this.imageToolsSet3.addStretch();
-
-      // Tools set 4, deconvolution
-      this.imageToolsSet4SectionLabel = guitools.newSectionLabel(this, "Deconvolution/sharpening");
-      this.imageToolsSet4SectionLabel.toolTip = "<p>Select tools for deconvolution and sharpening if you do not want to use the default sharpening.</p>" + 
-                                                "<p>Note that these are external tools and you need to have them installed and set up correctly.</p>";
-      this.imageToolsSet4 = new VerticalSizer;
-      this.imageToolsSet4.margin = 6;
-      this.imageToolsSet4.spacing = 4;
-      this.imageToolsSet4.add( this.imageToolsSet4SectionLabel );
-      this.imageToolsSet4.add( this.use_blurxterminator_CheckBox );
-      this.imageToolsSet4.add( this.use_graxpert_deconvolution_CheckBox );
-      this.imageToolsSet4.addStretch();
-
-      // Tools par.
-      this.imageToolsControl = new Control( this );
-      this.imageToolsControl.sizer = new HorizontalSizer;
-      this.imageToolsControl.sizer.margin = 6;
-      this.imageToolsControl.sizer.spacing = 4;
-      this.imageToolsControl.sizer.add( this.imageToolsSet1 );
-      this.imageToolsControl.sizer.add( this.imageToolsSet2 );
-      this.imageToolsControl.sizer.add( this.imageToolsSet3 );
-      this.imageToolsControl.sizer.add( this.imageToolsSet4 );
-      this.imageToolsControl.visible = true;
-      this.imageToolsControl.sizer.addStretch();
 
       this.fastModeSizer = new HorizontalSizer;
       this.fastModeSizer.margin = 6;
@@ -5623,11 +5460,11 @@ function AutoIntegrateDialog()
       this.bxtPSF = guitools.newNumericEdit(this, "PSF", par.bxt_psf, 0, 8, "Manual PSF value if a non-zero value is given.");
       this.bxtImagePSF = guitools.newCheckBox(this, "Get PSF from image", par.bxt_image_psf, 
             "<p>Get PSF value from image using FWHM.</p>" + 
-            "<p>" + BXT_no_PSF_tip + "</p>" );
+            "<p>" + guitools.BXT_no_PSF_tip + "</p>" );
       this.bxtMedianPSF = guitools.newCheckBox(this, "Use median PSF", par.bxt_median_psf, 
             "<p>Use median FWHM from subframe selector as PSF value. It can be useful when PSF cannot be calculated from the image.</p>" + 
             "<p>Value is saved to the FITS header and used if available. Value is also printed to the AutoIntegrate.log file with a name AutoIntegrateMEDFWHM.</p>" + 
-            "<p>" + BXT_no_PSF_tip + "</p>" );
+            "<p>" + guitools.BXT_no_PSF_tip + "</p>" );
       this.bxtCorrectOnlyBeforeCC = guitools.newCheckBox(this, "Correct only before CC", par.bxt_correct_only_before_cc, 
             "<p>Run BlurXTerminator in correct only mode before color calibration.</p>" );
       this.bxtCorrectOnlyChannel = guitools.newCheckBox(this, "Correct only on channel images", par.bxt_correct_channels, 
@@ -6281,7 +6118,7 @@ function AutoIntegrateDialog()
                                                                   this.mgc_output_background_model_CheckBox ], 12);
 
             this.MGCGroupBoxLabel = guitools.newSectionLabel(this, "MultiscaleGradientCorrection settings");
-            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + MGCToolTip;
+            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + guitools.MGCToolTip;
             this.MGCGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0]);
       }
       this.ABEDegreeLabel = guitools.newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
@@ -6352,30 +6189,7 @@ function AutoIntegrateDialog()
       this.DBEMainSizer = guitools.newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer2 ]);
       this.DBEGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
 
-      this.graxpertPathLabel = guitools.newLabel(this, "Path", 
-            "<p>Path to GraXpert executable.</p>" +
-            "<p><b>NOTE!</b> Remember to use the tools button on lower left corner to save the path to " + 
-            "the persistent module settings. Then the value is automatically restored when the script starts.</p>" + 
-            skip_reset_tooltip);
-      this.graxpertPathEdit = guitools.newTextEdit(this, par.graxpert_path, this.graxpertPathLabel.toolTip);
-      this.graxpertPathButton = new ToolButton( this );
-      this.graxpertPathButton.icon = this.scaledResource(":/icons/select-file.png");
-      this.graxpertPathButton.toolTip = this.graxpertPathLabel.toolTip;
-      this.graxpertPathButton.setScaledFixedSize( 20, 20 );
-      this.graxpertPathButton.onClick = function()
-      {
-            var ofd = new OpenFileDialog;
-            ofd.multipleSelections = false;
-            if (!ofd.execute()) {
-                  return;
-            }
-            this.dialog.graxpertPathEdit.text = ofd.fileName;
-            par.graxpert_path.val = ofd.fileName;
-      };
-
-      // Path
-      //
-      this.graxpertPathSizer = guitools.newHorizontalSizer(6, true, [ this.graxpertPathLabel, this.graxpertPathEdit, this.graxpertPathButton ]);
+      this.graxpertPathSizer = guitools.createGraXperPathSizer(this);
 
       // Gradient correction
       //
@@ -7556,6 +7370,7 @@ function AutoIntegrateDialog()
                                           global,
                                           engine,
                                           {     // Preview functions for enhancements tab
+                                                setPreviewIdReset: setPreviewIdReset,
                                                 updatePreviewIdReset: updatePreviewIdReset,
                                                 updatePreviewTxt: updatePreviewTxt,
                                                 updatePreviewNoImage: updatePreviewNoImage,
@@ -7571,6 +7386,9 @@ function AutoIntegrateDialog()
       this.enhancementsControl1 = enhancementsGUIControls[1];
       this.enhancementsControl2 = enhancementsGUIControls[2];
       this.enhancementsControl3 = enhancementsGUIControls[3];
+
+      this.imageToolsControl = guitools.createImageToolsControl(this);
+      this.imageToolsControl.visible = true;
 
       // Button to close all windows
       this.closeAllButton = new PushButton( this );
@@ -7707,7 +7525,7 @@ function AutoIntegrateDialog()
             "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
             "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
             "view uses full processing flowchart.</p>" + 
-            skip_reset_tooltip,
+            guitools.skip_reset_tooltip,
             function(checked) { 
                   par.show_flowchart.val = checked;
                   if (checked) {
@@ -8130,16 +7948,16 @@ function AutoIntegrateDialog()
             "<p>Get the full flowchart data before processing when a normal processing is done using the Run button. This makes it possible to follow progress " +
             "in the complete flowchart if Show Flowchart is checked.</p>" +
             "<p>If this option is not checked or AutoContinue or batch processing is done, flowchart data is generated during processing.</p>" +
-            skip_reset_tooltip);
+            guitools.skip_reset_tooltip);
       this.flowchartBackgroundImageCheckBox = guitools.newCheckBox(this, "Flowchart show processed image", par.flowchart_background_image, 
             "<p>If checked then the current processed image is shown in the flowchart background.</p>" +
-            skip_reset_tooltip);
+            guitools.skip_reset_tooltip);
       this.flowchartTimeCheckBox = guitools.newCheckBox(this, "Flowchart show processing time", par.flowchart_time, 
             "<p>If checked then the operation processing time is shown in the flowchart.</p>" +
-            skip_reset_tooltip);
+            guitools.skip_reset_tooltip);
       this.flowchartSaveImageCheckBox = guitools.newCheckBox(this, "Flowchart save image", par.flowchart_saveimage, 
             "<p>If checked then the flowchart image is saved into AutoProcessed directory after processing is complete.</p>" +
-            skip_reset_tooltip);
+            guitools.skip_reset_tooltip);
                   
       this.flowchartControl = new Control( this );
       this.flowchartControl.sizer = new VerticalSizer;

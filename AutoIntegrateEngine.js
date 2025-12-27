@@ -94,7 +94,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/SearchCoordinatesDialog.js"
 #undef TITLE
 #include "../AdP/AnnotateImage.js"
-#endif
+#endif // NO_SOLVER_LIBRARY
 
 #include "AutoIntegrateVeraLuxHMS.js"
 
@@ -104,7 +104,11 @@ function AutoIntegrateEngine(global, util, flowchart)
 this.__base__ = Object;
 this.__base__();
 
+#ifdef AUTOINTEGRATE_STANDALONE
+var autointegrateLDD = null;
+#else
 var autointegrateLDD = new AutoIntegrateLDD(util);
+#endif
 
 var gui;
 var par = global.par;

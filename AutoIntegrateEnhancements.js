@@ -127,7 +127,7 @@ var enhancements_gui_info = {
       save_button: null
 };
 
-var enhancements_target_image_window_list = null;
+var enhancements_target_image_window_list = [];
 var preview_control = null;
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
@@ -148,13 +148,15 @@ function update_enhancements_target_image_window_list(current_item)
 {
       var combobox = enhancements_gui_info.images_combobox;
 
-      if (current_item == null) {
+      if (current_item == null && enhancements_target_image_window_list.length > 0) {
             // use item from dialog
             current_item = enhancements_target_image_window_list[combobox.currentItem];
       }
 
       enhancements_target_image_window_list = util.getWindowListReverse();
+#ifndef AUTOINTEGRATE_STANDALONE
       enhancements_target_image_window_list.unshift("Auto");
+#endif
 
       combobox.clear();
       for (var i = 0; i < enhancements_target_image_window_list.length; i++) {
@@ -828,7 +830,7 @@ this.narrowbandOptions2_sizer.add( this.remove_magenta_color_CheckBox );
 this.narrowbandOptions2_sizer.add( this.fix_narrowband_star_color_CheckBox );
 this.narrowbandOptions2_sizer.add( this.no_star_fix_mask_CheckBox );
 
-var narrowbandExtraLabeltoolTip = 
+var narrowbandEnhancementsLabeltoolTip = 
       "<p>" +
       "Enhancements options to be applied on narrowband images. "+
       "They are applied before other enhancements options in the following order:" +
@@ -842,13 +844,13 @@ var narrowbandExtraLabeltoolTip =
       "<li>Remove magenta color</li>" +
       "<li>Fix star colors</li>" +
       "</ol>";
-this.narrowbandExtraOptionsSizer = new HorizontalSizer;
-//this.narrowbandExtraOptionsSizer.margin = 6;
-//this.narrowbandExtraOptionsSizer.spacing = 4;
-this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions1_sizer );
-this.narrowbandExtraOptionsSizer.add( this.narrowbandOptions2_sizer );
-this.narrowbandExtraOptionsSizer.toolTip = narrowbandExtraLabeltoolTip;
-this.narrowbandExtraOptionsSizer.addStretch();
+this.narrowbandEnhancementsOptionsSizer = new HorizontalSizer;
+//this.narrowbandEnhancementsOptionsSizer.margin = 6;
+//this.narrowbandEnhancementsOptionsSizer.spacing = 4;
+this.narrowbandEnhancementsOptionsSizer.add( this.narrowbandOptions1_sizer );
+this.narrowbandEnhancementsOptionsSizer.add( this.narrowbandOptions2_sizer );
+this.narrowbandEnhancementsOptionsSizer.toolTip = narrowbandEnhancementsLabeltoolTip;
+this.narrowbandEnhancementsOptionsSizer.addStretch();
 
 // enhancements
 var enhancementsRemoveStars_Tooltip = 
@@ -863,7 +865,7 @@ this.enhancementsRemoveStars_Sizer = new HorizontalSizer;
 this.enhancementsRemoveStars_Sizer.spacing = 4;
 this.enhancementsRemoveStars_Sizer.add( this.enhancementsRemoveStars_CheckBox);
 this.enhancementsRemoveStars_Sizer.add( this.enhancementsUnscreenStars_CheckBox);
-this.enhancementsRemoveStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
+this.enhancementsRemoveStars_Sizer.toolTip = narrowbandEnhancementsLabeltoolTip;
 this.enhancementsRemoveStars_Sizer.addStretch();
 
 this.enhancementsFixStarCores_CheckBox = guitools.newCheckBox(parent, "Fix star cores", par.enhancements_fix_star_cores, 
@@ -902,7 +904,7 @@ this.enhancementsCombineStars_Sizer1= new HorizontalSizer;
 this.enhancementsCombineStars_Sizer1.spacing = 4;
 this.enhancementsCombineStars_Sizer1.add( this.enhancementsCombineStars_CheckBox);
 this.enhancementsCombineStars_Sizer1.add( this.enhancementsCombineStars_ComboBox);
-this.enhancementsCombineStars_Sizer1.toolTip = narrowbandExtraLabeltoolTip;
+this.enhancementsCombineStars_Sizer1.toolTip = narrowbandEnhancementsLabeltoolTip;
 this.enhancementsCombineStars_Sizer1.addStretch();
 
 this.enhancementsCombineStarsReduce_Label = guitools.newLabel(parent, "Reduce stars", enhancementsCombineStarsReduce_Tooltip);
@@ -923,7 +925,7 @@ this.enhancementsCombineStars_Sizer2.add( this.enhancementsCombineStarsReduce_Co
 this.enhancementsCombineStars_Sizer2.add( this.enhancementsCombineStarsReduce_S_edit);
 this.enhancementsCombineStars_Sizer2.add( this.enhancementsCombineStarsReduce_M_Label);
 this.enhancementsCombineStars_Sizer2.add( this.enhancementsCombineStarsReduce_M_SpinBox);
-this.enhancementsCombineStars_Sizer2.toolTip = narrowbandExtraLabeltoolTip;
+this.enhancementsCombineStars_Sizer2.toolTip = narrowbandEnhancementsLabeltoolTip;
 this.enhancementsCombineStars_Sizer2.addStretch();
 
 this.enhancementsStarsImageLabel = guitools.newLabel(parent, "Starless image", "Text Auto or empty image uses default starless image.");
@@ -960,7 +962,7 @@ this.enhancementsCombineStars_Sizer.spacing = 4;
 this.enhancementsCombineStars_Sizer.add( this.enhancementsCombineStars_Sizer1);
 this.enhancementsCombineStars_Sizer.add( this.enhancementsCombineStarsSelect_Sizer );
 this.enhancementsCombineStars_Sizer.add( this.enhancementsCombineStars_Sizer2);
-this.enhancementsCombineStars_Sizer.toolTip = narrowbandExtraLabeltoolTip;
+this.enhancementsCombineStars_Sizer.toolTip = narrowbandEnhancementsLabeltoolTip;
 this.enhancementsCombineStars_Sizer.addStretch();
 
 this.enhancementsRGBHamapping_CheckBox = guitools.newCheckBox(parent, "Ha to RGB mapping", par.enhancements_ha_mapping, 
@@ -977,8 +979,11 @@ this.enhancements_backgroundneutralization_CheckBox = guitools.newCheckBox(paren
 this.enhancements_GC_CheckBox = guitools.newCheckBox(parent, "Gradient correction", par.enhancements_GC, 
       "<p>Do gradient correction to the image using the selected gradient correction method.</p>" );
 this.enhancements_GC_values_ComboBox = guitools.newComboBox(parent, par.enhancements_GC_method, enhancements_gradient_correction_values, 
-      "<p>Gradient correction method to be used.</p>" +
-      "<p>Auto uses the selected gradient correction method from <i>Setting</i> tab.</p>");
+      "<p>Gradient correction method to be used.</p>"
+#ifndef AUTOINTEGRATE_STANDALONE
+      + "<p>Auto uses the selected gradient correction method from <i>Setting</i> tab.</p>"
+#endif
+);
 this.enhancements_GC_Sizer = new HorizontalSizer;
 this.enhancements_GC_Sizer.spacing = 4;
 this.enhancements_GC_Sizer.add( this.enhancements_GC_CheckBox );
@@ -1118,10 +1123,12 @@ this.enhancementsAutoContrastSizer.add( this.enhancementsAutoContrastChannelsChe
 this.enhancementsAutoContrastSizer.toolTip = enhancementsAutoContrastTooltip;
 this.enhancementsAutoContrastSizer.addStretch();
 
+#ifndef AUTOINTEGRATE_STANDALONE
 this.enhancements_stretch_CheckBox = guitools.newCheckBox(parent, "Auto stretch", par.enhancements_stretch, 
       "<p>Run automatic stretch on image. Can be helpful in some rare cases but it is most useful on testing stretching settings with Apply button.</p>" );
 this.enhancements_autostf_CheckBox = guitools.newCheckBox(parent, "AutoSTF", par.enhancements_autostf, 
       "<p>Run unlinked AutoSTF stretch on image. Can be helpful in balancing image.</p>" );
+#endif 
 
 this.enhancements_signature_CheckBox = guitools.newCheckBox(parent, "Signature", par.enhancements_signature, 
       "<p>Add signature to the image.</p>" );
@@ -1308,13 +1315,19 @@ this.enhancementsNoiseReductionStrengthSizer.toolTip = enhancements_noise_reduct
 this.enhancementsNoiseReductionStrengthSizer.addStretch();
 
 this.enhancements_ACDNR_CheckBox = guitools.newCheckBox(parent, "ACDNR noise reduction", par.enhancements_ACDNR, 
-      "<p>Run ACDNR noise reduction on image using a lightness mask.</p><p>StdDev value is taken from <i>Processing1 / noise reduction</i> section.</p>" + guitools.ACDNR_StdDev_tooltip);
+      "<p>Run ACDNR noise reduction on image using a lightness mask.</p>"
+#ifdef AUTOINTEGRATE_STANDALONE
+      + "<p>StdDev value is taken from <i>Processing1 / noise reduction</i> section.</p>" + guitools.ACDNR_StdDev_tooltip
+#endif
+      );
 this.enhancements_color_noise_CheckBox = guitools.newCheckBox(parent, "Color noise reduction", par.enhancements_color_noise, 
       "<p>Run color noise reduction on image.</p>" );
 this.enhancements_star_noise_reduction_CheckBox = guitools.newCheckBox(parent, "Star noise reduction", par.enhancements_star_noise_reduction, 
       "<p>Run star noise reduction on star image.</p>" );
 this.enhancements_color_calibration_CheckBox = guitools.newCheckBox(parent, "Color calibration", par.enhancements_color_calibration, 
       "<p>Run ColorCalibration on image.</p>" );
+
+#ifndef AUTOINTEGRATE_STANDALONE
 this.enhancements_solve_image_CheckBox = guitools.newCheckBox(parent, "Solve", par.enhancements_solve_image, 
       "<p>Solve image by running ImageSolver script.</p>" + 
       "<p>If image does not have correct coordinates or focal length embedded they can be given in <i>Postprocessing / Image solving</i> section.</p>");
@@ -1341,9 +1354,11 @@ this.enhancements_annotate_image_CheckBox = guitools.newCheckBox(parent, "Annota
       "<p>Use AnnotateImage script to annotate image.</p>" + 
       "<p>Note that image must have a correct astrometric solution embedded for annotate to work. " + 
       "When using SPCC color calibration astrometric solution is automatically added.</p>" +
-      "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>" );
+      "<p>When used with the Run or AutoContinue button a new image with _Annotated postfix is created.</p>");
 this.enhancements_annotate_scale_SpinBox = guitools.newSpinBox(parent, par.enhancements_annotate_image_scale, 1, 8, 
       "<p>Graphics scale for AnnotateImage script.</p>");
+
+#endif // AUTOINTEGRATE_STANDALONE
 
 this.enhancementsClippedPixelsLabel = guitools.newLabel( parent, "Clipped", guitools.clippedPixelsToolTip);
 this.enhancementsSetClippedPixelsButton = new ToolButton( parent );
@@ -1476,18 +1491,26 @@ this.enhancementsImageComboBox.onItemSelected = function( itemIndex )
       }
       close_undo_images();
       global.enhancements_target_image = enhancements_target_image_window_list[itemIndex];
-      // console.writeln("global.enhancements_target_image " + global.enhancements_target_image);
-      if (global.enhancements_target_image == "Auto") {
+      if (global.debug) console.writeln("global.enhancements_target_image " + global.enhancements_target_image);
+      if (global.enhancements_target_image == "Auto" || global.enhancements_target_image == null) {
             preview.updatePreviewNoImage();
             enhancements_gui_info.save_button.enabled = false;
       } else {
-            preview.updatePreviewIdReset(global.enhancements_target_image, false);
+            preview.setPreviewIdReset(global.enhancements_target_image, false);
             enhancements_gui_info.save_button.enabled = true;
       }
 };
 enhancements_gui_info.images_combobox = this.enhancementsImageComboBox;
-update_enhancements_target_image_window_list("Auto");
-global.enhancements_target_image = enhancements_target_image_window_list[0];
+
+update_enhancements_target_image_window_list(null);
+
+if (enhancements_target_image_window_list.length > 0) {
+      global.enhancements_target_image = enhancements_target_image_window_list[0];
+      preview.setPreviewIdReset(global.enhancements_target_image, false);
+} else {
+      global.enhancements_target_image = null;
+      preview.updatePreviewNoImage();
+}
 
 this.enhancementsLoadTargetImageButton = new ToolButton( parent );
 this.enhancementsLoadTargetImageButton.icon = parent.scaledResource(":/icons/select-file.png");
@@ -1568,6 +1591,9 @@ this.enhancementsApplyButton.onClick = function()
                   }
                   let undo_image = create_undo_image(global.enhancements_target_image);
                   add_undo_image(undo_image, global.enhancements_target_histogram_info);
+#ifdef AUTOINTEGRATE_STANDALONE
+                  preview.updatePreviewIdReset(global.enhancements_target_image);
+#endif
                   console.noteln("Apply completed (" + enhancements_gui_info.undo_images.length + "/" + enhancements_gui_info.undo_images.length + ")");
             } 
             catch(err) {
@@ -1691,6 +1717,19 @@ this.metadataHistoryButton.onClick = function()
       }
 };
 
+#ifdef AUTOINTEGRATE_STANDALONE
+var enhancementsLabeltoolTip = 
+      "<p>" +
+      "This dialog is used to apply different enhancements on the selected image. " +
+      "A new image is created with a number added to the name, original image is not modified. " +
+      "Undo and redo button can be used to check the effects of enhancements. " +
+      "</p>" +
+      "<ul>" +
+      "<li>Choose target image.</li>" + 
+      "<li>Select enhancement.</li>" + 
+      "<li>Click Apply.</li>" + 
+      "</ul>";
+#else
 var enhancementsLabeltoolTip = 
       "<p>" +
       "In case of Run or AutoContinue " + 
@@ -1710,6 +1749,7 @@ var enhancementsLabeltoolTip =
       "<p>" +
       "If narrowband processing options are selected they are applied before enhancements options." +
       "</p>";
+#endif // AUTOINTEGRATE_STANDALONE
 
 this.enhancementsHelpTips = new ToolButton( parent );
 this.enhancementsHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
@@ -1750,16 +1790,20 @@ this.enhancementsImageOptionsSizer1.add( this.enhancements_image_no_copy_CheckBo
 this.enhancementsImageOptionsSizer1.add( this.enhancements_force_new_mask_CheckBox );
 this.enhancementsImageOptionsSizer1.add( this.enhancements_range_mask_CheckBox );
 this.enhancementsImageOptionsSizer1.add( this.enhancements_auto_reset_CheckBox );
+#ifndef AUTOINTEGRATE_STANDALONE
 this.enhancementsImageOptionsSizer1.add( this.enhancements_stretch_CheckBox );
 this.enhancementsImageOptionsSizer1.add( this.enhancements_autostf_CheckBox );
+#endif // AUTOINTEGRATE_STANDALONE
 this.enhancementsImageOptionsSizer1.addStretch();
 
 this.enhancementsImageOptionsSizer2 = new HorizontalSizer;
 this.enhancementsImageOptionsSizer2.spacing = 4;
+#ifndef AUTOINTEGRATE_STANDALONE
 this.enhancementsImageOptionsSizer2.add( this.enhancements_solve_image_CheckBox );
 this.enhancementsImageOptionsSizer2.add( this.enhancements_solve_image_Button );
 this.enhancementsImageOptionsSizer2.add( this.enhancements_annotate_image_CheckBox );
 this.enhancementsImageOptionsSizer2.add( this.enhancements_annotate_scale_SpinBox );
+#endif // AUTOINTEGRATE_STANDALONE
 this.enhancementsImageOptionsSizer2.add( this.enhancementsClippedPixelsLabel );
 this.enhancementsImageOptionsSizer2.add( this.enhancementsSetClippedPixelsButton );
 this.enhancementsImageOptionsSizer2.add( this.enhancements_signature_CheckBox );
@@ -1847,7 +1891,7 @@ this.enhancementsControl2 = new Control( parent );
 this.enhancementsControl2.sizer = new VerticalSizer;
 this.enhancementsControl2.sizer.margin = 6;
 this.enhancementsControl2.sizer.spacing = 4;
-this.enhancementsControl2.sizer.add( this.narrowbandExtraOptionsSizer );
+this.enhancementsControl2.sizer.add( this.narrowbandEnhancementsOptionsSizer );
 this.enhancementsControl2.sizer.addStretch();
 this.enhancementsControl2.visible = false;
 
@@ -1866,6 +1910,7 @@ this.getEnhancementsGUIControls = function()
 
 this.update_enhancements_target_image_window_list = update_enhancements_target_image_window_list;
 this.close_undo_images = close_undo_images;
+this.setPreviewControl = setPreviewControl;
 
 }
 

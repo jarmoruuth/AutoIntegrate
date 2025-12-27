@@ -75,6 +75,11 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
       } else {   
             this.normalPreview = true;
       }
+#ifdef AUTOINTEGRATE_STANDALONE
+      this.standalone = true;
+#else
+      this.standalone = false;
+#endif
 
       this.saveNonclippedImage = null;
 
@@ -587,7 +592,7 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
       this.SampleVal_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       this.SampleVal_Label.text = "---";
 
-      if (this.normalPreview) {
+      if (this.normalPreview && !this.standalone) {
             this.coordinatesLabel = new Label(this);
             this.coordinatesLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
             this.coordinatesLabel.text = "X,Y:";
@@ -634,7 +639,7 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
       this.coords_Frame.sizer.addSpacing(6);
       this.coords_Frame.sizer.add(this.SampleLabel_Label);
       this.coords_Frame.sizer.add(this.SampleVal_Label);
-      if (this.normalPreview) {
+      if (this.normalPreview && !this.standalone) {
             this.coords_Frame.sizer.addStretch();
             this.coords_Frame.sizer.add(this.coordinatesLabel);
             this.coords_Frame.sizer.add(this.coordinatesEdit);
