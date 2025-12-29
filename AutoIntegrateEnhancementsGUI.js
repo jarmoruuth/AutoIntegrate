@@ -1513,6 +1513,7 @@ function createEnhancementsControls(parent)
       var enhancements_saturation_tooltip = "<p>Add saturation to the image using a luminance mask.</p>" + 
                                           "<p>Number of iterations specifies how many times add saturation is run.</p>";
       self.enhancements_saturation_CheckBox = guitools.newCheckBox(parent, "Saturation", par.enhancements_saturation, enhancements_saturation_tooltip);
+      self.enhancements_less_saturation_CheckBox = guitools.newCheckBox(parent, "Less", par.enhancements_less_saturation, "If checked saturation is reduced instead of increased.");
 
       self.enhancementsSaturationIterationsSpinBox = guitools.newSpinBox(parent, par.enhancements_saturation_iterations, 1, 20, enhancements_saturation_tooltip);
       self.enhancementsSaturationIterationsLabel = new Label( parent );
@@ -1524,6 +1525,7 @@ function createEnhancementsControls(parent)
       self.enhancementsSaturationIterationsSizer.add( self.enhancements_saturation_CheckBox );
       self.enhancementsSaturationIterationsSizer.add( self.enhancementsSaturationIterationsSpinBox );
       self.enhancementsSaturationIterationsSizer.add( self.enhancementsSaturationIterationsLabel );
+      self.enhancementsSaturationIterationsSizer.add( self.enhancements_less_saturation_CheckBox );
       self.enhancementsSaturationIterationsSizer.toolTip = enhancements_saturation_tooltip;
       self.enhancementsSaturationIterationsSizer.addStretch();
 

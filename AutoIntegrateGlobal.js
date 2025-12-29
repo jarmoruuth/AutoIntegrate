@@ -575,6 +575,7 @@ this.par = {
       enhancements_clarity_mask: { val: false, def: false, name : "Enh clarity mask", type : 'B', oldname: "Extra clarity mask" },
       enhancements_saturation: { val: false, def: false, name : "Enh saturation", type : 'B', oldname: "Extra saturation" },
       enhancements_saturation_iterations: { val: 1, def: 1, name : "Enh saturation iterations", type : 'I', oldname: "Extra saturation iterations" },
+      enhancements_less_saturation: { val: false, def: false, name : "Enh less saturation", type : 'B' },
       enhancements_smaller_stars: { val: false, def: false, name : "Enh smaller stars", type : 'B', oldname: "Extra smaller stars" },
       enhancements_smaller_stars_iterations: { val: 1, def: 1, name : "Enh smaller stars iterations", type : 'I', oldname: "Extra smaller stars iterations" },
       enhancements_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },

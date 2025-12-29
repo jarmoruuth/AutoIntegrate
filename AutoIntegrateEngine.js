@@ -9497,7 +9497,12 @@ function runHistogramTransform(GC_win, iscolor, type)
 
 function runACDNRReduceNoise(imgWin, maskWin)
 {
-      if (!par.use_ACDNR_noise_reduction.val || par.ACDNR_noise_reduction.val == 0.0) {
+      if (!par.use_ACDNR_noise_reduction.val 
+          || par.ACDNR_noise_reduction.val == 0.0 
+          || par.use_noisexterminator.val
+          || par.use_graxpert_denoise.val) 
+      {
+            // Skip if not configured or using AI based noise reduction
             return;
       }
       util.addProcessingStepAndStatusInfo("ACDNR noise reduction on " + imgWin.mainView.id + " using mask " + maskWin.mainView.id);
@@ -11489,8 +11494,12 @@ function runColorSaturation(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
-function runCurvesTransformationSaturation(imgWin, maskWin)
+function runCurvesTransformationSaturation(imgWin, maskWin, increase = true)
 {
+      if (!increase) {
+            maskWin = null; // No mask when decreasing saturation
+      }
+
       if (maskWin == null) {
             util.addProcessingStepAndStatusInfo("Curves transformation for saturation on " + imgWin.mainView.id);
       } else {
@@ -11502,11 +11511,19 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       }
 
       var P = new CurvesTransformation;
-      P.S = [ // x, y
-            [0.00000, 0.00000],
-            [0.68734, 0.83204],
-            [1.00000, 1.00000]
-      ];
+      if (increase) {
+            P.S = [ // x, y
+                  [0.00000, 0.00000],
+                  [0.68734, 0.83204],
+                  [1.00000, 1.00000]
+            ];
+      } else {
+            P.S = [ // x, y
+                  [0.00000, 0.00000],
+                  [0.49261, 0.41734],
+                  [1.00000, 1.00000]
+            ];
+      }
 
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
@@ -11530,8 +11547,11 @@ function runCurvesTransformationSaturation(imgWin, maskWin)
       guiUpdatePreviewWin(imgWin);
 }
 
-function runCurvesTransformationChrominance (imgWin, maskWin)
+function runCurvesTransformationChrominance(imgWin, maskWin, increase = true)
 {
+      if (!increase) {
+            maskWin = null; // No mask when decreasing saturation
+      }
       if (maskWin == null) {
             util.addProcessingStepAndStatusInfo("Curves transformation for chrominance  on " + imgWin.mainView.id);
       } else {
@@ -11543,11 +11563,19 @@ function runCurvesTransformationChrominance (imgWin, maskWin)
       }
 
       var P = new CurvesTransformation;
-      P.c = [ // x, y
-            [0.00000, 0.00000],
-            [0.48604, 0.51200],
-            [1.00000, 1.00000]
-         ];
+      if (increase) {
+            P.c = [ // x, y
+                  [0.00000, 0.00000],
+                  [0.48604, 0.51200],
+                  [1.00000, 1.00000]
+            ];
+      } else {
+            P.c = [ // x, y
+                  [0.00000, 0.00000],
+                  [0.51396, 0.4880],
+                  [1.00000, 1.00000]
+            ];
+      }
       imgWin.mainView.beginProcess(UndoFlag_NoSwapFile);
 
       if (maskWin != null) {
@@ -11576,6 +11604,15 @@ function increaseSaturation(imgWin, maskWin)
             runCurvesTransformationChrominance(imgWin, maskWin);
       } else {
             runCurvesTransformationSaturation(imgWin, maskWin);
+      }
+}
+
+function decreaseSaturation(imgWin, maskWin)
+{
+      if (par.use_chrominance.val) {
+            runCurvesTransformationChrominance(imgWin, maskWin, false);
+      } else {
+            runCurvesTransformationSaturation(imgWin, maskWin, false);
       }
 }
 
@@ -16223,10 +16260,18 @@ function enhancementsSharpen(enhancementsWin, mask_win)
 
 function enhancementsSaturation(enhancementsWin, mask_win)
 {
-      addEnhancementsStep("Saturation using " + par.enhancements_saturation_iterations.val + " iterations");
+      if (par.enhancements_less_saturation.val) {
+            addEnhancementsStep("Decrease saturation using " + par.enhancements_saturation_iterations.val + " iterations");
+      } else {
+            addEnhancementsStep("Increase saturation using " + par.enhancements_saturation_iterations.val + " iterations");
+      }
 
       for (var i = 0; i < par.enhancements_saturation_iterations.val; i++) {
-            increaseSaturation(enhancementsWin, mask_win);
+            if (par.enhancements_less_saturation.val) {
+                  decreaseSaturation(enhancementsWin, mask_win);
+            } else {
+                  increaseSaturation(enhancementsWin, mask_win);
+            }
       }
       // guiUpdatePreviewWin(enhancementsWin);
 }
