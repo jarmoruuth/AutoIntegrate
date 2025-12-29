@@ -13,6 +13,9 @@ this.__base__();
 var par = global.par;
 
 this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
+this.histogram_stretch_type_values = [ 'Median', 'Peak' ];
+this.STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
+var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
 
 this.Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
 this.unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
@@ -42,6 +45,10 @@ this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image solv
                    "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection<./p>";
 this.BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
 this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to Json file.</p>";   
+
+var adjustShadowsToolTip = "<p>If enabled shadows are adjusted after stretch.</p>" +
+                           "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
+
 
 function newVerticalSizer(margin, add_stretch, items)
 {
@@ -493,7 +500,7 @@ function createGraXperPathSizer(parent)
             graxpertPathEdit.text = ofd.fileName;
             par.graxpert_path.val = ofd.fileName;
             // Save path immediately
-            util.saveParameter(par.graxpert_path);
+            util.writeParameterToSettings(par.graxpert_path);
             console.writeln("GraXpert path set to: " + ofd.fileName);
       };
 
@@ -648,6 +655,228 @@ function createImageToolsControl(parent)
       return imageToolsControl;
 }
 
+function createStretchingSettingsSizer(parent, engine)
+{
+      if (global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
+
+      var STFLinkLabel = new Label( parent );
+      STFLinkLabel.text = "Link RGB channels";
+      STFLinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      STFLinkLabel.toolTip = 
+      "<p>" +
+      "RGB channel linking in image stretching." +
+      "</p><p>" +
+      "Auto option uses the following defaults:" + 
+      "</p>" +
+      "<ul>" +
+      "<li>RGB images using mono camera with separate filters for RGB channels use linked stretching.</li>" + 
+      "<li>Color OSC/DSLR images use unlinked stretching.</li>" +
+      "<li>Narrowband images use unlinked stretching. But if linear fit or color calibration is done with narrowband images, then linked stretching is used.</li>" +
+      "<p>" +
+      "Note that some stretching methods do not support unlinked channels." +
+      "</p>";
+      
+      var STFComboBox = newComboBox(parent, par.STF_linking, this.STF_linking_values, STFLinkLabel.toolTip);
+
+      var stretchAdjustShadowsLabel = newLabel(parent, "Adjust shadows", adjustShadowsToolTip, true);
+      var stretchAdjustShadowsComboBox = newComboBox(parent, par.stretch_adjust_shadows, adjust_shadows_values, adjustShadowsToolTip);
+      var stretchAdjustShadowsControl = newNumericEditPrecision(parent, "%", par.stretch_adjust_shadows_perc, 0, 99,
+            "<p>Percentage of shadows adjustment after stretch.</p>" +
+            "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
+            3);
+
+      var StretchGenericSizer = new HorizontalSizer;
+      StretchGenericSizer.spacing = 4;
+      StretchGenericSizer.margin = 6;
+      StretchGenericSizer.toolTip = STFLinkLabel.toolTip;
+      StretchGenericSizer.add( STFLinkLabel );
+      StretchGenericSizer.add( STFComboBox );
+      StretchGenericSizer.add( stretchAdjustShadowsLabel );
+      StretchGenericSizer.add( stretchAdjustShadowsComboBox );
+      StretchGenericSizer.add( stretchAdjustShadowsControl );
+      StretchGenericSizer.addStretch();
+                                    
+      var StretchGenericGroupBox = new GroupBox(parent);
+      StretchGenericGroupBox.title = "Generic settings";
+      StretchGenericGroupBox.sizer = StretchGenericSizer;
+
+      var STFTargetBackgroundControl = newNumericEdit(parent, "targetBackground", par.STF_targetBackground, 0, 1,
+            "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
+
+      var STFSizer = new HorizontalSizer;
+      STFSizer.spacing = 4;
+      STFSizer.margin = 6;
+      STFSizer.toolTip = STFTargetBackgroundControl.toolTip;
+      STFSizer.add( STFTargetBackgroundControl );
+      STFSizer.addStretch();
+
+      var autoSTFGroupBox = new GroupBox(parent);
+      autoSTFGroupBox.title = "Auto STF settings";
+      autoSTFGroupBox.sizer = STFSizer;
+
+      /* Masked.
+       */
+      var MaskedStretchTargetBackgroundEdit = newNumericEdit(parent, "targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+            "<p>Masked Stretch targetBackground value. Usually values between 0.05 and 0.2 work best. Possible values are between 0 and 1.</p>");
+      var MaskedStretchPrestretchTargetEdit = newNumericEdit(parent, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
+            "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
+            "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
+
+      var MaskedStretchSizer = new HorizontalSizer;
+      MaskedStretchSizer.spacing = 4;
+      MaskedStretchSizer.margin = 6;
+      MaskedStretchSizer.add( MaskedStretchTargetBackgroundEdit );
+      MaskedStretchSizer.add( MaskedStretchPrestretchTargetEdit );
+      MaskedStretchSizer.addStretch();
+      
+      var MaskedStretchGroupBox = new GroupBox(parent);
+      MaskedStretchGroupBox.title = "Masked Stretch settings";
+      MaskedStretchGroupBox.sizer = MaskedStretchSizer;
+
+      /* Arcsinh.
+       */
+      var Arcsinh_stretch_factor_Edit = newNumericEdit(parent, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
+            "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
+            "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
+            "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use different values. For less stars you can use a smaller value.</p>");
+      var Arcsinh_black_point_Control = newNumericEditPrecision(parent, "Black point value %", par.Arcsinh_black_point, 0, 99,
+            "<p>Arcsinh Stretch black point value.</p>" + 
+            "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>",
+            4);
+      var Arcsinh_iterations_tooltip = "Number of iterations used to get the requested stretch factor."
+      var Arcsinh_iterations_Label = newLabel(parent, "Iterations", Arcsinh_iterations_tooltip);
+      var Arcsinh_iterations_SpinBox = newSpinBox(parent, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
+
+      var ArcsinhSizer = new HorizontalSizer;
+      ArcsinhSizer.spacing = 4;
+      ArcsinhSizer.margin = 6;
+      ArcsinhSizer.add( Arcsinh_stretch_factor_Edit );
+      ArcsinhSizer.add( Arcsinh_black_point_Control );
+      ArcsinhSizer.add( Arcsinh_iterations_Label );
+      ArcsinhSizer.add( Arcsinh_iterations_SpinBox );
+      ArcsinhSizer.addStretch();
+
+      var ArcsinhGroupBox = new GroupBox(parent);
+      ArcsinhGroupBox.title = "Arcsinh Stretch settings";
+      ArcsinhGroupBox.sizer = ArcsinhSizer;
+
+      /* VeraLuxHMS.
+       */
+      var veraluxProcessingModeLabel = newLabel(parent, "Processing Mode", 
+                                          "VeraLux processing mode selection.\n" +
+                                          "Ready-to-Use (Aesthetic)\n" +
+                                          "Produces an aesthetic, export-ready image with adaptive expansion and soft-clipping.\n" +
+                                          "Scientific (Preserve)\n" +
+                                          "Produces 100% mathematically consistent output. Ideal for manual tone mapping.",
+                                          true);
+      var veraluxProcessingMode = newComboBox(parent, par.veralux_processing_mode, [ "Ready-to-Use", "Scientific" ], 
+                                          veraluxProcessingModeLabel.toolTip);
+      var veraluxSensorProfileLabel = newLabel(parent, "Sensor Profile", 
+                                          "VeraLux sensor profile selection.\n" + 
+                                          "Defines the Luminance coefficients (Weights) used for the stretch.",
+                                          true);
+      var veraluxSensorProfile = newComboBox(parent, par.veralux_sensor_profile, engine.veralux.getSensorProfileNames(true), 
+                                          veraluxSensorProfileLabel.toolTip);
+      var veraluxTargetEdit = newNumericEdit(parent, "Target Bg:", par.veralux_target_bg, 0.05, 0.50, "Target background median (0.05-0.50). Standard is 0.20.");
+      var veraluxAdaptiveAnchorCheckBox = newCheckBox(parent, "Adaptive Anchor", par.veralux_adaptive_anchor, 
+                                          "Analyzes histogram shape to find true signal start. Recommended for images with gradients.");
+      var veraluxAutoCalcDCheckBox = newCheckBox(parent, "Auto-Calc Log D", par.veralux_auto_calc_D, 
+                                          "Analyzes image to find optimal Stretch Factor (Log D).");
+      var veraluxAutoCalcDLabel = newLabel(parent, "(-)", "", true);
+      global.veraluxAutoCalcDLabel = veraluxAutoCalcDLabel;
+      var veraluxValDEdit = newNumericEdit(parent, "Log D:", par.veralux_D_value, 0.0, 7.0,
+                                          "Hyperbolic Intensity (Log D, 0.1-15). Controls the strength of the stretch.");
+      var veraluxbEdit = newNumericEdit(parent, "Protect b:", par.veralux_b_value, 0.1, 15,
+                                          "Highlight Protection. Controls the 'knee' of the hyperbolic curve.");
+      var veraluxStarCoreRecoveryEdit = newNumericEdit(parent, "Star Core Recovery:", par.veralux_convergence_power, 1, 10,
+                                          "Controls how quickly saturated colors transition to white (1-10).");
+
+      var veraluxReadyToUseLabel = newLabel(parent, "Ready-to-Use settings", "Setting for VeraLux Ready-to-Use mode.", true);
+      var veraluxColorStrategyEdit = newNumericEdit(parent, "Color Strategy:", par.veralux_color_strategy, -100, 100,
+                                          "Negative: Clean Noise | Center: Balanced | Positive: Soften Highlights.\n" +
+                                          "Only for Ready-to-Use mode. Value can be between -100 and 100.");
+
+      var veraluxScientificLabel = newLabel(parent, "Scientific settings", "Setting for VeraLux Scientific mode.", true);
+      var veraluxColorGripEdit = newNumericEdit(parent, "Color Grip:", par.veralux_color_grip, 0, 1,
+                                          "Controls vector color preservation. 1.0 = Pure VeraLux (0-1).\n" + 
+                                          "Only for Scientific mode.");
+      var veraluxShadowConvEdit = newNumericEdit(parent, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 3,
+                                          "Damps vector preservation in shadows to prevent color noise (0-3).\n" +
+                                          "Only for Scientific mode.");
+
+      var veraluxHelpTips = new ToolButton( parent );
+      veraluxHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
+      veraluxHelpTips.setScaledFixedSize( 20, 20 );
+      veraluxHelpTips.toolTip = engine.veralux.getHelpText();
+      veraluxHelpTips.onClick = function()
+      {
+            new MessageBox(engine.veralux.getHelpText(), "VeraLux help", StdIcon_Information ).execute();
+      }
+
+      var veraluxSizer1 = newHorizontalSizer(0, true, [ veraluxProcessingModeLabel, veraluxProcessingMode, veraluxSensorProfileLabel, veraluxSensorProfile, veraluxHelpTips ]);
+      var veraluxSizer2 = newHorizontalSizer(0, true, [ veraluxTargetEdit, veraluxAdaptiveAnchorCheckBox ]);
+      var veraluxSizer3 = newHorizontalSizer(0, true, [ veraluxAutoCalcDCheckBox, veraluxAutoCalcDLabel, veraluxValDEdit, veraluxbEdit, veraluxStarCoreRecoveryEdit ]);
+      var veraluxSizer4 = newHorizontalSizer(0, true, [ veraluxReadyToUseLabel, veraluxColorStrategyEdit ]);
+      var veraluxSizer5 = newHorizontalSizer(0, true, [ veraluxScientificLabel, veraluxColorGripEdit, veraluxShadowConvEdit ]);
+      var VeraLuxHMSSizer = newVerticalSizer(6, true, [ veraluxSizer1, veraluxSizer2, veraluxSizer3, veraluxSizer4, veraluxSizer5 ]);
+
+      var veraluxGroupBox = new GroupBox(parent);
+      veraluxGroupBox.title = "VeraLux HMS Stretch";
+      veraluxGroupBox.sizer = VeraLuxHMSSizer;
+
+      /* Histogram stretching.
+       */
+      var histogramTypeLabel = newLabel(parent, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
+      var histogramTypeComboBox = newComboBox(parent, par.histogram_stretch_type, this.histogram_stretch_type_values, histogramTypeLabel.toolTip);
+      var histogramTargetValue_Control = newNumericEdit(parent, "Target value", par.histogram_stretch_target, 0, 1, 
+            "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
+            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
+            "like large nebulas or dust you should try with 0.25.</p>");
+
+      var histogramStretchingSizer = new HorizontalSizer;
+      histogramStretchingSizer.spacing = 4;
+      histogramStretchingSizer.margin = 6;
+      histogramStretchingSizer.add( histogramTypeLabel );
+      histogramStretchingSizer.add( histogramTypeComboBox );
+      histogramStretchingSizer.add( histogramTargetValue_Control );
+      histogramStretchingSizer.addStretch();
+
+      var histogramStretchingGroupBox = new GroupBox(parent);
+      histogramStretchingGroupBox.title = "Histogram stretching settings";
+      histogramStretchingGroupBox.sizer = histogramStretchingSizer;
+      var otherStrechingTargetValue_Control = newNumericEdit(parent, "Target value", par.other_stretch_target, 0, 1, 
+            "<p>Target value specifies where we try to get the the histogram median value.</p>" +
+            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
+            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
+            "like large nebulas or dust you should try with 0.25.</p>");
+
+      var otherStrechingTargetValueSizer = new HorizontalSizer;
+      otherStrechingTargetValueSizer.spacing = 4;
+      otherStrechingTargetValueSizer.margin = 6;
+      otherStrechingTargetValueSizer.add( otherStrechingTargetValue_Control );
+      otherStrechingTargetValueSizer.addStretch();
+
+      var otherStretchingGroupBox = new GroupBox(parent);
+      otherStretchingGroupBox.title = "Other stretching settings";
+      otherStretchingGroupBox.sizer = otherStrechingTargetValueSizer;
+
+      var stretchingGroupBoxSizer = new VerticalSizer;
+      stretchingGroupBoxSizer.margin = 6;
+      stretchingGroupBoxSizer.spacing = 4;
+      stretchingGroupBoxSizer.add( StretchGenericGroupBox );
+      stretchingGroupBoxSizer.add( autoSTFGroupBox );
+      stretchingGroupBoxSizer.add( veraluxGroupBox );
+      stretchingGroupBoxSizer.add( MaskedStretchGroupBox );
+      stretchingGroupBoxSizer.add( ArcsinhGroupBox );
+      stretchingGroupBoxSizer.add( histogramStretchingGroupBox );
+      stretchingGroupBoxSizer.add( otherStretchingGroupBox );
+      stretchingGroupBoxSizer.addStretch();
+
+      return stretchingGroupBoxSizer;
+}
+
 this.newVerticalSizer = newVerticalSizer;
 this.newHorizontalSizer = newHorizontalSizer;
 this.newCheckBox = newCheckBox;
@@ -677,6 +906,7 @@ this.newSectionBarAddArray = newSectionBarAddArray;
 
 this.createImageToolsControl = createImageToolsControl;
 this.createGraXperPathSizer = createGraXperPathSizer;
+this.createStretchingSettingsSizer = createStretchingSettingsSizer;
 
 }
 

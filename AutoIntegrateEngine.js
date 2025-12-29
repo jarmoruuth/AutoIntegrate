@@ -8585,7 +8585,7 @@ function runHistogramTransformVeraLuxHMS(GC_win, image_stretching)
       engine.veralux.parameters.colorGrip = par.veralux_color_grip.val;
       engine.veralux.parameters.shadowConvergence = par.veralux_shadow_convergence.val;
 
-      engine.veralux.execute(GC_win, util);
+      engine.veralux.executeVeraLux(GC_win, global, util);
 
       return GC_win;
 }
@@ -9356,7 +9356,7 @@ function runHistogramTransform(GC_win, iscolor, type)
       switch (type) {
             case 'stars':
             case 'mask':
-                  var run_adjust_shadows = false;
+                  var run_adjust_shadows_if = false;
                   break;
             case 'channel':
             case 'RGB':
@@ -9368,12 +9368,12 @@ function runHistogramTransform(GC_win, iscolor, type)
             case 'S':
             case 'O':
             case 'C':
-                  var run_adjust_shadows = true;
+                  var run_adjust_shadows_if = true;
                   break;
             default:
                   util.throwFatalError("Bad runHistogramTransform type value " + type);
       }
-      console.writeln("runHistogramTransform, type " + type + ", iscolor " + iscolor, ", run_adjust_shadows " + run_adjust_shadows + ", stretch_adjust_shadows " + par.stretch_adjust_shadows.val);
+      console.writeln("runHistogramTransform, type " + type + ", iscolor " + iscolor, ", stretch_adjust_shadows " + par.stretch_adjust_shadows.val);
 
       if (type == 'stars') {
             var image_stretching = par.stars_stretching.val;
@@ -9387,7 +9387,7 @@ function runHistogramTransform(GC_win, iscolor, type)
                   return GC_win;
             }
       }
-      if (run_adjust_shadows && (par.stretch_adjust_shadows.val == "before" || par.stretch_adjust_shadows.val == "both")) {
+      if (run_adjust_shadows_if && (par.stretch_adjust_shadows.val == "before" || par.stretch_adjust_shadows.val == "both")) {
             console.writeln("runHistogramTransform adjust shadows");
             adjustShadows(GC_win, par.stretch_adjust_shadows_perc.val);
       }
@@ -9486,7 +9486,7 @@ function runHistogramTransform(GC_win, iscolor, type)
       util.setFITSKeyword(GC_win, "AutoIntegrateNonLinear", image_stretching, "");
       engine_end_process(node, GC_win, image_stretching);
 
-      if (run_adjust_shadows && (par.stretch_adjust_shadows.val == "after" || par.stretch_adjust_shadows.val == "both")) {
+      if (run_adjust_shadows_if && (par.stretch_adjust_shadows.val == "after" || par.stretch_adjust_shadows.val == "both")) {
             console.writeln("runHistogramTransform adjust shadows");
             adjustShadows(GC_win, par.stretch_adjust_shadows_perc.val);
       }
@@ -15323,7 +15323,7 @@ function enhancementsRemoveStars(parent, imgWin, apply_directly)
              */
             var copywin = imgWin;
             copywin.mainView.id = util.ensure_win_prefix(copywin.mainView.id + "_starless");
-            global.enhancements_target_image = copywin.mainView.id;
+            global.enhancements_target_image_id = copywin.mainView.id;
       }
       setFinalImageKeyword(copywin);
       util.addProcessingStep("Starless image " + copywin.mainView.id);
@@ -15332,7 +15332,7 @@ function enhancementsRemoveStars(parent, imgWin, apply_directly)
       // guiUpdatePreviewWin(copywin);
 
       if (gui) {
-            gui.update_enhancements_target_image_window_list(global.enhancements_target_image);
+            gui.update_enhancements_target_image_window_list(global.enhancements_target_image_id);
       }
 
       // return possibly new starless image for further processing
@@ -18781,7 +18781,7 @@ function engineInit()
 // Nete that function checkOptions does similar things a bit later
 function check_engine_processing()
 {
-      if (global.enhancements_target_image != "Auto" && global.enhancements_target_image != null) {
+      if (global.enhancements_target_image_id != "Auto" && global.enhancements_target_image_id != null) {
             console.criticalln("Enhancements target image can be used only with Apply button!");
             return false;
       }

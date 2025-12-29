@@ -317,7 +317,7 @@ function VeraLuxPreviewDialog(veralux) {
          targetWindow.show();
 
          // Execute the stretch
-         veralux.execute(targetWindow);
+         veralux.executeVeraLux(targetWindow);
 
          this.statusLabel.text = "Final image created: " + targetWindow.mainView.id;
          console.writeln("Final processing complete.");

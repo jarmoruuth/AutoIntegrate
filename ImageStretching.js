@@ -1,9 +1,9 @@
 // ****************************************************************************
-// ImageEnhancements — Standalone version of AutoIntegrate image enhancements
+// ImageStretching — Standalone version of AutoIntegrate image stretching
 // ****************************************************************************
 
-#feature-id    AutoIntegrate  > Enhancements
-#feature-info  Image Enhancements using AutoIntegrate tools.
+#feature-id    AutoIntegrate  > Stretching
+#feature-info  Image Stretching using AutoIntegrate tools.
 
 #include <pjsr/NumericControl.jsh>
 #include <pjsr/Sizer.jsh>
@@ -56,7 +56,7 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function ImageEnhancementsDialog() {
+function ImageStretchingDialog() {
     this.__base__ = Dialog;
     this.__base__();
 
@@ -64,7 +64,7 @@ function ImageEnhancementsDialog() {
 
     var debug = true;
 
-    this.TITLE = "Image Enhancements";
+    this.TITLE = "Image Stretching";
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
@@ -82,37 +82,45 @@ function ImageEnhancementsDialog() {
     // These can be saved using the AutoIntegrate script.
     util.readParametersFromPersistentModuleSettings();
 
+    // We do stretching here so we set the value to true
+    global.par.enhancements_stretch.val = true;
+
+    // Store original image for reset functionality
+    this.originalImage = null;
+    this.previewImage = null;
+    this.selectedWindow = null;
+
    // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
     function setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
         self.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
     }
 
     function updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewIdReset: id = " + id);
         updatePreviewWin(ImageWindow.windowById(id));
     }
 
     function updatePreviewNoImage()
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewNoImage");
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewNoImage");
         this.statusLabel.text = "No image available for preview.";
     }
 
     function updatePreviewTxt(txt)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewTxt: " + txt);
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewTxt: " + txt);
     }
 
     function updatePreviewWin(imgWin)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewWin: imgWin = " + imgWin);
         self.previewControl.UpdateImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
     }
 
@@ -130,7 +138,7 @@ function ImageEnhancementsDialog() {
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "enhancements_preview", engine, util, global, 600, 400, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", engine, util, global, 600, 400, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
@@ -146,43 +154,46 @@ function ImageEnhancementsDialog() {
    this.titleLabel.styleSheet = "font-size: 14pt; font-weight: bold; color: #4488FF;";
 
    this.subtitleLabel = new Label(this);
-   this.subtitleLabel.text = "Select image and apply enhancements";
+   this.subtitleLabel.text = "Select image and apply stretching";
    this.subtitleLabel.textAlignment = TextAlign_Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
-   this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, guitools, util, global, engine, preview_functions);
-   this.enhancements_gui.setPreviewControl(this.previewControl);
+    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, guitools, util, global, engine, preview_functions);
 
-    this.enhancementsGUIControls = this.enhancements_gui.createEnhancementsGUIControls(this);
-    this.enhancementsGUIControls.narrowbandColorizationControl.visible = false;
+    this.stretchingChoiceSizer = this.enhancements_gui.createStrechingChoiceSizer(this, null);
+    this.stretchingChoiceGroupBox = new GroupBox(this);
+    this.stretchingChoiceGroupBox.title = "Stretching type";
+    this.stretchingChoiceGroupBox.sizer = this.stretchingChoiceSizer;
 
-    this.toolsControl = guitools.createImageToolsControl(this);
-    this.toolsControl.visible = false;
+    this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
+    this.enhancements_gui.apply_completed_callback = function(apply_ok) {
+        // We do stretching here so we set the value to true
+        // With reset option it may have been reset to false (default)
+        global.par.enhancements_stretch.val = true;
+    };
+    this.targetImageGroupBox = new GroupBox(this);
+    this.targetImageGroupBox.title = "Target image";
+    this.targetImageGroupBox.sizer = this.targetImageSizer;
 
-    this.GraXperPathSizer = guitools.createGraXperPathSizer(this);
+    this.stretchingSettingsSizer = guitools.createStretchingSettingsSizer(this, engine);
 
-    this.GraXpertPathControl = new Control( this );
-    this.GraXpertPathControl.sizer = new HorizontalSizer;
-    this.GraXpertPathControl.sizer.margin = 6;
-    this.GraXpertPathControl.sizer.spacing = 4;
-    this.GraXpertPathControl.sizer.add( this.GraXperPathSizer );
-    this.GraXpertPathControl.sizer.addStretch();
-    this.GraXpertPathControl.visible = false;
+    this.stretchingSettingsControl = new Control( this );
+    this.stretchingSettingsControl.sizer = new HorizontalSizer;
+    this.stretchingSettingsControl.sizer.margin = 6;
+    this.stretchingSettingsControl.sizer.spacing = 4;
+    this.stretchingSettingsControl.sizer.add( this.stretchingSettingsSizer );
+    this.stretchingSettingsControl.sizer.addStretch();  
+    this.stretchingSettingsControl.visible = true;
 
    // -------------------------------------------------------------------------
-   // Enhancements Group Box
+   // Stretching Group Box
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("ImageEnhancementsDialog:: creating enhancementsGroupBox");
+    if (global.debug) console.writeln("ImageStretchingDialog:: creating stretchingGroupBox");
 
-    this.enhancementsGroupBox = guitools.newGroupBoxSizer(this);
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.targetImageControl, "Target image for enhancements", "EnhancementsTarget");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.GraXpertPathControl, "GraXpert Path", "GraXpertPath");
-    this.enhancementsGroupBox.sizer.addStretch();
+    this.stretchingGroupBox = guitools.newGroupBoxSizer(this);
+    guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
+    this.stretchingGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
    // Status
@@ -218,7 +229,9 @@ function ImageEnhancementsDialog() {
    this.rightSizer.add(this.titleLabel);
    this.rightSizer.add(this.subtitleLabel);
    this.rightSizer.add(this.statusLabel);
-   this.rightSizer.add(this.enhancementsGroupBox);
+   this.rightSizer.add(this.targetImageGroupBox);
+   this.rightSizer.add(this.stretchingChoiceGroupBox);
+   this.rightSizer.add(this.stretchingGroupBox);
    this.rightSizer.add(this.buttonsSizer);
 
    // -------------------------------------------------------------------------
@@ -232,7 +245,7 @@ function ImageEnhancementsDialog() {
    this.sizer.add(this.rightSizer);
 }
 
-ImageEnhancementsDialog.prototype = new Dialog;
+ImageStretchingDialog.prototype = new Dialog;
 
 // =============================================================================
 //  MAIN ENTRY POINT
@@ -241,7 +254,7 @@ ImageEnhancementsDialog.prototype = new Dialog;
 function main() {
    console.show();
 
-   var dialog = new ImageEnhancementsDialog();
+   var dialog = new ImageStretchingDialog();
    dialog.execute();
 }
 

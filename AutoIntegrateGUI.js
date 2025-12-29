@@ -40,7 +40,7 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "AutoIntegrateMetricsVisualizer.js"
 #include "AutoIntegrateTutorial.js"
 #include "AutoIntegrateGUITools.js"
-#include "AutoIntegrateEnhancements.js"
+#include "AutoIntegrateEnhancementsGUI.js"
 
 function AutoIntegrateNarrowbandSelectMultipleDialog(global, mappings_list)
 {
@@ -147,7 +147,7 @@ if (global.debug) console.writeln("AutoIntegrateGUI");
 var self = this;
 
 var guitools = new AutoIntegrateGUITools(this, global, util);
-var enhancements = null;
+var enhancements_gui = null;
 
 var par = global.par;
 var ppar = global.ppar;
@@ -169,7 +169,6 @@ var previewControl = null;          // For updating preview window
 var previewInfoLabel = null;        // For updating preview info text
 var histogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
-var stretchingComboBox = null;         // For disabling stretching method if Target type is selected
 
 var filtering_changed = false;        // Filtering settings have changed
 var tab_preview_index = 1;
@@ -208,19 +207,14 @@ var filter_limit_values = [ 'None', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPow
 var filter_sort_values = [ 'SSWEIGHT', 'FWHM', 'Eccentricity', 'PSFSignal', 'PSFPower', 'SNR', 'Stars', 'File name' ];
 var outliers_methods = [ 'Two sigma', 'One sigma', 'IQR' ];
 var use_linear_fit_values = [ 'Auto', 'Min RGB', 'Max RGB', 'Min LRGB', 'Max LRGB', 'Red', 'Green', 'Blue', 'Luminance', 'No linear fit' ];
-var image_stretching_values = [ 'Auto STF', 'VeraLuxHMS', 'Masked Stretch', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
-                                'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 
-                                'Shadow stretch', 'Highlight stretch', 'None' ];
 var use_clipping_values = [ 'Auto1', 'Auto2', 'Percentile', 'Sigma', 'Averaged sigma', 'Winsorised sigma', 'Linear fit', 'ESD', 'None' ]; 
 var narrowband_linear_fit_values = [ 'Auto', 'Min', 'Max', 'H', 'S', 'O', 'None' ];
-var STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var imageintegration_normalization_values = [ 'Additive', 'Adaptive', 'None' ];
 var imageintegration_combination_values = [ 'Average', 'Median', 'Minimum', 'Maximum' ];
 var noise_reduction_strength_values = [ '0', '1', '2', '3', '4', '5', '6'];
 var column_count_values = [ 'Auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20' ];
 var binning_values = [ 'None', 'Color', 'L and color'];
-var histogram_stretch_type_values = [ 'Median', 'Peak' ];
 var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ];
 var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
@@ -236,7 +230,6 @@ var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 var fast_mode_values = [ 'S', 'M' ];
-var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
 var drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
 var screen_size = "Unknown";       // Screen wxh size as a string
@@ -253,7 +246,7 @@ var exclusion_area_image_window_list = null;
 
 function update_enhancements_target_image_window_list(current_item)
 {
-      exclusion_area_image_window_list = enhancements.update_enhancements_target_image_window_list(current_item);
+      exclusion_area_image_window_list = enhancements_gui.update_enhancements_target_image_window_list(current_item);
 
       // Exclusion area image list is kept in sync with extra_target_image_window_list
       exclusionAreasComboBox.clear();
@@ -264,7 +257,7 @@ function update_enhancements_target_image_window_list(current_item)
 
 function close_undo_images()
 {
-      enhancements.close_undo_images();
+      enhancements_gui.close_undo_images();
 }
 
 function forceNewHistogram(target_win)
@@ -3297,7 +3290,7 @@ function saveParametersToPersistentModuleSettings()
             return;
       }
       for (let x in par) {
-            util.saveParameter(par[x]);
+            util.writeParameterToSettings(par[x]);
       }
 }
 
@@ -3592,17 +3585,17 @@ function blinkArrowButton(parent, icon, x, y)
       return blinkArrowButton;
 }
 
-function updateParameterDependencies(dialog)
+function updateParameterDependencies()
 {
       // Update the enabled state of the stretchingComboBox based on the target_type
-      dialog.stretchingComboBox.enabled = (par.target_type.val === "Default");
+      enhancements_gui.stretchingComboBox.enabled = (par.target_type.val === "Default");
       let stretching = engine.targetTypeToStretching(par.target_type.val);
       if (stretching != null) {
-            dialog.stretchingComboBox.currentItem = dialog.stretchingComboBox.aiValarray.indexOf(stretching);
-            dialog.stretchingComboBox.aiParam.val = stretching;
+            enhancements_gui.stretchingComboBox.currentItem = enhancements_gui.stretchingComboBox.aiValarray.indexOf(stretching);
+            enhancements_gui.stretchingComboBox.aiParam.val = stretching;
       } else {
-            dialog.stretchingComboBox.currentItem = 0;
-            dialog.stretchingComboBox.aiParam.val = dialog.stretchingComboBox.aiValarray[0];
+            enhancements_gui.stretchingComboBox.currentItem = 0;
+            enhancements_gui.stretchingComboBox.aiParam.val = enhancements_gui.stretchingComboBox.aiValarray[0];
       }
       // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
 }
@@ -4182,7 +4175,7 @@ function newPreviewObj(parent, side_preview)
       } else {
             var newPreviewControl = new AutoIntegratePreviewControl(parent, "tab", engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
       }
-      enhancements.setPreviewControl(newPreviewControl);
+      enhancements_gui.setPreviewControl(newPreviewControl);
 
       var previewImageSizer = new Sizer();
       previewImageSizer.add(newPreviewControl);
@@ -4468,6 +4461,24 @@ function AutoIntegrateDialog()
       this.numericEditWidth = 6 * this.font.width( "0" );
 
       this.rootingArr = [];    // for rooting objects
+
+      this.enhancements_gui = new AutoIntegrateEnhancementsGUI(
+                                    this, 
+                                    guitools, 
+                                    util, 
+                                    global,
+                                    engine,
+                                    {     // Preview functions for enhancements tab
+                                          setPreviewIdReset: setPreviewIdReset,
+                                          updatePreviewIdReset: updatePreviewIdReset,
+                                          updatePreviewTxt: updatePreviewTxt,
+                                          updatePreviewNoImage: updatePreviewNoImage,
+                                          createCombinedMosaicPreviewWin: createCombinedMosaicPreviewWin,
+                                          updatePreviewWin: updatePreviewWin
+                                    }
+                              );
+      enhancements_gui = this.enhancements_gui;
+
 
       var comet_alignment_toolTip = 
             "<p>Below is the suggested workflow with comet processing in AutoIntegrate:</p>" +
@@ -4893,49 +4904,10 @@ function AutoIntegrateDialog()
       //
       // Stretching choice
       //
-      var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
-                                    "Works best with images that are processed with the Crop to common area option.";
-
-      var stretchingTootip = 
-            "<p>Select how image is stretched from linear to non-linear.</p>" +
-            "<ul>" +
-            "<li><p>Auto STF - Use auto Screen Transfer Function to stretch image to non-linear.<br>" + 
-                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>Postprocessing</i> tab to a smaller value, like 0.10</i><br>" +
-                 "Parameters are set in <i>Postprocessing / AutoSTF settings</i> section.</p></li>" +
-            "<li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>" + 
-                   "VeraLuxHMS can work well on many targets. Typically it is greater if you want saturated results.<br>" + 
-                   "Parameters are set in <i>Postprocessing / VeraLux HMS Stretch</i> section</p></li>" +
-            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
-                   "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
-                   "Parameters are set in <i>Postprocessing / Masked stretch settings</i> section</p></li>" +
-            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>" + 
-                   "Prestretch help with stars that can be too pointlike with Masked Stretch.<br>" +
-                   "Parameters are set in <i>Postprocessing / Masked stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li>" +
-            "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
-                   "Parameters are set in <i>Postprocessing / Histogram stretching settings</i> section</p></li>" +
-            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
-                   "Can be useful when stretching stars to keep good star color.<br>" + 
-                   "Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> section</p></li>" +
-            "</ul>" +
-            "<p>There are also some experimental stretches.</p>" +
-            "<ul>" +
-            "<li><p>Logarithmic stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
-            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>Postprocessing / Arcsinh stretch settings</i> and <i>Postprocessing / Histogram stretching settings</i> sections</p></li>" +
-            "<li><p>Square root stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
-            "<li><p>Shadow stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
-            "<li><p>Highlight stretch - Parameters are set in <i>Postprocessing / Other stretching settings</i> section</p></li>" +
-            "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
-            "</ul>" + 
-            "<p>See <i>Postprocessing / Stretching settings</i> section for stretching specific parameters.</p>" +
-            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>";
-      this.stretchingComboBox = guitools.newComboBox(this, par.image_stretching, image_stretching_values, stretchingTootip);
-      stretchingComboBox = this.stretchingComboBox;
-      updateParameterDependencies(this);
-      // console.writeln("Setting stretchingComboBox.enabled to " + stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
-      this.stretchingLabel = guitools.newLabel(this, "Stretching", stretchingTootip, true);
-      this.stretchingSizer = guitools.newHorizontalSizer(4, true, [ this.stretchingLabel, this.stretchingComboBox ]);
 
       this.imageParamsControlSubSizer = guitools.newVerticalSizer(0, true, [ this.imageParamsSet1Label, this.imageParamsSet1, this.imageParamsSet2Label, this.imageParamsSet2 ]);
+
+      this.stretchingSizer = enhancements_gui.createStrechingChoiceSizer(this,  updateParameterDependencies);
 
       // Image group par.
       this.imageParamsControl = new Control( this );
@@ -6274,7 +6246,7 @@ function AutoIntegrateDialog()
       //
 
       this.starsStretchingLabel = guitools.newLabel(this, "Stretching for Stars ", "Stretching for stars if stars are extracted from a linear image.");
-      this.starsStretchingComboBox = guitools.newComboBox(this, par.stars_stretching, image_stretching_values, stretchingTootip);
+      this.starsStretchingComboBox = guitools.newComboBox(this, par.stars_stretching, enhancements_gui.image_stretching_values, enhancements_gui.stretchingTootip);
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + guitools.stars_combine_operations_Tooltip;
       this.starsCombineLabel = guitools.newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = guitools.newComboBox(this, par.stars_combine, guitools.starless_and_stars_combine_values, stars_combine_Tooltip);
@@ -6287,226 +6259,6 @@ function AutoIntegrateDialog()
       this.starStretchingChoiceSizer.add( this.starsCombineLabel );
       this.starStretchingChoiceSizer.add( this.starsCombineComboBox );
       this.starStretchingChoiceSizer.addStretch();
-
-      this.STFLinkLabel = new Label( this );
-      this.STFLinkLabel.text = "Link RGB channels";
-      this.STFLinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      this.STFLinkLabel.toolTip = 
-      "<p>" +
-      "RGB channel linking in image stretching." +
-      "</p><p>" +
-      "Auto option uses the following defaults:" + 
-      "</p>" +
-      "<ul>" +
-      "<li>RGB images using mono camera with separate filters for RGB channels use linked stretching.</li>" + 
-      "<li>Color OSC/DSLR images use unlinked stretching.</li>" +
-      "<li>Narrowband images use unlinked stretching. But if linear fit or color calibration is done with narrowband images, then linked stretching is used.</li>" +
-      "<p>" +
-      "Note that some stretching methods do not support unlinked channels." +
-      "</p>";
-      this.STFComboBox = guitools.newComboBox(this, par.STF_linking, STF_linking_values, this.STFLinkLabel.toolTip);
-
-      var adjustShadowsToolTip = "<p>If enabled shadows are adjusted after stretch.</p>" +
-                                 "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
-
-      this.stretchAdjustShadowsLabel = guitools.newLabel(this, "Adjust shadows", adjustShadowsToolTip, true);
-      this.stretchAdjustShadowsComboBox = guitools.newComboBox(this, par.stretch_adjust_shadows, adjust_shadows_values, adjustShadowsToolTip);
-      this.stretchAdjustShadowsControl = guitools.newNumericEditPrecision(this, "%", par.stretch_adjust_shadows_perc, 0, 99,
-            "<p>Percentage of shadows adjustment after stretch.</p>" +
-            "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
-            3);
-
-      this.StretchGenericSizer = new HorizontalSizer;
-      this.StretchGenericSizer.spacing = 4;
-      this.StretchGenericSizer.margin = 6;
-      this.StretchGenericSizer.toolTip = this.STFLinkLabel.toolTip;
-      this.StretchGenericSizer.add( this.STFLinkLabel );
-      this.StretchGenericSizer.add( this.STFComboBox );
-      this.StretchGenericSizer.add( this.stretchAdjustShadowsLabel );
-      this.StretchGenericSizer.add( this.stretchAdjustShadowsComboBox );
-      this.StretchGenericSizer.add( this.stretchAdjustShadowsControl );
-      this.StretchGenericSizer.addStretch();
-                                    
-      this.StretchGenericGroupBox = new GroupBox(this);
-      this.StretchGenericGroupBox.title = "Generic settings";
-      this.StretchGenericGroupBox.sizer = this.StretchGenericSizer;
-
-      this.STFTargetBackgroundControl = guitools.newNumericEdit(this, "targetBackground", par.STF_targetBackground, 0, 1,
-            "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
-            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
-
-      this.STFSizer = new HorizontalSizer;
-      this.STFSizer.spacing = 4;
-      this.STFSizer.margin = 6;
-      this.STFSizer.toolTip = this.STFTargetBackgroundControl.toolTip;
-      this.STFSizer.add( this.STFTargetBackgroundControl );
-      this.STFSizer.addStretch();
-
-      this.autoSTFGroupBox = new GroupBox(this);
-      this.autoSTFGroupBox.title = "Auto STF settings";
-      this.autoSTFGroupBox.sizer = this.STFSizer;
-
-      /* Masked.
-       */
-      this.MaskedStretchTargetBackgroundEdit = guitools.newNumericEdit(this, "targetBackground", par.MaskedStretch_targetBackground, 0, 1,
-            "<p>Masked Stretch targetBackground value. Usually values between 0.05 and 0.2 work best. Possible values are between 0 and 1.</p>");
-      this.MaskedStretchPrestretchTargetEdit = guitools.newNumericEdit(this, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
-            "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
-            "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
-
-      this.MaskedStretchSizer = new HorizontalSizer;
-      this.MaskedStretchSizer.spacing = 4;
-      this.MaskedStretchSizer.margin = 6;
-      this.MaskedStretchSizer.add( this.MaskedStretchTargetBackgroundEdit );
-      this.MaskedStretchSizer.add( this.MaskedStretchPrestretchTargetEdit );
-      this.MaskedStretchSizer.addStretch();
-      
-      this.MaskedStretchGroupBox = new GroupBox(this);
-      this.MaskedStretchGroupBox.title = "Masked Stretch settings";
-      this.MaskedStretchGroupBox.sizer = this.MaskedStretchSizer;
-
-      /* Arcsinh.
-       */
-      this.Arcsinh_stretch_factor_Edit = guitools.newNumericEdit(this, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
-            "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
-            "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
-            "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use different values. For less stars you can use a smaller value.</p>");
-      this.Arcsinh_black_point_Control = guitools.newNumericEditPrecision(this, "Black point value %", par.Arcsinh_black_point, 0, 99,
-            "<p>Arcsinh Stretch black point value.</p>" + 
-            "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>",
-            4);
-      var Arcsinh_iterations_tooltip = "Number of iterations used to get the requested stretch factor."
-      this.Arcsinh_iterations_Label = guitools.newLabel(this, "Iterations", Arcsinh_iterations_tooltip);
-      this.Arcsinh_iterations_SpinBox = guitools.newSpinBox(this, par.Arcsinh_iterations, 1, 10, Arcsinh_iterations_tooltip);
-
-      this.ArcsinhSizer = new HorizontalSizer;
-      this.ArcsinhSizer.spacing = 4;
-      this.ArcsinhSizer.margin = 6;
-      this.ArcsinhSizer.add( this.Arcsinh_stretch_factor_Edit );
-      this.ArcsinhSizer.add( this.Arcsinh_black_point_Control );
-      this.ArcsinhSizer.add( this.Arcsinh_iterations_Label );
-      this.ArcsinhSizer.add( this.Arcsinh_iterations_SpinBox );
-      this.ArcsinhSizer.addStretch();
-
-      this.ArcsinhGroupBox = new GroupBox(this);
-      this.ArcsinhGroupBox.title = "Arcsinh Stretch settings";
-      this.ArcsinhGroupBox.sizer = this.ArcsinhSizer;
-
-      /* VeraLuxHMS.
-       */
-      this.veraluxProcessingModeLabel = guitools.newLabel(this, "Processing Mode", 
-                                          "VeraLux processing mode selection.\n" +
-                                          "Ready-to-Use (Aesthetic)\n" +
-                                          "Produces an aesthetic, export-ready image with adaptive expansion and soft-clipping.\n" +
-                                          "Scientific (Preserve)\n" +
-                                          "Produces 100% mathematically consistent output. Ideal for manual tone mapping.",
-                                          true);
-      this.veraluxProcessingMode = guitools.newComboBox(this, par.veralux_processing_mode, [ "Ready-to-Use", "Scientific" ], 
-                                          this.veraluxProcessingModeLabel.toolTip);
-      this.veraluxSensorProfileLabel = guitools.newLabel(this, "Sensor Profile", 
-                                          "VeraLux sensor profile selection.\n" + 
-                                          "Defines the Luminance coefficients (Weights) used for the stretch.",
-                                          true);
-      this.veraluxSensorProfile = guitools.newComboBox(this, par.veralux_sensor_profile, engine.veralux.getSensorProfileNames(true), 
-                                          this.veraluxSensorProfileLabel.toolTip);
-      this.veraluxTargetEdit = guitools.newNumericEdit(this, "Target Bg:", par.veralux_target_bg, 0.05, 0.50, "Target background median (0.05-0.50). Standard is 0.20.");
-      this.veraluxAdaptiveAnchorCheckBox = guitools.newCheckBox(this, "Adaptive Anchor", par.veralux_adaptive_anchor, 
-                                          "Analyzes histogram shape to find true signal start. Recommended for images with gradients.");
-      this.veraluxAutoCalcDCheckBox = guitools.newCheckBox(this, "Auto-Calc Log D", par.veralux_auto_calc_D, 
-                                          "Analyzes image to find optimal Stretch Factor (Log D).");
-      this.veraluxValDEdit = guitools.newNumericEdit(this, "Log D:", par.veralux_D_value, 0.0, 7.0,
-                                          "Hyperbolic Intensity (Log D). Controls the strength of the stretch.");
-      this.veraluxbEdit = guitools.newNumericEdit(this, "Protect b:", par.veralux_b_value, 0.1, 15,
-                                          "Highlight Protection. Controls the 'knee' of the hyperbolic curve.");
-      this.veraluxStarCoreRecoveryEdit = guitools.newNumericEdit(this, "Star Core Recovery:", par.veralux_convergence_power, 1, 10,
-                                          "Controls how quickly saturated colors transition to white.");
-
-      this.veraluxReadyToUseLabel = guitools.newLabel(this, "Ready-to-Use settings", "Setting for VeraLux Ready-to-Use mode.", true);
-      this.veraluxColorStrategyEdit = guitools.newNumericEdit(this, "Color Strategy:", par.veralux_color_strategy, -100, 100,
-                                          "Negative: Clean Noise | Center: Balanced | Positive: Soften Highlights.\n" +
-                                          "Only for Ready-to-Use mode.");
-
-      this.veraluxScientificLabel = guitools.newLabel(this, "Scientific settings", "Setting for VeraLux Scientific mode.", true);
-      this.veraluxColorGripEdit = guitools.newNumericEdit(this, "Color Grip:", par.veralux_color_grip, 0, 1,
-                                          "Controls vector color preservation. 1.0 = Pure VeraLux.\n" + 
-                                          "Only for Scientific mode.");
-      this.veraluxShadowConvEdit = guitools.newNumericEdit(this, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 3,
-                                          "Damps vector preservation in shadows to prevent color noise.\n" +
-                                          "Only for Scientific mode.");
-
-      this.veraluxHelpTips = new ToolButton( this );
-      this.veraluxHelpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.veraluxHelpTips.setScaledFixedSize( 20, 20 );
-      this.veraluxHelpTips.toolTip = engine.veralux.getHelpText();
-      this.veraluxHelpTips.onClick = function()
-      {
-            new MessageBox(engine.veralux.getHelpText(), "Veralux help", StdIcon_Information ).execute();
-      }
-
-      this.veraluxSizer1 = guitools.newHorizontalSizer(0, true, [ this.veraluxProcessingModeLabel, this.veraluxProcessingMode, this.veraluxSensorProfileLabel, this.veraluxSensorProfile, this.veraluxHelpTips ]);
-      this.veraluxSizer2 = guitools.newHorizontalSizer(0, true, [ this.veraluxTargetEdit, this.veraluxAdaptiveAnchorCheckBox ]);
-      this.veraluxSizer3 = guitools.newHorizontalSizer(0, true, [ this.veraluxAutoCalcDCheckBox, this.veraluxValDEdit, this.veraluxbEdit, this.veraluxStarCoreRecoveryEdit ]);
-      this.veraluxSizer4 = guitools.newHorizontalSizer(0, true, [ this.veraluxReadyToUseLabel, this.veraluxColorStrategyEdit ]);
-      this.veraluxSizer5 = guitools.newHorizontalSizer(0, true, [ this.veraluxScientificLabel, this.veraluxColorGripEdit, this.veraluxShadowConvEdit ]);
-
-      // this.VeraLuxHMSSectionLabel = guitools.newSectionLabel(this, "VeraLux HMS Stretch settings");
-      this.VeraLuxHMSSizer = guitools.newVerticalSizer(6, true, [ this.veraluxSizer1, this.veraluxSizer2, this.veraluxSizer3, this.veraluxSizer4, this.veraluxSizer5 ]);
-
-      this.veraluxGroupBox = new GroupBox(this);
-      this.veraluxGroupBox.title = "VeraLux HMS Stretch";
-      this.veraluxGroupBox.sizer = this.VeraLuxHMSSizer;
-
-      /* Histogram stretching.
-       */
-
-      this.histogramTypeLabel = guitools.newLabel(this, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
-      this.histogramTypeComboBox = guitools.newComboBox(this, par.histogram_stretch_type, histogram_stretch_type_values, this.histogramTypeLabel.toolTip);
-      this.histogramTargetValue_Control = guitools.newNumericEdit(this, "Target value", par.histogram_stretch_target, 0, 1, 
-            "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
-            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
-            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
-            "like large nebulas or dust you should try with 0.25.</p>");
-
-      this.histogramStretchingSizer = new HorizontalSizer;
-      this.histogramStretchingSizer.spacing = 4;
-      this.histogramStretchingSizer.margin = 6;
-      this.histogramStretchingSizer.add( this.histogramTypeLabel );
-      this.histogramStretchingSizer.add( this.histogramTypeComboBox );
-      this.histogramStretchingSizer.add( this.histogramTargetValue_Control );
-      this.histogramStretchingSizer.addStretch();
-
-      this.histogramStretchingGroupBox = new GroupBox(this);
-      this.histogramStretchingGroupBox.title = "Histogram stretching settings";
-      this.histogramStretchingGroupBox.sizer = this.histogramStretchingSizer;
-
-      this.otherStrechingTargetValue_Control = guitools.newNumericEdit(this, "Target value", par.other_stretch_target, 0, 1, 
-            "<p>Target value specifies where we try to get the the histogram median value.</p>" +
-            "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
-            "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
-            "like large nebulas or dust you should try with 0.25.</p>");
-      this.otherStrechingTargetValueSizer = new HorizontalSizer;
-      this.otherStrechingTargetValueSizer.spacing = 4;
-      this.otherStrechingTargetValueSizer.margin = 6;
-      this.otherStrechingTargetValueSizer.add( this.otherStrechingTargetValue_Control );
-      this.otherStrechingTargetValueSizer.addStretch();
-
-      this.othertretchingGroupBox = new GroupBox(this);
-      this.othertretchingGroupBox.title = "Other stretching settings";
-      this.othertretchingGroupBox.sizer = this.otherStrechingTargetValueSizer;
-
-      this.StretchingGroupBoxSizer = new VerticalSizer;
-      this.StretchingGroupBoxSizer.margin = 6;
-      this.StretchingGroupBoxSizer.spacing = 4;
-      this.StretchingGroupBoxSizer.add( this.StretchGenericGroupBox );
-      this.StretchingGroupBoxSizer.add( this.autoSTFGroupBox );
-      // this.StretchingGroupBoxSizer.add( this.VeraLuxHMSSectionLabel );
-      // this.StretchingGroupBoxSizer.add( this.VeraLuxHMSSizer );
-      this.StretchingGroupBoxSizer.add( this.veraluxGroupBox );
-      this.StretchingGroupBoxSizer.add( this.MaskedStretchGroupBox );
-      this.StretchingGroupBoxSizer.add( this.ArcsinhGroupBox );
-      this.StretchingGroupBoxSizer.add( this.histogramStretchingGroupBox );
-      this.StretchingGroupBoxSizer.add( this.othertretchingGroupBox );
-      this.StretchingGroupBoxSizer.addStretch();
 
       this.StarStretchingGroupBoxSizer1 = guitools.newVerticalSizer(0, false, [this.remove_stars_channel_CheckBox,
                                                                       this.remove_stars_before_stretch_CheckBox,
@@ -7361,31 +7113,13 @@ function AutoIntegrateDialog()
       // hide this section by default
       this.RGBHaMappingControl.visible = false;
 
-      // Narrowband enhancements
+      var enhancementsGUIControls = enhancements_gui.createEnhancementsGUIControls(this);
 
-      this.enhancements = new AutoIntegrateEnhancements(
-                                          this, 
-                                          guitools, 
-                                          util, 
-                                          global,
-                                          engine,
-                                          {     // Preview functions for enhancements tab
-                                                setPreviewIdReset: setPreviewIdReset,
-                                                updatePreviewIdReset: updatePreviewIdReset,
-                                                updatePreviewTxt: updatePreviewTxt,
-                                                updatePreviewNoImage: updatePreviewNoImage,
-                                                createCombinedMosaicPreviewWin: createCombinedMosaicPreviewWin,
-                                                updatePreviewWin: updatePreviewWin
-                                          }
-                                    );
-      enhancements = this.enhancements;
-
-      var enhancementsGUIControls = enhancements.getEnhancementsGUIControls();
-
-      this.enhancementsImageControl = enhancementsGUIControls[0];
-      this.enhancementsControl1 = enhancementsGUIControls[1];
-      this.enhancementsControl2 = enhancementsGUIControls[2];
-      this.enhancementsControl3 = enhancementsGUIControls[3];
+      this.enhancementsTargetImageControl = enhancementsGUIControls.targetImageControl;
+      this.enhancementsOptionsControl = enhancementsGUIControls.optionsControl;
+      this.enhancementsGenericControl = enhancementsGUIControls.genericControl;
+      this.enhancementsNarrowbandControl = enhancementsGUIControls.narrowbandControl;
+      this.enhancementsNarrowbandColorizationControl3 = enhancementsGUIControls.narrowbandColorizationControl;
 
       this.imageToolsControl = guitools.createImageToolsControl(this);
       this.imageToolsControl.visible = true;
@@ -8187,9 +7921,12 @@ function AutoIntegrateDialog()
       // Postprocessing group box
       // ---------------------------------------------
       if (global.debug) console.writeln("Create postprocessing group box");
+
       this.postProcessingGroupBox = guitools.newGroupBoxSizer(this);
+      this.StretchingSettingsGroupBoxSizer = guitools.createStretchingSettingsSizer(this, engine);
+
       guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Stretching", "ps_stretching",
-            [ this.StretchingGroupBoxSizer ]);
+            [ this.StretchingSettingsGroupBoxSizer ]);
       guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Star stretching and removing", "ps_starstretching",
             [ this.StarStretchingGroupBoxSizer ]);
       guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "RGB stars", "ps_rgb_stars",
@@ -8242,10 +7979,11 @@ function AutoIntegrateDialog()
       // Enhancements group box
       // ---------------------------------------------
       this.enhancementsGroupBox = guitools.newGroupBoxSizer(this);
-      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsImageControl, "Target image for enhancements", "EnhancementsTarget");
-      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsControl2, "Narrowband enhancements", "Enhancements2");
-      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsControl3, "Narrowband colorization", "Enhancements3");
-      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsControl1, "Generic enhancements", "Enhancements1");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsTargetImageControl, "Target image for enhancements", "EnhancementsTarget");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsOptionsControl, "Misc options", "EnhancementsOptions");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandControl, "Narrowband enhancements", "Enhancements2");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandColorizationControl3, "Narrowband colorization", "Enhancements3");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGenericControl, "Generic enhancements", "Enhancements1");
       this.enhancementsGroupBox.sizer.addStretch();
 
       if (global.use_preview) {
@@ -8810,7 +8548,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             title: "Save in enhancements tab",
             description: "If you use enhancements options for the final image, " +
                          "there is a button where you can save the image in XISF and 16-bit TIFF formats.",
-            target: this.enhancements.enhancementsSaveButton,
+            target: this.enhancements_gui.enhancementsSaveButton,
             tooltipPosition: "center",
             switchToTab: this.enhancementsPage.index,        // Switch to Enhancements tab
             sectionBars: ["EnhancementsTarget"]              // Show some sections

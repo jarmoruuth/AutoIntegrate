@@ -67,7 +67,7 @@ this.processing_state = {
 this.statusInfoLabel = null;         // For update processing status
 this.sectionBarControls = [];
 this.sectionBars = [];
-
+this.veraluxAutoCalcDLabel = null;
 
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
@@ -717,7 +717,7 @@ this.substack_number = 0;
 
 this.processed_channel_images = [];
 
-this.enhancements_target_image = null;
+this.enhancements_target_image_id = null;       // id of target image window for enhancements
 this.enhancements_target_histogram_info = null;
 
 this.processing_steps = "";

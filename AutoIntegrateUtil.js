@@ -1166,7 +1166,63 @@ function saveLastDir(dirname)
       }
 }
 
-function saveParameter(param)
+function readOneParameterFromPersistentModuleSettings(name, type)
+{
+      name = SETTINGSKEY + '/' + util.mapBadChars(name);
+      switch (type) {
+            case 'S':
+                  var tempSetting = Settings.read(name, DataType_String);
+                  break;
+            case 'B':
+                  var tempSetting = Settings.read(name, DataType_Boolean);
+                  break;
+            case 'I':
+                  var tempSetting = Settings.read(name, DataType_Int32);
+                  break;
+            case 'R':
+                  var tempSetting = Settings.read(name, DataType_Real32);
+                  break;
+            default:
+                  util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                  break;
+      }
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            return tempSetting;
+      } else {
+            return null;
+}
+}
+
+function readParameterFromSettings(param)
+{
+      var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
+      if (val == null && param.oldname != undefined) {
+            val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
+      }
+      if (val != null) {
+            global.setParameterValue(param, val);
+      }
+}
+
+// Read default parameters from persistent module settings
+function readParametersFromPersistentModuleSettings()
+{
+      if (global.do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from persistent module settings");
+            return;
+      }
+      if (!global.ai_use_persistent_module_settings) {
+            console.writeln("skip readParametersFromPersistentModuleSettings");
+            return;
+      }
+      console.writeln("readParametersFromPersistentModuleSettings");
+      for (let x in par) {
+            util.readParameterFromSettings(par[x]);
+      }
+}
+
+function writeParameterToSettings(param)
 {
       var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
       if (param.val != param.def) {
@@ -2944,7 +3000,9 @@ this.saveJsonFile = saveJsonFile;
 this.is_enhancements_option = is_enhancements_option;
 this.is_narrowband_option = is_narrowband_option;
 this.setParameterDefaults = setParameterDefaults;
-this.saveParameter = saveParameter;
+this.writeParameterToSettings = writeParameterToSettings;
+this.readParameterFromSettings = readParameterFromSettings;
+this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
 
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;

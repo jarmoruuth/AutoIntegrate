@@ -506,58 +506,6 @@ function readParametersFromProcessIcon()
       }
 }
 
-function readOneParameterFromPersistentModuleSettings(name, type)
-{
-            name = SETTINGSKEY + '/' + util.mapBadChars(name);
-            switch (type) {
-                  case 'S':
-                        var tempSetting = Settings.read(name, DataType_String);
-                        break;
-                  case 'B':
-                        var tempSetting = Settings.read(name, DataType_Boolean);
-                        break;
-                  case 'I':
-                        var tempSetting = Settings.read(name, DataType_Int32);
-                        break;
-                  case 'R':
-                        var tempSetting = Settings.read(name, DataType_Real32);
-                        break;
-                  default:
-                        util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
-                        break;
-            }
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
-                  return tempSetting;
-            } else {
-                  return null;
-      }
-}
-
-// Read default parameters from persistent module settings
-function readParametersFromPersistentModuleSettings()
-{
-      if (global.do_not_read_settings) {
-            console.writeln("Use default settings, do not read parameter values from persistent module settings");
-            return;
-      }
-      if (!global.ai_use_persistent_module_settings) {
-            console.writeln("skip readParametersFromPersistentModuleSettings");
-            return;
-      }
-      console.writeln("readParametersFromPersistentModuleSettings");
-      for (let x in par) {
-            var param = par[x];
-            var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
-            if (val == null && param.oldname != undefined) {
-                  val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
-            }
-            if (val != null) {
-                  global.setParameterValue(param, val);
-            }
-      }
-}
-
 this.test_initdebug = function()
 {
       global.par.debug.val = true;
@@ -736,7 +684,7 @@ this.autointegrate_main = function()
             } else {
                   // 2. Read saved parameters from persistent module settings
                   console.noteln("Read persistent module settings");
-                  readParametersFromPersistentModuleSettings();
+                  util.readParametersFromPersistentModuleSettings();
             }
             
             if (global.ai_use_persistent_module_settings) {
