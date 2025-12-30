@@ -104,6 +104,8 @@ function AutoIntegrateEngine(global, util, flowchart)
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 #ifdef AUTOINTEGRATE_STANDALONE
 var autointegrateLDD = null;
 #else
@@ -121,6 +123,8 @@ this.darkFileNames = null;
 this.biasFileNames = null;
 this.flatdarkFileNames = null;
 this.flatFileNames = null;
+
+this.standalone_narrowband_mappings = null;
 
 var executed_processes = [];
 
@@ -16938,9 +16942,29 @@ function enhancementsOrangeBlueColors(imgWin)
       narrowbandOrangeBlueSaturation(imgWin);
 }
 
-function runEnhancementsNarrowbandMapping(imgWin, source_palette_name, target_palette)
+function runEnhancementsNarrowbandMappingChannels(imgWin, target_palette, mappings)
 {
-      console.writeln("runEnhancementsNarrowbandMapping, from " + source_palette_name + " to " + target_palette.name);
+      console.writeln("runEnhancementsNarrowbandMappingChannels, mappings " + JSON.stringify(mappings));
+
+      var RGBNB_R_mapping = target_palette.R;
+      for (var i = 0; i < mappings.length; i++) {
+            RGBNB_R_mapping = replaceMappingImageNamesExt(RGBNB_R_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+      var RGBNB_G_mapping = target_palette.G;
+      for (var i = 0; i < mappings.length; i++) {
+            RGBNB_G_mapping = replaceMappingImageNamesExt(RGBNB_G_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+      var RGBNB_B_mapping = target_palette.B;
+      for (var i = 0; i < mappings.length; i++) {
+            RGBNB_B_mapping = replaceMappingImageNamesExt(RGBNB_B_mapping, mappings[i][0], mappings[i][1], "", null, null);
+      }
+
+      runPixelMathRGBMapping(null, imgWin, RGBNB_R_mapping, RGBNB_G_mapping, RGBNB_B_mapping);
+}
+
+function runEnhancementsNarrowbandMappingRGB(imgWin, source_palette_name, target_palette)
+{
+      console.writeln("runEnhancementsNarrowbandMappingRGB, from " + source_palette_name + " to " + target_palette.name);
 
       switch (source_palette_name) {
             case 'HOO':
@@ -16960,25 +16984,12 @@ function runEnhancementsNarrowbandMapping(imgWin, source_palette_name, target_pa
                   util.throwFatalError("Invalid source palette " + source_palette_name);
       }
 
-      var RGBNB_R_mapping = target_palette.R;
-      for (var i = 0; i < mappings.length; i++) {
-            RGBNB_R_mapping = replaceMappingImageNamesExt(RGBNB_R_mapping, mappings[i][0], mappings[i][1], "", null, null);
-      }
-      var RGBNB_G_mapping = target_palette.G;
-      for (var i = 0; i < mappings.length; i++) {
-            RGBNB_G_mapping = replaceMappingImageNamesExt(RGBNB_G_mapping, mappings[i][0], mappings[i][1], "", null, null);
-      }
-      var RGBNB_B_mapping = target_palette.B;
-      for (var i = 0; i < mappings.length; i++) {
-            RGBNB_B_mapping = replaceMappingImageNamesExt(RGBNB_B_mapping, mappings[i][0], mappings[i][1], "", null, null);
-      }
-
-      runPixelMathRGBMapping(null, imgWin, RGBNB_R_mapping, RGBNB_G_mapping, RGBNB_B_mapping);
+      runEnhancementsNarrowbandMappingChannels(imgWin, target_palette, mappings);
 
       for (var i = 0; i < mappings.length; i++) {
             util.closeOneWindowById(mappings[i][1]);
       }
-      util.addProcessingStepAndStatusInfo("runEnhancementsNarrowbandMapping, mapping complete");
+      util.addProcessingStepAndStatusInfo("runEnhancementsNarrowbandMappingRGB, mapping complete");
 }
 
 function enhancementsForaxx(imgWin, source_palette_name)
@@ -16996,7 +17007,7 @@ function enhancementsForaxx(imgWin, source_palette_name)
                   util.throwFatalError("Invalid Foraxx palette " + source_palette_name);
       }
 
-      runEnhancementsNarrowbandMapping(imgWin, source_palette_name, dynamic_palette);
+      runEnhancementsNarrowbandMappingRGB(imgWin, source_palette_name, dynamic_palette);
 
       if (source_palette_name == 'SHO') {
             runSCNR(imgWin, false);
@@ -17004,13 +17015,13 @@ function enhancementsForaxx(imgWin, source_palette_name)
       }
 }
 
-function enhancementsNarrowbandMapping(imgWin, source_palette_name, target_palette_name)
+function enhancementsNarrowbandMappingRGB(imgWin, source_palette_name, target_palette_name)
 {
       addEnhancementsStep("Narrowband mapping from " + source_palette_name + " to " + target_palette_name);
 
       var target_palette = findNarrowBandPalette(target_palette_name);
 
-      runEnhancementsNarrowbandMapping(imgWin, source_palette_name, target_palette);
+      runEnhancementsNarrowbandMappingRGB(imgWin, source_palette_name, target_palette);
 }
 
 // Rename and save palette batch image
@@ -17362,7 +17373,7 @@ function enhancementsOptionCompleted(param)
 
 function enhancementsProcessing(parent, id, apply_directly)
 {
-      console.noteln("Enhancements processing " + id + ", apply directly " + apply_directly);
+      console.noteln("Enhancements processing " + id + ", apply directly " + apply_directly + ", process_narrowband " + process_narrowband);
 
       global.enhancements_info = [];
 
@@ -17415,8 +17426,12 @@ function enhancementsProcessing(parent, id, apply_directly)
                   enhancementsOptionCompleted(par.run_foraxx_mapping);
             }
             if (par.run_enhancements_narrowband_mapping.val) {
-                  enhancementsNarrowbandMapping(enhancementsWin, par.enhancements_narrowband_mapping_source_palette.val, par.enhancements_narrowband_mapping_target_palette.val);
+                  enhancementsNarrowbandMappingRGB(enhancementsWin, par.enhancements_narrowband_mapping_source_palette.val, par.enhancements_narrowband_mapping_target_palette.val);
                   enhancementsOptionCompleted(par.run_enhancements_narrowband_mapping);
+            }
+            if (self.standalone_narrowband_mappings != null) {
+                  runEnhancementsNarrowbandMappingChannels(enhancementsWin, self.standalone_narrowband_mappings.target_palette, self.standalone_narrowband_mappings.mappings);
+                  self.standalone_narrowband_mappings = null;
             }
             if (par.run_orangeblue_colors.val) {
                   enhancementsOrangeBlueColors(enhancementsWin);
@@ -18783,15 +18798,15 @@ function createCropInformationAutoContinue()
        util.windowIconizeAndKeywordif(star_mask_win_id, false, true);        /* AutoStarMask or star_mask window */
        util.windowIconizeAndKeywordif(star_fix_mask_win_id, false, true);    /* AutoStarFixMask or star_fix_mask window */
 
-       console.noteln("enhancementsProcessingEngine " + enhancements_target_image + " completed2.");
-
        for (var i = 0; i < enhancements_wins.length; i++) {
             util.windowIconizeFindPosition(enhancements_wins[i]);
        }
 
-       console.noteln("Processing steps:");
-       console.writeln(global.processing_steps);
-       console.writeln("");
+       if (global.processing_steps != "") {
+            console.noteln("Processing steps:");
+            console.writeln(global.processing_steps);
+            console.writeln("");
+       }
        if (global.processing_warnings.length > 0) {
             console.warningln("Processing warnings:");
             console.warningln(global.processing_warnings);

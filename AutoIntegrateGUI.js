@@ -6502,121 +6502,12 @@ function AutoIntegrateDialog()
 
       // Narrowband palette
 
-      var narrowbandToolTip = 
-      "<p>" +
-      "Color palette used to map SII, Ha and OIII to R, G and B" +
-      "</p><p>" +
-      "There is a list of predefined mapping that can be used, some examples are below. For more details " +
-      "see the tooltip for palette combo box." +
-      "</p><p>" +
-      "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
-      "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
-      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)" +
-      "</p><p>" +
-      "Mapping formulas are editable and other palettes can use any combination of channel images." +
-      "</p><p>" +
-      "Special keywords H, S, O, R, G and B are recognized and replaced " +
-      "with corresponding channel image names. Otherwise these formulas " +
-      "are passed directly to the PixelMath process." +
-      "</p><p>" +
-      "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
-      "enhancements options, then also images with name Auto_+palette-name+_enh are created. Images are saved as .xisf files. " +
-      "Use Save batch result files buttons to save them all in a different format. " + 
-      "To use All option all HSO filters must be available." +
-      "</p>";
-
       this.narrowbandColorPaletteLabel = guitools.newSectionLabel(this, "Color palette");
-      this.narrowbandColorPaletteLabel.toolTip = narrowbandToolTip;
+      this.narrowbandColorPaletteLabel.toolTip = guitools.narrowbandToolTip;
 
       /* Narrowband mappings. 
        */
-      this.narrowbandCustomPalette_ComboBox = new ComboBox( this );
-      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
-            this.narrowbandCustomPalette_ComboBox.addItem( global.narrowBandPalettes[i].name );
-            if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
-                  this.narrowbandCustomPalette_ComboBox.currentItem = i;
-            }
-      }
-      this.narrowbandCustomPalette_ComboBox.toolTip = 
-            "<p>" +
-            "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
-            "</p><p>" +
-            "Dynamic palettes are the same as Foraxx options in <i>Enhancements / Narrowband enhancements</i> section. " + 
-            "With Dynamic palettes the script automatically uses non-linear data>." +
-            "</p><p>" +
-            guitools.Foraxx_credit + 
-            "</p><p>" +
-            "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for the L-eXtreme filter." +
-            "</p>" +
-            narrowbandToolTip;
-      this.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex )
-      {
-            this.dialog.narrowbandCustomPalette_R_ComboBox.editText = global.narrowBandPalettes[itemIndex].R;
-            this.dialog.narrowbandCustomPalette_G_ComboBox.editText = global.narrowBandPalettes[itemIndex].G;
-            this.dialog.narrowbandCustomPalette_B_ComboBox.editText = global.narrowBandPalettes[itemIndex].B;
-
-            par.narrowband_mapping.val = global.narrowBandPalettes[itemIndex].name;
-            par.custom_R_mapping.val = this.dialog.narrowbandCustomPalette_R_ComboBox.editText;
-            par.custom_G_mapping.val = this.dialog.narrowbandCustomPalette_G_ComboBox.editText;
-            par.custom_B_mapping.val = this.dialog.narrowbandCustomPalette_B_ComboBox.editText;
-      };
-      var narrowbandCustomPalette_ComboBox = this.narrowbandCustomPalette_ComboBox;
-      par.narrowband_mapping.reset = function() {
-            for (var i = 0; i < global.narrowBandPalettes.length; i++) {
-                  if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
-                        narrowbandCustomPalette_ComboBox.currentItem = i;
-                        break;
-                  }
-            }
-      };
-
-      /* Create Editable boxes for R, G and B mapping. 
-       */
-      this.narrowbandCustomPalette_R_Label = new Label( this );
-      this.narrowbandCustomPalette_R_Label.text = "R";
-      this.narrowbandCustomPalette_R_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_R_Label.toolTip = 
-            "<p>" +
-            "Mapping for R channel. Use one of the predefined mappings or edit and create your own mapping." +
-            "</p>" +
-            narrowbandToolTip;
-
-      this.narrowbandCustomPalette_R_ComboBox = guitools.newComboBoxpalette(this, par.custom_R_mapping, [par.custom_R_mapping.val, "0.75*H + 0.25*S"], this.narrowbandCustomPalette_R_Label.toolTip);
-
-      this.narrowbandCustomPalette_G_Label = new Label( this );
-      this.narrowbandCustomPalette_G_Label.text = "G";
-      this.narrowbandCustomPalette_G_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_G_Label.toolTip = 
-            "<p>" +
-            "Mapping for G channel. Use one of the predefined mappings or edit and create your own mapping." +
-            "</p>" +
-            narrowbandToolTip;
-
-      this.narrowbandCustomPalette_G_ComboBox = guitools.newComboBoxpalette(this, par.custom_G_mapping, [par.custom_G_mapping.val, "0.50*S + 0.50*O"], this.narrowbandCustomPalette_G_Label.toolTip);
-
-      this.narrowbandCustomPalette_B_Label = new Label( this );
-      this.narrowbandCustomPalette_B_Label.text = "B";
-      this.narrowbandCustomPalette_B_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-      this.narrowbandCustomPalette_B_Label.toolTip = 
-            "<p>" +
-            "Mapping for B channel. Use one of the predefined mappings or edit and create your own mapping." +
-            "</p>" +
-            narrowbandToolTip;
-
-      this.narrowbandCustomPalette_B_ComboBox = guitools.newComboBoxpalette(this, par.custom_B_mapping, [par.custom_B_mapping.val, "0.30*H + 0.70*O"], this.narrowbandCustomPalette_B_Label.toolTip);
-
-      this.narrowbandCustomPalette_Sizer = new HorizontalSizer;
-      // this.narrowbandCustomPalette_Sizer.margin = 6;
-      this.narrowbandCustomPalette_Sizer.spacing = 4;
-      this.narrowbandCustomPalette_Sizer.toolTip = narrowbandToolTip;
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_ComboBox );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_R_Label );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_R_ComboBox );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_G_Label );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_G_ComboBox );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_Label );
-      this.narrowbandCustomPalette_Sizer.add( this.narrowbandCustomPalette_B_ComboBox );
-      this.narrowbandCustomPalette_Sizer.addStretch();
+      this.narrowbandCustomPalette_Sizer = guitools.createNarrowbandCustomPaletteSizer(this);
 
       this.force_narrowband_mapping_CheckBox = guitools.newCheckBox(this, "Force narrowband mapping", par.force_narrowband_mapping, 
             "<p>" +

@@ -123,7 +123,6 @@ function ImageEnhancementsDialog() {
         updatePreviewNoImage: updatePreviewNoImage,
         createCombinedMosaicPreviewWin: null,
         updatePreviewWin: updatePreviewWin
-
    };
 
    // -------------------------------------------------------------------------

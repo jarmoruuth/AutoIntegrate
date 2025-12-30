@@ -78,6 +78,57 @@ this.cancel_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 
+// Available narrowband palettes.
+// Description of the fields
+//    name - name of the palette:
+//    R, G, B - channel expressions for the palette
+//    all - If true this palette is created if All is selected in the UI
+//    checkable - If true then the palette can be checked with multiple mappings in the UI
+//    sho_mappable - If true the palette can be used in SHO mapping in the enhancements
+//    stretched - True if the palette should be stretched before combing to RGB, like dynamic palettes
+this.narrowBandPalettes = [
+#ifndef AUTOINTEGRATE_STANDALONE
+      { name: "Auto", R: "Auto", G: "Auto", B: "Auto", all: false, checkable: false, sho_mappable: false, stretched: false },
+#endif
+      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false, stretched: false },
+      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
+      { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false, stretched: false }, 
+      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false, stretched: false }, 
+      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false, stretched: false }, 
+      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false, stretched: false },
+#ifndef AUTOINTEGRATE_STANDALONE
+      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false, stretched: false }
+#endif
+];
+
+// If narrowBandPalettes is Auto, we use these mappings to create
+// the image.
+this.narrowbandAutoMapping = [
+      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true }
+];
+
+
 // Set parameter value and check possible mappings
 this.setParameterValue = function(param, val) {
       if (param.name == "Target type") {
@@ -239,10 +290,10 @@ this.par = {
       astrobin_C: { val: "", def: "", name : "AstroBin C", type : 'S', skip_reset: true },
 
       // Narrowband processing
-      narrowband_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband mapping", type : 'S' },
-      custom_R_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband R mapping", type : 'S' },
-      custom_G_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband G mapping", type : 'S' },
-      custom_B_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband B mapping", type : 'S' },
+      narrowband_mapping: { val: this.narrowBandPalettes[0].name, def: this.narrowBandPalettes[0].name, name : "Narrowband mapping", type : 'S' },
+      custom_R_mapping: { val: this.narrowBandPalettes[0].R, def: this.narrowBandPalettes[0].R, name : "Narrowband R mapping", type : 'S' },
+      custom_G_mapping: { val: this.narrowBandPalettes[0].G, def: this.narrowBandPalettes[0].G, name : "Narrowband G mapping", type : 'S' },
+      custom_B_mapping: { val: this.narrowBandPalettes[0].B, def: this.narrowBandPalettes[0].B, name : "Narrowband B mapping", type : 'S' },
       custom_L_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
@@ -879,52 +930,6 @@ this.final_windows = [
 ];
 
 this.test_image_ids = [];      // Test images
-
-// Available narrowband palettes.
-// Description of the fields
-//    name - name of the palette:
-//    R, G, B - channel expressions for the palette
-//    all - If true this palette is created if All is selected in the UI
-//    checkable - If true then the palette can be checked with multiple mappings in the UI
-//    sho_mappable - If true the palette can be used in SHO mapping in the enhancements
-//    stretched - True if the palette should be stretched before combing to RGB, like dynamic palettes
-this.narrowBandPalettes = [
-      { name: "Auto", R: "Auto", G: "Auto", B: "Auto", all: false, checkable: false, sho_mappable: false, stretched: false },
-      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false, stretched: false },
-      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
-      { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false, stretched: false }, 
-      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false, stretched: false }, 
-      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false, stretched: false }, 
-      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false, stretched: false },
-      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false, stretched: false }
-];
-
-// If narrowBandPalettes is Auto, we use these mappings to create
-// the image.
-this.narrowbandAutoMapping = [
-      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
-      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
-      { input: ['H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: false },
-      { input: ['L','R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: false },
-      { input: ['L','R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true }
-];
 
 this.getDirectoryInfo = function(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";

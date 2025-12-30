@@ -10,6 +10,8 @@ if (global.debug) console.writeln("AutoIntegrateGUITools");
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 var par = global.par;
 
 this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
@@ -48,6 +50,29 @@ this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to 
 
 var adjustShadowsToolTip = "<p>If enabled shadows are adjusted after stretch.</p>" +
                            "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
+this.narrowbandToolTip = 
+      "<p>" +
+      "Color palette used to map SII, Ha and OIII to R, G and B" +
+      "</p><p>" +
+      "There is a list of predefined mapping that can be used, some examples are below. For more details " +
+      "see the tooltip for palette combo box." +
+      "</p><p>" +
+      "SHO - SII=R, Ha=G, OIII=B  (Hubble)<br>" +
+      "HOS - Ha=R, OIII=G, SII=B (CFHT)<br>" +
+      "HOO - Ha=R, OIII=G, OIII=B (if there is SII it is ignored)" +
+      "</p><p>" +
+      "Mapping formulas are editable and other palettes can use any combination of channel images." +
+      "</p><p>" +
+      "Special keywords H, S, O, R, G and B are recognized and replaced " +
+      "with corresponding channel image names. Otherwise these formulas " +
+      "are passed directly to the PixelMath process." +
+      "</p><p>" +
+      "Option All runs all narrowband palettes in a batch mode and creates images with names Auto_+palette-name. You can use " +
+      "enhancements options, then also images with name Auto_+palette-name+_enh are created. Images are saved as .xisf files. " +
+      "Use Save batch result files buttons to save them all in a different format. " + 
+      "To use All option all HSO filters must be available." +
+      "</p>";
+
 
 
 function newVerticalSizer(margin, add_stretch, items)
@@ -828,7 +853,7 @@ function createStretchingSettingsSizer(parent, engine)
       /* Histogram stretching.
        */
       var histogramTypeLabel = newLabel(parent, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
-      var histogramTypeComboBox = newComboBox(parent, par.histogram_stretch_type, this.histogram_stretch_type_values, histogramTypeLabel.toolTip);
+      var histogramTypeComboBox = newComboBox(parent, par.histogram_stretch_type, self.histogram_stretch_type_values, histogramTypeLabel.toolTip);
       var histogramTargetValue_Control = newNumericEdit(parent, "Target value", par.histogram_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
@@ -877,6 +902,99 @@ function createStretchingSettingsSizer(parent, engine)
       return stretchingGroupBoxSizer;
 }
 
+function createNarrowbandCustomPaletteSizer(parent)
+{
+      if (global.debug) console.writeln("AutoIntegrateGUITools::narrowbandCustomPaletteSizer");
+
+      self.narrowbandCustomPalette_ComboBox = new ComboBox( parent );
+      for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+            self.narrowbandCustomPalette_ComboBox.addItem( global.narrowBandPalettes[i].name );
+            if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
+                  self.narrowbandCustomPalette_ComboBox.currentItem = i;
+            }
+      }
+      self.narrowbandCustomPalette_ComboBox.toolTip = 
+            "<p>" +
+            "List of predefined color palettes. You can also edit mapping input boxes to create your own mapping." +
+            "</p><p>" +
+            "Dynamic palettes are the same as Foraxx options in <i>Enhancements / Narrowband enhancements</i> section. " + 
+            "With Dynamic palettes the script automatically uses non-linear data>." +
+            "</p><p>" +
+            self.Foraxx_credit + 
+            "</p><p>" +
+            "L-eXtreme SHO palette was posted by Alessio Pariani to Astrobin forums. It is an example mapping for the L-eXtreme filter." +
+            "</p>" +
+            self.narrowbandToolTip;
+      self.narrowbandCustomPalette_ComboBox.onItemSelected = function( itemIndex ) {
+            self.narrowbandCustomPalette_R_ComboBox.editText = global.narrowBandPalettes[itemIndex].R;
+            self.narrowbandCustomPalette_G_ComboBox.editText = global.narrowBandPalettes[itemIndex].G;
+            self.narrowbandCustomPalette_B_ComboBox.editText = global.narrowBandPalettes[itemIndex].B;
+            par.narrowband_mapping.val = global.narrowBandPalettes[itemIndex].name;
+            par.custom_R_mapping.val = self.narrowbandCustomPalette_R_ComboBox.editText;
+            par.custom_G_mapping.val = self.narrowbandCustomPalette_G_ComboBox.editText;
+            par.custom_B_mapping.val = self.narrowbandCustomPalette_B_ComboBox.editText;
+      };
+      self.narrowbandCustomPalette_ComboBox = self.narrowbandCustomPalette_ComboBox;
+      par.narrowband_mapping.reset = function() {
+            for (var i = 0; i < global.narrowBandPalettes.length; i++) {
+                  if (global.narrowBandPalettes[i].name == par.narrowband_mapping.val) {
+                        self.narrowbandCustomPalette_ComboBox.currentItem = i;
+                        break;
+                  }
+            }
+      };
+
+      /* Create Editable boxes for R, G and B mapping. 
+       */
+      self.narrowbandCustomPalette_R_Label = new Label( parent );
+      self.narrowbandCustomPalette_R_Label.text = "R";
+      self.narrowbandCustomPalette_R_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      self.narrowbandCustomPalette_R_Label.toolTip = 
+            "<p>" +
+            "Mapping for R channel. Use one of the predefined mappings or edit and create your own mapping." +
+            "</p>" +
+            self.narrowbandToolTip;
+
+      self.narrowbandCustomPalette_R_ComboBox = newComboBoxpalette(parent, par.custom_R_mapping, [par.custom_R_mapping.val, "0.75*H + 0.25*S"], self.narrowbandCustomPalette_R_Label.toolTip);
+
+      self.narrowbandCustomPalette_G_Label = new Label( parent );
+      self.narrowbandCustomPalette_G_Label.text = "G";
+      self.narrowbandCustomPalette_G_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      self.narrowbandCustomPalette_G_Label.toolTip = 
+            "<p>" +
+            "Mapping for G channel. Use one of the predefined mappings or edit and create your own mapping." +
+            "</p>" +
+            self.narrowbandToolTip;
+
+      self.narrowbandCustomPalette_G_ComboBox = newComboBoxpalette(parent, par.custom_G_mapping, [par.custom_G_mapping.val, "0.50*S + 0.50*O"], self.narrowbandCustomPalette_G_Label.toolTip);
+
+      self.narrowbandCustomPalette_B_Label = new Label( parent );
+      self.narrowbandCustomPalette_B_Label.text = "B";
+      self.narrowbandCustomPalette_B_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
+      self.narrowbandCustomPalette_B_Label.toolTip = 
+            "<p>" +
+            "Mapping for B channel. Use one of the predefined mappings or edit and create your own mapping." +
+            "</p>" +
+            self.narrowbandToolTip;
+
+      self.narrowbandCustomPalette_B_ComboBox = newComboBoxpalette(parent, par.custom_B_mapping, [par.custom_B_mapping.val, "0.30*H + 0.70*O"], self.narrowbandCustomPalette_B_Label.toolTip);
+
+      self.narrowbandCustomPalette_Sizer = new HorizontalSizer;
+      self.narrowbandCustomPalette_Sizer.margin = 6;
+      self.narrowbandCustomPalette_Sizer.spacing = 4;
+      self.narrowbandCustomPalette_Sizer.toolTip = self.narrowbandToolTip;
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_ComboBox );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_R_Label );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_R_ComboBox );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_G_Label );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_G_ComboBox );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_B_Label );
+      self.narrowbandCustomPalette_Sizer.add( self.narrowbandCustomPalette_B_ComboBox );
+      self.narrowbandCustomPalette_Sizer.addStretch();
+
+      return self.narrowbandCustomPalette_Sizer;
+}
+
 this.newVerticalSizer = newVerticalSizer;
 this.newHorizontalSizer = newHorizontalSizer;
 this.newCheckBox = newCheckBox;
@@ -907,6 +1025,7 @@ this.newSectionBarAddArray = newSectionBarAddArray;
 this.createImageToolsControl = createImageToolsControl;
 this.createGraXperPathSizer = createGraXperPathSizer;
 this.createStretchingSettingsSizer = createStretchingSettingsSizer;
+this.createNarrowbandCustomPaletteSizer = createNarrowbandCustomPaletteSizer;
 
 }
 
