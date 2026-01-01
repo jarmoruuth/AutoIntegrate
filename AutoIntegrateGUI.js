@@ -3580,14 +3580,14 @@ function blinkArrowButton(parent, icon, x, y)
 function updateParameterDependencies()
 {
       // Update the enabled state of the stretchingComboBox based on the target_type
-      enhancements_gui.stretchingComboBox.enabled = (par.target_type.val === "Default");
+      guitools.stretchingComboBox.enabled = (par.target_type.val === "Default");
       let stretching = engine.targetTypeToStretching(par.target_type.val);
       if (stretching != null) {
-            enhancements_gui.stretchingComboBox.currentItem = enhancements_gui.stretchingComboBox.aiValarray.indexOf(stretching);
-            enhancements_gui.stretchingComboBox.aiParam.val = stretching;
+            guitools.stretchingComboBox.currentItem = guitools.stretchingComboBox.aiValarray.indexOf(stretching);
+            guitools.stretchingComboBox.aiParam.val = stretching;
       } else {
-            enhancements_gui.stretchingComboBox.currentItem = 0;
-            enhancements_gui.stretchingComboBox.aiParam.val = enhancements_gui.stretchingComboBox.aiValarray[0];
+            guitools.stretchingComboBox.currentItem = 0;
+            guitools.stretchingComboBox.aiParam.val = guitools.stretchingComboBox.aiValarray[0];
       }
       // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
 }
@@ -4568,8 +4568,9 @@ function AutoIntegrateDialog()
       this.keepIntegratedImagesCheckBox = guitools.newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.resetOnSetupLoadCheckBox = guitools.newCheckBox(this, "Reset", par.reset_on_setup_load, 
-            "<p>Reset parameters to default values before loading a setup. This ensures that only parameters from the setup file are set " + 
-            "and user saved default parameters are not set.</p>" );
+            "<p>Reset parameters to default values before loading a setup.</p>" + 
+            "<p>This ensures that only parameters from the setup file are set and user saved default parameters are not set.</p>" +
+            "<p>Uncheck this option if you want just add parameters from the setup file to current parameters.</p>" );
       this.keepTemporaryImagesCheckBox = guitools.newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.keepProcessedImagesCheckBox = guitools.newCheckBox(this, "Keep processed images", par.keep_processed_images, 
@@ -4847,7 +4848,7 @@ function AutoIntegrateDialog()
 
       this.imageParamsControlSubSizer = guitools.newVerticalSizer(0, true, [ this.imageParamsSet1Label, this.imageParamsSet1, this.imageParamsSet2Label, this.imageParamsSet2 ]);
 
-      this.stretchingSizer = enhancements_gui.createStrechingChoiceSizer(this,  updateParameterDependencies);
+      this.stretchingSizer = guitools.createStrechingChoiceSizer(this,  updateParameterDependencies);
 
       // Image group par.
       this.imageParamsControl = new Control( this );
@@ -6185,7 +6186,7 @@ function AutoIntegrateDialog()
       //
 
       this.starsStretchingLabel = guitools.newLabel(this, "Stretching for Stars ", "Stretching for stars if stars are extracted from a linear image.");
-      this.starsStretchingComboBox = guitools.newComboBox(this, par.stars_stretching, enhancements_gui.image_stretching_values, enhancements_gui.stretchingTootip);
+      this.starsStretchingComboBox = guitools.newComboBox(this, par.stars_stretching, global.image_stretching_values, guitools.stretchingTootip);
       var stars_combine_Tooltip = "<p>Select how to combine star and starless image.</p>" + guitools.stars_combine_operations_Tooltip;
       this.starsCombineLabel = guitools.newLabel(this, " Combine ", stars_combine_Tooltip);
       this.starsCombineComboBox = guitools.newComboBox(this, par.stars_combine, guitools.starless_and_stars_combine_values, stars_combine_Tooltip);
@@ -7986,6 +7987,7 @@ function AutoIntegrateDialog()
       this.topButtonsSizer2.add( this.jsonSizer );
       this.topButtonsSizer2.addSpacing( 12 );
       this.topButtonsSizer2.add( this.resetOnSetupLoadCheckBox );
+      this.topButtonsSizer2.addStretch();
       this.topButtonsSizer2.addSpacing( 12 );
       this.topButtonsSizer2.add( this.winprefixOutputdirSizer );
       this.top2ndRowControl = new Control( this );

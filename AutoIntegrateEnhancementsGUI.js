@@ -148,57 +148,6 @@ var narrowband_colorized_method_values = [ 'PixelMath' ];
 var signature_positions_values = [ 'Top left', 'Top middle', 'Top right', 'Bottom left', 'Bottom middle', 'Bottom right' ];
 var highpass_sharpen_values = [ 'Default', 'MLT', 'UnsharpMask', 'BlurXTerminator', 'None' ];
 var enhancements_HDRMLT_color_values = [ 'None', 'Preserve hue', 'Color corrected' ];
-this.image_stretching_values = [ 'MultiscaleAdaptiveStretch', 'Auto STF', 'Masked Stretch', 'VeraLuxHMS', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
-                                'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 
-                                'Shadow stretch', 'Highlight stretch', 'None' ];
-
-var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
-                               "Works best with images that are processed with the Crop to common area option.";
-
-#ifdef AUTOINTEGRATE_STANDALONE
-var postprocessing_section = "";
-#else
-var postprocessing_section = "Postprocessing / ";
-#endif                               
-
-this.stretchingTootip = 
-            "<p>Select how image is stretched from linear to non-linear.</p>" +
-            "<ul>" +
-            "<li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>" + 
-                 "You can adjust settings in <i>" + postprocessing_section + "MultiscaleAdaptiveStretch</i> section.</p></li>" +
-            "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 
-                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>" + postprocessing_section + "AutoSTF settings</i> section to a smaller value, like 0.10</i><br>" +
-                 "Parameters are set in <i>" + postprocessing_section + "AutoSTF settings</i> section.</p></li>" +
-            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
-                   "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
-                   "Parameters are set in <i>" + postprocessing_section + "Masked stretch settings</i> section</p></li>" +
-            "<li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>" + 
-                   "VeraLuxHMS can work well on many targets and can create saturated results.<br>" + 
-                   "Parameters are set in <i>" + postprocessing_section + "VeraLux HMS Stretch</i> section</p></li>" +
-            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>" + 
-                   "Prestretch help with stars that can be too pointlike with Masked Stretch.<br>" +
-                   "Parameters are set in <i>" + postprocessing_section + "Masked stretch settings</i> and <i>" + postprocessing_section + "Histogram stretching settings</i> sections</p></li>" +
-            "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
-                   "Parameters are set in <i>" + postprocessing_section + "Histogram stretching settings</i> section</p></li>" +
-            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
-                   "Can be useful when stretching stars to keep good star color.<br>" + 
-                   "Parameters are set in <i>" + postprocessing_section + "Arcsinh stretch settings</i> section</p></li>" +
-            "</ul>" +
-            "<p>There are also some experimental stretches.</p>" +
-            "<ul>" +
-            "<li><p>Logarithmic stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
-            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>" + postprocessing_section + "Arcsinh stretch settings</i> and <i>" + postprocessing_section + "Histogram stretching settings</i> sections</p></li>" +
-            "<li><p>Square root stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
-            "<li><p>Shadow stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
-            "<li><p>Highlight stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
-            "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
-            "</ul>" + 
-#ifndef AUTOINTEGRATE_STANDALONE
-            "<p>See <i>" + postprocessing_section + "Stretching settings</i> section for stretching specific parameters.</p>" +
-            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>"
-#endif
-            ""
-            ;
 
 function update_enhancements_target_image_window_list(current_item)
 {
@@ -2009,34 +1958,8 @@ function createEnhancementsGUIControls(parent)
       };
 }
 
-function createStrechingChoiceSizer(parent, update_parameter_dependencies_callback)
-{
-      self.stretchingComboBox = guitools.newComboBox(parent, par.image_stretching, self.image_stretching_values, self.stretchingTootip);
-      if (update_parameter_dependencies_callback != null) {
-            update_parameter_dependencies_callback(parent);
-      }
-
-      var stretchingLabel = guitools.newLabel(parent, "Stretching", self.stretchingTootip, true);
-
-      var stretchingHelpTips = new ToolButton( parent );
-      stretchingHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
-      stretchingHelpTips.setScaledFixedSize( 20, 20 );
-      stretchingHelpTips.toolTip = self.stretchingTootip;
-      stretchingHelpTips.onClick = function()
-      {
-            new MessageBox(self.stretchingTootip, "Stretching", StdIcon_Information).execute();
-      }
-
-      self.stretchingSizer = guitools.newHorizontalSizer(4, true, [ stretchingLabel, self.stretchingComboBox ]);
-      self.stretchingSizer.addStretch();
-      self.stretchingSizer.add( stretchingHelpTips );
-
-      return self.stretchingSizer;
-}
-
 this.createTargetImageSizer = createTargetImageSizer;
 this.createEnhancementsGUIControls = createEnhancementsGUIControls;
-this.createStrechingChoiceSizer = createStrechingChoiceSizer;
 
 this.update_enhancements_target_image_window_list = update_enhancements_target_image_window_list;
 this.close_undo_images = close_undo_images;

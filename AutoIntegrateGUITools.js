@@ -73,6 +73,54 @@ this.narrowbandToolTip =
       "To use All option all HSO filters must be available." +
       "</p>";
 
+#ifdef AUTOINTEGRATE_STANDALONE
+var postprocessing_section = "";
+#else
+var postprocessing_section = "Postprocessing / ";
+#endif                               
+
+var histogramStretchToolTip = "Using a simple histogram transformation to get histogram median or peak to the target value. " + 
+                               "Works best with images that are processed with the Crop to common area option.";
+
+this.stretchingTootip = 
+            "<p>Select how image is stretched from linear to non-linear.</p>" +
+            "<ul>" +
+            "<li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>" + 
+                 "You can adjust settings in <i>" + postprocessing_section + "MultiscaleAdaptiveStretch</i> section.</p></li>" +
+            "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 
+                 "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>" + postprocessing_section + "AutoSTF settings</i> section to a smaller value, like 0.10</i><br>" +
+                 "Parameters are set in <i>" + postprocessing_section + "AutoSTF settings</i> section.</p></li>" +
+            "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
+                   "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
+                   "Parameters are set in <i>" + postprocessing_section + "Masked stretch settings</i> section</p></li>" +
+            "<li><p>VeraLuxHMS - Use VeraLux Hypermetric Stretch to stretch image to non-linear.<br>" + 
+                   "VeraLuxHMS can work well on many targets and can create saturated results.<br>" + 
+                   "Parameters are set in <i>" + postprocessing_section + "VeraLux HMS Stretch</i> section</p></li>" +
+            "<li><p>Masked+Histogram Stretch - Use MaskedStretch with a Histogram Stretch prestretch to stretch image to non-linear.<br>" + 
+                   "Prestretch help with stars that can be too pointlike with Masked Stretch.<br>" +
+                   "Parameters are set in <i>" + postprocessing_section + "Masked stretch settings</i> and <i>" + postprocessing_section + "Histogram stretching settings</i> sections</p></li>" +
+            "<li><p>Histogram stretch - " + histogramStretchToolTip + "<br>" + 
+                   "Parameters are set in <i>" + postprocessing_section + "Histogram stretching settings</i> section</p></li>" +
+            "<li><p>Arcsinh Stretch - Use ArcsinhStretch to stretch image to non-linear.<br>" + 
+                   "Can be useful when stretching stars to keep good star color.<br>" + 
+                   "Parameters are set in <i>" + postprocessing_section + "Arcsinh stretch settings</i> section</p></li>" +
+            "</ul>" +
+            "<p>There are also some experimental stretches.</p>" +
+            "<ul>" +
+            "<li><p>Logarithmic stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
+            "<li><p>Asinh+Histogram stretch - Parameters are set in <i>" + postprocessing_section + "Arcsinh stretch settings</i> and <i>" + postprocessing_section + "Histogram stretching settings</i> sections</p></li>" +
+            "<li><p>Square root stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
+            "<li><p>Shadow stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
+            "<li><p>Highlight stretch - Parameters are set in <i>" + postprocessing_section + "Other stretching settings</i> section</p></li>" +
+            "<li><p>None - No stretching, mainly for generating _HT files to be used with AutoContinue.</p></li>" +
+            "</ul>" + 
+#ifndef AUTOINTEGRATE_STANDALONE
+            "<p>See <i>" + postprocessing_section + "Stretching settings</i> section for stretching specific parameters.</p>" +
+            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>"
+#endif
+            ""
+            ;
+
 
 
 function newVerticalSizer(margin, add_stretch, items)
@@ -693,6 +741,31 @@ function createImageToolsControl(parent)
       return imageToolsControl;
 }
 
+function createStrechingChoiceSizer(parent, update_parameter_dependencies_callback)
+{
+      self.stretchingComboBox = newComboBox(parent, par.image_stretching, global.image_stretching_values, self.stretchingTootip);
+      if (update_parameter_dependencies_callback != null) {
+            update_parameter_dependencies_callback(parent);
+      }
+
+      var stretchingLabel = newLabel(parent, "Stretching", self.stretchingTootip, true);
+
+      var stretchingHelpTips = new ToolButton( parent );
+      stretchingHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
+      stretchingHelpTips.setScaledFixedSize( 20, 20 );
+      stretchingHelpTips.toolTip = self.stretchingTootip;
+      stretchingHelpTips.onClick = function()
+      {
+            new MessageBox(self.stretchingTootip, "Stretching", StdIcon_Information).execute();
+      }
+
+      self.stretchingSizer = newHorizontalSizer(4, true, [ stretchingLabel, self.stretchingComboBox ]);
+      self.stretchingSizer.addStretch();
+      self.stretchingSizer.add( stretchingHelpTips );
+
+      return self.stretchingSizer;
+}
+
 function createStretchingSettingsSizer(parent, engine)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
@@ -1167,6 +1240,7 @@ this.newSectionBarAddArray = newSectionBarAddArray;
 
 this.createImageToolsControl = createImageToolsControl;
 this.createGraXperPathSizer = createGraXperPathSizer;
+this.createStrechingChoiceSizer = createStrechingChoiceSizer;
 this.createStretchingSettingsSizer = createStretchingSettingsSizer;
 this.createNarrowbandCustomPaletteSizer = createNarrowbandCustomPaletteSizer;
 this.newJsonSizerObj = newJsonSizerObj;

@@ -40,6 +40,8 @@ function AutoIntegrateGlobal()
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.81";         // Version, also updated into updates.xri
@@ -77,6 +79,23 @@ this.is_processing = this.processing_state.none;
 this.cancel_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
+
+// Available stretching tools, the first one is the default
+this.image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'VeraLuxHMS', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
+                                'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 
+                                'Shadow stretch', 'Highlight stretch', 'None' ];
+
+// Check if new MultiscaleAdaptiveStretch is available
+try {
+      var P = new MultiscaleAdaptiveStretch;
+      // Add MultiscaleAdaptiveStretch firts as a default option
+      if (this.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') == -1) {
+            this.image_stretching_values.unshift('MultiscaleAdaptiveStretch');
+      }
+} catch (e) {
+      // No changes
+}
+
 
 // Available narrowband palettes.
 // Description of the fields
@@ -417,7 +436,7 @@ this.par = {
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
-      image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
+      image_stretching: { val: self.image_stretching_values[0], def: self.image_stretching_values[0], name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },

@@ -167,7 +167,7 @@ function ImageStretchingDialog() {
 
     this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, guitools, util, global, engine, preview_functions);
 
-    this.stretchingChoiceSizer = this.enhancements_gui.createStrechingChoiceSizer(this, null);
+    this.stretchingChoiceSizer = guitools.createStrechingChoiceSizer(this, null);
     this.stretchingChoiceGroupBox = new GroupBox(this);
     this.stretchingChoiceGroupBox.title = "Stretching type";
     this.stretchingChoiceGroupBox.sizer = this.stretchingChoiceSizer;
