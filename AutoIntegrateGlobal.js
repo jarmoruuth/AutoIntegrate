@@ -457,6 +457,16 @@ this.par = {
       Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'R' }, 
       Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
 
+      MAS_targetBackground: { val: 0.15, def: 0.15, name : "MAS targetBackground", type : 'R' },
+      MAS_aggressiveness: { val: 0.7, def: 0.7, name : "MAS aggressiveness", type : 'R' },
+      MAS_dynamicRangeCompression: { val: 0.4, def: 0.4, name : "MAS dynamic range compression", type : 'R' },
+      MAS_contrastRecovery: { val: true, def: true, name : "MAS contrast recovery", type : 'B' },
+      MAS_scaleSeparation: { val: 7, def: 7, name : "MAS scale separation", type : 'I' },
+      MAS_colorSaturation: { val: true, def: true, name : "MAS color saturation", type : 'B' }, 
+      MAS_colorSaturation_amount: { val: 0.75, def: 0.75, name : "MAS color saturation amount", type : 'R' },
+      MAS_colorSaturation_boost: { val: 0.5, def: 0.5, name : "MAS color saturation boost", type : 'R' },
+      MAS_colorSaturation_lightness: { val: true, def: true, name : "MAS color saturation lightness", type : 'B' },
+
       veralux_processing_mode: { val: 'Ready-to-Use', def: 'Ready-to-Use', name : "VeraLux processing mode", type : 'S' },
       veralux_sensor_profile: { val: 'Default', def: 'Default', name : "VeraLux sensor profile", type : 'S' },
       veralux_target_bg: { val: 0.20, def: 0.20, name : "VeraLux target background", type : 'R' },

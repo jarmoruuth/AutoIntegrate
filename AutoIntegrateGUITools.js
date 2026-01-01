@@ -697,6 +697,8 @@ function createStretchingSettingsSizer(parent, engine)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
 
+      /* Generic settings.
+       */
       var STFLinkLabel = new Label( parent );
       STFLinkLabel.text = "Link RGB channels";
       STFLinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -735,8 +737,80 @@ function createStretchingSettingsSizer(parent, engine)
       StretchGenericSizer.addStretch();
                                     
       var StretchGenericSection = newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",
-            [ StretchGenericSizer ]);
+                                          [ StretchGenericSizer ]);
 
+      /* MultiscaleAdaptiveStretch (MAS).
+       */
+      var MASTargetBackgroundControl = newNumericControl(parent, "Target Background", par.MAS_targetBackground, 0, 0.50,
+            "<p>MAS targetBackground value. Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 0.50.</p>");
+      var MASAggressivenessControl = newNumericControl(parent, "Aggressiveness", par.MAS_aggressiveness, 0, 1,
+            "<p>Controls the black point clipping. Higher values produce Better background but may loose some details.Possible values are between 0 and 1.</p>");
+      var MASDynamicRangeCompression = newNumericControl(parent, "Dynamic Range Compression", par.MAS_dynamicRangeCompression, 0, 1,
+            "<p>MAS dynamic range compression value. Higher values produce softer contrast in highlights. Possible values are between 0 and 1.</p>");
+
+      var MASStretchSizer1 = new HorizontalSizer;
+      MASStretchSizer1.spacing = 4;
+      // MASStretchSizer1.margin = 6;
+      MASStretchSizer1.add( MASAggressivenessControl );
+      MASStretchSizer1.add( MASDynamicRangeCompression );
+      MASStretchSizer1.addStretch();
+
+      var MASContrastRecoveryCheckbox = newCheckBox(parent, "Contrast Recovery", par.MAS_contrastRecovery,
+            "<p>Enable or disable MAS contrast recovery.</p>" +
+            "<p>Contrast recovery can help to recover some contrast lost during stretching.</p>");
+      var MASScaleSeparationSpinBox = newSpinBox(parent, par.MAS_scaleSeparation, 4, 10,
+            "<p>MAS scale separation value.</p>" +
+            "<p>Higher values produce finer local contrast.</p>");
+
+      var MASColorSaturationCheckBox = newCheckBox(parent, "Color Saturation", par.MAS_colorSaturation,
+            "<p>Enable or disable MAS color saturation.</p>" +
+            "<p>Color saturation can help to improve color saturation lost during stretching.</p>");
+      var MASColorSaturationAmount = newNumericControl(parent, "Amount", par.MAS_colorSaturation_amount, 0, 1,
+            "<p>MAS color saturation amount.</p>" +
+            "<p>Controls the intensity of the saturation enhancements. Higher values produce stronger color saturation.</p>");
+      var MASColorSaturationBoost = newNumericControl(parent, "Boost", par.MAS_colorSaturation_boost, 0, 1,
+            "<p>MAS color saturation boost.</p>" +
+            "<p>Higher values target more on lower saturation levels.</p>");
+      var MASColorSaturationLightnessCheckBox = newCheckBox(parent, "Affect Lightness", par.MAS_colorSaturation_lightness,
+            "<p>Enable or disable MAS color saturation affecting lightness.</p>" +
+            "<p>If enabled color saturation affects are masked using a lightness mask.</p>");
+
+      var MASColorSaturationSizer1 = new HorizontalSizer;
+      MASColorSaturationSizer1.spacing = 4;
+      // MASColorSaturationSizer1.margin = 6; 
+      MASColorSaturationSizer1.addSpacing(20);
+      MASColorSaturationSizer1.add( MASColorSaturationAmount );
+      MASColorSaturationSizer1.add( MASColorSaturationBoost );
+      MASColorSaturationSizer1.add( MASColorSaturationLightnessCheckBox );
+      MASColorSaturationSizer1.addStretch();
+      
+      var MASStretchSizer = new VerticalSizer;
+      MASStretchSizer.spacing = 4;
+      MASStretchSizer.margin = 6;
+      MASStretchSizer.add( MASTargetBackgroundControl );
+      MASStretchSizer.add( MASStretchSizer1 );
+      MASStretchSizer.addStretch();
+
+      var MASContrastSizer = new HorizontalSizer;
+      MASContrastSizer.spacing = 4;
+      MASContrastSizer.margin = 6;
+      MASContrastSizer.add( MASContrastRecoveryCheckbox );
+      MASContrastSizer.add( MASScaleSeparationSpinBox );
+      MASContrastSizer.addStretch();
+
+      var MASColorSaturationSizer = new VerticalSizer;
+      MASColorSaturationSizer.spacing = 4;
+      MASColorSaturationSizer.margin = 6; 
+      MASColorSaturationSizer.add( MASColorSaturationCheckBox );
+      MASColorSaturationSizer.add( MASColorSaturationSizer1 );
+      MASColorSaturationSizer.addStretch();
+
+      var MASSection = newSectionBarAddArray(parent, null, "MultiscaleAdaptiveStretch settings", "Stretching_MAS_Section",
+                              [ MASStretchSizer, MASContrastSizer, MASColorSaturationSizer ]);
+      MASSection.control.visible = true;
+
+      /* Auto STF.
+       */
       var STFTargetBackgroundControl = newNumericControl(parent, "Target Background", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
@@ -881,6 +955,8 @@ function createStretchingSettingsSizer(parent, engine)
       var histogramStretchingSection = newSectionBarAddArray(parent, null, "Histogram stretching settings", "StretchingHistogram", 
                                           [ histogramStretchingSizer ]);
 
+      /* Other stretching.
+       */
       var otherStrechingTargetValue_Control = newNumericControl(parent, "Target value", par.other_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the histogram median value.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
@@ -900,6 +976,8 @@ function createStretchingSettingsSizer(parent, engine)
       stretchingSettingsSizer.spacing = 4;
       stretchingSettingsSizer.add( StretchGenericSection.section );
       stretchingSettingsSizer.add( StretchGenericSection.control );
+      stretchingSettingsSizer.add( MASSection.section );
+      stretchingSettingsSizer.add( MASSection.control );
       stretchingSettingsSizer.add( autoSTFSection.section );
       stretchingSettingsSizer.add( autoSTFSection.control );
       stretchingSettingsSizer.add( MaskedStretchSection.section );

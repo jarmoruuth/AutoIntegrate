@@ -8539,6 +8539,37 @@ function runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground)
                   true);      // save_process
 }
 
+function runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching)
+{
+      console.writeln("Execute MultiscaleAdaptiveStretch on " + GC_win.mainView.id);
+
+      try {
+            var P = new MultiscaleAdaptiveStretch;
+      } catch (e) {
+            util.throwFatalError("MultiscaleAdaptiveStretch not available");
+      }
+
+      P.aggressiveness = par.MAS_aggressiveness.val;
+      P.targetBackground = par.MAS_targetBackground.val;
+      P.dynamicRangeCompression = par.MAS_dynamicRangeCompression.val;
+      P.contrastRecovery = par.MAS_contrastRecovery.val;
+      P.scaleSeparation = par.MAS_scaleSeparation.val;
+      P.previewLargeScale = false;
+      P.saturationEnabled = par.MAS_colorSaturation.val;
+      P.saturationAmount = par.MAS_colorSaturation_amount.val;
+      P.saturationBoost = par.MAS_colorSaturation_boost.val;
+      P.saturationLightnessMask = par.MAS_colorSaturation_lightness.val;
+
+      GC_win.mainView.beginProcess(UndoFlag_NoSwapFile);
+      P.executeOn(GC_win.mainView);
+      GC_win.mainView.endProcess();
+
+      printAndSaveProcessValues(P, "MultiscaleAdaptiveStretch");
+      engine_end_process(null);
+
+      return GC_win;
+}
+
 function histogramPrestretch(GC_win, target_val)
 {
       console.writeln("Execute prestretch using HistogramTransformation on " + GC_win.mainView.id);
@@ -9442,6 +9473,9 @@ function runHistogramTransform(GC_win, iscolor, type)
                   targetBackground = par.STF_targetBackground.val;
             }
             runHistogramTransformAutoSTF(GC_win, iscolor, targetBackground);
+
+      } else if (image_stretching == 'MultiscaleAdaptiveStretch') {
+            GC_win = runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching);
 
       } else if (image_stretching == 'VeraLuxHMS') {
             GC_win = runHistogramTransformVeraLuxHMS(GC_win, image_stretching);
@@ -19843,6 +19877,11 @@ function getProcessDefaultValues()
       printProcessDefaultValues("new FastIntegration", new FastIntegration);
       printProcessDefaultValues("new SpectrophotometricFluxCalibration", new SpectrophotometricFluxCalibration);
       printProcessDefaultValues("new MultiscaleGradientCorrection", new MultiscaleGradientCorrection);
+      try {
+            printProcessDefaultValues("new MultiscaleAdaptiveStretch", new MultiscaleAdaptiveStretch);
+      } catch (e) {
+            console.criticalln("MultiscaleAdaptiveStretch not available");
+      }
 
       engine.writeProcessingStepsAndEndLog(null, false, "AutoProcessDefaults_" + global.pixinsight_version_str, false);
 }
