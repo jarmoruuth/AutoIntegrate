@@ -146,7 +146,7 @@ if (global.debug) console.writeln("AutoIntegrateGUI");
 
 var self = this;
 
-var guitools = new AutoIntegrateGUITools(this, global, util);
+var guitools = new AutoIntegrateGUITools(this, global, util, engine);
 var enhancements_gui = null;
 
 var par = global.par;
@@ -2760,13 +2760,10 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = f
       }
 }
 
-function loadJsonFile(parent)
+function loadJsonFileCallback(parent, pagearray)
 {
-      console.writeln("loadJsonFile");
-      var pagearray = engine.openImageFiles("Json", false, true, false);
-      if (pagearray == null) {
-            return;
-      }
+      console.writeln("loadJsonFileCallback");
+
       // page array of treebox files names
       for (var i = 0; i < pagearray.length; i++) {
             addFilesToTreeBox(parent, i, pagearray[i], true);
@@ -2854,11 +2851,8 @@ function addTargetType(parent)
       return { sizer: outputdir_Sizer, label: lbl };
 }
 
-function newTargetSizer(parent)
+function newRow2Obj(parent)
 {
-      var ttobj = addTargetType(parent);
-      var target_type_sizer = ttobj.sizer;
-
       var wpobj = addWinPrefix(parent);
       var winprefix_sizer = wpobj.sizer;
       var otobj = addOutputDir(parent);
@@ -2868,16 +2862,14 @@ function newTargetSizer(parent)
       parent.rootingArr.push(filesButtons_Sizer2);
 
       filesButtons_Sizer2.spacing = 4;
-      filesButtons_Sizer2.add( target_type_sizer );
       filesButtons_Sizer2.addStretch();
-      filesButtons_Sizer2.addSpacing( 12 );
       filesButtons_Sizer2.add( winprefix_sizer );
       filesButtons_Sizer2.add( outputdir_sizer );
 
-      return { sizer: filesButtons_Sizer2, window_prefix_label: wpobj.label, output_dir_label: otobj.label, target_type_label: ttobj.label };
+      return { sizer: filesButtons_Sizer2, window_prefix_label: wpobj.label, output_dir_label: otobj.label  };
 }
 
-function addFilesButtons(parent, targetSizer)
+function addFilesButtons(parent)
 {
       var buttons = {
             addLightsButton: addOneFilesButton(parent, "Lights", global.pages.LIGHTS, parent.filesToolTip[global.pages.LIGHTS]),
@@ -3598,60 +3590,6 @@ function updateParameterDependencies()
             enhancements_gui.stretchingComboBox.aiParam.val = enhancements_gui.stretchingComboBox.aiValarray[0];
       }
       // console.writeln("Setting stretchingComboBox.enabled to " + dialog.stretchingComboBox.enabled + " based on target_type " + par.target_type.val);
-}
-
-function newJsonSizer(parent)
-{
-      // Load and save
-      var jsonLabel = new Label( parent );
-      parent.rootingArr.push(jsonLabel);
-      jsonLabel.text = "Setup file";
-      jsonLabel.toolTip = "<p>Reading script setup from a file, saving script setup to a file.</p>";
-      jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      
-      var jsonLoadButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonLoadButton);
-      jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
-      jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
-      jsonLoadButton.setScaledFixedSize( 20, 20 );
-      jsonLoadButton.onClick = function()
-      {
-            loadJsonFile(parent.dialog);
-      };
-      let add_jsonSaveButton = false;     // not used, save with settings button is always used
-      if (add_jsonSaveButton) {
-            var jsonSaveButton = new ToolButton( parent );
-            parent.rootingArr.push(jsonSaveButton);
-            jsonSaveButton.icon = parent.scaledResource(":/icons/save.png");
-            jsonSaveButton.toolTip = "<p>Save file lists to a Json file including checked status.</p><p>Image names from all pages are saved including light and calibration files.</p>";
-            jsonSaveButton.setScaledFixedSize( 20, 20 );
-            jsonSaveButton.onClick = function()
-            {
-                  util.saveJsonFile(parent.dialog, false);
-            };
-      }
-      var jsonSaveWithSettingsButton = new ToolButton( parent );
-      parent.rootingArr.push(jsonSaveWithSettingsButton);
-      jsonSaveWithSettingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
-      jsonSaveWithSettingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
-                                            "Current window prefix and output directory is also saved.</p>" + 
-                                            "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
-      jsonSaveWithSettingsButton.setScaledFixedSize( 20, 20 );
-      jsonSaveWithSettingsButton.onClick = function()
-      {
-            util.saveJsonFile(parent.dialog, true);
-      };
-
-      var jsonSizer = new HorizontalSizer;
-      parent.rootingArr.push(jsonSizer);
-      jsonSizer.add( jsonLabel );
-      jsonSizer.add( jsonLoadButton );
-      if (add_jsonSaveButton) {
-            jsonSizer.add( jsonSaveButton );
-      }
-      jsonSizer.add( jsonSaveWithSettingsButton );
-
-      return { sizer: jsonSizer, label: jsonLabel };
 }
 
 function newMaximizeDialogButton(parent)
@@ -4539,13 +4477,17 @@ function AutoIntegrateDialog()
 
       this.treeBox = [];
       this.treeBoxRootingArr = [];
-      var obj = newTargetSizer(this);
-      this.targetSizer = obj.sizer;
+
+      var obj = addTargetType(this);
+      this.targetTypeSizer = obj.sizer;
+      this.target_type_label = obj.label;
+
+      var obj = newRow2Obj(this);
+      this.winprefixOutputdirSizer = obj.sizer;
       this.window_prefix_label = obj.window_prefix_label;
       this.output_dir_label = obj.output_dir_label;
-      this.target_type_label = obj.target_type_label;
 
-      var ret = addFilesButtons(this, this.targetSizer);
+      var ret = addFilesButtons(this);
       this.filesButtonsSizer = ret.sizer;
       this.filesButtons = ret.buttons;
       this.directoryCheckBox = ret.directoryCheckBox;
@@ -4627,7 +4569,7 @@ function AutoIntegrateDialog()
             "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" ); */
       this.keepIntegratedImagesCheckBox = guitools.newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
-      this.resetOnSetupLoadCheckBox = guitools.newCheckBox(this, "Reset on setup load", par.reset_on_setup_load, 
+      this.resetOnSetupLoadCheckBox = guitools.newCheckBox(this, "Reset", par.reset_on_setup_load, 
             "<p>Reset parameters to default values before loading a setup. This ensures that only parameters from the setup file are set " + 
             "and user saved default parameters are not set.</p>" );
       this.keepTemporaryImagesCheckBox = guitools.newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
@@ -5040,7 +4982,6 @@ function AutoIntegrateDialog()
       this.systemParamsSet2.add( this.AutoSaveSetupBox );
       this.systemParamsSet2.add( this.UseProcessedFilesBox );
       this.systemParamsSet2.add( this.saveCroppedImagesBox );
-      this.systemParamsSet2.add( this.resetOnSetupLoadCheckBox );
 
       this.systemParamsSet = new HorizontalSizer;
       this.systemParamsSet.margin = 6;
@@ -8030,15 +7971,15 @@ function AutoIntegrateDialog()
 
       this.actionSizer = newActionSizer(this);
 
-      var res = newJsonSizer(this);
+      var res = guitools.newJsonSizerObj(this, loadJsonFileCallback);
       this.jsonSizer = res.sizer;
       this.jsonLabel = res.label;
 
       this.topButtonsSizer = new HorizontalSizer;
       this.topButtonsSizer.spacing = 4;
-      this.topButtonsSizer.addStretch();
+      this.topButtonsSizer.add( this.targetTypeSizer );
       this.topButtonsSizer.add( this.welcomeButton );
-      this.topButtonsSizer.addSpacing( 24 );
+      this.topButtonsSizer.addStretch();
       this.topButtonsSizer.add( this.actionSizer );
       this.baseSizer.add( this.topButtonsSizer );
 
@@ -8046,7 +7987,9 @@ function AutoIntegrateDialog()
       this.topButtonsSizer2.spacing = 4;
       this.topButtonsSizer2.add( this.jsonSizer );
       this.topButtonsSizer2.addSpacing( 12 );
-      this.topButtonsSizer2.add( this.targetSizer );
+      this.topButtonsSizer2.add( this.resetOnSetupLoadCheckBox );
+      this.topButtonsSizer2.addSpacing( 12 );
+      this.topButtonsSizer2.add( this.winprefixOutputdirSizer );
       this.top2ndRowControl = new Control( this );
       this.top2ndRowControl.sizer = new HorizontalSizer;
       this.top2ndRowControl.sizer.add(this.topButtonsSizer2);

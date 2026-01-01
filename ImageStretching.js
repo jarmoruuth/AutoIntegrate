@@ -2,7 +2,7 @@
 // ImageStretching — Standalone version of AutoIntegrate image stretching
 // ****************************************************************************
 
-#feature-id    AutoIntegrate  > Stretching
+#feature-id    AutoIntegrate  > Image Stretching
 #feature-info  Image Stretching using AutoIntegrate tools.
 
 #include <pjsr/NumericControl.jsh>
@@ -76,11 +76,11 @@ function ImageStretchingDialog() {
     var util = new AutoIntegrateUtil(global);
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util);
+    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.readParametersFromPersistentModuleSettings();
+    util.initStandalone();
 
     // We do stretching here so we set the value to true
     global.par.enhancements_stretch.val = true;
@@ -110,7 +110,7 @@ function ImageStretchingDialog() {
     function updatePreviewNoImage()
     {
         if (debug) console.writeln("ImageStretchingDialog::updatePreviewNoImage");
-        this.statusLabel.text = "No image available for preview.";
+        self.statusLabel.text = "No image available for preview.";
     }
 
     function updatePreviewTxt(txt)
@@ -143,6 +143,15 @@ function ImageStretchingDialog() {
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
    this.leftSizer.add(this.previewControl, 400);
+
+   // -------------------------------------------------------------------------
+   // Status
+   // -------------------------------------------------------------------------
+
+   this.statusLabel = new Label(this);
+   this.statusLabel.text = "";
+   this.statusLabel.textAlignment = TextAlign_Center;
+   this.statusLabel.styleSheet = "color: #AAAAAA;";
 
    // -------------------------------------------------------------------------
    // Right Side: Title and Controls
@@ -186,6 +195,13 @@ function ImageStretchingDialog() {
     this.stretchingSettingsControl.visible = true;
 
    // -------------------------------------------------------------------------
+   // Load and save JSON controls
+   // -------------------------------------------------------------------------
+
+   var obj = guitools.newJsonSizerObj(this, null, "ImageStretchingSettings.json");
+   this.loadSaveSizer = obj.sizer;
+
+   // -------------------------------------------------------------------------
    // Stretching Group Box
    // -------------------------------------------------------------------------
 
@@ -196,19 +212,17 @@ function ImageStretchingDialog() {
     this.stretchingGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
-   // Status
-   // -------------------------------------------------------------------------
-
-   this.statusLabel = new Label(this);
-   this.statusLabel.text = "";
-   this.statusLabel.textAlignment = TextAlign_Center;
-   this.statusLabel.styleSheet = "color: #AAAAAA;";
-
-   // -------------------------------------------------------------------------
    // Buttons
    // -------------------------------------------------------------------------
 
-    this.closeButton = new PushButton(this);
+   this.resetButton = new PushButton(this);
+   this.resetButton.text = "Reset";
+   this.resetButton.toolTip = "Reset all parameters to defaults.";
+   this.resetButton.onClick = function() {
+        util.setParameterDefaults();
+   };
+
+   this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
     this.closeButton.onClick = function() {
@@ -217,6 +231,7 @@ function ImageStretchingDialog() {
 
     this.buttonsSizer = new HorizontalSizer;
     this.buttonsSizer.spacing = 6;
+    this.buttonsSizer.add(this.resetButton);
     this.buttonsSizer.addStretch();
     this.buttonsSizer.add(this.closeButton);
 
@@ -229,6 +244,7 @@ function ImageStretchingDialog() {
    this.rightSizer.add(this.titleLabel);
    this.rightSizer.add(this.subtitleLabel);
    this.rightSizer.add(this.statusLabel);
+   this.rightSizer.add(this.loadSaveSizer);
    this.rightSizer.add(this.targetImageGroupBox);
    this.rightSizer.add(this.stretchingChoiceGroupBox);
    this.rightSizer.add(this.stretchingGroupBox);

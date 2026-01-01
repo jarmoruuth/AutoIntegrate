@@ -361,11 +361,7 @@ function readPersistentSettings()
       if (!par.use_manual_icon_column.val) {
             ppar.userColumnCount = -1;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-            ppar.lastDir = tempSetting;
-      }
+      util.restoreLastDir();
       var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType_String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");

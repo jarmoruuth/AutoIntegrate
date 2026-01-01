@@ -76,11 +76,11 @@ function NarrowbandCombinationsDialog() {
     var util = new AutoIntegrateUtil(global);
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util);
+    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.readParametersFromPersistentModuleSettings();
+    util.initStandalone();
 
     // Store original image for reset functionality
     this.previewImage = null;
@@ -169,6 +169,10 @@ function NarrowbandCombinationsDialog() {
     this.channelsSizer.spacing = 8;
     this.channelsSizer.add(this.HSOSizer);
     this.channelsSizer.add(this.RGBSizer);
+
+    this.channelsGroupBox = new GroupBox(this);
+    this.channelsGroupBox.title = "Select images for Channels";
+    this.channelsGroupBox.sizer = this.channelsSizer;
 
     // -------------------------------------------------------------------------
     // Processing
@@ -360,6 +364,13 @@ function NarrowbandCombinationsDialog() {
     this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
    // -------------------------------------------------------------------------
+   // Load and save JSON controls
+   // -------------------------------------------------------------------------
+
+   var obj = guitools.newJsonSizerObj(this, null, "NarrowbandCombinationsSettings.json");
+   this.loadSaveSizer = obj.sizer;
+
+   // -------------------------------------------------------------------------
    // Narrowband palette selection
    // -------------------------------------------------------------------------
 
@@ -384,6 +395,13 @@ function NarrowbandCombinationsDialog() {
    // Buttons
    // -------------------------------------------------------------------------
 
+    this.resetButton = new PushButton(this);
+    this.resetButton.text = "Reset";
+    this.resetButton.toolTip = "Reset all parameters to defaults.";
+    this.resetButton.onClick = function() {
+            util.setParameterDefaults();
+    };
+
     this.processButton = new PushButton(this);
     this.processButton.text = "Process Final";
     this.processButton.icon = this.scaledResource(":/icons/power.png");
@@ -401,6 +419,7 @@ function NarrowbandCombinationsDialog() {
 
     this.buttonsSizer = new HorizontalSizer;
     this.buttonsSizer.spacing = 6;
+    this.buttonsSizer.add(this.resetButton);
     this.buttonsSizer.addStretch();
     this.buttonsSizer.add(this.processButton);
     this.buttonsSizer.add(this.closeButton);
@@ -414,7 +433,8 @@ function NarrowbandCombinationsDialog() {
    this.rightSizer.add(this.titleLabel);
    this.rightSizer.add(this.subtitleLabel);
    this.rightSizer.add(this.statusLabel);
-   this.rightSizer.add(this.channelsSizer);
+   this.rightSizer.add(this.loadSaveSizer);
+   this.rightSizer.add(this.channelsGroupBox);
    this.rightSizer.add(this.narrowbandCustomPaletteGroupBox);
    this.rightSizer.add(this.buttonsSizer);
 

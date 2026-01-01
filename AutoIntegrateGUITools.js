@@ -2,7 +2,7 @@
 // GUI utility functions for AutoIntegrate script
 //
 
-function AutoIntegrateGUITools( parent, global, util )
+function AutoIntegrateGUITools( parent, global, util, engine )
 {
 
 if (global.debug) console.writeln("AutoIntegrateGUITools");
@@ -261,28 +261,29 @@ function newRGBNBNumericEdit(parent, txt, param, tooltip)
       return newNumericEdit(parent, txt, param, 0.1, 999, tooltip);
 }
 
-function newNumericControlEx(parent, txt, param, prec, min, max, tooltip, updatedCallback)
+function newNumericControlPrecision(parent, txt, param, min, max, tooltip, precision, updatedCallback = null)
 {
       var edt = new NumericControl( parent );
       edt.label.text = txt;
-      edt.setRange(min, max);
-      if (prec == 3) {
-            edt.setPrecision(3);
-            edt.slider.setRange(0.0, 1000.0);
-      } else {
-            edt.setPrecision(2);
-            edt.slider.setRange(0.0, 100.0);
-      }
+      edt.label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       edt.aiParam = param;
-      edt.setValue(edt.aiParam.val);
       edt.onValueUpdated = function(value) { 
-            edt.aiParam.val = value;
-            // console.writeln("NumericControl " + txt + " " + value);
+            edt.aiParam.val = value; 
             if (updatedCallback != null) {
-                  // console.writeln("NumericControl " + txt + " callback");
                   updatedCallback();
             }
       };
+      edt.setPrecision( precision );
+      edt.setRange(min, max);
+      if (precision == 1) {
+            edt.slider.setRange(10 * min, 10 * max);
+      } else if (precision == 3) {
+            edt.slider.setRange(1000 * min, 1000 * max);
+      } else {
+            // Default to 2 decimal places
+            edt.slider.setRange(100 * min, 100 * max);
+      }
+      edt.setValue(edt.aiParam.val);
       edt.toolTip = util.formatToolTip(tooltip);
       edt.aiParam.reset = function() {
             edt.setValue(edt.aiParam.val);
@@ -290,17 +291,23 @@ function newNumericControlEx(parent, txt, param, prec, min, max, tooltip, update
                   updatedCallback();
             }
       };
+      edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       return edt;
+}
+
+function newNumericControl(parent, txt, param, min, max, tooltip)
+{
+      return newNumericControlPrecision(parent, txt, param, min, max, tooltip, 2)
 }
 
 function newNumericControl2(parent, txt, param, min, max, tooltip, updatedCallback)
 {
-      return newNumericControlEx(parent, txt, param, 2, min, max, tooltip, updatedCallback)
+      return newNumericControlPrecision(parent, txt, param, min, max, tooltip, 2, updatedCallback)
 }
 
 function newNumericControl3(parent, txt, param, min, max, tooltip, updatedCallback)
 {
-      return newNumericControlEx(parent, txt, param, 3, min, max, tooltip, updatedCallback)
+      return newNumericControlPrecision(parent, txt, param, min, max, tooltip, 3, updatedCallback)
 }
 
 function newSpinBox(parent, param, min, max, tooltip)
@@ -705,7 +712,7 @@ function createStretchingSettingsSizer(parent, engine)
 
       var stretchAdjustShadowsLabel = newLabel(parent, "Adjust shadows", adjustShadowsToolTip, true);
       var stretchAdjustShadowsComboBox = newComboBox(parent, par.stretch_adjust_shadows, adjust_shadows_values, adjustShadowsToolTip);
-      var stretchAdjustShadowsControl = newNumericEditPrecision(parent, "%", par.stretch_adjust_shadows_perc, 0, 99,
+      var stretchAdjustShadowsControl = newNumericControlPrecision(parent, "%", par.stretch_adjust_shadows_perc, 0, 99,
             "<p>Percentage of shadows adjustment after stretch.</p>" +
             "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
             3);
@@ -725,7 +732,7 @@ function createStretchingSettingsSizer(parent, engine)
       StretchGenericGroupBox.title = "Generic settings";
       StretchGenericGroupBox.sizer = StretchGenericSizer;
 
-      var STFTargetBackgroundControl = newNumericEdit(parent, "targetBackground", par.STF_targetBackground, 0, 1,
+      var STFTargetBackgroundControl = newNumericControl(parent, "Target Background", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>");
 
@@ -742,9 +749,9 @@ function createStretchingSettingsSizer(parent, engine)
 
       /* Masked.
        */
-      var MaskedStretchTargetBackgroundEdit = newNumericEdit(parent, "targetBackground", par.MaskedStretch_targetBackground, 0, 1,
+      var MaskedStretchTargetBackgroundEdit = newNumericControl(parent, "Target Background", par.MaskedStretch_targetBackground, 0, 1,
             "<p>Masked Stretch targetBackground value. Usually values between 0.05 and 0.2 work best. Possible values are between 0 and 1.</p>");
-      var MaskedStretchPrestretchTargetEdit = newNumericEdit(parent, "Prestretch target", par.MaskedStretch_targetBackground, 0, 1,
+      var MaskedStretchPrestretchTargetEdit = newNumericControl(parent, "Prestretch target", par.MaskedStretch_prestretch_target, 0, 1,
             "<p>Masked Stretch prestretch target value if Masked+Histogram Stretch is used.</p>" + 
             "<p>Target value is a target median value. Using a prestretch can help with too pointlike stars.</p>");
 
@@ -761,11 +768,11 @@ function createStretchingSettingsSizer(parent, engine)
 
       /* Arcsinh.
        */
-      var Arcsinh_stretch_factor_Edit = newNumericEdit(parent, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
+      var Arcsinh_stretch_factor_Edit = newNumericControl(parent, "Stretch Factor", par.Arcsinh_stretch_factor, 1, 1000,
             "<p>Arcsinh Stretch Factor value. Smaller values are usually better than really big ones.</p>" +
             "<p>For some smaller but bright targets like galaxies it may be useful to increase stretch factor and iterations. A good starting point could be 100 and 5.</p>" +
             "<p>Useful for stretching stars to keep star colors. Depending on the star combine method you may need to use different values. For less stars you can use a smaller value.</p>");
-      var Arcsinh_black_point_Control = newNumericEditPrecision(parent, "Black point value %", par.Arcsinh_black_point, 0, 99,
+      var Arcsinh_black_point_Control = newNumericControlPrecision(parent, "Black point value %", par.Arcsinh_black_point, 0, 99,
             "<p>Arcsinh Stretch black point value.</p>" + 
             "<p>The value is given as percentage of shadow pixels, that is, how many pixels are on the left side of the histogram.</p>",
             4);
@@ -803,30 +810,30 @@ function createStretchingSettingsSizer(parent, engine)
                                           true);
       var veraluxSensorProfile = newComboBox(parent, par.veralux_sensor_profile, engine.veralux.getSensorProfileNames(true), 
                                           veraluxSensorProfileLabel.toolTip);
-      var veraluxTargetEdit = newNumericEdit(parent, "Target Bg:", par.veralux_target_bg, 0.05, 0.50, "Target background median (0.05-0.50). Standard is 0.20.");
+      var veraluxTargetEdit = newNumericControl(parent, "Target Bg:", par.veralux_target_bg, 0.00, 1.00, "Target background median (0.05-0.50). Standard is 0.20.");
       var veraluxAdaptiveAnchorCheckBox = newCheckBox(parent, "Adaptive Anchor", par.veralux_adaptive_anchor, 
                                           "Analyzes histogram shape to find true signal start. Recommended for images with gradients.");
       var veraluxAutoCalcDCheckBox = newCheckBox(parent, "Auto-Calc Log D", par.veralux_auto_calc_D, 
                                           "Analyzes image to find optimal Stretch Factor (Log D).");
       var veraluxAutoCalcDLabel = newLabel(parent, "(-)", "", true);
       global.veraluxAutoCalcDLabel = veraluxAutoCalcDLabel;
-      var veraluxValDEdit = newNumericEdit(parent, "Log D:", par.veralux_D_value, 0.0, 7.0,
+      var veraluxValDEdit = newNumericControl(parent, "Log D:", par.veralux_D_value, 0.0, 7.0,
                                           "Hyperbolic Intensity (Log D, 0.1-15). Controls the strength of the stretch.");
-      var veraluxbEdit = newNumericEdit(parent, "Protect b:", par.veralux_b_value, 0.1, 15,
-                                          "Highlight Protection. Controls the 'knee' of the hyperbolic curve.");
-      var veraluxStarCoreRecoveryEdit = newNumericEdit(parent, "Star Core Recovery:", par.veralux_convergence_power, 1, 10,
+      var veraluxbEdit = newNumericControl(parent, "Protect b:", par.veralux_b_value, 0.1, 15,
+                                          "Highlight Protection. Controls the 'knee of the hyperbolic curve.");
+      var veraluxStarCoreRecoveryEdit = newNumericControl(parent, "Star Core Recovery:", par.veralux_convergence_power, 1, 10,
                                           "Controls how quickly saturated colors transition to white (1-10).");
 
       var veraluxReadyToUseLabel = newLabel(parent, "Ready-to-Use settings", "Setting for VeraLux Ready-to-Use mode.", true);
-      var veraluxColorStrategyEdit = newNumericEdit(parent, "Color Strategy:", par.veralux_color_strategy, -100, 100,
+      var veraluxColorStrategyEdit = newNumericControl(parent, "Color Strategy:", par.veralux_color_strategy, -100, 100,
                                           "Negative: Clean Noise | Center: Balanced | Positive: Soften Highlights.\n" +
                                           "Only for Ready-to-Use mode. Value can be between -100 and 100.");
 
       var veraluxScientificLabel = newLabel(parent, "Scientific settings", "Setting for VeraLux Scientific mode.", true);
-      var veraluxColorGripEdit = newNumericEdit(parent, "Color Grip:", par.veralux_color_grip, 0, 1,
+      var veraluxColorGripEdit = newNumericControl(parent, "Color Grip:", par.veralux_color_grip, 0, 1,
                                           "Controls vector color preservation. 1.0 = Pure VeraLux (0-1).\n" + 
                                           "Only for Scientific mode.");
-      var veraluxShadowConvEdit = newNumericEdit(parent, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 3,
+      var veraluxShadowConvEdit = newNumericControl(parent, "Shadow Convergence (Noise)  :", par.veralux_shadow_convergence, 0, 3,
                                           "Damps vector preservation in shadows to prevent color noise (0-3).\n" +
                                           "Only for Scientific mode.");
 
@@ -840,8 +847,8 @@ function createStretchingSettingsSizer(parent, engine)
       }
 
       var veraluxSizer1 = newHorizontalSizer(0, true, [ veraluxProcessingModeLabel, veraluxProcessingMode, veraluxSensorProfileLabel, veraluxSensorProfile, veraluxHelpTips ]);
-      var veraluxSizer2 = newHorizontalSizer(0, true, [ veraluxTargetEdit, veraluxAdaptiveAnchorCheckBox ]);
-      var veraluxSizer3 = newHorizontalSizer(0, true, [ veraluxAutoCalcDCheckBox, veraluxAutoCalcDLabel, veraluxValDEdit, veraluxbEdit, veraluxStarCoreRecoveryEdit ]);
+      var veraluxSizer2 = newHorizontalSizer(0, true, [ veraluxTargetEdit, veraluxAdaptiveAnchorCheckBox, veraluxAutoCalcDCheckBox, veraluxAutoCalcDLabel  ]);
+      var veraluxSizer3 = newHorizontalSizer(0, true, [ veraluxValDEdit, veraluxbEdit, veraluxStarCoreRecoveryEdit ]);
       var veraluxSizer4 = newHorizontalSizer(0, true, [ veraluxReadyToUseLabel, veraluxColorStrategyEdit ]);
       var veraluxSizer5 = newHorizontalSizer(0, true, [ veraluxScientificLabel, veraluxColorGripEdit, veraluxShadowConvEdit ]);
       var VeraLuxHMSSizer = newVerticalSizer(6, true, [ veraluxSizer1, veraluxSizer2, veraluxSizer3, veraluxSizer4, veraluxSizer5 ]);
@@ -854,7 +861,7 @@ function createStretchingSettingsSizer(parent, engine)
        */
       var histogramTypeLabel = newLabel(parent, "Target type", "Target type specifies what value calculated from histogram is tried to get close to Target value.");
       var histogramTypeComboBox = newComboBox(parent, par.histogram_stretch_type, self.histogram_stretch_type_values, histogramTypeLabel.toolTip);
-      var histogramTargetValue_Control = newNumericEdit(parent, "Target value", par.histogram_stretch_target, 0, 1, 
+      var histogramTargetValue_Control = newNumericControl(parent, "Target value", par.histogram_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the value calculated using Target type.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
             "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
@@ -871,7 +878,7 @@ function createStretchingSettingsSizer(parent, engine)
       var histogramStretchingGroupBox = new GroupBox(parent);
       histogramStretchingGroupBox.title = "Histogram stretching settings";
       histogramStretchingGroupBox.sizer = histogramStretchingSizer;
-      var otherStrechingTargetValue_Control = newNumericEdit(parent, "Target value", par.other_stretch_target, 0, 1, 
+      var otherStrechingTargetValue_Control = newNumericControl(parent, "Target value", par.other_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the histogram median value.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
             "<p>For very bright objects like galaxies you should try with 0.1 while more uniform objects " + 
@@ -995,6 +1002,56 @@ function createNarrowbandCustomPaletteSizer(parent)
       return self.narrowbandCustomPalette_Sizer;
 }
 
+function loadJsonFile(parent, loadJsonFileCallback)
+{
+      console.writeln("loadJsonFile");
+      var pagearray = engine.openImageFiles("Json", false, true, false);
+      if (pagearray == null) {
+            return;
+      }
+      if (loadJsonFileCallback != null) {
+            loadJsonFileCallback(parent, pagearray);
+      }
+}
+
+function newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
+{
+      // Load and save
+      self.jsonLabel = new Label( parent );
+      self.jsonLabel.text = "Setup file";
+      self.jsonLabel.toolTip = "<p>Reading script setup from a file, saving script setup to a file.</p>";
+      self.jsonLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      
+      self.jsonLoadButton = new ToolButton( parent );
+      self.jsonLoadButton.icon = parent.scaledResource(":/icons/select-file.png");
+      self.jsonLoadButton.toolTip = "<p>Read script setup from a Json file.</p>";
+      self.jsonLoadButton.setScaledFixedSize( 20, 20 );
+      self.jsonLoadButton.onClick = function()
+      {
+            if (global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonLoadButton::onClick");
+            loadJsonFile(parent.dialog, loadJsonFileCallback);
+      };
+      self.jsonSaveWithSettingsButton = new ToolButton( parent );
+      self.jsonSaveWithSettingsButton.icon = parent.scaledResource(":/toolbar/file-project-save.png");
+      self.jsonSaveWithSettingsButton.toolTip = "<p>Save current settings and file lists to a Json file. All non-default settings are saved. " + 
+                                            "Current window prefix and output directory is also saved.</p>" + 
+                                            "<p>Images names from all pages are saved including light and calibration files. Checked status for files is saved</p>";
+      self.jsonSaveWithSettingsButton.setScaledFixedSize( 20, 20 );
+      self.jsonSaveWithSettingsButton.onClick = function()
+      {
+            if (global.debug) console.writeln("AutoIntegrateGUITools::newJsonSizerObj::jsonSaveWithSettingsButton::onClick");
+            util.saveJsonFile(parent.dialog, true, json_filename);
+      };
+
+      self.jsonSizer = new HorizontalSizer;
+      self.jsonSizer.add( self.jsonLabel );
+      self.jsonSizer.add( self.jsonLoadButton );
+      self.jsonSizer.add( self.jsonSaveWithSettingsButton );
+      self.jsonSizer.addStretch();
+
+      return { sizer: self.jsonSizer, label: self.jsonLabel };
+}
+
 this.newVerticalSizer = newVerticalSizer;
 this.newHorizontalSizer = newHorizontalSizer;
 this.newCheckBox = newCheckBox;
@@ -1026,6 +1083,7 @@ this.createImageToolsControl = createImageToolsControl;
 this.createGraXperPathSizer = createGraXperPathSizer;
 this.createStretchingSettingsSizer = createStretchingSettingsSizer;
 this.createNarrowbandCustomPaletteSizer = createNarrowbandCustomPaletteSizer;
+this.newJsonSizerObj = newJsonSizerObj;
 
 }
 

@@ -1166,6 +1166,15 @@ function saveLastDir(dirname)
       }
 }
 
+function restoreLastDir()
+{
+      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            ppar.lastDir = tempSetting;
+      }
+}
+
 function readOneParameterFromPersistentModuleSettings(name, type)
 {
       name = SETTINGSKEY + '/' + util.mapBadChars(name);
@@ -2447,68 +2456,67 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
 
 /* Save file info to a file.
  */
-function saveJsonFileEx(parent, save_settings, autosave_json_filename)
+function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_json_filename = null)
 {
-      if (!gui) {
-            return;
-      }
       console.writeln("saveJsonFile");
 
       let fileInfoList = [];
 
-      for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
-            let treeBox = parent.treeBox[pageIndex];
-            let treeboxfiles = [];
-            let filterSet = null;
-            let name = "";
-            switch (pageIndex) {
-                  case global.pages.LIGHTS:
-                        name = "Lights";
-                        filterSet = global.lightFilterSet;
-                        break;
-                  case global.pages.BIAS:
-                        name = "Bias";
-                        break;
-                  case global.pages.DARKS:
-                        name = "Darks";
-                        break;
-                  case global.pages.FLATS:
-                        name = "Flats";
-                        filterSet = global.flatFilterSet;
-                        break;
-                  case global.pages.FLAT_DARKS:
-                        name = "FlatDarks";
-                        break;
-                  default:
-                        name = "Unknown";
-                        break;
+      if (gui) {
+            for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
+                  let treeBox = parent.treeBox[pageIndex];
+                  let treeboxfiles = [];
+                  let filterSet = null;
+                  let name = "";
+                  switch (pageIndex) {
+                        case global.pages.LIGHTS:
+                              name = "Lights";
+                              filterSet = global.lightFilterSet;
+                              break;
+                        case global.pages.BIAS:
+                              name = "Bias";
+                              break;
+                        case global.pages.DARKS:
+                              name = "Darks";
+                              break;
+                        case global.pages.FLATS:
+                              name = "Flats";
+                              filterSet = global.flatFilterSet;
+                              break;
+                        case global.pages.FLAT_DARKS:
+                              name = "FlatDarks";
+                              break;
+                        default:
+                              name = "Unknown";
+                              break;
+                  }
+
+                  if (treeBox.numberOfChildren == 0) {
+                        continue;
+                  }
+
+                  console.writeln(name + " files");
+
+                  gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
+
+                  console.writeln("Found " + treeboxfiles.length + " files");
+
+                  if (treeboxfiles.length == 0) {
+                        // no files
+                        continue;
+                  }
+
+                  if (filterSet != null) {
+                        util.clearFilterFileUsedFlags(filterSet);
+                  }
+                  util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
             }
 
-            if (treeBox.numberOfChildren == 0) {
-                  continue;
+            if (fileInfoList.length == 0 && !save_settings) {
+                  // nothing to save
+                  console.writeln("No files to save.");
+                  return;
             }
-
-            console.writeln(name + " files");
-
-            gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
-
-            console.writeln("Found " + treeboxfiles.length + " files");
-
-            if (treeboxfiles.length == 0) {
-                  // no files
-                  continue;
-            }
-
-            if (filterSet != null) {
-                  util.clearFilterFileUsedFlags(filterSet);
-            }
-            util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
-      }
-
-      if (fileInfoList.length == 0 && !save_settings) {
-            // nothing to save
-            console.writeln("No files to save.");
-            return;
       }
 
       if (autosave_json_filename == null) {
@@ -2523,7 +2531,9 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
                         outputDir = util.ensurePathEndSlash(ppar.lastDir);
                   }
             }
-            if (save_settings) {
+            if (default_json_filename != null) {
+                  saveFileDialog.initialPath = outputDir + default_json_filename;
+            } else if (save_settings) {
                   saveFileDialog.initialPath = outputDir + "AutoSetup.json";
             } else {
                   saveFileDialog.initialPath = outputDir + "AutoFiles.json";
@@ -2598,9 +2608,9 @@ function normalizePath(filePath)
       return newPath;
 }
 
-function saveJsonFile(parent, save_settings)
+function saveJsonFile(parent, save_settings, default_json_filename = null)
 {
-      util.saveJsonFileEx(parent, save_settings, null);
+      util.saveJsonFileEx(parent, save_settings, null, default_json_filename);
 }
 
 function formatToolTip(txt)
@@ -2858,6 +2868,12 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
       return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
 }
 
+function initStandalone()
+{
+    readParametersFromPersistentModuleSettings();
+    restoreLastDir();
+}
+
 /* Interface functions.
  */
 
@@ -2889,6 +2905,7 @@ this.setOutputRootDir = setOutputRootDir;
 this.testDirectoryIsWriteable = testDirectoryIsWriteable;
 this.ensureDir = ensureDir;
 this.saveLastDir = saveLastDir;
+this.restoreLastDir = restoreLastDir;
 this.combinePath = combinePath;
 this.getOptionalUniqueFilenamePart = getOptionalUniqueFilenamePart;
 this.ensureDialogFilePath = ensureDialogFilePath;
@@ -3017,6 +3034,8 @@ this.get_execute_time_str = get_execute_time_str;
 this.get_node_execute_time_str = get_node_execute_time_str;
 
 this.getScaledExclusionAreas = getScaledExclusionAreas;
+
+this.initStandalone = initStandalone;
 
 }  /* AutoIntegrateUtil */
 

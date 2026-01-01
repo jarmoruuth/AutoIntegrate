@@ -2,7 +2,7 @@
 // ImageEnhancements — Standalone version of AutoIntegrate image enhancements
 // ****************************************************************************
 
-#feature-id    AutoIntegrate  > Enhancements
+#feature-id    AutoIntegrate  > Image Enhancements
 #feature-info  Image Enhancements using AutoIntegrate tools.
 
 #include <pjsr/NumericControl.jsh>
@@ -76,11 +76,11 @@ function ImageEnhancementsDialog() {
     var util = new AutoIntegrateUtil(global);
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util);
+    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.readParametersFromPersistentModuleSettings();
+    util.initStandalone();
 
    // -------------------------------------------------------------------------
    // Preview functions
@@ -169,6 +169,13 @@ function ImageEnhancementsDialog() {
     this.GraXpertPathControl.visible = false;
 
    // -------------------------------------------------------------------------
+   // Load and save JSON controls
+   // -------------------------------------------------------------------------
+
+   var obj = guitools.newJsonSizerObj(this, null, "ImageEnhancementsSettings.json");
+   this.loadSaveSizer = obj.sizer;
+
+   // -------------------------------------------------------------------------
    // Enhancements Group Box
    // -------------------------------------------------------------------------
 
@@ -196,6 +203,13 @@ function ImageEnhancementsDialog() {
    // Buttons
    // -------------------------------------------------------------------------
 
+    this.resetButton = new PushButton(this);
+    this.resetButton.text = "Reset";
+    this.resetButton.toolTip = "Reset all parameters to defaults.";
+    this.resetButton.onClick = function() {
+            util.setParameterDefaults();
+    };
+
     this.closeButton = new PushButton(this);
     this.closeButton.text = "Close";
     this.closeButton.icon = this.scaledResource(":/icons/close.png");
@@ -205,6 +219,7 @@ function ImageEnhancementsDialog() {
 
     this.buttonsSizer = new HorizontalSizer;
     this.buttonsSizer.spacing = 6;
+    this.buttonsSizer.add(this.resetButton);
     this.buttonsSizer.addStretch();
     this.buttonsSizer.add(this.closeButton);
 
@@ -217,6 +232,7 @@ function ImageEnhancementsDialog() {
    this.rightSizer.add(this.titleLabel);
    this.rightSizer.add(this.subtitleLabel);
    this.rightSizer.add(this.statusLabel);
+   this.rightSizer.add(this.loadSaveSizer);
    this.rightSizer.add(this.enhancementsGroupBox);
    this.rightSizer.add(this.buttonsSizer);
 
