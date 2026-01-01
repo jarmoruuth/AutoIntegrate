@@ -764,11 +764,11 @@ function Autorun(parent)
 function filesOptionsSizer(parent, name, toolTip)
 {
       var label = guitools.newSectionLabel(parent, name);
-      parent.rootingArr.push(label);
+      global.rootingArr.push(label);
       label.toolTip = util.formatToolTip(toolTip);
       var labelempty = new Label( parent );
       labelempty.text = " ";
-      parent.rootingArr.push(labelempty);
+      global.rootingArr.push(labelempty);
 
       var sizer = new VerticalSizer;
       sizer.margin = 6;
@@ -809,7 +809,7 @@ function lightsOptions(parent)
       var sizer = filesOptionsSizer(parent, "Add light images", parent.filesToolTip[global.pages.LIGHTS]);
 
       var debayerLabel = new Label( parent );
-      parent.rootingArr.push(debayerLabel);
+      global.rootingArr.push(debayerLabel);
       debayerLabel.text = "Debayer";
       debayerLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       debayerLabel.toolTip = "<p>Select bayer pattern for debayering color/OSC/RAW/DSLR files.</p>" +
@@ -817,10 +817,10 @@ function lightsOptions(parent)
                       "<p>If images are already debayered choose none which does not do debayering.</p>";
 
       var debayerCombobox = guitools.newComboBox(parent, par.debayer_pattern, global.debayerPattern_values, debayerLabel.toolTip);
-      parent.rootingArr.push(debayerCombobox);
+      global.rootingArr.push(debayerCombobox);
 
       var extractChannelsLabel = new Label( parent );
-      parent.rootingArr.push(extractChannelsLabel);
+      global.rootingArr.push(extractChannelsLabel);
       extractChannelsLabel.text = "Extract channels";
       extractChannelsLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       extractChannelsLabel.toolTip = 
@@ -836,11 +836,11 @@ function lightsOptions(parent)
             ;
 
       var extractChannelsCombobox = guitools.newComboBox(parent, par.extract_channel_mapping, extract_channel_mapping_values, extractChannelsLabel.toolTip);
-      parent.rootingArr.push(extractChannelsCombobox);
+      global.rootingArr.push(extractChannelsCombobox);
 
       var add_manually_checkbox = guitools.newCheckBox(parent, "Add manually", par.lights_add_manually, 
             "<p>Add light files manually by selecting files for each filter.</p>" );
-      parent.rootingArr.push(add_manually_checkbox);
+      global.rootingArr.push(add_manually_checkbox);
       add_manually_checkbox.onClick = function(checked) { 
             add_manually_checkbox.aiParam.val = checked; 
             showOrHideFilterSectionBar(global.pages.LIGHTS);
@@ -848,7 +848,7 @@ function lightsOptions(parent)
       var interated_lights_checkbox = guitools.newCheckBox(parent, "Integrated lights", par.integrated_lights, 
             "<p>If checked consider light files to be integrated files for AutoContinue.</p>" +
             "<p>It is useful for example when using integrated lights from WBPP as there is no need to rename images.</p>");
-      parent.rootingArr.push(interated_lights_checkbox);
+      global.rootingArr.push(interated_lights_checkbox);
 
       var monochrome_image_CheckBox = guitools.newCheckBoxEx(parent, "Force monochrome", par.monochrome_image, 
             "<p>Force creation of a monochrome image. All images are treated as Luminance files and stacked together. " + 
@@ -857,7 +857,7 @@ function lightsOptions(parent)
                   monochrome_image_CheckBox.aiParam.val = checked;
                   updateSectionsInTreeBox(parent.treeBox[global.pages.LIGHTS]);
       });
-      parent.rootingArr.push(monochrome_image_CheckBox);
+      global.rootingArr.push(monochrome_image_CheckBox);
 
       var sortAndFilterButton = new PushButton( parent );
       sortAndFilterButton.text = "Sort and filter";
@@ -877,7 +877,7 @@ function lightsOptions(parent)
                   console.criticalln("Sorting and filtering files: " + e);
             } 
       };
-      parent.rootingArr.push(sortAndFilterButton);
+      global.rootingArr.push(sortAndFilterButton);
 
       var metricsVisualizerButton = new PushButton( parent );
       metricsVisualizerButton.text = "Metrics visualizer";
@@ -891,7 +891,7 @@ function lightsOptions(parent)
                   console.criticalln("Metrics visualizer: " + e);
             }
       };
-      parent.rootingArr.push(metricsVisualizerButton);
+      global.rootingArr.push(metricsVisualizerButton);
 
       var exclusionAreasButton = new PushButton( parent );
       exclusionAreasButton.text = "Exclusion areas";
@@ -904,7 +904,7 @@ function lightsOptions(parent)
                   console.criticalln("Exclusion areas: " + e);
             }
       };
-      parent.rootingArr.push(exclusionAreasButton);
+      global.rootingArr.push(exclusionAreasButton);
 
       sizer.add(debayerLabel);
       sizer.add(debayerCombobox);
@@ -973,16 +973,16 @@ function flatsOptions(parent)
       var checkboxStars = guitools.newCheckBox(parent, "Stars in flats", par.stars_in_flats, 
             "<p>If you have stars in your flats then checking this option will lower percentile " + 
             "clip values and should help remove the stars.</p>" );
-      parent.rootingArr.push(checkboxStars);
+      global.rootingArr.push(checkboxStars);
       var checkboxDarks = guitools.newCheckBox(parent, "Do not use darks", par.no_darks_on_flat_calibrate, 
             "<p>For some sensors darks should not be used to calibrate flats.  " + 
             "An example of such sensor is most CMOS sensors.</p>"  +
             "<p>If flat darks are selected then darks are not used " + 
             "to calibrate flats.</p>");
-      parent.rootingArr.push(checkboxDarks);
+      global.rootingArr.push(checkboxDarks);
       var checkboxManual = guitools.newCheckBox(parent, "Add manually", par.flats_add_manually, 
             "<p>Add flat files manually by selecting files for each filter.</p>" );
-      parent.rootingArr.push(checkboxManual);
+      global.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
             checkboxManual.aiParam.val = checked;
             showOrHideFilterSectionBar(global.pages.FLATS);
@@ -1002,10 +1002,10 @@ function flatdarksOptions(parent)
 
       var checkbox = guitools.newCheckBox(parent, "Master files", par.flat_dark_master_files, 
             "<p>Files are master files.</p>" );
-      parent.rootingArr.push(checkbox);
+      global.rootingArr.push(checkbox);
       var checkboxManual = guitools.newCheckBox(parent, "Add manually", par.flatdarks_add_manually, 
             "<p>Add flat dark files manually by selecting files for each filter.</p>" );
-      parent.rootingArr.push(checkboxManual);
+      global.rootingArr.push(checkboxManual);
       checkboxManual.onClick = function(checked) {
             checkboxManual.aiParam.val = checked;
             showOrHideFilterSectionBar(global.pages.FLAT_DARKS);
@@ -1584,7 +1584,7 @@ function getOutputDirEdit()
 function addOutputDir(parent)
 {
       var lbl = new Label( parent );
-      parent.rootingArr.push(lbl);
+      global.rootingArr.push(lbl);
       lbl.text = "Output directory";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give output root directory.</p>" +
@@ -1656,7 +1656,7 @@ function updateWindowPrefix()
 function addWinPrefix(parent)
 {
       var lbl = new Label( parent );
-      parent.rootingArr.push(lbl);
+      global.rootingArr.push(lbl);
       lbl.text = "Window Prefix";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give window prefix identifier.</p>" +
@@ -2779,7 +2779,7 @@ function loadJsonFileCallback(parent, pagearray)
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 {
       var filesAdd_Button = new PushButton( parent );
-      parent.rootingArr.push(filesAdd_Button);
+      global.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       filesAdd_Button.toolTip = util.formatToolTip(toolTip);
@@ -2824,7 +2824,7 @@ function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 function addTargetType(parent)
 {
       var lbl = new Label( parent );
-      parent.rootingArr.push(lbl);
+      global.rootingArr.push(lbl);
       lbl.text = "Target";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
@@ -2835,7 +2835,7 @@ function addTargetType(parent)
                     "<p>When non-default target type is selected then stretching option is disabled.</p>";
       
       var targetTypeComboBox = guitools.newComboBox(parent, par.target_type, target_type_values, lbl.toolTip);
-      parent.rootingArr.push(targetTypeComboBox);
+      global.rootingArr.push(targetTypeComboBox);
       targetTypeComboBox.onItemSelected = function(itemIndex) {
             targetTypeComboBox.aiParam.val = targetTypeComboBox.aiValarray[itemIndex];
             updateParameterDependencies(this.dialog);
@@ -2846,7 +2846,7 @@ function addTargetType(parent)
       outputdir_Sizer.add( lbl );
       outputdir_Sizer.add( targetTypeComboBox );
       outputdir_Sizer.addStretch();
-      parent.rootingArr.push(outputdir_Sizer);
+      global.rootingArr.push(outputdir_Sizer);
 
       return { sizer: outputdir_Sizer, label: lbl };
 }
@@ -2859,7 +2859,7 @@ function newRow2Obj(parent)
       var outputdir_sizer = otobj.sizer;
 
       var filesButtons_Sizer2 = new HorizontalSizer;
-      parent.rootingArr.push(filesButtons_Sizer2);
+      global.rootingArr.push(filesButtons_Sizer2);
 
       filesButtons_Sizer2.spacing = 4;
       filesButtons_Sizer2.addStretch();
@@ -2891,7 +2891,7 @@ function addFilesButtons(parent)
       directoryFilesEdit.setFixedWidth(8 * parent.font.width( 'M' ));
 
       var filesButtons_Sizer1 = new HorizontalSizer;
-      parent.rootingArr.push(filesButtons_Sizer1);
+      global.rootingArr.push(filesButtons_Sizer1);
       filesButtons_Sizer1.spacing = 4;
       filesButtons_Sizer1.add( buttons.addLightsButton );
       filesButtons_Sizer1.add( buttons.addBiasButton );
@@ -2903,7 +2903,7 @@ function addFilesButtons(parent)
       filesButtons_Sizer1.add( directoryFilesEdit );
 
       var filesButtons_Sizer = new VerticalSizer;
-      parent.rootingArr.push(filesButtons_Sizer);
+      global.rootingArr.push(filesButtons_Sizer);
       filesButtons_Sizer.add( filesButtons_Sizer1 );
       filesButtons_Sizer1.addStretch();
 
@@ -2913,7 +2913,7 @@ function addFilesButtons(parent)
 function addOneFileManualFilterButton(parent, filetype, pageIndex)
 {
       var filesAdd_Button = new PushButton( parent );
-      parent.rootingArr.push(filesAdd_Button);
+      global.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
       filesAdd_Button.icon = parent.scaledResource( ":/icons/add.png" );
       if (filetype == 'C') {
@@ -2980,7 +2980,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       var control = addFileFilterButtons(parent, pageIndex);
 
       var sb = new SectionBar(parent, "Add filter files manually");
-      parent.rootingArr.push(sb);
+      global.rootingArr.push(sb);
       sb.setSection(control);
       sb.hide();
       sb.toolTip = "<p>Select manually files for each filter. Useful if filters are not recognized automatically.</p>";
@@ -2992,7 +2992,7 @@ function addFileFilterButtonSectionBar(parent, pageIndex)
       filterSectionbarcontrols[pageIndex] = control;
 
       var gb = new Control( parent );
-      parent.rootingArr.push(gb);
+      global.rootingArr.push(gb);
       gb.sizer = new VerticalSizer;
       gb.sizer.add( sb );
       gb.sizer.add( control );
@@ -3089,7 +3089,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
 
       /* Tree box to show files. */
       var files_TreeBox = new TreeBox( parent );
-      parent.rootingArr.push(files_TreeBox);
+      global.rootingArr.push(files_TreeBox);
       files_TreeBox.multipleSelection = true;
       files_TreeBox.rootDecoration = false;
       files_TreeBox.alternateRowColor = true;
@@ -3194,13 +3194,13 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
       parent.treeBox[pageIndex] = files_TreeBox;
 
       var filesControl = new Control(parent);
-      parent.rootingArr.push(filesControl);
+      global.rootingArr.push(filesControl);
       filesControl.sizer = new VerticalSizer;
       filesControl.sizer.add(files_TreeBox);
       filesControl.sizer.addSpacing( 4 );
       if (pageIndex == global.pages.LIGHTS || pageIndex == global.pages.FLATS || pageIndex == global.pages.FLAT_DARKS) {
             let obj = addFileFilterButtonSectionBar(parent, pageIndex);
-            parent.rootingArr.push(obj);
+            global.rootingArr.push(obj);
             filesControl.sizer.add(obj);
       }
 
@@ -3560,7 +3560,7 @@ function newCollapeSectionsButton(parent)
 function blinkArrowButton(parent, icon, x, y)
 {
       var blinkArrowButton = new ToolButton( parent );
-      parent.rootingArr.push(blinkArrowButton);
+      global.rootingArr.push(blinkArrowButton);
       blinkArrowButton.icon = parent.scaledResource(icon);
       blinkArrowButton.toolTip = "<p>Blink window move zoomed area</p>";
       blinkArrowButton.setScaledFixedSize( 20, 20 );
@@ -3749,48 +3749,48 @@ function newMinimizeDialogButton(parent)
 function newActionSizer(parent)
 {
       var actionsSizer = new HorizontalSizer;
-      parent.rootingArr.push(actionsSizer);
+      global.rootingArr.push(actionsSizer);
 
       let obj = guitools.newLabel(parent, "Actions", "Script actions, these are the same as in the bottom row of the script.");
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
       obj = newCancelButton(parent, true);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
       obj = newAutoContinueButton(parent, true);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
       obj = newRunButton(parent, true);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
       obj = newExitButton(parent, true);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
 
       obj = newCollapeSectionsButton(parent);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 6 );
 
       obj = newAdjustToContentButton(parent);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
       actionsSizer.addSpacing( 12 );
 
       obj = newMinimizeDialogButton(parent);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
       obj = newMaximizeDialogButton(parent);
-      parent.rootingArr.push(obj);
+      global.rootingArr.push(obj);
       actionsSizer.add( obj );
 
       return actionsSizer;
@@ -3801,13 +3801,13 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       if (!global.use_preview) {
             // Blink
             var blinkLabel = new Label( parent );
-            parent.rootingArr.push(blinkLabel);
+            global.rootingArr.push(blinkLabel);
             blinkLabel.text = "Blink";
             blinkLabel.toolTip = "<p>Blink zoom control.</p><p>You can blink images by clicking them in the image list.</p>";
             blinkLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
             var blinkFitButton = new ToolButton( parent );
-            parent.rootingArr.push(blinkFitButton);
+            global.rootingArr.push(blinkFitButton);
             blinkFitButton.icon = parent.scaledResource(":/toolbar/view-zoom-optimal-fit.png");
             blinkFitButton.toolTip = "<p>Blink window zoom to optimal fit</p>";
             blinkFitButton.setScaledFixedSize( 20, 20 );
@@ -3822,7 +3822,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
                   }
             };
             var blinkZoomButton = new ToolButton( parent );
-            parent.rootingArr.push(blinkZoomButton);
+            global.rootingArr.push(blinkZoomButton);
             blinkZoomButton.icon = parent.scaledResource(":/icons/zoom-1-1.png");
             blinkZoomButton.toolTip = "<p>Blink window zoom to 1:1</p>";
             blinkZoomButton.setScaledFixedSize( 20, 20 );
@@ -3844,13 +3844,13 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             var blinkDown = blinkArrowButton(parent, ":/icons/arrow-down.png", 0, 1);
       }
       var currentPageLabel = new Label( parent );
-      parent.rootingArr.push(currentPageLabel);
+      global.rootingArr.push(currentPageLabel);
       currentPageLabel.text = "Current page";
       currentPageLabel.toolTip = "<p>Operations on the current page.</p>";
       currentPageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
 
       var currentPageCheckButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageCheckButton);
+      global.rootingArr.push(currentPageCheckButton);
       currentPageCheckButton.icon = parent.scaledResource(":/icons/check.png");
       currentPageCheckButton.toolTip = "<p>Mark all files in the current page as checked.</p>";
       currentPageCheckButton.setScaledFixedSize( 20, 20 );
@@ -3859,7 +3859,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], true);
       };
       var currentPageUncheckButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageUncheckButton);
+      global.rootingArr.push(currentPageUncheckButton);
       currentPageUncheckButton.icon = parent.scaledResource(":/qss/checkbox-unchecked.png");
       currentPageUncheckButton.toolTip = "<p>Mark all files in the current page as unchecked.</p>";
       currentPageUncheckButton.setScaledFixedSize( 20, 20 );
@@ -3868,7 +3868,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             checkAllTreeBoxFiles(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageClearButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageClearButton);
+      global.rootingArr.push(currentPageClearButton);
       currentPageClearButton.icon = parent.scaledResource(":/icons/clear.png");
       currentPageClearButton.toolTip = "<p>Clear the list of input images in the current page.</p>";
       currentPageClearButton.setScaledFixedSize( 20, 20 );
@@ -3892,7 +3892,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       };
 
       var currentPageRemoveSelectedButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageRemoveSelectedButton);
+      global.rootingArr.push(currentPageRemoveSelectedButton);
       currentPageRemoveSelectedButton.icon = parent.scaledResource(":/icons/remove.png");
       currentPageRemoveSelectedButton.toolTip = "<p>Remove unchecked images in the current page.</p>";
       currentPageRemoveSelectedButton.setScaledFixedSize( 20, 20 );
@@ -3958,7 +3958,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       };
 
       var currentPageCollapseButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageCollapseButton);
+      global.rootingArr.push(currentPageCollapseButton);
       currentPageCollapseButton.icon = parent.scaledResource(":/browser/collapse.png");
       currentPageCollapseButton.toolTip = "<p>Collapse all sections in the current page.</p>";
       currentPageCollapseButton.setScaledFixedSize( 20, 20 );
@@ -3967,7 +3967,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
             setExpandedTreeBoxNode(parent.dialog.treeBox[parent.dialog.tabBox.currentPageIndex], false);
       };
       var currentPageExpandButton = new ToolButton( parent );
-      parent.rootingArr.push(currentPageExpandButton);
+      global.rootingArr.push(currentPageExpandButton);
       currentPageExpandButton.icon = parent.scaledResource(":/browser/expand.png");
       currentPageExpandButton.toolTip = "<p>Expand all sections in the current page.</p>";
       currentPageExpandButton.setScaledFixedSize( 20, 20 );
@@ -3979,7 +3979,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       var bestImageLabel = guitools.newLabel( parent, "Reference images", "Selecting the reference images for star alignment, image integration and local normalization.");
 
       var setBestImageButton = new ToolButton( parent );
-      parent.rootingArr.push(setBestImageButton);
+      global.rootingArr.push(setBestImageButton);
       setBestImageButton.icon = parent.scaledResource(":/icons/ok-button.png");
       setBestImageButton.toolTip = "<p>Set current preview/selected image as the reference image for star alignment.</p>";
       setBestImageButton.setScaledFixedSize( 20, 20 );
@@ -3991,7 +3991,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       };
 
       var setReferenceImageButton = new ToolButton( parent );
-      parent.rootingArr.push(setReferenceImageButton);
+      global.rootingArr.push(setReferenceImageButton);
       setReferenceImageButton.icon = parent.scaledResource(":/icons/item.png");
       setReferenceImageButton.toolTip = "<p>Set current preview/selected image as the reference image for current filter for image integration and local normalization.</p>";
       setReferenceImageButton.setScaledFixedSize( 20, 20 );
@@ -4003,7 +4003,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       };
 
       var clearBestImageButton = new ToolButton( parent );
-      parent.rootingArr.push(clearBestImageButton);
+      global.rootingArr.push(clearBestImageButton);
       clearBestImageButton.icon = parent.scaledResource(":/browser/disable.png");
       clearBestImageButton.toolTip = "<p>Clear all reference image settings.</p>";
       clearBestImageButton.setScaledFixedSize( 20, 20 );
@@ -4019,7 +4019,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       };
 
       var findBestImageButton = new ToolButton( parent );
-      parent.rootingArr.push(findBestImageButton);
+      global.rootingArr.push(findBestImageButton);
       findBestImageButton.icon = parent.scaledResource(":/icons/find.png");
       findBestImageButton.toolTip = "<p>Find reference images based on SSWEIGHT.</p>" + 
                                     "<p>This will overwrite all current reference image selections.</p>";
@@ -4049,7 +4049,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       var clippedPixelsLabel = guitools.newLabel( parent, "Clipped pixels", guitools.clippedPixelsToolTip);
 
       var setClippedPixelsButton = new ToolButton( parent );
-      parent.rootingArr.push(setClippedPixelsButton);
+      global.rootingArr.push(setClippedPixelsButton);
       setClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
       setClippedPixelsButton.toolTip = guitools.clippedPixelsToolTip;
       setClippedPixelsButton.setScaledFixedSize( 20, 20 );
@@ -4060,7 +4060,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
 
 
       var buttonsSizer = new HorizontalSizer;
-      parent.rootingArr.push(buttonsSizer);
+      global.rootingArr.push(buttonsSizer);
       buttonsSizer.spacing = 4;
 
       if (!global.use_preview) {
@@ -4219,7 +4219,7 @@ function mainSizerTab(parent, sizer)
       gb.sizer = new HorizontalSizer;
       gb.sizer.add( sizer );
 
-      parent.rootingArr.push(gb);
+      global.rootingArr.push(gb);
 
       return gb;
 }
@@ -4398,8 +4398,6 @@ function AutoIntegrateDialog()
       this.textEditWidth = 25 * this.font.width( "M" );
       this.numericEditWidth = 6 * this.font.width( "0" );
 
-      this.rootingArr = [];    // for rooting objects
-
       this.enhancements_gui = new AutoIntegrateEnhancementsGUI(
                                     this, 
                                     guitools, 
@@ -4495,23 +4493,23 @@ function AutoIntegrateDialog()
       this.tabBox = new TabBox( this );
 
       let newFilesTreeBox = new filesTreeBox( this, lightsOptions(this), global.pages.LIGHTS );
-      this.rootingArr.push(newFilesTreeBox);
+      global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Lights" );
 
       newFilesTreeBox = new filesTreeBox( this, biasOptions(this), global.pages.BIAS );
-      this.rootingArr.push(newFilesTreeBox);
+      global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Bias" );
 
       newFilesTreeBox = new filesTreeBox( this, darksOptions(this), global.pages.DARKS );
-      this.rootingArr.push(newFilesTreeBox);
+      global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Darks" );
 
       newFilesTreeBox = new filesTreeBox( this, flatsOptions(this), global.pages.FLATS );
-      this.rootingArr.push(newFilesTreeBox);
+      global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flats" );
 
       newFilesTreeBox = new filesTreeBox( this, flatdarksOptions(this), global.pages.FLAT_DARKS );
-      this.rootingArr.push(newFilesTreeBox);
+      global.rootingArr.push(newFilesTreeBox);
       this.tabBox.addPage( newFilesTreeBox, "Flat Darks" );
 
       /* Parameters check boxes. */

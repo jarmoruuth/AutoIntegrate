@@ -956,6 +956,7 @@ if (this.autointegrate_version.indexOf("test") > 0) {
       this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
 }
 
+this.rootingArr = [];            // for rooting objects
 this.debug = true;               // true to enable debug output to console
 
 }   /* AutoIntegrateGlobal*/

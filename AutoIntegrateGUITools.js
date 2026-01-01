@@ -479,15 +479,19 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       };
       sb.aiControl = control;
       sb.aiName = name;
-      parent.rootingArr.push(sb);
 
       getSectionVisible(name, control);
 
-      groupbox.sizer.add( sb );
-      groupbox.sizer.add( control );
+      if (groupbox) {
+            groupbox.sizer.add( sb );
+            groupbox.sizer.add( control );
+      }
 
+      global.rootingArr.push(sb);
       global.sectionBarControls.push(control);
       global.sectionBars.push(sb);
+
+      return sb;
 }
 
 function newSectionBarAddArray(parent, groupbox, title, name, objarray)
@@ -502,9 +506,11 @@ function newSectionBarAddArray(parent, groupbox, title, name, objarray)
       // hide this section by default
       ProcessingControl.visible = false;
 
-      parent.rootingArr.push(ProcessingControl);
+      global.rootingArr.push(ProcessingControl);
 
-      newSectionBarAdd(parent, groupbox, ProcessingControl, title, name);
+      var sb = newSectionBarAdd(parent, groupbox, ProcessingControl, title, name);
+
+      return { section: sb, control: ProcessingControl };
 }
 
 function createGraXperPathSizer(parent)
@@ -728,9 +734,8 @@ function createStretchingSettingsSizer(parent, engine)
       StretchGenericSizer.add( stretchAdjustShadowsControl );
       StretchGenericSizer.addStretch();
                                     
-      var StretchGenericGroupBox = new GroupBox(parent);
-      StretchGenericGroupBox.title = "Generic settings";
-      StretchGenericGroupBox.sizer = StretchGenericSizer;
+      var StretchGenericSection = newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",
+            [ StretchGenericSizer ]);
 
       var STFTargetBackgroundControl = newNumericControl(parent, "Target Background", par.STF_targetBackground, 0, 1,
             "<p>STF targetBackground value. If you get too bright image lowering this value can help.</p>" +
@@ -743,9 +748,9 @@ function createStretchingSettingsSizer(parent, engine)
       STFSizer.add( STFTargetBackgroundControl );
       STFSizer.addStretch();
 
-      var autoSTFGroupBox = new GroupBox(parent);
-      autoSTFGroupBox.title = "Auto STF settings";
-      autoSTFGroupBox.sizer = STFSizer;
+      var autoSTFSection = newSectionBarAddArray(parent, null, "Auto STF settings", "Stretching_Auto_STF_Section",
+                              [ STFSizer ]);
+      autoSTFSection.control.visible = true;
 
       /* Masked.
        */
@@ -762,9 +767,9 @@ function createStretchingSettingsSizer(parent, engine)
       MaskedStretchSizer.add( MaskedStretchPrestretchTargetEdit );
       MaskedStretchSizer.addStretch();
       
-      var MaskedStretchGroupBox = new GroupBox(parent);
-      MaskedStretchGroupBox.title = "Masked Stretch settings";
-      MaskedStretchGroupBox.sizer = MaskedStretchSizer;
+      var MaskedStretchSection = newSectionBarAddArray(parent, null, "Masked Stretch settings", "Stretching_Masked_Stretch_Section",
+                                    [ MaskedStretchSizer ]);
+      MaskedStretchSection.control.visible = true;
 
       /* Arcsinh.
        */
@@ -789,9 +794,8 @@ function createStretchingSettingsSizer(parent, engine)
       ArcsinhSizer.add( Arcsinh_iterations_SpinBox );
       ArcsinhSizer.addStretch();
 
-      var ArcsinhGroupBox = new GroupBox(parent);
-      ArcsinhGroupBox.title = "Arcsinh Stretch settings";
-      ArcsinhGroupBox.sizer = ArcsinhSizer;
+      var ArcsinhSection = newSectionBarAddArray(parent, null, "Arcsinh Stretch settings", "Stretching_Arcsinh_Stretch_Section",
+                              [ ArcsinhSizer ]);
 
       /* VeraLuxHMS.
        */
@@ -853,9 +857,8 @@ function createStretchingSettingsSizer(parent, engine)
       var veraluxSizer5 = newHorizontalSizer(0, true, [ veraluxScientificLabel, veraluxColorGripEdit, veraluxShadowConvEdit ]);
       var VeraLuxHMSSizer = newVerticalSizer(6, true, [ veraluxSizer1, veraluxSizer2, veraluxSizer3, veraluxSizer4, veraluxSizer5 ]);
 
-      var veraluxGroupBox = new GroupBox(parent);
-      veraluxGroupBox.title = "VeraLux HMS Stretch";
-      veraluxGroupBox.sizer = VeraLuxHMSSizer;
+      var veraluxSection = newSectionBarAddArray(parent, null, "VeraLux HMS Stretch settings", "Stretching_VeraLux_HMS_Section",
+                                    [ VeraLuxHMSSizer ]);
 
       /* Histogram stretching.
        */
@@ -875,9 +878,9 @@ function createStretchingSettingsSizer(parent, engine)
       histogramStretchingSizer.add( histogramTargetValue_Control );
       histogramStretchingSizer.addStretch();
 
-      var histogramStretchingGroupBox = new GroupBox(parent);
-      histogramStretchingGroupBox.title = "Histogram stretching settings";
-      histogramStretchingGroupBox.sizer = histogramStretchingSizer;
+      var histogramStretchingSection = newSectionBarAddArray(parent, null, "Histogram stretching settings", "StretchingHistogram", 
+                                          [ histogramStretchingSizer ]);
+
       var otherStrechingTargetValue_Control = newNumericControl(parent, "Target value", par.other_stretch_target, 0, 1, 
             "<p>Target value specifies where we try to get the the histogram median value.</p>" +
             "<p>Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 1.</p>" +
@@ -889,24 +892,29 @@ function createStretchingSettingsSizer(parent, engine)
       otherStrechingTargetValueSizer.margin = 6;
       otherStrechingTargetValueSizer.add( otherStrechingTargetValue_Control );
       otherStrechingTargetValueSizer.addStretch();
+      var otherStretchingSection = newSectionBarAddArray(parent, null, "Other stretching settings", "StretchingOther", 
+                                    [ otherStrechingTargetValueSizer ]);
 
-      var otherStretchingGroupBox = new GroupBox(parent);
-      otherStretchingGroupBox.title = "Other stretching settings";
-      otherStretchingGroupBox.sizer = otherStrechingTargetValueSizer;
+      var stretchingSettingsSizer = new VerticalSizer;
+      stretchingSettingsSizer.margin = 6;
+      stretchingSettingsSizer.spacing = 4;
+      stretchingSettingsSizer.add( StretchGenericSection.section );
+      stretchingSettingsSizer.add( StretchGenericSection.control );
+      stretchingSettingsSizer.add( autoSTFSection.section );
+      stretchingSettingsSizer.add( autoSTFSection.control );
+      stretchingSettingsSizer.add( MaskedStretchSection.section );
+      stretchingSettingsSizer.add( MaskedStretchSection.control );
+      stretchingSettingsSizer.add( veraluxSection.section );
+      stretchingSettingsSizer.add( veraluxSection.control );
+      stretchingSettingsSizer.add( ArcsinhSection.section );
+      stretchingSettingsSizer.add( ArcsinhSection.control );
+      stretchingSettingsSizer.add( histogramStretchingSection.section );
+      stretchingSettingsSizer.add( histogramStretchingSection.control );
+      stretchingSettingsSizer.add( otherStretchingSection.section );
+      stretchingSettingsSizer.add( otherStretchingSection.control );
+      stretchingSettingsSizer.addStretch();
 
-      var stretchingGroupBoxSizer = new VerticalSizer;
-      stretchingGroupBoxSizer.margin = 6;
-      stretchingGroupBoxSizer.spacing = 4;
-      stretchingGroupBoxSizer.add( StretchGenericGroupBox );
-      stretchingGroupBoxSizer.add( autoSTFGroupBox );
-      stretchingGroupBoxSizer.add( veraluxGroupBox );
-      stretchingGroupBoxSizer.add( MaskedStretchGroupBox );
-      stretchingGroupBoxSizer.add( ArcsinhGroupBox );
-      stretchingGroupBoxSizer.add( histogramStretchingGroupBox );
-      stretchingGroupBoxSizer.add( otherStretchingGroupBox );
-      stretchingGroupBoxSizer.addStretch();
-
-      return stretchingGroupBoxSizer;
+      return stretchingSettingsSizer;
 }
 
 function createNarrowbandCustomPaletteSizer(parent)

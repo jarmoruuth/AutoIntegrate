@@ -70,8 +70,6 @@ function ImageEnhancementsDialog() {
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     this.minWidth = 1000;
 
-    this.rootingArr = [];
-
     var global = new AutoIntegrateGlobal();
     var util = new AutoIntegrateUtil(global);
     var flowchart = new AutoIntegrateDummyFlowchart();

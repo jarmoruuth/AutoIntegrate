@@ -1754,7 +1754,9 @@ function createTargetImageSizer(parent)
             notetsaved_note;
       self.enhancementsApplyButton.onClick = function()
       {
-            if (!util.is_enhancements_option() && !util.is_narrowband_option()) {
+            if (global.enhancements_target_image_id == null) {
+                  console.criticalln("No target image selected!");
+            } else if (!util.is_enhancements_option() && !util.is_narrowband_option()) {
                   console.criticalln("No enhancements option selected!");
             } else if (global.enhancements_target_image_id == null) {
                   console.criticalln("No image!");

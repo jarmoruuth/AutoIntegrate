@@ -70,8 +70,6 @@ function ImageStretchingDialog() {
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     this.minWidth = 1000;
 
-    this.rootingArr = [];
-
     var global = new AutoIntegrateGlobal();
     var util = new AutoIntegrateUtil(global);
     var flowchart = new AutoIntegrateDummyFlowchart();
@@ -208,7 +206,9 @@ function ImageStretchingDialog() {
     if (global.debug) console.writeln("ImageStretchingDialog:: creating stretchingGroupBox");
 
     this.stretchingGroupBox = guitools.newGroupBoxSizer(this);
-    guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
+    // guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
+    this.stretchingGroupBox.title = "Settings";
+    this.stretchingGroupBox.sizer.add(this.stretchingSettingsControl);
     this.stretchingGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
