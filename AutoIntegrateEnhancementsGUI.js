@@ -4,6 +4,9 @@
 
 */
 
+#ifndef AUTOINTEGRATEENHANCEMENTSGUI_JS
+#define AUTOINTEGRATEENHANCEMENTSGUI_JS
+
 function AutoIntegrateSelectStarsImageDialog( util )
 {
       this.__base__ = Dialog;
@@ -113,6 +116,8 @@ function AutoIntegrateEnhancementsGUI(parent, guitools, util, global, engine, pr
 
 this.__base__ = Object;
 this.__base__();
+
+if (global.debug) console.writeln("AutoIntegrateEnhancementsGUI: constructor");
 
 var self = this;
       
@@ -1626,6 +1631,8 @@ function createEnhancementsControls(parent)
 
 function createTargetImageSizer(parent)
 {
+      if (global.debug) console.writeln("createTargetImageSizer");
+
       self.enhancementsImageLabel = new Label( parent );
       self.enhancementsImageLabel.text = "Target image";
       self.enhancementsImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -1633,12 +1640,14 @@ function createTargetImageSizer(parent)
             "is named as <target image>_edit.</p>" +
             "<p>Auto option is used when enhancements are done with Run or AutoContinue option.</p>";
       self.enhancementsImageComboBox = new ComboBox( parent );
-      self.enhancementsImageComboBox.minItemCharWidth = 20;
+      var minItemCharWidthStr = "testxyz_Integration_RGB_processed_12"; // long name to have enough width for image names
+      self.enhancementsImageComboBox.minItemCharWidth = minItemCharWidthStr.length;
       self.enhancementsImageComboBox.onItemSelected = function( itemIndex )
       {
             if (global.enhancements_target_image_id == enhancements_target_image_window_list[itemIndex]) {
                   return;
             }
+            if (global.debug) console.writeln("enhancementsImageComboBox:selected target image index: " + itemIndex);
             close_undo_images();
             global.enhancements_target_image_id = enhancements_target_image_window_list[itemIndex];
             if (global.debug) console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
@@ -1654,12 +1663,14 @@ function createTargetImageSizer(parent)
 
       update_enhancements_target_image_window_list(null);
 
-      if (enhancements_target_image_window_list.length > 0) {
-            global.enhancements_target_image_id = enhancements_target_image_window_list[0];
-            preview.setPreviewIdReset(global.enhancements_target_image_id, false);
-      } else {
+      if (enhancements_target_image_window_list.length == 0 ||
+          enhancements_target_image_window_list[0] == "Auto" ) 
+      {
             global.enhancements_target_image_id = null;
             preview.updatePreviewNoImage();
+      } else {
+            global.enhancements_target_image_id = enhancements_target_image_window_list[0];
+            preview.setPreviewIdReset(global.enhancements_target_image_id, false);
       }
 
       self.enhancementsLoadTargetImageButton = new ToolButton( parent );
@@ -1688,7 +1699,7 @@ function createTargetImageSizer(parent)
             console.writeln("Opened image " + ofd.fileName);
             close_undo_images();
             console.writeln("updatePreviewWinTxt");
-            preview.updatePreviewWinTxt(imageWindow, File.enhancementsctName(ofd.fileName) + File.enhancementsctExtension(ofd.fileName));
+            preview.updatePreviewWinTxt(imageWindow, File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName));
             console.writeln("util.updateStatusInfoLabel");
             util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
             global.enhancements_target_image_id = imageWindow.mainView.id;
@@ -1968,3 +1979,5 @@ this.setPreviewControl = setPreviewControl;
 }
 
 AutoIntegrateEnhancementsGUI.prototype = new Object;
+
+#endif // AUTOINTEGRATE_ENHANCEMENTS_GUI_JS

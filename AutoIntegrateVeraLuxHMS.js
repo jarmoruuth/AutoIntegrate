@@ -45,6 +45,9 @@
 //  SENSOR PROFILES DATABASE (v2.1 - Siril SPCC Derived)
 // =============================================================================
 
+#ifndef AUTOINTEGRATEVERALUXHMS_JS
+#define AUTOINTEGRATEVERALUXHMS_JS
+
 #define VERALUX_VERSION "1.3.0"
 
 function AutoIntegrateVeraLuxHMS()
@@ -947,3 +950,5 @@ this.processVeraLux = processVeraLux;
 } // AutoIntegrateVeraLuxHMS
 
 AutoIntegrateVeraLuxHMS.prototype = new Object;
+
+#endif // AUTOINTEGRATEVERALUXHMS_JS

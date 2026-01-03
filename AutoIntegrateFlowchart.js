@@ -8,6 +8,9 @@
 
 */
 
+#ifndef AUTOINTEGRATEFLOWCHART_JS
+#define AUTOINTEGRATEFLOWCHART_JS
+
 function AutoIntegrateFlowchart(global, util)
 {
 
@@ -810,3 +813,5 @@ this.flowchartPrint = flowchartPrint;
 }  /* AutoIntegrateFlowchart*/
 
 AutoIntegrateFlowchart.prototype = new Object;
+
+#endif  /* AUTOINTEGRATEFLOWCHART_JS */

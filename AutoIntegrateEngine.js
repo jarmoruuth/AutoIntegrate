@@ -81,6 +81,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
       - combineRGBimage - used in case of LRGB processing
 */
 
+#ifndef AUTOINTEGRATEENGINE_JS
+#define AUTOINTEGRATEENGINE_JS
+
 #ifndef NO_SOLVER_LIBRARY
 /* Settings to ImageSolver script. This is copied from WBPP script. */
 #define USE_SOLVER_LIBRARY true
@@ -19928,3 +19931,5 @@ this.veralux = new AutoIntegrateVeraLuxHMS();
 }  /* AutoIntegrateEngine*/
 
 AutoIntegrateEngine.prototype = new Object;
+
+#endif  /* AUTOINTEGRATEENGINE_JS */

@@ -6,6 +6,9 @@
 // forceRedraw = function()
 // setSize = function(w, h)
 
+#ifndef AUTOINTEGRATEPREVIEW_JS
+#define AUTOINTEGRATEPREVIEW_JS
+
 /***************************************************************************
  * 
  *    AutoIntegrateMaxPreviewDialog
@@ -659,3 +662,5 @@ function AutoIntegratePreviewControl(parentDialog, name, engine, util, global, s
 }
  
 AutoIntegratePreviewControl.prototype = new Frame;
+
+#endif // AUTOINTEGRATEPREVIEW_JS

@@ -16,6 +16,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef AUTOINTEGRATEGLOBAL_JS
+#define AUTOINTEGRATEGLOBAL_JS
+
 #include <pjsr/ColorSpace.jsh>
 #include <pjsr/UndoFlag.jsh>
 #include <pjsr/DataType.jsh>
@@ -44,12 +47,16 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.81";         // Version, also updated into updates.xri
-this.autointegrate_info = "VeraLux HyperMetric Stretch";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.82 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Standalone scripts, MultiscaleAdaptiveStretch";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Added VeraLux HyperMetric Stretch (HMS) as a new stretch option.",
+      "- Added MultiscaleAdaptiveStretch as a new stretch option.",
+      "- Added Image Enhancements standalone script.",
+      "- Added Image Stretching standalone script.",
+      "- Added Narrowband Combinations standalone script.",
+      "- All scripts are in Script / AutoIntegrate menu.",
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -88,9 +95,9 @@ this.image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'VeraLuxHMS', 'Ma
 // Check if new MultiscaleAdaptiveStretch is available
 try {
       var P = new MultiscaleAdaptiveStretch;
-      // Add MultiscaleAdaptiveStretch firts as a default option
+      // Add MultiscaleAdaptiveStretch as the second option if not already there
       if (this.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') == -1) {
-            this.image_stretching_values.unshift('MultiscaleAdaptiveStretch');
+            this.image_stretching_values.splice(1, 0, 'MultiscaleAdaptiveStretch');
       }
 } catch (e) {
       // No changes
@@ -986,8 +993,10 @@ if (this.autointegrate_version.indexOf("test") > 0) {
 }
 
 this.rootingArr = [];            // for rooting objects
-this.debug = true;               // true to enable debug output to console
+this.debug = false;              // true to enable debug output to console
 
 }   /* AutoIntegrateGlobal*/
 
 AutoIntegrateGlobal.prototype = new Object;
+
+#endif // AUTOINTEGRATEGLOBAL_JS

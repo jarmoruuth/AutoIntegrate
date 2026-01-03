@@ -4,6 +4,9 @@
 // - AutoIntegrateTutorialManagerDialog
 // - AutoIntegrateTutorialSystem
 
+#ifndef AUTOINTEGRATETUTORIAL_JS
+#define AUTOINTEGRATETUTORIAL_JS
+
 // ============================================================================
 // Welcome Dialog with Credits - First Run Experience
 // ============================================================================
@@ -966,3 +969,5 @@ AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
             return !shown;
       }
 };
+
+#endif  /* AUTOINTEGRATETUTORIAL_JS */

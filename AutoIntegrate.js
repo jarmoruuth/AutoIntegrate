@@ -519,6 +519,7 @@ this.test_initialize = function()
       global.do_not_write_settings = true;
       global.testmode = true;
       global.testmode_log = "";
+      global.debug = true;
 
       util.setDefaultDirs();
 

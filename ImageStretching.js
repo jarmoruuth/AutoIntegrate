@@ -17,8 +17,12 @@
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/StdCursor.jsh>
 
+#ifndef NO_SOLVER_LIBRARY
 #define NO_SOLVER_LIBRARY
+#endif
+#ifndef AUTOINTEGRATE_STANDALONE
 #define AUTOINTEGRATE_STANDALONE
+#endif
 
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
@@ -28,8 +32,11 @@
 #include "AutoIntegratePreview.js"
 
 // =============================================================================
-//  Dummy flowchart routines
+//  Dummy self.flowchart routines
 // =============================================================================
+
+#ifndef AUTOINTEGRATEDUMMYFLOWCHART
+#define AUTOINTEGRATEDUMMYFLOWCHART
 
 function AutoIntegrateDummyFlowchart()
 {
@@ -52,6 +59,8 @@ function AutoIntegrateDummyFlowchart()
 
 AutoIntegrateDummyFlowchart.prototype = new Object;
 
+#endif /* AUTOINTEGRATEDUMMYFLOWCHART */
+
 // =============================================================================
 //  DIALOG WITH PREVIEW
 // =============================================================================
@@ -70,18 +79,21 @@ function ImageStretchingDialog() {
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     this.minWidth = 1000;
 
-    var global = new AutoIntegrateGlobal();
-    var util = new AutoIntegrateUtil(global);
-    var flowchart = new AutoIntegrateDummyFlowchart();
-    var engine = new AutoIntegrateEngine(global, util, flowchart);
-    var guitools = new AutoIntegrateGUITools(this, global, util, engine);
+    this.global = new AutoIntegrateGlobal();
+
+    this.global.debug = debug;
+
+    this.util = new AutoIntegrateUtil(this.global);
+    this.flowchart = new AutoIntegrateDummyFlowchart();
+    this.engine = new AutoIntegrateEngine(this.global, this.util, this.flowchart);
+    this.guitools = new AutoIntegrateGUITools(this, this.global, this.util, this.engine);
 
     // Read parameter default settings from persistent module settings.
     // These can be saved using the AutoIntegrate script.
-    util.initStandalone();
+    this.util.initStandalone();
 
     // We do stretching here so we set the value to true
-    global.par.enhancements_stretch.val = true;
+    this.global.par.enhancements_stretch.val = true;
 
     // Store original image for reset functionality
     this.originalImage = null;
@@ -119,7 +131,13 @@ function ImageStretchingDialog() {
     function updatePreviewWin(imgWin)
     {
         if (debug) console.writeln("ImageStretchingDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.UpdateImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+        self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+    }
+
+    function updatePreviewWinTxt(imgWin, txt)
+    {
+        if (debug) console.writeln("ImageStretchingDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        updatePreviewWin(imgWin);
     }
 
     var preview_functions = {
@@ -128,15 +146,15 @@ function ImageStretchingDialog() {
         updatePreviewTxt: updatePreviewTxt,
         updatePreviewNoImage: updatePreviewNoImage,
         createCombinedMosaicPreviewWin: null,
-        updatePreviewWin: updatePreviewWin
-
+        updatePreviewWin: updatePreviewWin,
+        updatePreviewWinTxt: updatePreviewWinTxt,
    };
 
    // -------------------------------------------------------------------------
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", engine, util, global, 600, 400, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", self.engine, self.util, self.global, 600, 400, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
@@ -165,9 +183,9 @@ function ImageStretchingDialog() {
    this.subtitleLabel.textAlignment = TextAlign_Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
-    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, guitools, util, global, engine, preview_functions);
+    this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, self.guitools, self.util, self.global, self.engine, preview_functions);
 
-    this.stretchingChoiceSizer = guitools.createStrechingChoiceSizer(this, null);
+    this.stretchingChoiceSizer = self.guitools.createStrechingChoiceSizer(this, null);
     this.stretchingChoiceGroupBox = new GroupBox(this);
     this.stretchingChoiceGroupBox.title = "Stretching type";
     this.stretchingChoiceGroupBox.sizer = this.stretchingChoiceSizer;
@@ -176,13 +194,13 @@ function ImageStretchingDialog() {
     this.enhancements_gui.apply_completed_callback = function(apply_ok) {
         // We do stretching here so we set the value to true
         // With reset option it may have been reset to false (default)
-        global.par.enhancements_stretch.val = true;
+        self.global.par.enhancements_stretch.val = true;
     };
     this.targetImageGroupBox = new GroupBox(this);
     this.targetImageGroupBox.title = "Target image";
     this.targetImageGroupBox.sizer = this.targetImageSizer;
 
-    this.stretchingSettingsSizer = guitools.createStretchingSettingsSizer(this, engine);
+    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine);
 
     this.stretchingSettingsControl = new Control( this );
     this.stretchingSettingsControl.sizer = new HorizontalSizer;
@@ -196,17 +214,17 @@ function ImageStretchingDialog() {
    // Load and save JSON controls
    // -------------------------------------------------------------------------
 
-   var obj = guitools.newJsonSizerObj(this, null, "ImageStretchingSettings.json");
+   var obj = self.guitools.newJsonSizerObj(this, null, "ImageStretchingSettings.json");
    this.loadSaveSizer = obj.sizer;
 
    // -------------------------------------------------------------------------
    // Stretching Group Box
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("ImageStretchingDialog:: creating stretchingGroupBox");
+    if (self.global.debug) console.writeln("ImageStretchingDialog:: creating stretchingGroupBox");
 
-    this.stretchingGroupBox = guitools.newGroupBoxSizer(this);
-    // guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
+    this.stretchingGroupBox = self.guitools.newGroupBoxSizer(this);
+    // self.guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
     this.stretchingGroupBox.title = "Settings";
     this.stretchingGroupBox.sizer.add(this.stretchingSettingsControl);
     this.stretchingGroupBox.sizer.addStretch();
@@ -219,7 +237,7 @@ function ImageStretchingDialog() {
    this.resetButton.text = "Reset";
    this.resetButton.toolTip = "Reset all parameters to defaults.";
    this.resetButton.onClick = function() {
-        util.setParameterDefaults();
+        self.util.setParameterDefaults();
    };
 
    this.closeButton = new PushButton(this);
@@ -267,6 +285,8 @@ ImageStretchingDialog.prototype = new Dialog;
 //  MAIN ENTRY POINT
 // =============================================================================
 
+#ifndef AUTOINTEGRATE_NO_MAIN
+
 function main() {
    console.show();
 
@@ -275,3 +295,5 @@ function main() {
 }
 
 main();
+
+#endif /* AUTOINTEGRATE_NO_MAIN */

@@ -2,6 +2,9 @@
 // GUI utility functions for AutoIntegrate script
 //
 
+#ifndef AUTOINTEGRATEGUITOOLS_JS
+#define AUTOINTEGRATEGUITOOLS_JS
+
 function AutoIntegrateGUITools( parent, global, util, engine )
 {
 
@@ -85,11 +88,11 @@ var histogramStretchToolTip = "Using a simple histogram transformation to get hi
 this.stretchingTootip = 
             "<p>Select how image is stretched from linear to non-linear.</p>" +
             "<ul>" +
-            "<li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>" + 
-                 "You can adjust settings in <i>" + postprocessing_section + "MultiscaleAdaptiveStretch</i> section.</p></li>" +
             "<li><p>Auto STF - Use Auto Screen Transfer Function to stretch image to non-linear.<br>" + 
                  "For galaxies and other small but bright objects you should adjust <i>targetBackground</i> in <i>" + postprocessing_section + "AutoSTF settings</i> section to a smaller value, like 0.10</i><br>" +
                  "Parameters are set in <i>" + postprocessing_section + "AutoSTF settings</i> section.</p></li>" +
+            "<li><p>MultiscaleAdaptiveStretch - Use MultiscaleAdaptiveStretch to stretch image to non-linear.<br>" + 
+                 "You can adjust settings in <i>" + postprocessing_section + "MultiscaleAdaptiveStretch</i> section.</p></li>" +
             "<li><p>Masked Stretch - Use MaskedStretch to stretch image to non-linear.<br>" + 
                    "Useful when AutoSTF generates too bright images, like on some galaxies.<br>" + 
                    "Parameters are set in <i>" + postprocessing_section + "Masked stretch settings</i> section</p></li>" +
@@ -116,12 +119,10 @@ this.stretchingTootip =
             "</ul>" + 
 #ifndef AUTOINTEGRATE_STANDALONE
             "<p>See <i>" + postprocessing_section + "Stretching settings</i> section for stretching specific parameters.</p>" +
-            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>"
+            "<p>Note that when non-default <i>Target</i> type is selected then this option is disabled.</p>" +
 #endif
             ""
             ;
-
-
 
 function newVerticalSizer(margin, add_stretch, items)
 {
@@ -1006,6 +1007,7 @@ function createStretchingSettingsSizer(parent, engine)
 
       var veraluxSection = newSectionBarAddArray(parent, null, "VeraLux HMS Stretch settings", "Stretching_VeraLux_HMS_Section",
                                     [ VeraLuxHMSSizer ]);
+      veraluxSection.control.visible = true;
 
       /* Histogram stretching.
        */
@@ -1049,10 +1051,10 @@ function createStretchingSettingsSizer(parent, engine)
       stretchingSettingsSizer.spacing = 4;
       stretchingSettingsSizer.add( StretchGenericSection.section );
       stretchingSettingsSizer.add( StretchGenericSection.control );
-      stretchingSettingsSizer.add( MASSection.section );
-      stretchingSettingsSizer.add( MASSection.control );
       stretchingSettingsSizer.add( autoSTFSection.section );
       stretchingSettingsSizer.add( autoSTFSection.control );
+      stretchingSettingsSizer.add( MASSection.section );
+      stretchingSettingsSizer.add( MASSection.control );
       stretchingSettingsSizer.add( MaskedStretchSection.section );
       stretchingSettingsSizer.add( MaskedStretchSection.control );
       stretchingSettingsSizer.add( veraluxSection.section );
@@ -1248,3 +1250,5 @@ this.newJsonSizerObj = newJsonSizerObj;
 }
 
 AutoIntegrateGUITools.prototype = new Object;
+
+#endif // AUTOINTEGRATEGUITOOLS_JS

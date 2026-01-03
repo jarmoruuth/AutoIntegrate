@@ -17,19 +17,25 @@
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/StdCursor.jsh>
 
+#ifndef NO_SOLVER_LIBRARY
 #define NO_SOLVER_LIBRARY
+#endif
+#ifndef AUTOINTEGRATE_STANDALONE
 #define AUTOINTEGRATE_STANDALONE
+#endif
 
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
 #include "AutoIntegrateGUITools.js"
-#include "AutoIntegrateEnhancementsGUI.js"
 #include "AutoIntegrateEngine.js"
 #include "AutoIntegratePreview.js"
 
 // =============================================================================
 //  Dummy flowchart routines
 // =============================================================================
+
+#ifndef AUTOINTEGRATEDUMMYFLOWCHART
+#define AUTOINTEGRATEDUMMYFLOWCHART
 
 function AutoIntegrateDummyFlowchart()
 {
@@ -51,6 +57,8 @@ function AutoIntegrateDummyFlowchart()
 }
 
 AutoIntegrateDummyFlowchart.prototype = new Object;
+
+#endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
 // =============================================================================
 //  DIALOG WITH PREVIEW
@@ -453,6 +461,8 @@ NarrowbandCombinationsDialog.prototype = new Dialog;
 //  MAIN ENTRY POINT
 // =============================================================================
 
+#ifndef AUTOINTEGRATE_NO_MAIN
+
 function main() {
    console.show();
 
@@ -461,3 +471,5 @@ function main() {
 }
 
 main();
+
+#endif /* AUTOINTEGRATE_NO_MAIN */

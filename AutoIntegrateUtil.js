@@ -16,6 +16,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef AUTOINTEGRATEUTIL_JS
+#define AUTOINTEGRATEUTIL_JS
+
 function AutoIntegrateUtil(global)
 {
 
@@ -3041,3 +3044,4 @@ this.initStandalone = initStandalone;
 
 AutoIntegrateUtil.prototype = new Object;
 
+#endif  /* AUTOINTEGRATEUTIL_JS */

@@ -1,6 +1,9 @@
 // AutoIntegrate Astro Image Metrics Visualizer Dialog
 // For SubFrame Selector metrics visualization
 
+#ifndef AUTOINTEGRATEMETRICSVISUALIZER_JS
+#define AUTOINTEGRATEMETRICSVISUALIZER_JS
+
 #include <pjsr/Sizer.jsh>
 #include <pjsr/FrameStyle.jsh>
 #include <pjsr/TextAlign.jsh>
@@ -602,3 +605,5 @@ this.main = main;
 }  /* AutoIntegrateMetricsVisualizer */
 
 AutoIntegrateMetricsVisualizer.prototype = new Object;
+
+#endif  /* AUTOINTEGRATEMETRICSVISUALIZER_JS */

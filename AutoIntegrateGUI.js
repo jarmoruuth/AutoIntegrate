@@ -32,6 +32,9 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef AUTOINTEGRATEGUI_JS
+#define AUTOINTEGRATEGUI_JS
+
 #ifndef NO_SOLVER_LIBRARY
 #include "../AdP/SearchCoordinatesDialog.js"
 #endif
@@ -274,7 +277,7 @@ function forceNewHistogram(target_win)
 function flowchartUpdated()
 {
       if (par.show_flowchart.val && !global.get_flowchart_data) {
-            // console.writeln("flowchartUpdated");
+            if (global.debug) console.writeln("flowchartUpdated");
             try {
                   var obj = flowchart.flowchartGraph(global.flowchartData, current_preview.image, current_preview.txt);
                   if (obj) {
@@ -1103,7 +1106,7 @@ function calculateReverseLogarithmicXScale(minVal, maxVal, numBins)
 
 function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 {
-      if (par.debug.val) console.writeln("getHistogramInfo");
+      if (par.debug.val || global.debug) console.writeln("getHistogramInfo");
       var view = imgWin.mainView;
 	var histogramMatrix = view.computeOrFetchProperty("Histogram16");
       var values = [];
@@ -1225,7 +1228,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                   current_preview.imgWin = imgWin_from_file;
             }
             current_preview.resampled = resampled;
-            if (par.debug.val) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
+            if (par.debug.val || global.debug) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
             if (preview_size_changed) {
                   if (ppar.preview.side_preview_visible) {
                         previewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
@@ -1265,7 +1268,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             if (run_autostf) {
                   // Image is linear, run AutoSTF
                   if (copy_image) {
-                        if (par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, copy image");
+                        if (par.debug.val || global.debug) console.writeln("updatePreviewWinTxt:run_autostf, copy image");
                         util.closeOneWindowById("AutoIntegrate_preview_tmp");
                         var copy_win = util.copyWindow(imgWin, "AutoIntegrate_preview_tmp");
                         engine.autoStretch(copy_win);
@@ -1313,6 +1316,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
 
 function updatePreviewWin(imgWin)
 {
+      if (global.debug) console.writeln("updatePreviewWin");
       updatePreviewWinTxt(imgWin, imgWin.mainView.id);
 }
 
@@ -1348,6 +1352,7 @@ function updatePreviewFilename(filename, run_autostf = false)
 function updatePreviewId(id)
 {
       if (global.use_preview) {
+            if (global.debug) console.writeln("updatePreviewId ", id);
             updatePreviewWinTxt(ImageWindow.windowById(id), id);
       }
 }
@@ -1355,6 +1360,7 @@ function updatePreviewId(id)
 function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 {
       if (global.use_preview && !global.get_flowchart_data) {
+            if (global.debug) console.writeln("updatePreviewIdReset ", id, " keep_zoom ", keep_zoom);
             preview_keep_zoom = keep_zoom;
             var win = ImageWindow.windowById(id);
             updatePreviewWinTxt(win, id, histogramInfo);
@@ -1366,6 +1372,7 @@ function updatePreviewIdReset(id, keep_zoom, histogramInfo)
 
 function setPreviewIdReset(id, keep_zoom, histogramInfo)
 {
+      if (global.debug) console.writeln("setPreviewIdReset ", id, " keep_zoom ", keep_zoom);
       updatePreviewIdReset(id, keep_zoom, histogramInfo);
 }
 
@@ -1497,8 +1504,8 @@ function updatePreviewNoImageInControl(control)
 
 function updatePreviewNoImage()
 {
-      if (global.use_preview) {
-            if (par.debug.val) console.writeln("updatePreviewNoImage");
+      if (global.use_preview && previewControl != null) {
+            if (par.debug.val || global.debug) console.writeln("updatePreviewNoImage");
             updatePreviewNoImageInControl(previewControl);
             updatePreviewTxt("No preview");
             util.updateStatusInfoLabel("No preview");
@@ -2825,7 +2832,7 @@ function addTargetType(parent)
 {
       var lbl = new Label( parent );
       global.rootingArr.push(lbl);
-      lbl.text = "Target";
+      lbl.text = "Target type";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give target type.</p>" +
                     "<p>If target type is given then image stretching settings are selected automatically.</p>" +
@@ -3085,6 +3092,8 @@ function switchtoPreviewTab()
 
 function filesTreeBox(parent, optionsSizer, pageIndex)
 {
+      if (global.debug) console.writeln("filesTreeBox " + pageIndex);
+
       parent.treeBoxRootingArr[pageIndex] = [];
 
       /* Tree box to show files. */
@@ -3124,7 +3133,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                                     imageWindow.position = new Point(0, 0);
                               }
                         }
-                        if (par.debug.val) console.writeln("onCurrentNodeUpdated:read image name " + imageWindow.mainView.id);
+                        if (par.debug.val || global.debug) console.writeln("onCurrentNodeUpdated:read image name " + imageWindow.mainView.id);
                         if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:read " + (Date.now()-start_time)/1000 + " sec");
                         if (par.debug.val) start_time = Date.now();
                         if (files_TreeBox.currentNode.hasOwnProperty("ssweight")) {
@@ -3143,7 +3152,7 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                         }
                         var imageInfoTxt = "Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height +
                                              ssweighttxt + exptimetxt;
-                        if (par.debug.val) console.writeln("onCurrentNodeUpdated:imageInfoTxt " + imageInfoTxt);
+                        if (par.debug.val || global.debug) console.writeln("onCurrentNodeUpdated:imageInfoTxt " + imageInfoTxt);
                         if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:properties " + (Date.now()-start_time)/1000 + " sec");
                         if (par.debug.val) start_time = Date.now();
                         if (!global.use_preview) {
@@ -4372,6 +4381,8 @@ function AutoIntegrateDialog()
 
       this.global = global;
 
+      if (global.debug) console.writeln("AutoIntegrateDialog: constructor");
+
       this.windowTitle = "AutoIntegrate";
 
       this.onClose = function() {
@@ -4410,7 +4421,8 @@ function AutoIntegrateDialog()
                                           updatePreviewTxt: updatePreviewTxt,
                                           updatePreviewNoImage: updatePreviewNoImage,
                                           createCombinedMosaicPreviewWin: createCombinedMosaicPreviewWin,
-                                          updatePreviewWin: updatePreviewWin
+                                          updatePreviewWin: updatePreviewWin,
+                                          updatePreviewWinTxt: updatePreviewWinTxt,
                                     }
                               );
       enhancements_gui = this.enhancements_gui;
@@ -6574,7 +6586,7 @@ function AutoIntegrateDialog()
 
       /* RGBNB mapping.
        */
-            var RGBNB_tooltip = 
+      var RGBNB_tooltip = 
             "<p>" +
             "A special processing is used for narrowband to (L)RGB image " +
             "mapping. It is used to enhance (L)RGB channels with narrowband data. " + 
@@ -7951,6 +7963,7 @@ function AutoIntegrateDialog()
       this.mainTabsSizer.spacing = 4;
 
       if (global.use_preview && !ppar.preview.use_large_preview && ppar.preview.side_preview_visible) {
+            if (global.debug) console.writeln("Adding side preview to main tabs sizer");
             this.sidePreviewSizer = new VerticalSizer;
             this.sidePreviewSizer.margin = 6;
             this.sidePreviewSizer.spacing = 4;
@@ -8003,6 +8016,7 @@ function AutoIntegrateDialog()
       //this.sizer1.margin = 6;
       //this.sizer1.spacing = 4;
       if (global.use_preview && ppar.preview.use_large_preview && ppar.preview.side_preview_visible) {
+            if (global.debug) console.writeln("Adding side preview to main tabs sizer");
             this.sidePreviewSizer = new VerticalSizer;
             this.sidePreviewSizer.margin = 6;
             this.sidePreviewSizer.spacing = 4;
@@ -8081,7 +8095,7 @@ function AutoIntegrateDialog()
             }
       }
       if (ppar.preview.use_preview) {
-            if (par.debug.val) console.writeln("updatePreviewNoImage, side_preview");
+            if (par.debug.val || global.debug) console.writeln("updatePreviewNoImage, side_preview");
             updatePreviewNoImageInControl(previewControl);
             console.writeln("Screen size " + screen_size +  
                             ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
@@ -8621,3 +8635,5 @@ this.closeAllPrefixButton = closeAllPrefixButton;
 }  /* AutoIntegrateGUI*/
 
 AutoIntegrateGUI.prototype = new Object;
+
+#endif /* AUTOINTEGRATEGUI_JS */

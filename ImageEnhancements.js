@@ -17,8 +17,12 @@
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/StdCursor.jsh>
 
+#ifndef NO_SOLVER_LIBRARY
 #define NO_SOLVER_LIBRARY
+#endif
+#ifndef AUTOINTEGRATE_STANDALONE
 #define AUTOINTEGRATE_STANDALONE
+#endif
 
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
@@ -30,6 +34,9 @@
 // =============================================================================
 //  Dummy flowchart routines
 // =============================================================================
+
+#ifndef AUTOINTEGRATEDUMMYFLOWCHART
+#define AUTOINTEGRATEDUMMYFLOWCHART
 
 function AutoIntegrateDummyFlowchart()
 {
@@ -51,6 +58,8 @@ function AutoIntegrateDummyFlowchart()
 }
 
 AutoIntegrateDummyFlowchart.prototype = new Object;
+
+#endif /* AUTOINTEGRATEDUMMYFLOWCHART */
 
 // =============================================================================
 //  DIALOG WITH PREVIEW
@@ -81,6 +90,15 @@ function ImageEnhancementsDialog() {
     util.initStandalone();
 
    // -------------------------------------------------------------------------
+   // Status
+   // -------------------------------------------------------------------------
+
+   this.statusLabel = new Label(this);
+   this.statusLabel.text = "";
+   this.statusLabel.textAlignment = TextAlign_Center;
+   this.statusLabel.styleSheet = "color: #AAAAAA;";
+
+   // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
@@ -100,7 +118,7 @@ function ImageEnhancementsDialog() {
     function updatePreviewNoImage()
     {
         if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewNoImage");
-        this.statusLabel.text = "No image available for preview.";
+        self.statusLabel.text = "No image available for preview.";
     }
 
     function updatePreviewTxt(txt)
@@ -111,7 +129,13 @@ function ImageEnhancementsDialog() {
     function updatePreviewWin(imgWin)
     {
         if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.UpdateImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+        self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+    }
+
+    function updatePreviewWinTxt(imgWin, txt)
+    {
+        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        updatePreviewWin(imgWin);
     }
 
     var preview_functions = {
@@ -120,7 +144,8 @@ function ImageEnhancementsDialog() {
         updatePreviewTxt: updatePreviewTxt,
         updatePreviewNoImage: updatePreviewNoImage,
         createCombinedMosaicPreviewWin: null,
-        updatePreviewWin: updatePreviewWin
+        updatePreviewWin: updatePreviewWin,
+        updatePreviewWinTxt: updatePreviewWinTxt,
    };
 
    // -------------------------------------------------------------------------
@@ -189,15 +214,6 @@ function ImageEnhancementsDialog() {
     this.enhancementsGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
-   // Status
-   // -------------------------------------------------------------------------
-
-   this.statusLabel = new Label(this);
-   this.statusLabel.text = "";
-   this.statusLabel.textAlignment = TextAlign_Center;
-   this.statusLabel.styleSheet = "color: #AAAAAA;";
-
-   // -------------------------------------------------------------------------
    // Buttons
    // -------------------------------------------------------------------------
 
@@ -251,6 +267,8 @@ ImageEnhancementsDialog.prototype = new Dialog;
 //  MAIN ENTRY POINT
 // =============================================================================
 
+#ifndef AUTOINTEGRATE_NO_MAIN
+
 function main() {
    console.show();
 
@@ -259,3 +277,5 @@ function main() {
 }
 
 main();
+
+#endif  // AUTOINTEGRATE_NO_MAIN
