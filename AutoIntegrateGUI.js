@@ -1,7 +1,6 @@
 /*
         AutoIntegrate GUI components.
 
-
 Interface functions:
 
     See end of the file.
@@ -13,7 +12,7 @@ Interface objects:
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Window name prefix and icon location code
 

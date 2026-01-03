@@ -5,7 +5,7 @@ This is the main engine for AutoIntegrate script.
 
 Interface functions, see at the end of the module.
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Crop to common area code
 

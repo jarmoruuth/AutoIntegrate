@@ -1,6 +1,18 @@
-//
-// GUI utility functions for AutoIntegrate script
-//
+/*
+        GUI utility functions for AutoIntegrate script
+
+Interface functions:
+
+    See end of the file.
+
+Interface objects:
+
+    AutoIntegrateGUITools
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
+
+*/
 
 #ifndef AUTOINTEGRATEGUITOOLS_JS
 #define AUTOINTEGRATEGUITOOLS_JS

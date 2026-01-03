@@ -1,7 +1,7 @@
 /*
     AutoIntegrate Global variables.
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Crop to common area code
 

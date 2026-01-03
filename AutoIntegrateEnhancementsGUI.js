@@ -1,6 +1,16 @@
 /*
+      AutoIntegrate image enhancements module. Previously called extra processing.
 
-    AutoIntegrate image enhancements module. Previously called extra processing.
+Interface functions:
+
+    See end of the file.
+
+Interface objects:
+
+    AutoIntegrateEnhancementsGUI
+
+This product is based on software from the PixInsight project, developed
+by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
