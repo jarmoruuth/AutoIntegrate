@@ -135,6 +135,7 @@ var par = global.par;
 var ppar = global.ppar;
 
 this.apply_completed_callback = null;
+this.target_image_selected_callback = null;
 
 var Foraxx_palette_values = [ 'SHO', 'HOO' ];
 
@@ -152,7 +153,6 @@ var preview_control = null;
 
 var adjust_type_values = [ 'Lights', 'Darks', 'All' ];
 var star_reduce_methods = [ 'None', 'Transfer', 'Halo', 'Star' ];
-var enhancements_gradient_correction_values = [ 'Auto', 'ABE', 'DBE', 'GradientCorrection', 'GraXpert' ];
 var normalize_channels_reference_values = [ 'R', 'G', 'B' ];
 var rotate_degrees_values = [ '90', '180', '-90' ];
 
@@ -808,8 +808,6 @@ function createEnhancementsControls(parent)
 
       self.fix_narrowband_star_color_CheckBox = guitools.newCheckBox(parent, "Fix star colors", par.fix_narrowband_star_color, 
             "<p>Fix magenta color on stars typically seen with SHO color palette. If all green is not removed from the image then a mask use used to fix only stars.</p>" );
-      // self.narrowband_less_green_hue_shift_CheckBox = guitools.newCheckBox(parent, "Hue shift for less green", par.run_less_green_hue_shift, 
-      //       "<p>Do hue shift to shift green color to the yellow color. Useful with SHO color palette.</p>" );
       self.narrowband_orange_hue_shift_CheckBox = guitools.newCheckBox(parent, "Hue shift for more orange", par.run_orange_hue_shift, 
             "<p>Do hue shift to enhance orange color. Useful with SHO color palette.</p>" );
       self.narrowband_hue_shift_CheckBox = guitools.newCheckBox(parent, "Hue shift for SHO", par.run_hue_shift, 
@@ -998,19 +996,16 @@ function createEnhancementsControls(parent)
       self.enhancements_backgroundneutralization_CheckBox = guitools.newCheckBox(parent, "Background neutralization", par.enhancements_backgroundneutralization, 
             "<p>Run background neutralization to the image.</p>" );
 
+#ifndef AUTOINTEGRATE_STANDALONE
       self.enhancements_GC_CheckBox = guitools.newCheckBox(parent, "Gradient correction", par.enhancements_GC, 
             "<p>Do gradient correction to the image using the selected gradient correction method.</p>" );
-      self.enhancements_GC_values_ComboBox = guitools.newComboBox(parent, par.enhancements_GC_method, enhancements_gradient_correction_values, 
-            "<p>Gradient correction method to be used.</p>"
-#ifndef AUTOINTEGRATE_STANDALONE
-            + "<p>Auto uses the selected gradient correction method from <i>Setting</i> tab.</p>"
-#endif
-      );
+      self.enhancements_GC_values_Sizer = guitools.createGradientCorrectionChoiceSizer(parent);
       self.enhancements_GC_Sizer = new HorizontalSizer;
       self.enhancements_GC_Sizer.spacing = 4;
       self.enhancements_GC_Sizer.add( self.enhancements_GC_CheckBox );
-      self.enhancements_GC_Sizer.add( self.enhancements_GC_values_ComboBox );
+      self.enhancements_GC_Sizer.add( self.enhancements_GC_values_Sizer );
       self.enhancements_GC_Sizer.addStretch();
+#endif
 
       self.enhancementsBandinReduction_CheckBox = guitools.newCheckBox(parent, "Banding reduction", par.enhancements_banding_reduction, 
             "<p>Run banding reduction on the image.</p>" );
@@ -1566,7 +1561,9 @@ function createEnhancementsControls(parent)
       self.enhancements1.add( self.enhancements_smoothBackground_Sizer );
       self.enhancements1.add( self.enhancementsBandinReduction_CheckBox );
       self.enhancements1.add( self.enhancements_backgroundneutralization_CheckBox );
+#ifndef AUTOINTEGRATE_STANDALONE
       self.enhancements1.add( self.enhancements_GC_Sizer );
+#endif // AUTOINTEGRATE_STANDALONE
       self.enhancements1.add( self.enhancements_shadowclip_Sizer );
       self.enhancements1.add( self.enhancementsDarkerBackground_CheckBox );
       self.enhancements1.add( self.enhancementsDarkerHighlights_CheckBox );
@@ -1639,93 +1636,8 @@ function createEnhancementsControls(parent)
       self.narrowbandColorizationControl.visible = false;
 }
 
-function createTargetImageSizer(parent)
+function enhancementsApplyButtononClick()
 {
-      if (global.debug) console.writeln("createTargetImageSizer");
-
-      self.enhancementsImageLabel = new Label( parent );
-      self.enhancementsImageLabel.text = "Target image";
-      self.enhancementsImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
-      self.enhancementsImageLabel.toolTip = "<p>Target image for editing. By default edits are applied on a copy of the target image. Copied " + 
-            "is named as <target image>_edit.</p>" +
-            "<p>Auto option is used when enhancements are done with Run or AutoContinue option.</p>";
-      self.enhancementsImageComboBox = new ComboBox( parent );
-      var minItemCharWidthStr = "testxyz_Integration_RGB_processed_12"; // long name to have enough width for image names
-      self.enhancementsImageComboBox.minItemCharWidth = minItemCharWidthStr.length;
-      self.enhancementsImageComboBox.onItemSelected = function( itemIndex )
-      {
-            if (global.enhancements_target_image_id == enhancements_target_image_window_list[itemIndex]) {
-                  return;
-            }
-            if (global.debug) console.writeln("enhancementsImageComboBox:selected target image index: " + itemIndex);
-            close_undo_images();
-            global.enhancements_target_image_id = enhancements_target_image_window_list[itemIndex];
-            if (global.debug) console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
-            if (global.enhancements_target_image_id == "Auto" || global.enhancements_target_image_id == null) {
-                  preview.updatePreviewNoImage();
-                  enhancements_gui_info.save_button.enabled = false;
-            } else {
-                  preview.setPreviewIdReset(global.enhancements_target_image_id, false);
-                  enhancements_gui_info.save_button.enabled = true;
-            }
-      };
-      enhancements_gui_info.images_combobox = self.enhancementsImageComboBox;
-
-      update_enhancements_target_image_window_list(null);
-
-      if (enhancements_target_image_window_list.length == 0 ||
-          enhancements_target_image_window_list[0] == "Auto" ) 
-      {
-            global.enhancements_target_image_id = null;
-            preview.updatePreviewNoImage();
-      } else {
-            global.enhancements_target_image_id = enhancements_target_image_window_list[0];
-            preview.setPreviewIdReset(global.enhancements_target_image_id, false);
-      }
-
-      self.enhancementsLoadTargetImageButton = new ToolButton( parent );
-      self.enhancementsLoadTargetImageButton.icon = parent.scaledResource(":/icons/select-file.png");
-      self.enhancementsLoadTargetImageButton.toolTip = "<p>Select file as target image.</p>";
-      self.enhancementsLoadTargetImageButton.setScaledFixedSize( 20, 20 );
-      self.enhancementsLoadTargetImageButton.onClick = function()
-      {
-            var ofd = new OpenFileDialog;
-            ofd.multipleSelections = false;
-            if (!ofd.execute()) {
-                  console.writeln("No file selected.");
-                  return;
-            }
-            var imageWindows = ImageWindow.open(ofd.fileName);
-            if (imageWindows == null || imageWindows.length == 0) {
-                  console.criticalln("Could not open image " + ofd.fileName);
-                  return;
-            }
-            var imageWindow = imageWindows[0];
-            if (imageWindow == null) {
-                  console.criticalln("Could not open image " + ofd.fileName);
-                  return;
-            }
-            imageWindow.show();
-            console.writeln("Opened image " + ofd.fileName);
-            close_undo_images();
-            console.writeln("updatePreviewWinTxt");
-            preview.updatePreviewWinTxt(imageWindow, File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName));
-            console.writeln("util.updateStatusInfoLabel");
-            util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
-            global.enhancements_target_image_id = imageWindow.mainView.id;
-            console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
-            enhancements_gui_info.save_button.enabled = true;
-            update_enhancements_target_image_window_list(global.enhancements_target_image_id);
-      };
-
-      var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
-      self.enhancementsApplyButton = new PushButton( parent );
-      self.enhancementsApplyButton.text = "Apply";
-      self.enhancementsApplyButton.toolTip = 
-            "<p>Apply enhancements edits on the copy of the selected image. Auto option is used when enhancements are done with Run or AutoContinue option.</p>" +
-            notetsaved_note;
-      self.enhancementsApplyButton.onClick = function()
-      {
             if (global.enhancements_target_image_id == null) {
                   console.criticalln("No target image selected!");
             } else if (!util.is_enhancements_option() && !util.is_narrowband_option()) {
@@ -1784,6 +1696,102 @@ function createTargetImageSizer(parent)
                         self.apply_completed_callback(apply_ok);
                   }
             }
+}
+
+function createTargetImageSizer(parent)
+{
+      if (global.debug) console.writeln("createTargetImageSizer");
+
+      self.enhancementsImageLabel = new Label( parent );
+      self.enhancementsImageLabel.text = "Target image";
+      self.enhancementsImageLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      self.enhancementsImageLabel.toolTip = "<p>Target image for editing. By default edits are applied on a copy of the target image. Copied " + 
+            "is named as <target image>_edit.</p>" +
+            "<p>Auto option is used when enhancements are done with Run or AutoContinue option.</p>";
+      self.enhancementsImageComboBox = new ComboBox( parent );
+      var minItemCharWidthStr = "testxyz_Integration_RGB_processed_12"; // long name to have enough width for image names
+      self.enhancementsImageComboBox.minItemCharWidth = minItemCharWidthStr.length;
+      self.enhancementsImageComboBox.onItemSelected = function( itemIndex )
+      {
+            if (global.enhancements_target_image_id == enhancements_target_image_window_list[itemIndex]) {
+                  return;
+            }
+            if (global.debug) console.writeln("enhancementsImageComboBox:selected target image index: " + itemIndex);
+            close_undo_images();
+            global.enhancements_target_image_id = enhancements_target_image_window_list[itemIndex];
+            if (self.target_image_selected_callback != null) {
+                  self.target_image_selected_callback(global.enhancements_target_image_id);
+            }
+            if (global.debug) console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
+            if (global.enhancements_target_image_id == "Auto" || global.enhancements_target_image_id == null) {
+                  preview.updatePreviewNoImage();
+                  enhancements_gui_info.save_button.enabled = false;
+            } else {
+                  preview.setPreviewIdReset(global.enhancements_target_image_id, false);
+                  enhancements_gui_info.save_button.enabled = true;
+            }
+      };
+      enhancements_gui_info.images_combobox = self.enhancementsImageComboBox;
+
+      update_enhancements_target_image_window_list(null);
+
+      if (enhancements_target_image_window_list.length == 0 ||
+          enhancements_target_image_window_list[0] == "Auto" ) 
+      {
+            global.enhancements_target_image_id = null;
+            preview.updatePreviewNoImage();
+      } else {
+            global.enhancements_target_image_id = enhancements_target_image_window_list[0];
+            preview.setPreviewIdReset(global.enhancements_target_image_id, false);
+      }
+      if (self.target_image_selected_callback != null) {
+            self.target_image_selected_callback(global.enhancements_target_image_id);
+      }
+
+      self.enhancementsLoadTargetImageButton = new ToolButton( parent );
+      self.enhancementsLoadTargetImageButton.icon = parent.scaledResource(":/icons/select-file.png");
+      self.enhancementsLoadTargetImageButton.toolTip = "<p>Select file as target image.</p>";
+      self.enhancementsLoadTargetImageButton.setScaledFixedSize( 20, 20 );
+      self.enhancementsLoadTargetImageButton.onClick = function()
+      {
+            var ofd = new OpenFileDialog;
+            ofd.multipleSelections = false;
+            if (!ofd.execute()) {
+                  console.writeln("No file selected.");
+                  return;
+            }
+            var imageWindows = ImageWindow.open(ofd.fileName);
+            if (imageWindows == null || imageWindows.length == 0) {
+                  console.criticalln("Could not open image " + ofd.fileName);
+                  return;
+            }
+            var imageWindow = imageWindows[0];
+            if (imageWindow == null) {
+                  console.criticalln("Could not open image " + ofd.fileName);
+                  return;
+            }
+            imageWindow.show();
+            console.writeln("Opened image " + ofd.fileName);
+            close_undo_images();
+            console.writeln("updatePreviewWinTxt");
+            preview.updatePreviewWinTxt(imageWindow, File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName));
+            console.writeln("util.updateStatusInfoLabel");
+            util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
+            global.enhancements_target_image_id = imageWindow.mainView.id;
+            console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
+            enhancements_gui_info.save_button.enabled = true;
+            update_enhancements_target_image_window_list(global.enhancements_target_image_id);
+      };
+
+      var notetsaved_note = "<p>Note that edited image is not automatically saved to disk.</p>";
+      self.enhancementsApplyButton = new PushButton( parent );
+      self.enhancementsApplyButton.text = "Apply";
+      self.enhancementsApplyButton.toolTip = 
+            "<p>Apply enhancements edits on the copy of the selected image. Auto option is used when enhancements are done with Run or AutoContinue option.</p>" +
+            notetsaved_note;
+      self.enhancementsApplyButton.onClick = function()
+      {
+            enhancementsApplyButtononClick();
       };   
 
       self.enhancementsUndoButton = new ToolButton( parent );
@@ -1985,6 +1993,8 @@ this.createEnhancementsGUIControls = createEnhancementsGUIControls;
 this.update_enhancements_target_image_window_list = update_enhancements_target_image_window_list;
 this.close_undo_images = close_undo_images;
 this.setPreviewControl = setPreviewControl;
+
+this.enhancementsApplyButtononClick = enhancementsApplyButtononClick;   // For testing purposes
 
 }
 

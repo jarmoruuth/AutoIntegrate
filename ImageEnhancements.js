@@ -65,7 +65,7 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function ImageEnhancementsDialog() {
+function AutoIntegrateImageEnhancementsDialog() {
     this.__base__ = Dialog;
     this.__base__();
 
@@ -104,37 +104,37 @@ function ImageEnhancementsDialog() {
 
     function setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
         self.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
     }
 
     function updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewIdReset: id = " + id);
         updatePreviewWin(ImageWindow.windowById(id));
     }
 
     function updatePreviewNoImage()
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewNoImage");
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewNoImage");
         self.statusLabel.text = "No image available for preview.";
     }
 
     function updatePreviewTxt(txt)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewTxt: " + txt);
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewTxt: " + txt);
     }
 
     function updatePreviewWin(imgWin)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
         self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
     }
 
     function updatePreviewWinTxt(imgWin, txt)
     {
-        if (debug) console.writeln("ImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWinTxt: imgWin = " + imgWin);
         updatePreviewWin(imgWin);
     }
 
@@ -181,13 +181,13 @@ function ImageEnhancementsDialog() {
     this.toolsControl = guitools.createImageToolsControl(this);
     this.toolsControl.visible = false;
 
-    this.GraXperPathSizer = guitools.createGraXperPathSizer(this);
+    this.GraXpertPathSizer = guitools.createGraXpertPathSizer(this);
 
     this.GraXpertPathControl = new Control( this );
     this.GraXpertPathControl.sizer = new HorizontalSizer;
     this.GraXpertPathControl.sizer.margin = 6;
     this.GraXpertPathControl.sizer.spacing = 4;
-    this.GraXpertPathControl.sizer.add( this.GraXperPathSizer );
+    this.GraXpertPathControl.sizer.add( this.GraXpertPathSizer );
     this.GraXpertPathControl.sizer.addStretch();
     this.GraXpertPathControl.visible = false;
 
@@ -202,7 +202,7 @@ function ImageEnhancementsDialog() {
    // Enhancements Group Box
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("ImageEnhancementsDialog:: creating enhancementsGroupBox");
+    if (global.debug) console.writeln("AutoIntegrateImageEnhancementsDialog:: creating enhancementsGroupBox");
 
     this.enhancementsGroupBox = guitools.newGroupBoxSizer(this);
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.targetImageControl, "Target image for enhancements", "EnhancementsTarget");
@@ -261,7 +261,7 @@ function ImageEnhancementsDialog() {
    this.sizer.add(this.rightSizer);
 }
 
-ImageEnhancementsDialog.prototype = new Dialog;
+AutoIntegrateImageEnhancementsDialog.prototype = new Dialog;
 
 // =============================================================================
 //  MAIN ENTRY POINT
@@ -272,7 +272,7 @@ ImageEnhancementsDialog.prototype = new Dialog;
 function main() {
    console.show();
 
-   var dialog = new ImageEnhancementsDialog();
+   var dialog = new AutoIntegrateImageEnhancementsDialog();
    dialog.execute();
 }
 

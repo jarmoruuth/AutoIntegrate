@@ -7934,7 +7934,7 @@ function runABEex(win, replaceTarget, postfix, skip_flowchart, degree = null, no
       var P = new AutomaticBackgroundExtractor;
       P.correctedImageId = GC_id;
       P.replaceTarget = replaceTarget;
-      P.discardModel = true;
+      P.discardModel = par.GC_output_background_model.val ? false : true;
       if (correction == 'Subtraction') {
             P.targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
       } else if (correction == 'Division') {
@@ -8011,7 +8011,7 @@ function runGCProcess(win, replaceTarget, postfix, from_lights)
       P.generateProtectionMasks = false;
       P.useSimplification = par.gc_simplified_model.val;
       P.simplificationDegree = par.gc_simplified_model_degree.val;
-      P.generateGradientModel = par.gc_output_background_model.val;
+      P.generateGradientModel = par.GC_output_background_model.val;
 
       if (par.debug.val) {
             util.copyWindowEx(win, win.mainView.id + "_GC_before", true);
@@ -8129,7 +8129,7 @@ function runMultiscaleGradientCorrectionProcess(win)
       P.scaleFactorRK = par.mgc_scale_factor.val;
       P.scaleFactorG = par.mgc_scale_factor.val;
       P.scaleFactorB = par.mgc_scale_factor.val;
-      P.showGradientModel = par.mgc_output_background_model.val;
+      P.showGradientModel = par.GC_output_background_model.val;
 
       if (par.debug.val) {
             util.copyWindowEx(win, win.mainView.id + "_MGC_before", true);
@@ -8164,14 +8164,20 @@ function runMultiscaleGradientCorrection(win, replaceTarget, postfix, from_light
             win = util.copyWindowEx(win, GC_id, true);
       }
 
-      /* If BlurXTerminator is available, we run it first in correct only mode.
-       * Then we run SpectrophotometricFluxCalibration. Actual MultiscaleGradientCorrection
-       * is run as the last step.
-       */
-      if (par.use_blurxterminator.val) {
-            runBlurXTerminator(win, true);      
+
+      if (!imageIsAlreadySolved(win)) {
+#ifdef AUTOINTEGRATE_STANDALONE
+            util.throwFatalError("Image " + win.mainView.id + " is not plate solved. Please run PlateSolveProcess first.");
+#endif
+            /* If BlurXTerminator is available, we run it first in correct only mode.
+             * Then we run SpectrophotometricFluxCalibration. Actual MultiscaleGradientCorrection
+             * is run as the last step.
+             */
+            if (par.use_blurxterminator.val) {
+                  runBlurXTerminator(win, true);      
+            }
+            runImageSolver(win.mainView.id);
       }
-      runImageSolver(win.mainView.id);
       runSpectrophotometricFluxCalibration(win);
       if (runMultiscaleGradientCorrectionProcess(win)) {
             return GC_id;
@@ -10396,7 +10402,7 @@ function runDBEprocess(imgWin, image_samples)
       P.modelSampleFormat = DynamicBackgroundExtraction.prototype.f32;
       P.targetCorrection = DynamicBackgroundExtraction.prototype.Subtract;
       P.normalize = par.dbe_normalize.val;
-      P.discardModel = false;
+      P.discardModel = par.GC_output_background_model.val ? false : true;
       P.replaceTarget = true;
       P.correctedImageId = "";
       P.correctedImageSampleFormat = DynamicBackgroundExtraction.prototype.SameAsTarget;
@@ -10979,6 +10985,11 @@ function printImageSolverMetadata(solver)
       console.writeln("solverCfg.restrictToHQStars: " + solver.solverCfg.restrictToHQStars);
       console.writeln("solverCfg.tryApparentCoordinates: " + solver.solverCfg.tryApparentCoordinates);
       console.writeln("solverCfg.tryExhaustiveInitialAlignment: " + solver.solverCfg.tryExhaustiveInitialAlignment);
+}
+
+function imageIsAlreadySolved(imgWin)
+{
+      return imgWin.astrometricSolutionSummary().length > 0;
 }
 
 function runImageSolverEx(id, use_defaults, use_dialog, xpixsz_multiplier)

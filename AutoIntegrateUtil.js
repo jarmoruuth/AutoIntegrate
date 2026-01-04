@@ -1969,7 +1969,6 @@ function is_enhancements_option()
 function is_narrowband_option()
 {
       return par.fix_narrowband_star_color.val ||
-             par.run_less_green_hue_shift.val ||
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_foraxx_mapping.val ||
@@ -2059,6 +2058,17 @@ function setParameterDefaults()
                   if (param.reset != undefined) {
                         param.reset();
                   }
+            }
+      }
+}
+
+function recordParam(param)
+{
+      if (global.debug) {
+            if (param.used) {
+                  console.criticalln("Error:recordParam: parameter " + JSON.stringify(param) + " already used");
+            } else {
+                  param.used = true;
             }
       }
 }
@@ -3020,6 +3030,7 @@ this.saveJsonFile = saveJsonFile;
 this.is_enhancements_option = is_enhancements_option;
 this.is_narrowband_option = is_narrowband_option;
 this.setParameterDefaults = setParameterDefaults;
+this.recordParam = recordParam;
 this.writeParameterToSettings = writeParameterToSettings;
 this.readParameterFromSettings = readParameterFromSettings;
 this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings

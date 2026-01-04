@@ -1,5 +1,5 @@
 // ****************************************************************************
-// ImageStretching — Standalone version of AutoIntegrate image stretching
+// GradientCorrection — Standalone version of AutoIntegrate gradient correction
 // ****************************************************************************
 
 #feature-id    AutoIntegrate  > Image Stretching
@@ -32,7 +32,7 @@
 #include "AutoIntegratePreview.js"
 
 // =============================================================================
-//  Dummy self.flowchart routines
+//  Dummy flowchart routines
 // =============================================================================
 
 #ifndef AUTOINTEGRATEDUMMYFLOWCHART
@@ -65,7 +65,7 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function AutoIntegrateImageStretchingDialog() {
+function AutoIntegrateGradientCorrectionDialog() {
     this.__base__ = Dialog;
     this.__base__();
 
@@ -73,7 +73,7 @@ function AutoIntegrateImageStretchingDialog() {
 
     var debug = true;
 
-    this.TITLE = "Image Stretching";
+    this.TITLE = "Gradient Correction";
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
@@ -92,47 +92,73 @@ function AutoIntegrateImageStretchingDialog() {
     // These can be saved using the AutoIntegrate script.
     this.util.initStandalone();
 
-    // We do stretching here so we set the value to true
-    this.global.par.enhancements_stretch.val = true;
+    // We do gradient correction here so we set the value to true
+    this.global.par.enhancements_GC.val = true;
+
+    // Store original image for reset functionality
+    this.previewImage = null;
+    this.autoSTFPreviewImage = null;
+    this.autoSTF = true;
+    this.previewTxt = "[Preview Image]";
 
    // -------------------------------------------------------------------------
    // Preview functions
    // -------------------------------------------------------------------------
 
+    function setPreviewImage()
+    {
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewImage");
+        if (self.autoSTF) {
+            self.previewControl.SetImage(self.autoSTFPreviewImage, self.previewTxt);
+        } else {
+            self.previewControl.SetImage(self.previewImage, self.previewTxt);
+        }
+    }
+
     function setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewIdReset: id = " + id);
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
-        self.previewControl.SetImage(win.mainView.image, win.mainView.id + " [Preview]");
+        updatePreviewWinTxt(win, win.mainView.id + " [Preview]");
     }
 
     function updatePreviewIdReset(id, keep_zoom, histogramInfo)
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewIdReset: id = " + id);
-        updatePreviewWin(ImageWindow.windowById(id));
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewIdReset: id = " + id);
+        updatePreviewWinTxt(ImageWindow.windowById(id));
     }
 
     function updatePreviewNoImage()
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewNoImage");
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewNoImage");
         self.statusLabel.text = "No image available for preview.";
     }
 
     function updatePreviewTxt(txt)
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewTxt: " + txt);
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewTxt: " + txt);
     }
 
     function updatePreviewWin(imgWin)
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWin: imgWin = " + imgWin);
+        updatePreviewWinTxt(imgWin);
     }
 
-    function updatePreviewWinTxt(imgWin, txt)
+    function updatePreviewWinTxt(imgWin, txt = null)
     {
-        if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        updatePreviewWin(imgWin);
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWinTxt: imgWin = " + imgWin);
+        if (txt == null) {
+            txt = imgWin.mainView.id + " [Preview]";
+        }
+        self.previewTxt = txt;
+        self.previewImage = imgWin.mainView.image;
+        // make a stretched copy of the image for AutoSTF preview
+        var tempWindow = self.util.copyWindowEx(imgWin, "tmp_preview_window", true);
+        self.engine.autoStretch(tempWindow);
+        self.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
+        tempWindow.forceClose();
+        setPreviewImage();
     }
 
     var preview_functions = {
@@ -149,11 +175,27 @@ function AutoIntegrateImageStretchingDialog() {
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", self.engine, self.util, self.global, 600, 400, false);
+    this.autoSTFCheckBox = new CheckBox(this);
+    this.autoSTFCheckBox.text = "AutoSTF";
+    this.autoSTFCheckBox.toolTip = "Automatically apply Screen Transfer Function (STF) to preview image.";
+    this.autoSTFCheckBox.checked = true;
+    this.autoSTFCheckBox.onCheck = function(checked) {
+        self.autoSTF = checked;
+        // Update preview
+        setPreviewImage();
+    };
+
+    this.previewButtonsSizer = new HorizontalSizer;
+    this.previewButtonsSizer.spacing = 4;
+    this.previewButtonsSizer.addStretch();
+    this.previewButtonsSizer.add(this.autoSTFCheckBox);
+
+   this.previewControl = new AutoIntegratePreviewControl(this, "gradient_correction_preview", self.engine, self.util, self.global, 600, 400, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
    this.leftSizer.add(this.previewControl, 400);
+   this.leftSizer.add(this.previewButtonsSizer, 400);
 
    // -------------------------------------------------------------------------
    // Status
@@ -174,55 +216,72 @@ function AutoIntegrateImageStretchingDialog() {
    this.titleLabel.styleSheet = "font-size: 14pt; font-weight: bold; color: #4488FF;";
 
    this.subtitleLabel = new Label(this);
-   this.subtitleLabel.text = "Select image and apply stretching";
+   this.subtitleLabel.text = "Select image and apply gradient correction";
    this.subtitleLabel.textAlignment = TextAlign_Center;
    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
 
     this.enhancements_gui = new AutoIntegrateEnhancementsGUI(this, self.guitools, self.util, self.global, self.engine, preview_functions);
 
-    this.stretchingChoiceSizer = self.guitools.createStrechingChoiceSizer(this, null);
-    this.stretchingChoiceGroupBox = new GroupBox(this);
-    this.stretchingChoiceGroupBox.title = "Stretching type";
-    this.stretchingChoiceGroupBox.sizer = this.stretchingChoiceSizer;
+   // -------------------------------------------------------------------------
+   // Gradient correction method
+   // -------------------------------------------------------------------------
 
+    this.gradientCorrectionChoiceSizer = self.guitools.createGradientCorrectionChoiceSizer(this, "Gradient correction method:");
+    this.gradientCorrectionChoiceGroupBox = new GroupBox(this);
+    this.gradientCorrectionChoiceGroupBox.title = "Gradient correction method";
+    this.gradientCorrectionChoiceGroupBox.sizer = this.gradientCorrectionChoiceSizer;
+
+   // -------------------------------------------------------------------------
+   // Target image
+   // -------------------------------------------------------------------------
+
+    this.enhancements_gui.target_image_selected_callback = function(target_image_id) {
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: target_image_selected_callback: target_image_id = " + target_image_id);
+        self.guitools.exclusionAreasTargetImageName = target_image_id;
+    }
     this.targetImageSizer = this.enhancements_gui.createTargetImageSizer(this);
     this.enhancements_gui.apply_completed_callback = function(apply_ok) {
-        // We do stretching here so we set the value to true
+        // We do gradient correction here so we set the value to true
         // With reset option it may have been reset to false (default)
-        self.global.par.enhancements_stretch.val = true;
+        self.global.par.enhancements_GC.val = true;
     };
     this.targetImageGroupBox = new GroupBox(this);
     this.targetImageGroupBox.title = "Target image";
     this.targetImageGroupBox.sizer = this.targetImageSizer;
 
-    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine);
+   // -------------------------------------------------------------------------
+   // Gradient correction Settings
+   // -------------------------------------------------------------------------
 
-    this.stretchingSettingsControl = new Control( this );
-    this.stretchingSettingsControl.sizer = new HorizontalSizer;
-    this.stretchingSettingsControl.sizer.margin = 6;
-    this.stretchingSettingsControl.sizer.spacing = 4;
-    this.stretchingSettingsControl.sizer.add( this.stretchingSettingsSizer );
-    this.stretchingSettingsControl.sizer.addStretch();  
-    this.stretchingSettingsControl.visible = true;
+    this.createGradientCorrectionSizer = self.guitools.createGradientCorrectionSizer(this);
+    this.createGraXpertGradientCorrectionSizer = self.guitools.createGraXpertGradientCorrectionSizer(this);
+
+    this.gradientCorrectionSettingsControl = new Control( this );
+    this.gradientCorrectionSettingsControl.sizer = new VerticalSizer;
+    this.gradientCorrectionSettingsControl.sizer.margin = 6;
+    this.gradientCorrectionSettingsControl.sizer.spacing = 4;
+    this.gradientCorrectionSettingsControl.sizer.add( this.createGradientCorrectionSizer );
+    this.gradientCorrectionSettingsControl.sizer.add( this.createGraXpertGradientCorrectionSizer );
+    this.gradientCorrectionSettingsControl.sizer.addStretch();  
+    this.gradientCorrectionSettingsControl.visible = true;
 
    // -------------------------------------------------------------------------
    // Load and save JSON controls
    // -------------------------------------------------------------------------
 
-   var obj = self.guitools.newJsonSizerObj(this, null, "ImageStretchingSettings.json");
+   var obj = self.guitools.newJsonSizerObj(this, null, "GradientCorrectionSettings.json");
    this.loadSaveSizer = obj.sizer;
 
    // -------------------------------------------------------------------------
    // Stretching Group Box
    // -------------------------------------------------------------------------
 
-    if (self.global.debug) console.writeln("AutoIntegrateImageStretchingDialog:: creating stretchingGroupBox");
+    if (self.global.debug) console.writeln("AutoIntegrateGradientCorrectionDialog:: creating gradientCorrectionGroupBox");
 
-    this.stretchingGroupBox = self.guitools.newGroupBoxSizer(this);
-    // self.guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
-    this.stretchingGroupBox.title = "Settings";
-    this.stretchingGroupBox.sizer.add(this.stretchingSettingsControl);
-    this.stretchingGroupBox.sizer.addStretch();
+    this.gradientCorrectionGroupBox = self.guitools.newGroupBoxSizer(this);
+    this.gradientCorrectionGroupBox.title = "Settings";
+    this.gradientCorrectionGroupBox.sizer.add(this.gradientCorrectionSettingsControl);
+    this.gradientCorrectionGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------
    // Buttons
@@ -259,8 +318,8 @@ function AutoIntegrateImageStretchingDialog() {
    this.rightSizer.add(this.statusLabel);
    this.rightSizer.add(this.loadSaveSizer);
    this.rightSizer.add(this.targetImageGroupBox);
-   this.rightSizer.add(this.stretchingChoiceGroupBox);
-   this.rightSizer.add(this.stretchingGroupBox);
+   this.rightSizer.add(this.gradientCorrectionChoiceGroupBox);
+   this.rightSizer.add(this.gradientCorrectionGroupBox);
    this.rightSizer.add(this.buttonsSizer);
 
    // -------------------------------------------------------------------------
@@ -274,7 +333,7 @@ function AutoIntegrateImageStretchingDialog() {
    this.sizer.add(this.rightSizer);
 }
 
-AutoIntegrateImageStretchingDialog.prototype = new Dialog;
+AutoIntegrateGradientCorrectionDialog.prototype = new Dialog;
 
 // =============================================================================
 //  MAIN ENTRY POINT
@@ -285,7 +344,7 @@ AutoIntegrateImageStretchingDialog.prototype = new Dialog;
 function main() {
    console.show();
 
-   var dialog = new AutoIntegrateImageStretchingDialog();
+   var dialog = new AutoIntegrateGradientCorrectionDialog();
    dialog.execute();
 }
 

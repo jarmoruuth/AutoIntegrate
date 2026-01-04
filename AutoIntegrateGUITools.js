@@ -17,6 +17,8 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEGUITOOLS_JS
 #define AUTOINTEGRATEGUITOOLS_JS
 
+#include "AutoIntegrateExclusionArea.js"
+
 function AutoIntegrateGUITools( parent, global, util, engine )
 {
 
@@ -33,6 +35,22 @@ this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
 this.histogram_stretch_type_values = [ 'Median', 'Peak' ];
 this.STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
 var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
+var graxpert_correction_values = [ 'Subtraction', 'Division' ];
+var ABE_correction_values = [ 'Subtraction', 'Division' ];
+var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
+
+this.exclusionAreasComboBox = null;             // For updating exclusion image list
+this.exclusionAreasTargetImageName = "Auto";    // Current exclusion image
+this.exclusion_area_image_window_list = null;
+this.exclusionAreaCountLabel = null;
+
+this.current_preview = {
+      image: null,
+      txt: null,
+      image_versions: [],     // 0 = original image, 1 = stretched image
+      imgWin: null,           // Sometimes we keep preview window, but often can be null
+      resampled: false
+};
 
 this.Foraxx_credit = "Foraxx and Dynamic palettes, credit https://thecoldestnights.com/2020/06/PixInsight-dynamic-narrowband-combinations-with-pixelmath/";
 this.unscreen_tooltip = "<p>Use unscreen method to get stars image as described by Russell Croman.</p>" +
@@ -57,9 +75,18 @@ this.adjust_type_toolTip = "<ul>" +
 this.clippedPixelsToolTip = "<p>Show clipped pixels in the preview image.</p>" + 
                               "<p>Pixels with value 0 are shown as black, pixels with value 1 are shown as white. Other pixels are shown as gray.</p>";
 
+#ifdef AUTOINTEGRATE_STANDALONE
+this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image must be plate solved. Optionally SpectrophotometricFluxCalibration is run automatically for the image.</p>" +
+                   "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
+                   "</p>";
+#else
 this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image solving and SpectrophotometricFluxCalibration are run automatically for the image.</p>" +
-                   "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. In that case the script reverts to another " + 
-                   "gradient correction method. If other gradient correction methods are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection<./p>";
+                   "<p>MultiscaleGradientCorrection may fail if the image is not part of the sky area in the MARS database. " + 
+                   "In that case the script reverts to another gradient correction method. If other gradient correction methods " + 
+                   "are checked then they are selected in the following order: GraXpert, ABE, DBE, GradientCorrection." + 
+                   "</p>";
+#endif
+
 this.BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
 this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to Json file.</p>";   
 
@@ -136,14 +163,18 @@ this.stretchingTootip =
             ""
             ;
 
-function newVerticalSizer(margin, add_stretch, items)
+function newVerticalSizer(margin, add_stretch, items, spacing)
 {
       var sizer = new VerticalSizer;
       sizer.textAlignment = TextAlign_Left | TextAlign_VertCenter;
       if (margin > 0) {
             sizer.margin = margin;
       }
-      sizer.spacing = 4;
+      if (spacing != null) {
+            sizer.spacing = spacing;
+      } else {
+            sizer.spacing = 4;
+      }
       for (var i = 0; i < items.length; i++) {
             sizer.add(items[i]);
       }
@@ -204,6 +235,7 @@ function newHorizontalSizer(margin, add_stretch, items, spacing)
        cb.aiParam.reset = function() {
              cb.checked = cb.aiParam.val;
        };
+       util.recordParam(param);
  
        return cb;
  }
@@ -212,10 +244,11 @@ function newHorizontalSizer(margin, add_stretch, items, spacing)
  {
        return newCheckBoxEx(parent, checkboxText, param, toolTip, null, updatedCallback);
  }
- function newGenericCheckBox( parent, checkboxText, param, val, toolTip, onClick )
+
+ function newPparCheckBox( parent, checkboxText, pparam, val, toolTip, onClick )
  {
        var cb = new CheckBox( parent );
-       cb.aiParam = param;
+       cb.aiParam = pparam;
        cb.text = checkboxText;
        cb.checked = val;
        cb.onClick = onClick;
@@ -274,13 +307,14 @@ function newTextEdit(parent, param, tooltip)
       edt.aiParam.reset = function() {
             edt.text = edt.aiParam.val;
       };
+      util.recordParam(param);
       return edt;
 }
 
-function newGenericTextEdit(parent, param, val, tooltip, onTextUpdated)
+function newPparTextEdit(parent, pparam, val, tooltip, onTextUpdated)
 {
       var edt = new Edit( parent );
-      edt.aiParam = param;
+      edt.aiParam = pparam;
       edt.onTextUpdated = onTextUpdated;
       edt.text = val;
       edt.toolTip = util.formatToolTip(tooltip);
@@ -309,6 +343,7 @@ function newNumericEditPrecision(parent, txt, param, min, max, tooltip, precisio
             }
       };
       edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      util.recordParam(param);
       return edt;
 }
 
@@ -353,6 +388,7 @@ function newNumericControlPrecision(parent, txt, param, min, max, tooltip, preci
             }
       };
       edt.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      util.recordParam(param);
       return edt;
 }
 
@@ -387,16 +423,17 @@ function newSpinBox(parent, param, min, max, tooltip)
       edt.aiParam.reset = function() {
             edt.value = edt.aiParam.val;
       };
+      util.recordParam(param);
 
       return edt;
 }
 
-function newGenericSpinBox(parent, param, val, min, max, tooltip, onValueUpdated)
+function newPparSpinBox(parent, pparam, val, min, max, tooltip, onValueUpdated)
 {
       var edt = new SpinBox( parent );
       edt.minValue = min;
       edt.maxValue = max;
-      edt.aiParam = param;
+      edt.aiParam = pparam;
       edt.value = val;
       edt.toolTip = util.formatToolTip(tooltip);
       edt.onValueUpdated = onValueUpdated;
@@ -429,6 +466,7 @@ function newComboBox(parent, param, valarray, tooltip, updatedCallback = null)
       cb.aiParam.reset = function() {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val);
       }
+      util.recordParam(param);
       
       return cb;
 }
@@ -448,6 +486,7 @@ function newComboBoxIndex(parent, param, valarray, tooltip)
       cb.aiParam.reset = function() {
             cb.currentItem = cb.aiParam.val;
       }
+      util.recordParam(param);
       
       return cb;
 }
@@ -467,6 +506,7 @@ function newComboBoxStrvalsToInt(parent, param, valarray, tooltip)
       cb.aiParam.reset = function() {
             cb.currentItem = cb.aiValarray.indexOf(cb.aiParam.val.toString());
       }
+      util.recordParam(param);
       
       return cb;
 }
@@ -486,6 +526,7 @@ function newComboBoxpalette(parent, param, valarray, tooltip)
       cb.aiParam.reset = function() {
             cb.editText = cb.aiParam.val;
       }
+      util.recordParam(param);
       return cb;
 }
 
@@ -574,7 +615,7 @@ function newSectionBarAddArray(parent, groupbox, title, name, objarray)
       return { section: sb, control: ProcessingControl };
 }
 
-function createGraXperPathSizer(parent)
+function createGraXpertPathSizer(parent)
 {
       var graxpertPathLabel = newLabel(parent, "Path", 
             "<p>Path to GraXpert executable.</p>" +
@@ -614,9 +655,10 @@ function createImageToolsControl(parent)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createImageToolsControl");
 
+#ifndef AUTOINTEGRATE_STANDALONE
       if (global.is_gc_process) {
             var use_abe_CheckBox = newCheckBox(parent, "ABE", par.use_abe, 
-            "<p>Use AutomaticBackgroundExtractor (ABE) instead of GradientCorrection process to correct gradients in images.</p>" +
+            "<p>Run AutomaticBackgroundExtractor (ABE) to correct gradients in images.</p>" +
             "</p>By default no gradient correction is done. To use ABE for gradient correction you need to also check one of " +
             "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>" +
             "<p>Settings for ABE are in <i>Postprocessing / ABE settings</i> section.</p>");
@@ -635,10 +677,11 @@ function createImageToolsControl(parent)
                   "<p>Settings for MultiscaleGradientCorrection are in <i>Postprocessing / Gradient correction</i> section.</p>" +
                   "<p>Note that you need to set up MARS database settings using the PixInsight MultiscaleGradientCorrection process before " +
                   "using this option.</p>" +
-                  this.MGCToolTip);
+                  self.MGCToolTip);
       }
+#endif // AUTOINTEGRATE_STANDALONE
 
-      var use_StarXTerminator_CheckBox = newCheckBox(parent, "StarXTerminator", par.use_starxterminator, 
+      self.use_StarXTerminator_CheckBox = newCheckBox(parent, "StarXTerminator", par.use_starxterminator, 
             "<p>Use StarXTerminator to remove stars from an image.</p>" +
             "<p>You can change some StarXTerminator settings in the <i>Tools / StarXTerminator</i> section.</p>" );
       var use_noisexterminator_CheckBox = newCheckBox(parent, "NoiseXTerminator", par.use_noisexterminator, 
@@ -659,6 +702,11 @@ function createImageToolsControl(parent)
             "But it is always good to experiment what " +
             "is best for your own data.</p>" + 
             "<p>" + this.BXT_no_PSF_tip + "</p>");
+
+var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
+                    "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
+
+#ifndef AUTOINTEGRATE_STANDALONE
       if (global.is_gc_process) {
             var use_graxpert_toolTip = "<p>Use GraXpert instead of GradientCorrection process to correct gradients in images.</p>";
       } else {
@@ -667,14 +715,13 @@ function createImageToolsControl(parent)
       use_graxpert_toolTip += "</p>By default no gradient correction is done. To use GraXpert for gradient correction you need to also check one of " +
                               "the gradient correction options in the <i>Settings / Image processing parameters</i> section.</p>";
       
-      var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the <i>Tools / GraXpert</i> section before it can be used.</p>" +
-                          "<p><b>NOTE2!</b> You need to manually start GraXpert once to ensure that the correct AI model is loaded into your computer.</p>";
-
       var use_graxpert_CheckBox = newCheckBox(parent, "GraXpert gradient", par.use_graxpert, 
             use_graxpert_toolTip + 
             "<p>GraXpert always uses the AI background model. In the <i>Tools / GraXpert</i> section " +
             "it is possible to set some settings.</p>" +
             GraXpert_note);
+#endif // AUTOINTEGRATE_STANDALONE
+
       var use_graxpert_denoise_CheckBox = newCheckBox(parent, "GraXpert denoise", par.use_graxpert_denoise, 
             "<p>Use GraXpert for noise reduction.</p>" +
             "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
@@ -684,6 +731,8 @@ function createImageToolsControl(parent)
             "<p>Use GraXpert deconvolution for stellar and non-stellar sharpening.</p>" +
             "<p>In the <i>Tools / GraXpert</i> section it is possible to set some settings.</p>" +
             GraXpert_note);
+
+#ifndef AUTOINTEGRATE_STANDALONE
       // Tools set 1, gradient correction
       var imageToolsSet1SectionLabel = newSectionLabel(parent, "Gradient correction");
       imageToolsSet1SectionLabel.toolTip = "<p>Select tools for gradient correction if you do not want to use the default gradient correction.</p>";
@@ -702,6 +751,7 @@ function createImageToolsControl(parent)
       }
       imageToolsSet1.add( use_graxpert_CheckBox );
       imageToolsSet1.addStretch();
+#endif // AUTOINTEGRATE_STANDALONE
 
       // Tools set 2, noise removal
       var imageToolsSet2SectionLabel = newSectionLabel(parent, "Noise removal");
@@ -724,7 +774,7 @@ function createImageToolsControl(parent)
       imageToolsSet3.margin = 6;
       imageToolsSet3.spacing = 4;
       imageToolsSet3.add( imageToolsSet3SectionLabel );
-      imageToolsSet3.add( use_StarXTerminator_CheckBox );
+      imageToolsSet3.add( self.use_StarXTerminator_CheckBox );
       imageToolsSet3.add( use_starnet2_CheckBox );
       imageToolsSet3.addStretch();
 
@@ -745,10 +795,12 @@ function createImageToolsControl(parent)
       imageToolsControl.sizer = new HorizontalSizer;
       imageToolsControl.sizer.margin = 6;
       imageToolsControl.sizer.spacing = 4;
-      imageToolsControl.sizer.add( imageToolsSet1 );
-      imageToolsControl.sizer.add( imageToolsSet2 );
-      imageToolsControl.sizer.add( imageToolsSet3 );
-      imageToolsControl.sizer.add( imageToolsSet4 );
+#ifndef AUTOINTEGRATE_STANDALONE
+      imageToolsControl.sizer.add( imageToolsSet1 );  // Tools set 1, gradient correction
+#endif
+      imageToolsControl.sizer.add( imageToolsSet2 );  // Tools set 2, noise removal
+      imageToolsControl.sizer.add( imageToolsSet3 );  // Tools set 3, star removal
+      imageToolsControl.sizer.add( imageToolsSet4 );  // Tools set 4, deconvolution/sharpening
       imageToolsControl.sizer.addStretch();
 
       return imageToolsControl;
@@ -761,7 +813,7 @@ function createStrechingChoiceSizer(parent, update_parameter_dependencies_callba
             update_parameter_dependencies_callback(parent);
       }
 
-      var stretchingLabel = newLabel(parent, "Stretching", self.stretchingTootip, true);
+      self.stretchingLabel = newLabel(parent, "Stretching", self.stretchingTootip, true);
 
       var stretchingHelpTips = new ToolButton( parent );
       stretchingHelpTips.icon = parent.scaledResource( ":/icons/help.png" );
@@ -772,7 +824,7 @@ function createStrechingChoiceSizer(parent, update_parameter_dependencies_callba
             new MessageBox(self.stretchingTootip, "Stretching", StdIcon_Information).execute();
       }
 
-      self.stretchingSizer = newHorizontalSizer(4, true, [ stretchingLabel, self.stretchingComboBox ]);
+      self.stretchingSizer = newHorizontalSizer(4, true, [ self.stretchingLabel, self.stretchingComboBox ]);
       self.stretchingSizer.addStretch();
       self.stretchingSizer.add( stretchingHelpTips );
 
@@ -1225,23 +1277,272 @@ function newJsonSizerObj(parent, loadJsonFileCallback, json_filename = null)
       return { sizer: self.jsonSizer, label: self.jsonLabel };
 }
 
+function createGradientCorrectionChoiceSizer(parent, label_txt = null)
+{
+      if (global.debug) console.writeln("AutoIntegrateGUITools::createGradientCorrectionChoiceSizer");
+
+      if (label_txt != null) {
+            self.GC_choice_Label = newLabel( parent, "Gradient correction method", "<p>Gradient correction method to be used.</p>" );
+      }
+      self.GC_values_ComboBox = newComboBox(parent, par.enhancements_GC_method, global.enhancements_gradient_correction_values, 
+            "<p>Gradient correction method to be used.</p>"
+      );
+      self.GC_choice_Sizer = new HorizontalSizer;
+      self.GC_choice_Sizer.spacing = 4;
+      self.GC_choice_Sizer.margin = 6;
+      if (label_txt != null) {
+            self.GC_choice_Sizer.add( self.GC_choice_Label );
+      }
+      self.GC_choice_Sizer.add( self.GC_values_ComboBox );
+      self.GC_choice_Sizer.addStretch();
+
+      return self.GC_choice_Sizer;
+}
+
+function getExclusionsAreas() 
+{
+      console.writeln("Exclusion areas: " + JSON.stringify(global.exclusion_areas));
+      var tmpname = "AutoIntegrateExclusionAreas";
+      util.closeOneWindowById(tmpname);
+      if (self.exclusionAreasTargetImageName == "Auto") {
+            console.writeln("Exclusion areas target image is set to Auto, using the current image.");
+            if (self.current_preview.image == null) {
+                  console.criticalln("Exclusion areas target preview image is not set, cannot use Auto.");
+                  return;
+            }
+            console.writeln("Preview image size " + self.current_preview.image.width + "x" + self.current_preview.image.height);
+            var win = util.createWindowFromImage(self.current_preview.image, tmpname, true);
+            if (win == null) {
+                  console.criticalln("Exclusion areas target preview image window not found for Auto");
+                  return;
+            }
+      } else {
+            console.writeln("Exclusion areas target image is set to: " + self.exclusionAreasTargetImageName);
+            var target_win = util.findWindow(self.exclusionAreasTargetImageName);
+            if (target_win == null) {
+                  console.criticalln("Exclusion areas target image window not found: " + self.exclusionAreasTargetImageName);
+                  return;
+            }
+            var win = util.copyWindow(target_win, tmpname);
+            if (win == null) {
+                  console.criticalln("Exclusion areas target image window not found: " + self.exclusionAreasTargetImageName);
+                  return;
+            }
+      }
+      if (engine.imageIsLinear(win)) {
+            console.writeln("Exclusion areas target image is linear, stretching the image.");
+            engine.autoStretch(win);
+      }
+
+      console.writeln("Opening Exclusion Area dialog for target image: " + self.exclusionAreasTargetImageName);
+      let exclusionAreaDialog = new AutoIntegrateExclusionArea(util);
+      if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
+      
+            var exclusion_areas = exclusionAreaDialog.getExclusionAreas();
+            if (self.current_preview.imgWin != null) {
+                  // We have saved original image window, scale exclusion areas to the original image size
+                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, self.current_preview.imgWin, false);
+            } else {
+                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, win, false);
+            }
+            self.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
+
+            console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
+      } else {
+            console.writeln("No changes");
+      }
+      util.closeOneWindow(win);
+}
+
+function createGradientCorrectionSizer(parent)
+{
+      if (global.debug) console.writeln("AutoIntegrateGUITools::createGradientCorrectionSizer");
+
+      this.GC_commonSettingsBoxLabel = newSectionLabel(parent, "Common settings");
+      this.GC_output_background_model_CheckBox = newCheckBox(parent, "Output background model", par.GC_output_background_model, "<p>If checked the background model is created.</p>");
+      this.GC_commonSettingsSizer = newVerticalSizer(6, true, [this.GC_commonSettingsBoxLabel, this.GC_output_background_model_CheckBox], 6);
+
+      /*
+            GradientCorrection settings
+      */
+      if (global.is_gc_process) {
+            this.gc_automatic_convergence_CheckBox = newCheckBox(parent, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
+            this.gc_scale_Edit = newNumericEdit(parent, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
+            this.gc_smoothness_Edit = newNumericEdit(parent, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
+            this.GCGroupBoxSizer1 = newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
+            
+            this.gc_structure_protection_CheckBox = newCheckBox(parent, "Structure Protection", par.gc_structure_protection, "<p>Prevent overcorrecting on image structures.</p>");
+            this.gc_protection_threshold_Edit = newNumericEdit(parent, "Protection threshold", par.gc_protection_threshold, 0, 1, "<p>Decreasing this value prevents overcorrecting dimmer structures.</p>");
+            this.gc_protection_amount_Edit = newNumericEdit(parent, "Protection amount", par.gc_protection_amount, 0.1, 1, "<p>Increasing this value prevents overcorrecting significant structures.</p>");
+            this.GCGroupBoxSizer2 = newVerticalSizer(2, true, [this.gc_structure_protection_CheckBox, this.gc_protection_threshold_Edit, this.gc_protection_amount_Edit]);
+
+            this.gc_simplified_model_CheckBox = newCheckBox(parent, "Simplified Model", par.gc_simplified_model, "<p>If checked use a simplified model that is extracted before multiscale model.</p>");
+            this.gc_simplified_model_degree_Label = newLabel(parent, "Simplified Model degree", "Model degree for simplified model.", true);
+            this.gc_simplified_model_degree_SpinBox = newSpinBox(parent, par.gc_simplified_model_degree, 1, 8, this.gc_simplified_model_degree_Label.toolTip);
+            this.gc_simplified_model_degree_Sizer = newHorizontalSizer(2, true, [this.gc_simplified_model_degree_Label, this.gc_simplified_model_degree_SpinBox]);
+            this.GCGroupBoxSizer3 = newVerticalSizer(2, true, [this.gc_simplified_model_CheckBox, this.gc_simplified_model_degree_Sizer]);
+
+            this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
+
+            this.GCGroupBoxLabel = newSectionLabel(parent, "GradientCorrection settings");
+            this.GCGroupBoxSizer = newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);
+      }
+
+      /*
+            MultiscaleGradientCorrection settings
+      */
+      if (global.is_mgc_process) {
+            this.mgc_scale_Label = newLabel(parent, "Gradient scale", "<p>Gradient model scale.</p>", true);
+            this.mgc_scale_ComboBox = newComboBox(parent, par.mgc_scale, mgc_scale_valuestxt, this.mgc_scale_Label.toolTip);
+            this.mgs_scale_factor_Edit = newNumericEditPrecision(parent, "Scale", par.mgc_scale_factor, 0.1, 10, "Scale factor for all channels.", 4);
+            this.mgc_strucure_separation_Label = newLabel(parent, "Structure separation", "Structure separation for MultiscaleGradientCorrection.", true);
+            this.mgc_strucure_separation_SpinBox = newSpinBox(parent, par.mgc_structure_separation, 1, 5, this.mgc_strucure_separation_Label.toolTip);
+            this.mgc_SpectrophotometricFluxCalibration_CheckBox = newCheckBox(parent, "SpectrophotometricFluxCalibration", par.mgc_SpectrophotometricFluxCalibration, "<p>If checked run SpectrophotometricFluxCalibration before MultiscaleGradientCorrection.</p>");
+      
+            this.MGCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgs_scale_factor_Edit, 
+                                                                  this.mgc_strucure_separation_Label, this.mgc_strucure_separation_SpinBox,], 12);
+            this.MGCGroupBoxSizer1 = newHorizontalSizer(6, true, [this.mgc_SpectrophotometricFluxCalibration_CheckBox ], 12);
+
+            this.MGCGroupBoxLabel = newSectionLabel(parent, "MultiscaleGradientCorrection settings");
+            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + self.MGCToolTip;
+            this.MGCGroupBoxSizer = newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0, this.MGCGroupBoxSizer1]);
+      }
+      
+      /*
+            ABE settings
+      */
+      this.ABEDegreeLabel = newLabel(parent, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
+      this.ABEDegreeSpinBox = newSpinBox(parent, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
+      this.ABECorrectionLabel = newLabel(parent, "Correction", "Correction method for ABE.", true);
+      this.ABECorrectionComboBox = newComboBox(parent, par.ABE_correction, ABE_correction_values, this.ABECorrectionLabel.toolTip);
+
+      this.ABEDegreeSizer = newHorizontalSizer(0, true, [this.ABEDegreeLabel, this.ABEDegreeSpinBox]);
+      this.ABECorrectionSizer = newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
+
+      this.ABEnormalize_CheckBox = newCheckBox(parent, "Normalize", par.ABE_normalize, "<p>If checked sets the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
+      
+      this.smoothBackgroundEdit = newNumericEditPrecision(parent, "| Smoothen background %", par.smoothbackground, 0, 100, 
+            "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
+            "smoothing. Smoothing is done before gradient correction.</p>" +
+            "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
+            "Zero values does not do smoothing.</p>" +
+            "<p>Smoothening should be used only in extreme cases with very uneven background " + 
+            "because a lot of shadow detail may get lost.</p>",
+            4);
+      this.smoothBackgroundSizer = new HorizontalSizer;
+      this.smoothBackgroundSizer.spacing = 4;
+      // this.smoothBackgroundSizer.margin = 2;
+      this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
+      this.smoothBackgroundSizer.addStretch();
+
+      this.ABEGroupBoxLabel = newSectionLabel(parent, "ABE settings");
+      this.ABEMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.ABEnormalize_CheckBox, this.smoothBackgroundSizer]);
+      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEMainSizer]);
+
+      /*
+            DBE settings
+      */
+      this.dbe_use_background_neutralization_CheckBox = newCheckBox(parent, "Background neutralization", par.dbe_use_background_neutralization, "<p>If checked background neutralization is run before DBE on color images.</p>");
+      this.dbe_use_abe_CheckBox = newCheckBox(parent, "ABE", par.dbe_use_abe, "<p>If checked ABE with degree one is run before DBE.</p>");
+      this.dbe_normalize_CheckBox = newCheckBox(parent, "Normalize", par.dbe_normalize, "<p>If checked sets the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
+      this.dbe_samples_per_row_Label = newLabel(parent, "Samples per row/col", "Number of sample points placed for each row and column.", true);
+      this.dbe_samples_per_row_SpinBox = newSpinBox(parent, par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
+      this.dbe_min_weight_Edit = newNumericEdit(parent, "Min weight", par.dbe_min_weight, 0, 1, "<p>Minimum sample weight to be included in the samples.");
+
+      this.DBESizer1 = newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, 
+                                                    this.dbe_normalize_CheckBox ]);
+      this.DBESizer11 = newHorizontalSizer(2, true, [this.dbe_samples_per_row_Label, this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
+
+#ifndef AUTOINTEGRATE_STANDALONE
+      this.exclusionAreaImageLabel = newLabel(parent, "Image:");
+      this.exclusionAreasComboBox = new ComboBox( parent );
+      this.exclusionAreasComboBox.minItemCharWidth = 20;
+      this.exclusionAreasComboBox.onItemSelected = function( itemIndex )
+      {
+            self.exclusionAreasTargetImageName = self.exclusion_area_image_window_list[itemIndex];
+      };
+#endif
+
+      this.exclusionAreasButton = new PushButton( parent );
+      this.exclusionAreasButton.text = "Exclusion areas";
+      this.exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
+      this.exclusionAreasButton.onClick = function() 
+      {
+            try {
+                  getExclusionsAreas();
+            } catch (e) {
+                  console.criticalln("Exclusion areas: " + e);
+            }
+      };
+      this.exclusionAreaCountLabel = newLabel(parent, "Count: " + global.exclusion_areas.polygons.length);
+
+#ifdef AUTOINTEGRATE_STANDALONE
+      this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel ]);
+#else
+      this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
+#endif
+
+      this.DBEGroupBoxLabel = newSectionLabel(parent, "DBE settings");
+      this.DBEMainSizer = newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer11, this.DBESizer2 ]);
+      this.DBEGroupBoxSizer = newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
+
+      /*
+            Final sizer.
+      */
+      var processes = [];
+      processes.push(this.GC_commonSettingsSizer);
+      if (global.is_gc_process) {
+            processes.push(this.GCGroupBoxSizer);
+      }
+      processes.push(this.ABEGroupBoxSizer);
+      processes.push(this.DBEGroupBoxSizer);
+      if (global.is_mgc_process) {
+            processes.push(this.MGCGroupBoxSizer);
+      }
+
+      this.GCStarXSizer = newVerticalSizer(0, true, processes);
+
+      return this.GCStarXSizer;
+}
+
+function createGraXpertGradientCorrectionSizer(parent)
+{
+      if (global.debug) console.writeln("AutoIntegrateGUITools::createGraXpertGradientCorrectionSizer");
+
+      this.graxpertCorrectionLabel = newLabel(parent, "Gradient correction", "Correction method for GraXpert.", true);
+      this.graxpertCorrectionComboBox = newComboBox(parent, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
+      this.graxpertSmoothingEdit = newNumericEdit(parent, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert gradient correction.");
+      this.graxpertGradientCorrectionSizer1 = newHorizontalSizer(2, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox, this.graxpertSmoothingEdit]);
+
+#ifdef AUTOINTEGRATE_STANDALONE
+      this.GraXpertPathSizer = createGraXpertPathSizer(parent)
+      this.graxpertGradientCorrectionLabel = newSectionLabel(parent, "GraXpert settings");
+      this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionLabel, this.graxpertGradientCorrectionSizer1, this.GraXpertPathSizer]);
+#else
+      this.graxpertGradientCorrectionLabel = newSectionLabel(parent, "Gradient correction settings");
+      this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionLabel, this.graxpertGradientCorrectionSizer1]);
+#endif
+      
+      return this.graxpertGradientCorrectionSizer;
+}
+      
 this.newVerticalSizer = newVerticalSizer;
 this.newHorizontalSizer = newHorizontalSizer;
 this.newCheckBox = newCheckBox;
 this.newCheckBoxEx = newCheckBoxEx;
-this.newGenericCheckBox = newGenericCheckBox;
+this.newPparCheckBox = newPparCheckBox;
 this.newGroupBox = newGroupBox;
 this.newSectionLabel = newSectionLabel;
 this.newLabel = newLabel;
 this.newTextEdit = newTextEdit;
-this.newGenericTextEdit = newGenericTextEdit;
+this.newPparTextEdit = newPparTextEdit;
 this.newNumericEdit = newNumericEdit;
 this.newNumericEditPrecision = newNumericEditPrecision;
 this.newRGBNBNumericEdit = newRGBNBNumericEdit;
 this.newNumericControl2 = newNumericControl2;
 this.newNumericControl3 = newNumericControl3;
 this.newSpinBox = newSpinBox;
-this.newGenericSpinBox = newGenericSpinBox;
+this.newPparSpinBox = newPparSpinBox;
 this.newComboBox = newComboBox;
 this.newComboBoxIndex = newComboBoxIndex;
 this.addArrayToComboBox = addArrayToComboBox;
@@ -1253,14 +1554,17 @@ this.newSectionBarAdd = newSectionBarAdd;
 this.newSectionBarAddArray = newSectionBarAddArray;
 
 this.createImageToolsControl = createImageToolsControl;
-this.createGraXperPathSizer = createGraXperPathSizer;
+this.createGraXpertPathSizer = createGraXpertPathSizer;
 this.createStrechingChoiceSizer = createStrechingChoiceSizer;
 this.createStretchingSettingsSizer = createStretchingSettingsSizer;
 this.createNarrowbandCustomPaletteSizer = createNarrowbandCustomPaletteSizer;
 this.newJsonSizerObj = newJsonSizerObj;
+this.createGradientCorrectionChoiceSizer = createGradientCorrectionChoiceSizer;
+this.createGradientCorrectionSizer = createGradientCorrectionSizer;
+this.createGraXpertGradientCorrectionSizer = createGraXpertGradientCorrectionSizer;
 
 }
 
-AutoIntegrateGUITools.prototype = new Object;
+AutoIntegrateprototype = new Object;
 
 #endif // AUTOINTEGRATEGUITOOLS_JS

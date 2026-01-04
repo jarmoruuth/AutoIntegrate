@@ -64,7 +64,7 @@ AutoIntegrateDummyFlowchart.prototype = new Object;
 //  DIALOG WITH PREVIEW
 // =============================================================================
 
-function NarrowbandCombinationsDialog() {
+function AutoIntegrateNarrowbandCombinationsDialog() {
     this.__base__ = Dialog;
     this.__base__();
 
@@ -101,7 +101,7 @@ function NarrowbandCombinationsDialog() {
 
     function setPreviewImage(image)
     {
-        if (debug) console.writeln("NarrowbandCombinationsDialog::setPreviewImage");
+        if (debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog::setPreviewImage");
         self.previewControl.SetImage(image, "[Preview]");
     }
 
@@ -380,7 +380,7 @@ function NarrowbandCombinationsDialog() {
    // Narrowband palette selection
    // -------------------------------------------------------------------------
 
-    if (global.debug) console.writeln("NarrowbandCombinationsDialog:: creating narrowbandCustomPaletteGroupBox");
+    if (global.debug) console.writeln("AutoIntegrateNarrowbandCombinationsDialog:: creating narrowbandCustomPaletteGroupBox");
 
     this.narrowbandCustomPaletteSizer = guitools.createNarrowbandCustomPaletteSizer(this);
 
@@ -455,7 +455,7 @@ function NarrowbandCombinationsDialog() {
    this.sizer.add(this.rightSizer);
 }
 
-NarrowbandCombinationsDialog.prototype = new Dialog;
+AutoIntegrateNarrowbandCombinationsDialog.prototype = new Dialog;
 
 // =============================================================================
 //  MAIN ENTRY POINT
@@ -466,7 +466,7 @@ NarrowbandCombinationsDialog.prototype = new Dialog;
 function main() {
    console.show();
 
-   var dialog = new NarrowbandCombinationsDialog();
+   var dialog = new AutoIntegrateNarrowbandCombinationsDialog();
    dialog.execute();
 }
 

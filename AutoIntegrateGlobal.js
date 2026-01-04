@@ -56,6 +56,8 @@ this.autointegrate_version_info = [
       "- Added Image Enhancements standalone script.",
       "- Added Image Stretching standalone script.",
       "- Added Narrowband Combinations standalone script.",
+      "- Added Gradient Correction standalone script.",
+      "- Removed VeraLux script, it is included in the Image Stretching script.",
       "- All scripts are in Script / AutoIntegrate menu.",
 ];
 
@@ -103,6 +105,14 @@ try {
       // No changes
 }
 
+this.enhancements_gradient_correction_values = [ 'Auto', 'ABE', 'DBE', 'GradientCorrection', 'GraXpert' ];
+
+#ifdef AUTOINTEGRATE_STANDALONE
+// Replace GradientCorrection with MultiscaleGradientCorrection for standalone version
+this.enhancements_gradient_correction_values[3] = "MultiscaleGradientCorrection";
+// Replace Auto with MultiscaleGradientCorrection for standalone version
+this.enhancements_gradient_correction_values[0] = "GradientCorrection";
+#endif
 
 // Available narrowband palettes.
 // Description of the fields
@@ -156,7 +166,7 @@ this.narrowbandAutoMapping = [
 
 
 // Set parameter value and check possible mappings
-this.setParameterValue = function(param, val) {
+function setParameterValue(param, val) {
       if (param.name == "Target type") {
             if (val == "Small bright nebula" || val == "Large nebula") {
                   param.val = "Nebula";
@@ -183,7 +193,6 @@ this.par = {
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },
       skip_subframeselector: { val: false, def: false, name : "No SubframeSelector", type : 'B', oldname : "SubframeSelector" },
-      strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
       staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
       staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
       staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
@@ -288,7 +297,7 @@ this.par = {
       nxt_denoise_lf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF", type : 'R' },
       nxt_frequency_scale: { val: 5, def: 5, name : "NoiseXTerminator frequency scale", type : 'R' },
       nxt_denoise_lf_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF color", type : 'R' },
-      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R' },   // Old
+      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R', deprecated: true },   // Old
 
       deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
       
@@ -316,7 +325,7 @@ this.par = {
       astrobin_C: { val: "", def: "", name : "AstroBin C", type : 'S', skip_reset: true },
 
       // Narrowband processing
-      narrowband_mapping: { val: this.narrowBandPalettes[0].name, def: this.narrowBandPalettes[0].name, name : "Narrowband mapping", type : 'S' },
+      narrowband_mapping: { val: this.narrowBandPalettes[0].name, def: this.narrowBandPalettes[0].name, name : "Narrowband mapping", type : 'S', used: true },
       custom_R_mapping: { val: this.narrowBandPalettes[0].R, def: this.narrowBandPalettes[0].R, name : "Narrowband R mapping", type : 'S' },
       custom_G_mapping: { val: this.narrowBandPalettes[0].G, def: this.narrowBandPalettes[0].G, name : "Narrowband G mapping", type : 'S' },
       custom_B_mapping: { val: this.narrowBandPalettes[0].B, def: this.narrowBandPalettes[0].B, name : "Narrowband B mapping", type : 'S' },
@@ -402,17 +411,18 @@ this.par = {
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Auto', def: 'Auto', name : "Linear fit", type : 'S' },
 
+      GC_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
+
       gc_scale: { val: 5, def: 5, name : "GC scale", type : 'R' },
       gc_smoothness: { val: 0.4, def: 0.4, name : "GC smoothness", type : 'R' },
       gc_automatic_convergence: { val: false, def: false, name : "GC automatic convergence", type : 'B' },
       gc_structure_protection: { val: true, def: true, name : "GC structure protection", type : 'B' },
       gc_protection_threshold: { val: 0.10, def: 0.10, name : "GC protection threshold", type : 'R' },
       gc_protection_amount: { val: 0.50, def: 0.50, name : "GC protection amount", type : 'R' },
-      gc_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
       gc_simplified_model: { val: false, def: false, name : "GC simplified model", type : 'B' },
       gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
       mgc_scale: { val: '1024', def: '1024', name : "MGC scale", type : 'S' },
-      mgc_output_background_model: { val: false, def: false, name : "MGC output background model", type : 'B' },
+      mgc_SpectrophotometricFluxCalibration: { val: true, def: true, name : "MGC Spectrophotometric Flux Calibration", type : 'B' },
       mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
       mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       
@@ -551,12 +561,11 @@ this.par = {
       enhancements_narrowband_mapping_source_palette: { val: "SHO", def: "SHO", name : "Enh narrowband mapping source palette", type : 'S', oldname: "Extra narrowband mapping source palette" },
       enhancements_narrowband_mapping_target_palette: { val: "HOS", def: "HOS", name : "Enh narrowband mapping target palette", type : 'S', oldname: "Extra narrowband mapping target palette" },
       run_orangeblue_colors: { val: false, def: false, name : "Enh orangeblue colors", type : 'B', oldname: "Extra orangeblue colors" },
-      run_less_green_hue_shift: { val: false, def: false, name : "Enh narrowband green hue shift", type : 'B', oldname: "Extra narrowband green hue shift" },
       run_orange_hue_shift: { val: false, def: false, name : "Enh narrowband more orange", type : 'B', oldname: "Extra narrowband more orange" },
       run_hue_shift: { val: false, def: false, name : "Enh narrowband hue shift", type : 'B', oldname: "Extra narrowband hue shift" },
 
       run_colorized_narrowband: { val: false, def: false, name : "Enh colorized narrowband", type : 'B', oldname: "Extra colorized narrowband" },
-      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images" },
+      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images", used: true },  // Debug only
       colorized_narrowband_preset: { val: "Default", def: "Default", name : "Enh colorized narrowband preset", type : 'S', oldname: "Extra colorized narrowband preset" },
       narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Enh colorized narrowband R hue", type : 'R', oldname: "Extra colorized narrowband R hue" },
       narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband R sat", type : 'R', oldname: "Extra colorized narrowband R sat" },
@@ -591,7 +600,7 @@ this.par = {
       enhancements_combine_stars_reduce_M: { val: 1, def: 1, name : "Enh combine stars reduce M", type : 'R', oldname: "Extra combine stars reduce M" },
       enhancements_backgroundneutralization: { val: false, def: false, name : "Enh background neutralization", type : 'B', oldname: "Extra background neutralization" },
       enhancements_GC: { val: false, def: false, name : "Enh GC", type : 'B', oldname: 'Extra ABE' },
-      enhancements_GC_method: { val: 'Auto', def: 'Auto', name : "Enh GC method", type : 'S', oldname: "Extra GC method" },
+      enhancements_GC_method: { val: this.enhancements_gradient_correction_values[0], def: this.enhancements_gradient_correction_values[0], name : "Enh GC method", type : 'S', oldname: "Extra GC method" },
       enhancements_banding_reduction: { val: false, def: false, name : "Enh banding reduction", type : 'B', oldname: "Extra banding reduction" },
       enhancements_darker_background: { val: false, def: false, name : "Enh Darker background", type : 'B', oldname: "Extra Darker background" },
       enhancements_darker_highlights: { val: false, def: false, name : "Enh Darker highlights", type : 'B', oldname: "Extra Darker highlights" },
@@ -692,7 +701,7 @@ this.par = {
       integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       flatdarks_add_manually: { val: false, def: false, name : "Add flat darks manually", type : 'B' },
-      skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
+      skip_blink: { val: false, def: false, name : "No blink", type : 'B', used: true },  // Only if not using preview
       auto_output_pedestal: { val: true, def: true, name : "Auto output pedestal", type : 'B' },
       output_pedestal: { val: 0, def: 0, name : "Output pedestal", type : 'B' },
       
@@ -967,7 +976,7 @@ this.final_windows = [
 
 this.test_image_ids = [];      // Test images
 
-this.getDirectoryInfo = function(simple_text) {
+function getDirectoryInfo(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
       var info = [
             "AutoProcessed contains processed final images. Also integrated images and log output is here.",
@@ -982,6 +991,22 @@ this.getDirectoryInfo = function(simple_text) {
       }
 }
 
+// Go through all parameters and report unused ones
+function reportUnusedParameters()
+{
+      if (!this.debug) {
+            return;
+      }
+      for (var key in this.par) {
+            if (this.par.hasOwnProperty(key)) {
+                  var p = this.par[key];
+                  if (!p.hasOwnProperty('used') && !p.deprecated) {
+                        console.criticalln("Error:Unused parameter: " + p.name);
+                  }
+            }
+      }
+}
+
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 this.testmode = false;                          // true if we are running in test mode
 this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
@@ -993,7 +1018,11 @@ if (this.autointegrate_version.indexOf("test") > 0) {
 }
 
 this.rootingArr = [];            // for rooting objects
-this.debug = false;              // true to enable debug output to console
+this.debug = false;              // true to enable debug output to console and additional debug checks
+
+this.getDirectoryInfo = getDirectoryInfo;
+this.setParameterValue = setParameterValue;
+this.reportUnusedParameters = reportUnusedParameters;
 
 }   /* AutoIntegrateGlobal*/
 

@@ -38,7 +38,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #include "../AdP/SearchCoordinatesDialog.js"
 #endif
 
-#include "AutoIntegrateExclusionArea.js"
 #include "AutoIntegrateMetricsVisualizer.js"
 #include "AutoIntegrateTutorial.js"
 #include "AutoIntegrateGUITools.js"
@@ -149,6 +148,8 @@ if (global.debug) console.writeln("AutoIntegrateGUI");
 var self = this;
 
 var guitools = new AutoIntegrateGUITools(this, global, util, engine);
+this.guitools = guitools;
+
 var enhancements_gui = null;
 
 var par = global.par;
@@ -160,7 +161,6 @@ var dialog_min_position = null;
 
 var infoLabel;
 var imageInfoLabel;
-var exclusionAreaCountLabel;
 var windowPrefixHelpTips;              // For updating tooTip
 var autoContinueWindowPrefixHelpTips; // For updating tooTip
 var closeAllPrefixButton;              // For updating toolTip
@@ -178,19 +178,8 @@ var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
 
-var current_preview = {
-      image: null,
-      txt: null,
-      image_versions: [],     // 0 = original image, 1 = stretched image
-      imgWin: null,           // Sometimes we keep preview window, but often can be null
-      resampled: false
-};
-
 var current_selected_file_name = null;
 var current_selected_file_filter = null;
-
-var exclusionAreasComboBox = null;        // For updating exclusion image list
-var exclusionAreasTargetImageName = "Auto";   // Current exclusion image
 
 var monochrome_text = "Monochrome: ";
 
@@ -221,8 +210,6 @@ var spcc_white_reference_values = [ 'Average Spiral Galaxy', 'Photon Flux' ];
 var target_binning_values = [ 'Auto', 'None',  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ];
 var target_drizzle_values = [ 'Auto', 'None',  '2', '4' ];
 var target_type_values = [ 'Default', 'Galaxy', 'Nebula', 'Star cluster' ];
-var ABE_correction_values = [ 'Subtraction', 'Division' ];
-var graxpert_correction_values = [ 'Subtraction', 'Division' ];
 var graxpert_batch_size_values = [ '1', '2', '4', '8', '16', '32' ];
 var RGBHa_preset_values = [ 'Combine Continuum Subtract', 'SPCC Continuum Subtract' ];
 var RGBHa_prepare_method_values = [ 'Continuum Subtract', 'Basic' ];
@@ -230,7 +217,6 @@ var RGBHa_combine_time_values = [ 'Stretched', 'SPCC linear' ];
 var RGBHa_combine_method_values = [ 'Bright structure add', 'Screen', 'Med subtract add', 'Max', 'Add', 'None' ];
 var color_calibration_time_values = [ 'auto', 'linear', 'nonlinear', 'both' ];
 var RGBHa_test_values = [ 'Mapping', 'Continuum', 'All mappings' ];
-var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
 var fast_mode_values = [ 'S', 'M' ];
 var drizzle_function_values = [ 'Square', 'Circular', 'Gaussian' ];
 
@@ -251,9 +237,9 @@ function update_enhancements_target_image_window_list(current_item)
       exclusion_area_image_window_list = enhancements_gui.update_enhancements_target_image_window_list(current_item);
 
       // Exclusion area image list is kept in sync with extra_target_image_window_list
-      exclusionAreasComboBox.clear();
+      guitools.exclusionAreasComboBox.clear();
       for (var i = 0; i < exclusion_area_image_window_list.length; i++) {
-            exclusionAreasComboBox.addItem( exclusion_area_image_window_list[i] );
+            guitools.exclusionAreasComboBox.addItem( exclusion_area_image_window_list[i] );
       }
 }
 
@@ -278,7 +264,7 @@ function flowchartUpdated()
       if (par.show_flowchart.val && !global.get_flowchart_data) {
             if (global.debug) console.writeln("flowchartUpdated");
             try {
-                  var obj = flowchart.flowchartGraph(global.flowchartData, current_preview.image, current_preview.txt);
+                  var obj = flowchart.flowchartGraph(global.flowchartData, guitools.current_preview.image, guitools.current_preview.txt);
                   if (obj) {
                         updatePreviewImage(previewControl, obj.image, obj.text, histogramControl, global.enhancements_target_histogram_info, true);
                   }
@@ -319,8 +305,8 @@ function generateNewFlowchartData(parent)
       }
 
       var succp = true;
-      current_preview.image = null;
-      current_preview.image_versions = [];
+      guitools.current_preview.image = null;
+      guitools.current_preview.image_versions = [];
 
       flowchart.flowchartReset();
 
@@ -447,9 +433,9 @@ function exitCleanup(dialog)
                   dialog.previewObj = null;
             }
       }
-      if (current_preview.imgWin != null) {
-            current_preview.imgWin.forceClose();
-            current_preview.imgWin = null;
+      if (guitools.current_preview.imgWin != null) {
+            guitools.current_preview.imgWin.forceClose();
+            guitools.current_preview.imgWin = null;
       }
       variableCleanup();
       util.checkEvents();
@@ -1215,18 +1201,18 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
             console.writeln("Preview image:" + imgWin.mainView.id + ", " + txt);
             if (par.debug.val) var start_time = Date.now();
-            if (current_preview.imgWin != null) {
-                  current_preview.imgWin.forceClose();
-                  current_preview.imgWin = null;
+            if (guitools.current_preview.imgWin != null) {
+                  guitools.current_preview.imgWin.forceClose();
+                  guitools.current_preview.imgWin = null;
             }
             if (imgWin_from_file == null) {
                   var copy_image = true;
             } else {
                   // Save possible imageWindow loaded from file
                   var copy_image = false;
-                  current_preview.imgWin = imgWin_from_file;
+                  guitools.current_preview.imgWin = imgWin_from_file;
             }
-            current_preview.resampled = resampled;
+            guitools.current_preview.resampled = resampled;
             if (par.debug.val || global.debug) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
             if (preview_size_changed) {
                   if (ppar.preview.side_preview_visible) {
@@ -1260,9 +1246,9 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:histogram " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (copy_image) {
-                  current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
+                  guitools.current_preview.image_versions[0] = { image: new Image( imgWin.mainView.image ), txt: txt };
             } else {
-                  current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt };
+                  guitools.current_preview.image_versions[0] = { image: imgWin.mainView.image, txt: txt };
             }
             if (run_autostf) {
                   // Image is linear, run AutoSTF
@@ -1273,25 +1259,25 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                         engine.autoStretch(copy_win);
                         imgWin = copy_win;
                         txt = txt + " (AutoSTF)";
-                        current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
-                        current_preview.image = current_preview.image_versions[1].image;
-                        current_preview.txt = current_preview.image_versions[1].txt;
+                        guitools.current_preview.image_versions[1] = { image: new Image( copy_win.mainView.image ), txt: txt };
+                        guitools.current_preview.image = guitools.current_preview.image_versions[1].image;
+                        guitools.current_preview.txt = guitools.current_preview.image_versions[1].txt;
                   } else {
                         if (par.debug.val) console.writeln("updatePreviewWinTxt:run_autostf, do not copy image");
-                        current_preview.image_versions[1] = current_preview.image_versions[0];
+                        guitools.current_preview.image_versions[1] = guitools.current_preview.image_versions[0];
                         var copy_win = null;
-                        current_preview.image = current_preview.image_versions[0].image;
-                        current_preview.txt = current_preview.image_versions[0].txt;
+                        guitools.current_preview.image = guitools.current_preview.image_versions[0].image;
+                        guitools.current_preview.txt = guitools.current_preview.image_versions[0].txt;
                         engine.autoStretch(imgWin);
                   }
             } else {
                   if (par.debug.val) console.writeln("updatePreviewWinTxt:no autostf");
-                  current_preview.image_versions[1] = current_preview.image_versions[0];
+                  guitools.current_preview.image_versions[1] = guitools.current_preview.image_versions[0];
                   var copy_win = null;
-                  current_preview.image = current_preview.image_versions[0].image;
-                  current_preview.txt = current_preview.image_versions[0].txt;
+                  guitools.current_preview.image = guitools.current_preview.image_versions[0].image;
+                  guitools.current_preview.txt = guitools.current_preview.image_versions[0].txt;
             }
-            if (par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + current_preview.image.width + "x" + current_preview.image.height);
+            if (par.debug.val) console.writeln("updatePreviewWinTxt: preview image size " + guitools.current_preview.image.width + "x" + guitools.current_preview.image.height);
             if (par.debug.val) console.writeln("--- updatePreviewWinTxt:autostf " + (Date.now()-start_time)/1000 + " sec");
             if (par.debug.val) start_time = Date.now();
             if (global.is_processing != global.processing_state.none) {
@@ -2350,61 +2336,6 @@ function metricsVisualizerFilters(parent)
       }
 }
 
-function getExclusionsAreas() 
-{
-      console.writeln("Exclusion areas: " + JSON.stringify(global.exclusion_areas));
-      var tmpname = "AutoIntegrateExclusionAreas";
-      util.closeOneWindowById(tmpname);
-      if (exclusionAreasTargetImageName == "Auto") {
-            console.writeln("Exclusion areas target image is set to Auto, using the current image.");
-            if (current_preview.image == null) {
-                  console.criticalln("Exclusion areas target preview image is not set, cannot use Auto.");
-                  return;
-            }
-            console.writeln("Preview image size " + current_preview.image.width + "x" + current_preview.image.height);
-            var win = util.createWindowFromImage(current_preview.image, tmpname, true);
-            if (win == null) {
-                  console.criticalln("Exclusion areas target preview image window not found for Auto");
-                  return;
-            }
-      } else {
-            console.writeln("Exclusion areas target image is set to: " + exclusionAreasTargetImageName);
-            var target_win = util.findWindow(exclusionAreasTargetImageName);
-            if (target_win == null) {
-                  console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
-                  return;
-            }
-            var win = util.copyWindow(target_win, tmpname);
-            if (win == null) {
-                  console.criticalln("Exclusion areas target image window not found: " + exclusionAreasTargetImageName);
-                  return;
-            }
-      }
-      if (engine.imageIsLinear(win)) {
-            console.writeln("Exclusion areas target image is linear, stretching the image.");
-            engine.autoStretch(win);
-      }
-
-      console.writeln("Opening Exclusion Area dialog for target image: " + exclusionAreasTargetImageName);
-      let exclusionAreaDialog = new AutoIntegrateExclusionArea(util);
-      if (exclusionAreaDialog.main(win, global.exclusion_areas)) {
-      
-            var exclusion_areas = exclusionAreaDialog.getExclusionAreas();
-            if (current_preview.imgWin != null) {
-                  // We have saved original image window, scale exclusion areas to the original image size
-                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, current_preview.imgWin, false);
-            } else {
-                  global.exclusion_areas = util.getScaledExclusionAreas(exclusion_areas, win, false);
-            }
-            exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
-
-            console.writeln("Exclusion areas selected, exclusion areas: " + JSON.stringify(global.exclusion_areas));
-      } else {
-            console.writeln("No changes");
-      }
-      util.closeOneWindow(win);
-}
-
 function okToRunSubframeSelector()
 {
       var messagebox = new MessageBox("There are no measurements available. Do you want to run SubframeSelector now?",
@@ -3250,7 +3181,7 @@ function updateInfoLabel(parent)
 
 function updateExclusionAreaLabel(parent)
 {
-      exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
+      guitools.exclusionAreaCountLabel.text = "Count: " + global.exclusion_areas.polygons.length;
 }
 
 function updateImageInfoLabel(txt)
@@ -3315,8 +3246,8 @@ function runAction(parent)
             console.criticalln("Cannot use Run button with Integrated lights option, Autocontinue button must be used.");
             return;
       }
-      current_preview.image = null;
-      current_preview.image_versions = [];
+      guitools.current_preview.image = null;
+      guitools.current_preview.image_versions = [];
       updateWindowPrefix();
       getFilesFromTreebox(parent.dialog);
       global.haveIconized = 0;
@@ -3419,8 +3350,8 @@ function newAutoContinueButton(parent, toolbutton)
 
             // Do not create subdirectory structure with AutoContinue
 
-            current_preview.image = null;
-            current_preview.image_versions = [];
+            guitools.current_preview.image = null;
+            guitools.current_preview.image_versions = [];
             util.clearDefaultDirs();
             getFilesFromTreebox(parent.dialog);
             if (isbatchNarrowbandPaletteMode() && engine.autocontinueHasNarrowband()) {
@@ -4379,6 +4310,7 @@ function AutoIntegrateDialog()
       this.self = this;
 
       this.global = global;
+      this.guitools = guitools;
 
       if (global.debug) console.writeln("AutoIntegrateDialog: constructor");
 
@@ -4574,8 +4506,6 @@ function AutoIntegrateDialog()
             "<p>Weight limit is set in <i>Preprocessing / Filtering</i> section.</p>" );
       this.ChannelCombinationOnlyCheckBox = guitools.newCheckBox(this, "ChannelCombination only", par.channelcombination_only, 
             "<p>Run only channel combination to linear RGB file. No auto stretch or color calibration.</p>" );
-      /* this.relaxedStartAlignCheckBox = guitools.newCheckBox(this, "Strict StarAlign", par.strict_StarAlign, 
-            "<p>Use more strict StarAlign par. When set more files may fail to align.</p>" ); */
       this.keepIntegratedImagesCheckBox = guitools.newCheckBox(this, "Keep integrated images", par.keep_integrated_images, 
             "<p>Keep integrated images when closing all windows</p>" );
       this.resetOnSetupLoadCheckBox = guitools.newCheckBox(this, "Reset", par.reset_on_setup_load, 
@@ -6004,127 +5934,13 @@ function AutoIntegrateDialog()
       this.linearFitGroupBoxLabel = guitools.newSectionLabel(this, "Linear fit settings");
       this.linearFitSizer = guitools.newHorizontalSizer(6, true, [this.linearFitLabel, this.linearFitComboBox]);
 
-      if (global.is_gc_process) {
-            this.gc_automatic_convergence_CheckBox = guitools.newCheckBox(this, "Automatic convergence", par.gc_automatic_convergence, "<p>Run multiple iterations until difference between two models is small enough.</p>");
-            this.gc_output_background_model_CheckBox = guitools.newCheckBox(this, "Output background model", par.gc_output_background_model, "<p>If checked the background model is created.</p>");
-            this.gc_scale_Edit = guitools.newNumericEdit(this, "Scale", par.gc_scale, 1, 10, "<p>Model scale.</p><p>Higher values generate smoother models.</p>");
-            this.gc_smoothness_Edit = guitools.newNumericEdit(this, "Smoothness", par.gc_smoothness, 0, 1, "<p>Model smoothness.</p>");
-            this.GCGroupBoxSizer1 = guitools.newVerticalSizer(2, true, [this.gc_automatic_convergence_CheckBox, this.gc_output_background_model_CheckBox, this.gc_scale_Edit, this.gc_smoothness_Edit]);
-            
-            this.gc_structure_protection_CheckBox = guitools.newCheckBox(this, "Structure Protection", par.gc_structure_protection, "<p>Prevent overcorrecting on image structures.</p>");
-            this.gc_protection_threshold_Edit = guitools.newNumericEdit(this, "Protection threshold", par.gc_protection_threshold, 0, 1, "<p>Decreasing this value prevents overcorrecting dimmer structures.</p>");
-            this.gc_protection_amount_Edit = guitools.newNumericEdit(this, "Protection amount", par.gc_protection_amount, 0.1, 1, "<p>Increasing this value prevents overcorrecting significant structures.</p>");
-            this.GCGroupBoxSizer2 = guitools.newVerticalSizer(2, true, [this.gc_structure_protection_CheckBox, this.gc_protection_threshold_Edit, this.gc_protection_amount_Edit]);
+      this.graxpertPathSizer = guitools.createGraXpertPathSizer(this);
 
-            this.gc_simplified_model_CheckBox = guitools.newCheckBox(this, "Simplified Model", par.gc_simplified_model, "<p>If checked use a simplified model that is extracted before multiscale model.</p>");
-            this.gc_simplified_model_degree_Label = guitools.newLabel(this, "Simplified Model degree", "Model degree for simplified model.", true);
-            this.gc_simplified_model_degree_SpinBox = guitools.newSpinBox(this, par.gc_simplified_model_degree, 1, 8, this.gc_simplified_model_degree_Label.toolTip);
-            this.gc_simplified_model_degree_Sizer = guitools.newHorizontalSizer(2, true, [this.gc_simplified_model_degree_Label, this.gc_simplified_model_degree_SpinBox]);
-            this.GCGroupBoxSizer3 = guitools.newVerticalSizer(2, true, [this.gc_simplified_model_CheckBox, this.gc_simplified_model_degree_Sizer]);
-
-            this.GCGroupBoxSizer0 = guitools.newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
-
-            this.GCGroupBoxLabel = guitools.newSectionLabel(this, "GradientCorrection settings");
-            this.GCGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);
-      }
-
-      if (global.is_mgc_process) {
-            this.mgc_scale_Label = guitools.newLabel(this, "Gradient scale", "<p>Gradient model scale.</p>", true);
-            this.mgc_scale_ComboBox = guitools.newComboBox(this, par.mgc_scale, mgc_scale_valuestxt, this.mgc_scale_Label.toolTip);
-            this.mgc_output_background_model_CheckBox = guitools.newCheckBox(this, "Output background model", par.mgc_output_background_model, "<p>If checked the background model is created.</p>");
-            this.mgs_scale_factor_Edit = guitools.newNumericEditPrecision(this, "Scale", par.mgc_scale_factor, 0.1, 10, "Scale factor for all channels.", 4);
-            this.mgc_strucure_separation_Label = guitools.newLabel(this, "Structure separation", "Structure separation for MultiscaleGradientCorrection.", true);
-            this.mgc_strucure_separation_SpinBox = guitools.newSpinBox(this, par.mgc_structure_separation, 1, 5, this.mgc_strucure_separation_Label.toolTip);
-      
-            this.MGCGroupBoxSizer0 = guitools.newHorizontalSizer(6, true, [this.mgc_scale_Label, this.mgc_scale_ComboBox, this.mgs_scale_factor_Edit, 
-                                                                  this.mgc_strucure_separation_Label, this.mgc_strucure_separation_SpinBox,
-                                                                  this.mgc_output_background_model_CheckBox ], 12);
-
-            this.MGCGroupBoxLabel = guitools.newSectionLabel(this, "MultiscaleGradientCorrection settings");
-            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + guitools.MGCToolTip;
-            this.MGCGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0]);
-      }
-      this.ABEDegreeLabel = guitools.newLabel(this, "Function degree", "Function degree can be changed if ABE results are not good enough.", true);
-      this.ABEDegreeSpinBox = guitools.newSpinBox(this, par.ABE_degree, 0, 100, this.ABEDegreeLabel.toolTip);
-      this.ABECorrectionLabel = guitools.newLabel(this, "Correction", "Correction method for ABE.", true);
-      this.ABECorrectionComboBox = guitools.newComboBox(this, par.ABE_correction, ABE_correction_values, this.ABECorrectionLabel.toolTip);
-
-      this.ABEDegreeSizer = guitools.newHorizontalSizer(0, true, [this.ABEDegreeLabel, this.ABEDegreeSpinBox]);
-      this.ABECorrectionSizer = guitools.newHorizontalSizer(0, true, [this.ABECorrectionLabel, this.ABECorrectionComboBox]);
-
-      this.ABEnormalize_CheckBox = guitools.newCheckBox(this, "Normalize", par.ABE_normalize, "<p>If checked sets the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
-      
-      this.smoothBackgroundEdit = guitools.newNumericEditPrecision(this, "Smoothen background %", par.smoothbackground, 0, 100, 
-            "<p>Gives the limit value as percentage of shadows that is used for shadow " + 
-            "smoothing. Smoothing is done before gradient correction.</p>" +
-            "<p>Usually values below 50 work best. Possible values are between 0 and 100. " + 
-            "Zero values does not do smoothing.</p>" +
-            "<p>Smoothening should be used only in extreme cases with very uneven background " + 
-            "because a lot of shadow detail may get lost.</p>",
-            4);
-      this.smoothBackgroundSizer = new HorizontalSizer;
-      this.smoothBackgroundSizer.spacing = 4;
-      // this.smoothBackgroundSizer.margin = 2;
-      this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
-      this.smoothBackgroundSizer.addStretch();
-
-      this.ABEGroupBoxLabel = guitools.newSectionLabel(this, "ABE settings");
-      this.ABEMainSizer = guitools.newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.ABEnormalize_CheckBox, this.smoothBackgroundSizer]);
-      this.ABEGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEMainSizer]);
-
-      this.dbe_use_background_neutralization_CheckBox = guitools.newCheckBox(this, "Background neutralization", par.dbe_use_background_neutralization, "<p>If checked background neutralization is run before DBE on color images.</p>");
-      this.dbe_use_abe_CheckBox = guitools.newCheckBox(this, "ABE", par.dbe_use_abe, "<p>If checked ABE with degree one is run before DBE.</p>");
-      this.dbe_normalize_CheckBox = guitools.newCheckBox(this, "Normalize,", par.dbe_normalize, "<p>If checked sets the normalize flag. Normalizing is more likely to keep the original color balance.</p>");
-      this.dbe_samples_per_row_Label = guitools.newLabel(this, "Samples per row", "Number of samples per row.", true);
-      this.dbe_samples_per_row_SpinBox = guitools.newSpinBox(this, par.dbe_samples_per_row, 5, 20, this.dbe_samples_per_row_Label.toolTip);
-      this.dbe_min_weight_Edit = guitools.newNumericEdit(this, "Min weight", par.dbe_min_weight, 0, 1, "<p>Minimum sample weight to be included in the samples.");
-
-      this.DBESizer1 = guitools.newHorizontalSizer(2, true, [this.dbe_use_background_neutralization_CheckBox, this.dbe_use_abe_CheckBox, 
-                                                    this.dbe_normalize_CheckBox, this.dbe_samples_per_row_Label, 
-                                                    this.dbe_samples_per_row_SpinBox, this.dbe_min_weight_Edit ]);
-      
-      this.exclusionAreaImageLabel = guitools.newLabel(this, "Image:");
-      this.exclusionAreasComboBox = new ComboBox( this );
-      this.exclusionAreasComboBox.minItemCharWidth = 20;
-      this.exclusionAreasComboBox.onItemSelected = function( itemIndex )
-      {
-            exclusionAreasTargetImageName = exclusion_area_image_window_list[itemIndex];
-      };
-      exclusionAreasComboBox = this.exclusionAreasComboBox;
-
-      this.exclusionAreasButton = new PushButton( this );
-      this.exclusionAreasButton.text = "Exclusion areas";
-      this.exclusionAreasButton.toolTip = "<p>Select exclusion areas for DBE.</p>";
-      this.exclusionAreasButton.onClick = function() 
-      {
-            try {
-                  getExclusionsAreas();
-            } catch (e) {
-                  console.criticalln("Exclusion areas: " + e);
-            }
-      };
-      this.exclusionAreaCountLabel = guitools.newLabel(this, "Count: " + global.exclusion_areas.polygons.length);
-      exclusionAreaCountLabel = this.exclusionAreaCountLabel;
-
-      this.DBESizer2 = guitools.newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
-
-      this.DBEGroupBoxLabel = guitools.newSectionLabel(this, "DBE settings");
-      this.DBEMainSizer = guitools.newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer2 ]);
-      this.DBEGroupBoxSizer = guitools.newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
-
-      this.graxpertPathSizer = guitools.createGraXperPathSizer(this);
-
-      // Gradient correction
+      // GraXpert Gradient correction
       //
-      this.graxpertCorrectionLabel = guitools.newLabel(this, "Gradient correction", "Correction method for GraXpert.", true);
-      this.graxpertCorrectionComboBox = guitools.newComboBox(this, par.graxpert_correction, graxpert_correction_values, this.graxpertCorrectionLabel.toolTip);
-      this.graxpertSmoothingEdit = guitools.newNumericEdit(this, "Smoothing", par.graxpert_smoothing, 0, 1, "Smoothing for GraXpert gradient correction.");
-      this.graxpertGradientCorrectionSizer1 = guitools.newHorizontalSizer(2, true, [this.graxpertCorrectionLabel, this.graxpertCorrectionComboBox, this.graxpertSmoothingEdit]);
+      this.graxpertGradientCorrectionSizer = guitools.createGraXpertGradientCorrectionSizer(this);
 
-      this.graxpertGradientCorrectionLabel = guitools.newSectionLabel(this, "Gradient correction settings");
-      this.graxpertGradientCorrectionSizer = guitools.newVerticalSizer(2, true, [this.graxpertGradientCorrectionSizer1]);
-
-      // Deconvolution
+      // GraXpert Deconvolution
       //
       var graxpertDenconvolutionToolTip = "<p>GraXpert deconvolution is used for stellar and non-stellar sharpening.</p>";
       this.graxpertDenconvolutionStellarStrengthEdit = guitools.newNumericEdit(this, "Deconvolution stars strength", par.graxpert_deconvolution_stellar_strength, 0, 1, "<p>Strength for GraXpert stars deconvolution.</p>" + graxpertDenconvolutionToolTip);
@@ -6154,7 +5970,6 @@ function AutoIntegrateDialog()
       //
       this.graxpertGroupBoxSizer = guitools.newVerticalSizer(6, true, [
             this.graxpertPathSizer, 
-            this.graxpertGradientCorrectionLabel, 
             this.graxpertGradientCorrectionSizer, 
             this.graxpertDenconvolutionLabel, 
             this.graxpertDenconvolutionSizer, 
@@ -6179,18 +5994,7 @@ function AutoIntegrateDialog()
       this.CropSizer = guitools.newHorizontalSizer(6, true, [this.cropUseRejectionLowCheckBox, 
                                                   this.CropToleranceSizer, this.cropRejectionLowLimitEdit, this.cropCheckLimitEdit]);
 
-
-      var processes = [];
-      if (global.is_mgc_process) {
-            processes.push(this.MGCGroupBoxSizer);
-      }
-      if (global.is_gc_process) {
-            processes.push(this.GCGroupBoxSizer);
-      }
-      processes.push(this.ABEGroupBoxSizer);
-      processes.push(this.DBEGroupBoxSizer);
-
-      this.GCStarXSizer = guitools.newVerticalSizer(0, true, processes);
+      this.GCStarXSizer = guitools.createGradientCorrectionSizer(this);
 
       //
       // Stretching parameters
@@ -7111,8 +6915,8 @@ function AutoIntegrateDialog()
                               console.noteln("No flowchart data available");
                         }
                   } else {
-                        if (current_preview.image != null) {
-                              previewControl.SetImage(current_preview.image, current_preview.txt);
+                        if (guitools.current_preview.image != null) {
+                              previewControl.SetImage(guitools.current_preview.image, guitools.current_preview.txt);
                         }
                   }
             });
@@ -7170,13 +6974,13 @@ function AutoIntegrateDialog()
             "<p>Stretched format can be useful for visualizing the current processed image.</p>",
             function(checked) { 
                   par.preview_autostf.val = checked;
-                  if (current_preview.image != null) {
+                  if (guitools.current_preview.image != null) {
                         if (checked) {
-                              current_preview.image = current_preview.image_versions[1].image;
-                              current_preview.txt = current_preview.image_versions[1].txt;
+                              guitools.current_preview.image = guitools.current_preview.image_versions[1].image;
+                              guitools.current_preview.txt = guitools.current_preview.image_versions[1].txt;
                         } else {
-                              current_preview.image = current_preview.image_versions[0].image;
-                              current_preview.txt = current_preview.image_versions[0].txt;
+                              guitools.current_preview.image = guitools.current_preview.image_versions[0].image;
+                              guitools.current_preview.txt = guitools.current_preview.image_versions[0].txt;
                         }
                   }
                   if (par.show_flowchart.val) {
@@ -7186,8 +6990,8 @@ function AutoIntegrateDialog()
                               // console.noteln("No flowchart data available");
                         }
                   } else {
-                        if (current_preview.image != null) {
-                              previewControl.SetImage(current_preview.image, current_preview.txt);
+                        if (guitools.current_preview.image != null) {
+                              previewControl.SetImage(guitools.current_preview.image, guitools.current_preview.txt);
                         }
                   }
             });
@@ -7306,26 +7110,26 @@ function AutoIntegrateDialog()
             savePersistentSettings(false);
       };
 
-      this.show_preview_CheckBox = guitools.newGenericCheckBox(this, "Enable preview", ppar, ppar.preview.use_preview, 
+      this.show_preview_CheckBox = guitools.newPparCheckBox(this, "Enable preview", ppar, ppar.preview.use_preview, 
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { this.dialog.show_preview_CheckBox.aiParam.preview.use_preview = checked; });
 
-      this.use_large_preview_CheckBox = guitools.newGenericCheckBox(this, "Side preview", ppar, ppar.preview.use_large_preview, 
+      this.use_large_preview_CheckBox = guitools.newPparCheckBox(this, "Side preview", ppar, ppar.preview.use_large_preview, 
             "<p>Use a large preview window on the side of the main dialog.</p>",
             function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
 
-      this.show_histogram_CheckBox = guitools.newGenericCheckBox(this, "Show histogram", ppar, ppar.preview.show_histogram, 
+      this.show_histogram_CheckBox = guitools.newPparCheckBox(this, "Show histogram", ppar, ppar.preview.show_histogram, 
             "<p>Show image histogram.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.preview.show_histogram = checked; });
 
-      this.show_black_background_CheckBox = guitools.newGenericCheckBox(this, "Black background", ppar, ppar.preview.black_background, 
+      this.show_black_background_CheckBox = guitools.newPparCheckBox(this, "Black background", ppar, ppar.preview.black_background, 
             "<p>Use pure black as an image background. It may help to check that background is not made too dark.</p>",
             function(checked) { this.dialog.show_black_background_CheckBox.aiParam.preview.black_background = checked; });
 
-      this.show_startup_image_CheckBox = guitools.newGenericCheckBox(this, "Startup image", ppar, ppar.show_startup_image, 
+      this.show_startup_image_CheckBox = guitools.newPparCheckBox(this, "Startup image", ppar, ppar.show_startup_image, 
             "<p>Show startup image in preview window.</p>",
             function(checked) { this.dialog.show_startup_image_CheckBox.aiParam.show_startup_image = checked; });
-      this.startup_image_name_Edit = guitools.newGenericTextEdit(this, ppar, ppar.startup_image_name, 
+      this.startup_image_name_Edit = guitools.newPparTextEdit(this, ppar, ppar.startup_image_name, 
             "<p>Startup image name.</p>" +
             "<p>You can set your own startup image here.</p>" + 
             "<p><b>NOTE!</b> Remember to use the Save button to save the name to persistent module settings.</p>",
@@ -7372,14 +7176,14 @@ function AutoIntegrateDialog()
       this.preview11Sizer.addStretch();
 
       this.tab_preview_width_label = guitools.newLabel(this, 'Tab preview width', "Preview image width.");
-      this.tab_preview_width_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
+      this.tab_preview_width_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
             "Preview image width.",
             function(value) { 
                   updatePreviewSize(value, 0, 0, 0, 0); 
             }
       );
       this.tab_preview_height_label = guitools.newLabel(this, 'height', "Preview image height.");
-      this.tab_preview_height_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
+      this.tab_preview_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
             "Preview image height.",
             function(value) { 
                   updatePreviewSize(0, value, 0, 0, 0); 
@@ -7396,14 +7200,14 @@ function AutoIntegrateDialog()
       this.tabPreviewSizer.addStretch();
 
       this.side_preview_width_label = guitools.newLabel(this, 'Side preview width', "Side preview image width.");
-      this.side_preview_width_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
+      this.side_preview_width_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
             "Side preview image width.",
             function(value) { 
                   updatePreviewSize(0, 0, 0, value, 0); 
             }
       );
       this.side_preview_height_label = guitools.newLabel(this, 'height', "Side preview image height.");
-      this.side_preview_height_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.side_preview_height, 100, 4000, 
+      this.side_preview_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_height, 100, 4000, 
             "Side preview image height.",
             function(value) { 
                   updatePreviewSize(0, 0, 0, 0, value); 
@@ -7422,7 +7226,7 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.saveInterfaceButton );
 
       this.histogram_height_label = guitools.newLabel(this, 'Histogram height', "Image histogram height.");
-      this.histogram_height_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
+      this.histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
             this.histogram_height_label.toolTip,
             function(value) { 
                   updatePreviewSize(0, 0, value, 0, 0);
@@ -7430,7 +7234,7 @@ function AutoIntegrateDialog()
       );
 
       this.side_histogram_height_label = guitools.newLabel(this, 'Side preview histogram height', "Image histogram height in side preview.");
-      this.side_histogram_height_edit = guitools.newGenericSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
+      this.side_histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
             this.side_histogram_height_label.toolTip,
             function(value) { 
                   updatePreviewSize(0, 0, 0, 0, 0, value);
@@ -8104,6 +7908,8 @@ function AutoIntegrateDialog()
                             ", dialog size " + this.width + "x" + this.height);
       }
 
+      global.reportUnusedParameters();
+
       // Initialize tutorial system
       this.tutorial = new AutoIntegrateTutorialSystem(this);
       this.setupAllTutorials();
@@ -8216,6 +8022,19 @@ AutoIntegrateDialog.prototype.setupAllTutorials = function() {
             "processing-settings": this.getProcessingSettingsSteps(),
             "comet-processing": this.getCometProcessingSteps()
       };
+      if (global.debug) {
+            // Check that target in tutorials exist
+            for (var tutorialId in this.tutorials) {
+                  var steps = this.tutorials[tutorialId];
+                  for (var i = 1; i < steps.length-1; i++) {
+                        var step = steps[i];
+                        // Check that target is a valid GUI object
+                        if (!(step.target instanceof Control)) {
+                              console.criticalln("Error: Tutorial '" + tutorialId + "', step " + step.title + ", " + (i+1) + ": target is not a Control object.");
+                        }
+                  }
+            }
+      }
 };
 
 // Start tutorial by ID
@@ -8283,7 +8102,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             description: "Usually it is better to specify the stretching method instead of the target type. For the best results it is important to select stretching method that suits your data best.\n\n" +
                          "For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.\n\n" +
                          "If you are not happy with the results, you should try with a different stretching by adjusting the parameters.",
-            target: this.stretchingLabel,
+            target: this.guitools.stretchingLabel,
             tooltipPosition: "center"
         },
         {
@@ -8465,7 +8284,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             title: "Stretching",
             description: "Here you can specify stretching of your final image. It is important to select stretching method that suits your data best.\n\n" +
                          "For targets like galaxy and star cluster you should start with a masked stretch. For others the Auto STF is a good starting point.",
-            target: this.stretchingLabel,
+            target: this.guitools.stretchingLabel,
             tooltipPosition: "center"
         },
         {
@@ -8492,7 +8311,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             title: "Narrowband mapping",
             description: "There are several predefined mappings available, or you can create your own custom mapping.\n\n" +
                          "The Auto option creates either SHO or HOO mapping depending on available narrowband channels.",
-            target: this.narrowbandCustomPalette_ComboBox,
+            target: this.guitools.narrowbandCustomPalette_ComboBox,
             tooltipPosition: "center"
         },
         {
@@ -8544,7 +8363,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
         {
             title: "Select star removal tool",
             description: "Check desired star removal tool (StarXTerminator or StarNet2) in Settings / Tools section.",
-            target: this.use_StarXTerminator_CheckBox,
+            target: this.guitools.use_StarXTerminator_CheckBox,
             tooltipPosition: "center"
         },
         {
