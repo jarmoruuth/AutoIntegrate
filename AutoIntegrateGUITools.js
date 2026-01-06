@@ -90,7 +90,7 @@ this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image solv
 this.BXT_no_PSF_tip = "Sometimes on starless images PSF value can not be calculated. Then a manual value should be given or BlurXTerminator should not be used.";
 this.skip_reset_tooltip = "<p>Note that this parameter is not reset or saved to Json file.</p>";   
 
-var adjustShadowsToolTip = "<p>If enabled shadows are adjusted after stretch.</p>" +
+var adjustShadowsToolTip = "<p>Select if shadows are adjusted before, after or before and after stretch.</p>" +
                            "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>";
 this.narrowbandToolTip = 
       "<p>" +
@@ -859,7 +859,7 @@ function createStretchingSettingsSizer(parent, engine)
       var stretchAdjustShadowsLabel = newLabel(parent, "Adjust shadows", adjustShadowsToolTip, true);
       var stretchAdjustShadowsComboBox = newComboBox(parent, par.stretch_adjust_shadows, adjust_shadows_values, adjustShadowsToolTip);
       var stretchAdjustShadowsControl = newNumericControlPrecision(parent, "%", par.stretch_adjust_shadows_perc, 0, 99,
-            "<p>Percentage of shadows adjustment after stretch.</p>" +
+            "<p>Percentage of shadows adjustment.</p>" +
             "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
             3);
 
@@ -876,6 +876,7 @@ function createStretchingSettingsSizer(parent, engine)
                                     
       var StretchGenericSection = newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",
                                           [ StretchGenericSizer ]);
+      StretchGenericSection.control.visible = true;
 
       /* MultiscaleAdaptiveStretch (MAS).
        */
