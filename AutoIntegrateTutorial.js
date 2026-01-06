@@ -4,6 +4,9 @@
 // - AutoIntegrateTutorialManagerDialog
 // - AutoIntegrateTutorialSystem
 
+#ifndef AUTOINTEGRATETUTORIAL_JS
+#define AUTOINTEGRATETUTORIAL_JS
+
 // ============================================================================
 // Welcome Dialog with Credits - First Run Experience
 // ============================================================================
@@ -60,7 +63,7 @@ function AutoIntegrateCreditsDialog(global) {
             "This product is based on software from the PixInsight project, developed " +
             "by Pleiades Astrophoto and its contributors (https://pixinsight.com/)\n" +
             "\n" +
-            "Copyright (c) 2018-2025 Jarmo Ruuth\n" +
+            "Copyright (c) 2018-2026 Jarmo Ruuth\n" +
             "Copyright (c) 2022 Jean-Marc Lugrin\n" +
             "Copyright (c) 2021 rob pfile\n" +
             "Copyright (c) 2013 Andres del Pozo\n" +
@@ -966,3 +969,5 @@ AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
             return !shown;
       }
 };
+
+#endif  /* AUTOINTEGRATETUTORIAL_JS */

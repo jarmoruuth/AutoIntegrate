@@ -6,6 +6,9 @@
 // 2. Clear exclusion areas
 // 3. Apply processing with exclusion regions
 
+#ifndef AUTOINTEGRATEEXCLUSIONAREA_JS
+#define AUTOINTEGRATEEXCLUSIONAREA_JS
+
 #include <pjsr/FrameStyle.jsh>
 #include <pjsr/NumericControl.jsh>
 #include <pjsr/Sizer.jsh>
@@ -468,3 +471,5 @@ this.getExclusionAreas = getExclusionAreas;
 }  /* AutoIntegrateExclusionArea */
 
 AutoIntegrateExclusionArea.prototype = new Object;
+
+#endif  /* AUTOINTEGRATEEXCLUSIONAREA_JS */

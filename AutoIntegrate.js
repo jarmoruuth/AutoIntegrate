@@ -186,7 +186,7 @@ with PixInsight.
 This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -284,6 +284,7 @@ Linear Defect Detection:
 
 #include "AutoIntegratePreview.js"
 #include "AutoIntegrateGUI.js"
+#include "AutoIntegrateFlowchart.js"
 
 function AutoIntegrate() {
 
@@ -292,11 +293,13 @@ this.__base__();
 
 var global = new AutoIntegrateGlobal();
 var util = new AutoIntegrateUtil(global);
-var engine = new AutoIntegrateEngine(global, util);
-var gui = new AutoIntegrateGUI(global, util, engine);
+var flowchart = new AutoIntegrateFlowchart(global, util);
+var engine = new AutoIntegrateEngine(global, util, flowchart);
+var gui = new AutoIntegrateGUI(global, util, engine, flowchart);
 
 util.setGUI(gui);
 engine.setGUI(gui);
+flowchart.setGUI(gui);
 
 var par = global.par;
 var ppar = global.ppar;
@@ -358,11 +361,7 @@ function readPersistentSettings()
       if (!par.use_manual_icon_column.val) {
             ppar.userColumnCount = -1;
       }
-      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
-      if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
-            ppar.lastDir = tempSetting;
-      }
+      util.restoreLastDir();
       var tempSetting = Settings.read(SETTINGSKEY + "/savedVersion", DataType_String);
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");
@@ -503,63 +502,27 @@ function readParametersFromProcessIcon()
       }
 }
 
-function readOneParameterFromPersistentModuleSettings(name, type)
+this.test_initialize_new = function()
 {
-            name = SETTINGSKEY + '/' + util.mapBadChars(name);
-            switch (type) {
-                  case 'S':
-                        var tempSetting = Settings.read(name, DataType_String);
-                        break;
-                  case 'B':
-                        var tempSetting = Settings.read(name, DataType_Boolean);
-                        break;
-                  case 'I':
-                        var tempSetting = Settings.read(name, DataType_Int32);
-                        break;
-                  case 'R':
-                        var tempSetting = Settings.read(name, DataType_Real32);
-                        break;
-                  default:
-                        util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
-                        break;
-            }
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
-                  return tempSetting;
-            } else {
-                  return null;
-      }
-}
+      global.debug = true;
+      global.par.debug.val = true;
 
-// Read default parameters from persistent module settings
-function readParametersFromPersistentModuleSettings()
-{
-      if (global.do_not_read_settings) {
-            console.writeln("Use default settings, do not read parameter values from persistent module settings");
-            return;
-      }
-      if (!global.ai_use_persistent_module_settings) {
-            console.writeln("skip readParametersFromPersistentModuleSettings");
-            return;
-      }
-      console.writeln("readParametersFromPersistentModuleSettings");
-      for (let x in par) {
-            var param = par[x];
-            var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
-            if (val == null && param.oldname != undefined) {
-                  val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
-            }
-            if (val != null) {
-                  global.setParameterValue(param, val);
-            }
-      }
+      global.testmode = true;
+      global.testmode_log = "";
+
+      // do not read defaults from persistent module settings
+      global.ai_use_persistent_module_settings = false; 
+      global.do_not_read_settings = true;
+      global.do_not_write_settings = true;
+
+      // All logging is done by the calling test program
+      util.loggingEnabled = false;
 }
 
 this.test_initdebug = function()
 {
       global.par.debug.val = true;
       global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
-
 }
 
 this.test_initialize = function()
@@ -572,6 +535,7 @@ this.test_initialize = function()
       global.do_not_write_settings = true;
       global.testmode = true;
       global.testmode_log = "";
+      global.debug = true;
 
       util.setDefaultDirs();
 
@@ -660,13 +624,10 @@ this.openImageWindowFromFile = function(name)
  *    autointegrate_main
  * 
  */
-this.autointegrate_main = function()
+this.autointegrate_main = function(runsetuppath = null)
 {
-      var runsetuppath = null;
       var errors = false;
 
-      // Start logging in case we have some error during startup
-      console.beginLog();
       console.writeln("autointegrate_main");
       try {
             /* Check command line arguments. Arguments can be given by starting the script from
@@ -733,7 +694,7 @@ this.autointegrate_main = function()
             } else {
                   // 2. Read saved parameters from persistent module settings
                   console.noteln("Read persistent module settings");
-                  readParametersFromPersistentModuleSettings();
+                  util.readParametersFromPersistentModuleSettings();
             }
             
             if (global.ai_use_persistent_module_settings) {
@@ -803,18 +764,8 @@ this.autointegrate_main = function()
             errors = true;
       }
 
-      this.dialog = new gui.AutoIntegrateDialog();
+      this.dialog = new gui.AutoIntegrateDialog(global);
       global.dialog = this.dialog;
-      if (0 && errors) {
-            // Access problem with this, I guess because we are ion some PixInsight directory
-            // Write errors to a file, if we have --force-exit option we cannot see
-            // the console output
-            console.criticalln("Errors during startup, see AutoIntegrateErrorLog.txt for details");
-            var file = new File();
-            file.createForWriting("AutoIntegrateErrorLog.txt");
-            file.write(console.endLog());
-            file.close();
-      }
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
             // Load Json file
@@ -830,6 +781,9 @@ this.autointegrate_main = function()
 
 AutoIntegrate.prototype = new Object;
 
+// Disable execution of main if the script is included as part of a test
+#ifndef TEST_AUTO_INTEGRATE
+
 function main()
 {
       var autointegrate = new AutoIntegrate();
@@ -839,7 +793,6 @@ function main()
       autointegrate = null;
 }
 
-// Disable execution of main if the script is included as part of a test
-#ifndef TEST_AUTO_INTEGRATE
 main();
-#endif
+
+#endif // TEST_AUTO_INTEGRATE

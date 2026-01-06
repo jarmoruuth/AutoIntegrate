@@ -1,14 +1,15 @@
 // AutoIntegrate Astro Image Metrics Visualizer Dialog
 // For SubFrame Selector metrics visualization
 
+#ifndef AUTOINTEGRATEMETRICSVISUALIZER_JS
+#define AUTOINTEGRATEMETRICSVISUALIZER_JS
+
 #include <pjsr/Sizer.jsh>
 #include <pjsr/FrameStyle.jsh>
 #include <pjsr/TextAlign.jsh>
 #include <pjsr/StdButton.jsh>
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/Color.jsh>
-
-#define WINDOW_TITLE "AutoIntegrate Metrics Visualizer"
 
 function AutoIntegrateMetricsVisualizer(global)
 {
@@ -17,6 +18,8 @@ this.__base__ = Object;
 this.__base__();
 
 var dialog;
+
+var WINDOW_TITLE = "AutoIntegrate Metrics Visualizer";
 
 // Sample data structure - replace with your actual metrics arrays
 var metricsData = [
@@ -602,3 +605,5 @@ this.main = main;
 }  /* AutoIntegrateMetricsVisualizer */
 
 AutoIntegrateMetricsVisualizer.prototype = new Object;
+
+#endif  /* AUTOINTEGRATEMETRICSVISUALIZER_JS */

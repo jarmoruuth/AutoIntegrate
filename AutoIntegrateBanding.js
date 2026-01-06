@@ -36,6 +36,10 @@
 /// to set the parameters, because these also schedule necessary recomputations.
 /// Use getResult() to trigger processing and retrieve
 /// result
+
+#ifndef AUTOINTEGRATEBANDING_JS
+#define AUTOINTEGRATEBANDING_JS
+
 function AutoIntegrateBandingEngine() {
 
     var DEBUGGING_MODE_ON = true;
@@ -350,3 +354,5 @@ function AutoIntegrateBandingEngine() {
        targetView.endProcess();
      };   //function doit
 }  //class AutoIntegrateBandingEngine
+
+#endif  /* AUTOINTEGRATEBANDING_JS */

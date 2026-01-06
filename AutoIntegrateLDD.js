@@ -48,6 +48,9 @@ Copyright (c) 2019 Vicent Peris (OAUV). All Rights Reserved.
 
 */
 
+#ifndef AUTOINTEGRATELDD_JS
+#define AUTOINTEGRATELDD_JS
+
 function AutoIntegrateLDD(util)
 {
 
@@ -649,3 +652,5 @@ this.LDDOutput = LDDOutput;
 }  /* AutoIntegrateLDD */
 
 AutoIntegrateLDD.prototype = new Object;
+
+#endif  // AUTOINTEGRATELDD_JS

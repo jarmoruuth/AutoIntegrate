@@ -45,6 +45,9 @@
 //  SENSOR PROFILES DATABASE (v2.1 - Siril SPCC Derived)
 // =============================================================================
 
+#ifndef AUTOINTEGRATEVERALUXHMS_JS
+#define AUTOINTEGRATEVERALUXHMS_JS
+
 #define VERALUX_VERSION "1.3.0"
 
 function AutoIntegrateVeraLuxHMS()
@@ -226,21 +229,81 @@ function getSensorProfiles() {
 
 function VeraLuxCore() {}
 
+// Percentile function with linear interpolation
+VeraLuxCore.percentile = function(array, p) {
+   if (!array || array.length === 0) {
+      throw new Error("Array cannot be empty");
+   }
+   if (p < 0 || p > 100) {
+      throw new Error("Percentile must be between 0 and 100");
+   }
+   
+   var sorted = array.slice();
+   sorted.sort(function(a, b) { return a - b; });
+   
+   var index = (p / 100) * (sorted.length - 1);
+   var lower = Math.floor(index);
+   var upper = Math.ceil(index);
+   var weight = index - lower;
+   
+   if (lower === upper) {
+      return sorted[lower];
+   }
+   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+};
+
+// Sample pixels from image using adaptive strategy
+VeraLuxCore.samplePixels = function(img, channel, maxSamples) {
+   var width = img.width;
+   var height = img.height;
+   var totalPixels = width * height;
+   
+   // If image is small enough, use all pixels
+   if (totalPixels <= maxSamples) {
+      var pixels = [];
+      for (var y = 0; y < height; y++) {
+         for (var x = 0; x < width; x++) {
+            pixels.push(img.sample(x, y, channel));
+         }
+      }
+      return pixels;
+   }
+   
+   // For large images, use systematic sampling
+   var stepSize = Math.sqrt(totalPixels / maxSamples);
+   var pixels = [];
+   
+   for (var y = 0; y < height; y += stepSize) {
+      for (var x = 0; x < width; x += stepSize) {
+         var sx = Math.floor(x);
+         var sy = Math.floor(y);
+         if (sx < width && sy < height) {
+            pixels.push(img.sample(sx, sy, channel));
+         }
+      }
+   }
+   
+   return pixels;
+};
+
 // Calculate statistical anchor (black point)
 VeraLuxCore.calculateAnchor = function(image, weights) {
    var isColor = image.numberOfChannels >= 3;
+   var maxSamples = 1000000;
 
    if (isColor) {
       var floors = [];
       for (var c = 0; c < 3; c++) {
-         // Use percentile to find floor (0.5th percentile)
-         var percentile = image.percentile(0.005, c);
-         floors.push(percentile);
+         // Sample pixels and calculate 0.5th percentile
+         var samples = VeraLuxCore.samplePixels(image, c, maxSamples);
+         var pctile = VeraLuxCore.percentile(samples, 0.5);
+         floors.push(pctile);
       }
       var anchor = Math.max(0.0, Math.min(floors[0], floors[1], floors[2]) - 0.00025);
       return anchor;
    } else {
-      var floor = image.percentile(0.005, 0);
+      var samples = VeraLuxCore.samplePixels(image, 0, maxSamples);
+      var floor = VeraLuxCore.percentile(samples, 0.5);
       return Math.max(0.0, floor - 0.00025);
    }
 };
@@ -249,16 +312,15 @@ VeraLuxCore.calculateAnchor = function(image, weights) {
 VeraLuxCore.calculateAnchorAdaptive = function(image, weights) {
    var isColor = image.numberOfChannels >= 3;
    var luminanceImage;
+   var maxSamples = 1000000;
 
    if (isColor) {
       // Create a temporary image for luminance calculation
-      var luminanceImage = new Image(image.width, image.height, 1, ColorSpace_Gray, 32, SampleType_Real);
+      luminanceImage = new Image(image.width, image.height, 1, ColorSpace_Gray, 32, SampleType_Real);
 
       var r_w = weights[0];
       var g_w = weights[1];
       var b_w = weights[2];
-
-      // luminanceImage.apply(image, ImageOp_Mov); xxx
 
       for (var y = 0; y < image.height; y++) {
          for (var x = 0; x < image.width; x++) {
@@ -273,68 +335,16 @@ VeraLuxCore.calculateAnchorAdaptive = function(image, weights) {
       luminanceImage = image;
    }
 
-   // Build histogram
-   var luminanceWindow = new ImageWindow(luminanceImage.width, luminanceImage.height);
-   luminanceWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-   luminanceWindow.mainView.image.assign(luminanceImage);
-   luminanceWindow.mainView.endProcess();
-   // var histogram = luminanceImage.histogram(0);
-   var histogram = luminanceWindow.mainView.computeOrFetchProperty("Histogram16");
-   var histData = histogram.toArray();
-   var bins = histData.length;
-
-   // Smooth histogram with moving average (window size ~50)
-   var windowSize = Math.min(50, Math.floor(bins / 100));
-   var smoothed = new Array(bins);
-
-   for (var i = 0; i < bins; i++) {
-      var sum = 0;
-      var count = 0;
-      for (var j = Math.max(0, i - windowSize); j <= Math.min(bins - 1, i + windowSize); j++) {
-         sum += histData[j];
-         count++;
-      }
-      smoothed[i] = sum / count;
-   }
-
-   // Find peak (skip first ~100 bins to avoid black spike)
-   var searchStart = Math.min(100, Math.floor(bins * 0.01));
-   var peakIdx = searchStart;
-   var peakVal = smoothed[searchStart];
-
-   for (var i = searchStart + 1; i < bins; i++) {
-      if (smoothed[i] > peakVal) {
-         peakVal = smoothed[i];
-         peakIdx = i;
-      }
-   }
-
-   // Find where left side drops to 6% of peak
-   var targetVal = peakVal * 0.06;
-   var anchorIdx = 0;
-
-   for (var i = peakIdx - 1; i >= 0; i--) {
-      if (smoothed[i] < targetVal) {
-         anchorIdx = i;
-         break;
-      }
-   }
-
-   // Convert bin index to normalized value
-   var anchor = anchorIdx / (bins - 1);
-
+   // Sample pixels and calculate percentile
+   var samples = VeraLuxCore.samplePixels(luminanceImage, 0, maxSamples);
+   var floor = VeraLuxCore.percentile(samples, 0.5);
+   
    // Clean up temporary image if created
-   if (isColor && luminanceImage != image) {
+   if (isColor && luminanceImage) {
       luminanceImage.free();
    }
-
-   anchor = Math.max(0.0, anchor);
-
-   luminanceWindow.forceClose();
-
-   console.writeln(format("VeraLux: Adaptive Anchor = %.6f", anchor));
-
-   return anchor;
+   
+   return Math.max(0.0, floor - 0.00025);
 };
 
 // Extract luminance from image
@@ -800,7 +810,7 @@ var parameters = new VeraLuxParameters();
 //  AUTOMATION INTERFACE
 // =============================================================================
 
-function executeVeraLux(window, util = null) {
+function executeVeraLux(window, global = null, util = null) {
 
     var view = window.currentView;
     var image = view.image;
@@ -827,6 +837,9 @@ function executeVeraLux(window, util = null) {
                      weights,
                      parameters.useAdaptiveAnchor
          );
+         if (global.veraluxAutoCalcDLabel != null) {
+            global.veraluxAutoCalcDLabel.text = "(" + format("%.2f", logD) + ")";
+         }
    } else {
          var logD = parameters.logD;
    }
@@ -925,7 +938,7 @@ function getHelpText() {
     return helptext.join("\n");
 };
 
-this.execute = executeVeraLux;
+this.executeVeraLux = executeVeraLux;
 this.parameters = parameters;
 this.getSensorProfileNames = getSensorProfileNames;
 this.getSensorProfiles = getSensorProfiles;
@@ -937,3 +950,5 @@ this.processVeraLux = processVeraLux;
 } // AutoIntegrateVeraLuxHMS
 
 AutoIntegrateVeraLuxHMS.prototype = new Object;
+
+#endif // AUTOINTEGRATEVERALUXHMS_JS

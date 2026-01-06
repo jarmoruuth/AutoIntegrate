@@ -1,7 +1,7 @@
 /*
         AutoIntegrate utility functions.
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -16,17 +16,26 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
 
+#ifndef AUTOINTEGRATEUTIL_JS
+#define AUTOINTEGRATEUTIL_JS
+
 function AutoIntegrateUtil(global)
 {
 
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 var util = this;
 var gui = null;
 
 var par = global.par;
 var ppar = global.ppar;
+
+this.loggingEnabled = true;
+this.beginLogCallback = null;
+this.endLogCallback = null;
 
 /* Set optional GUI object to update GUI components.
  */
@@ -623,7 +632,7 @@ function autointegrateProcessingHistory(imageWindow)
             info: [],
             options: [],
             steps: [],
-            extra: []
+            enhancements: []
       };
       var is_history = false;
       // AutoIntegrate keyword first
@@ -650,8 +659,8 @@ function autointegrateProcessingHistory(imageWindow)
                   history.options[history.options.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }
-            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate extra")) {
-                  history.extra[history.extra.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
+            if (keyword.name == 'HISTORY' && trimmedComment.startsWith("AutoIntegrate enhancements")) {
+                  history.enhancements[history.enhancements.length] = [ keyword.name, keyword.strippedValue.trim(), keyword.comment.trim() ]; 
                   is_history = true;
             }
       }
@@ -913,10 +922,10 @@ function closeFinalWindowsFromArray(arr, force_close)
             util.closeOneWindowById(arr[i], force_close);
             util.closeOneWindowById(arr[i]+"_stars", force_close);
             util.closeOneWindowById(arr[i]+"_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_extra", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_starless", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_stars", force_close);
-            util.closeOneWindowById(arr[i]+"_extra_combined", force_close);
+            util.closeOneWindowById(arr[i]+"_enh", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_starless", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_stars", force_close);
+            util.closeOneWindowById(arr[i]+"_enh_combined", force_close);
       }
 }
 
@@ -947,6 +956,86 @@ function closeTempWindows()
       }
       util.closeWindowsFromArray(global.temporary_windows);
       global.temporary_windows = [];
+}
+
+// close all windows from an array
+function closeAllWindowsFromArray(arr, keep_base_image = false, print_names = false)
+{
+      for (var i = 0; i < arr.length; i++) {
+            if (print_names) {
+                  console.writeln("closeAllWindowsFromArray: " + arr[i]);
+            }
+            if (util.findWindowStartsWith(arr[i])) {
+                  util.closeOneWindowById(arr[i]+"_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars");
+                  util.closeOneWindowById(arr[i]+"_for_stars_HT");
+                  util.closeOneWindowById(arr[i]+"_starless");
+                  util.closeOneWindowById(arr[i]+"_map");
+                  util.closeOneWindowById(arr[i]+"_MGC_gradient_model");
+                  util.closeOneWindowById(arr[i]+"_model");
+                  util.closeOneWindowById(arr[i]+"_highpass");
+                  util.closeOneWindowById(arr[i]+"_lowpass");
+                  util.closeOneWindowById(arr[i]+"_DBEsamples");
+                  util.closeOneWindowById(arr[i]+"_map_DBEsamples");
+                  if (!keep_base_image) {
+                        util.closeOneWindowById(arr[i]);
+                  }
+                  if (arr[i].indexOf("Integration_") != -1) {
+                        // For possible old images
+                        util.closeOneWindowById(arr[i] + "_NB_enhanced");
+                        util.closeOneWindowById(arr[i] + "_NB_combine");
+                        util.closeOneWindowById(arr[i] + "_NB_max");
+                        util.closeOneWindowById(arr[i] + "_processed_starless");
+                        util.closeOneWindowById(arr[i] + "_background");
+                        util.closeOneWindowById(arr[i] + "_map_background");
+                  }
+            }
+      }
+}
+
+// close all windows created by this script
+function closeAllWindows(keep_integrated_imgs, force_close)
+{
+      util.closeTempWindows();
+
+      if (keep_integrated_imgs) {
+            var isLRGB = false;
+            for (var i = 0; i < global.integration_LRGB_windows.length; i++) {
+                  if (util.findWindow(global.integration_LRGB_windows[i]) != null) {
+                        // we have LRGB images
+                        isLRGB = true;
+                        break;
+                  }
+            }
+            if (isLRGB) {
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, true);        // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_color_windows, false);
+                  var integration_windows = global.integration_LRGB_windows;
+            } else {
+                  closeAllWindowsFromArray(global.integration_color_windows, true);       // keep_base_image = true
+                  closeAllWindowsFromArray(global.integration_LRGB_windows, false);
+                  var integration_windows = global.integration_color_windows;
+            }
+            for (var i = 0; i < global.all_windows.length; i++) {
+                  // check that we do not close integration windows
+                  if (!util.findFromArray(integration_windows, global.all_windows[i]) &&
+                      !util.findFromArray(global.integration_data_windows, global.all_windows[i]))
+                  {
+                        util.closeOneWindowById(global.all_windows[i]);
+                  }
+            }
+      } else {
+            closeAllWindowsFromArray(global.all_windows);
+            closeAllWindowsFromArray(global.integration_LRGB_windows);
+            closeAllWindowsFromArray(global.integration_color_windows);
+            closeAllWindowsFromArray(global.integration_data_windows);
+      }
+      closeAllWindowsFromArray(global.fixed_windows);
+      closeAllWindowsFromArray(global.calibrate_windows);
+
+      util.closeFinalWindowsFromArray(global.final_windows, force_close);
+
+      util.runGarbageCollection();
 }
 
 function findFromArray(arr, id)
@@ -1083,6 +1172,104 @@ function saveLastDir(dirname)
       if (!global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
             console.writeln("Save lastDir '" + ppar.lastDir + "'");
+      }
+}
+
+function restoreLastDir()
+{
+      var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            ppar.lastDir = tempSetting;
+      }
+}
+
+function readOneParameterFromPersistentModuleSettings(name, type)
+{
+      name = SETTINGSKEY + '/' + util.mapBadChars(name);
+      switch (type) {
+            case 'S':
+                  var tempSetting = Settings.read(name, DataType_String);
+                  break;
+            case 'B':
+                  var tempSetting = Settings.read(name, DataType_Boolean);
+                  break;
+            case 'I':
+                  var tempSetting = Settings.read(name, DataType_Int32);
+                  break;
+            case 'R':
+                  var tempSetting = Settings.read(name, DataType_Real32);
+                  break;
+            default:
+                  util.throwFatalError("Unknown type '" + type + '" for parameter ' + name);
+                  break;
+      }
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            return tempSetting;
+      } else {
+            return null;
+}
+}
+
+function readParameterFromSettings(param)
+{
+      var val = readOneParameterFromPersistentModuleSettings(param.name, param.type);
+      if (val == null && param.oldname != undefined) {
+            val = readOneParameterFromPersistentModuleSettings(param.oldname, param.type);
+      }
+      if (val != null) {
+            global.setParameterValue(param, val);
+      }
+}
+
+// Read default parameters from persistent module settings
+function readParametersFromPersistentModuleSettings()
+{
+      if (global.do_not_read_settings) {
+            console.writeln("Use default settings, do not read parameter values from persistent module settings");
+            return;
+      }
+      if (!global.ai_use_persistent_module_settings) {
+            console.writeln("skip readParametersFromPersistentModuleSettings");
+            return;
+      }
+      console.writeln("readParametersFromPersistentModuleSettings");
+      for (let x in par) {
+            util.readParameterFromSettings(par[x]);
+      }
+}
+
+function writeParameterToSettings(param)
+{
+      var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
+      if (param.val != param.def) {
+            // not a default value, save setting
+            console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
+            switch (param.type) {
+                  case 'S':
+                        Settings.write(name, DataType_String, param.val);
+                        break;
+                  case 'B':
+                        Settings.write(name, DataType_Boolean, param.val);
+                        break;
+                  case 'I':
+                        Settings.write(name, DataType_Int32, param.val);
+                        break;
+                  case 'R':
+                        Settings.write(name, DataType_Real32, param.val);
+                        break;
+                  default:
+                        util.throwFatalError("Unknown type '" + param.type + '" for parameter ' + name);
+                        break;
+            }
+            if (param.oldname != undefined) {
+                  // remove old name
+                  Settings.remove(SETTINGSKEY + '/' + util.mapBadChars(param.oldname));
+            }
+      } else {
+            // default value, remove possible setting
+            Settings.remove(name);
       }
 }
 
@@ -1544,6 +1731,15 @@ function copyKeywordsFromFile(targetId, fname)
       return true;
 }
 
+function createEmptyBitmap(width, height, fill_color)
+{
+      var bitmap = new Bitmap(width, height);
+
+      bitmap.fill(fill_color);
+
+      return bitmap;
+}
+
 function createImageFromBitmap(bitmap)
 {
       var image = new Image(
@@ -1732,58 +1928,57 @@ function remove_autocontinue_prefix(id)
 
 function is_non_starless_option()
 {
-      return par.extra_backgroundneutralization.val ||
-             par.extra_GC.val || 
-             par.extra_banding_reduction.val ||
-             par.extra_darker_background.val || 
-             par.extra_darker_highlights.val ||
-             par.extra_ET.val || 
-             par.extra_HDRMLT.val || 
-             par.extra_LHE.val || 
-             par.extra_contrast.val ||
-             par.extra_stretch.val ||
-             par.extra_autostf.val ||
-             par.extra_shadowclipping.val ||
-             par.extra_smoothbackground.val ||
-             par.extra_noise_reduction.val ||
-             par.extra_ACDNR.val ||
-             par.extra_color_noise.val ||
-             par.extra_sharpen.val ||
-             par.extra_unsharpmask.val ||
-             par.extra_highpass_sharpen.val ||
-             par.extra_saturation.val ||
-             par.extra_clarity.val ||
-             par.extra_smaller_stars.val ||
-             par.extra_normalize_channels.val ||
-             par.extra_adjust_channels.val ||
-             par.extra_shadow_enhance.val ||
-             par.extra_highlight_enhance.val ||
-             par.extra_gamma.val ||
-             par.extra_auto_contrast.val ||
-             par.extra_color_calibration.val ||
-             par.extra_ha_mapping.val ||
-             par.extra_solve_image.val ||
-             par.extra_annotate_image.val ||
-             par.extra_signature.val ||
-             par.extra_rotate.val ||
-             par.extra_fix_star_cores.val;
+      return par.enhancements_backgroundneutralization.val ||
+             par.enhancements_GC.val || 
+             par.enhancements_banding_reduction.val ||
+             par.enhancements_darker_background.val || 
+             par.enhancements_darker_highlights.val ||
+             par.enhancements_ET.val || 
+             par.enhancements_HDRMLT.val || 
+             par.enhancements_LHE.val || 
+             par.enhancements_contrast.val ||
+             par.enhancements_stretch.val ||
+             par.enhancements_autostf.val ||
+             par.enhancements_shadowclipping.val ||
+             par.enhancements_smoothbackground.val ||
+             par.enhancements_noise_reduction.val ||
+             par.enhancements_ACDNR.val ||
+             par.enhancements_color_noise.val ||
+             par.enhancements_sharpen.val ||
+             par.enhancements_unsharpmask.val ||
+             par.enhancements_highpass_sharpen.val ||
+             par.enhancements_saturation.val ||
+             par.enhancements_clarity.val ||
+             par.enhancements_smaller_stars.val ||
+             par.enhancements_normalize_channels.val ||
+             par.enhancements_adjust_channels.val ||
+             par.enhancements_shadow_enhance.val ||
+             par.enhancements_highlight_enhance.val ||
+             par.enhancements_gamma.val ||
+             par.enhancements_auto_contrast.val ||
+             par.enhancements_color_calibration.val ||
+             par.enhancements_ha_mapping.val ||
+             par.enhancements_solve_image.val ||
+             par.enhancements_annotate_image.val ||
+             par.enhancements_signature.val ||
+             par.enhancements_rotate.val ||
+             par.enhancements_fix_star_cores.val;
 }
 
-function is_extra_option()
+function is_enhancements_option()
 {
-      return par.extra_remove_stars.val || 
-             par.extra_combine_stars.val ||
+      return par.enhancements_remove_stars.val || 
+             par.enhancements_combine_stars.val ||
              is_non_starless_option();
 }
 
 function is_narrowband_option()
 {
       return par.fix_narrowband_star_color.val ||
-             par.run_less_green_hue_shift.val ||
              par.run_orange_hue_shift.val ||
              par.run_hue_shift.val ||
              par.run_foraxx_mapping.val ||
-             par.run_extra_narrowband_mapping.val ||
+             par.run_enhancements_narrowband_mapping.val ||
              par.run_orangeblue_colors.val ||
              par.run_colorized_narrowband.val ||
              par.run_narrowband_SCNR.val ||
@@ -1869,6 +2064,17 @@ function setParameterDefaults()
                   if (param.reset != undefined) {
                         param.reset();
                   }
+            }
+      }
+}
+
+function recordParam(param)
+{
+      if (global.debug) {
+            if (param.used) {
+                  console.criticalln("Error:recordParam: parameter " + JSON.stringify(param) + " already used");
+            } else {
+                  param.used = true;
             }
       }
 }
@@ -2269,68 +2475,67 @@ function saveInfoMakeFullPaths(saveInfo, saveDir)
 
 /* Save file info to a file.
  */
-function saveJsonFileEx(parent, save_settings, autosave_json_filename)
+function saveJsonFileEx(parent, save_settings, autosave_json_filename, default_json_filename = null)
 {
-      if (!gui) {
-            return;
-      }
       console.writeln("saveJsonFile");
 
       let fileInfoList = [];
 
-      for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
-            let treeBox = parent.treeBox[pageIndex];
-            let treeboxfiles = [];
-            let filterSet = null;
-            let name = "";
-            switch (pageIndex) {
-                  case global.pages.LIGHTS:
-                        name = "Lights";
-                        filterSet = global.lightFilterSet;
-                        break;
-                  case global.pages.BIAS:
-                        name = "Bias";
-                        break;
-                  case global.pages.DARKS:
-                        name = "Darks";
-                        break;
-                  case global.pages.FLATS:
-                        name = "Flats";
-                        filterSet = global.flatFilterSet;
-                        break;
-                  case global.pages.FLAT_DARKS:
-                        name = "FlatDarks";
-                        break;
-                  default:
-                        name = "Unknown";
-                        break;
+      if (gui) {
+            for (let pageIndex = 0; pageIndex < parent.treeBox.length; pageIndex++) {
+                  let treeBox = parent.treeBox[pageIndex];
+                  let treeboxfiles = [];
+                  let filterSet = null;
+                  let name = "";
+                  switch (pageIndex) {
+                        case global.pages.LIGHTS:
+                              name = "Lights";
+                              filterSet = global.lightFilterSet;
+                              break;
+                        case global.pages.BIAS:
+                              name = "Bias";
+                              break;
+                        case global.pages.DARKS:
+                              name = "Darks";
+                              break;
+                        case global.pages.FLATS:
+                              name = "Flats";
+                              filterSet = global.flatFilterSet;
+                              break;
+                        case global.pages.FLAT_DARKS:
+                              name = "FlatDarks";
+                              break;
+                        default:
+                              name = "Unknown";
+                              break;
+                  }
+
+                  if (treeBox.numberOfChildren == 0) {
+                        continue;
+                  }
+
+                  console.writeln(name + " files");
+
+                  gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
+
+                  console.writeln("Found " + treeboxfiles.length + " files");
+
+                  if (treeboxfiles.length == 0) {
+                        // no files
+                        continue;
+                  }
+
+                  if (filterSet != null) {
+                        util.clearFilterFileUsedFlags(filterSet);
+                  }
+                  util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
             }
 
-            if (treeBox.numberOfChildren == 0) {
-                  continue;
+            if (fileInfoList.length == 0 && !save_settings) {
+                  // nothing to save
+                  console.writeln("No files to save.");
+                  return;
             }
-
-            console.writeln(name + " files");
-
-            gui.getTreeBoxNodeFiles(treeBox, treeboxfiles);
-
-            console.writeln("Found " + treeboxfiles.length + " files");
-
-            if (treeboxfiles.length == 0) {
-                  // no files
-                  continue;
-            }
-
-            if (filterSet != null) {
-                  util.clearFilterFileUsedFlags(filterSet);
-            }
-            util.addJsonFileInfo(fileInfoList, pageIndex, treeboxfiles, filterSet);
-      }
-
-      if (fileInfoList.length == 0 && !save_settings) {
-            // nothing to save
-            console.writeln("No files to save.");
-            return;
       }
 
       if (autosave_json_filename == null) {
@@ -2345,7 +2550,9 @@ function saveJsonFileEx(parent, save_settings, autosave_json_filename)
                         outputDir = util.ensurePathEndSlash(ppar.lastDir);
                   }
             }
-            if (save_settings) {
+            if (default_json_filename != null) {
+                  saveFileDialog.initialPath = outputDir + default_json_filename;
+            } else if (save_settings) {
                   saveFileDialog.initialPath = outputDir + "AutoSetup.json";
             } else {
                   saveFileDialog.initialPath = outputDir + "AutoFiles.json";
@@ -2420,9 +2627,9 @@ function normalizePath(filePath)
       return newPath;
 }
 
-function saveJsonFile(parent, save_settings)
+function saveJsonFile(parent, save_settings, default_json_filename = null)
 {
-      util.saveJsonFileEx(parent, save_settings, null);
+      util.saveJsonFileEx(parent, save_settings, null, default_json_filename);
 }
 
 function formatToolTip(txt)
@@ -2680,6 +2887,35 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
       return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
 }
 
+function beginLog()
+{
+      if (self.beginLogCallback != null) {
+            self.beginLogCallback();
+      }
+      if (self.loggingEnabled) {
+            console.beginLog();
+      }
+}
+
+function endLog()
+{
+      if (self.loggingEnabled) {
+            var logtext = console.endLog();
+      } else {
+            var logtext = null;
+      }
+      if (self.endLogCallback != null) {
+            self.endLogCallback();
+      }
+      return logtext;
+}
+
+function initStandalone()
+{
+    readParametersFromPersistentModuleSettings();
+    restoreLastDir();
+}
+
 /* Interface functions.
  */
 
@@ -2711,6 +2947,7 @@ this.setOutputRootDir = setOutputRootDir;
 this.testDirectoryIsWriteable = testDirectoryIsWriteable;
 this.ensureDir = ensureDir;
 this.saveLastDir = saveLastDir;
+this.restoreLastDir = restoreLastDir;
 this.combinePath = combinePath;
 this.getOptionalUniqueFilenamePart = getOptionalUniqueFilenamePart;
 this.ensureDialogFilePath = ensureDialogFilePath;
@@ -2775,6 +3012,8 @@ this.closeWindowsFromArray = closeWindowsFromArray;
 this.closeFinalWindowsFromArray = closeFinalWindowsFromArray;
 this.closeTempWindowsForOneImage = closeTempWindowsForOneImage;
 this.closeTempWindows = closeTempWindows;
+this.closeAllWindowsFromArray = closeAllWindowsFromArray;
+this.closeAllWindows = closeAllWindows;
 
 // Window arrays
 this.findFromArray = findFromArray;
@@ -2801,6 +3040,7 @@ this.createImageFromBitmap = createImageFromBitmap;
 this.createWindowFromBitmap = createWindowFromBitmap;
 this.getWindowBitmap = getWindowBitmap;
 this.createWindowFromImage = createWindowFromImage;
+this.createEmptyBitmap = createEmptyBitmap;
 
 // Prefix and postfix handling
 this.ensure_win_prefix_ex = ensure_win_prefix_ex;
@@ -2816,13 +3056,23 @@ this.saveJsonFileEx = saveJsonFileEx;
 this.saveJsonFile = saveJsonFile;
 
 // Parameters and options
-this.is_extra_option = is_extra_option;
+this.is_enhancements_option = is_enhancements_option;
 this.is_narrowband_option = is_narrowband_option;
 this.setParameterDefaults = setParameterDefaults;
+this.recordParam = recordParam;
+this.writeParameterToSettings = writeParameterToSettings;
+this.readParameterFromSettings = readParameterFromSettings;
+this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
 
+// Character and name checking
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;
 this.validateViewIdCharacters = validateViewIdCharacters;
+
+// Console logging
+this.beginLog = beginLog;
+this.endLog = endLog;
+
 this.arraysEqual = arraysEqual;
 
 this.formatToolTip = formatToolTip;
@@ -2834,7 +3084,10 @@ this.get_node_execute_time_str = get_node_execute_time_str;
 
 this.getScaledExclusionAreas = getScaledExclusionAreas;
 
+this.initStandalone = initStandalone;
+
 }  /* AutoIntegrateUtil */
 
 AutoIntegrateUtil.prototype = new Object;
 
+#endif  /* AUTOINTEGRATEUTIL_JS */

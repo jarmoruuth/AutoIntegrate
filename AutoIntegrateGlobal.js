@@ -1,7 +1,7 @@
 /*
     AutoIntegrate Global variables.
 
-Copyright (c) 2018-2025 Jarmo Ruuth.
+Copyright (c) 2018-2026 Jarmo Ruuth.
 
 Crop to common area code
 
@@ -15,6 +15,9 @@ This product is based on software from the PixInsight project, developed
 by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 
 */
+
+#ifndef AUTOINTEGRATEGLOBAL_JS
+#define AUTOINTEGRATEGLOBAL_JS
 
 #include <pjsr/ColorSpace.jsh>
 #include <pjsr/UndoFlag.jsh>
@@ -40,14 +43,22 @@ function AutoIntegrateGlobal()
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.81";         // Version, also updated into updates.xri
-this.autointegrate_info = "VeraLux HyperMetric Stretch";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.82 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Standalone scripts, MultiscaleAdaptiveStretch";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Added VeraLux HyperMetric Stretch (HMS) as a new stretch option.",
+      "- Added MultiscaleAdaptiveStretch as a new stretch option.",
+      "- Added Image Enhancements standalone script.",
+      "- Added Image Stretching standalone script.",
+      "- Added Narrowband Combinations standalone script.",
+      "- Added Gradient Correction standalone script.",
+      "- Removed VeraLux script, it is included in the Image Stretching script.",
+      "- All scripts are in Script / AutoIntegrate menu.",
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
@@ -60,15 +71,14 @@ this.processingDate = null;
 this.processing_state = {
       none: 0,
       processing: 1,
-      extra_processing: 2
+      enhancements_processing: 2
 }
 
 // GUI variables
-this.tabStatusInfoLabel = null;         // For update processing status
-this.sideStatusInfoLabel = null;        // For update processing status
+this.statusInfoLabel = null;         // For update processing status
 this.sectionBarControls = [];
 this.sectionBars = [];
-
+this.veraluxAutoCalcDLabel = null;
 
 this.do_not_read_settings = false;      // do not read Settings from persistent module settings
 this.do_not_write_settings = false;     // do not write Settings to persistent module settings
@@ -79,8 +89,84 @@ this.cancel_processing = false;
 
 this.LDDDefectInfo = [];                // { groupname: name,  defects: defects }
 
+// Available stretching tools, the first one is the default
+this.image_stretching_values = [ 'Auto STF', 'Masked Stretch', 'VeraLuxHMS', 'Masked+Histogram Stretch', 'Histogram stretch', 'Arcsinh Stretch', 
+                                'Histogram direct', 'Logarithmic stretch', 'Asinh+Histogram stretch', 'Square root stretch', 
+                                'Shadow stretch', 'Highlight stretch', 'None' ];
+
+// Check if new MultiscaleAdaptiveStretch is available
+try {
+      var P = new MultiscaleAdaptiveStretch;
+      // Add MultiscaleAdaptiveStretch as the second option if not already there
+      if (this.image_stretching_values.indexOf('MultiscaleAdaptiveStretch') == -1) {
+            this.image_stretching_values.splice(1, 0, 'MultiscaleAdaptiveStretch');
+      }
+} catch (e) {
+      // No changes
+}
+
+this.enhancements_gradient_correction_values = [ 'Auto', 'ABE', 'DBE', 'GradientCorrection', 'GraXpert' ];
+
+#ifdef AUTOINTEGRATE_STANDALONE
+// Replace GradientCorrection with MultiscaleGradientCorrection for standalone version
+this.enhancements_gradient_correction_values[3] = "MultiscaleGradientCorrection";
+// Replace Auto with MultiscaleGradientCorrection for standalone version
+this.enhancements_gradient_correction_values[0] = "GradientCorrection";
+#endif
+
+// Available narrowband palettes.
+// Description of the fields
+//    name - name of the palette:
+//    R, G, B - channel expressions for the palette
+//    all - If true this palette is created if All is selected in the UI
+//    checkable - If true then the palette can be checked with multiple mappings in the UI
+//    sho_mappable - If true the palette can be used in SHO mapping in the enhancements
+//    stretched - True if the palette should be stretched before combing to RGB, like dynamic palettes
+this.narrowBandPalettes = [
+#ifndef AUTOINTEGRATE_STANDALONE
+      { name: "Auto", R: "Auto", G: "Auto", B: "Auto", all: false, checkable: false, sho_mappable: false, stretched: false },
+#endif
+      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false, stretched: false },
+      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
+      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
+      { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false, stretched: false }, 
+      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false, stretched: false }, 
+      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true, sho_mappable: true, stretched: false }, 
+      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false, stretched: false }, 
+      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false, stretched: false },
+#ifndef AUTOINTEGRATE_STANDALONE
+      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false, stretched: false }
+#endif
+];
+
+// If narrowBandPalettes is Auto, we use these mappings to create
+// the image.
+this.narrowbandAutoMapping = [
+      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
+      { input: ['H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: false },
+      { input: ['L','R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true },
+      { input: ['R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true }
+];
+
+
 // Set parameter value and check possible mappings
-this.setParameterValue = function(param, val) {
+function setParameterValue(param, val) {
       if (param.name == "Target type") {
             if (val == "Small bright nebula" || val == "Large nebula") {
                   param.val = "Nebula";
@@ -107,7 +193,6 @@ this.par = {
       fix_row_defects: { val: false, def: false, name : "Fix row defects", type : 'B' },
       skip_cosmeticcorrection: { val: false, def: false, name : "No Cosmetic correction", type : 'B', oldname: "Cosmetic correction" },
       skip_subframeselector: { val: false, def: false, name : "No SubframeSelector", type : 'B', oldname : "SubframeSelector" },
-      strict_StarAlign: { val: false, def: false, name : "Strict StarAlign", type : 'B' },
       staralignment_sensitivity: { val: 0.5, def: 0.5, name : "StarAlignment sensitivity", type : 'R' },
       staralignment_maxstarsdistortion: { val: 0.6, def: 0.6, name : "StarAlignment distortion", type : 'R' },
       staralignment_structurelayers: { val: 5, def: 5, name : "StarAlignment layers", type : 'I' },
@@ -212,7 +297,7 @@ this.par = {
       nxt_denoise_lf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF", type : 'R' },
       nxt_frequency_scale: { val: 5, def: 5, name : "NoiseXTerminator frequency scale", type : 'R' },
       nxt_denoise_lf_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF color", type : 'R' },
-      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R' },   // Old
+      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R', ignore_used: true },   // Old
 
       deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
       
@@ -240,10 +325,10 @@ this.par = {
       astrobin_C: { val: "", def: "", name : "AstroBin C", type : 'S', skip_reset: true },
 
       // Narrowband processing
-      narrowband_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband mapping", type : 'S' },
-      custom_R_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband R mapping", type : 'S' },
-      custom_G_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband G mapping", type : 'S' },
-      custom_B_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband B mapping", type : 'S' },
+      narrowband_mapping: { val: this.narrowBandPalettes[0].name, def: this.narrowBandPalettes[0].name, name : "Narrowband mapping", type : 'S', used: true },
+      custom_R_mapping: { val: this.narrowBandPalettes[0].R, def: this.narrowBandPalettes[0].R, name : "Narrowband R mapping", type : 'S' },
+      custom_G_mapping: { val: this.narrowBandPalettes[0].G, def: this.narrowBandPalettes[0].G, name : "Narrowband G mapping", type : 'S' },
+      custom_B_mapping: { val: this.narrowBandPalettes[0].B, def: this.narrowBandPalettes[0].B, name : "Narrowband B mapping", type : 'S' },
       custom_L_mapping: { val: 'Auto', def: 'Auto', name : "Narrowband L mapping", type : 'S' },
       narrowband_linear_fit: { val: 'Auto', def: 'Auto', name : "Narrowband linear fit", type : 'S' },
       mapping_on_nonlinear_data: { val: false, def: false, name : "Narrowband mapping on non-linear data", type : 'B' },
@@ -326,17 +411,18 @@ this.par = {
       outliers_minmax: { val: false, def: false, name : "Outlier min max", type : 'B' },
       use_linear_fit: { val: 'Auto', def: 'Auto', name : "Linear fit", type : 'S' },
 
+      GC_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
+
       gc_scale: { val: 5, def: 5, name : "GC scale", type : 'R' },
       gc_smoothness: { val: 0.4, def: 0.4, name : "GC smoothness", type : 'R' },
       gc_automatic_convergence: { val: false, def: false, name : "GC automatic convergence", type : 'B' },
       gc_structure_protection: { val: true, def: true, name : "GC structure protection", type : 'B' },
       gc_protection_threshold: { val: 0.10, def: 0.10, name : "GC protection threshold", type : 'R' },
       gc_protection_amount: { val: 0.50, def: 0.50, name : "GC protection amount", type : 'R' },
-      gc_output_background_model: { val: false, def: false, name : "GC output background model", type : 'B' },
       gc_simplified_model: { val: false, def: false, name : "GC simplified model", type : 'B' },
       gc_simplified_model_degree: { val: 1, def: 1, name : "GC simplified model degree", type : 'I' },
       mgc_scale: { val: '1024', def: '1024', name : "MGC scale", type : 'S' },
-      mgc_output_background_model: { val: false, def: false, name : "MGC output background model", type : 'B' },
+      mgc_SpectrophotometricFluxCalibration: { val: true, def: true, name : "MGC Spectrophotometric Flux Calibration", type : 'B' },
       mgc_scale_factor: { val: 1.0, def: 1.0, name : "MGC scale factor", type : 'R' },
       mgc_structure_separation: { val: 3, def: 3, name : "MGC structure separation", type : 'I' },
       
@@ -367,7 +453,7 @@ this.par = {
       crop_use_rejection_low: { val: true, def: true, name : "Crop use rejection low", type : 'B' },
       crop_rejection_low_limit: { val: 0.2, def: 0.2, name : "Crop rejection low limit", type : 'R' },
       crop_check_limit: { val: 5, def: 5, name : "Crop check limit", type : 'R' },
-      image_stretching: { val: 'Auto STF', def: 'Auto STF', name : "Image stretching", type : 'S' },
+      image_stretching: { val: self.image_stretching_values[0], def: self.image_stretching_values[0], name : "Image stretching", type : 'S' },
       stars_stretching: { val: 'Arcsinh Stretch', def: 'Arcsinh Stretch', name : "Stars stretching", type : 'S' },
       stars_combine: { val: 'Screen', def: 'Screen', name : "Stars combine", type : 'S' },
       STF_linking: { val: 'Auto', def: 'Auto', name : "RGB channel linking", type : 'S' },
@@ -406,6 +492,16 @@ this.par = {
       Arcsinh_stretch_factor: { val: 50, def: 50, name : "Arcsinh Stretch Factor", type : 'R' },    
       Arcsinh_black_point: { val: 0.01, def: 0.01, name : "Arcsinh Stretch black point", type : 'R' }, 
       Arcsinh_iterations: { val: 3, def: 3, name : "Arcsinh Stretch iterations", type : 'I' }, 
+
+      MAS_targetBackground: { val: 0.15, def: 0.15, name : "MAS targetBackground", type : 'R' },
+      MAS_aggressiveness: { val: 0.7, def: 0.7, name : "MAS aggressiveness", type : 'R' },
+      MAS_dynamicRangeCompression: { val: 0.4, def: 0.4, name : "MAS dynamic range compression", type : 'R' },
+      MAS_contrastRecovery: { val: true, def: true, name : "MAS contrast recovery", type : 'B' },
+      MAS_scaleSeparation: { val: 7, def: 7, name : "MAS scale separation", type : 'I' },
+      MAS_colorSaturation: { val: true, def: true, name : "MAS color saturation", type : 'B' }, 
+      MAS_colorSaturation_amount: { val: 0.75, def: 0.75, name : "MAS color saturation amount", type : 'R' },
+      MAS_colorSaturation_boost: { val: 0.5, def: 0.5, name : "MAS color saturation boost", type : 'R' },
+      MAS_colorSaturation_lightness: { val: true, def: true, name : "MAS color saturation lightness", type : 'B' },
 
       veralux_processing_mode: { val: 'Ready-to-Use', def: 'Ready-to-Use', name : "VeraLux processing mode", type : 'S' },
       veralux_sensor_profile: { val: 'Default', def: 'Default', name : "VeraLux sensor profile", type : 'S' },
@@ -459,133 +555,133 @@ this.par = {
       color_calibration_time: { val: 'auto', def: 'auto', name : "ColorCalibration time", type : 'S' },
 
       // Extra processing for narrowband
-      run_foraxx_mapping: { val: false, def: false, name : "Extra Foraxx mapping", type : 'B' },
-      foraxx_palette: { val: "SHO", def: "SHO", name : "Extra Foraxx palette", type : 'S' },
-      run_extra_narrowband_mapping: { val: false, def: false, name : "Extra narrowband mapping", type : 'B' },
-      extra_narrowband_mapping_source_palette: { val: "SHO", def: "SHO", name : "Extra narrowband mapping source palette", type : 'S' },
-      extra_narrowband_mapping_target_palette: { val: "HOS", def: "HOS", name : "Extra narrowband mapping target palette", type : 'S' },
-      run_orangeblue_colors: { val: false, def: false, name : "Extra orangeblue colors", type : 'B' },
-      run_less_green_hue_shift: { val: false, def: false, name : "Extra narrowband green hue shift", type : 'B' },
-      run_orange_hue_shift: { val: false, def: false, name : "Extra narrowband more orange", type : 'B' },
-      run_hue_shift: { val: false, def: false, name : "Extra narrowband hue shift", type : 'B' },
+      run_foraxx_mapping: { val: false, def: false, name : "Enh Foraxx mapping", type : 'B', oldname: "Extra Foraxx mapping"},
+      foraxx_palette: { val: "SHO", def: "SHO", name : "Enh Foraxx palette", type : 'S', oldname: "Extra Foraxx palette"},
+      run_enhancements_narrowband_mapping: { val: false, def: false, name : "Enh narrowband mapping", type : 'B', oldname: "Extra narrowband mapping" },
+      enhancements_narrowband_mapping_source_palette: { val: "SHO", def: "SHO", name : "Enh narrowband mapping source palette", type : 'S', oldname: "Extra narrowband mapping source palette" },
+      enhancements_narrowband_mapping_target_palette: { val: "HOS", def: "HOS", name : "Enh narrowband mapping target palette", type : 'S', oldname: "Extra narrowband mapping target palette" },
+      run_orangeblue_colors: { val: false, def: false, name : "Enh orangeblue colors", type : 'B', oldname: "Extra orangeblue colors" },
+      run_orange_hue_shift: { val: false, def: false, name : "Enh narrowband more orange", type : 'B', oldname: "Extra narrowband more orange" },
+      run_hue_shift: { val: false, def: false, name : "Enh narrowband hue shift", type : 'B', oldname: "Extra narrowband hue shift" },
 
-      run_colorized_narrowband: { val: false, def: false, name : "Extra colorized narrowband", type : 'B' },
-      colorized_integrated_images: { val: false, def: false, name : "Extra colorized narrowband integrated images", type : 'B' },
-      colorized_narrowband_preset: { val: "Default", def: "Default", name : "Extra colorized narrowband preset", type : 'S' },
-      narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Extra colorized narrowband R hue", type : 'R' },
-      narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Extra colorized narrowband R sat", type : 'R' },
-      narrowband_colorized_R_weight: { val: 1.0, def: 1.0, name : "Extra colorized narrowband R weight", type : 'R' },
-      narrowband_colorized_G_hue: { val: 0.33, def: 0.33, name : "Extra colorized narrowband G hue", type : 'R' },
-      narrowband_colorized_G_sat: { val: 0.5, def: 0.5, name : "Extra colorized narrowband G sat", type : 'R' },
-      narrowband_colorized_G_weight: { val: 1.0, def: 1.0, name : "Extra colorized narrowband G weight", type : 'R' },
-      narrowband_colorized_B_hue: { val: 0.67, def: 0.67, name : "Extra colorized narrowband B hue", type : 'R' },
-      narrowband_colorized_B_sat: { val: 0.5, def: 0.5, name : "Extra colorized narrowband B sat", type : 'R' },
-      narrowband_colorized_B_weight: { val: 1.0, def: 1.0, name : "Extra colorized narrowband B weight", type : 'R' },
-      narrowband_colorized_mapping: { val: 'RGB', def: 'RGB', name : "Extra colorized narrowband mapping", type : 'S' },
-      narrowband_colorized_combine: { val: 'Channels', def: 'Channels', name : "Extra colorized narrowband combine", type : 'S' },
-      narrowband_colorized_method: { val: 'PixelMath', def: 'PixelMath', name : "Extra colorized narrowband method", type : 'S' },
-      narrowband_colorized_linear_fit: { val: false, def: false, name : "Extra colorized narrowband linear fit", type : 'B' },
+      run_colorized_narrowband: { val: false, def: false, name : "Enh colorized narrowband", type : 'B', oldname: "Extra colorized narrowband" },
+      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images", ignore_used: true },  // Debug only
+      colorized_narrowband_preset: { val: "Default", def: "Default", name : "Enh colorized narrowband preset", type : 'S', oldname: "Extra colorized narrowband preset" },
+      narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Enh colorized narrowband R hue", type : 'R', oldname: "Extra colorized narrowband R hue" },
+      narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband R sat", type : 'R', oldname: "Extra colorized narrowband R sat" },
+      narrowband_colorized_R_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband R weight", type : 'R', oldname: "Extra colorized narrowband R weight" },
+      narrowband_colorized_G_hue: { val: 0.33, def: 0.33, name : "Enh colorized narrowband G hue", type : 'R', oldname: "Extra colorized narrowband G hue" },
+      narrowband_colorized_G_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband G sat", type : 'R', oldname: "Extra colorized narrowband G sat" },
+      narrowband_colorized_G_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband G weight", type : 'R', oldname: "Extra colorized narrowband G weight" },
+      narrowband_colorized_B_hue: { val: 0.67, def: 0.67, name : "Enh colorized narrowband B hue", type : 'R', oldname: "Extra colorized narrowband B hue" },
+      narrowband_colorized_B_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband B sat", type : 'R', oldname: "Extra colorized narrowband B sat" },
+      narrowband_colorized_B_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband B weight", type : 'R', oldname: "Extra colorized narrowband B weight" },
+      narrowband_colorized_mapping: { val: 'RGB', def: 'RGB', name : "Enh colorized narrowband mapping", type : 'S', oldname: "Extra colorized narrowband mapping" },
+      narrowband_colorized_combine: { val: 'Channels', def: 'Channels', name : "Enh colorized narrowband combine", type : 'S', oldname: "Extra colorized narrowband combine" },
+      narrowband_colorized_method: { val: 'PixelMath', def: 'PixelMath', name : "Enh colorized narrowband method", type : 'S', oldname: "Extra colorized narrowband method" },
+      narrowband_colorized_linear_fit: { val: false, def: false, name : "Enh colorized narrowband linear fit", type : 'B', oldname: "Extra colorized narrowband linear fit" },
       
-      leave_some_green: { val: false, def: false, name : "Extra narrowband leave some green", type : 'B' },
-      leave_some_green_amount: { val: 0.50, def: 0.50, name : "Extra narrowband leave some green amount", type : 'R' },
-      run_narrowband_SCNR: { val: false, def: false, name : "Extra narrowband remove green", type : 'B' },
-      remove_magenta_color: { val: false, def: false, name : "Extra remove magenta color", type : 'B' },
-      fix_narrowband_star_color: { val: false, def: false, name : "Extra narrowband fix star colors", type : 'B' },
-      skip_star_fix_mask: { val: false, def: false, name : "Extra narrowband no star mask", type : 'B' },
+      leave_some_green: { val: false, def: false, name : "Enh narrowband leave some green", type : 'B', oldname: "Extra narrowband leave some green" },
+      leave_some_green_amount: { val: 0.50, def: 0.50, name : "Enh narrowband leave some green amount", type : 'R', oldname: "Extra narrowband leave some green amount" },
+      run_narrowband_SCNR: { val: false, def: false, name : "Enh narrowband remove green", type : 'B', oldname: "Extra narrowband remove green" },
+      remove_magenta_color: { val: false, def: false, name : "Enh remove magenta color", type : 'B', oldname: "Extra remove magenta color" },
+      fix_narrowband_star_color: { val: false, def: false, name : "Enh narrowband fix star colors", type : 'B', oldname: "Extra narrowband fix star colors" },
+      skip_star_fix_mask: { val: false, def: false, name : "Enh narrowband no star mask", type : 'B', oldname: "Extra narrowband no star mask" },
 
       // Generic Extra processing
-      extra_remove_stars: { val: false, def: false, name : "Extra remove stars", type : 'B' },
-      extra_unscreen_stars: { val: false, def: false, name : "Extra unscreen stars", type : 'B' },
-      extra_fix_star_cores: { val: false, def: false, name : "Extra fix star cores", type : 'B' },
-      extra_combine_stars: { val: false, def: false, name : "Extra combine starless and stars", type : 'B' },
-      extra_combine_stars_mode: { val: 'Screen', def: 'Screen', name : "Extra remove stars combine", type : 'S' },
-      extra_combine_stars_image: { val: 'Auto', def: 'Auto', name : "Extra stars image", type : 'S' },
-      extra_combine_stars_reduce: { val: 'None', def: 'None', name : "Extra combine stars reduce", type : 'S' },
-      extra_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Extra combine stars reduce S", type : 'R' },
-      extra_combine_stars_reduce_M: { val: 1, def: 1, name : "Extra combine stars reduce M", type : 'R' },
-      extra_backgroundneutralization: { val: false, def: false, name : "Extra background neutralization", type : 'B' },
-      extra_GC: { val: false, def: false, name : "Extra GC", type : 'B', oldname: 'Extra ABE' },
-      extra_GC_method: { val: 'Auto', def: 'Auto', name : "Extra GC method", type : 'S' },
-      extra_banding_reduction: { val: false, def: false, name : "Extra banding reduction", type : 'B' },
-      extra_darker_background: { val: false, def: false, name : "Extra Darker background", type : 'B' },
-      extra_darker_highlights: { val: false, def: false, name : "Extra Darker highlights", type : 'B' },
-      extra_ET: { val: false, def: false, name : "Extra ExponentialTransformation", type : 'B' },
-      extra_ET_order: { val: 1.0, def: 1.0, name : "Extra ExponentialTransformation Order", type : 'I' },
-      extra_ET_adjusttype: { val: 'Lights', def: 'Lights', name : "Extra ExponentialTransformation adjust type", type : 'S' },
-      extra_HDRMLT: { val: false, def: false, name : "Extra HDRMLT", type : 'B' },
-      extra_HDRMLT_layers: { val: 6, def: 6, name : "Extra HDRMLT layers", type : 'I' },
-      extra_HDRMLT_overdrive: { val: 0, def: 0, name : "Extra HDRMLT overdrive", type : 'R' },
-      extra_HDRMLT_iterations: { val: 1, def: 1, name : "Extra HDRMLT iterations", type : 'I' },
-      extra_HDRMLT_color: { val: 'None', def: 'None', name : "Extra HDRMLT hue", type : 'S' },
-      extra_LHE: { val: false, def: false, name : "Extra LHE", type : 'B' },
-      extra_LHE_kernelradius: { val: 110, def: 110, name : "Extra LHE kernel radius", type : 'I' },
-      extra_LHE_contrastlimit: { val: 1.3, def: 1.3, name : "Extra LHE contrast limit", type : 'R' },
-      extra_LHE_adjusttype: { val: 'Lights', def: 'Lights', name : "Extra LHE adjust type", type : 'S' },
-      extra_contrast: { val: false, def: false, name : "Extra contrast", type : 'B' },
-      extra_contrast_iterations: { val: 1, def: 1, name : "Extra contrast iterations", type : 'I' },
-      extra_auto_contrast: { val: false, def: false, name : "Extra auto contrast", type : 'B' },
-      extra_auto_contrast_limit_low: { val: 0.0000, def: 0.0000, name : "Extra auto contrast limit", type : 'R' },
-      extra_auto_contrast_limit_high: { val: 100, def: 100, name : "Extra auto contrast limit high", type : 'R' },
-      extra_auto_contrast_channels: { val: false, def: false, name : "Extra auto contrast channels", type : 'B' },
-      extra_stretch: { val: false, def: false, name : "Extra stretch", type : 'B' },
-      extra_autostf: { val: false, def: false, name : "Extra AutoSTF", type : 'B' },
-      extra_signature: { val: false, def: false, name : "Extra signature", type : 'B' },
-      extra_signature_path: { val: "", def: "", name : "Extra signature path", type : 'S' },
-      extra_signature_scale: { val: 0, def: 0, name : "Extra signature scale", type : 'I' },
-      extra_signature_position: { val: 'Bottom left', def: 'Bottom left', name : "Extra signature position", type : 'S' },
-      extra_shadowclipping: { val: false, def: false, name : "Extra shadow clipping", type : 'B' },
-      extra_shadowclippingperc: { val: 0.0001, def: 0.0001, name : "Extra shadow clipping percentage", type : 'R' },
-      extra_smoothbackground: { val: false, def: false, name : "Extra smooth background", type : 'B' },
-      extra_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Extra smooth background value", type : 'R' },
-      extra_smoothbackgroundfactor: { val: 0.5, def: 0.5, name : "Extra smooth background factor", type : 'R' },
-      extra_normalize_channels: { val: false, def: false, name : "Extra normalize channels", type : 'B' },
-      extra_normalize_channels_reference: { val: 'G', def: 'G', name : "Extra normalize channels reference", type : 'S' },
-      extra_normalize_channels_mask: { val: false, def: false, name : "Extra normalize channels mask", type : 'B' },
-      extra_normalize_channels_rescale: { val: false, def: false, name : "Extra normalize channels rescale", type : 'B' },
-      extra_adjust_channels: { val: false, def: false, name : "Extra adjust channels", type : 'B' },
-      extra_adjust_channels_only_k: { val: false, def: false, name : "Extra adjust channels K", type : 'B' },
-      extra_adjust_R: { val: 1, def: 1, name : "Extra adjust R", type : 'R' },
-      extra_adjust_G: { val: 1, def: 1, name : "Extra adjust G", type : 'R' },
-      extra_adjust_B: { val: 1, def: 1, name : "Extra adjust B", type : 'R' },
-      extra_force_new_mask: { val: true, def: true, name : "Extra force new mask", type : 'B' },
-      extra_range_mask: { val: false, def: false, name : "Extra range_mask", type : 'B' },
-      extra_auto_reset: { val: true, def: true, name : "Extra auto reset", type : 'B' },
-      extra_shadow_enhance: { val: false, def: false, name : "Extra shadow enhance", type : 'B' },
-      extra_highlight_enhance: { val: false, def: false, name : "Extra highlight enhance", type : 'B' },
-      extra_gamma: { val: false, def: false, name : "Extra gamma", type : 'B' },
-      extra_gamma_value: { val: 1, def: 1, name : "Extra gamma value", type : 'R' },
+      enhancements_remove_stars: { val: false, def: false, name : "Enh remove stars", type : 'B', oldname: "Extra star removal" },
+      enhancements_unscreen_stars: { val: false, def: false, name : "Enh unscreen stars", type : 'B', oldname: "Extra unscreen stars" },
+      enhancements_fix_star_cores: { val: false, def: false, name : "Enh fix star cores", type : 'B', oldname: "Extra fix star cores" },
+      enhancements_combine_stars: { val: false, def: false, name : "Enh combine starless and stars", type : 'B', oldname: "Extra combine starless and stars" },
+      enhancements_combine_stars_mode: { val: 'Screen', def: 'Screen', name : "Enh remove stars combine", type : 'S', oldname: "Extra remove stars combine" },
+      enhancements_combine_stars_image: { val: 'Auto', def: 'Auto', name : "Enh stars image", type : 'S', oldname: "Extra stars image" },
+      enhancements_combine_stars_reduce: { val: 'None', def: 'None', name : "Enh combine stars reduce", type : 'S', oldname: "Extra combine stars reduce" },
+      enhancements_combine_stars_reduce_S: { val: 0.15, def: 0.15, name : "Enh combine stars reduce S", type : 'R', oldname: "Extra combine stars reduce S" },
+      enhancements_combine_stars_reduce_M: { val: 1, def: 1, name : "Enh combine stars reduce M", type : 'R', oldname: "Extra combine stars reduce M" },
+      enhancements_backgroundneutralization: { val: false, def: false, name : "Enh background neutralization", type : 'B', oldname: "Extra background neutralization" },
+      enhancements_GC: { val: false, def: false, name : "Enh GC", type : 'B', oldname: 'Extra ABE' },
+      enhancements_GC_method: { val: this.enhancements_gradient_correction_values[0], def: this.enhancements_gradient_correction_values[0], name : "Enh GC method", type : 'S', oldname: "Extra GC method" },
+      enhancements_banding_reduction: { val: false, def: false, name : "Enh banding reduction", type : 'B', oldname: "Extra banding reduction" },
+      enhancements_darker_background: { val: false, def: false, name : "Enh Darker background", type : 'B', oldname: "Extra Darker background" },
+      enhancements_darker_highlights: { val: false, def: false, name : "Enh Darker highlights", type : 'B', oldname: "Extra Darker highlights" },
+      enhancements_ET: { val: false, def: false, name : "Enh ExponentialTransformation", type : 'B', oldname: "Extra ExponentialTransformation" },
+      enhancements_ET_order: { val: 1.0, def: 1.0, name : "Enh ExponentialTransformation Order", type : 'I', oldname: "Extra ExponentialTransformation Order" },
+      enhancements_ET_adjusttype: { val: 'Lights', def: 'Lights', name : "Enh ExponentialTransformation adjust type", type : 'S', oldname: "Extra ExponentialTransformation adjust type" },
+      enhancements_HDRMLT: { val: false, def: false, name : "Enh HDRMLT", type : 'B', oldname: "Extra HDRMLT" },
+      enhancements_HDRMLT_layers: { val: 6, def: 6, name : "Enh HDRMLT layers", type : 'I', oldname: "Extra HDRMLT layers" },
+      enhancements_HDRMLT_overdrive: { val: 0, def: 0, name : "Enh HDRMLT overdrive", type : 'R', oldname: "Extra HDRMLT overdrive" },
+      enhancements_HDRMLT_iterations: { val: 1, def: 1, name : "Enh HDRMLT iterations", type : 'I', oldname: "Extra HDRMLT iterations" },
+      enhancements_HDRMLT_color: { val: 'None', def: 'None', name : "Enh HDRMLT hue", type : 'S', oldname: "Extra HDRMLT hue" },
+      enhancements_LHE: { val: false, def: false, name : "Enh LHE", type : 'B', oldname: "Extra LHE" },
+      enhancements_LHE_kernelradius: { val: 110, def: 110, name : "Enh LHE kernel radius", type : 'I', oldname: "Extra LHE kernel radius" },
+      enhancements_LHE_contrastlimit: { val: 1.3, def: 1.3, name : "Enh LHE contrast limit", type : 'R', oldname: "Extra LHE contrast limit" },
+      enhancements_LHE_adjusttype: { val: 'Lights', def: 'Lights', name : "Enh LHE adjust type", type : 'S', oldname: "Extra LHE adjust type" },
+      enhancements_contrast: { val: false, def: false, name : "Enh contrast", type : 'B', oldname: "Extra contrast" },
+      enhancements_contrast_iterations: { val: 1, def: 1, name : "Enh contrast iterations", type : 'I', oldname: "Extra contrast iterations" },
+      enhancements_auto_contrast: { val: false, def: false, name : "Enh auto contrast", type : 'B', oldname: "Extra auto contrast" },
+      enhancements_auto_contrast_limit_low: { val: 0.0000, def: 0.0000, name : "Enh auto contrast limit", type : 'R', oldname: "Extra auto contrast limit" },
+      enhancements_auto_contrast_limit_high: { val: 100, def: 100, name : "Enh auto contrast limit high", type : 'R', oldname: "Extra auto contrast limit high" },
+      enhancements_auto_contrast_channels: { val: false, def: false, name : "Enh auto contrast channels", type : 'B', oldname: "Extra auto contrast channels" },
+      enhancements_stretch: { val: false, def: false, name : "Enh stretch", type : 'B', oldname: "Extra stretch" },
+      enhancements_autostf: { val: false, def: false, name : "Enh AutoSTF", type : 'B', oldname: "Extra AutoSTF" },
+      enhancements_signature: { val: false, def: false, name : "Enh signature", type : 'B', oldname: "Extra signature" },
+      enhancements_signature_path: { val: "", def: "", name : "Enh signature path", type : 'S', oldname: "Extra signature path" },
+      enhancements_signature_scale: { val: 0, def: 0, name : "Enh signature scale", type : 'I', oldname: "Extra signature scale" },
+      enhancements_signature_position: { val: 'Bottom left', def: 'Bottom left', name : "Enh signature position", type : 'S', oldname: "Extra signature position" },
+      enhancements_shadowclipping: { val: false, def: false, name : "Enh shadow clipping", type : 'B', oldname: "Extra shadow clipping" },
+      enhancements_shadowclippingperc: { val: 0.0001, def: 0.0001, name : "Enh shadow clipping percentage", type : 'R', oldname: "Extra shadow clipping percentage" },
+      enhancements_smoothbackground: { val: false, def: false, name : "Enh smooth background", type : 'B', oldname: "Extra smooth background" },
+      enhancements_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Enh smooth background value", type : 'R', oldname: "Extra smooth background value" },
+      enhancements_smoothbackgroundfactor: { val: 0.5, def: 0.5, name : "Enh smooth background factor", type : 'R', oldname: "Extra smooth background factor" },
+      enhancements_normalize_channels: { val: false, def: false, name : "Enh normalize channels", type : 'B', oldname: "Extra normalize channels" },
+      enhancements_normalize_channels_reference: { val: 'G', def: 'G', name : "Enh normalize channels reference", type : 'S', oldname: "Extra normalize channels reference" },
+      enhancements_normalize_channels_mask: { val: false, def: false, name : "Enh normalize channels mask", type : 'B', oldname: "Extra normalize channels mask" },
+      enhancements_normalize_channels_rescale: { val: false, def: false, name : "Enh normalize channels rescale", type : 'B', oldname: "Extra normalize channels rescale" },
+      enhancements_adjust_channels: { val: false, def: false, name : "Enh adjust channels", type : 'B', oldname: "Extra adjust channels" },
+      enhancements_adjust_channels_only_k: { val: false, def: false, name : "Enh adjust channels K", type : 'B', oldname: "Extra adjust channels K" },
+      enhancements_adjust_R: { val: 1, def: 1, name : "Enh adjust R", type : 'R', oldname: "Extra adjust R" },
+      enhancements_adjust_G: { val: 1, def: 1, name : "Enh adjust G", type : 'R', oldname: "Extra adjust G" },
+      enhancements_adjust_B: { val: 1, def: 1, name : "Enh adjust B", type : 'R', oldname: "Extra adjust B" },
+      enhancements_force_new_mask: { val: true, def: true, name : "Enh force new mask", type : 'B', oldname: "Extra force new mask" },
+      enhancements_range_mask: { val: false, def: false, name : "Enh range_mask", type : 'B', oldname: "Extra range_mask" },
+      enhancements_auto_reset: { val: true, def: true, name : "Enh auto reset", type : 'B', oldname: "Extra auto reset" },
+      enhancements_shadow_enhance: { val: false, def: false, name : "Enh shadow enhance", type : 'B', oldname: "Extra shadow enhance" },
+      enhancements_highlight_enhance: { val: false, def: false, name : "Enh highlight enhance", type : 'B', oldname: "Extra highlight enhance" },
+      enhancements_gamma: { val: false, def: false, name : "Enh gamma", type : 'B', oldname: "Extra gamma" },
+      enhancements_gamma_value: { val: 1, def: 1, name : "Enh gamma value", type : 'R', oldname: "Extra gamma value" },
             
-      extra_noise_reduction: { val: false, def: false, name : "Extra noise reduction", type : 'B' },
-      extra_ACDNR: { val: false, def: false, name : "Extra ACDNR noise reduction", type : 'B' },
-      extra_color_noise: { val: false, def: false, name : "Extra color noise reduction", type : 'B' },
-      extra_star_noise_reduction: { val: false, def: false, name : "Extra star noise reduction", type : 'B' },
-      extra_sharpen: { val: false, def: false, name : "Extra sharpen", type : 'B' },
-      extra_sharpen_iterations: { val: 1, def: 1, name : "Extra sharpen iterations", type : 'I' },
-      extra_unsharpmask: { val: false, def: false, name : "Extra unsharpmask", type : 'B' },
-      extra_unsharpmask_stddev: { val: 2, def: 2, name : "Extra unsharpmask stddev", type : 'I' },
-      extra_unsharpmask_amount: { val: 0.8, def: 0.8, name : "Extra unsharpmask amount", type : 'I' },
-      extra_highpass_sharpen: { val: false, def: false, name : "Extra highpass sharpen", type : 'B' },
-      extra_highpass_sharpen_method: { val: 'Default', def: 'Default', name : "Extra highpass sharpen method", type : 'S' },
-      extra_highpass_sharpen_layers: { val: 5, def: 5, name : "Extra highpass sharpen layers", type : 'I' },
-      extra_highpass_sharpen_keep_images: { val: false, def: false, name : "Extra highpass sharpen keep images", type : 'B' },
-      extra_highpass_sharpen_combine_only: { val: false, def: false, name : "Extra highpass sharpen combine only", type : 'B' },
-      extra_highpass_sharpen_noise_reduction: { val: false, def: false, name : "Extra highpass sharpen noise reduction", type : 'B' },
-      extra_clarity: { val: false, def: false, name : "Extra clarity", type : 'B' },
-      extra_clarity_stddev: { val: 100, def: 100, name : "Extra clarity stddev", type : 'I' },
-      extra_clarity_amount: { val: 0.3, def: 0.3, name : "Extra clarity amount", type : 'I' },
-      extra_clarity_mask: { val: false, def: false, name : "Extra clarity mask", type : 'B' },
-      extra_saturation: { val: false, def: false, name : "Extra saturation", type : 'B' },
-      extra_saturation_iterations: { val: 1, def: 1, name : "Extra saturation iterations", type : 'I' },
-      extra_smaller_stars: { val: false, def: false, name : "Extra smaller stars", type : 'B' },
-      extra_smaller_stars_iterations: { val: 1, def: 1, name : "Extra smaller stars iterations", type : 'I' },
-      extra_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
-      extra_rotate: { val: false, def: false, name : "Extra rotate", type : 'B' },
-      extra_rotate_degrees: { val: '180', def: '180', name : "Extra rotate degrees", type : 'S' },
-      extra_color_calibration: { val: false, def: false, name : "Extra color calibration", type : 'B' },
-      extra_solve_image: { val: false, def: false, name : "Extra solve image", type : 'B' },
-      extra_annotate_image: { val: false, def: false, name : "Extra annotate image", type : 'B' },
-      extra_annotate_image_scale: { val: 4, def: 4, name : "Extra annotate image scale", type : 'B' },
-      extra_ha_mapping: { val: false, def: false, name : "Extra ha mapping", type : 'B' },
+      enhancements_noise_reduction: { val: false, def: false, name : "Enh noise reduction", type : 'B', oldname: "Extra noise reduction" },
+      enhancements_ACDNR: { val: false, def: false, name : "Enh ACDNR noise reduction", type : 'B', oldname: "Extra ACDNR noise reduction" },
+      enhancements_color_noise: { val: false, def: false, name : "Enh color noise reduction", type : 'B', oldname: "Extra color noise reduction" },
+      enhancements_star_noise_reduction: { val: false, def: false, name : "Enh star noise reduction", type : 'B', oldname: "Extra star noise reduction" },
+      enhancements_sharpen: { val: false, def: false, name : "Enh sharpen", type : 'B', oldname: "Extra sharpen" },
+      enhancements_sharpen_iterations: { val: 1, def: 1, name : "Enh sharpen iterations", type : 'I', oldname: "Extra sharpen iterations" },
+      enhancements_unsharpmask: { val: false, def: false, name : "Enh unsharpmask", type : 'B', oldname: "Extra unsharpmask" },
+      enhancements_unsharpmask_stddev: { val: 2, def: 2, name : "Enh unsharpmask stddev", type : 'I', oldname: "Extra unsharpmask stddev" },
+      enhancements_unsharpmask_amount: { val: 0.8, def: 0.8, name : "Enh unsharpmask amount", type : 'I', oldname: "Extra unsharpmask amount" },
+      enhancements_highpass_sharpen: { val: false, def: false, name : "Enh highpass sharpen", type : 'B', oldname: "Extra highpass sharpen" },
+      enhancements_highpass_sharpen_method: { val: 'Default', def: 'Default', name : "Enh highpass sharpen method", type : 'S', oldname: "Extra highpass sharpen method" },
+      enhancements_highpass_sharpen_layers: { val: 5, def: 5, name : "Enh highpass sharpen layers", type : 'I', oldname: "Extra highpass sharpen layers" },
+      enhancements_highpass_sharpen_keep_images: { val: false, def: false, name : "Enh highpass sharpen keep images", type : 'B', oldname: "Extra highpass sharpen keep images" },
+      enhancements_highpass_sharpen_combine_only: { val: false, def: false, name : "Enh highpass sharpen combine only", type : 'B', oldname: "Extra highpass sharpen combine only" },
+      enhancements_highpass_sharpen_noise_reduction: { val: false, def: false, name : "Enh highpass sharpen noise reduction", type : 'B', oldname: "Extra highpass sharpen noise reduction" },
+      enhancements_clarity: { val: false, def: false, name : "Enh clarity", type : 'B', oldname: "Extra clarity" },
+      enhancements_clarity_stddev: { val: 100, def: 100, name : "Enh clarity stddev", type : 'I', oldname: "Extra clarity stddev" },
+      enhancements_clarity_amount: { val: 0.3, def: 0.3, name : "Enh clarity amount", type : 'I', oldname: "Extra clarity amount" },
+      enhancements_clarity_mask: { val: false, def: false, name : "Enh clarity mask", type : 'B', oldname: "Extra clarity mask" },
+      enhancements_saturation: { val: false, def: false, name : "Enh saturation", type : 'B', oldname: "Extra saturation" },
+      enhancements_saturation_iterations: { val: 1, def: 1, name : "Enh saturation iterations", type : 'I', oldname: "Extra saturation iterations" },
+      enhancements_less_saturation: { val: false, def: false, name : "Enh less saturation", type : 'B' },
+      enhancements_smaller_stars: { val: false, def: false, name : "Enh smaller stars", type : 'B', oldname: "Extra smaller stars" },
+      enhancements_smaller_stars_iterations: { val: 1, def: 1, name : "Enh smaller stars iterations", type : 'I', oldname: "Extra smaller stars iterations" },
+      enhancements_apply_no_copy_image: { val: false, def: false, name : "Apply no copy image", type : 'B' },
+      enhancements_rotate: { val: false, def: false, name : "Enh rotate", type : 'B', oldname: "Extra rotate" },
+      enhancements_rotate_degrees: { val: '180', def: '180', name : "Enh rotate degrees", type : 'S', oldname: "Extra rotate degrees" },
+      enhancements_color_calibration: { val: false, def: false, name : "Enh color calibration", type : 'B', oldname: "Extra color calibration" },
+      enhancements_solve_image: { val: false, def: false, name : "Enh solve image", type : 'B', oldname: "Extra solve image" },
+      enhancements_annotate_image: { val: false, def: false, name : "Enh annotate image", type : 'B', oldname: "Extra annotate image" },
+      enhancements_annotate_image_scale: { val: 4, def: 4, name : "Enh annotate image scale", type : 'B', oldname: "Extra annotate image scale" },
+      enhancements_ha_mapping: { val: false, def: false, name : "Enh ha mapping", type : 'B', oldname: "Extra ha mapping" },
 
       // Calibration settings
       debayer_pattern: { val: "Auto", def: "Auto", name : "Debayer", type : 'S' },
@@ -605,7 +701,7 @@ this.par = {
       integrated_lights: { val: false, def: false, name : "Integrated lights", type : 'B' },
       flats_add_manually: { val: false, def: false, name : "Add flats manually", type : 'B' },
       flatdarks_add_manually: { val: false, def: false, name : "Add flat darks manually", type : 'B' },
-      skip_blink: { val: false, def: false, name : "No blink", type : 'B' },
+      skip_blink: { val: false, def: false, name : "No blink", type : 'B', used: true },  // Only if not using preview
       auto_output_pedestal: { val: true, def: true, name : "Auto output pedestal", type : 'B' },
       output_pedestal: { val: 0, def: 0, name : "Output pedestal", type : 'B' },
       
@@ -718,12 +814,13 @@ this.substack_number = 0;
 
 this.processed_channel_images = [];
 
-this.extra_target_image = null;
+this.enhancements_target_image_id = null;       // id of target image window for enhancements
+this.enhancements_target_histogram_info = null;
 
 this.processing_steps = "";
 this.processing_errors = "";
 this.processing_warnings = "";
-this.extra_processing_info = [];    // extra processing info steps from last Apply, array of [ txt]
+this.enhancements_info = [];    // enhancements info steps from last Apply, array of [ txt]
 this.all_windows = [];
 this.iconPoint = null;
 this.iconStartRow = 0;   // Starting row for icons, AutoContinue start from non-zero position
@@ -879,53 +976,7 @@ this.final_windows = [
 
 this.test_image_ids = [];      // Test images
 
-// Available narrowband palettes.
-// Description of the fields
-//    name - name of the palette:
-//    R, G, B - channel expressions for the palette
-//    all - If true this palette is created if All is selected in the UI
-//    checkable - If true then the palette can be checked with multiple mappings in the UI
-//    sho_mappable - If true the palette can be used in SHO mapping in the extra processing
-//    stretched - True if the palette should be stretched before combing to RGB, like dynamic palettes
-this.narrowBandPalettes = [
-      { name: "Auto", R: "Auto", G: "Auto", B: "Auto", all: false, checkable: false, sho_mappable: false, stretched: false },
-      { name: "SHO", R: "S", G: "H", B: "O", all: true, checkable: true, sho_mappable: false, stretched: false },
-      { name: "HOS", R: "H", G: "O", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO", R: "H", G: "S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "OHS", R: "O", G: "H", B: "S", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HOO", R: "H", G: "O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Pseudo RGB", R: "0.75*H + 0.25*S", G: "0.50*S + 0.50*O", B: "0.30*H + 0.70*O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Natural HOO", R: "H", G: "0.8*O+0.2*H", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "3-channel HOO", R: "0.76*H+0.24*S", G: "O", B: "0.85*O + 0.15*H", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "Dynamic SHO", R: "(O^~O)*S + ~(O^~O)*H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
-      { name: "Dynamic HOO", R: "H", G: "((O*H)^~(O*H))*H + ~((O*H)^~(O*H))*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: true }, 
-      { name: "max(R,H),G,B", R: "max(R, H)", G: "G", B: "B", all: false, checkable: true, sho_mappable: false, stretched: false }, 
-      { name: "max(RGB,HOO)", R: "max(R, H)", G: "max(G, O)", B: "max(B, O)", all: false, checkable: true, sho_mappable: false, stretched: false }, 
-      { name: "HOO Helix", R: "H", G: "(0.4*H)+(0.6*O)", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 1", R: "0.4*H + 0.6*S", G: "0.7*H + 0.3*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 2", R: "0.4*H + 0.6*S", G: "0.4*O + 0.3*H + 0.3*S", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 3", R: "0.5*H + 0.5*S", G: "0.15*H + 0.85*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "HSO Mix 4", R: "0.5*H + 0.5*S", G: "0.5*H + 0.5*O", B: "O", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "L-eXtreme SHO", R: "H", G: "0.5*H+0.5*max(S,O)", B: "max(S,O)", all: true, checkable: true, sho_mappable: true, stretched: false }, 
-      { name: "RGB", R: "R", G: "G", B: "B", all: false, checkable: false, sho_mappable: false, stretched: false }, 
-      { name: "User defined", R: "", G: "", B: "", all: false, checkable: false, sho_mappable: false, stretched: false },
-      { name: "All", R: "All", G: "All", B: "All", all: false, checkable: false, sho_mappable: false, stretched: false }
-];
-
-// If narrowBandPalettes is Auto, we use these mappings to create
-// the image.
-this.narrowbandAutoMapping = [
-      { input: ['L','R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
-      { input: ['R','G','B','H'], output: "max(R,H),G,B", check_ha_mapping: true, rgb_stars: false },
-      { input: ['H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: false },
-      { input: ['L','R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['R','G','B','H','O'], output: "HOO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: false },
-      { input: ['L','R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true },
-      { input: ['R','G','B','S','H','O'], output: "SHO", check_ha_mapping: false, rgb_stars: true }
-];
-
-this.getDirectoryInfo = function(simple_text) {
+function getDirectoryInfo(simple_text) {
       var header = "<p>AutoIntegrate output files go to the following subdirectories:</p>";
       var info = [
             "AutoProcessed contains processed final images. Also integrated images and log output is here.",
@@ -940,6 +991,22 @@ this.getDirectoryInfo = function(simple_text) {
       }
 }
 
+// Go through all parameters and report unused ones
+function reportUnusedParameters()
+{
+      if (!this.debug) {
+            return;
+      }
+      for (var key in this.par) {
+            if (this.par.hasOwnProperty(key)) {
+                  var p = this.par[key];
+                  if (!p.hasOwnProperty('used') && !p.ignore_used) {
+                        console.criticalln("Error:Unused parameter: " + p.name);
+                  }
+            }
+      }
+}
+
 this.ai_use_persistent_module_settings = true;  // read some defaults from persistent module settings
 this.testmode = false;                          // true if we are running in test mode
 this.testmode_log = "";                         // output for test mode, if any, to testmode.log file
@@ -950,6 +1017,15 @@ if (this.autointegrate_version.indexOf("test") > 0) {
       this.autointegrateinfo_link = "https://ruuth.xyz/AutoIntegrateInfo.html";
 }
 
+this.rootingArr = [];            // for rooting objects
+this.debug = false;              // true to enable debug output to console and additional debug checks
+
+this.getDirectoryInfo = getDirectoryInfo;
+this.setParameterValue = setParameterValue;
+this.reportUnusedParameters = reportUnusedParameters;
+
 }   /* AutoIntegrateGlobal*/
 
 AutoIntegrateGlobal.prototype = new Object;
+
+#endif // AUTOINTEGRATEGLOBAL_JS
