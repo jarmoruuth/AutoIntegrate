@@ -11872,42 +11872,44 @@ function writeProcessingStepsAndEndLog(alignedFiles, autocontinue, basename, ise
 
       console.writeln("Write processing steps to " + global.run_results.processing_steps_file);
 
-      var file = new File();
-      file.createForWriting(global.run_results.processing_steps_file);
-
-      file.write(console.endLog());
-      file.outTextLn("======================================");
-      if (iserror) {
-            // In case of error write info to log file.
-            // Normally this is written from the console output.
-            if (engine.lightFileNames != null) {
-                  file.outTextLn("Dialog files:");
-                  for (var i = 0; i < engine.lightFileNames.length; i++) {
-                        file.outTextLn(engine.lightFileNames[i]);
+      let logdata = util.endLog();
+      if (logdata != null) {
+            var file = new File();
+            file.createForWriting(global.run_results.processing_steps_file);
+            file.write(logdata);
+            file.outTextLn("======================================");
+            if (iserror) {
+                  // In case of error write info to log file.
+                  // Normally this is written from the console output.
+                  if (engine.lightFileNames != null) {
+                        file.outTextLn("Dialog files:");
+                        for (var i = 0; i < engine.lightFileNames.length; i++) {
+                              file.outTextLn(engine.lightFileNames[i]);
+                        }
+                  }
+                  if (alignedFiles != null) {
+                        file.outTextLn("Aligned files:");
+                        for (var i = 0; i < alignedFiles.length; i++) {
+                              file.outTextLn(alignedFiles[i]);
+                        }
+                  }
+                  file.outTextLn(global.processing_steps);
+                  if (global.processing_warnings.length > 0) {
+                        file.outTextLn("Processing warnings:");
+                        file.outTextLn(global.processing_warnings);
+                        console.warningln("Processing warnings:");
+                        console.warningln(global.processing_warnings);
+                  }
+                  if (global.processing_errors.length > 0) {
+                        file.outTextLn("Processing errors:");
+                        file.outTextLn(global.processing_errors);
+                        console.criticalln("Processing errors:");
+                        console.criticalln(global.processing_errors);
+                        global.processing_errors = "";
                   }
             }
-            if (alignedFiles != null) {
-                  file.outTextLn("Aligned files:");
-                  for (var i = 0; i < alignedFiles.length; i++) {
-                        file.outTextLn(alignedFiles[i]);
-                  }
-            }
-            file.outTextLn(global.processing_steps);
-            if (global.processing_warnings.length > 0) {
-                  file.outTextLn("Processing warnings:");
-                  file.outTextLn(global.processing_warnings);
-                  console.warningln("Processing warnings:");
-                  console.warningln(global.processing_warnings);
-            }
-            if (global.processing_errors.length > 0) {
-                  file.outTextLn("Processing errors:");
-                  file.outTextLn(global.processing_errors);
-                  console.criticalln("Processing errors:");
-                  console.criticalln(global.processing_errors);
-                  global.processing_errors = "";
-            }
+            file.close();
       }
-      file.close();
 }
 
 function writeTestmodeLog(text, fname)
@@ -14040,7 +14042,7 @@ function testRGBNBmapping()
       flowchart.flowchartReset();
       flowchart.flowchartInit();
 
-      console.beginLog();
+      util.beginLog();
 
       util.addProcessingStep("Test narrowband mapping to RGB");
 
@@ -14712,7 +14714,7 @@ function RGBHa_mapping(RGB_id)
 function testRGBHaMapping1(savelog)
 {
       if (savelog) {
-            console.beginLog();
+            util.beginLog();
       }
 
       util.addProcessingStep("Test Ha mapping to RGB");
@@ -14862,7 +14864,7 @@ function testRGBHaMapping1(savelog)
 function testRGBHaMapping()
 {
       if (par.RGBHa_test_value.val == 'All mappings') {
-            console.beginLog();
+            util.beginLog();
             for (var i = 0; i < gui.RGBHa_prepare_method_values.length; i++) {
                   local_RGBHa_prepare_method = gui.RGBHa_prepare_method_values[i];
                   for (var j = 0; j < gui.RGBHa_combine_method_values.length; j++) {
@@ -18983,7 +18985,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        }
 
        if (!global.get_flowchart_data) {
-            console.beginLog();
+            util.beginLog();
        }
        console.show();
 
@@ -19112,7 +19114,7 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        let create_channel_images_ret = createChannelImages(parent, auto_continue);
        if (create_channel_images_ret == retval.ERROR) {
              console.criticalln("Failed!");
-             console.endLog();
+             util.endLog();
              global.is_processing = global.processing_state.none;
              return null;
        }
@@ -19818,7 +19820,7 @@ function writeExecutedProcessesToXPSM(filename)
 
 function getProcessDefaultValues()
 {
-      console.beginLog();
+      util.beginLog();
 
       global.write_processing_log_file = true;
       console.writeln("PixInsight process default values");

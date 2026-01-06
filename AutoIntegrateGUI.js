@@ -291,7 +291,7 @@ function generateNewFlowchartData(parent)
 {
       var savedOutputRootDir = global.outputRootDir;
 
-      console.beginLog();
+      util.beginLog();
 
       console.writeln("generateNewFlowchartData");
       console.flush();
@@ -300,7 +300,7 @@ function generateNewFlowchartData(parent)
 
       if (global.lightFileNames == null) {
             console.criticalln("No files, cannot generate flowchart data");
-            console.endLog();
+            util.endLog();
             return false;
       }
 

@@ -25,11 +25,17 @@ function AutoIntegrateUtil(global)
 this.__base__ = Object;
 this.__base__();
 
+var self = this;
+
 var util = this;
 var gui = null;
 
 var par = global.par;
 var ppar = global.ppar;
+
+this.loggingEnabled = true;
+this.beginLogCallback = null;
+this.endLogCallback = null;
 
 /* Set optional GUI object to update GUI components.
  */
@@ -2881,6 +2887,29 @@ function getScaledExclusionAreas(exclusionAreas, targetImage, rescale = true)
       return { polygons: scaledExclusionAreas, image_width: targetImage.mainView.image.width, image_height: targetImage.mainView.image.height };
 }
 
+function beginLog()
+{
+      if (self.beginLogCallback != null) {
+            self.beginLogCallback();
+      }
+      if (self.loggingEnabled) {
+            console.beginLog();
+      }
+}
+
+function endLog()
+{
+      if (self.loggingEnabled) {
+            var logtext = console.endLog();
+      } else {
+            var logtext = null;
+      }
+      if (self.endLogCallback != null) {
+            self.endLogCallback();
+      }
+      return logtext;
+}
+
 function initStandalone()
 {
     readParametersFromPersistentModuleSettings();
@@ -3035,9 +3064,15 @@ this.writeParameterToSettings = writeParameterToSettings;
 this.readParameterFromSettings = readParameterFromSettings;
 this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
 
+// Character and name checking
 this.mapBadChars = mapBadChars;
 this.mapBadWindowNameChars = mapBadWindowNameChars;
 this.validateViewIdCharacters = validateViewIdCharacters;
+
+// Console logging
+this.beginLog = beginLog;
+this.endLog = endLog;
+
 this.arraysEqual = arraysEqual;
 
 this.formatToolTip = formatToolTip;

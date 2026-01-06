@@ -80,7 +80,11 @@ function AutoIntegrateImageEnhancementsDialog() {
     this.minWidth = 1000;
 
     var global = new AutoIntegrateGlobal();
+    this.global = global;
+
     var util = new AutoIntegrateUtil(global);
+    this.util = util;
+    
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
     var guitools = new AutoIntegrateGUITools(this, global, util, engine);

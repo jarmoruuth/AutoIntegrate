@@ -1636,7 +1636,7 @@ function createEnhancementsControls(parent)
       self.narrowbandColorizationControl.visible = false;
 }
 
-function enhancementsApplyButtononClick()
+function enhancementsApplyButtonOnClick()
 {
             if (global.enhancements_target_image_id == null) {
                   console.criticalln("No target image selected!");
@@ -1698,6 +1698,28 @@ function enhancementsApplyButtononClick()
             }
 }
 
+function createTargetImageSizerOnItemSelected(image_id)
+{
+
+      if (global.enhancements_target_image_id == image_id) {
+            if (global.debug) console.writeln("createTargetImageSizerOnItemSelected: image_id " + image_id + " already selected");
+            return;
+      }
+      close_undo_images();
+      global.enhancements_target_image_id = image_id;
+      if (global.debug) console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
+      if (self.target_image_selected_callback != null) {
+            self.target_image_selected_callback(global.enhancements_target_image_id);
+      }
+      if (global.enhancements_target_image_id == "Auto" || global.enhancements_target_image_id == null) {
+            preview.updatePreviewNoImage();
+            enhancements_gui_info.save_button.enabled = false;
+      } else {
+            preview.setPreviewIdReset(global.enhancements_target_image_id, false);
+            enhancements_gui_info.save_button.enabled = true;
+      }
+}
+
 function createTargetImageSizer(parent)
 {
       if (global.debug) console.writeln("createTargetImageSizer");
@@ -1713,23 +1735,7 @@ function createTargetImageSizer(parent)
       self.enhancementsImageComboBox.minItemCharWidth = minItemCharWidthStr.length;
       self.enhancementsImageComboBox.onItemSelected = function( itemIndex )
       {
-            if (global.enhancements_target_image_id == enhancements_target_image_window_list[itemIndex]) {
-                  return;
-            }
-            if (global.debug) console.writeln("enhancementsImageComboBox:selected target image index: " + itemIndex);
-            close_undo_images();
-            global.enhancements_target_image_id = enhancements_target_image_window_list[itemIndex];
-            if (self.target_image_selected_callback != null) {
-                  self.target_image_selected_callback(global.enhancements_target_image_id);
-            }
-            if (global.debug) console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
-            if (global.enhancements_target_image_id == "Auto" || global.enhancements_target_image_id == null) {
-                  preview.updatePreviewNoImage();
-                  enhancements_gui_info.save_button.enabled = false;
-            } else {
-                  preview.setPreviewIdReset(global.enhancements_target_image_id, false);
-                  enhancements_gui_info.save_button.enabled = true;
-            }
+            createTargetImageSizerOnItemSelected(enhancements_target_image_window_list[itemIndex]);
       };
       enhancements_gui_info.images_combobox = self.enhancementsImageComboBox;
 
@@ -1791,7 +1797,7 @@ function createTargetImageSizer(parent)
             notetsaved_note;
       self.enhancementsApplyButton.onClick = function()
       {
-            enhancementsApplyButtononClick();
+            enhancementsApplyButtonOnClick();
       };   
 
       self.enhancementsUndoButton = new ToolButton( parent );
@@ -1988,13 +1994,14 @@ function createEnhancementsGUIControls(parent)
 }
 
 this.createTargetImageSizer = createTargetImageSizer;
+this.createTargetImageSizerOnItemSelected = createTargetImageSizerOnItemSelected;   // For testing purposes
+this.enhancementsApplyButtonOnClick = enhancementsApplyButtonOnClick;   // For testing purposes
+
 this.createEnhancementsGUIControls = createEnhancementsGUIControls;
 
 this.update_enhancements_target_image_window_list = update_enhancements_target_image_window_list;
 this.close_undo_images = close_undo_images;
 this.setPreviewControl = setPreviewControl;
-
-this.enhancementsApplyButtononClick = enhancementsApplyButtononClick;   // For testing purposes
 
 }
 

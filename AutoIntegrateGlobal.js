@@ -297,7 +297,7 @@ this.par = {
       nxt_denoise_lf: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF", type : 'R' },
       nxt_frequency_scale: { val: 5, def: 5, name : "NoiseXTerminator frequency scale", type : 'R' },
       nxt_denoise_lf_color: { val: 0.9, def: 0.9, name : "NoiseXTerminator denoise LF color", type : 'R' },
-      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R', deprecated: true },   // Old
+      nxt_detail: { val: 0.15, def: 0.15, name : "NoiseXTerminator detail", type : 'R', ignore_used: true },   // Old
 
       deepsnr_amount: { val: 0.8, def: 0.8, name : "DeepSNR amount", type : 'R' },
       
@@ -565,7 +565,7 @@ this.par = {
       run_hue_shift: { val: false, def: false, name : "Enh narrowband hue shift", type : 'B', oldname: "Extra narrowband hue shift" },
 
       run_colorized_narrowband: { val: false, def: false, name : "Enh colorized narrowband", type : 'B', oldname: "Extra colorized narrowband" },
-      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images", used: true },  // Debug only
+      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images", ignore_used: true },  // Debug only
       colorized_narrowband_preset: { val: "Default", def: "Default", name : "Enh colorized narrowband preset", type : 'S', oldname: "Extra colorized narrowband preset" },
       narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Enh colorized narrowband R hue", type : 'R', oldname: "Extra colorized narrowband R hue" },
       narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband R sat", type : 'R', oldname: "Extra colorized narrowband R sat" },
@@ -1000,7 +1000,7 @@ function reportUnusedParameters()
       for (var key in this.par) {
             if (this.par.hasOwnProperty(key)) {
                   var p = this.par[key];
-                  if (!p.hasOwnProperty('used') && !p.deprecated) {
+                  if (!p.hasOwnProperty('used') && !p.ignore_used) {
                         console.criticalln("Error:Unused parameter: " + p.name);
                   }
             }

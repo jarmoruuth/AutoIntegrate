@@ -1565,6 +1565,6 @@ this.createGraXpertGradientCorrectionSizer = createGraXpertGradientCorrectionSiz
 
 }
 
-AutoIntegrateprototype = new Object;
+AutoIntegrateGUITools.prototype = new Object;
 
 #endif // AUTOINTEGRATEGUITOOLS_JS

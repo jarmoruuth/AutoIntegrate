@@ -79,7 +79,11 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.minWidth = 1000;
 
     var global = new AutoIntegrateGlobal();
+    this.global = global;
+
     var util = new AutoIntegrateUtil(global);
+    this.util = util;
+
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
     var guitools = new AutoIntegrateGUITools(this, global, util, engine);
@@ -191,9 +195,9 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         var channelKeys = ['H', 'S', 'O', 'R', 'G', 'B'];
         for (var i = 0; i < self.channelComboBoxes.length; i++) {
             var comboBox = self.channelComboBoxes[i];
-            var selectedText = self.combobox_list[comboBox.currentItem];
-            if (selectedText !== "<Select image>" && selectedText !== "<No images>") {
-                selectedMappings.push( [ channelKeys[i], selectedText ] );
+            var imageName = self.combobox_list[comboBox.currentItem];
+            if (imageName !== "<Select image>" && imageName !== "<No images>") {
+                selectedMappings.push( [ channelKeys[i], imageName ] );
             }
         }
         console.writeln("Selected mappings: " + JSON.stringify(selectedMappings));
@@ -201,7 +205,13 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     }
 
     this.applyPreview = function() {
-        self.selectedMappings = generateMappingsFromSelection();
+        if (self.testMappings) {
+            self.selectedMappings = self.testMappings;
+            console.writeln("Using test mappings: " + JSON.stringify(self.selectedMappings));
+        } else {
+            self.selectedMappings = generateMappingsFromSelection();
+            console.writeln("Using user selected mappings: " + JSON.stringify(self.selectedMappings));
+        }
         if (!self.selectedMappings || self.selectedMappings.length === 0) {
             this.statusLabel.text = "No image loaded for preview.";
             return;
@@ -217,6 +227,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
             mappings: self.selectedMappings
         };
 
+        console.writeln("Narrowband mappings, " + JSON.stringify(narrowband_mappings));
+
         engine.standalone_narrowband_mappings = narrowband_mappings;
 
         console.show();
@@ -227,7 +239,6 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         processEvents();
 
         try {
-
             // Pick the first channel images as a model for preview size
             var firstImageId = self.selectedMappings[0][1];
             console.writeln("Using first image for preview size: " + firstImageId);
@@ -275,7 +286,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     };
 
     this.processFinal = function() {
-        if (!this.previewImage) {
+        if (!self.previewImage) {
             this.statusLabel.text = "No processed image.";
             return;
         }
@@ -288,17 +299,25 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
         try {
             // Create new window with processed result
+            // Use the selected narrowband mapping name as window title
+            // Some mappings start with a number so in that case add _ at the start
+            var windowId = util.mapBadChars(global.par.narrowband_mapping.val);
+            if (/^\d/.test(windowId)) {
+                windowId = "_" + windowId;
+            }
+            console.writeln("Creating final image window "+ windowId);
             var targetWindow = new ImageWindow(
-                                    this.previewImage.width,
-                                    this.previewImage.height,
-                                    this.previewImage.numberOfChannels,
+                                    self.previewImage.width,
+                                    self.previewImage.height,
+                                    self.previewImage.numberOfChannels,
                                     32,
                                     true,
-                                    this.previewImage.colorSpace != ColorSpace_Gray,
-                                    util.mapBadChars(global.par.narrowband_mapping.val));
+                                    self.previewImage.colorSpace != ColorSpace_Gray,
+                                    windowId);
 
+            console.writeln("Assigning processed image to final window...");
             targetWindow.mainView.beginProcess(UndoFlag_NoSwapFile);
-            targetWindow.mainView.image.assign(this.previewImage);
+            targetWindow.mainView.image.assign(self.previewImage);
             targetWindow.mainView.endProcess();
 
             targetWindow.show();

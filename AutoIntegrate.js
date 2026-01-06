@@ -502,11 +502,27 @@ function readParametersFromProcessIcon()
       }
 }
 
+this.test_initialize_new = function()
+{
+      global.debug = true;
+      global.par.debug.val = true;
+
+      global.testmode = true;
+      global.testmode_log = "";
+
+      // do not read defaults from persistent module settings
+      global.ai_use_persistent_module_settings = false; 
+      global.do_not_read_settings = true;
+      global.do_not_write_settings = true;
+
+      // All logging is done by the calling test program
+      util.loggingEnabled = false;
+}
+
 this.test_initdebug = function()
 {
       global.par.debug.val = true;
       global.ai_use_persistent_module_settings = false;  // do not read defaults from persistent module settings
-
 }
 
 this.test_initialize = function()
@@ -608,13 +624,10 @@ this.openImageWindowFromFile = function(name)
  *    autointegrate_main
  * 
  */
-this.autointegrate_main = function()
+this.autointegrate_main = function(runsetuppath = null)
 {
-      var runsetuppath = null;
       var errors = false;
 
-      // Start logging in case we have some error during startup
-      console.beginLog();
       console.writeln("autointegrate_main");
       try {
             /* Check command line arguments. Arguments can be given by starting the script from
@@ -753,16 +766,6 @@ this.autointegrate_main = function()
 
       this.dialog = new gui.AutoIntegrateDialog(global);
       global.dialog = this.dialog;
-      if (0 && errors) {
-            // Access problem with this, I guess because we are ion some PixInsight directory
-            // Write errors to a file, if we have --force-exit option we cannot see
-            // the console output
-            console.criticalln("Errors during startup, see AutoIntegrateErrorLog.txt for details");
-            var file = new File();
-            file.createForWriting("AutoIntegrateErrorLog.txt");
-            file.write(console.endLog());
-            file.close();
-      }
       if (runsetuppath != null) {
             console.noteln("Using JSON file: " + runsetuppath);
             // Load Json file
@@ -778,6 +781,9 @@ this.autointegrate_main = function()
 
 AutoIntegrate.prototype = new Object;
 
+// Disable execution of main if the script is included as part of a test
+#ifndef TEST_AUTO_INTEGRATE
+
 function main()
 {
       var autointegrate = new AutoIntegrate();
@@ -787,7 +793,6 @@ function main()
       autointegrate = null;
 }
 
-// Disable execution of main if the script is included as part of a test
-#ifndef TEST_AUTO_INTEGRATE
 main();
-#endif
+
+#endif // TEST_AUTO_INTEGRATE
