@@ -44,7 +44,7 @@ function AutoIntegrateDummyFlowchart()
     this.__base__();
  
     this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};;
+    this.flowchartOperationEnd = function () {};
     this.flowchartParentBegin = function () {};
     this.flowchartParentEnd = function () {};
     this.flowchartChildBegin = function () {};
@@ -84,7 +84,7 @@ function AutoIntegrateImageEnhancementsDialog() {
 
     var util = new AutoIntegrateUtil(global);
     this.util = util;
-    
+
     var flowchart = new AutoIntegrateDummyFlowchart();
     var engine = new AutoIntegrateEngine(global, util, flowchart);
     var guitools = new AutoIntegrateGUITools(this, global, util, engine);

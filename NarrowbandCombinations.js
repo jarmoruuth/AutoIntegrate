@@ -43,7 +43,7 @@ function AutoIntegrateDummyFlowchart()
     this.__base__();
  
     this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};;
+    this.flowchartOperationEnd = function () {};
     this.flowchartParentBegin = function () {};
     this.flowchartParentEnd = function () {};
     this.flowchartChildBegin = function () {};

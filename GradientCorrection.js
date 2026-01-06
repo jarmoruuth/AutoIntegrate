@@ -2,8 +2,8 @@
 // GradientCorrection — Standalone version of AutoIntegrate gradient correction
 // ****************************************************************************
 
-#feature-id    AutoIntegrate  > Image Stretching
-#feature-info  Image Stretching using AutoIntegrate tools.
+#feature-id    AutoIntegrate  > Gradient Correction
+#feature-info  Gradient Correction using AutoIntegrate tools.
 
 #include <pjsr/NumericControl.jsh>
 #include <pjsr/Sizer.jsh>
@@ -44,7 +44,7 @@ function AutoIntegrateDummyFlowchart()
     this.__base__();
  
     this.flowchartOperation = function () {};
-    this.flowchartOperationEnd = function () {};;
+    this.flowchartOperationEnd = function () {};
     this.flowchartParentBegin = function () {};
     this.flowchartParentEnd = function () {};
     this.flowchartChildBegin = function () {};
