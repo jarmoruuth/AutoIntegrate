@@ -195,7 +195,7 @@ function AutoIntegrateImageStretchingDialog() {
     this.targetImageGroupBox.title = "Target image";
     this.targetImageGroupBox.sizer = this.targetImageSizer;
 
-    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine);
+    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine, this.previewControl);
 
     this.stretchingSettingsControl = new Control( this );
     this.stretchingSettingsControl.sizer = new HorizontalSizer;

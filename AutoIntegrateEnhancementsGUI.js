@@ -203,6 +203,7 @@ function update_enhancements_target_image_window_list(current_item)
 function setPreviewControl(control)
 {
       preview_control = control;
+      guitools.preview_control = control;
 }
 
 function update_undo_buttons()
@@ -1186,7 +1187,8 @@ function createEnhancementsControls(parent)
             "<p>If using Apply button, uncheck options when they are applied.</p>" );
 
       var shadowclipTooltip = "<p>Adjust shadows in the image. Adjust percentage tells how much shadow pixels are clipped.</p>" +
-                              "<p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p>";
+                              "<p>With a value of 0, no shadow pixels are clipped but histogram, is moved to the left.</p>" +
+                              "<p>You can use the Enhnacements / Misc options clipped tool to see clipped pixels.</p>";
       self.enhancements_shadowclip_CheckBox = guitools.newCheckBox(parent, "Adjust shadows,", par.enhancements_shadowclipping, shadowclipTooltip);
       self.enhancements_shadowclipperc_edit = guitools.newNumericEditPrecision(parent, '%', par.enhancements_shadowclippingperc, 0, 100, shadowclipTooltip, 4);
       self.enhancements_shadowclip_Sizer = new HorizontalSizer;
@@ -1380,15 +1382,7 @@ function createEnhancementsControls(parent)
 
 #endif // AUTOINTEGRATE_STANDALONE
 
-      self.enhancementsClippedPixelsLabel = guitools.newLabel( parent, "Clipped", guitools.clippedPixelsToolTip);
-      self.enhancementsSetClippedPixelsButton = new ToolButton( parent );
-      self.enhancementsSetClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
-      self.enhancementsSetClippedPixelsButton.toolTip = guitools.clippedPixelsToolTip;
-      self.enhancementsSetClippedPixelsButton.setScaledFixedSize( 20, 20 );
-      self.enhancementsSetClippedPixelsButton.onClick = function()
-      {
-            preview_control.showClippedImage();
-      };
+      self.enhancementsSetClippedPixelsSizer = guitools.createClippedSizer(parent, preview_control);
 
       var enhancements_sharpen_tooltip = "<p>Sharpening on image using a luminance mask.</p>" + 
                                     "<p>Number of iterations specifies how many times the sharpening is run.</p>" +
@@ -1535,8 +1529,7 @@ function createEnhancementsControls(parent)
       self.enhancementsImageOptionsSizer2.add( self.enhancements_annotate_image_CheckBox );
       self.enhancementsImageOptionsSizer2.add( self.enhancements_annotate_scale_SpinBox );
 #endif // AUTOINTEGRATE_STANDALONE
-      self.enhancementsImageOptionsSizer2.add( self.enhancementsClippedPixelsLabel );
-      self.enhancementsImageOptionsSizer2.add( self.enhancementsSetClippedPixelsButton );
+      self.enhancementsImageOptionsSizer2.add( self.enhancementsSetClippedPixelsSizer );
       self.enhancementsImageOptionsSizer2.add( self.enhancements_signature_CheckBox );
       self.enhancementsImageOptionsSizer2.add( self.enhancements_signature_path_Edit );
       self.enhancementsImageOptionsSizer2.add( self.enhancements_signature_path_Button );
@@ -1994,6 +1987,7 @@ function createEnhancementsGUIControls(parent)
 }
 
 this.createTargetImageSizer = createTargetImageSizer;
+
 this.createTargetImageSizerOnItemSelected = createTargetImageSizerOnItemSelected;   // For testing purposes
 this.enhancementsApplyButtonOnClick = enhancementsApplyButtonOnClick;   // For testing purposes
 

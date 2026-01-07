@@ -1141,13 +1141,14 @@ function getAdjustPoint(win, perc, channel = -1)
                   }
             }
             adjustCount += coladjustCount;
-            if (adjustCount > adjustPoint && col != 0 && coladjustCount > 0) {
+            // if (adjustCount > adjustPoint && col != 0 && coladjustCount > 0) {
+            if (adjustCount > adjustPoint && coladjustCount > 0) {
                   adjustCount = adjustCount - coladjustCount;
                   break;
             }
       }
       var normalizedAdjustPoint = col / histogramMatrix.cols;
-      console.writeln(channelText(channel) + " normalized adjust value is " + normalizedAdjustPoint + ", pixel count " + adjustCount);
+      console.writeln(channelText(channel) + " normalized adjust value is " + normalizedAdjustPoint + ", pixel count " + adjustCount + ", col " + col);
 
       return { normalizedAdjustPoint : normalizedAdjustPoint, rows : histogramMatrix.rows, adjustCount : adjustCount };
 }

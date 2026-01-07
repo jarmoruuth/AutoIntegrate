@@ -629,7 +629,7 @@ this.par = {
       enhancements_signature_scale: { val: 0, def: 0, name : "Enh signature scale", type : 'I', oldname: "Extra signature scale" },
       enhancements_signature_position: { val: 'Bottom left', def: 'Bottom left', name : "Enh signature position", type : 'S', oldname: "Extra signature position" },
       enhancements_shadowclipping: { val: false, def: false, name : "Enh shadow clipping", type : 'B', oldname: "Extra shadow clipping" },
-      enhancements_shadowclippingperc: { val: 0.0001, def: 0.0001, name : "Enh shadow clipping percentage", type : 'R', oldname: "Extra shadow clipping percentage" },
+      enhancements_shadowclippingperc: { val: 0.1, def: 0.1, name : "Enh shadow clipping percentage", type : 'R', oldname: "Extra shadow clipping percentage" },
       enhancements_smoothbackground: { val: false, def: false, name : "Enh smooth background", type : 'B', oldname: "Extra smooth background" },
       enhancements_smoothbackgroundval: { val: 0.01, def: 0.01, name : "Enh smooth background value", type : 'R', oldname: "Extra smooth background value" },
       enhancements_smoothbackgroundfactor: { val: 0.5, def: 0.5, name : "Enh smooth background factor", type : 'R', oldname: "Extra smooth background factor" },

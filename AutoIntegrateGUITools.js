@@ -31,6 +31,8 @@ var self = this;
 
 var par = global.par;
 
+this.preview_control = null;
+
 this.starless_and_stars_combine_values = [ 'Add', 'Screen', 'Lighten' ];
 this.histogram_stretch_type_values = [ 'Median', 'Peak' ];
 this.STF_linking_values = [ 'Auto', 'Linked', 'Unlinked' ];
@@ -73,7 +75,9 @@ this.adjust_type_toolTip = "<ul>" +
                               "<li>All adjust the whole image.</li>" +
                               "</ul>";
 this.clippedPixelsToolTip = "<p>Show clipped pixels in the preview image.</p>" + 
-                              "<p>Pixels with value 0 are shown as black, pixels with value 1 are shown as white. Other pixels are shown as gray.</p>";
+                            "<p>Pixels with value 0 are shown as black, pixels with value 1 are shown as white. Other pixels are shown as gray.</p>" +
+                            "<p>This tool is useful to see which pixels are clipped when adjusting shadows or highlights.</p>" +
+                            "<p>You can get back to normal preview by clicking the button again.</p>";
 
 #ifdef AUTOINTEGRATE_STANDALONE
 this.MGCToolTip =  "<p>When MultiscaleGradientCorrection is selected, image must be plate solved. Optionally SpectrophotometricFluxCalibration is run automatically for the image.</p>" +
@@ -831,7 +835,34 @@ function createStrechingChoiceSizer(parent, update_parameter_dependencies_callba
       return self.stretchingSizer;
 }
 
-function createStretchingSettingsSizer(parent, engine)
+function createClippedSizer(parent, preview_control)
+{
+      var enhancementsClippedPixelsLabel = newLabel( parent, "Clipped", self.clippedPixelsToolTip);
+      var enhancementsSetClippedPixelsButton = new ToolButton( parent );
+      enhancementsSetClippedPixelsButton.icon = parent.scaledResource(":/icons/clap.png");
+      enhancementsSetClippedPixelsButton.toolTip = self.clippedPixelsToolTip;
+      enhancementsSetClippedPixelsButton.setScaledFixedSize( 20, 20 );
+      enhancementsSetClippedPixelsButton.onClick = function()
+      {
+            if (preview_control != null) {
+                  preview_control.showClippedImage();
+            } else if (self.preview_control != null) {
+                  self.preview_control.showClippedImage();
+            } else {
+                  console.writeln("No preview control available to show clipped pixels.");
+            }
+      };
+
+      var enhancementsSetClippedPixelsSizer = new HorizontalSizer;
+      enhancementsSetClippedPixelsSizer.spacing = 4;
+      enhancementsSetClippedPixelsSizer.add( enhancementsClippedPixelsLabel );
+      enhancementsSetClippedPixelsSizer.add( enhancementsSetClippedPixelsButton );
+      enhancementsSetClippedPixelsSizer.addStretch();
+
+      return enhancementsSetClippedPixelsSizer;
+}
+
+function createStretchingSettingsSizer(parent, engine, preview_control = null)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
 
@@ -863,6 +894,10 @@ function createStretchingSettingsSizer(parent, engine)
             "<p>Value zero just moves the histogram to the left without clipping any pixels.</p>", 
             3);
 
+      if (preview_control != null) {
+            var clippedSizer = createClippedSizer(parent, preview_control);
+      }
+
       var StretchGenericSizer = new HorizontalSizer;
       StretchGenericSizer.spacing = 4;
       StretchGenericSizer.margin = 6;
@@ -872,6 +907,10 @@ function createStretchingSettingsSizer(parent, engine)
       StretchGenericSizer.add( stretchAdjustShadowsLabel );
       StretchGenericSizer.add( stretchAdjustShadowsComboBox );
       StretchGenericSizer.add( stretchAdjustShadowsControl );
+      if (preview_control != null) {
+            StretchGenericSizer.addSpacing(10);
+            StretchGenericSizer.add( clippedSizer );
+      }
       StretchGenericSizer.addStretch();
                                     
       var StretchGenericSection = newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",
@@ -1558,6 +1597,7 @@ this.createImageToolsControl = createImageToolsControl;
 this.createGraXpertPathSizer = createGraXpertPathSizer;
 this.createStrechingChoiceSizer = createStrechingChoiceSizer;
 this.createStretchingSettingsSizer = createStretchingSettingsSizer;
+this.createClippedSizer = createClippedSizer;
 this.createNarrowbandCustomPaletteSizer = createNarrowbandCustomPaletteSizer;
 this.newJsonSizerObj = newJsonSizerObj;
 this.createGradientCorrectionChoiceSizer = createGradientCorrectionChoiceSizer;
