@@ -82,6 +82,12 @@ function AutoIntegrateImageStretchingDialog() {
     this.global = new AutoIntegrateGlobal();
 
     this.global.debug = debug;
+    for (let i = 0; i < jsArguments.length; i++) {
+        if (jsArguments[i] == "do_not_read_settings") {
+            console.writeln("do_not_read_settings");
+            this.global.do_not_read_settings = true;
+        }
+    }
 
     this.util = new AutoIntegrateUtil(this.global);
     this.flowchart = new AutoIntegrateDummyFlowchart();
@@ -126,7 +132,7 @@ function AutoIntegrateImageStretchingDialog() {
     function updatePreviewWin(imgWin)
     {
         if (debug) console.writeln("AutoIntegrateImageStretchingDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+        self.previewControl.UpdateImage(imgWin.mainView.image);
     }
 
     function updatePreviewWinTxt(imgWin, txt)
@@ -154,7 +160,6 @@ function AutoIntegrateImageStretchingDialog() {
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
    this.leftSizer.add(this.previewControl, 400);
-
    // -------------------------------------------------------------------------
    // Status
    // -------------------------------------------------------------------------
@@ -195,7 +200,7 @@ function AutoIntegrateImageStretchingDialog() {
     this.targetImageGroupBox.title = "Target image";
     this.targetImageGroupBox.sizer = this.targetImageSizer;
 
-    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine, this.previewControl);
+    this.stretchingSettingsSizer = self.guitools.createStretchingSettingsSizer(this, self.engine, 1, this.previewControl);
 
     this.stretchingSettingsControl = new Control( this );
     this.stretchingSettingsControl.sizer = new HorizontalSizer;
@@ -219,7 +224,6 @@ function AutoIntegrateImageStretchingDialog() {
     if (self.global.debug) console.writeln("AutoIntegrateImageStretchingDialog:: creating stretchingGroupBox");
 
     this.stretchingGroupBox = self.guitools.newGroupBoxSizer(this);
-    // self.guitools.newSectionBarAdd(this, this.stretchingGroupBox, this.stretchingSettingsControl, "Settings", "StretchingSettings");
     this.stretchingGroupBox.title = "Settings";
     this.stretchingGroupBox.sizer.add(this.stretchingSettingsControl);
     this.stretchingGroupBox.sizer.addStretch();

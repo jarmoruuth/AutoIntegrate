@@ -82,6 +82,12 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.global = new AutoIntegrateGlobal();
 
     this.global.debug = debug;
+    for (let i = 0; i < jsArguments.length; i++) {
+        if (jsArguments[i] == "do_not_read_settings") {
+            console.writeln("do_not_read_settings");
+            this.global.do_not_read_settings = true;
+        }
+    }
 
     this.util = new AutoIntegrateUtil(this.global);
     this.flowchart = new AutoIntegrateDummyFlowchart();
@@ -115,11 +121,36 @@ function AutoIntegrateGradientCorrectionDialog() {
         }
     }
 
+    function updatePreviewImage()
+    {
+        if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewImage");
+        if (self.autoSTF) {
+            self.previewControl.UpdateImage(self.autoSTFPreviewImage);
+        } else {
+            self.previewControl.UpdateImage(self.previewImage);
+        }
+    }
+
+    function newPreviewImage(imgWin, txt = null)
+    {
+        if (txt == null) {
+            txt = imgWin.mainView.id + " [Preview]";
+        }
+        self.previewTxt = txt;
+        self.previewImage = imgWin.mainView.image;
+        // make a stretched copy of the image for AutoSTF preview
+        var tempWindow = self.util.copyWindowEx(imgWin, "tmp_preview_window", true);
+        self.engine.autoStretch(tempWindow);
+        self.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
+        tempWindow.forceClose();
+    }
+
     function setPreviewIdReset(id, keep_zoom, histogramInfo)
     {
         if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::setPreviewIdReset: id = " + id);
         var win = ImageWindow.windowById(id);
-        updatePreviewWinTxt(win, win.mainView.id + " [Preview]");
+        newPreviewImage(win, win.mainView.id + " [Preview]");
+        setPreviewImage();
     }
 
     function updatePreviewIdReset(id, keep_zoom, histogramInfo)
@@ -148,17 +179,8 @@ function AutoIntegrateGradientCorrectionDialog() {
     function updatePreviewWinTxt(imgWin, txt = null)
     {
         if (debug) console.writeln("AutoIntegrateGradientCorrectionDialog::updatePreviewWinTxt: imgWin = " + imgWin);
-        if (txt == null) {
-            txt = imgWin.mainView.id + " [Preview]";
-        }
-        self.previewTxt = txt;
-        self.previewImage = imgWin.mainView.image;
-        // make a stretched copy of the image for AutoSTF preview
-        var tempWindow = self.util.copyWindowEx(imgWin, "tmp_preview_window", true);
-        self.engine.autoStretch(tempWindow);
-        self.autoSTFPreviewImage = new Image(tempWindow.mainView.image);
-        tempWindow.forceClose();
-        setPreviewImage();
+        newPreviewImage(imgWin, txt);
+        updatePreviewImage();
     }
 
     var preview_functions = {
@@ -254,14 +276,15 @@ function AutoIntegrateGradientCorrectionDialog() {
    // -------------------------------------------------------------------------
 
     this.createGradientCorrectionSizer = self.guitools.createGradientCorrectionSizer(this);
-    this.createGraXpertGradientCorrectionSizer = self.guitools.createGraXpertGradientCorrectionSizer(this);
+    this.createGraXpertGradientCorrectionSection = self.guitools.createGraXpertGradientCorrectionSizer(this);
 
     this.gradientCorrectionSettingsControl = new Control( this );
     this.gradientCorrectionSettingsControl.sizer = new VerticalSizer;
     this.gradientCorrectionSettingsControl.sizer.margin = 6;
     this.gradientCorrectionSettingsControl.sizer.spacing = 4;
     this.gradientCorrectionSettingsControl.sizer.add( this.createGradientCorrectionSizer );
-    this.gradientCorrectionSettingsControl.sizer.add( this.createGraXpertGradientCorrectionSizer );
+    this.gradientCorrectionSettingsControl.sizer.add( this.createGraXpertGradientCorrectionSection.section );
+    this.gradientCorrectionSettingsControl.sizer.add( this.createGraXpertGradientCorrectionSection.control );
     this.gradientCorrectionSettingsControl.sizer.addStretch();  
     this.gradientCorrectionSettingsControl.visible = true;
 

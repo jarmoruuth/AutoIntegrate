@@ -886,7 +886,6 @@ function createEnhancementsControls(parent)
       self.enhancementsRemoveStars_Sizer.spacing = 4;
       self.enhancementsRemoveStars_Sizer.add( self.enhancementsRemoveStars_CheckBox);
       self.enhancementsRemoveStars_Sizer.add( self.enhancementsUnscreenStars_CheckBox);
-      self.enhancementsRemoveStars_Sizer.toolTip = narrowbandEnhancementsLabeltoolTip;
       self.enhancementsRemoveStars_Sizer.addStretch();
 
       self.enhancementsFixStarCores_CheckBox = guitools.newCheckBox(parent, "Fix star cores", par.enhancements_fix_star_cores, 
@@ -1548,8 +1547,6 @@ function createEnhancementsControls(parent)
       self.enhancements1 = new VerticalSizer;
       self.enhancements1.margin = 6;
       self.enhancements1.spacing = 4;
-      self.enhancements1.add( self.enhancementsRemoveStars_Sizer );
-      self.enhancements1.add( self.enhancementsFixStarCores_CheckBox );
       self.enhancements1.add( self.enhancementsRGBHamapping_CheckBox );
       self.enhancements1.add( self.enhancements_smoothBackground_Sizer );
       self.enhancements1.add( self.enhancementsBandinReduction_CheckBox );
@@ -1579,15 +1576,32 @@ function createEnhancementsControls(parent)
       self.enhancements2.add( self.enhancementsNoiseReductionStrengthSizer );
       self.enhancements2.add( self.enhancements_ACDNR_CheckBox );
       self.enhancements2.add( self.enhancements_color_noise_CheckBox );
-      self.enhancements2.add( self.enhancements_star_noise_reduction_CheckBox );
       self.enhancements2.add( self.enhancementsUnsharpMaskSizer );
       self.enhancements2.add( self.enhancementsSharpenIterationsSizer );
       self.enhancements2.add( self.enhancementsHighPassSharpenSizer );
       self.enhancements2.add( self.enhancementsSaturationIterationsSizer );
       self.enhancements2.add( self.enhancementsClaritySizer );
-      self.enhancements2.add( self.enhancementsSmallerStarsSizer );
-      self.enhancements2.add( self.enhancementsCombineStars_Sizer );
       self.enhancements2.addStretch();
+
+      self.enhancementsStarsOptions1_sizer = new VerticalSizer;
+      self.enhancementsStarsOptions1_sizer.margin = 6;
+      self.enhancementsStarsOptions1_sizer.spacing = 4;
+      self.enhancementsStarsOptions1_sizer.add( self.enhancementsRemoveStars_Sizer );
+      self.enhancementsStarsOptions1_sizer.add( self.enhancementsFixStarCores_CheckBox );
+      self.enhancementsStarsOptions1_sizer.add( self.enhancements_star_noise_reduction_CheckBox );
+      self.enhancementsStarsOptions1_sizer.add( self.enhancementsSmallerStarsSizer );
+      self.enhancementsStarsOptions1_sizer.addStretch();
+
+      self.enhancementsStarsOptions2_sizer = new VerticalSizer;
+      self.enhancementsStarsOptions2_sizer.margin = 6;
+      self.enhancementsStarsOptions2_sizer.spacing = 4;
+      self.enhancementsStarsOptions2_sizer.add( self.enhancementsCombineStars_Sizer );
+      self.enhancementsStarsOptions2_sizer.addStretch();
+
+      self.enhancementsStarsOptionsSizer = new HorizontalSizer;
+      self.enhancementsStarsOptionsSizer.add( self.enhancementsStarsOptions1_sizer );
+      self.enhancementsStarsOptionsSizer.add( self.enhancementsStarsOptions2_sizer );
+      self.enhancementsStarsOptionsSizer.addStretch();
 
       self.enhancementsGroupBoxSizer = new HorizontalSizer;
       //self.enhancementsGroupBoxSizer.margin = 6;
@@ -1596,29 +1610,37 @@ function createEnhancementsControls(parent)
       self.enhancementsGroupBoxSizer.add( self.enhancements2 );
       self.enhancementsGroupBoxSizer.addStretch();
 
-      self.targetOptionsControl = new Control( parent );
-      self.targetOptionsControl.sizer = new VerticalSizer;
-      self.targetOptionsControl.sizer.margin = 6;
-      self.targetOptionsControl.sizer.spacing = 4;
-      self.targetOptionsControl.sizer.add( self.enhancementsImageOptionsSizer );
-      self.targetOptionsControl.sizer.addStretch();
-      self.targetOptionsControl.visible = false;
+      self.enhancementsTargetOptionsControl = new Control( parent );
+      self.enhancementsTargetOptionsControl.sizer = new VerticalSizer;
+      self.enhancementsTargetOptionsControl.sizer.margin = 6;
+      self.enhancementsTargetOptionsControl.sizer.spacing = 4;
+      self.enhancementsTargetOptionsControl.sizer.add( self.enhancementsImageOptionsSizer );
+      self.enhancementsTargetOptionsControl.sizer.addStretch();
+      self.enhancementsTargetOptionsControl.visible = false;
 
-      self.genericControl = new Control( parent );
-      self.genericControl.sizer = new VerticalSizer;
-      self.genericControl.sizer.margin = 6;
-      self.genericControl.sizer.spacing = 4;
-      self.genericControl.sizer.add( self.enhancementsGroupBoxSizer );
-      self.genericControl.sizer.addStretch();
-      self.genericControl.visible = true;
+      self.enhancementsGenericControl = new Control( parent );
+      self.enhancementsGenericControl.sizer = new VerticalSizer;
+      self.enhancementsGenericControl.sizer.margin = 6;
+      self.enhancementsGenericControl.sizer.spacing = 4;
+      self.enhancementsGenericControl.sizer.add( self.enhancementsGroupBoxSizer );
+      self.enhancementsGenericControl.sizer.addStretch();
+      self.enhancementsGenericControl.visible = true;
 
-      self.narrowbandControl = new Control( parent );
-      self.narrowbandControl.sizer = new VerticalSizer;
-      self.narrowbandControl.sizer.margin = 6;
-      self.narrowbandControl.sizer.spacing = 4;
-      self.narrowbandControl.sizer.add( self.narrowbandEnhancementsOptionsSizer );
-      self.narrowbandControl.sizer.addStretch();
-      self.narrowbandControl.visible = false;
+      self.echancementsNarrowbandControl = new Control( parent );
+      self.echancementsNarrowbandControl.sizer = new VerticalSizer;
+      self.echancementsNarrowbandControl.sizer.margin = 6;
+      self.echancementsNarrowbandControl.sizer.spacing = 4;
+      self.echancementsNarrowbandControl.sizer.add( self.narrowbandEnhancementsOptionsSizer );
+      self.echancementsNarrowbandControl.sizer.addStretch();
+      self.echancementsNarrowbandControl.visible = false;
+
+      self.enhancementsStarsControl = new Control( parent );
+      self.enhancementsStarsControl.sizer = new VerticalSizer;
+      self.enhancementsStarsControl.sizer.margin = 6;
+      self.enhancementsStarsControl.sizer.spacing = 4;
+      self.enhancementsStarsControl.sizer.add( self.enhancementsStarsOptionsSizer );
+      self.enhancementsStarsControl.sizer.addStretch();
+      self.enhancementsStarsControl.visible = false;
 
       self.narrowbandColorizationControl = new Control( parent );
       self.narrowbandColorizationControl.sizer = new VerticalSizer;
@@ -1967,21 +1989,22 @@ function createEnhancementsGUIControls(parent)
 {
       self.enhancementsImageSizer = createTargetImageSizer(parent);
 
-      self.targetImageControl = new Control( parent );
-      self.targetImageControl.sizer = new VerticalSizer;
-      self.targetImageControl.sizer.margin = 6;
-      self.targetImageControl.sizer.spacing = 4;
-      self.targetImageControl.sizer.add( self.enhancementsImageSizer );
-      self.targetImageControl.sizer.addStretch();
-      self.targetImageControl.visible = true;
+      self.enhancementsTargetImageControl = new Control( parent );
+      self.enhancementsTargetImageControl.sizer = new VerticalSizer;
+      self.enhancementsTargetImageControl.sizer.margin = 6;
+      self.enhancementsTargetImageControl.sizer.spacing = 4;
+      self.enhancementsTargetImageControl.sizer.add( self.enhancementsImageSizer );
+      self.enhancementsTargetImageControl.sizer.addStretch();
+      self.enhancementsTargetImageControl.visible = true;
 
       createEnhancementsControls(parent);
 
       return {
-             targetImageControl: self.targetImageControl, 
-             optionsControl: self.targetOptionsControl, 
-             genericControl: self.genericControl, 
-             narrowbandControl: self.narrowbandControl, 
+             targetImageControl: self.enhancementsTargetImageControl, 
+             optionsControl: self.enhancementsTargetOptionsControl, 
+             genericControl: self.enhancementsGenericControl, 
+             narrowbandControl: self.echancementsNarrowbandControl, 
+             starsControl: self.enhancementsStarsControl,
              narrowbandColorizationControl: self.narrowbandColorizationControl 
       };
 }

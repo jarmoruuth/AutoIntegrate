@@ -82,6 +82,13 @@ function AutoIntegrateImageEnhancementsDialog() {
     var global = new AutoIntegrateGlobal();
     this.global = global;
 
+    for (let i = 0; i < jsArguments.length; i++) {
+        if (jsArguments[i] == "do_not_read_settings") {
+            console.writeln("do_not_read_settings");
+            global.do_not_read_settings = true;
+        }
+    }
+
     var util = new AutoIntegrateUtil(global);
     this.util = util;
 
@@ -133,7 +140,7 @@ function AutoIntegrateImageEnhancementsDialog() {
     function updatePreviewWin(imgWin)
     {
         if (debug) console.writeln("AutoIntegrateImageEnhancementsDialog::updatePreviewWin: imgWin = " + imgWin);
-        self.previewControl.SetImage(imgWin.mainView.image, imgWin.mainView.id + " [Preview]");
+        self.previewControl.UpdateImage(imgWin.mainView.image);
     }
 
     function updatePreviewWinTxt(imgWin, txt)
@@ -161,7 +168,6 @@ function AutoIntegrateImageEnhancementsDialog() {
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
    this.leftSizer.add(this.previewControl, 400);
-
    // -------------------------------------------------------------------------
    // Right Side: Title and Controls
    // -------------------------------------------------------------------------
@@ -213,6 +219,7 @@ function AutoIntegrateImageEnhancementsDialog() {
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
+    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.starsControl, "Stars enhancements", "EnhancementsStars");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.GraXpertPathControl, "GraXpert Path", "GraXpertPath");
     this.enhancementsGroupBox.sizer.addStretch();

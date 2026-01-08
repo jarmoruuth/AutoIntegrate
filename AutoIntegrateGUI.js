@@ -5994,7 +5994,7 @@ function AutoIntegrateDialog()
       this.CropSizer = guitools.newHorizontalSizer(6, true, [this.cropUseRejectionLowCheckBox, 
                                                   this.CropToleranceSizer, this.cropRejectionLowLimitEdit, this.cropCheckLimitEdit]);
 
-      this.GCStarXSizer = guitools.createGradientCorrectionSizer(this);
+      this.GCStarXSizer = guitools.createGradientCorrectionSizer(this, 2);
 
       //
       // Stretching parameters
@@ -6765,6 +6765,7 @@ function AutoIntegrateDialog()
       this.enhancementsOptionsControl = enhancementsGUIControls.optionsControl;
       this.enhancementsGenericControl = enhancementsGUIControls.genericControl;
       this.enhancementsNarrowbandControl = enhancementsGUIControls.narrowbandControl;
+      this.enhancementsStarsControl = enhancementsGUIControls.starsControl;
       this.enhancementsNarrowbandColorizationControl3 = enhancementsGUIControls.narrowbandColorizationControl;
 
       this.imageToolsControl = guitools.createImageToolsControl(this);
@@ -7569,7 +7570,7 @@ function AutoIntegrateDialog()
       if (global.debug) console.writeln("Create postprocessing group box");
 
       this.postProcessingGroupBox = guitools.newGroupBoxSizer(this);
-      this.StretchingSettingsGroupBoxSizer = guitools.createStretchingSettingsSizer(this, engine);
+      this.StretchingSettingsGroupBoxSizer = guitools.createStretchingSettingsSizer(this, engine, 2);
 
       guitools.newSectionBarAddArray(this, this.postProcessingGroupBox, "Stretching", "ps_stretching",
             [ this.StretchingSettingsGroupBoxSizer ]);
@@ -7630,6 +7631,7 @@ function AutoIntegrateDialog()
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandControl, "Narrowband enhancements", "Enhancements2");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandColorizationControl3, "Narrowband colorization", "Enhancements3");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGenericControl, "Generic enhancements", "Enhancements1");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsStarsControl, "Stars enhancements", "EnhancementsStars");
       this.enhancementsGroupBox.sizer.addStretch();
 
       if (global.use_preview) {

@@ -81,6 +81,13 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     var global = new AutoIntegrateGlobal();
     this.global = global;
 
+    for (let i = 0; i < jsArguments.length; i++) {
+        if (jsArguments[i] == "do_not_read_settings") {
+            console.writeln("do_not_read_settings");
+            this.global.do_not_read_settings = true;
+        }
+    }
+
     var util = new AutoIntegrateUtil(global);
     this.util = util;
 
@@ -149,20 +156,25 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
     this.channelComboBoxes = [];
 
-    this.HSOSizer = new HorizontalSizer;
+    this.HSOSizer = new VerticalSizer;
     this.HSOSizer.spacing = 4;
-    var channelNames = ["H-alpha", "S-II", "O-III"];
+    var channelNames = ["H", "S", "O"];
     for (var i = 0; i < channelNames.length; i++) {
         let channelName = channelNames[i];
         let channelComboBox = new ComboBox(this);
         channelComboBox.toolTip = "Select image for " + channelName + " channel.";
         this.updateImageList(channelComboBox, this.combobox_list);
-        this.HSOSizer.add(guitools.newLabel(this, channelName + ": ", channelComboBox.toolTip));
-        this.HSOSizer.add(channelComboBox);
+        var channelSizer = new HorizontalSizer;
+        channelSizer.spacing = 4;
+        channelSizer.margin = 6;
+        channelSizer.add(guitools.newLabel(this, channelName + ": ", channelComboBox.toolTip));
+        channelSizer.add(channelComboBox);
+        channelSizer.addStretch();
+        this.HSOSizer.add(channelSizer);
         this.channelComboBoxes.push(channelComboBox);
     }
 
-    this.RGBSizer = new HorizontalSizer;
+    this.RGBSizer = new VerticalSizer;
     this.RGBSizer.spacing = 4;
     var channelNames = ["R", "G", "B"];
     for (var i = 0; i < channelNames.length; i++) {
@@ -170,14 +182,20 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
         let channelComboBox = new ComboBox(this);
         channelComboBox.toolTip = "Select image for " + channelName + " channel.";
         this.updateImageList(channelComboBox, self.combobox_list);
-        this.RGBSizer.add(guitools.newLabel(self, channelName + ": ", channelComboBox.toolTip));
-        this.RGBSizer.add(channelComboBox);
+        var channelSizer = new HorizontalSizer;
+        channelSizer.spacing = 4;
+        channelSizer.margin = 6;
+        channelSizer.add(guitools.newLabel(self, channelName + ": ", channelComboBox.toolTip));
+        channelSizer.add(channelComboBox);
+        channelSizer.addStretch();
+        this.RGBSizer.add(channelSizer);
         this.channelComboBoxes.push(channelComboBox);
     }
 
     this.channelsSizer = new VerticalSizer;
     this.channelsSizer.spacing = 8;
     this.channelsSizer.add(this.HSOSizer);
+    this.channelsSizer.addSpacing(12);
     this.channelsSizer.add(this.RGBSizer);
 
     this.channelsGroupBox = new GroupBox(this);
@@ -367,11 +385,11 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.previewButtonsSizer.add(this.previewButton, 50);
 
     // Preview control
-    this.previewControl = new AutoIntegratePreviewControl(this, "narrowband_preview", engine, util, global, 800, 600, false);
+    this.previewControl = new AutoIntegratePreviewControl(this, "narrowband_preview", engine, util, global, 600, 600, false);
 
     this.leftSizer = new VerticalSizer;
     this.leftSizer.spacing = 4;
-    this.leftSizer.add(this.previewControl, 400);
+    this.leftSizer.add(this.previewControl, 600);
     this.leftSizer.add(this.previewButtonsSizer);
 
     // -------------------------------------------------------------------------

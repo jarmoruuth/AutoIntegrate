@@ -573,7 +573,7 @@ function getSectionVisible(name, control)
       }
 }
 
-function newSectionBarAdd(parent, groupbox, control, title, name)
+function newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
 {
       var sb = new SectionBar(parent, title);
       sb.setSection(control);
@@ -585,6 +585,9 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       };
       sb.aiControl = control;
       sb.aiName = name;
+      if (level == 2) {
+            sb.backgroundColor = 0xFFD5CCB4;
+      }
 
       getSectionVisible(name, control);
 
@@ -600,7 +603,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name)
       return sb;
 }
 
-function newSectionBarAddArray(parent, groupbox, title, name, objarray)
+function newSectionBarAddArray(parent, groupbox, title, name, objarray, level = 1)
 {
       var ProcessingControl = new Control( parent );
       ProcessingControl.sizer = new VerticalSizer;
@@ -614,7 +617,7 @@ function newSectionBarAddArray(parent, groupbox, title, name, objarray)
 
       global.rootingArr.push(ProcessingControl);
 
-      var sb = newSectionBarAdd(parent, groupbox, ProcessingControl, title, name);
+      var sb = newSectionBarAdd(parent, groupbox, ProcessingControl, title, name, level);
 
       return { section: sb, control: ProcessingControl };
 }
@@ -862,7 +865,7 @@ function createClippedSizer(parent, preview_control)
       return enhancementsSetClippedPixelsSizer;
 }
 
-function createStretchingSettingsSizer(parent, engine, preview_control = null)
+function createStretchingSettingsSizer(parent, engine, level, preview_control = null)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createStretchingSettingsSizer");
 
@@ -914,7 +917,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       StretchGenericSizer.addStretch();
                                     
       var StretchGenericSection = newSectionBarAddArray(parent, null, "Generic settings", "Stretching_Generic_Settings_Section",
-                                          [ StretchGenericSizer ]);
+                                          [ StretchGenericSizer ], level);
       StretchGenericSection.control.visible = true;
 
       /* MultiscaleAdaptiveStretch (MAS).
@@ -984,7 +987,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       MASColorSaturationSizer.addStretch();
 
       var MASSection = newSectionBarAddArray(parent, null, "MultiscaleAdaptiveStretch settings", "Stretching_MAS_Section",
-                              [ MASStretchSizer, MASContrastSizer, MASColorSaturationSizer ]);
+                              [ MASStretchSizer, MASContrastSizer, MASColorSaturationSizer ], level);
       MASSection.control.visible = true;
 
       /* Auto STF.
@@ -1001,7 +1004,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       STFSizer.addStretch();
 
       var autoSTFSection = newSectionBarAddArray(parent, null, "Auto STF settings", "Stretching_Auto_STF_Section",
-                              [ STFSizer ]);
+                              [ STFSizer ], level);
       autoSTFSection.control.visible = true;
 
       /* Masked.
@@ -1020,8 +1023,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       MaskedStretchSizer.addStretch();
       
       var MaskedStretchSection = newSectionBarAddArray(parent, null, "Masked Stretch settings", "Stretching_Masked_Stretch_Section",
-                                    [ MaskedStretchSizer ]);
-      MaskedStretchSection.control.visible = true;
+                                    [ MaskedStretchSizer ], level);
 
       /* Arcsinh.
        */
@@ -1047,7 +1049,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       ArcsinhSizer.addStretch();
 
       var ArcsinhSection = newSectionBarAddArray(parent, null, "Arcsinh Stretch settings", "Stretching_Arcsinh_Stretch_Section",
-                              [ ArcsinhSizer ]);
+                              [ ArcsinhSizer ], level);
 
       /* VeraLuxHMS.
        */
@@ -1110,8 +1112,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       var VeraLuxHMSSizer = newVerticalSizer(6, true, [ veraluxSizer1, veraluxSizer2, veraluxSizer3, veraluxSizer4, veraluxSizer5 ]);
 
       var veraluxSection = newSectionBarAddArray(parent, null, "VeraLux HMS Stretch settings", "Stretching_VeraLux_HMS_Section",
-                                    [ VeraLuxHMSSizer ]);
-      veraluxSection.control.visible = true;
+                                    [ VeraLuxHMSSizer ], level);
 
       /* Histogram stretching.
        */
@@ -1132,7 +1133,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       histogramStretchingSizer.addStretch();
 
       var histogramStretchingSection = newSectionBarAddArray(parent, null, "Histogram stretching settings", "StretchingHistogram", 
-                                          [ histogramStretchingSizer ]);
+                                          [ histogramStretchingSizer ], level);
 
       /* Other stretching.
        */
@@ -1148,7 +1149,7 @@ function createStretchingSettingsSizer(parent, engine, preview_control = null)
       otherStrechingTargetValueSizer.add( otherStrechingTargetValue_Control );
       otherStrechingTargetValueSizer.addStretch();
       var otherStretchingSection = newSectionBarAddArray(parent, null, "Other stretching settings", "StretchingOther", 
-                                    [ otherStrechingTargetValueSizer ]);
+                                    [ otherStrechingTargetValueSizer ], level);
 
       var stretchingSettingsSizer = new VerticalSizer;
       stretchingSettingsSizer.margin = 6;
@@ -1394,13 +1395,16 @@ function getExclusionsAreas()
       util.closeOneWindow(win);
 }
 
-function createGradientCorrectionSizer(parent)
+function createGradientCorrectionSizer(parent, level = 1)
 {
       if (global.debug) console.writeln("AutoIntegrateGUITools::createGradientCorrectionSizer");
 
-      this.GC_commonSettingsBoxLabel = newSectionLabel(parent, "Common settings");
       this.GC_output_background_model_CheckBox = newCheckBox(parent, "Output background model", par.GC_output_background_model, "<p>If checked the background model is created.</p>");
-      this.GC_commonSettingsSizer = newVerticalSizer(6, true, [this.GC_commonSettingsBoxLabel, this.GC_output_background_model_CheckBox], 6);
+      this.GC_commonSettingsSizer = newVerticalSizer(6, true, [this.GC_output_background_model_CheckBox], 6);
+
+      this.GC_commonSettingsSection = newSectionBarAddArray(parent, null, "Common settings", "GC_common_Settings_Section",
+                                          [ this.GC_commonSettingsSizer ], level);
+      this.GC_commonSettingsSection.control.visible = true;
 
       /*
             GradientCorrection settings
@@ -1422,10 +1426,10 @@ function createGradientCorrectionSizer(parent)
             this.gc_simplified_model_degree_Sizer = newHorizontalSizer(2, true, [this.gc_simplified_model_degree_Label, this.gc_simplified_model_degree_SpinBox]);
             this.GCGroupBoxSizer3 = newVerticalSizer(2, true, [this.gc_simplified_model_CheckBox, this.gc_simplified_model_degree_Sizer]);
 
-            this.GCGroupBoxSizer0 = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
+            this.GCGroupBoxSizer = newHorizontalSizer(6, true, [this.GCGroupBoxSizer1, this.GCGroupBoxSizer2, this.GCGroupBoxSizer3], 12);
 
-            this.GCGroupBoxLabel = newSectionLabel(parent, "GradientCorrection settings");
-            this.GCGroupBoxSizer = newVerticalSizer(6, true, [this.GCGroupBoxLabel, this.GCGroupBoxSizer0]);
+            this.GCSettingsSection = newSectionBarAddArray(parent, null, "GradientCorrection settings", "GC_Settings_Section",
+                                          [ this.GCGroupBoxSizer ], level);
       }
 
       /*
@@ -1443,9 +1447,10 @@ function createGradientCorrectionSizer(parent)
                                                                   this.mgc_strucure_separation_Label, this.mgc_strucure_separation_SpinBox,], 12);
             this.MGCGroupBoxSizer1 = newHorizontalSizer(6, true, [this.mgc_SpectrophotometricFluxCalibration_CheckBox ], 12);
 
-            this.MGCGroupBoxLabel = newSectionLabel(parent, "MultiscaleGradientCorrection settings");
-            this.MGCGroupBoxLabel.toolTip = "<p>Settings for MultiscaleGradientCorrection.</p>" + self.MGCToolTip;
-            this.MGCGroupBoxSizer = newVerticalSizer(6, true, [this.MGCGroupBoxLabel, this.MGCGroupBoxSizer0, this.MGCGroupBoxSizer1]);
+            this.MGCGroupBoxSizer = newVerticalSizer(6, true, [this.MGCGroupBoxSizer0, this.MGCGroupBoxSizer1]);
+
+            this.MGCSettingsSection = newSectionBarAddArray(parent, null, "MultiscaleGradientCorrection settings", "MGC_Settings_Section",
+                                          [ this.MGCGroupBoxSizer ], level);
       }
       
       /*
@@ -1475,10 +1480,11 @@ function createGradientCorrectionSizer(parent)
       this.smoothBackgroundSizer.add( this.smoothBackgroundEdit );
       this.smoothBackgroundSizer.addStretch();
 
-      this.ABEGroupBoxLabel = newSectionLabel(parent, "ABE settings");
       this.ABEMainSizer = newHorizontalSizer(2, true, [this.ABEDegreeSizer, this.ABECorrectionSizer, this.ABEnormalize_CheckBox, this.smoothBackgroundSizer]);
-      this.ABEGroupBoxSizer = newVerticalSizer(6, true, [this.ABEGroupBoxLabel, this.ABEMainSizer]);
 
+      this.ABESettingsSection = newSectionBarAddArray(parent, null, "ABE settings", "ABE_Settings_Section",
+                                                [ this.ABEMainSizer ], level);
+            
       /*
             DBE settings
       */
@@ -1522,27 +1528,34 @@ function createGradientCorrectionSizer(parent)
       this.DBESizer2 = newHorizontalSizer(2, true, [this.exclusionAreasButton, this.exclusionAreaCountLabel, this.exclusionAreaImageLabel, this.exclusionAreasComboBox ]);
 #endif
 
-      this.DBEGroupBoxLabel = newSectionLabel(parent, "DBE settings");
       this.DBEMainSizer = newVerticalSizer(2, true, [ this.DBESizer1, this.DBESizer11, this.DBESizer2 ]);
-      this.DBEGroupBoxSizer = newVerticalSizer(6, true, [this.DBEGroupBoxLabel, this.DBEMainSizer]);
+
+      this.DBESettingsSection = newSectionBarAddArray(parent, null, "DBE settings", "DBE_Settings_Section",
+                                          [ this.DBEMainSizer ], level);
+      this.DBESettingsSection.control.visible = true;
 
       /*
             Final sizer.
       */
       var processes = [];
-      processes.push(this.GC_commonSettingsSizer);
+      processes.push(this.GC_commonSettingsSection.section);
+      processes.push(this.GC_commonSettingsSection.control);
       if (global.is_gc_process) {
-            processes.push(this.GCGroupBoxSizer);
+            processes.push(this.GCSettingsSection.section);
+            processes.push(this.GCSettingsSection.control);
       }
-      processes.push(this.ABEGroupBoxSizer);
-      processes.push(this.DBEGroupBoxSizer);
+      processes.push(this.ABESettingsSection.section);
+      processes.push(this.ABESettingsSection.control);
+      processes.push(this.DBESettingsSection.section);
+      processes.push(this.DBESettingsSection.control);
       if (global.is_mgc_process) {
-            processes.push(this.MGCGroupBoxSizer);
+            processes.push(this.MGCSettingsSection.section);
+            processes.push(this.MGCSettingsSection.control);
       }
 
-      this.GCStarXSizer = newVerticalSizer(0, true, processes);
+      this.GCSizer = newVerticalSizer(0, true, processes);
 
-      return this.GCStarXSizer;
+      return this.GCSizer;
 }
 
 function createGraXpertGradientCorrectionSizer(parent)
@@ -1556,14 +1569,16 @@ function createGraXpertGradientCorrectionSizer(parent)
 
 #ifdef AUTOINTEGRATE_STANDALONE
       this.GraXpertPathSizer = createGraXpertPathSizer(parent)
-      this.graxpertGradientCorrectionLabel = newSectionLabel(parent, "GraXpert settings");
-      this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionLabel, this.graxpertGradientCorrectionSizer1, this.GraXpertPathSizer]);
+      this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionSizer1, this.GraXpertPathSizer]);
+      this.graxpertSettingsSection = newSectionBarAddArray(parent, null, "GraXpert settings", "GraXpert_Settings_Section",
+                                                [ this.graxpertGradientCorrectionSizer ]);
+      return this.graxpertSettingsSection;
 #else
       this.graxpertGradientCorrectionLabel = newSectionLabel(parent, "Gradient correction settings");
       this.graxpertGradientCorrectionSizer = newVerticalSizer(2, true, [this.graxpertGradientCorrectionLabel, this.graxpertGradientCorrectionSizer1]);
-#endif
-      
       return this.graxpertGradientCorrectionSizer;
+#endif
+     
 }
       
 this.newVerticalSizer = newVerticalSizer;
