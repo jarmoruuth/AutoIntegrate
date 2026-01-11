@@ -47,18 +47,18 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.82 test1";         // Version, also updated into updates.xri
-this.autointegrate_info = "Standalone scripts, MultiscaleAdaptiveStretch";    // For updates.xri
+this.autointegrate_version = "AutoIntegrate v1.82 test2";         // Version, also updated into updates.xri
+this.autointegrate_info = "Standalone tools, MultiscaleAdaptiveStretch";    // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Added MultiscaleAdaptiveStretch as a new stretch option.",
-      "- Added Image Enhancements standalone script.",
-      "- Added Image Stretching standalone script.",
-      "- Added Narrowband Combinations standalone script.",
-      "- Added Gradient Correction standalone script.",
-      "- Removed VeraLux script, it is included in the Image Stretching script.",
-      "- All scripts are in Script / AutoIntegrate menu.",
+      "- Added Image Enhancements standalone tool.",
+      "- Added Image Stretching standalone tool.",
+      "- Added Narrowband Combinations standalone tool.",
+      "- Added Gradient Correction standalone tool.",
+      "- Removed VeraLux script, it is included in the Image Stretching tool.",
+      "- All tools are in Script / AutoIntegrate menu.",
 ];
 
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10

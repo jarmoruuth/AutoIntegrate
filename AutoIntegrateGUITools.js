@@ -922,7 +922,7 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
 
       /* MultiscaleAdaptiveStretch (MAS).
        */
-      var MASTargetBackgroundControl = newNumericControl(parent, "Target Background", par.MAS_targetBackground, 0, 0.50,
+      var MASTargetBackgroundControl = newNumericControl(parent, "Target Background", par.MAS_targetBackground, 0, 1,
             "<p>MAS targetBackground value. Usually values between 0.1 and 0.250 work best. Possible values are between 0 and 0.50.</p>");
       var MASAggressivenessControl = newNumericControl(parent, "Aggressiveness", par.MAS_aggressiveness, 0, 1,
             "<p>Controls the black point clipping. Higher values produce Better background but may loose some details.Possible values are between 0 and 1.</p>");

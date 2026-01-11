@@ -395,7 +395,7 @@ function apply_redo()
 
 function save_as_undo()
 {
-      //console.writeln("save_as_undo");
+      console.writeln("Save image as XISF and TIFF");
       if (global.enhancements_target_image_id == null || global.enhancements_target_image_id == "Auto") {
             console.criticalln("No target image!");
             return;
@@ -417,8 +417,8 @@ function save_as_undo()
             console.noteln("Image " + global.enhancements_target_image_id + " not saved");
             return;
       }
-      var save_dir = File.extractDrive(saveFileDialog.fileName) + File.enhancementsctDirectory(saveFileDialog.fileName);
-      var save_id = File.enhancementsctName(saveFileDialog.fileName);
+      var save_dir = File.extractDrive(saveFileDialog.fileName) + File.extractDirectory(saveFileDialog.fileName);
+      var save_id = File.extractName(saveFileDialog.fileName);
       var save_win = ImageWindow.windowById(global.enhancements_target_image_id);
 
       /* Save as 16 bit TIFF.
