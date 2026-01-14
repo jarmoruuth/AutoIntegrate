@@ -469,8 +469,10 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
     this.engine = selectiveColorEngine;
     this.par = par;
 
+#ifndef AUTOINTEGRATE_STANDALONE
     this.selectiveCColorCheckBox = guitools.newCheckBox(parent, "Selective color", par.enhancements_selective_color, 
             "<p>Enhance colors.</p>");
+#endif // AUTOINTEGRATE_STANDALONE
 
     this.selectiveColorPresetLabel = guitools.newLabel(parent, "Presets", "");
     this.selectiveColorPresetComboBox = guitools.newComboBox(parent, par.enhancements_selective_color_preset, selective_color_preset_values, "");
@@ -501,8 +503,10 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
 
     this.topSizer = new HorizontalSizer;
     this.topSizer.spacing = 4;
+#ifndef AUTOINTEGRATE_STANDALONE
     this.topSizer.add(this.selectiveCColorCheckBox);
     this.topSizer.addSpacing(20);
+#endif // AUTOINTEGRATE_STANDALONE
     this.topSizer.add(this.selectiveColorPresetLabel);
     this.topSizer.add(this.selectiveColorPresetComboBox);
     this.topSizer.addStretch();
@@ -688,8 +692,14 @@ function createSelectiveColorEngine() {
     return new SelectiveColorEngine();
 }
 
+function setPreset(name) {
+    this.selectiveColorPresetComboBox.onItemSelected( selective_color_preset_values.indexOf(name) );
+}
+
 this.createSelectiveColorEngine = createSelectiveColorEngine;
 this.createSelectiveColorSizer = createSelectiveColorSizer;
+
+this.setPreset = setPreset;     // For testing purposes
 
 }  /* AutoIntegrateSelectiveColor */
 
