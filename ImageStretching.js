@@ -77,7 +77,7 @@ function AutoIntegrateImageStretchingDialog() {
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
-    this.minWidth = 1000;
+    // this.minWidth = 1000;
 
     this.global = new AutoIntegrateGlobal();
 
@@ -155,11 +155,11 @@ function AutoIntegrateImageStretchingDialog() {
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", self.engine, self.util, self.global, 600, 400, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "stretch_preview", self.engine, self.util, self.global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
-   this.leftSizer.add(this.previewControl, 400);
+   this.leftSizer.add(this.previewControl, 600);
    // -------------------------------------------------------------------------
    // Status
    // -------------------------------------------------------------------------

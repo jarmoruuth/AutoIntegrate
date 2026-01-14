@@ -76,7 +76,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
-    this.minWidth = 1000;
+    // this.minWidth = 1000;
 
     var global = new AutoIntegrateGlobal();
 

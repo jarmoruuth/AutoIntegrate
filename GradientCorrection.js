@@ -77,7 +77,7 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
-    this.minWidth = 1000;
+    // this.minWidth = 1000;
 
     this.global = new AutoIntegrateGlobal();
 
@@ -212,12 +212,12 @@ function AutoIntegrateGradientCorrectionDialog() {
     this.previewButtonsSizer.addStretch();
     this.previewButtonsSizer.add(this.autoSTFCheckBox);
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "gradient_correction_preview", self.engine, self.util, self.global, 600, 400, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "gradient_correction_preview", self.engine, self.util, self.global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
-   this.leftSizer.add(this.previewControl, 400);
-   this.leftSizer.add(this.previewButtonsSizer, 400);
+   this.leftSizer.add(this.previewControl, 600);
+   this.leftSizer.add(this.previewButtonsSizer, 600);
 
    // -------------------------------------------------------------------------
    // Status

@@ -57,8 +57,7 @@ this.autointegrate_version_info = [
       "- Added Image Stretching standalone tool.",
       "- Added Narrowband Combinations standalone tool.",
       "- Added Gradient Correction standalone tool.",
-      "- Added Selective Color enhancement section.",
-      "  (replaces Narrowband CColorization).",
+      "- Added Selective Color enhancement section and standalone tool.",
       "- Removed VeraLux script, included in the Image Stretching tool.",
       "- All tools are in Script / AutoIntegrate menu.",
 ];

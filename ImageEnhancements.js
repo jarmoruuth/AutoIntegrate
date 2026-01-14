@@ -77,7 +77,7 @@ function AutoIntegrateImageEnhancementsDialog() {
     this.VERSION = "1.00";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
-    this.minWidth = 1000;
+    // this.minWidth = 1000;
 
     var global = new AutoIntegrateGlobal();
     this.global = global;
@@ -164,11 +164,11 @@ function AutoIntegrateImageEnhancementsDialog() {
    // Left Side: Preview Control
    // -------------------------------------------------------------------------
 
-   this.previewControl = new AutoIntegratePreviewControl(this, "enhancements_preview", engine, util, global, 600, 400, false);
+   this.previewControl = new AutoIntegratePreviewControl(this, "enhancements_preview", engine, util, global, 600, 600, false);
 
    this.leftSizer = new VerticalSizer;
    this.leftSizer.spacing = 4;
-   this.leftSizer.add(this.previewControl, 400);
+   this.leftSizer.add(this.previewControl, 600);
    // -------------------------------------------------------------------------
    // Right Side: Title and Controls
    // -------------------------------------------------------------------------

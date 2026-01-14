@@ -328,7 +328,7 @@ function AstroMetricsDialog() {
     this.__base__();
     
     this.windowTitle = WINDOW_TITLE;
-    this.minWidth = 800;
+    // this.minWidth = 800;
     if (numberOfDataSets > 2) {
         this.minHeight = 780;
     } else {
