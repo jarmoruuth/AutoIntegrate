@@ -62,6 +62,7 @@ These are standalone PixInsight scripts that reuse AutoIntegrate modules via `#i
 - `GradientCorrection.js` - Standalone gradient correction tool
 - `ImageEnhancements.js` - Standalone image enhancement tool
 - `NarrowbandCombinations.js` - Standalone narrowband palette mixer
+- `SelectiveColor.js` - Standalone Photoshop-style selective color adjustments
 
 ## Processing Pipeline
 

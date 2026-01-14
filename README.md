@@ -20,6 +20,7 @@ In addition to the main AutoIntegrate script, there are independent standalone s
 - **GradientCorrection.js** - Gradient correction with multiple algorithms
 - **ImageEnhancements.js** - Image enhancement tool
 - **NarrowbandCombinations.js** - Narrowband palette mixer for combining narrowband channels
+- **SelectiveColor.js** - Selective color adjustments
 
 ## Installation
 
