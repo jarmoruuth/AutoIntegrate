@@ -71,7 +71,7 @@ function AutoIntegrateImageStretchingDialog() {
 
     var self = this;
 
-    var debug = true;
+    var debug = false;
 
     this.TITLE = "Image Stretching";
     this.VERSION = "1.00";

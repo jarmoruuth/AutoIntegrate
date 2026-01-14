@@ -797,17 +797,26 @@ var GraXpert_note = "<p><b>NOTE!</b> A path to GraXpert file must be set in the 
       imageToolsSet4.add( use_graxpert_deconvolution_CheckBox );
       imageToolsSet4.addStretch();
 
+      // Create separate sizer for tools so we use Vertical sizer in tools control.
+      // We may add more items below tools.
+      var imageToolsSizer = new HorizontalSizer;
+      imageToolsSizer = new HorizontalSizer;
+      imageToolsSizer.margin = 6;
+      imageToolsSizer.spacing = 4;
+#ifndef AUTOINTEGRATE_STANDALONE
+      imageToolsSizer.add( imageToolsSet1 );  // Tools set 1, gradient correction
+#endif
+      imageToolsSizer.add( imageToolsSet2 );  // Tools set 2, noise removal
+      imageToolsSizer.add( imageToolsSet3 );  // Tools set 3, star removal
+      imageToolsSizer.add( imageToolsSet4 );  // Tools set 4, deconvolution/sharpening
+      imageToolsSizer.addStretch();
+
       // Tools par.
       var imageToolsControl = new Control( parent );
-      imageToolsControl.sizer = new HorizontalSizer;
+      imageToolsControl.sizer = new VerticalSizer;
       imageToolsControl.sizer.margin = 6;
       imageToolsControl.sizer.spacing = 4;
-#ifndef AUTOINTEGRATE_STANDALONE
-      imageToolsControl.sizer.add( imageToolsSet1 );  // Tools set 1, gradient correction
-#endif
-      imageToolsControl.sizer.add( imageToolsSet2 );  // Tools set 2, noise removal
-      imageToolsControl.sizer.add( imageToolsSet3 );  // Tools set 3, star removal
-      imageToolsControl.sizer.add( imageToolsSet4 );  // Tools set 4, deconvolution/sharpening
+      imageToolsControl.sizer.add( imageToolsSizer );  // Tools set 2, noise removal
       imageToolsControl.sizer.addStretch();
 
       return imageToolsControl;

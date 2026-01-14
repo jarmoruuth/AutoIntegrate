@@ -70,7 +70,7 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
     var self = this;
 
-    var debug = true;
+    var debug = false;
 
     this.TITLE = "Narrowband Combinations";
     this.VERSION = "1.00";
@@ -79,8 +79,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
     this.minWidth = 1000;
 
     var global = new AutoIntegrateGlobal();
-    this.global = global;
 
+    this.global = debug;
     for (let i = 0; i < jsArguments.length; i++) {
         if (jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");

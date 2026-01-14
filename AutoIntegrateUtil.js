@@ -1191,6 +1191,9 @@ function readOneParameterFromPersistentModuleSettings(name, type)
             case 'S':
                   var tempSetting = Settings.read(name, DataType_String);
                   break;
+            case 'O':
+                  var tempSetting = Settings.read(name, DataType_String);
+                  break;
             case 'B':
                   var tempSetting = Settings.read(name, DataType_Boolean);
                   break;
@@ -1206,6 +1209,10 @@ function readOneParameterFromPersistentModuleSettings(name, type)
       }
       if (Settings.lastReadOK) {
             console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
+            if (type == 'O') {
+                  // Convert Json string to an object
+                  tempSetting = JSON.parse(tempSetting);
+            }
             return tempSetting;
       } else {
             return null;
@@ -1243,12 +1250,16 @@ function readParametersFromPersistentModuleSettings()
 function writeParameterToSettings(param)
 {
       var name = SETTINGSKEY + '/' + util.mapBadChars(param.name);
-      if (param.val != param.def) {
+      if (global.isParameterChanged(param)) {
             // not a default value, save setting
             console.writeln("AutoIntegrate: save to settings " + name + "=" + param.val);
             switch (param.type) {
                   case 'S':
                         Settings.write(name, DataType_String, param.val);
+                        break;
+                  case 'O':
+                        // Write object as a Json string
+                        Settings.write(name, DataType_String, JSON.stringify(param.val));
                         break;
                   case 'B':
                         Settings.write(name, DataType_Boolean, param.val);
@@ -1962,7 +1973,8 @@ function is_non_starless_option()
              par.enhancements_annotate_image.val ||
              par.enhancements_signature.val ||
              par.enhancements_rotate.val ||
-             par.enhancements_fix_star_cores.val;
+             par.enhancements_fix_star_cores.val ||
+             par.enhancements_selective_color.val;
 }
 
 function is_enhancements_option()
@@ -1980,7 +1992,6 @@ function is_narrowband_option()
              par.run_foraxx_mapping.val ||
              par.run_enhancements_narrowband_mapping.val ||
              par.run_orangeblue_colors.val ||
-             par.run_colorized_narrowband.val ||
              par.run_narrowband_SCNR.val ||
              par.leave_some_green.val ||
              par.remove_magenta_color.val;
@@ -2060,7 +2071,7 @@ function setParameterDefaults()
       for (let x in par) {
             var param = par[x];
             if (!param.skip_reset) {
-                  param.val = param.def;
+                  global.setParameterValue(param, param.def);
                   if (param.reset != undefined) {
                         param.reset();
                   }
@@ -2107,7 +2118,11 @@ function getSettingsFromJson(settings)
                         if (param.reset != undefined) {
                               param.reset();
                         }
-                        console.writeln("getSettingsFromJson, set " + param.name + "=" + param.val);
+                        if (param.type == 'O') {
+                              console.writeln("getSettingsFromJson, set " + param.name + "=" + JSON.stringify(param.val) );
+                        } else {
+                              console.writeln("getSettingsFromJson, set " + param.name + "=" + param.val);
+                        }
                   }
             }
       }
@@ -2311,7 +2326,7 @@ function getChangedSettingsAsJson()
       console.writeln("getChangedSettingsAsJson");
       for (let x in par) {
             var param = par[x];
-            if (param.val != param.def && !param.skip_reset) {
+            if (global.isParameterChanged(param) && !param.skip_reset) {
                   console.writeln("getChangedSettingsAsJson, save " + param.name + "=" + param.val);
                   settings[settings.length] = [ param.name, param.val ];
             }

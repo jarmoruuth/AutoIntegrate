@@ -47,7 +47,7 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.82 test2";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.82 test3";         // Version, also updated into updates.xri
 this.autointegrate_info = "Standalone tools, MultiscaleAdaptiveStretch";    // For updates.xri
 
 this.autointegrate_version_info = [
@@ -57,7 +57,9 @@ this.autointegrate_version_info = [
       "- Added Image Stretching standalone tool.",
       "- Added Narrowband Combinations standalone tool.",
       "- Added Gradient Correction standalone tool.",
-      "- Removed VeraLux script, it is included in the Image Stretching tool.",
+      "- Added Selective Color enhancement section.",
+      "  (replaces Narrowband CColorization).",
+      "- Removed VeraLux script, included in the Image Stretching tool.",
       "- All tools are in Script / AutoIntegrate menu.",
 ];
 
@@ -174,6 +176,23 @@ function setParameterValue(param, val) {
             }
       }
       param.val = val;
+      if (param.set_callback != undefined) {
+            if (this.debug) console.writeln("setParameterValue callback for " + param.name);
+            param.set_callback(param);
+      } else {
+            if (this.debug) console.writeln("setParameterValue default for " + param.name);
+      }
+};
+
+// Check if parameter value is changed from default
+function isParameterChanged(param) {
+      if (param.is_changed_callback != undefined) {
+            if (this.debug) console.writeln("isParameterChanged callback for " + param.name);
+            return param.is_changed_callback(param);
+      } else {
+            if (this.debug) console.writeln("isParameterChanged default for " + param.name);
+            return param.val != param.def;
+      }
 };
 
 /*
@@ -564,22 +583,9 @@ this.par = {
       run_orange_hue_shift: { val: false, def: false, name : "Enh narrowband more orange", type : 'B', oldname: "Extra narrowband more orange" },
       run_hue_shift: { val: false, def: false, name : "Enh narrowband hue shift", type : 'B', oldname: "Extra narrowband hue shift" },
 
-      run_colorized_narrowband: { val: false, def: false, name : "Enh colorized narrowband", type : 'B', oldname: "Extra colorized narrowband" },
-      colorized_integrated_images: { val: false, def: false, name : "Enh colorized narrowband integrated images", type : 'B', oldname: "Extra colorized narrowband integrated images", ignore_used: true },  // Debug only
-      colorized_narrowband_preset: { val: "Default", def: "Default", name : "Enh colorized narrowband preset", type : 'S', oldname: "Extra colorized narrowband preset" },
-      narrowband_colorized_R_hue: { val: 0.0, def: 0.0, name : "Enh colorized narrowband R hue", type : 'R', oldname: "Extra colorized narrowband R hue" },
-      narrowband_colorized_R_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband R sat", type : 'R', oldname: "Extra colorized narrowband R sat" },
-      narrowband_colorized_R_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband R weight", type : 'R', oldname: "Extra colorized narrowband R weight" },
-      narrowband_colorized_G_hue: { val: 0.33, def: 0.33, name : "Enh colorized narrowband G hue", type : 'R', oldname: "Extra colorized narrowband G hue" },
-      narrowband_colorized_G_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband G sat", type : 'R', oldname: "Extra colorized narrowband G sat" },
-      narrowband_colorized_G_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband G weight", type : 'R', oldname: "Extra colorized narrowband G weight" },
-      narrowband_colorized_B_hue: { val: 0.67, def: 0.67, name : "Enh colorized narrowband B hue", type : 'R', oldname: "Extra colorized narrowband B hue" },
-      narrowband_colorized_B_sat: { val: 0.5, def: 0.5, name : "Enh colorized narrowband B sat", type : 'R', oldname: "Extra colorized narrowband B sat" },
-      narrowband_colorized_B_weight: { val: 1.0, def: 1.0, name : "Enh colorized narrowband B weight", type : 'R', oldname: "Extra colorized narrowband B weight" },
-      narrowband_colorized_mapping: { val: 'RGB', def: 'RGB', name : "Enh colorized narrowband mapping", type : 'S', oldname: "Extra colorized narrowband mapping" },
-      narrowband_colorized_combine: { val: 'Channels', def: 'Channels', name : "Enh colorized narrowband combine", type : 'S', oldname: "Extra colorized narrowband combine" },
-      narrowband_colorized_method: { val: 'PixelMath', def: 'PixelMath', name : "Enh colorized narrowband method", type : 'S', oldname: "Extra colorized narrowband method" },
-      narrowband_colorized_linear_fit: { val: false, def: false, name : "Enh colorized narrowband linear fit", type : 'B', oldname: "Extra colorized narrowband linear fit" },
+      enhancements_selective_color: { val: false, def: false, name : "Enh selective color", type : 'B' },
+      enhancements_selective_color_preset: { val: "None", def: "None", name : "Enh selective color preset", type : 'S' },
+      enhancements_selective_color_data: { val: null, def: null, name : "Enh selective color data", type : 'O' },
       
       leave_some_green: { val: false, def: false, name : "Enh narrowband leave some green", type : 'B', oldname: "Extra narrowband leave some green" },
       leave_some_green_amount: { val: 0.50, def: 0.50, name : "Enh narrowband leave some green amount", type : 'R', oldname: "Extra narrowband leave some green amount" },
@@ -1022,6 +1028,7 @@ this.debug = false;              // true to enable debug output to console and a
 
 this.getDirectoryInfo = getDirectoryInfo;
 this.setParameterValue = setParameterValue;
+this.isParameterChanged = isParameterChanged;
 this.reportUnusedParameters = reportUnusedParameters;
 
 }   /* AutoIntegrateGlobal*/

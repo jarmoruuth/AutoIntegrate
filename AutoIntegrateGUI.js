@@ -3197,7 +3197,7 @@ function saveParametersToProcessIcon()
       console.writeln("saveParametersToProcessIcon");
       for (let x in par) {
             var param = par[x];
-            if (param.val != param.def) {
+            if (global.isParameterChanged(param)) {
                   var name = util.mapBadChars(param.name);
                   console.writeln(name + "=" + param.val);
                   Parameters.set(name, param.val);
@@ -6766,7 +6766,7 @@ function AutoIntegrateDialog()
       this.enhancementsGenericControl = enhancementsGUIControls.genericControl;
       this.enhancementsNarrowbandControl = enhancementsGUIControls.narrowbandControl;
       this.enhancementsStarsControl = enhancementsGUIControls.starsControl;
-      this.enhancementsNarrowbandColorizationControl3 = enhancementsGUIControls.narrowbandColorizationControl;
+      this.enhancementsSelectiveColorControl3 = enhancementsGUIControls.selectiveColorControl;
 
       this.imageToolsControl = guitools.createImageToolsControl(this);
       this.imageToolsControl.visible = true;
@@ -7629,7 +7629,7 @@ function AutoIntegrateDialog()
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsTargetImageControl, "Target image for enhancements", "EnhancementsTarget");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsOptionsControl, "Misc options", "EnhancementsOptions");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandControl, "Narrowband enhancements", "Enhancements2");
-      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsNarrowbandColorizationControl3, "Narrowband colorization", "Enhancements3");
+      guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsSelectiveColorControl3, "Selective Color", "Enhancements3");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGenericControl, "Generic enhancements", "Enhancements1");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsStarsControl, "Stars enhancements", "EnhancementsStars");
       this.enhancementsGroupBox.sizer.addStretch();

@@ -462,6 +462,11 @@ function readOneParameterFromProcessIcon(name, type)
                         var val = Parameters.getString(name);
                         console.writeln(name + "=" + val);
                         break;
+                  case 'O':
+                        var val = Parameters.getString(name);
+                        console.writeln(name + "=" + val);
+                        val = JSON.parse(val);
+                        break;
                   case 'B':
                         var val = Parameters.getBoolean(name);
                         console.writeln(name + "=" + val);

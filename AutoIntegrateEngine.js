@@ -129,6 +129,8 @@ this.flatFileNames = null;
 
 this.standalone_narrowband_mappings = null;
 
+this.selectiveColorEngine = null;
+
 var executed_processes = [];
 
 /* Set optional GUI object to update GUI components.
@@ -798,7 +800,7 @@ function getChangedProcessingOptions()
       var options = [];
       for (let x in par) {
             var param = par[x];
-            if (param.val != param.def) {
+            if (global.isParameterChanged(param)) {
                   options[options.length] = [ param.name, param.val ];
             }
       }
@@ -16429,492 +16431,11 @@ function enhancementsSHOHueShift(imgWin)
       // guiUpdatePreviewWin(imgWin);
 }
 
-function enhancementsColorizeChannelCurves(imgWin, channel, ch_id, curves_R, curves_G, curves_B)
+function enhancementsSelectiveColor(imgWin)
 {
-      console.writeln("enhancementsColorizeChannelCurves: " + imgWin.mainView.id + " channel: " + channel);
-
-      var ch_win = util.findWindow(ch_id); 
-      var ch_mask_win = newMaskWindow(ch_win, "auto_tmp_mask_" + channel, true);
-
-      var node = flowchart.flowchartOperation("ConvertToRGBColor");
-
-      // convert to RGB
-      var P = new ConvertToRGBColor;
-      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(ch_win.mainView);
-      ch_win.mainView.endProcess();
-
-      engine_end_process(node);
-
-      runNoiseReductionEx(ch_win, ch_mask_win, 4, false);
-
-      var node = flowchart.flowchartOperation("CurvesTransformation");
-
-      // run curves transformation with a mask
-      var P = new CurvesTransformation;
-
-      if (curves_R != null) {
-            P.R = curves_R;
-      }
-      if (curves_G != null) {
-            P.G = curves_G;
-      }
-      if (curves_B != null) {
-            P.B = curves_B;
-      }
-
-      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      /* Colorize only light parts of the image. */
-      setMaskChecked(ch_win, ch_mask_win);
-      ch_win.maskInverted = false;
-      
-      for (var i = 0; i < 2; i++) {
-            P.executeOn(ch_win.mainView, false);
-      }
-
-      ch_win.removeMask();
-      ch_win.mainView.endProcess();
-
-      engine_end_process(node);
-
-      guiUpdatePreviewWin(ch_win);
-
-      util.closeOneWindowById(ch_mask_win.mainView.id);
-
-      return ch_win;
-}
-
-function enhancementsColorizedSHO(imgWin, channel, ch_id)
-{
-      addEnhancementsStep("Colorized SHO");
-
-      switch (channel) {
-            case 'R':
-                  var curves_S_R = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.39901, 0.63800],
-                        [1.00000, 1.00000]
-                  ];
-                  var curves_S_B = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.52709, 0.46200],
-                        [1.00000, 1.00000]
-                  ];
-                  var id = enhancementsColorizeChannelCurves(imgWin, "R", ch_id, curves_S_R, null, curves_S_B).mainView.id;
-                  break;
-            case 'G':      
-                  var curves_H_R = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.43186, 0.58200],
-                        [1.00000, 1.00000]
-                  ];
-                  var curves_H_G = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.14614, 0.14600],
-                        [0.72578, 0.76000],
-                        [1.00000, 1.00000]
-                  ];
-                  var curves_H_B = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.54023, 0.45400],
-                        [1.00000, 1.00000]
-                  ];
-                  var id = enhancementsColorizeChannelCurves(imgWin, "G", ch_id, curves_H_R, curves_H_G, curves_H_B).mainView.id;
-                  break;
-            case 'B':
-                  var curves_O_R = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.52874, 0.46400],
-                        [1.00000, 1.00000]
-                  ];
-                  var curves_O_G = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.51560, 0.47200],
-                        [1.00000, 1.00000]
-                  ];
-                  var curves_O_B = [ // x, y
-                        [0.00000, 0.00000],
-                        [0.42200, 0.61400],
-                        [1.00000, 1.00000]
-                  ];
-                  var id = enhancementsColorizeChannelCurves(imgWin, "B", ch_id, curves_O_R, curves_O_G, curves_O_B).mainView.id;
-                  break;
-            default:
-                  util.throwFatalError("Invalid channel " + channel);
-                  break;
-      }
-
-     return util.findWindow(id);
-}
-
-function getColorizeChannels(imgWin)
-{
-      var channel_wins = [];
-
-      if (par.colorized_integrated_images.val) {
-            console.writeln("getColorizeChannels: colorized integrated images");
-            var win = util.findWindow(ppar.win_prefix + "Integration_S");
-            if (win == null) {
-                  util.throwFatalError("getColorizeChannels: Integration_S window not found");
-            }
-            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_S_colorized", true));
-
-            win = util.findWindow(ppar.win_prefix + "Integration_H");
-            if (win == null) {
-                  util.throwFatalError("getColorizeChannels: Integration_H window not found");
-            }
-            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_H_colorized", true));
-            
-            win = util.findWindow(ppar.win_prefix + "Integration_O");
-            if (win == null) {
-                  util.throwFatalError("getColorizeChannels: Integration_O window not found");
-            }
-            channel_wins.push(util.copyWindowEx(win, ppar.win_prefix + "Integration_O_colorized", true));
-
-      } else {
-            console.writeln("getColorizeChannels: colorized RGB channels");
-
-            var id = extractRGBchannel(imgWin.mainView.id, 'R');
-            var win = util.findWindow(id);
-            channel_wins.push(win);
-
-            id = extractRGBchannel(imgWin.mainView.id, 'G');
-            win = util.findWindow(id);
-            channel_wins.push(win);
-
-            id = extractRGBchannel(imgWin.mainView.id, 'B');
-            win = util.findWindow(id);
-            channel_wins.push(win);
-      }
-
-      return channel_wins;
-}
-
-// Colourise is not a standard process so we need to use PixelMath
-function enhancementsColorizeChannelUsingColourise(ch_win, channel)
-{
-      var node = flowchart.flowchartOperation("Colourise");
-
-      var P = new Colourise;
-
-      switch (channel) {
-            case 'R':
-                  P.hue = par.narrowband_colorized_R_hue.val;
-                  P.saturation = par.narrowband_colorized_R_sat.val;
-                  P.shadows = 0.000;
-                  P.midtones = 1 - par.narrowband_colorized_R_weight.val / 2;
-                  break;
-            case 'G':
-                  P.hue = par.narrowband_colorized_G_hue.val;
-                  P.saturation = par.narrowband_colorized_G_sat.val;
-                  P.shadows = 0.000;
-                  P.midtones = 1 - par.narrowband_colorized_G_weight.val / 2;
-                  break;
-            case 'B':
-                  P.hue = par.narrowband_colorized_B_hue.val;
-                  P.saturation = par.narrowband_colorized_B_sat.val;
-                  P.shadows = 0.000;
-                  P.midtones = 1 - par.narrowband_colorized_B_weight.val / 2;
-                  break;
-            default:
-                  util.throwFatalError("enhancementsColorizeChannelUsingColourise: Invalid channel " + channel);
-                  break;
-      }
-      console.writeln("Colorize channel " + channel + " using Colourise, hue " + P.hue + ", saturation " + P.saturation + ", midtones " + P.midtones);
-
-      ch_win.mainView.beginProcess(UndoFlag_NoSwapFile);
-      P.executeOn(ch_win.mainView);
-      ch_win.mainView.endProcess();
-
-      engine_end_process(node);
-
-      return ch_win;
-}
-
-function enhancementsColorizeChannelUsingPixelMath(ch_win, channel)
-{
-      var midtones = 0.5;
-
-      switch (channel) {
-            case 'R':
-                  console.writeln("Colorize channel R using PixelMath, hue " + par.narrowband_colorized_R_hue.val + ", saturation " + par.narrowband_colorized_R_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_R_hue.val, par.narrowband_colorized_R_sat.val, midtones);
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            case 'G':
-                  console.writeln("Colorize channel G using PixelMath, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_G_hue.val, par.narrowband_colorized_G_sat.val, midtones);
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            case 'B':
-                  console.writeln("Colorize channel B using PixelMath, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_B_hue.val, par.narrowband_colorized_B_sat.val, midtones);
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            default:
-                  util.throwFatalError("enhancementsColorizeChannelUsingPixelMath: Invalid channel " + channel);
-                  break;
-      }
-
-      var node = flowchart.flowchartOperation("PixelMath:colorize");
-
-      var P = new PixelMath;
-      P.expression = ch_win.mainView.id + "*" + rgb[0];
-      P.expression1 = ch_win.mainView.id + "*" + rgb[1];
-      P.expression2 = ch_win.mainView.id + "*" + rgb[2];
-      P.useSingleExpression = false;
-      P.createNewImage = true;
-      P.newImageId = ch_win.mainView.id + "_colorized";
-      P.showNewImage = true;
-      // P.rescale = false;
-      // P.truncate = false;
-      P.newImageColorSpace = PixelMath.prototype.RGB;
-
-      console.writeln("enhancementsColorizeChannelUsingPixelMath: mean before " + ch_win.mainView.image.mean());
-
-      P.executeOn(ch_win.mainView);
-
-      engine_end_process(node);
-
-      util.closeOneWindow(ch_win);
-
-      ch_win = util.findWindow(P.newImageId);
-
-      setAutoIntegrateVersionIfNeeded(ch_win);
-
-      console.writeln("enhancementsColorizeChannelUsingPixelMath: mean after " + ch_win.mainView.image.mean());
-
-      return ch_win;
-}
-
-function enhancementsColorizePixelMathChannelsWeightedMapping(channel)
-{
-      var midtones = 0.5;
-
-      switch (channel) {
-            case 'R':
-                  console.writeln("Colorize channel R using PixelMathChannel, hue " + par.narrowband_colorized_R_hue.val + ", saturation " + par.narrowband_colorized_R_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_R_hue.val, par.narrowband_colorized_R_sat.val, midtones);
-                  var weight = par.narrowband_colorized_R_weight.val;
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            case 'G':
-                  console.writeln("Colorize channel G using PixelMathChannel, hue " + par.narrowband_colorized_G_hue.val + ", saturation " + par.narrowband_colorized_G_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_G_hue.val, par.narrowband_colorized_G_sat.val, midtones);
-                  var weight = par.narrowband_colorized_G_weight.val;
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            case 'B':
-                  console.writeln("Colorize channel B using PixelMathChannel, hue " + par.narrowband_colorized_B_hue.val + ", saturation " + par.narrowband_colorized_B_sat.val);
-                  var rgb = RGBColorSystem.hsiToRGB(par.narrowband_colorized_B_hue.val, par.narrowband_colorized_B_sat.val, midtones);
-                  var weight = par.narrowband_colorized_B_weight.val;
-                  console.writeln("R " + rgb[0] + ", G " + rgb[1] + ", B " + rgb[2]);
-                  break;
-            default:
-                  util.throwFatalError("enhancementsColorizeChannelUsingPixelMath: Invalid channel " + channel);
-                  break;
-      }
-      var weighted_mapping = "((" + "$T[0]" + "*" + rgb[0] + "+$T[1]" + "*" + rgb[1] + "+$T[2]" + "*" + rgb[2] + ")" + "*" + weight + ")";
-      console.writeln("enhancementsColorizePixelMathChannelsWeightedMapping: " + weighted_mapping);
-      return weighted_mapping;
-}
-
-function enhancementsColorizedNarrowbandImages(imgWin)
-{
-      console.writeln("enhancementsColorizedNarrowbandImages " + imgWin.mainView.id + ", mapping " + par.narrowband_colorized_mapping.val + ", combine " + par.narrowband_colorized_combine.val);
-      let node = flowchart.flowchartOperation("Colorize");
-
-      var weighted_mapping = [];
-
-      if (par.narrowband_colorized_method.val == 'D:PixelMathChannels') {
-            var channel_wins = [];
-            weighted_mapping[0] = enhancementsColorizePixelMathChannelsWeightedMapping('R');
-            weighted_mapping[1] = enhancementsColorizePixelMathChannelsWeightedMapping('G');
-            weighted_mapping[2] = enhancementsColorizePixelMathChannelsWeightedMapping('B');
-      } else {
-            var channel_wins = getColorizeChannels(imgWin);
-            if (par.narrowband_colorized_linear_fit.val) {
-                  console.writeln("enhancementsColorizedNarrowbandImages, linear fit");
-                  var R_id = channel_wins[0].mainView.id;
-                  var G_id = channel_wins[1].mainView.id;
-                  var B_id = channel_wins[2].mainView.id;
-                  linearFitArray(R_id, [ G_id, B_id ]);
-            }
-
-            switch (par.narrowband_colorized_method.val) {
-                  case 'Colourise':
-                        // Not used since it is not a standard process
-                        channel_wins[0] = enhancementsColorizeChannelUsingColourise(channel_wins[0], 'R');
-                        channel_wins[1] = enhancementsColorizeChannelUsingColourise(channel_wins[1], 'G');
-                        channel_wins[2] = enhancementsColorizeChannelUsingColourise(channel_wins[2], 'B');
-                        break;
-                  case 'PixelMath':
-                        channel_wins[0] = enhancementsColorizeChannelUsingPixelMath(channel_wins[0], 'R');
-                        channel_wins[1] = enhancementsColorizeChannelUsingPixelMath(channel_wins[1], 'G');
-                        channel_wins[2] = enhancementsColorizeChannelUsingPixelMath(channel_wins[2], 'B');
-                        break;
-                  case 'D:Curves':
-                        channel_wins[0] = enhancementsColorizedSHO(channel_wins[0], 'R', channel_wins[0].mainView.id);
-                        channel_wins[1] = enhancementsColorizedSHO(channel_wins[1], 'G', channel_wins[1].mainView.id);
-                        channel_wins[2] = enhancementsColorizedSHO(channel_wins[2], 'B', channel_wins[2].mainView.id);
-                        break;
-                  default:
-                        util.throwFatalError("enhancementsColorizedNarrowbandImages: Invalid narrowband colorized method " + par.narrowband_colorized_method.val);
-                        break;
-            }
-
-            for (var i = 0; i < 3; i++) {
-                  var ch = par.narrowband_colorized_mapping.val.charAt(i);
-                  switch (ch) {
-                        case 'R':
-                              if (par.narrowband_colorized_method.val == 'PixelMath') {
-                                    weighted_mapping.push("(" + channel_wins[0].mainView.id + "*" + par.narrowband_colorized_R_weight.val + ")");
-                              } else {
-                                    weighted_mapping.push(channel_wins[0].mainView.id);
-                              }
-                              break;
-                        case 'G':
-                              if (par.narrowband_colorized_method.val == 'PixelMath') {
-                                    weighted_mapping.push("(" + channel_wins[1].mainView.id + "*" + par.narrowband_colorized_G_weight.val + ")");
-                              } else {
-                                    weighted_mapping.push(channel_wins[1].mainView.id);
-                              }
-                              break;
-                        case 'B':
-                              if (par.narrowband_colorized_method.val == 'PixelMath') {
-                                    weighted_mapping.push("(" + channel_wins[2].mainView.id + "*" + par.narrowband_colorized_B_weight.val + ")");
-                              } else {
-                                    weighted_mapping.push(channel_wins[2].mainView.id);
-                              }
-                              break;
-                        default:
-                              util.throwFatalError("enhancementsColorizedNarrowbandImages: Invalid narrowband colorized mapping channel " + ch);
-                              break;
-                  }
-            }
-      }
-
-      // Get weighted mappings
-      var R_id = weighted_mapping[0];
-      var G_id = weighted_mapping[1];
-      var B_id = weighted_mapping[2];
-      
-      switch (par.narrowband_colorized_combine.val) {
-            case 'Channels':
-                  // merge as RGB channels
-                  runPixelMathRGBMapping(null, imgWin, R_id, G_id, B_id);
-                  var formula = null;
-                  break;
-            case 'Screen':
-                  var formula = "1-(1-"+R_id+")*(1-"+G_id+")*(1-"+B_id+")";
-                  break;
-            case 'Sum':
-                  var formula = R_id + "+" + G_id + "+" + B_id;
-                  break;
-            case 'Mean':
-                  var formula = "(" + R_id + "+" + G_id + "+" + B_id + ")/3";
-                  break;
-            case 'Max':
-                  var formula = "max(" + R_id + "," + G_id + "," + B_id + ")";
-                  break;
-            case 'Median':
-                  var formula = "med(" + R_id + "," + G_id + "," + B_id + ")";
-                  break;
-            default:
-                  util.throwFatalError("Invalid narrowband colorized combine method " + par.narrowband_colorized_combine.val);
-                  break;
-      }
-
-      if (formula != null) {
-            console.writeln("enhancementsColorizedNarrowbandImages, PixelMath formula " + formula);
-            var P = new PixelMath;
-            P.expression = formula;
-            P.useSingleExpression = true;
-            P.createNewImage = false;
-            P.showNewImage = true;
-            // P.rescale = false;
-            //P.truncate = false;
-            P.newImageColorSpace = PixelMath.prototype.RGB;
-
-            P.executeOn(imgWin.mainView);
-            engine_end_process(null);
-      }
-
-      var need_rescale = false;
-      for (var i = 0; i < 3; i++) {
-            imgWin.mainView.image.selectedChannel = i;
-            var max = imgWin.mainView.image.maximum();
-            var min = imgWin.mainView.image.minimum();
-            if (max > 1.0 || min < 0.0) {
-                  console.writeln("Rescale image, channel " + i + ", max " + max + ", min " + min);
-                  need_rescale = true;
-                  break;
-            }
-      }
-      imgWin.mainView.image.resetSelections();
-
-      if (need_rescale) {
-            var P = new Rescale;
-            P.mode = Rescale.prototype.RGBK;
-            P.executeOn(imgWin.mainView);
-      }
-      engine_end_process(node);
-
-      return channel_wins;
-}
-
-function enhancementsColorizedNarrowband(imgWin)
-{
-      var stepinfo = "";
-      if (par.narrowband_colorized_R_hue.val != par.narrowband_colorized_R_hue.def 
-          || par.narrowband_colorized_G_hue.val != par.narrowband_colorized_G_hue.def
-          || par.narrowband_colorized_B_hue.val != par.narrowband_colorized_B_hue.def) 
-      {
-            if (stepinfo != "") {
-                  stepinfo = stepinfo + ", ";
-            }
-            stepinfo = stepinfo + "hue R " + par.narrowband_colorized_R_hue.val + ", G " + par.narrowband_colorized_G_hue.val + ", B " + par.narrowband_colorized_B_hue.val;
-      }
-      if (par.narrowband_colorized_R_sat.val != par.narrowband_colorized_R_sat.def
-          || par.narrowband_colorized_G_sat.val != par.narrowband_colorized_G_sat.def
-          || par.narrowband_colorized_B_sat.val != par.narrowband_colorized_B_sat.def)
-      {
-            if (stepinfo != "") {
-                  stepinfo = stepinfo + ", ";
-            }
-            stepinfo = stepinfo + "sat R " + par.narrowband_colorized_R_sat.val + ", G " + par.narrowband_colorized_G_sat.val + ", B " + par.narrowband_colorized_B_sat.val;
-      }
-      if (par.narrowband_colorized_R_weight.val != par.narrowband_colorized_R_weight.def
-          || par.narrowband_colorized_G_weight.val != par.narrowband_colorized_G_weight.def
-          || par.narrowband_colorized_B_weight.val != par.narrowband_colorized_B_weight.def)
-      {
-            if (stepinfo != "") {
-                  stepinfo = stepinfo + ", ";
-            }
-            stepinfo = stepinfo + "weight R " + par.narrowband_colorized_R_weight.val + ", G " + par.narrowband_colorized_G_weight.val + ", B " + par.narrowband_colorized_B_weight.val;
-      }
-      if (par.narrowband_colorized_mapping.val != par.narrowband_colorized_mapping.def
-          || par.narrowband_colorized_combine.val != par.narrowband_colorized_combine.def
-          || par.narrowband_colorized_method.val != par.narrowband_colorized_method.def)
-      {
-            if (stepinfo != "") {
-                  stepinfo = stepinfo + ", ";
-            }
-            stepinfo = stepinfo + "mapping " + par.narrowband_colorized_mapping.val + ", " + par.narrowband_colorized_combine.val + ", " + par.narrowband_colorized_method.val + ", linear fit " + par.narrowband_colorized_linear_fit.val;
-      }
-      if (stepinfo != "") {
-            stepinfo = "Colorize " + stepinfo;
-      } else {
-            stepinfo = "Colorize defaults";
-      }
-      addEnhancementsStep(stepinfo);
-
-      var channel_images = engine.enhancementsColorizedNarrowbandImages(imgWin);
-
-      // close channel images
-      for (var i = 0; i < channel_images.length; i++) {
-            util.closeOneWindow(channel_images[i]);
-      }
+      addEnhancementsStep("Selective Color");
+      engine.selectiveColorEngine.apply(imgWin.mainView);
+      engine_end_process(null);
 }
 
 function findNarrowBandPalette(name)
@@ -17496,10 +17017,6 @@ function enhancementsProcessing(parent, id, apply_directly)
                   enhancementsSHOHueShift(enhancementsWin);
                   enhancementsOptionCompleted(par.run_hue_shift);
             }
-            if (par.run_colorized_narrowband.val) {
-                  enhancementsColorizedNarrowband(enhancementsWin);
-                  enhancementsOptionCompleted(par.run_colorized_narrowband);
-            }
             if (par.leave_some_green.val) {
                   addEnhancementsStep("Leave some green, amount " + par.leave_some_green_amount.val);
                   runSCNR(enhancementsWin, false);
@@ -17519,6 +17036,10 @@ function enhancementsProcessing(parent, id, apply_directly)
                   enhancementsFixNarrowbandStarColor(enhancementsWin);
                   enhancementsOptionCompleted(par.fix_narrowband_star_color);
             }
+      }
+      if (par.enhancements_selective_color.val) {
+            enhancementsSelectiveColor(enhancementsWin);
+            enhancementsOptionCompleted(par.enhancements_selective_color);
       }
       if (par.enhancements_remove_stars.val) {
             let res = enhancementsRemoveStars(parent, enhancementsWin, apply_directly);
@@ -18835,6 +18356,7 @@ function createCropInformationAutoContinue()
 
        global.test_image_ids = [];
 
+       console.noteln("");
        console.noteln("Start enhancements processing...");
        guiUpdatePreviewId(enhancements_target_image);
        if (gui) {
@@ -19921,7 +19443,6 @@ this.getMetricsFilteredOut = getMetricsFilteredOut;
 this.measurementTextForFilename = measurementTextForFilename;
 
 this.autoStretch = autoStretch;
-this.enhancementsColorizedNarrowbandImages = enhancementsColorizedNarrowbandImages;
 this.imageIsLinear = imageIsLinear;
 this.targetTypeToStretching = targetTypeToStretching;
 

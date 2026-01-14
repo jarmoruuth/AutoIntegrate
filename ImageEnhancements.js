@@ -71,7 +71,7 @@ function AutoIntegrateImageEnhancementsDialog() {
 
     var self = this;
 
-    var debug = true;
+    var debug = false;
 
     this.TITLE = "Image Enhancements";
     this.VERSION = "1.00";
@@ -82,6 +82,7 @@ function AutoIntegrateImageEnhancementsDialog() {
     var global = new AutoIntegrateGlobal();
     this.global = global;
 
+    global.debug = debug;
     for (let i = 0; i < jsArguments.length; i++) {
         if (jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");
@@ -186,20 +187,14 @@ function AutoIntegrateImageEnhancementsDialog() {
    this.enhancements_gui.setPreviewControl(this.previewControl);
 
     this.enhancementsGUIControls = this.enhancements_gui.createEnhancementsGUIControls(this);
-    this.enhancementsGUIControls.narrowbandColorizationControl.visible = false;
 
-    this.toolsControl = guitools.createImageToolsControl(this);
-    this.toolsControl.visible = false;
-
+    this.GraXpertPathSizerSectionLabel = guitools.newSectionLabel(this, "GraXpert path");
     this.GraXpertPathSizer = guitools.createGraXpertPathSizer(this);
 
-    this.GraXpertPathControl = new Control( this );
-    this.GraXpertPathControl.sizer = new HorizontalSizer;
-    this.GraXpertPathControl.sizer.margin = 6;
-    this.GraXpertPathControl.sizer.spacing = 4;
-    this.GraXpertPathControl.sizer.add( this.GraXpertPathSizer );
-    this.GraXpertPathControl.sizer.addStretch();
-    this.GraXpertPathControl.visible = false;
+    this.toolsControl = guitools.createImageToolsControl(this);
+    this.toolsControl.sizer.add( this.GraXpertPathSizerSectionLabel );
+    this.toolsControl.sizer.add( this.GraXpertPathSizer );
+    this.toolsControl.visible = false;
 
    // -------------------------------------------------------------------------
    // Load and save JSON controls
@@ -218,10 +213,10 @@ function AutoIntegrateImageEnhancementsDialog() {
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.targetImageControl, "Target image for enhancements", "EnhancementsTarget");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.optionsControl, "Misc options", "EnhancementsOptions");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.narrowbandControl, "Narrowband enhancements", "Enhancements2");
+    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.selectiveColorControl, "Selective Color", "Enhancements3");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.genericControl, "Generic enhancements", "Enhancements1");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsGUIControls.starsControl, "Stars enhancements", "EnhancementsStars");
     guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.toolsControl, "Tools", "EnhancementsTools");
-    guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.GraXpertPathControl, "GraXpert Path", "GraXpertPath");
     this.enhancementsGroupBox.sizer.addStretch();
 
    // -------------------------------------------------------------------------

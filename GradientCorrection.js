@@ -71,7 +71,7 @@ function AutoIntegrateGradientCorrectionDialog() {
 
     var self = this;
 
-    var debug = true;
+    var debug = false;
 
     this.TITLE = "Gradient Correction";
     this.VERSION = "1.00";
