@@ -80,7 +80,8 @@ function AutoIntegrateNarrowbandCombinationsDialog() {
 
     var global = new AutoIntegrateGlobal();
 
-    this.global = debug;
+    this.global = global;
+    this.debug = debug;
     for (let i = 0; i < jsArguments.length; i++) {
         if (jsArguments[i] == "do_not_read_settings") {
             console.writeln("do_not_read_settings");

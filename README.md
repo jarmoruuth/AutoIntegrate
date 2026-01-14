@@ -17,7 +17,7 @@ page https://ruuth.xyz/AutoIntegrateInfo.html
 In addition to the main AutoIntegrate script, there are independent standalone scripts that can be run separately:
 
 - **ImageStretching.js** - Image stretching with multiple algorithms
-- **GradientCorrection.js** - Gradient correction tool
+- **GradientCorrection.js** - Gradient correction with multiple algorithms
 - **ImageEnhancements.js** - Image enhancement tool
 - **NarrowbandCombinations.js** - Narrowband palette mixer for combining narrowband channels
 
