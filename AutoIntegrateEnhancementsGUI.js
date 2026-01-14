@@ -1441,7 +1441,6 @@ function enhancementsApplyButtonOnClick()
 
 function createTargetImageSizerOnItemSelected(image_id)
 {
-
       if (global.enhancements_target_image_id == image_id) {
             if (global.debug) console.writeln("createTargetImageSizerOnItemSelected: image_id " + image_id + " already selected");
             return;
@@ -1519,14 +1518,11 @@ function createTargetImageSizer(parent)
             }
             imageWindow.show();
             console.writeln("Opened image " + ofd.fileName);
-            close_undo_images();
-            console.writeln("updatePreviewWinTxt");
-            preview.updatePreviewWinTxt(imageWindow, File.extractName(ofd.fileName) + File.extractExtension(ofd.fileName));
-            console.writeln("util.updateStatusInfoLabel");
+
+            createTargetImageSizerOnItemSelected(imageWindow.mainView.id);
+
+            if (global.debug)console.writeln("util.updateStatusInfoLabel");
             util.updateStatusInfoLabel("Size: " + imageWindow.mainView.image.width + "x" + imageWindow.mainView.image.height);
-            global.enhancements_target_image_id = imageWindow.mainView.id;
-            console.writeln("global.enhancements_target_image_id " + global.enhancements_target_image_id);
-            enhancements_gui_info.save_button.enabled = true;
             update_enhancements_target_image_window_list(global.enhancements_target_image_id);
       };
 
