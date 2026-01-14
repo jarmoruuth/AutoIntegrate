@@ -8,9 +8,20 @@ Script has a GUI interface where some processing options can be selected.
 After running the script there will be integrated light images and automatically processed 
 final image. LRGB, color/OSC/DSLR and narrowband files are accepted.
 
-Script can be used for both calibrated and non-calibrated images. More details 
-of processing the files can be found from the header block of the source code or from 
+Script can be used for both calibrated and non-calibrated images. More details
+of processing the files can be found from the header block of the source code or from
 page https://ruuth.xyz/AutoIntegrateInfo.html
+
+## Standalone Scripts
+
+In addition to the main AutoIntegrate script, there are independent standalone scripts that can be run separately:
+
+- **ImageStretching.js** - Image stretching with multiple algorithms
+- **GradientCorrection.js** - Gradient correction tool
+- **ImageEnhancements.js** - Image enhancement tool
+- **NarrowbandCombinations.js** - Narrowband palette mixer for combining narrowband channels
+
+## Installation
 
 It is possible to automatically install and update AutoIntegrate script by adding it to 
 the PixInsight update repository. Whenever PixInsight is started it will then check for 
