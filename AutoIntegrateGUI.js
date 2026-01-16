@@ -145,8 +145,6 @@ this.__base__();
 
 if (global.debug) console.writeln("AutoIntegrateGUI");
 
-var self = this;
-
 var guitools = new AutoIntegrateGUITools(this, global, util, engine);
 this.guitools = guitools;
 
@@ -226,6 +224,7 @@ var screen_height = 0;             // Screen height in pixels
 
 
 var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visualizer dialog.</p>" +
+                                          "<p>Before using metrics visualizer, ensure that you have loaded light files.</p>" +
                                           "<p>Filtering settings in the <i>Preprocessing / Weighting and filtering settings</i> section " +
                                           "are used for visualization.</p>" +
                                           "<p>If no filtering rules are set then default settings are used.</p>";
@@ -2181,9 +2180,9 @@ function metricsVisualizerCheck(parent)
 {
       if (global.saved_measurements == null) {
             util.updateStatusInfoLabel("No measurements to visualize", true);
-            console.writeln("Use Light files tab to load light files and measure them first using the filter and sort button.");
-            console.writeln("Once measurements are done they can be saved to a Json file using the save button.");
-            console.writeln("Measurements are also saved to the AutosaveSetup.json file. Loading this file will also load the measurements.");
+            console.writeln("Use Light files tab to load light files. When files are loaded clicking this button will ask if you want to measure them.");
+            console.writeln("Once measurements are done they can be saved to a Json file using the Setup file save button.");
+            console.writeln("Measurements are also saved to the AutosaveSetup.json file after processing. Loading a Json file will also load the measurements.");
 
             if (!measureTreeBoxFiles(parent, global.pages.LIGHTS)) {
                   return false;
@@ -4306,8 +4305,6 @@ function AutoIntegrateDialog()
 {
       this.__base__ = Dialog;
       this.__base__();
-
-      this.self = this;
 
       this.global = global;
       this.guitools = guitools;
@@ -8044,7 +8041,7 @@ AutoIntegrateDialog.prototype.startTutorialById = function(tutorialId) {
       var steps = this.tutorials[tutorialId];
       
       if (!steps) {
-            Console.warningln("Tutorial not found: " + tutorialId);
+            console.warningln("Tutorial not found: " + tutorialId);
             return;
       }
       

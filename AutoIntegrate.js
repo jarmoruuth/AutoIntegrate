@@ -267,12 +267,9 @@ Linear Defect Detection:
 #include <pjsr/TextAlign.jsh>
 #include <pjsr/NumericControl.jsh>
 #include <pjsr/UndoFlag.jsh>
-#include <pjsr/Sizer.jsh>
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
 #include <pjsr/StdCursor.jsh>
 
 #include "AutoIntegrateGlobal.js"
