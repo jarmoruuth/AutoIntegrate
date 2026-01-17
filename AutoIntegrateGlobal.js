@@ -20,8 +20,20 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #define AUTOINTEGRATEGLOBAL_JS
 
 #include <pjsr/ColorSpace.jsh>
+#include <pjsr/Color.jsh>
+#include <pjsr/FrameStyle.jsh>
+#include <pjsr/Sizer.jsh>
+#include <pjsr/SampleType.jsh>
+#include <pjsr/StdButton.jsh>
+#include <pjsr/StdIcon.jsh>
+#include <pjsr/TextAlign.jsh>
+#include <pjsr/NumericControl.jsh>
 #include <pjsr/UndoFlag.jsh>
+#include <pjsr/SectionBar.jsh>
+#include <pjsr/ImageOp.jsh>
 #include <pjsr/DataType.jsh>
+#include <pjsr/StdCursor.jsh>
+
 
 #define SETTINGSKEY "AutoIntegrate"
 

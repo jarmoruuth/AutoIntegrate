@@ -258,20 +258,6 @@ Linear Defect Detection:
 
 #feature-info A script for running basic image processing workflow
 
-#include <pjsr/ColorSpace.jsh>
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/SampleType.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/UndoFlag.jsh>
-#include <pjsr/SectionBar.jsh>
-#include <pjsr/ImageOp.jsh>
-#include <pjsr/DataType.jsh>
-#include <pjsr/StdCursor.jsh>
-
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
 
@@ -599,6 +585,12 @@ this.test_gui = function()
 this.get_run_results = function()
 {
       return global.run_results;
+}
+
+this.cancel = function()
+{
+      console.noteln("Cancel requested...");
+      global.cancel_processing = true;
 }
 
 this.get_autointegrate_version = function()

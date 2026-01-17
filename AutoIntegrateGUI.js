@@ -34,10 +34,6 @@ by Pleiades Astrophoto and its contributors (https://pixinsight.com/).
 #ifndef AUTOINTEGRATEGUI_JS
 #define AUTOINTEGRATEGUI_JS
 
-#ifndef NO_SOLVER_LIBRARY
-#include "../AdP/SearchCoordinatesDialog.js"
-#endif
-
 #include "AutoIntegrateMetricsVisualizer.js"
 #include "AutoIntegrateTutorial.js"
 #include "AutoIntegrateGUITools.js"

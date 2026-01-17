@@ -5,20 +5,6 @@
     Copyright (C)) 2025 Jarmo Ruuth
 */
 
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/SampleType.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/UndoFlag.jsh>
-#include <pjsr/SectionBar.jsh>
-#include <pjsr/ImageOp.jsh>
-#include <pjsr/DataType.jsh>
-#include <pjsr/StdCursor.jsh>
-#include <pjsr/ColorSpace.jsh>
-
 #ifndef AUTOINTEGRATESELECTIVECOLOR_JS
 #define AUTOINTEGRATESELECTIVECOLOR_JS
 
@@ -683,6 +669,7 @@ function createSelectiveColorSizer(parent, selectiveColorEngine) {
         if (global.debug) console.writeln("Selective Color data changed, updating controls");
         self.updateAllAdjustmentControls(param);
     }
+    util.recordParam(par.enhancements_selective_color_data);
     this.updateAllAdjustmentControls(par.enhancements_selective_color_data);
     
     return this.sizer;

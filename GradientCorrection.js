@@ -5,18 +5,6 @@
 #feature-id    AutoIntegrate  > Gradient Correction
 #feature-info  Gradient Correction using AutoIntegrate tools.
 
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/UndoFlag.jsh>
-#include <pjsr/SampleType.jsh>
-#include <pjsr/ColorSpace.jsh>
-#include <pjsr/SectionBar.jsh>
-#include <pjsr/StdCursor.jsh>
-
 #ifndef NO_SOLVER_LIBRARY
 #define NO_SOLVER_LIBRARY
 #endif

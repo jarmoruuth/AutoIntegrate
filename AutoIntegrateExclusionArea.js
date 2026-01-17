@@ -9,14 +9,6 @@
 #ifndef AUTOINTEGRATEEXCLUSIONAREA_JS
 #define AUTOINTEGRATEEXCLUSIONAREA_JS
 
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/NumericControl.jsh>
-#include <pjsr/Sizer.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/StdIcon.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/UndoFlag.jsh>
-
 function AutoIntegrateExclusionArea(util)
 {
 
