@@ -59,7 +59,7 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.82 test3";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.82";                         // Version, also updated into updates.xri
 this.autointegrate_info = "Standalone tools, MultiscaleAdaptiveStretch";    // For updates.xri
 
 this.autointegrate_version_info = [
