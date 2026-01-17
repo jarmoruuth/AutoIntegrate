@@ -15,6 +15,7 @@
 #include "AutoIntegrateGlobal.js"
 #include "AutoIntegrateUtil.js"
 #include "AutoIntegrateGUITools.js"
+#include "AutoIntegrateEnhancementsGUI.js"
 #include "AutoIntegrateSelectiveColor.js"
 #include "AutoIntegrateEngine.js"
 #include "AutoIntegratePreview.js"
