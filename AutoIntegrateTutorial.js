@@ -335,7 +335,7 @@ AutoIntegrateWelcomeDialog.prototype.saveShowOnStartup = function() {
 // Tutorial Manager - Dialog to select and launch tutorials
 // ============================================================================
 
-function AutoIntegrateTutorialManagerDialog(parentDialog) {
+function AutoIntegrateTutorialManagerDialog(parentDialog, global) {
       this.__base__ = Dialog;
       this.__base__();
       
@@ -345,6 +345,7 @@ function AutoIntegrateTutorialManagerDialog(parentDialog) {
       this.minHeight = 400;
 
       this.useAdvancedOptions = false;
+      this.global = global;
       
       // Title
       this.titleLabel = new Label(this);
@@ -448,7 +449,7 @@ AutoIntegrateTutorialManagerDialog.prototype = new Dialog;
 
 // Define available tutorials
 AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
-      return [
+      var tutorials = [
         {
             id: "getting-started",
             name: "Getting Started",
@@ -460,7 +461,7 @@ AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
         {
             id: "file-management",
             name: "File Management",
-            description: "Master organizing your input and and output files.",
+            description: "Master organizing your input and output files.",
             difficulty: "Beginner",
             duration: "3 minutes",
             icon: "📁"
@@ -472,16 +473,21 @@ AutoIntegrateTutorialManagerDialog.prototype.getTutorials = function() {
             difficulty: "Intermediate",
             duration: "7 minutes",
             icon: "⚙️"
-        },
-        {
-            id: "comet-processing",
-            name: "Comet Processing",
-            description: "Learn how to process comet images using specialized techniques.",
-            difficulty: "Advanced",
-            duration: "10 minutes",
-            icon: "☄️"
         }
       ];
+      if (this.global.expert_mode) {
+            tutorials.push(
+                  {
+                        id: "comet-processing",
+                        name: "Comet Processing",
+                        description: "Learn how to process comet images using specialized techniques.",
+                        difficulty: "Advanced",
+                        duration: "10 minutes",
+                        icon: "☄️"
+                  }
+            );
+      }
+      return tutorials;
 };
 
 // Populate the tutorial list

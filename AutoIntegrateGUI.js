@@ -167,7 +167,7 @@ var histogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
 
 var filtering_changed = false;        // Filtering settings have changed
-var tab_preview_index = 1;
+var tab_preview_page = null;
 var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
@@ -1644,7 +1644,7 @@ function addWinPrefix(parent)
 {
       var lbl = new Label( parent );
       global.rootingArr.push(lbl);
-      lbl.text = "Window Prefix";
+      lbl.text = "| Window Prefix";
       lbl.textAlignment = TextAlign_Left|TextAlign_VertCenter;
       lbl.toolTip = "<p>Give window prefix identifier.</p>" +
                     "<p>If specified, all AutoIntegrate windows will be " +
@@ -2783,6 +2783,123 @@ function addTargetType(parent)
       return { sizer: outputdir_Sizer, label: lbl };
 }
 
+function switchToSimpleMode(parent)
+{
+      console.writeln("Switch to simple mode");
+      global.expert_mode = false;
+
+      // go through tabs in global.tabs and hide expert tabs
+      for (var i = 0; i < global.tabs.length; i++) {
+            var tab = global.tabs[i];
+            if (tab.expert_mode) {
+                  var j = findPageIndexByName(parent.mainTabBox, tab.name);
+                  if (j != -1) {
+                        parent.mainTabBox.removePage(j);
+                  }
+            }
+      }
+      for (var i = 0; i < global.expert_mode_sections.length; i++) {
+            var section = global.expert_mode_sections[i];
+            section.hide();
+      }
+      parent.modeTitle.aiStyleSheet = parent.modeTitle.styleSheet;            // Save current stylesheet
+      parent.modeTitle.styleSheet = "font-weight: bold;color: white;";
+      parent.modeFrame.aiBackgroundColor = parent.modeFrame.backgroundColor;  // Save current background color
+      parent.modeFrame.backgroundColor = global.simpleModeColor;
+      parent.tutorialButton.aiStyleSheet = parent.tutorialButton.styleSheet;  // Save current stylesheet
+      parent.tutorialButton.styleSheet = global.simpleModeStyleSheet;
+      parent.welcomeButton.styleSheet = parent.tutorialButton.styleSheet;
+    
+      parent.setupAllTutorials();
+      parent.mainTabBox.adjustToContents();
+      parent.adjustToContents();
+
+      parent.saveExpertMode();
+}
+
+function switchToExpertMode(parent)
+{
+      console.writeln("Switch to expert mode");
+      global.expert_mode = true;
+
+      // go through tabs in global.tabs and show all tabs
+      for (var i = 0; i < global.tabs.length; i++) {
+            var tab = global.tabs[i];
+            if (tab.expert_mode) {
+                  parent.mainTabBox.insertPage(i, tab.page, tab.name);
+            }
+      }
+      for (var i = 0; i < global.expert_mode_sections.length; i++) {
+            var section = global.expert_mode_sections[i];
+            section.show();
+      }
+      if (parent.modeFrame.aiBackgroundColor) {
+            parent.modeTitle.styleSheet = parent.modeTitle.aiStyleSheet;            // Restore saved stylesheet
+            parent.modeFrame.backgroundColor = parent.modeFrame.aiBackgroundColor;
+            parent.tutorialButton.styleSheet = parent.tutorialButton.aiStyleSheet;
+            parent.welcomeButton.styleSheet = parent.tutorialButton.styleSheet;
+      }
+      parent.setupAllTutorials();
+      parent.mainTabBox.adjustToContents();
+      parent.adjustToContents();
+
+      parent.saveExpertMode();
+}
+
+function addExpertMode(parent)
+{
+      var toolTip = "<p>Select interface mode.</p>" +
+                    "<p>In simple mode only selected tabs are shown.</p>" +
+                    "<p>In expert mode all tabs and options are shown.</p>";
+
+      parent.modeControlSizer = new HorizontalSizer;
+      parent.modeControlSizer.spacing = 8;
+      parent.modeControlSizer.margin = 4;
+
+      parent.simpleRadio = new RadioButton(parent);
+      parent.simpleRadio.text = "Simple";
+      parent.simpleRadio.toolTip = toolTip;
+      parent.simpleRadio.textAlignment = TextAlign_VertCenter;
+      parent.simpleRadio.checked = !global.expert_mode;
+      parent.simpleRadio.onCheck = function(checked) {
+            if (checked) {
+                  switchToSimpleMode(parent);
+            }
+      };
+
+      parent.expertRadio = new RadioButton(parent);
+      parent.expertRadio.text = "Expert";
+      parent.expertRadio.toolTip = toolTip;
+      parent.simpleRadio.checked = !global.expert_mode;
+      parent.expertRadio.checked = global.expert_mode;
+      parent.expertRadio.onCheck = function(checked) {
+            if (checked) {
+                  switchToExpertMode(parent);
+            }
+      };
+
+      parent.modeControlSizer.add(parent.simpleRadio);
+      parent.modeControlSizer.add(parent.expertRadio);
+      parent.modeControlSizer.addStretch();
+
+      parent.modeFrame = new Frame(parent);
+      parent.modeFrame.style = FrameStyle_Box;
+      parent.modeFrame.sizer = new HorizontalSizer;
+      parent.modeFrame.sizer.margin = 8;
+      parent.modeFrame.sizer.spacing = 6;
+
+      // Add a label as "title"
+      parent.modeTitle = new Label(parent);
+      parent.modeTitle.text = "Mode";
+      parent.modeTitle.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+      parent.modeTitle.toolTip = toolTip;
+
+      parent.modeFrame.sizer.add(parent.modeTitle);
+      parent.modeFrame.sizer.add(parent.modeControlSizer);
+
+      return parent.modeFrame;
+}
+
 function newRow2Obj(parent)
 {
       var wpobj = addWinPrefix(parent);
@@ -3006,13 +3123,28 @@ function blinkWindowZoomedUpdate(imageWindow, x, y)
       imageWindow.viewportPosition = center;
 }
 
+function findPageIndexByName(tabBox, name)
+{
+      for (var j = 0; j < tabBox.numberOfPages; j++) {
+            if (tabBox.pageLabel(j) == name) {
+                  return j;
+            }
+      }
+      return -1;
+}
+
 function switchtoPreviewTab()
 {
-      var currentPageIndex = mainTabBox.currentPageIndex;
       if (global.use_preview && !ppar.preview.side_preview_visible && mainTabBox != null) {
-            mainTabBox.currentPageIndex = tab_preview_index;
+            // Set preview tab as current tab
+            for (var i = 0; i < global.tabs.length; i++) {
+                  if (global.tabs[i].name == tab_preview_page.name) {
+                        mainTabBox.currentPageIndex = i;
+                        break;
+                  }
+            }
       }
-      return currentPageIndex;
+      return mainTabBox.currentPageIndex;
 }
 
 function filesTreeBox(parent, optionsSizer, pageIndex)
@@ -4302,8 +4434,19 @@ function AutoIntegrateDialog()
       this.__base__ = Dialog;
       this.__base__();
 
+      var thisdialog = this;
+
       this.global = global;
       this.guitools = guitools;
+
+      // Check if this is first run
+      this.first_run = this.isFirstRun();
+      if (this.first_run) {
+            global.expert_mode = false;
+            this.markAsRun();
+      } else {
+            global.expert_mode = this.isExpertMode();
+      }
 
       if (global.debug) console.writeln("AutoIntegrateDialog: constructor");
 
@@ -4312,7 +4455,7 @@ function AutoIntegrateDialog()
       this.onClose = function() {
             // This fires when dialog closes by ANY method
             // Including X button, Escape key, or programmatic close
-            exitCleanup(this);
+            exitCleanup(thisdialog);
             console.noteln("Dialog is closing");
       };
 
@@ -4411,6 +4554,8 @@ function AutoIntegrateDialog()
 
       this.treeBox = [];
       this.treeBoxRootingArr = [];
+
+      this.expertModeSizer = addExpertMode(this);
 
       var obj = addTargetType(this);
       this.targetTypeSizer = obj.sizer;
@@ -5959,15 +6104,25 @@ function AutoIntegrateDialog()
       this.graxpertInfoDenoiseText = guitools.newLabel(this, "GraXpert denoise settings are in the Postprocessing / Noise reduction section.", "", true);
       this.graxpertInfoDenoiseSizer = guitools.newVerticalSizer(6, true, [this.graxpertInfoDenoiseText]);
 
+      this.graxpertControl = new Control( this );
+      this.graxpertControl.sizer = new VerticalSizer;
+      this.graxpertControl.sizer.margin = 6;
+      this.graxpertControl.sizer.spacing = 4;
+      this.graxpertControl.sizer.add( this.graxpertGradientCorrectionSizer );
+      this.graxpertControl.sizer.add( this.graxpertDenconvolutionLabel );
+      this.graxpertControl.sizer.add( this.graxpertDenconvolutionSizer );
+      this.graxpertControl.sizer.add( this.graxpertInfoDenoiseLabel );
+      this.graxpertControl.sizer.add( this.graxpertInfoDenoiseSizer );
+      this.graxpertControl.visible = true;
+
       // Graxpert all settings
       //
       this.graxpertGroupBoxSizer = guitools.newVerticalSizer(6, true, [
             this.graxpertPathSizer, 
-            this.graxpertGradientCorrectionSizer, 
-            this.graxpertDenconvolutionLabel, 
-            this.graxpertDenconvolutionSizer, 
-            this.graxpertInfoDenoiseLabel, 
-            this.graxpertInfoDenoiseSizer ]);
+            this.graxpertControl
+      ]);
+
+      global.expert_mode_sections.push(this.graxpertControl);
 
       // Cropping settings
       //
@@ -7475,8 +7630,6 @@ function AutoIntegrateDialog()
       // this.buttons_Sizer.add( this.resampleCheckBox );
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.addSpacing( 12 );
-      this.buttons_Sizer.add( this.tutorialButton );
-      this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( closeAllPrefixButton );
       this.buttons_Sizer.addSpacing( 24 );
       this.buttons_Sizer.add( this.closeAllButton );
@@ -7497,8 +7650,11 @@ function AutoIntegrateDialog()
       this.settingsGroupBox = guitools.newGroupBoxSizer(this);
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageParamsControl, "Image processing parameters", "Image1");
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsControl, "Tools", "ImageTools");
-      guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
+      var sb = guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
+      global.expert_mode_sections.push(sb);
+      global.expert_mode_sections.push(this.imageToolsOtherControl);
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
+      guitools.newSectionBarAdd(this, this.settingsGroupBox, this.saveFinalImageControl, "Save final image files", "Savefinalimagefiles");
       this.settingsGroupBox.sizer.addStretch();
 
       // ---------------------------------------------
@@ -7508,7 +7664,6 @@ function AutoIntegrateDialog()
       guitools.newSectionBarAdd(this, this.otherGroupBox, this.otherParamsControl, "Other parameters", "Other1");
       guitools.newSectionBarAdd(this, this.otherGroupBox, this.systemParamsControl, "System settings", "System1");
       guitools.newSectionBarAdd(this, this.otherGroupBox, this.astrobinControl, "Astrobin", "Astrobin");
-      guitools.newSectionBarAdd(this, this.otherGroupBox, this.saveFinalImageControl, "Save final image files", "Savefinalimagefiles");
       this.otherGroupBox.sizer.addStretch();
 
       // ---------------------------------------------
@@ -7604,13 +7759,15 @@ function AutoIntegrateDialog()
       // ---------------------------------------------
       if (global.debug) console.writeln("Create tools group box");
       this.toolsGroupBox = guitools.newGroupBoxSizer(this);
-      guitools.newSectionBarAddArray(this, this.toolsGroupBox, "StarXTerminator, BlurXTerminator, NoiseXTerminator", "ps_rcastro",
+      var sb_control = guitools.newSectionBarAddArray(this, this.toolsGroupBox, "StarXTerminator, BlurXTerminator, NoiseXTerminator", "ps_rcastro",
             [ this.StarXTerminatorGroupBoxLabel,
             this.StarXTerminatorSizer,
             this.blurxterminatorGroupBoxLabel,
             this.blurxterminatorGroupBoxSizer,
             this.NoiseXTerminatorInfoGroupBoxLabel,
             this.NoiseXTerminatorInfoSizer ]);
+      global.expert_mode_sections.push(sb_control.section);
+      global.expert_mode_sections.push(sb_control.control);
       guitools.newSectionBarAddArray(this, this.toolsGroupBox, "GraXpert", "ps_graxpert",
             [ this.graxpertGroupBoxSizer  ]);
       this.toolsGroupBox.sizer.addStretch();
@@ -7644,7 +7801,9 @@ function AutoIntegrateDialog()
       this.interfaceGroupBox = guitools.newGroupBoxSizer(this);
       guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
       guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
-      guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.debugControl, "Debug settings", "debugsettings");
+      var sb = guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.debugControl, "Debug settings", "debugsettings");
+      global.expert_mode_sections.push(sb);
+      global.expert_mode_sections.push(this.debugControl);
       this.interfaceGroupBox.sizer.addStretch();
 
       /***********************************************\
@@ -7653,7 +7812,6 @@ function AutoIntegrateDialog()
 
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
-      let tab_index = 0;
 
       this.pageButtonsSizer = newPageButtonsSizer(this);
       this.filesTabSizer = new VerticalSizer;
@@ -7662,61 +7820,61 @@ function AutoIntegrateDialog()
       this.filesTabSizer.add( this.tabBox );
       this.filesTabSizer.add( this.filesButtonsSizer );
       this.filesTabSizer.add( this.pageButtonsSizer );
-      this.filesPage = { page: mainSizerTab(this, this.filesTabSizer), name: "Files", index: tab_index };
+      this.filesPage = { page: mainSizerTab(this, this.filesTabSizer), name: "Files", expert_mode: false };
+      global.tabs.push(this.filesPage);
       this.mainTabBox.addPage( this.filesPage.page, this.filesPage.name );
-      tab_index++;
 
       this.settingsTabSizer = new HorizontalSizer;
       this.settingsTabSizer.margin = 6;
       this.settingsTabSizer.spacing = 4;
       this.settingsTabSizer.add( this.settingsGroupBox );
-      this.settingsPage = { page: mainSizerTab(this, this.settingsTabSizer), name: "Settings", index: tab_index };
+      this.settingsPage = { page: mainSizerTab(this, this.settingsTabSizer), name: "Settings", expert_mode: false };
+      global.tabs.push(this.settingsPage);
       this.mainTabBox.addPage( this.settingsPage.page, this.settingsPage.name );
-      tab_index++;
 
       this.otherTabSizer = new HorizontalSizer;
       this.otherTabSizer.margin = 6;
       this.otherTabSizer.spacing = 4;
       this.otherTabSizer.add( this.otherGroupBox );
-      this.otherPage = { page: mainSizerTab(this, this.otherTabSizer), name: "Other", index: tab_index };
+      this.otherPage = { page: mainSizerTab(this, this.otherTabSizer), name: "Other", expert_mode: true };
+      global.tabs.push(this.otherPage);
       this.mainTabBox.addPage( this.otherPage.page, this.otherPage.name );
-      tab_index++;
 
       if (global.debug) console.writeln("Create preprocessing tab");
       this.preProcessingsTabSizer = new HorizontalSizer;
       this.preProcessingsTabSizer.margin = 6;
       this.preProcessingsTabSizer.spacing = 4;
       this.preProcessingsTabSizer.add( this.preprocessingGroupBox );
-      this.preProcessingsPage = { page: mainSizerTab(this, this.preProcessingsTabSizer), name: "Preprocessing", index: tab_index };
+      this.preProcessingsPage = { page: mainSizerTab(this, this.preProcessingsTabSizer), name: "Preprocessing", expert_mode: true };
+      global.tabs.push(this.preProcessingsPage);
       this.mainTabBox.addPage( this.preProcessingsPage.page, this.preProcessingsPage.name );
-      tab_index++;
 
       if (global.debug) console.writeln("Create integration tab");
       this.integrationTabSizer = new HorizontalSizer;
       this.integrationTabSizer.margin = 6;
       this.integrationTabSizer.spacing = 4;
       this.integrationTabSizer.add( this.integrationGroupBox );
-      this.integrationPage = { page: mainSizerTab(this, this.integrationTabSizer), name: "Integration", index: tab_index };
+      this.integrationPage = { page: mainSizerTab(this, this.integrationTabSizer), name: "Integration", expert_mode: true };
+      global.tabs.push(this.integrationPage);
       this.mainTabBox.addPage( this.integrationPage.page, this.integrationPage.name );
-      tab_index++;
 
       if (global.debug) console.writeln("Create postprocessing tab");
       this.postProcessingTabSizer = new HorizontalSizer;
       this.postProcessingTabSizer.margin = 6;
       this.postProcessingTabSizer.spacing = 4;
       this.postProcessingTabSizer.add( this.postProcessingGroupBox );
-      this.postProcessingPage = { page: mainSizerTab(this, this.postProcessingTabSizer), name: "Postprocessing", index: tab_index };
+      this.postProcessingPage = { page: mainSizerTab(this, this.postProcessingTabSizer), name: "Postprocessing", expert_mode: true };
+      global.tabs.push(this.postProcessingPage);
       this.mainTabBox.addPage( this.postProcessingPage.page, this.postProcessingPage.name );
-      tab_index++;
 
       if (global.debug) console.writeln("Create tools tab");
       this.toolsTabSizer = new HorizontalSizer;
       this.toolsTabSizer.margin = 6;
       this.toolsTabSizer.spacing = 4;
       this.toolsTabSizer.add( this.toolsGroupBox );
-      this.toolsPage = { page: mainSizerTab(this, this.toolsTabSizer), name: "Tools", index: tab_index };
+      this.toolsPage = { page: mainSizerTab(this, this.toolsTabSizer), name: "Tools", expert_mode: false };
+      global.tabs.push(this.toolsPage);
       this.mainTabBox.addPage( this.toolsPage.page, this.toolsPage.name );
-      tab_index++;
 
       this.enhancementsSizer = new HorizontalSizer;
       this.enhancementsSizer.margin = 6;
@@ -7743,18 +7901,18 @@ function AutoIntegrateDialog()
       } else {
             tabname = "Enhancements";
       }
-      this.enhancementsPage = { page: mainSizerTab(this, this.enhancementsSizer), name: tabname, index: tab_index };
+      this.enhancementsPage = { page: mainSizerTab(this, this.enhancementsSizer), name: tabname, expert_mode: false };
+      global.tabs.push(this.enhancementsPage);
       this.mainTabBox.addPage( this.enhancementsPage.page, this.enhancementsPage.name );
-      tab_preview_index = tab_index;
-      tab_index++;
+      tab_preview_page = this.enhancementsPage;
 
       this.interfaceTabSizer = new HorizontalSizer;
       this.interfaceTabSizer.margin = 6;
       this.interfaceTabSizer.spacing = 4;
       this.interfaceTabSizer.add( this.interfaceGroupBox );
-      this.interfacePage = { page: mainSizerTab(this, this.interfaceTabSizer), name: "Interface", index: tab_index };
+      this.interfacePage = { page: mainSizerTab(this, this.interfaceTabSizer), name: "Interface", expert_mode: false };
+      global.tabs.push(this.interfacePage);
       this.mainTabBox.addPage( this.interfacePage.page, this.interfacePage.name );
-      tab_index++;
 
       this.mainTabsSizer = new HorizontalSizer;
       this.mainTabsSizer.margin = 6;
@@ -7787,7 +7945,8 @@ function AutoIntegrateDialog()
 
       this.topButtonsSizer = new HorizontalSizer;
       this.topButtonsSizer.spacing = 4;
-      this.topButtonsSizer.add( this.targetTypeSizer );
+      this.topButtonsSizer.add( this.expertModeSizer );
+      this.topButtonsSizer.add( this.tutorialButton );
       this.topButtonsSizer.add( this.welcomeButton );
       this.topButtonsSizer.addStretch();
       this.topButtonsSizer.add( this.actionSizer );
@@ -7795,11 +7954,13 @@ function AutoIntegrateDialog()
 
       this.topButtonsSizer2 = new HorizontalSizer;
       this.topButtonsSizer2.spacing = 4;
+      this.topButtonsSizer2.add( this.targetTypeSizer );
+      this.topButtonsSizer2.addSpacing( 4 );
       this.topButtonsSizer2.add( this.jsonSizer );
-      this.topButtonsSizer2.addSpacing( 12 );
+      this.topButtonsSizer2.addSpacing( 4 );
       this.topButtonsSizer2.add( this.resetOnSetupLoadCheckBox );
       this.topButtonsSizer2.addStretch();
-      this.topButtonsSizer2.addSpacing( 12 );
+      this.topButtonsSizer2.addSpacing( 4 );
       this.topButtonsSizer2.add( this.winprefixOutputdirSizer );
       this.top2ndRowControl = new Control( this );
       this.top2ndRowControl.sizer = new HorizontalSizer;
@@ -7905,23 +8066,17 @@ function AutoIntegrateDialog()
 
       global.reportUnusedParameters();
 
+      if (global.expert_mode) {
+            switchToExpertMode(this);
+      } else {
+            switchToSimpleMode(this);
+      }
+
       // Initialize tutorial system
       this.tutorial = new AutoIntegrateTutorialSystem(this);
       this.setupAllTutorials();
       // this.setupGettingStartedTutorial();
       // this.setupProcessingTutorial();
-
-      // Color tutorial button on first launch
-      if (this.tutorial.shouldShowTutorial()) {
-            this.tutorialButton.styleSheet = 
-                  "QPushButton { " +
-                  "  color: #FFFFFF; " +
-                  "  background-color: #3498DB; " +
-                  "  border: 2px solid #FFD700; " +
-                  "  font-weight: bold; " +
-                  "  padding: 6px 12px; " +
-                  "}";
-      }
 
       // Show welcome dialog on first run
       if (this.shouldShowWelcome(global)) {
@@ -7954,15 +8109,48 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
             return true;
       }
       // Check if this is first run
-      var firstRun = !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
-    
-      if (firstRun) {
+      if (this.first_run) {
             return true;
       }
     
       // Check if user wants to see it on startup
       var showOnStartup = Settings.read("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean);
       return showOnStartup;
+};
+
+AutoIntegrateDialog.prototype.isExpertMode = function() {
+      if (this.global.do_not_read_settings) {
+            return false;
+      } else {
+            var setting = Settings.read("AutoIntegrate_ExpertMode", DataType_Boolean);
+            if (!Settings.lastReadOK) {
+                  // Default to true if setting fopund but this is not the first run.
+                  // AutoIntegrate has been used already so expert mode is likely desired.
+                  return true;
+            } else {
+                  return setting;
+            }
+      }
+};
+
+AutoIntegrateDialog.prototype.saveExpertMode = function() {
+      if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate_ExpertMode", DataType_Boolean, this.global.expert_mode);
+      }
+};
+
+AutoIntegrateDialog.prototype.markAsRun = function() {
+      if (!this.global.do_not_write_settings) {
+            Settings.write("AutoIntegrate_HasRun", DataType_Boolean, true);
+      }
+};
+
+AutoIntegrateDialog.prototype.isFirstRun = function() {
+      if (this.global.do_not_read_settings) {
+            return true;
+      } else {
+            return !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
+      }
 };
 
 // Mark that AutoIntegrate has been run
@@ -7979,9 +8167,6 @@ AutoIntegrateDialog.prototype.showWelcomeDialog = function(global) {
       
       // Save preference
       welcome.saveShowOnStartup();
-      
-      // Mark as run on first launch
-      this.markAsRun();
       
       if (result) {
             // User clicked OK or a tutorial button
@@ -8005,18 +8190,26 @@ AutoIntegrateDialog.prototype.showWelcomeDialog = function(global) {
 // Show tutorial manager
 AutoIntegrateDialog.prototype.showTutorialManager = function() {
     
-      var manager = new AutoIntegrateTutorialManagerDialog(this);
+      var manager = new AutoIntegrateTutorialManagerDialog(this, global);
       manager.execute();
 };
 
 // Setup all tutorials
 AutoIntegrateDialog.prototype.setupAllTutorials = function() {
-      this.tutorials = {
-            "getting-started": this.getGettingStartedSteps(),
-            "file-management": this.getFileManagementSteps(),
-            "processing-settings": this.getProcessingSettingsSteps(),
-            "comet-processing": this.getCometProcessingSteps()
-      };
+      if (global.expert_mode) {
+            this.tutorials = {
+                  "getting-started": this.getGettingStartedSteps(),
+                  "file-management": this.getFileManagementSteps(),
+                  "processing-settings": this.getProcessingSettingsSteps(),
+                  "comet-processing": this.getCometProcessingSteps()
+            };
+      } else {
+            this.tutorials = {
+                  "getting-started": this.getGettingStartedSteps(),
+                  "file-management": this.getFileManagementSteps(),
+                  "processing-settings": this.getProcessingSettingsSteps()
+            };
+      }
       if (global.debug) {
             // Check that target in tutorials exist
             for (var tutorialId in this.tutorials) {
@@ -8065,7 +8258,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "AutoIntegrate will automatically detect the filter used on each file based on its metadata.",
             target: this.filesPage.page,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index  // Switch to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Add Light Frames",
@@ -8075,14 +8268,14 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "You can calibrate your light frames using bias, dark, and flat frames.",
             target: this.filesButtons.addLightsButton,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index  // Switch to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Settings Tab",
             description: "The Settings tab contains most important processing options.",
             target: this.settingsPage.page,
             tooltipPosition: "center",
-            switchToTab: this.settingsPage.index,      // Switch to Settings tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),      // Switch to Settings tab
             sectionBars: ["Image1", "ImageTools"]     // Show Image processing parameters and tools
         },
         {
@@ -8106,7 +8299,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "There are undo and redo buttons so you can easily experiment with different settings.",
             target: this.enhancementsPage.page,
             tooltipPosition: "center",
-            switchToTab: this.enhancementsPage.index,        // Switch on Enhancements tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch on Enhancements tab
             sectionBars: ["EnhancementsTarget", "Enhancements1"]    // Show some sections
         },
         {
@@ -8115,7 +8308,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "It is recommended that you adjust the preview size to match your screen size for optimal experience.",
             target: this.side_preview_width_label,
             tooltipPosition: "center",
-            switchToTab: this.interfacePage.index,    // Switch to Interface tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
             sectionBars: ["interface"]                // Show some sections
         },
         {
@@ -8125,7 +8318,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "This may take a little extra time but allows you to see the full processing plan in advance.",
             target: this.runGetFlowchartDataCheckBox,
             tooltipPosition: "center",
-            switchToTab: this.interfacePage.index,    // Switch to Interface tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.interfacePage.name),    // Switch to Interface tab
             sectionBars: ["Flowchart"]                // Show some sections
         },
         {
@@ -8154,7 +8347,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
                          "Check out also other tutorials in the Interface section!",
             target: null,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index   // Back to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
         }
     ];
 };
@@ -8172,7 +8365,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             description: "In the Files tab you can load your light frames, bias, darks, and flat frames. Click on the tabs to see all calibration frame options.",
             target: this.filesPage.page,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index  // Switch to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)  // Switch to Files tab
         },
         {
             title: "Directory Checkbox",
@@ -8202,7 +8395,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
                          "You can save final image also in other formats like TIFF or JPEG here.",
             target: this.saveFinalImageControl,
             tooltipPosition: "center",
-            switchToTab: this.otherPage.index,        // Switch to Other tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
             sectionBars: ["Savefinalimagefiles"]      // Show some sections
         },
         {
@@ -8211,7 +8404,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
                          "there is a button where you can save the image in XISF and 16-bit TIFF formats.",
             target: this.enhancements_gui.enhancementsSaveButton,
             tooltipPosition: "center",
-            switchToTab: this.enhancementsPage.index,        // Switch to Enhancements tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.enhancementsPage.name),        // Switch to Enhancements tab
             sectionBars: ["EnhancementsTarget"]              // Show some sections
         },
         {
@@ -8219,7 +8412,7 @@ AutoIntegrateDialog.prototype.getFileManagementSteps = function() {
             description: "You now know how to manage files in AutoIntegrate!",
             target: null,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index   // Back to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)   // Back to Files tab
         }
     ];
 };
@@ -8238,7 +8431,7 @@ AutoIntegrateDialog.prototype.getProcessingSettingsSteps = function() {
             description: "Automatically crop your final image to remove unwanted edges and artifacts after integration.",
             target: this.crop_to_common_area_CheckBox,
             tooltipPosition: "center",
-            switchToTab: this.settingsPage.index,     // Switch to Settings tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),     // Switch to Settings tab
             sectionBars: ["Image1"]                   // Show Image processing parameters
         },
         {
@@ -8332,7 +8525,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "First run a normal workflow to get correct stars and background objects.",
             target: this.run_Button,
             tooltipPosition: "center",
-            switchToTab: this.filesPage.index         // Switch to Files tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.filesPage.name)         // Switch to Files tab
         },
         {
             title: "Load star aligned files",
@@ -8352,7 +8545,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Check Comet align in Settings / Image processing parameters section.",
             target: this.CometAlignCheckBox,
             tooltipPosition: "center",
-            switchToTab: this.settingsPage.index,           // Switch to Settings tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.settingsPage.name),           // Switch to Settings tab
             sectionBars: ["Image1"]                         // Show Image processing parameters
         },
         {
@@ -8366,7 +8559,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Check Remove stars from lights in Postprocessing / Star stretching and removing section.",
             target: this.remove_stars_light_CheckBox,
             tooltipPosition: "center",
-            switchToTab: this.postProcessingPage.index,     // Switch to postprocessing tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.postProcessingPage.name),     // Switch to postprocessing tab
             sectionBars: ["ps_starstretching"]              // Show Image processing parameters
         },
         {
@@ -8374,7 +8567,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
             description: "Check No CosmeticCorrection in Other / Other parameters section.",
             target: this.CosmeticCorrectionCheckBox,
             tooltipPosition: "center",
-            switchToTab: this.otherPage.index,        // Switch to Other tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.otherPage.name),        // Switch to Other tab
             sectionBars: ["Other1"]                   // Show Other parameters
         },
         {
@@ -8383,7 +8576,7 @@ AutoIntegrateDialog.prototype.getCometProcessingSteps = function() {
                          "to show the first image in the preview window.",
             target: this.cometAlignFirstXYButton,
             tooltipPosition: "center",
-            switchToTab: this.preProcessingsPage.index,     // Switch to Preprocessing tab
+            switchToTab: findPageIndexByName(this.mainTabBox, this.preProcessingsPage.name),     // Switch to Preprocessing tab
             sectionBars: ["ps_alignment"]                   // Show Comet alignment
         },
         {

@@ -57,6 +57,32 @@ this.__base__();
 
 var self = this;
 
+this.expert_mode = false;
+this.tabs = [];                     // Store tab controls for enabling/disabling
+this.expert_mode_sections = [];     // Store expert mode sections for enabling/disabling
+
+this.sectionBackgroundColor = 0xFFD5CCB4;  // Light beige background color for level 2 sections
+this.simpleModeColor = 0xFF3498DB;         // Light blue color for simple mode
+this.simpleModeStyleSheet =
+                  "QPushButton { " +
+                  "  color: #FFFFFF; " +
+                  "  background-color: #3498DB; " +
+                  "  border: 4px solid #050505; " +
+                  "  font-weight: bold; " +
+                  "  padding: 6px 12px; " +
+                  "}";
+
+/*  Blue button style sheet.
+                  "QPushButton { " +
+                  "  color: #FFFFFF; " +
+                  "  background-color: #3498DB; " +
+                  "  border: 2px solid #FFD700; " +
+                  "  font-weight: bold; " +
+                  "  padding: 6px 12px; " +
+                  "}";
+
+*/
+
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
 this.autointegrate_version = "AutoIntegrate v1.82";                         // Version, also updated into updates.xri

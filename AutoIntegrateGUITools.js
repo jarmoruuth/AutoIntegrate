@@ -586,7 +586,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
       sb.aiControl = control;
       sb.aiName = name;
       if (level == 2) {
-            sb.backgroundColor = 0xFFD5CCB4;
+            sb.backgroundColor = global.sectionBackgroundColor;
       }
 
       getSectionVisible(name, control);
