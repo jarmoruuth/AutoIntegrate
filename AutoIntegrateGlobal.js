@@ -57,6 +57,20 @@ this.__base__();
 
 var self = this;
 
+/* Following variables are AUTOMATICALLY PROCESSED so do not change format.
+ */
+this.autointegrate_version = "AutoIntegrate v1.83 test1";         // Version, also updated into updates.xri
+this.autointegrate_info = "Simple and expert modes";              // For updates.xri
+
+this.autointegrate_version_info = [
+      "Changes since the previous version:",
+      "- Added simple and expert modes."
+];
+
+this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
+this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
+this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
+
 this.expert_mode = false;
 this.tabs = [];                     // Store tab controls for enabling/disabling
 this.expert_mode_sections = [];     // Store expert mode sections for enabling/disabling
@@ -82,27 +96,6 @@ this.simpleModeStyleSheet =
                   "}";
 
 */
-
-/* Following variables are AUTOMATICALLY PROCESSED so do not change format.
- */
-this.autointegrate_version = "AutoIntegrate v1.82";                         // Version, also updated into updates.xri
-this.autointegrate_info = "Standalone tools, MultiscaleAdaptiveStretch";    // For updates.xri
-
-this.autointegrate_version_info = [
-      "Changes since the previous version:",
-      "- Added MultiscaleAdaptiveStretch as a new stretch option.",
-      "- Added Image Enhancements standalone tool.",
-      "- Added Image Stretching standalone tool.",
-      "- Added Narrowband Combinations standalone tool.",
-      "- Added Gradient Correction standalone tool.",
-      "- Added Selective Color enhancement section and standalone tool.",
-      "- Removed VeraLux script, included in the Image Stretching tool.",
-      "- All tools are in Script / AutoIntegrate menu.",
-];
-
-this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
-this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
-this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
 
 this.interactiveMode = true;        // true if running in interactive mode
 this.processingDate = null;

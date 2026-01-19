@@ -621,6 +621,13 @@ function AutoIntegrateTutorialSystem(dialog) {
       this.isActive = false;
       this.steps = [];
 
+      // Calculate scale factor based on logical pixels
+      this.scaleFactor = dialog.logicalPixelsToPhysical(1);
+      
+      // Scaled dimensions for tooltip
+      this.tooltipWidth = Math.round(320 * this.scaleFactor);
+      this.tooltipHeight = Math.round(200 * this.scaleFactor);
+      
       // Overlay to dim the background
       this.overlay = new Control(dialog);
       this.overlay.visible = false;
@@ -630,7 +637,10 @@ function AutoIntegrateTutorialSystem(dialog) {
       // Tutorial tooltip
       this.tooltip = new Control(dialog);
       this.tooltip.visible = false;
-      this.tooltip.setFixedSize(300, 300);
+      this.tooltip.setMinSize(
+            Math.round(320 * this.scaleFactor), 
+            Math.round(180 * this.scaleFactor)
+      );
 
       // Tooltip content
       this.tooltipText = new Label(this.tooltip);
@@ -676,11 +686,13 @@ function AutoIntegrateTutorialSystem(dialog) {
       // Layout tooltip
       var buttonSizer = new HorizontalSizer;
       buttonSizer.spacing = 4;
+      buttonSizer.addSpacing(4);
       buttonSizer.add(this.prevButton);
       buttonSizer.addStretch();
       buttonSizer.add(this.counterLabel);
       buttonSizer.addStretch();
       buttonSizer.add(this.nextButton);
+      buttonSizer.addSpacing(4);
 
       var tooltipSizer = new VerticalSizer;
       tooltipSizer.margin = 0;
@@ -802,6 +814,8 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
             this.highlightFrame.visible = false;
       }
 
+      this.tooltip.adjustToContents();
+
       // Position tooltip
       this.positionTooltip(step.target, step.tooltipPosition);
 
@@ -849,9 +863,10 @@ AutoIntegrateTutorialSystem.prototype.highlightElement = function(element) {
 AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, position) {
       position = position || "center";
       
-      var tooltipWidth = 320;
-      var tooltipHeight = 180;
-      var margin = 20;
+      // Get actual tooltip size after content is set
+      var tooltipWidth = this.tooltip.width;
+      var tooltipHeight = this.tooltip.height;
+      var margin = Math.round(20 * this.scaleFactor);
       
       var x, y;
 
