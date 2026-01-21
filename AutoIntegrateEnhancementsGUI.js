@@ -81,8 +81,8 @@ function AutoIntegrateSelectStarsImageDialog( util )
       this.sizer.add( this.buttons_Sizer );
    
       this.windowTitle = "Select stars image";
+      this.ensureLayoutUpdated();
       this.adjustToContents();
-      this.setFixedSize();
 }
 
 AutoIntegrateSelectStarsImageDialog.prototype = new Dialog;

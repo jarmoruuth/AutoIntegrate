@@ -625,8 +625,8 @@ function AutoIntegrateTutorialSystem(dialog) {
       this.scaleFactor = dialog.logicalPixelsToPhysical(1);
       
       // Scaled dimensions for tooltip
-      this.tooltipWidth = Math.round(320 * this.scaleFactor);
-      this.tooltipHeight = Math.round(200 * this.scaleFactor);
+      this.tooltipMaxWidth = Math.round(350 * this.scaleFactor);
+      this.tooltipMinHeight = Math.round(200 * this.scaleFactor);
       
       // Overlay to dim the background
       this.overlay = new Control(dialog);
@@ -637,15 +637,20 @@ function AutoIntegrateTutorialSystem(dialog) {
       // Tutorial tooltip
       this.tooltip = new Control(dialog);
       this.tooltip.visible = false;
-      this.tooltip.setMinSize(
-            Math.round(320 * this.scaleFactor), 
-            Math.round(180 * this.scaleFactor)
-      );
+      this.tooltip.setFixedWidth(this.tooltipMaxWidth);  // Fixed width prevents expansion
+      this.tooltip.setMinHeight(this.tooltipMinHeight);
 
-      // Tooltip content
-      this.tooltipText = new Label(this.tooltip);
-      this.tooltipText.wordWrapping = true;
-      this.tooltipText.styleSheet = "QLabel { color: #FFFFFF; padding: 10px; }";
+      // Tooltip content - use TextBox for better text handling
+      this.tooltipText = new TextBox(this.tooltip);
+      this.tooltipText.readOnly = true;
+      this.tooltipText.styleSheet = 
+      "QTextEdit { " +
+      "  color: #FFFFFF; " +
+      "  background-color: transparent; " +
+      "  border: none; " +
+      "  padding: 10px; " +
+      "}";
+      this.tooltipText.setMinHeight(Math.round(100 * this.scaleFactor));
 
       this.tooltipTitle = new Label(this.tooltip);
       this.tooltipTitle.styleSheet = "QLabel { color: #FFFFFF; font-weight: bold; font-size: 12px; padding: 10px; background: #0066CC; }";
@@ -785,10 +790,16 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
             this.dialog.mainTabBox.currentPageIndex = step.switchToTab;
             processEvents();  // Force UI update
       }
+
       // Update tooltip content
       this.tooltipTitle.text = step.title;
       this.tooltipText.text = step.description;
       this.counterLabel.text = "Step " + (stepIndex + 1) + " of " + this.steps.length;
+
+      // Adjust tooltip size to content (height will adjust, width is fixed)
+      this.tooltip.ensureLayoutUpdated();
+      this.tooltip.adjustToContents();
+      processEvents();
 
       // Update button states
       this.prevButton.enabled = stepIndex > 0;
@@ -864,8 +875,8 @@ AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, positio
       position = position || "center";
       
       // Get actual tooltip size after content is set
-      var tooltipWidth = this.tooltip.width;
-      var tooltipHeight = this.tooltip.height;
+      var tooltipWidth = this.tooltipMaxWidth;              // Use fixed max width
+      var tooltipHeight = this.tooltip.height;              // Actual height after adjustToContents
       var margin = Math.round(20 * this.scaleFactor);
       
       var x, y;

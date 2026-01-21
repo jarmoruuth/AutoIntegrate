@@ -2714,7 +2714,9 @@ function adjustDialogToScreen(dialog, preview_control, maxsize, preview_width, p
 
       for (var i = 0; i < 100; i++) {
             preview_control.setSize(preview_width, preview_height);
+            preview_control.ensureLayoutUpdated();
             preview_control.adjustToContents();
+            dialog.ensureLayoutUpdated();
             dialog.adjustToContents();
 
             if (dialog_width == dialog.width && dialog_height == dialog.height) {

@@ -113,7 +113,7 @@ function ExclusionAreaDialog() {
    var imgHeight = targetView.image.height;
    
    // Set the preview size
-   this.preview_Control.setFixedSize(Math.round(imgWidth * scale), Math.round(imgHeight * scale));
+   this.preview_Control.setMinSize(Math.round(imgWidth * scale), Math.round(imgHeight * scale));
    
    this.preview_Control.backgroundcolor = 0xFF000000;
    this.preview_Control.toolTip = "Preview of exclusion areas";
@@ -193,6 +193,7 @@ function ExclusionAreaDialog() {
    this.sizer.add(managementSizer);
    
    this.windowTitle = title;
+   this.ensureLayoutUpdated();
    this.adjustToContents();
 }
 
@@ -366,6 +367,7 @@ function setPreviewForView() {
       previewControl.setFixedSize(Math.round(imgWidth * scale), Math.round(imgHeight * scale));
       
       // Force dialog to adjust to the new control size
+      dialog.ensureLayoutUpdated();
       dialog.adjustToContents();
    }
    

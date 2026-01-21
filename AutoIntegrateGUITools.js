@@ -581,6 +581,7 @@ function newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
             if (!global.do_not_write_settings) {
                   Settings.write(name, DataType_Boolean, control.visible);
             }
+            parent.ensureLayoutUpdated();
             parent.adjustToContents();
       };
       sb.aiControl = control;
@@ -1349,7 +1350,7 @@ function createGradientCorrectionChoiceSizer(parent, label_txt = null)
       return self.GC_choice_Sizer;
 }
 
-function getExclusionsAreas() 
+function getExclusionAreas() 
 {
       console.writeln("Exclusion areas: " + JSON.stringify(global.exclusion_areas));
       var tmpname = "AutoIntegrateExclusionAreas";
@@ -1524,7 +1525,7 @@ function createGradientCorrectionSizer(parent, level = 1)
       this.exclusionAreasButton.onClick = function() 
       {
             try {
-                  getExclusionsAreas();
+                  getExclusionAreas();
             } catch (e) {
                   console.criticalln("Exclusion areas: " + e);
             }
@@ -1627,6 +1628,7 @@ this.newJsonSizerObj = newJsonSizerObj;
 this.createGradientCorrectionChoiceSizer = createGradientCorrectionChoiceSizer;
 this.createGradientCorrectionSizer = createGradientCorrectionSizer;
 this.createGraXpertGradientCorrectionSizer = createGraXpertGradientCorrectionSizer;
+this.getExclusionAreas = getExclusionAreas;
 
 }
 

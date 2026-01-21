@@ -54,7 +54,7 @@ function PlotControl(parent, metrics, stats, color) {
         this.enabled = false;
     }
 
-    this.setFixedSize(this.preferredWidth, this.preferredHeight);
+    this.setMinSize(this.preferredWidth, this.preferredHeight);
     
     // Calculate data statistics
     this.minValue = Math.min.apply(Math, this.data);
@@ -505,6 +505,7 @@ function AstroMetricsDialog() {
     this.sizer.add(this.statsGroupBox);
     this.sizer.add(this.buttonsRowSizer);
     
+    this.ensureLayoutUpdated();
     this.adjustToContents();
 }
 
