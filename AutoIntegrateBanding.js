@@ -4,6 +4,7 @@
 
    Copied from CanonBandingReduction.js script.
    Renamed by Jarmo Ruuth for AutoIntegrate script.
+   Thanks to Ric Anderson for pointing the debug mode performance problem.
 
    The problem has been discussed for example in http://tech.groups.yahoo.com/group/digital_astro/message/126102,
    cannot be fixed by image normalization with flats or darks, is not caused by problems in power supplies or
@@ -42,7 +43,7 @@
 
 function AutoIntegrateBandingEngine() {
 
-    var DEBUGGING_MODE_ON = true;
+    var DEBUGGING_MODE_ON = false;
 
     // init members
     this.targetImage=null;  // image to which operation is done
@@ -80,7 +81,9 @@ function AutoIntegrateBandingEngine() {
     /// function to set new target image
     this.setTargetImage=function(targetImage){
        if (this.targetImage!=targetImage){
-          console.writeln("Setting targetImage=",targetImage);
+         if ( DEBUGGING_MODE_ON ){
+            console.writeln("Setting targetImage=",targetImage);
+         }  
           this.targetImage=targetImage;
           this.bRedoConvert=true;
           this.bRedoStatistics=true;
