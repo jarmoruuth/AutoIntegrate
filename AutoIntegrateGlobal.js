@@ -68,6 +68,12 @@ this.autointegrate_version_info = [
       "- Performance fix to banding reduction."
 ];
 
+/* Interface version changes:
+ *    0: Initial version.
+ *    1: Fixed settings keys to always use SETTINGSKEY prefix.
+ */
+this.interface_version = 1;    // Interface version
+
 this.pixinsight_version_str = "";   // PixInsight version string, e.g. 1.8.8.10
 this.pixinsight_version_num = 0;    // PixInsight version number, e.h. 1080810
 this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
@@ -75,6 +81,7 @@ this.pixinsight_build_num = 0;      // PixInsight build number, e.g. 1601
 this.expert_mode = false;
 this.tabs = [];                     // Store tab controls for enabling/disabling
 this.expert_mode_sections = [];     // Store expert mode sections for enabling/disabling
+this.expert_mode_controls = [];     // Store expert mode controls for enabling/disabling
 
 this.sectionBackgroundColor = 0xFFD5CCB4;  // Light beige background color for level 2 sections
 this.simpleModeColor = 0xFF3498DB;         // Light blue color for simple mode
@@ -770,6 +777,7 @@ this.ppar = {
       userColumnCount: -1,    // User set column position, if -1 use automatic column position
       lastDir: '',            // Last save or load dir, used as a default when dir is unknown
       savedVersion: "",       // Saved version of the script
+      savedInterfaceVersion: 0,     // Saved interface version of the script
       preview: {
             use_preview: true,            // Show image preview on dialog preview window
             side_preview_visible: true,   // Show image preview on the side of the dialog

@@ -1171,7 +1171,7 @@ function saveLastDir(dirname)
       ppar.lastDir = util.removePathEndSlash(dirname);
       if (!global.do_not_write_settings) {
             Settings.write(SETTINGSKEY + '/lastDir', DataType_String, ppar.lastDir);
-            console.writeln("Save lastDir '" + ppar.lastDir + "'");
+            if (global.debug) console.writeln("Save lastDir '" + ppar.lastDir + "'");
       }
 }
 
@@ -1179,9 +1179,27 @@ function restoreLastDir()
 {
       var tempSetting = Settings.read(SETTINGSKEY + "/lastDir", DataType_String);
       if (Settings.lastReadOK) {
-            console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
+            if (global.debug) console.writeln("AutoIntegrate: Restored lastDir '" + tempSetting + "' from settings.");
             ppar.lastDir = tempSetting;
       }
+}
+
+function readAndMigrateSetting(newname, oldname, type, old_interface_version)
+{
+      if (global.ppar.savedInterfaceVersion <= old_interface_version) {
+            // Migrate from old interface version setting
+            var val = Settings.read(oldname, type);
+            if (Settings.lastReadOK && !global.do_not_write_settings) {
+                  if (global.debug) console.writeln("AutoIntegrate: Migrate setting " + oldname + " to " + newname + "=" + val);
+                  Settings.write(SETTINGSKEY + '/' + newname, type, val);
+                  Settings.remove(oldname);   // Remove old setting
+            }
+      } else {
+            var key = SETTINGSKEY + '/' + newname;
+            var val = Settings.read(key, type);
+            if (global.debug) console.writeln("AutoIntegrate: Read setting " + key + "=" + val);
+      }
+      return val;
 }
 
 function readOneParameterFromPersistentModuleSettings(name, type)
@@ -1216,7 +1234,7 @@ function readOneParameterFromPersistentModuleSettings(name, type)
             return tempSetting;
       } else {
             return null;
-}
+      }
 }
 
 function readParameterFromSettings(param)
@@ -3080,6 +3098,7 @@ this.recordParam = recordParam;
 this.writeParameterToSettings = writeParameterToSettings;
 this.readParameterFromSettings = readParameterFromSettings;
 this.readParametersFromPersistentModuleSettings = readParametersFromPersistentModuleSettings
+this.readAndMigrateSetting = readAndMigrateSetting;
 
 // Character and name checking
 this.mapBadChars = mapBadChars;

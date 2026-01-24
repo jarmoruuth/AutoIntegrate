@@ -220,7 +220,6 @@ var screen_size = "Unknown";       // Screen wxh size as a string
 var screen_width = 0;              // Screen width in pixels
 var screen_height = 0;             // Screen height in pixels
 
-
 var metricsVisualizerToolTip =            "<p>Show SubframeSelector metrics visualizer dialog.</p>" +
                                           "<p>Before using metrics visualizer, ensure that you have loaded light files.</p>" +
                                           "<p>Filtering settings in the <i>Preprocessing / Weighting and filtering settings</i> section " +
@@ -562,6 +561,7 @@ function savePersistentSettings(from_exit)
             Settings.write (SETTINGSKEY + "/showStartupImage", DataType_Boolean, ppar.show_startup_image);
             Settings.write (SETTINGSKEY + "/startupImageName", DataType_String, ppar.startup_image_name);
             Settings.write (SETTINGSKEY + "/savedVersion", DataType_String, global.autointegrate_version);
+            Settings.write (SETTINGSKEY + "/savedInterfaceVersion", DataType_Int32, global.interface_version);
       }
       if (!from_exit) {
             setWindowPrefixHelpTip(ppar.win_prefix);
@@ -2804,6 +2804,10 @@ function switchToSimpleMode(parent)
             var section = global.expert_mode_sections[i];
             section.hide();
       }
+      for (var i = 0; i < global.expert_mode_controls.length; i++) {
+            var control = global.expert_mode_controls[i];
+            control.hide();
+      }
       parent.modeTitle.aiStyleSheet = parent.modeTitle.styleSheet;            // Save current stylesheet
       parent.modeTitle.styleSheet = "font-weight: bold;color: white;";
       parent.modeFrame.aiBackgroundColor = parent.modeFrame.backgroundColor;  // Save current background color
@@ -2836,6 +2840,13 @@ function switchToExpertMode(parent)
       for (var i = 0; i < global.expert_mode_sections.length; i++) {
             var section = global.expert_mode_sections[i];
             section.show();
+      }
+      for (var i = 0; i < global.expert_mode_controls.length; i++) {
+            var control = global.expert_mode_controls[i];
+            control.show();
+            if (control.aiName) {
+                  guitools.getSectionVisible(control.aiName, control);
+            }
       }
       if (parent.modeFrame.aiBackgroundColor) {
             parent.modeTitle.styleSheet = parent.modeTitle.aiStyleSheet;            // Restore saved stylesheet
@@ -3602,7 +3613,6 @@ function newAdjustToContentButton(parent)
       return button;
 }
 
-
 function newCollapeSectionsButton(parent)
 {
       var button = new ToolButton(parent);
@@ -3613,20 +3623,13 @@ function newCollapeSectionsButton(parent)
                        "the separate Adjust button.</p>";
       button.onClick = function()
       {
-            if (0) {
-                  for (var i = 0; i < global.sectionBarControls.length; i++) {
-                        global.sectionBarControls[i].hide();
+            for (var i = 0; i < global.sectionBars.length; i++) {
+                  global.sectionBars[i].aiControl.hide();
+                  if (!global.do_not_write_settings) {
+                        Settings.write(SETTINGSKEY + '/' + global.sectionBars[i].aiName, DataType_Boolean, global.sectionBars[i].aiControl.visible);
                   }
+                  parent.ensureLayoutUpdated();
                   parent.adjustToContents();
-            } else {
-                  for (var i = 0; i < global.sectionBars.length; i++) {
-                        global.sectionBars[i].aiControl.hide();
-                        if (!global.do_not_write_settings) {
-                              Settings.write(global.sectionBars[i].aiName, DataType_Boolean, global.sectionBars[i].aiControl.visible);
-                        }
-                        parent.ensureLayoutUpdated();
-                        parent.adjustToContents();
-                  }
             }
       };
       return button;
@@ -4454,6 +4457,7 @@ function AutoIntegrateDialog()
       if (this.first_run) {
             global.expert_mode = false;
             this.markAsRun();
+            this.saveExpertMode();
       } else {
             global.expert_mode = this.isExpertMode();
       }
@@ -4549,7 +4553,7 @@ function AutoIntegrateDialog()
       this.filesToolTip = [];
       this.filesToolTip[global.pages.LIGHTS] = "<p>Add light files. If only lights are added " + 
                              "they are assumed to be already calibrated.</p>" +
-                             "<p>If IMAGETYP is set on images script tries to automatically detect "+
+                             "<p>If IMAGETYP is set on images the script tries to automatically detect "+
                              "bias, dark flat and flat dark images. This can be disabled with No autodetect option.</p>";
       this.filesToolTip[global.pages.BIAS] = "<p>Add bias files. If only one file is added " + 
                              "it is assumed to be a master file.</p>";
@@ -6132,7 +6136,7 @@ function AutoIntegrateDialog()
             this.graxpertControl
       ]);
 
-      global.expert_mode_sections.push(this.graxpertControl);
+      global.expert_mode_controls.push(this.graxpertControl);
 
       // Cropping settings
       //
@@ -7662,7 +7666,7 @@ function AutoIntegrateDialog()
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsControl, "Tools", "ImageTools");
       var sb = guitools.newSectionBarAdd(this, this.settingsGroupBox, this.imageToolsOtherControl, "Other", "ImageToolsOther");
       global.expert_mode_sections.push(sb);
-      global.expert_mode_sections.push(this.imageToolsOtherControl);
+      global.expert_mode_controls.push(this.imageToolsOtherControl);
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.narrowbandControl, "Narrowband processing", "Narrowband1");
       guitools.newSectionBarAdd(this, this.settingsGroupBox, this.saveFinalImageControl, "Save final image files", "Savefinalimagefiles");
       this.settingsGroupBox.sizer.addStretch();
@@ -7777,7 +7781,7 @@ function AutoIntegrateDialog()
             this.NoiseXTerminatorInfoGroupBoxLabel,
             this.NoiseXTerminatorInfoSizer ]);
       global.expert_mode_sections.push(sb_control.section);
-      global.expert_mode_sections.push(sb_control.control);
+      global.expert_mode_controls.push(sb_control.control);
       guitools.newSectionBarAddArray(this, this.toolsGroupBox, "GraXpert", "ps_graxpert",
             [ this.graxpertGroupBoxSizer  ]);
       this.toolsGroupBox.sizer.addStretch();
@@ -7813,7 +7817,7 @@ function AutoIntegrateDialog()
       guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
       var sb = guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.debugControl, "Debug settings", "debugsettings");
       global.expert_mode_sections.push(sb);
-      global.expert_mode_sections.push(this.debugControl);
+      global.expert_mode_controls.push(this.debugControl);
       this.interfaceGroupBox.sizer.addStretch();
 
       /***********************************************\
@@ -8084,7 +8088,7 @@ function AutoIntegrateDialog()
       }
 
       // Initialize tutorial system
-      this.tutorial = new AutoIntegrateTutorialSystem(this);
+      this.tutorial = new AutoIntegrateTutorialSystem(this, global, util);
       this.setupAllTutorials();
       // this.setupGettingStartedTutorial();
       // this.setupProcessingTutorial();
@@ -8123,9 +8127,8 @@ AutoIntegrateDialog.prototype.shouldShowWelcome = function(global) {
       if (this.first_run) {
             return true;
       }
-    
-      // Check if user wants to see it on startup
-      var showOnStartup = Settings.read("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean);
+
+      var showOnStartup = util.readAndMigrateSetting("ShowWelcomeOnStartup", "AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean, 0);
       return showOnStartup;
 };
 
@@ -8133,12 +8136,13 @@ AutoIntegrateDialog.prototype.isExpertMode = function() {
       if (this.global.do_not_read_settings) {
             return false;
       } else {
-            var setting = Settings.read("AutoIntegrate_ExpertMode", DataType_Boolean);
+            var setting = Settings.read(SETTINGSKEY + "/ExpertMode", DataType_Boolean);
             if (!Settings.lastReadOK) {
-                  // Default to true if setting fopund but this is not the first run.
-                  // AutoIntegrate has been used already so expert mode is likely desired.
+                  // Setting not found, assume that AutoIntegrate has been used 
+                  // already so expert mode is likely desired.
                   return true;
             } else {
+                  if (global.debug) console.writeln("Read ExpertMode setting: " + setting);
                   return setting;
             }
       }
@@ -8146,13 +8150,7 @@ AutoIntegrateDialog.prototype.isExpertMode = function() {
 
 AutoIntegrateDialog.prototype.saveExpertMode = function() {
       if (!this.global.do_not_write_settings) {
-            Settings.write("AutoIntegrate_ExpertMode", DataType_Boolean, this.global.expert_mode);
-      }
-};
-
-AutoIntegrateDialog.prototype.markAsRun = function() {
-      if (!this.global.do_not_write_settings) {
-            Settings.write("AutoIntegrate_HasRun", DataType_Boolean, true);
+            Settings.write(SETTINGSKEY + "/ExpertMode", DataType_Boolean, this.global.expert_mode);
       }
 };
 
@@ -8160,14 +8158,15 @@ AutoIntegrateDialog.prototype.isFirstRun = function() {
       if (this.global.do_not_read_settings) {
             return true;
       } else {
-            return !Settings.read("AutoIntegrate_HasRun", DataType_Boolean);
+            var hasRun = util.readAndMigrateSetting("HasRun", "AutoIntegrate_HasRun", DataType_Boolean, 0);
+            return !hasRun;
       }
 };
 
 // Mark that AutoIntegrate has been run
 AutoIntegrateDialog.prototype.markAsRun = function() {
       if (!this.global.do_not_write_settings) {
-            Settings.write("AutoIntegrate_HasRun", DataType_Boolean, true);
+            Settings.write(SETTINGSKEY + "/HasRun", DataType_Boolean, true);
       }
 };
 
@@ -8275,6 +8274,7 @@ AutoIntegrateDialog.prototype.getGettingStartedSteps = function() {
             title: "Add Light Frames",
             description: "<p>Click this button to add your light frames (the actual images of your target). You can add multiple files at once.</p>" + 
                          "<p>If your light files are already calibrated, you can skip adding calibration frames.</p>" +
+                         "<p>You can add calibration frames using separate buttons.</p>" +
                          "<p>AutoIntegrate will automatically select the best images as reference images.</p>",
             target: this.filesButtons.addLightsButton,
             tooltipPosition: "center",

@@ -350,6 +350,11 @@ function readPersistentSettings()
             console.writeln("AutoIntegrate: Restored savedVersion '" + tempSetting + "' from settings.");
             ppar.savedVersion = tempSetting;
       }
+      var tempSetting = Settings.read(SETTINGSKEY + "/savedInterfaceVersion", DataType_Int32);
+      if (Settings.lastReadOK) {
+            console.writeln("AutoIntegrate: Restored savedInterfaceVersion '" + tempSetting + "' from settings.");
+            ppar.savedInterfaceVersion = tempSetting;
+      }
 
       var tempSetting = Settings.read(SETTINGSKEY + "/previewSettings", DataType_String);
       if (Settings.lastReadOK) {

@@ -327,7 +327,7 @@ AutoIntegrateWelcomeDialog.prototype = new Dialog;
 
 AutoIntegrateWelcomeDialog.prototype.saveShowOnStartup = function() {
         if (!this.global.do_not_write_settings) {
-            Settings.write("AutoIntegrate_ShowWelcomeOnStartup", DataType_Boolean, this.showOnStartupCheckBox.checked);
+            Settings.write(SETTINGSKEY + '/' + "ShowWelcomeOnStartup", DataType_Boolean, this.showOnStartupCheckBox.checked);
         }
 };
 
@@ -546,20 +546,21 @@ AutoIntegrateTutorialManagerDialog.prototype.populateTutorials = function() {
 
 // Check if tutorial is completed
 AutoIntegrateTutorialManagerDialog.prototype.isTutorialCompleted = function(tutorialId) {
-      if (this.useAdvancedOptions === false) {
+      if (this.useAdvancedOptions === false || !global.do_not_read_settings) {
             return false;
       }
-      var key = "AutoIntegrate_Tutorial_" + tutorialId + "_Completed";
-      return Settings.read(key, DataType_Boolean);
+      var key = "Tutorial_" + tutorialId + "_Completed";
+      if (global.debug) console.writeln("Read setting: " + key);
+      return Settings.read(SETTINGSKEY + '/' + key, DataType_Boolean);
 };
 
 // Mark tutorial as completed
 AutoIntegrateTutorialManagerDialog.prototype.markTutorialCompleted = function(tutorialId) {
-      if (this.useAdvancedOptions === false) {
+      if (this.useAdvancedOptions === false || !global.do_not_write_settings) {
             return;
       }
-      var key = "AutoIntegrate_Tutorial_" + tutorialId + "_Completed";
-      Settings.write(key, DataType_Boolean, true);
+      var key = "Tutorial_" + tutorialId + "_Completed";
+      if (global.debug) console.writeln("Write setting: " + key);
 };
 
 // Mark selected tutorial as completed
@@ -579,8 +580,8 @@ AutoIntegrateTutorialManagerDialog.prototype.markSelectedAsCompleted = function(
 AutoIntegrateTutorialManagerDialog.prototype.resetAllTutorials = function() {
       var tutorials = this.getTutorials();
       for (var i = 0; i < tutorials.length; i++) {
-            var key = "AutoIntegrate_Tutorial_" + tutorials[i].id + "_Completed";
-            Settings.remove(key);
+            var key = "Tutorial_" + tutorials[i].id + "_Completed";
+            Settings.remove(SETTINGSKEY + '/' + key);
       }
       this.populateTutorials();
 };
@@ -614,19 +615,24 @@ AutoIntegrateTutorialManagerDialog.prototype.launchSelectedTutorial = function()
 // Tutorial System for AutoIntegrate
 // ============================================================================
 
-function AutoIntegrateTutorialSystem(dialog) {
+function AutoIntegrateTutorialSystem(dialog, global, util) {
       this.dialog = dialog;
-      this.global = dialog.global;
+      this.global = global;
+      this.util = util;
       this.currentStep = 0;
       this.isActive = false;
       this.steps = [];
 
-      // Calculate scale factor based on logical pixels
-      this.scaleFactor = dialog.logicalPixelsToPhysical(1);
-      
+      var self = this;
+
+      var font = new Font();
+      var button_text_width = font.width("Previous") + font.width("Step 99 of 99") + font.width("Finish") + 
+                              4 * 8 + 6 * 10 + 2 * 20; // spacing + buttons + margins
+      console.writeln("Calculated text width for buttons: " + button_text_width);
+
       // Scaled dimensions for tooltip
-      this.tooltipMaxWidth = Math.round(350 * this.scaleFactor);
-      this.tooltipMinHeight = Math.round(200 * this.scaleFactor);
+      this.tooltipMinWidth = Math.round(Math.max(button_text_width, 300));
+      this.tooltipMinHeight = Math.round(300);
       
       // Overlay to dim the background
       this.overlay = new Control(dialog);
@@ -635,30 +641,31 @@ function AutoIntegrateTutorialSystem(dialog) {
       this.overlay.styleSheet = "QWidget { background-color: rgba(0, 0, 0, 128); }";
 
       // Tutorial tooltip
-      this.tooltip = new Control(dialog);
-      this.tooltip.visible = false;
-      this.tooltip.setFixedWidth(this.tooltipMaxWidth);  // Fixed width prevents expansion
-      this.tooltip.setMinHeight(this.tooltipMinHeight);
+      this.tooltipControl = new Control(dialog);
+      this.tooltipControl.visible = false;
+      this.tooltipControl.setMinWidth(this.tooltipMinWidth);
+      this.tooltipControl.setMinHeight(this.tooltipMinHeight);
 
       // Tooltip content - use TextBox for better text handling
-      this.tooltipText = new TextBox(this.tooltip);
-      this.tooltipText.readOnly = true;
-      this.tooltipText.styleSheet = 
+      this.tooltipTextBox = new TextBox(this.tooltipControl);
+      this.tooltipControl.setFixedWidth(20 * font.width("M"));  // Fixed width prevents expansion
+      this.tooltipControl.setMinHeight(10 * font.height);
+      this.tooltipTextBox.readOnly = true;
+      this.tooltipTextBox.styleSheet = 
       "QTextEdit { " +
       "  color: #FFFFFF; " +
       "  background-color: transparent; " +
       "  border: none; " +
       "  padding: 10px; " +
       "}";
-      this.tooltipText.setMinHeight(Math.round(100 * this.scaleFactor));
 
-      this.tooltipTitle = new Label(this.tooltip);
+      this.tooltipTitle = new Label(this.tooltipControl);
       this.tooltipTitle.styleSheet = "QLabel { color: #FFFFFF; font-weight: bold; font-size: 12px; padding: 10px; background: #0066CC; }";
 
       // Navigation buttons
 
       // Next button - Blue with white text
-      this.nextButton = new PushButton(this.tooltip);
+      this.nextButton = new PushButton(this.tooltipControl);
       this.nextButton.text = "Next";
       this.nextButton.defaultButton = true;
       this.nextButton.styleSheet = "QPushButton { color: #FFFFFF; }";
@@ -668,7 +675,7 @@ function AutoIntegrateTutorialSystem(dialog) {
       };
 
       // Previous button - Gray with white text
-      this.prevButton = new PushButton(this.tooltip);
+      this.prevButton = new PushButton(this.tooltipControl);
       this.prevButton.text = "Previous";
       this.prevButton.styleSheet = "QPushButton { color: #FFFFFF; }";
       this.prevButton.onClick = function() {
@@ -676,7 +683,7 @@ function AutoIntegrateTutorialSystem(dialog) {
       };
 
       // Skip button - Red/Orange with white text
-      this.skipButton = new PushButton(this.tooltip);
+      this.skipButton = new PushButton(this.tooltipControl);
       this.skipButton.text = "Skip Tutorial";
       this.skipButton.styleSheet = "QPushButton { color: #FFFFFF; }";
       
@@ -685,7 +692,7 @@ function AutoIntegrateTutorialSystem(dialog) {
       };
 
       // Counter label
-      this.counterLabel = new Label(this.tooltip);
+      this.counterLabel = new Label(this.tooltipControl);
       this.counterLabel.styleSheet = "QLabel { color: #FFFFFF; }";
 
       // Layout tooltip
@@ -703,13 +710,13 @@ function AutoIntegrateTutorialSystem(dialog) {
       tooltipSizer.margin = 0;
       tooltipSizer.spacing = 8;
       tooltipSizer.add(this.tooltipTitle);
-      tooltipSizer.add(this.tooltipText);
+      tooltipSizer.add(this.tooltipTextBox);
       tooltipSizer.addStretch();
       tooltipSizer.add(buttonSizer);
       tooltipSizer.add(this.skipButton);
 
-      this.tooltip.sizer = tooltipSizer;
-      this.tooltip.styleSheet = "QWidget { background: #2C3E50; border: 2px solid #3498DB; border-radius: 5px; }";
+      this.tooltipControl.sizer = tooltipSizer;
+      this.tooltipControl.styleSheet = "QWidget { background: #2C3E50; border: 2px solid #3498DB; border-radius: 5px; }";
 
       // Highlight frame
       this.highlightFrame = new Control(dialog);
@@ -793,12 +800,16 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
 
       // Update tooltip content
       this.tooltipTitle.text = step.title;
-      this.tooltipText.text = step.description;
+      this.tooltipTextBox.text = step.description;
+
+      // Scroll TextBox to top
+      this.tooltipTextBox.home();
+
       this.counterLabel.text = "Step " + (stepIndex + 1) + " of " + this.steps.length;
 
       // Adjust tooltip size to content (height will adjust, width is fixed)
-      this.tooltip.ensureLayoutUpdated();
-      this.tooltip.adjustToContents();
+      this.tooltipControl.ensureLayoutUpdated();
+      this.tooltipControl.adjustToContents();
       processEvents();
 
       // Update button states
@@ -825,14 +836,14 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
             this.highlightFrame.visible = false;
       }
 
-      this.tooltip.adjustToContents();
+      this.tooltipControl.adjustToContents();
 
       // Position tooltip
       this.positionTooltip(step.target, step.tooltipPosition);
 
       // Show tooltip
-      this.tooltip.visible = true;
-      this.tooltip.bringToFront();
+      this.tooltipControl.visible = true;
+      this.tooltipControl.bringToFront();
 
       // Start blink animation
       this.blinkCount = 0;
@@ -875,9 +886,9 @@ AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, positio
       position = position || "center";
       
       // Get actual tooltip size after content is set
-      var tooltipWidth = this.tooltipMaxWidth;              // Use fixed max width
-      var tooltipHeight = this.tooltip.height;              // Actual height after adjustToContents
-      var margin = Math.round(20 * this.scaleFactor);
+      var tooltipWidth = this.tooltipControl.width;               // Actual width after adjustToContents
+      var tooltipHeight = this.tooltipControl.height;             // Actual height after adjustToContents
+      var margin = Math.round(20);
       
       var x, y;
 
@@ -953,7 +964,7 @@ AutoIntegrateTutorialSystem.prototype.positionTooltip = function(target, positio
     x = Math.max(10, Math.min(x, this.dialog.width - tooltipWidth - 10));
     y = Math.max(10, Math.min(y, this.dialog.height - tooltipHeight - 10));
     
-    this.tooltip.move(x, y);
+    this.tooltipControl.move(x, y);
 };
 
 // Navigate to next step
@@ -979,25 +990,27 @@ AutoIntegrateTutorialSystem.prototype.endTutorial = function() {
     this.isActive = false;
     this.blinkTimer.stop();
     this.overlay.visible = false;
-    this.tooltip.visible = false;
+    this.tooltipControl.visible = false;
     this.highlightFrame.visible = false;
     
     // Mark tutorial as completed
-    if (this.currentTutorialId &&  !this.dialog.global.do_not_write_settings) {
+    if (this.currentTutorialId &&  !this.global.do_not_write_settings) {
         var key = "AutoIntegrate_Tutorial_" + this.currentTutorialId + "_Completed";
-        Settings.write(key, DataType_Boolean, true);
+        Settings.write(SETTINGSKEY + '/' + key, DataType_Boolean, true);
         Console.noteln("Tutorial completed: " + this.currentTutorialId);
     }
     
+    this.dialog.ensureLayoutUpdated();
+    this.dialog.adjustToContents();
     processEvents();
 };
 
 // Check if tutorial should be shown
 AutoIntegrateTutorialSystem.prototype.shouldShowTutorial = function() {
-      if (this.dialog.global.do_not_read_settings) {
+      if (this.global.do_not_read_settings) {
             return true;
       } else {
-            var shown = Settings.read("AutoIntegrate_TutorialShown", DataType_Boolean);
+            var shown = this.util.readAndMigrateSetting("TutorialShown", "AutoIntegrate_TutorialShown", DataType_Boolean, 0);
             return !shown;
       }
 };

@@ -566,10 +566,25 @@ function getSectionVisible(name, control)
       if (global.do_not_read_settings) {
             return;
       }
-      var tempSetting = Settings.read(name, DataType_Boolean);
-      if (Settings.lastReadOK) {
-            // console.writeln("AutoIntegrate: read from settings " + name + "=" + tempSetting);
-            control.visible = tempSetting;
+      if (global.ppar.savedInterfaceVersion <= 0) {
+            // Migrate from old settings
+            var oldname = name;
+            var tempSetting = Settings.read(oldname, DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  if (global.debug) console.writeln("AutoIntegrate: migrated from old settings " + oldname + "=" + tempSetting);
+                  control.visible = tempSetting;
+                  if (!global.do_not_write_settings) {
+                        Settings.write(SETTINGSKEY + "/" + name, DataType_Boolean, control.visible);
+                        Settings.remove(name);
+                  }
+            }
+      } else {
+            var key = SETTINGSKEY + "/" + name;
+            var tempSetting = Settings.read(key, DataType_Boolean);
+            if (Settings.lastReadOK) {
+                  if (global.debug) console.writeln("AutoIntegrate: read from settings " + key + "=" + tempSetting);
+                  control.visible = tempSetting;
+            }
       }
 }
 
@@ -579,13 +594,14 @@ function newSectionBarAdd(parent, groupbox, control, title, name, level = 1)
       sb.setSection(control);
       sb.onToggleSection = function(bar, beginToggle) {
             if (!global.do_not_write_settings) {
-                  Settings.write(name, DataType_Boolean, control.visible);
+                  Settings.write(SETTINGSKEY + "/" + name, DataType_Boolean, control.visible);
             }
             parent.ensureLayoutUpdated();
             parent.adjustToContents();
       };
       sb.aiControl = control;
       sb.aiName = name;
+      control.aiName = name;
       if (level == 2) {
             sb.backgroundColor = global.sectionBackgroundColor;
       }
@@ -1617,6 +1633,7 @@ this.newPushOrToolButton = newPushOrToolButton;
 this.newGroupBoxSizer = newGroupBoxSizer;
 this.newSectionBarAdd = newSectionBarAdd;
 this.newSectionBarAddArray = newSectionBarAddArray;
+this.getSectionVisible = getSectionVisible;
 
 this.createImageToolsControl = createImageToolsControl;
 this.createGraXpertPathSizer = createGraXpertPathSizer;
