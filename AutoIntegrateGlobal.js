@@ -59,13 +59,14 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.83 test4";         // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.83 test5";         // Version, also updated into updates.xri
 this.autointegrate_info = "Simple and expert modes";              // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
       "- Added simple and expert modes.",
-      "- Performance fix to banding reduction."
+      "- Performance fix to banding reduction.",
+      "- Support for MAS 1.1"
 ];
 
 /* Interface version changes:
@@ -554,7 +555,9 @@ this.par = {
       MAS_aggressiveness: { val: 0.7, def: 0.7, name : "MAS aggressiveness", type : 'R' },
       MAS_dynamicRangeCompression: { val: 0.4, def: 0.4, name : "MAS dynamic range compression", type : 'R' },
       MAS_contrastRecovery: { val: true, def: true, name : "MAS contrast recovery", type : 'B' },
-      MAS_scaleSeparation: { val: 7, def: 7, name : "MAS scale separation", type : 'I' },
+      MAS_backgroundReference: { val: false, def: false, name : "MAS background reference", type : 'B' },
+      MAS_scaleSeparation: { val: '1024', def: '1024', name : "MAS scale separation", type : 'S' },
+      MAS_contrastRecoveryIntensity: { val: 1.0, def: 1.0, name : "MAS contrast recovery intensity", type : 'R' },
       MAS_colorSaturation: { val: true, def: true, name : "MAS color saturation", type : 'B' }, 
       MAS_colorSaturation_amount: { val: 0.75, def: 0.75, name : "MAS color saturation amount", type : 'R' },
       MAS_colorSaturation_boost: { val: 0.5, def: 0.5, name : "MAS color saturation boost", type : 'R' },

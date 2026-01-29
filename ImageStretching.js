@@ -62,7 +62,7 @@ function AutoIntegrateImageStretchingDialog() {
     var debug = false;
 
     this.TITLE = "Image Stretching";
-    this.VERSION = "1.00";
+    this.VERSION = "1.01";
 
     this.windowTitle = this.TITLE + " v" + this.VERSION;
     // this.minWidth = 1000;

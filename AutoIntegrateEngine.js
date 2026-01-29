@@ -8555,6 +8555,17 @@ function runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching
 {
       console.writeln("Execute MultiscaleAdaptiveStretch on " + GC_win.mainView.id);
 
+      if (par.MAS_backgroundReference.val) {
+            var roi = findTrueBackground(GC_win, false);
+            if (roi != null) {
+                  console.writeln("  Found background reference at ROI: (" + roi.x0 + ", " + roi.y0 + ") - (" + roi.x1 + ", " + roi.y1 + ")");
+            } else {
+                  console.writeln("  No valid background reference found, proceeding without background ROI");
+            }
+      } else {
+            var roi = null;
+      }
+
       try {
             var P = new MultiscaleAdaptiveStretch;
       } catch (e) {
@@ -8565,12 +8576,23 @@ function runHistogramTransformMultiscaleAdaptiveStretch(GC_win, image_stretching
       P.targetBackground = par.MAS_targetBackground.val;
       P.dynamicRangeCompression = par.MAS_dynamicRangeCompression.val;
       P.contrastRecovery = par.MAS_contrastRecovery.val;
-      P.scaleSeparation = par.MAS_scaleSeparation.val;
+      P.scaleSeparation = parseInt(par.MAS_scaleSeparation.val);
+      P.contrastRecoveryIntensity = par.MAS_contrastRecoveryIntensity.val;
       P.previewLargeScale = false;
       P.saturationEnabled = par.MAS_colorSaturation.val;
       P.saturationAmount = par.MAS_colorSaturation_amount.val;
       P.saturationBoost = par.MAS_colorSaturation_boost.val;
       P.saturationLightnessMask = par.MAS_colorSaturation_lightness.val;
+
+      if (roi != null) {
+            P.backgroundROIEnabled = true;
+            P.backgroundROIX0 = roi.x0;
+            P.backgroundROIY0 = roi.y0;
+            P.backgroundROIWidth = roi.x1 - roi.x0;
+            P.backgroundROIHeight = roi.y1 - roi.y0;
+      } else {
+            P.backgroundROIEnabled = false;
+      }
 
       GC_win.mainView.beginProcess(UndoFlag_NoSwapFile);
       P.executeOn(GC_win.mainView);

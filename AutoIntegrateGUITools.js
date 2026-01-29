@@ -40,6 +40,7 @@ var adjust_shadows_values = [ 'none', 'before', 'after', 'both' ];
 var graxpert_correction_values = [ 'Subtraction', 'Division' ];
 var ABE_correction_values = [ 'Subtraction', 'Division' ];
 var mgc_scale_valuestxt = [ '128', '192', '256', '384', '512', '768', '1024', '1536', '2048', '3072', '4096', '6144', '8192' ];
+var mas_scale_valuestxt = [ '8', '16', '32', '64', '128', '192', '256', '384', '512', '768', '1024' ];
 
 this.exclusionAreasComboBox = null;             // For updating exclusion image list
 this.exclusionAreasTargetImageName = "Auto";    // Current exclusion image
@@ -962,12 +963,18 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
       MASStretchSizer1.add( MASDynamicRangeCompression );
       MASStretchSizer1.addStretch();
 
+      var MASBackgroundReferenceCheckbox = newCheckBox(parent, "Background Reference", par.MAS_backgroundReference,
+            "<p>If checked automatically finds and uses a background reference.</p>");
+
       var MASContrastRecoveryCheckbox = newCheckBox(parent, "Contrast Recovery", par.MAS_contrastRecovery,
             "<p>Enable or disable MAS contrast recovery.</p>" +
             "<p>Contrast recovery can help to recover some contrast lost during stretching.</p>");
-      var MASScaleSeparationSpinBox = newSpinBox(parent, par.MAS_scaleSeparation, 4, 10,
+      var MASScaleSeparationLabel = newLabel(parent, "Scale Separation",
             "<p>MAS scale separation value.</p>" +
-            "<p>Higher values produce finer local contrast.</p>");
+            "<p>Smaller value protects smaller elements from local local contrast enhancements.</p>");
+      var MASScaleSeparationComboBox = newComboBox(parent, par.MAS_scaleSeparation, mas_scale_valuestxt, MASScaleSeparationLabel.toolTip);
+      var MASContrastRecoveryIntensity = newNumericControl(parent, "Intensity", par.MAS_contrastRecoveryIntensity, 0, 1,
+            "<p>MAS contrast recovery intensity.</p>");
 
       var MASColorSaturationCheckBox = newCheckBox(parent, "Color Saturation", par.MAS_colorSaturation,
             "<p>Enable or disable MAS color saturation.</p>" +
@@ -978,7 +985,7 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
       var MASColorSaturationBoost = newNumericControl(parent, "Boost", par.MAS_colorSaturation_boost, 0, 1,
             "<p>MAS color saturation boost.</p>" +
             "<p>Higher values target more on lower saturation levels.</p>");
-      var MASColorSaturationLightnessCheckBox = newCheckBox(parent, "Affect Lightness", par.MAS_colorSaturation_lightness,
+      var MASColorSaturationLightnessCheckBox = newCheckBox(parent, "Lightness mask", par.MAS_colorSaturation_lightness,
             "<p>Enable or disable MAS color saturation affecting lightness.</p>" +
             "<p>If enabled color saturation affects are masked using a lightness mask.</p>");
 
@@ -997,12 +1004,22 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
       MASStretchSizer.add( MASTargetBackgroundControl );
       MASStretchSizer.add( MASStretchSizer1 );
       MASStretchSizer.addStretch();
+      MASStretchSizer.addSpacing(8);
+      MASStretchSizer.add( MASBackgroundReferenceCheckbox );
 
-      var MASContrastSizer = new HorizontalSizer;
+      var MASContrastSizer1 = new HorizontalSizer;
+      MASContrastSizer1.spacing = 4;
+      MASContrastSizer1.margin = 6;
+      MASContrastSizer1.add( MASScaleSeparationLabel );
+      MASContrastSizer1.add( MASScaleSeparationComboBox );
+      MASContrastSizer1.add( MASContrastRecoveryIntensity );
+      MASContrastSizer1.addStretch();
+
+      var MASContrastSizer = new VerticalSizer;
       MASContrastSizer.spacing = 4;
       MASContrastSizer.margin = 6;
       MASContrastSizer.add( MASContrastRecoveryCheckbox );
-      MASContrastSizer.add( MASScaleSeparationSpinBox );
+      MASContrastSizer.add( MASContrastSizer1 );
       MASContrastSizer.addStretch();
 
       var MASColorSaturationSizer = new VerticalSizer;
