@@ -48,7 +48,8 @@ function PlotControl(parent, metrics, stats, color) {
                    "<p>Gray points indicate values filtered out by outliers.<br>" +
                    "White points indicate values filtered out by the current limits.</p>" +
                    "<p>Green lines indicate one sigma limits.<br>" +
-                   "Red lines indicate two sigma limits.</p>";
+                   "Red lines indicate two sigma limits.</p>" +
+                   "<p><b>Double-click on the plot to set the limit at that Y-axis value.</b></p>";
 
     if (this.title == 'None') {
         this.enabled = false;
@@ -60,6 +61,41 @@ function PlotControl(parent, metrics, stats, color) {
     this.minValue = Math.min.apply(Math, this.data);
     this.maxValue = Math.max.apply(Math, this.data);
     this.range = this.maxValue - this.minValue;
+    
+    // Store reference to the limit edit control (will be set later)
+    this.limitEdit = null;
+    
+    // Mouse event handling for double-click to set limit
+    this.onMouseDoubleClick = function(x, y, button, buttonState, modifiers) {
+        // Calculate plot area
+        var plotX = this.margin;
+        var plotY = this.margin;
+        var plotWidth = this.width - 2 * this.margin;
+        var plotHeight = this.height - 2 * this.margin;
+        
+        // Check if click is within plot area
+        if (x >= plotX && x <= plotX + plotWidth && 
+            y >= plotY && y <= plotY + plotHeight) {
+            
+            // Convert Y coordinate to data value
+            var normalizedY = (plotY + plotHeight - y) / plotHeight;
+            var dataValue = this.minValue + (normalizedY * this.range);
+            
+            // Update the limit
+            this.plot_limit = dataValue;
+            this.metrics.limit = dataValue;
+            
+            // Update the limit edit control if available
+            if (this.limitEdit) {
+                this.limitEdit.setValue(dataValue);
+            }
+            
+            // Update the dialog
+            dialog.updateData();
+            
+            console.writeln("Limit set to " + dataValue.toFixed(8) + " for " + this.title);
+        }
+    };
     
     this.onPaint = function(x0, y0, x1, y1) {
         // console.writeln("PlotControl onPaint: " + this.title + " plot_limit " + this.plot_limit);
@@ -121,6 +157,25 @@ function PlotControl(parent, metrics, stats, color) {
                 // Draw two sigma line
                 graphics.pen = new Pen(0xFFCD5C5C, 1); // Red for two sigma
                 graphics.drawLine(plotX, twoSigmaLowY, plotX + plotWidth, twoSigmaLowY);
+            }
+        }
+        
+        // Draw current limit line if set
+        if (this.plot_limit != 0.0 && this.range > 0) {
+            var limitY = plotY + plotHeight - (plotHeight * (this.plot_limit - this.minValue) / this.range);
+            if (limitY >= plotY && limitY <= plotY + plotHeight) {
+                graphics.pen = new Pen(0xFFFFFF00, 2); // Yellow for limit line
+                graphics.drawLine(plotX, limitY, plotX + plotWidth, limitY);
+                
+                // Draw limit value label
+                graphics.font = new Font("Arial", 10);
+                var limitLabel = "Limit: " + this.plot_limit.toFixed(4);
+                var labelWidth = graphics.font.width(limitLabel);
+                graphics.fillRect(new Rect(plotX + plotWidth - labelWidth - 10, limitY - 12, 
+                                          plotX + plotWidth - 5, limitY - 2), 
+                                new Brush(0xFF2D2D30));
+                graphics.pen = new Pen(0xFFFFFF00);
+                graphics.drawText(plotX + plotWidth - labelWidth - 8, limitY - 2, limitLabel);
             }
         }
         
@@ -345,6 +400,12 @@ function AstroMetricsDialog() {
     this.data2LimitEdit = newLimitEdit(this, metricsData[1].name, this.data2Plot);
     this.data3LimitEdit = newLimitEdit(this, metricsData[2].name, this.data3Plot);
     this.data4LimitEdit = newLimitEdit(this, metricsData[3].name, this.data4Plot);
+
+    // Link the plot controls to their limit edit controls
+    this.data1Plot.limitEdit = this.data1LimitEdit;
+    this.data2Plot.limitEdit = this.data2LimitEdit;
+    this.data3Plot.limitEdit = this.data3LimitEdit;
+    this.data4Plot.limitEdit = this.data4LimitEdit;
 
     this.data1Label = newLabel(this);
     this.data1Plot.dataLabel = this.data1Label;
