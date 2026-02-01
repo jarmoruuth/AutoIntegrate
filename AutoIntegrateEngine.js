@@ -2735,7 +2735,7 @@ function findOutlierMinMax(measurements, indexvalue)
       }
 }
 
-function filterOutliers(measurements, name, index, type, do_filtering, fileindex, filtered_files)
+function filterOutliers(measurements, name, index, do_filtering, fileindex, filtered_files)
 {
       if (!do_filtering) {
             // console.writeln("Outliers are not filtered");
@@ -2746,6 +2746,8 @@ function filterOutliers(measurements, name, index, type, do_filtering, fileindex
             console.criticalln("filterOutliers requires at last eight images, number of images is " + measurements.length);
             return measurements;
       }
+
+      var type = getFilterLimitType(name);
 
       var minmax = findOutlierMinMax(measurements, index);
 
@@ -3009,7 +3011,7 @@ function findFilterIndex(name)
             case 'FWHM':
                   return [ 5, true ];
             case 'Eccentricity':
-                  return [ 6, true ];;
+                  return [ 6, true ];
             case 'PSFSignal':
                   return [ 7, false ];
             case 'PSFPower':
@@ -3024,8 +3026,19 @@ function findFilterIndex(name)
       }
 }
 
-// Check that measurement value is a valid number and return it as a text string
-function checkMeasurementValue(value)
+function getFilterLimitType(name)
+{
+      var index_info = findFilterIndex(name);
+      var filter_high = index_info[1];
+      if (filter_high) {
+            return 'max';
+      } else {
+            return 'min';
+      }
+}
+
+// Check that measurement value is a bad value and return it as a text string
+function getBadMeasurementValueTxt(value)
 {
       if (isNaN(value)) {
             return "NaN";
@@ -3034,8 +3047,56 @@ function checkMeasurementValue(value)
       } else if (value == undefined) {
             return "undefined";
       } else {
+            return "bad";
+      }
+}
+
+// Check that measurement value is a valid number and return it as a text string
+function getMeasurementValueTxt(value)
+{
+      if (isNaN(value) || value == null || value == undefined) {
+            return null;
+      } else {
             return value.toFixed(10);
       }
+}
+
+function measurementToTextWithLimit(measurement_name, val)
+{
+      var formatting1 = "";
+      var formatting2 = "";
+      var valtxt = getMeasurementValueTxt(val);
+      if (valtxt == null) {
+            valtxt = getBadMeasurementValueTxt(val);
+      } else {
+            // Check if we have a limit for the value
+            if (par.filter_limit1_type.val == measurement_name) {
+                  var limit = par.filter_limit1_val.val;
+            } else if (par.filter_limit2_type.val == measurement_name) {
+                  var limit = par.filter_limit2_val.val;
+            } else if (par.filter_limit3_type.val == measurement_name) {
+                  var limit = par.filter_limit3_val.val;
+            } else if (par.filter_limit4_type.val == measurement_name) {
+                  var limit = par.filter_limit4_val.val;
+            } else {
+                  var limit = null;
+            }
+            if (limit != null && limit != 0) {
+                  // We have a limit for this measurement
+                  valtxt += " (limit " + limit + ")";
+                  var filter_type = getFilterLimitType(measurement_name);
+                  if (filter_type == 'max' && val > limit) {
+                        // Above max limit
+                        formatting1 = "<b>";
+                        formatting2 = "</b>";
+                  } else if (filter_type == 'min' && val < limit) {
+                        // Below min limit
+                        formatting1 = "<b>";
+                        formatting2 = "</b>";
+                  }
+            }
+      }
+      return formatting1 + measurement_name + ": " + valtxt + formatting2 + "<br>";
 }
 
 function measurementToText(measurement)
@@ -3047,12 +3108,12 @@ function measurementToText(measurement)
       var indexPSFPower = 8;
       var indexStars = 14;
       var text = "";
-      text += "SSWEIGHT: " + checkMeasurementValue(measurement[indexWeight]) + "<br>";
-      text += "FWHM: " + checkMeasurementValue(measurement[indexFWHM]) + "<br>";
-      text += "Eccentricity: " + checkMeasurementValue(measurement[indexEccentricity]) + "<br>";
-      text += "PSF Signal: " + checkMeasurementValue(measurement[indexPSFSignal]) + "<br>";
-      text += "PSF Power: " + checkMeasurementValue(measurement[indexPSFPower]) + "<br>";
-      text += "Stars: " + checkMeasurementValue(measurement[indexStars]) + "<br>";
+      text += measurementToTextWithLimit("SSWEIGHT", measurement[indexWeight]);
+      text += measurementToTextWithLimit("FWHM", measurement[indexFWHM]);
+      text += measurementToTextWithLimit("Eccentricity", measurement[indexEccentricity]);
+      text += measurementToTextWithLimit("PSF Signal", measurement[indexPSFSignal]);
+      text += measurementToTextWithLimit("PSF Power", measurement[indexPSFPower]);
+      text += measurementToTextWithLimit("Stars", measurement[indexStars]);
       return text;
 }
 
@@ -3320,14 +3381,14 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
       // We filter outliers here so they are not included in the
       // min/max calculations below
       var filtered_files = [];
-      measurements = filterOutliers(measurements, "FWHM", indexFWHM, 'max', par.outliers_fwhm.val, indexPath, filtered_files);
-      measurements = filterOutliers(measurements, "Eccentricity", indexEccentricity, 'max', par.outliers_ecc.val, indexPath, filtered_files);
-      measurements = filterOutliers(measurements, "SNR", indexSNRWeight, 'min', par.outliers_snr.val, indexPath, filtered_files);
+      measurements = filterOutliers(measurements, "FWHM", indexFWHM, par.outliers_fwhm.val, indexPath, filtered_files);
+      measurements = filterOutliers(measurements, "Eccentricity", indexEccentricity, par.outliers_ecc.val, indexPath, filtered_files);
+      measurements = filterOutliers(measurements, "SNR", indexSNRWeight, par.outliers_snr.val, indexPath, filtered_files);
       if (global.pixinsight_version_num >= 1080810) {
-            measurements = filterOutliers(measurements, "PSF Signal", indexPSFSignal, 'min', par.outliers_psfsignal.val, indexPath, filtered_files);
-            measurements = filterOutliers(measurements, "PSF Power", indexPSFPower, 'min', par.outliers_psfpower.val, indexPath, filtered_files);
+            measurements = filterOutliers(measurements, "PSF Signal", indexPSFSignal, par.outliers_psfsignal.val, indexPath, filtered_files);
+            measurements = filterOutliers(measurements, "PSF Power", indexPSFPower, par.outliers_psfpower.val, indexPath, filtered_files);
       }
-      measurements = filterOutliers(measurements, "Stars", indexStars, 'min', par.outliers_stars.val, indexPath, filtered_files);
+      measurements = filterOutliers(measurements, "Stars", indexStars, par.outliers_stars.val, indexPath, filtered_files);
 
       console.writeln("subframeSelectorMeasure:calculate weight");
 
@@ -3444,7 +3505,7 @@ function subframeSelectorMeasure(fileNames, weight_filtering, treebox_filtering,
             measurements[i][indexWeight] = SSWEIGHT;
       }
       console.writeln("SSWEIGHTMin " + findMin(measurements, indexWeight) + " SSWEIGHTMax " + findMax(measurements, indexWeight));
-      measurements = filterOutliers(measurements, "SSWEIGHT", indexWeight, 'min', par.outliers_ssweight.val, indexPath, filtered_files);
+      measurements = filterOutliers(measurements, "SSWEIGHT", indexWeight, par.outliers_ssweight.val, indexPath, filtered_files);
       measurements = filterLimit(measurements, "SSWEIGHT", [ indexWeight, filter_high ], par.ssweight_limit.val, indexPath, filtered_files, true);
       if (par.filter_limit1_type.val != 'None' && par.filter_limit1_val.val != 0) {
             measurements = filterLimit(measurements, par.filter_limit1_type.val, findFilterIndex(par.filter_limit1_type.val), par.filter_limit1_val.val, indexPath, filtered_files);
@@ -3912,7 +3973,7 @@ function init_images()
 
 function getFileKeywords(filePath)
 {
-      console.writeln("getFileKeywords " + filePath);
+      if (global.debug) console.writeln("getFileKeywords " + filePath);
       var keywords = [];
 
       if (global.get_flowchart_data && !File.exists(filePath)) {
@@ -4216,7 +4277,7 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                   var checked = true;
             }
             
-            console.writeln("getFilterFiles file " +  filePath);
+            if (global.debug) console.writeln("getFilterFiles file " +  filePath);
 
             if (!File.exists(filePath)) {
                   console.criticalln("File " + filePath + " does not exist\n");
@@ -4237,35 +4298,35 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                         case "FILTER":
                         case "INSFLNAM":
                               if (filter != null) {
-                                    console.writeln("filter already found, ignored "+ keywords[j].name + "=" +  value);
+                                    if (global.debug) console.writeln("filter already found, ignored "+ keywords[j].name + "=" +  value);
                               } else if (!par.skip_autodetect_filter.val) {
-                                    console.writeln(keywords[j].name + "=" + value);
+                                    if (global.debug) console.writeln(keywords[j].name + "=" + value);
                                     filter = value;
                               } else {
-                                    console.writeln("ignored " + keywords[j].name + "=" +  value);
+                                    if (global.debug) console.writeln("ignored " + keywords[j].name + "=" +  value);
                               }
                               break;
                         case "SSWEIGHT":
                               if (!use_treebox_ssweight) {
                                     ssweight = parseFloat(value);
-                                    console.writeln("SSWEIGHT=" +  ssweight);
+                                    if (global.debug) console.writeln("SSWEIGHT=" +  ssweight);
                                     ssweight_set = true;
                               }
                               break;
                         case "TELESCOP":
-                              console.writeln("TELESCOP=" +  value);
+                              if (global.debug) console.writeln("TELESCOP=" +  value);
                               if (pageIndex == global.pages.LIGHTS
                                   && local_debayer_pattern == 'Auto'
                                   && value.search(/slooh/i) != -1
                                   && value.search(/T3/) != -1) 
                               {
-                                    console.writeln("Set debayer pattern from Auto to None");
+                                    if (global.debug) console.writeln("Set debayer pattern from Auto to None");
                                     local_debayer_pattern = 'None';
                               }
                               current_telescope_name = value;
                               break;
                         case "NAXIS1":
-                              console.writeln("NAXIS1=" + value);
+                              if (global.debug) console.writeln("NAXIS1=" + value);
                               var imgwidth = parseFloat(value);
                               if (minwidth == 0 || imgwidth < minwidth) {
                                     minwidth = imgwidth;
@@ -4275,7 +4336,7 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                               }
                               break;
                         case "NAXIS2":
-                              console.writeln("NAXIS2=" + value);
+                              if (global.debug) console.writeln("NAXIS2=" + value);
                               var imgheigth = parseFloat(value);
                               if (minheigth == 0 || imgheigth < minheigth) {
                                     minheigth = imgheigth;
@@ -4286,22 +4347,22 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                               break;
                         case "EXPTIME":
                         case "EXPOSURE":
-                              console.writeln(keywords[j].name + "=" + value);
+                              if (global.debug) console.writeln(keywords[j].name + "=" + value);
                               exptime = parseFloat(value);
                               break;
                         case "DATE-OBS":
-                              console.writeln(keywords[j].name + "=" + value);
+                              if (global.debug) console.writeln(keywords[j].name + "=" + value);
                               date_obs = value;
                               break;
                         case "XBINNING":
-                              console.writeln("XBINNING=" + value);
+                              if (global.debug) console.writeln("XBINNING=" + value);
                               var val = parseInt(value);
                               if (val > binning) {
                                     binning = val;
                               }
                               break;
                         case "YBINNING":
-                              console.writeln("YBINNING=" + value);
+                              if (global.debug) console.writeln("YBINNING=" + value);
                               var val = parseInt(value);
                               if (val > binning) {
                                     binning = val;
@@ -4325,12 +4386,12 @@ function getFilterFiles(files, pageIndex, filename_postfix, flochart_files = fal
                               width: imgwidth, heigth: imgheigth, date_obs: date_obs, isFirstDate: false, isLastDate: false };
             if (date_obs != null) {
                   if (firstDate == null || date_obs < firstDate) {
-                        console.writeln("firstDate " + date_obs);
+                        if (global.debug) console.writeln("firstDate " + date_obs);
                         firstDate = date_obs;
                         engine.firstDateFileInfo = file_info;
                   }
                   if (lastDate == null || date_obs > lastDate) {
-                        console.writeln("lastDate " + date_obs);
+                        if (global.debug) console.writeln("lastDate " + date_obs);
                         lastDate = date_obs;
                         engine.lastDateFileInfo = file_info;
                   }
@@ -4453,14 +4514,14 @@ function getImagetypFiles(files)
             var imagetyp = null;
             var filePath = files[i];
             
-            console.writeln("getImagetypFiles file " +  filePath);
+            if (global.debug) console.writeln("getImagetypFiles file " +  filePath);
             var keywords = getFileKeywords(filePath);
             n++;
             for (var j = 0; j < keywords.length; j++) {
                   var value = keywords[j].strippedValue.trim();
                   switch (keywords[j].name) {
                         case "IMAGETYP":
-                              console.writeln("imagetyp=" +  value);
+                              if (global.debug) console.writeln("imagetyp=" +  value);
                               imagetyp = value;
                               break;
                         default:

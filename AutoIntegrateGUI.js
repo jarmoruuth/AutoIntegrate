@@ -1110,7 +1110,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
             var xscale = calculateReverseLogarithmicXScale(1, histogramMatrix.cols, width);
       }
 
-      console.writeln("getHistogramInfo: width " +  width + " maxchannels " + maxchannels +  " histogramMatrix.cols " + histogramMatrix.cols);
+      if (global.debug) console.writeln("getHistogramInfo: width " +  width + " maxchannels " + maxchannels +  " histogramMatrix.cols " + histogramMatrix.cols);
 
       for (var channel = 0; channel < maxchannels; channel++) {
             values[channel] = [];
@@ -1143,7 +1143,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
                   }
             }
       }
-      console.writeln("getHistogramInfo: maxvalue " + maxvalue + " maxvalue_channel " + maxvalue_channel + " maxvalue_pos " + maxvalue_pos);
+      if (global.debug) console.writeln("getHistogramInfo: maxvalue " + maxvalue + " maxvalue_channel " + maxvalue_channel + " maxvalue_pos " + maxvalue_pos);
       var cumulativeValues = [];
       for (var i = 0; i < width; i++) {
             var channels_values = 0;
@@ -1196,7 +1196,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
 function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = false, imgWin_from_file = null, resampled = false)
 {
       if (global.use_preview && imgWin != null && !global.get_flowchart_data) {
-            console.writeln("Preview image:" + imgWin.mainView.id + ", " + txt);
+            if (global.debug) console.writeln("Preview image:" + imgWin.mainView.id + ", " + txt);
             if (par.debug.val) var start_time = Date.now();
             if (guitools.current_preview.imgWin != null) {
                   guitools.current_preview.imgWin.forceClose();
@@ -1231,11 +1231,11 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                   global.enhancements_target_histogram_info = histogramInfo;
             } else {
                   if (histogramControl != null) {
-                        console.writeln("updatePreviewWinTxt:get new histogramInfo");
+                        console.writeln("Get new histogram info");
                         forceNewHistogram(imgWin);
                         histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible, run_autostf);
                   } else {
-                        console.writeln("updatePreviewWinTxt:no histogram");
+                        console.writeln("No histogram");
                         histogramInfo = null;
                   }
                   global.enhancements_target_histogram_info = histogramInfo;
@@ -1304,7 +1304,7 @@ function updatePreviewWin(imgWin)
 
 function updatePreviewFilenameAndInfo(filename, run_autostf, update_info)
 {
-      console.writeln("updatePreviewFilenameAndInfo ", filename);
+      console.writeln("Update preview:", filename);
 
       if (!global.use_preview || global.get_flowchart_data) {
             return;
@@ -2486,7 +2486,7 @@ function getFilesFromTreebox(parent)
 
 function getNewTreeBoxFiles(parent, pageIndex, imageFileNames, skip_old_files = false)
 {
-      console.writeln("getNewTreeBoxFiles " + pageIndex);
+      if (global.debug) console.writeln("getNewTreeBoxFiles " + pageIndex);
 
       var treeBox = parent.treeBox[pageIndex];
       var treeboxfiles = [];
@@ -2512,17 +2512,17 @@ function getNewTreeBoxFiles(parent, pageIndex, imageFileNames, skip_old_files = 
 // treeboxfiles which is array of [ filename, checked, weight ]
 function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_old_files = false)
 {
-      console.writeln("addFilteredFilesToTreeBox " + pageIndex);
+      if (global.debug) console.writeln("addFilteredFilesToTreeBox " + pageIndex);
 
       // ensure we have treeboxfiles which is array of [ filename, checked, weight, best_image, reference_image ]
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
 
       var filteredFiles = engine.getFilterFiles(treeboxfiles, pageIndex, '');
       if (filteredFiles.filecount == 0) {
-            console.writeln("addFilteredFilesToTreeBox no files");
+            if (global.debug) console.writeln("addFilteredFilesToTreeBox no files");
             return;
       }
-      console.writeln("addFilteredFilesToTreeBox " + filteredFiles.filecount + " files");
+      if (global.debug) console.writeln("addFilteredFilesToTreeBox " + filteredFiles.filecount + " files");
       var files_TreeBox = parent.treeBox[pageIndex];
       files_TreeBox.clear();
 
@@ -2543,7 +2543,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
 
       files_TreeBox.canUpdate = false;
 
-      console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
+      if (global.debug) console.writeln("addFilteredFilesToTreeBox " + filteredFiles.allfilesarr.length + " files");
 
       var preview_file_name = null;
       var preview_file_filter = null;
@@ -2555,7 +2555,7 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
             var filterName = filteredFiles.allfilesarr[i].filter;
 
             if (filterFiles.length > 0) {
-                  console.writeln("addFilteredFilesToTreeBox filterName " + filterName + ", " + filterFiles.length + " files");
+                  if (global.debug) console.writeln("addFilteredFilesToTreeBox filterName " + filterName + ", " + filterFiles.length + " files");
 
                   var filternode = new TreeBoxNode(rootnode);
                   filternode.expanded = true;
@@ -2566,11 +2566,11 @@ function addFilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_ol
 
                   for (var j = 0; j < filterFiles.length; j++) {
                         if (!File.exists(filterFiles[j].name)) {
-                              console.criticalln("addFilteredFilesToTreeBox, no file " + filterFiles[j].name);
+                              if (global.debug) console.criticalln("addFilteredFilesToTreeBox, no file " + filterFiles[j].name);
                               continue;
                         }
                         if (findFileFromTreeBox(files_TreeBox, filterFiles[j].name)) {
-                              console.writeln("Skipping duplicate file " + filterFiles[j].name);
+                              if (global.debug) console.writeln("Skipping duplicate file " + filterFiles[j].name);
                               continue;
                         }
                         var node = new TreeBoxNode(filternode);
@@ -2712,6 +2712,7 @@ function loadJsonFileCallback(parent, pagearray)
 
 function addOneFilesButton(parent, filetype, pageIndex, toolTip)
 {
+      if (global.debug) console.writeln("addOneFilesButton " + filetype + ", pageIndex: " + pageIndex);
       var filesAdd_Button = new PushButton( parent );
       global.rootingArr.push(filesAdd_Button);
       filesAdd_Button.text = filetype;
@@ -2990,6 +2991,7 @@ function addOneFileManualFilterButton(parent, filetype, pageIndex)
       filesAdd_Button.onClick = function() {
             var imageFileNames = engine.openImageFiles(filetype, true, false, false);
             if (imageFileNames != null) {
+                  if (global.debug) console.writeln("addOneFileManualFilterButton.onClick " + filetype + ", pageIndex: " + pageIndex);
                   var filterSet;
                   switch (pageIndex) {
                         case global.pages.LIGHTS:
@@ -3953,6 +3955,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageClearButton.setScaledFixedSize( 20, 20 );
       currentPageClearButton.onClick = function()
       {
+            if (global.debug.val) console.writeln("currentPageClearButton clicked");
             var pageIndex = parent.tabBox.currentPageIndex;
             parent.treeBox[pageIndex].clear();
             updateInfoLabel(parent);
@@ -3977,6 +3980,7 @@ function newPageButtonsSizer(parent, jsonSizer, actionSizer)
       currentPageRemoveSelectedButton.setScaledFixedSize( 20, 20 );
       currentPageRemoveSelectedButton.onClick = function()
       {
+            if (global.debug.val) console.writeln("currentPageRemoveSelectedButton clicked");
             var pageIndex = parent.tabBox.currentPageIndex;
             var treebox = parent.treeBox[pageIndex];
             // get checked files and unchecked files
@@ -4663,7 +4667,7 @@ function AutoIntegrateDialog()
       this.resetOnSetupLoadCheckBox = guitools.newCheckBox(this, "Reset", par.reset_on_setup_load, 
             "<p>Reset parameters to default values before loading a setup.</p>" + 
             "<p>This ensures that only parameters from the setup file are set and user saved default parameters are not set.</p>" +
-            "<p>Uncheck this option if you want just add parameters from the setup file to current parameters.</p>" );
+            "<p>Uncheck this option if you want just add parameters from the setup file to the current parameters.</p>" );
       this.keepTemporaryImagesCheckBox = guitools.newCheckBox(this, "Keep temporary images", par.keep_temporary_images, 
             "<p>Keep temporary images created while processing and do not close them. They will have tmp_ prefix.</p>" );
       this.keepProcessedImagesCheckBox = guitools.newCheckBox(this, "Keep processed images", par.keep_processed_images, 

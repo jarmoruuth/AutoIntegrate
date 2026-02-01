@@ -280,10 +280,10 @@ function StatsControl(parent, title, data) {
     
     this.title = title;
     this.data = data;
-    // this.preferredHeight = 120;
 
     if (title == 'None') {
-        this.enabled = false;
+        this.visible = false;
+        return;
     }
     
     // Calculate statistics
@@ -297,34 +297,39 @@ function StatsControl(parent, title, data) {
     }.bind(this), 0) / this.data.length;
     this.stdDev = Math.sqrt(variance);
     
-    this.onPaint = function() {
-        var graphics = new Graphics(this);
-        graphics.fillRect(this.boundsRect, new Brush(0xFF2D2D30));
-
-        if (!this.enabled) {
-            graphics.end();
-            return;
-        }
-
-        graphics.pen = new Pen(0xFFFFFFFF);
-        graphics.font = new Font("Arial", 8);
-        
-        var y = 15;
-        var lineHeight = 16;
-        
-        graphics.drawText(10, y, this.title + " Statistics:");
-        y += lineHeight + 5;
-        
-        graphics.drawText(10, y, "Mean: " + this.mean.toFixed(8));
-        y += lineHeight;
-        graphics.drawText(10, y, "Min: " + this.min.toFixed(8));
-        y += lineHeight;
-        graphics.drawText(10, y, "Max: " + this.max.toFixed(8));
-        y += lineHeight;
-        graphics.drawText(10, y, "Std Dev: " + this.stdDev.toFixed(8));
-        
-        graphics.end();
-    };
+    // Create labels for statistics
+    this.titleLabel = new Label(this);
+    this.titleLabel.text = this.title + " Statistics:";
+    this.titleLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    this.titleLabel.styleSheet = "font-weight: bold;";
+    
+    this.meanLabel = new Label(this);
+    this.meanLabel.text = "Mean: " + this.mean.toFixed(8);
+    this.meanLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    
+    this.minLabel = new Label(this);
+    this.minLabel.text = "Min: " + this.min.toFixed(8);
+    this.minLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    
+    this.maxLabel = new Label(this);
+    this.maxLabel.text = "Max: " + this.max.toFixed(8);
+    this.maxLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    
+    this.stdDevLabel = new Label(this);
+    this.stdDevLabel.text = "Std Dev: " + this.stdDev.toFixed(8);
+    this.stdDevLabel.textAlignment = TextAlign_Left|TextAlign_VertCenter;
+    
+    // Layout
+    this.sizer = new VerticalSizer;
+    this.sizer.margin = 6;
+    this.sizer.spacing = 2;
+    this.sizer.add(this.titleLabel);
+    this.sizer.addSpacing(4);
+    this.sizer.add(this.meanLabel);
+    this.sizer.add(this.minLabel);
+    this.sizer.add(this.maxLabel);
+    this.sizer.add(this.stdDevLabel);
+    this.sizer.addStretch();
 }
 
 StatsControl.prototype = new Control;
@@ -382,7 +387,22 @@ function AstroMetricsDialog() {
     } else {
         this.minHeight = 600;
     }
+
+    this.subtitleLabel = new Label(this);
+    this.subtitleLabel.text = "Update limit value or double click on the plot to set limit.";
+    this.subtitleLabel.textAlignment = TextAlign_Center;
+    this.subtitleLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
     
+    this.totalLabel = newLabel(this);
+    this.totalLabel.textAlignment = TextAlign_Center;
+    this.totalLabel.styleSheet = "font-size: 9pt; color: #888888; font-style: italic;";
+
+    // Sizer for the total accepted frames
+    this.totatitleLabelSizer = new VerticalSizer;
+    this.totatitleLabelSizer.add(this.subtitleLabel);
+    this.totatitleLabelSizer.add(this.totalLabel);
+    this.totatitleLabelSizer.addStretch();
+
     // Create statistics panels
     this.data1Stats = new StatsControl(this, metricsData[0].name, metricsData[0].data);
     this.data2Stats = new StatsControl(this, metricsData[1].name, metricsData[1].data);
@@ -445,8 +465,6 @@ function AstroMetricsDialog() {
     this.data4LimitEditSizer.add(this.data4Label);
     this.data4LimitEditSizer.addStretch();
 
-    this.totalLabel = newLabel(this);
-
     if (metricsData[1].data.length == 0) {
         // If no data for second metric, hide it
         this.data2Plot.hide();
@@ -465,12 +483,6 @@ function AstroMetricsDialog() {
         this.data4Stats.hide();
         this.data4LimitEdit.hide();
     }
-
-    // Sizer for the total accepted frames
-    this.totalLabelSizer = new HorizontalSizer;
-    this.totalLabelSizer.addSpacing(24);
-    this.totalLabelSizer.add(this.totalLabel);
-    this.totalLabelSizer.addStretch();
 
     // Layout
     this.plotsGroupBox = new GroupBox(this);
@@ -519,8 +531,6 @@ function AstroMetricsDialog() {
     this.plotsGroupBox.sizer.addSpacing(10);
     this.plotsGroupBox.sizer.add(this.bottomRowSizer);
     this.plotsGroupBox.sizer.addSpacing(4);
-    this.plotsGroupBox.sizer.add(this.totalLabelSizer);
-    this.plotsGroupBox.sizer.addSpacing(4);
     
     // Statistics section
     this.statsGroupBox = new GroupBox(this);
@@ -560,11 +570,14 @@ function AstroMetricsDialog() {
     
     // Main sizer
     this.sizer = new VerticalSizer;
-    this.sizer.margin = 10;
-    this.sizer.spacing = 10;
+    this.sizer.margin = 6;
+    this.sizer.spacing = 4;
+    this.sizer.add(this.totatitleLabelSizer);
+    this.sizer.add(this.subtitleLabel);
     this.sizer.add(this.plotsGroupBox);
     this.sizer.add(this.statsGroupBox);
     this.sizer.add(this.buttonsRowSizer);
+    this.sizer.addStretch();
     
     this.ensureLayoutUpdated();
     this.adjustToContents();
@@ -641,7 +654,7 @@ function main(data, filtered_out) {
     metricsData = data;
     alwaysFilteredOut = filtered_out || []; // Input metrics that are always filtered out
 
-    // Count the number of n on-zero data sets
+    // Count the number of non-zero data sets
     numberOfDataSets = 0;
     for (let i = 0; i < metricsData.length; i++) {
         if (metricsData[i].data.length > 0) {

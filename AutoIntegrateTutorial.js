@@ -628,7 +628,7 @@ function AutoIntegrateTutorialSystem(dialog, global, util) {
       var font = new Font();
       var button_text_width = font.width("Previous") + font.width("Step 99 of 99") + font.width("Finish") + 
                               4 * 8 + 6 * 10 + 2 * 20; // spacing + buttons + margins
-      console.writeln("Calculated text width for buttons: " + button_text_width);
+      if (global.debug) console.writeln("Calculated text width for buttons: " + button_text_width);
 
       // Scaled dimensions for tooltip
       this.tooltipMinWidth = Math.round(Math.max(button_text_width, 300));

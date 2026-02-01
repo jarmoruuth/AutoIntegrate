@@ -370,10 +370,10 @@ function applySelectiveColorAdjustment(image, colorRange, cmykAdjust, mode) {
 
 function SelectiveColorEngine() {
     if (par.enhancements_selective_color_data.val != null) {
-        console.writeln("Loading existing Selective Color data" + JSON.stringify(par.enhancements_selective_color_data.val)); 
+        if (global.debug) console.writeln("Loading existing Selective Color data" + JSON.stringify(par.enhancements_selective_color_data.val)); 
         this.data = par.enhancements_selective_color_data.val;
     } else {
-        console.writeln("Creating new Selective Color data");
+        if (global.debug) console.writeln("Creating new Selective Color data");
         this.data = new SelectiveColorData();
         par.enhancements_selective_color_data.val = this.data;
     }
@@ -383,7 +383,7 @@ function SelectiveColorEngine() {
         let def = param.def;
         let cur = param.val;
         if (cur.mode != def.mode) {
-            console.writeln("Selective Color mode changed");
+            if (global.debug) console.writeln("Selective Color mode changed");
             return true;
         }
         for (let i = 0; i < ColorRangeNames.length; i++) {
@@ -391,12 +391,12 @@ function SelectiveColorEngine() {
             let adjDef = def.adjustments[i];
             for (let j = 0; j < 4; j++) {
                 if (adjCur[j] != adjDef[j]) {
-                    console.writeln("Selective Color adjustment changed for " + ColorRangeNames[i] + " channel " + j);
+                    if (global.debug) console.writeln("Selective Color adjustment changed for " + ColorRangeNames[i] + " channel " + j);
                     return true;
                 }
             }
         }
-        console.writeln("Selective Color data unchanged");
+        if (global.debug) console.writeln("Selective Color data unchanged");
         return false;
     }
 }

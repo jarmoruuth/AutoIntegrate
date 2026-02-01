@@ -1539,7 +1539,7 @@ function copyWindowEx(sourceWindow, name, allow_duplicate_name)
       }
 
       if (!global.get_flowchart_data || par.debug.val) {
-            console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
+            if (global.debug) console.writeln("copy window " + sourceWindow.mainView.id + " to " + name);
       }
 
       if (global.get_flowchart_data) {
