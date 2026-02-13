@@ -2629,9 +2629,10 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_
       console.writeln("addUnfilteredFilesToTreeBox " + pageIndex);
 
       var files_TreeBox = parent.treeBox[pageIndex];
-      files_TreeBox.clear();
 
       var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
+      
+      files_TreeBox.clear();
 
       files_TreeBox.canUpdate = false;
       for (var i = 0; i < treeboxfiles.length; i++) {
