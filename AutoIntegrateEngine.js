@@ -1833,6 +1833,63 @@ function runSuberBias(biasWin)
       return targetWindow.mainView.id
 }
 
+/* Read FITS headers from a file and return its EXPTIME/EXPOSURE value. */
+function getExptimeFromFile(filePath)
+{
+      var keywords = getFileKeywords(filePath);
+      for (var j = 0; j < keywords.length; j++) {
+            var value = keywords[j].strippedValue.trim();
+            if (keywords[j].name == "EXPTIME" || keywords[j].name == "EXPOSURE") {
+                  return parseFloat(value);
+            }
+      }
+      return 0;
+}
+
+/* Group dark file paths by their exposure time.
+ * fileNames is an array of file path strings.
+ * Returns array of { exptime: <number>, files: [<paths>] }.
+ */
+function groupDarksByExposureTime(fileNames)
+{
+      var groups = {};
+      for (var i = 0; i < fileNames.length; i++) {
+            var exptime = getExptimeFromFile(fileNames[i]);
+            var key = exptime.toString();
+            if (!groups[key]) {
+                  groups[key] = { exptime: exptime, files: [] };
+            }
+            groups[key].files.push(fileNames[i]);
+      }
+      var result = [];
+      for (var key in groups) {
+            result.push(groups[key]);
+      }
+      return result;
+}
+
+/* Select the best matching master dark for a target exposure time.
+ * masterdarkInfoArr is an array of { exptime, path } objects.
+ * Returns the path of the best matching master dark.
+ */
+function selectMasterDarkForExptime(masterdarkInfoArr, targetExptime)
+{
+      if (!Array.isArray(masterdarkInfoArr)) {
+            return masterdarkInfoArr; // single path, return as-is
+      }
+      // Find exact or closest match
+      var bestIdx = 0;
+      var bestDiff = Math.abs(masterdarkInfoArr[0].exptime - targetExptime);
+      for (var i = 1; i < masterdarkInfoArr.length; i++) {
+            var diff = Math.abs(masterdarkInfoArr[i].exptime - targetExptime);
+            if (diff < bestDiff) {
+                  bestDiff = diff;
+                  bestIdx = i;
+            }
+      }
+      return masterdarkInfoArr[bestIdx].path;
+}
+
 /* Match a master file to images. There can be an array of
  * master files in which case we try find the best match.
  * Images is a list of [enabled, path]
@@ -18225,9 +18282,9 @@ function createCropInformationAutoContinue()
              for (var i = 0; i < filtered_flats.allfilesarr.length; i++) {
                    var is_flats = filtered_flats.allfilesarr[i].files.length > 0;
                    var is_lights = filtered_lights.allfilesarr[i].files.length > 0;
-                   if (is_flats != is_lights) {
-                         // lights and flats do not match on filters
-                         util.throwFatalError("Filters on light and flat images do not match.");
+                   if (is_lights && !is_flats) {
+                         // We need to have flafs for all filters used in lights
+                         util.throwFatalError("No flats for filter " + filtered_flats.allfilesarr[i].filter + " but we have lights for this filter. Please check that you have flats for all filters used in lights and that the filter information is correct.");
                    }
              }
        }
@@ -18239,7 +18296,7 @@ function createCropInformationAutoContinue()
                   var is_flatdarks = filtered_flatdarks.allfilesarr[i].files.length > 0;
                   if (is_flats != is_flatdarks) {
                         // lights and flats do not match on filters
-                        util.throwFatalError("Filters on flats and flat darks do not match.");
+                        util.throwFatalError("Filters on flats and flat darks do not match for filter " + filtered_flats.allfilesarr[i].filter + ". Please check that you have flat darks for all filters used in flats and that the filter information is correct.");
                   }
             }
       }
@@ -18315,19 +18372,49 @@ function createCropInformationAutoContinue()
              util.addProcessingStep("calibrateEngine use existing master dark " + engine.darkFileNames[0]);
              var masterdarkPath = engine.darkFileNames[0];
        } else if (engine.darkFileNames.length > 0) {
-             util.addProcessingStep("calibrateEngine generate master dark using " + engine.darkFileNames.length + " files");
-             if (par.pre_calibrate_darks.val && masterbiasPath != null) {
-                   // calibrate dark frames with bias
-                   var darkcalFileNames = runCalibrateDarks(engine.darkFileNames, masterbiasPath);
-                   var darkimages = filesForImageIntegration(darkcalFileNames);
+             // Group dark frames by exposure time
+             var darkExptimeGroups = groupDarksByExposureTime(engine.darkFileNames);
+             util.addProcessingStep("calibrateEngine generate master dark using " + engine.darkFileNames.length + " files in " + darkExptimeGroups.length + " exposure time group(s)");
+
+             if (darkExptimeGroups.length == 1) {
+                   // Single exposure time group, create one master dark as before
+                   if (par.pre_calibrate_darks.val && masterbiasPath != null) {
+                         var darkcalFileNames = runCalibrateDarks(darkExptimeGroups[0].files, masterbiasPath);
+                         var darkimages = filesForImageIntegration(darkcalFileNames);
+                   } else {
+                         var darkimages = filesForImageIntegration(darkExptimeGroups[0].files);
+                   }
+                   var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark", "dark");
+                   setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
+                   var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
+                   guiUpdatePreviewId(masterdarkid);
              } else {
-                   var darkimages = filesForImageIntegration(engine.darkFileNames);
+                   // Multiple exposure time groups, create a master dark for each group
+                   var masterdarkPath = []; // array of { exptime, path }
+                   flowchart.flowchartParentBegin("Darks");
+                   for (var dg = 0; dg < darkExptimeGroups.length; dg++) {
+                         var groupExptime = darkExptimeGroups[dg].exptime;
+                         var groupFiles = darkExptimeGroups[dg].files;
+                         var groupName = groupExptime + "s";
+                         flowchart.flowchartChildBegin(groupName);
+                         util.addProcessingStep("calibrateEngine create master dark for " + groupName + " using " + groupFiles.length + " files");
+
+                         if (par.pre_calibrate_darks.val && masterbiasPath != null) {
+                               var darkcalFileNames = runCalibrateDarks(groupFiles, masterbiasPath);
+                               var darkimages = filesForImageIntegration(darkcalFileNames);
+                         } else {
+                               var darkimages = filesForImageIntegration(groupFiles);
+                         }
+                         var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark");
+                         setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
+                         var groupMasterPath = saveMasterWindow(global.outputRootDir, masterdarkid);
+                         guiUpdatePreviewId(masterdarkid);
+                         masterdarkPath.push({ exptime: groupExptime, path: groupMasterPath });
+
+                         flowchart.flowchartChildEnd(groupName);
+                   }
+                   flowchart.flowchartParentEnd("Darks");
              }
-             // generate master dark file
-             var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark", "dark");
-             setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
-             var masterdarkPath = saveMasterWindow(global.outputRootDir, masterdarkid);
-             guiUpdatePreviewId(masterdarkid);
        } else {
              util.addProcessingStep("calibrateEngine no master dark");
              var masterdarkPath = null;
@@ -18349,7 +18436,15 @@ function createCropInformationAutoContinue()
                    util.addProcessingStep("calibrateEngine calibrate " + filterName + " flats using " + filterFiles.length + " files, " + filterFiles[0].name);
                    var flatcalimages = fileNamesToEnabledPathFromFilearr(filterFiles);
                    console.writeln("flatcalimages[0] " + flatcalimages[0][1]);
-                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, masterdarkPath, masterflatdarkPath ? masterflatdarkPath[i] : null, filterName);
+                   var selectedMasterDarkForFlat;
+                   if (Array.isArray(masterdarkPath)) {
+                         var flatExptime = filterFiles[0].exptime;
+                         selectedMasterDarkForFlat = selectMasterDarkForExptime(masterdarkPath, flatExptime);
+                         util.addProcessingStep("calibrateEngine selected master dark for flat exptime " + flatExptime + "s: " + selectedMasterDarkForFlat);
+                   } else {
+                         selectedMasterDarkForFlat = masterdarkPath;
+                   }
+                   var flatcalFileNames = runCalibrateFlats(flatcalimages, masterbiasPath, selectedMasterDarkForFlat, masterflatdarkPath ? masterflatdarkPath[i] : null, filterName);
                    console.writeln("flatcalFileNames[0] " + flatcalFileNames[0]);
  
                    // integrate flats to generate master flat for each filter
@@ -18387,7 +18482,15 @@ function createCropInformationAutoContinue()
                          util.addProcessingStep("calibrateEngine calibrate " + filterName + " lights for " + fileProcessedStatus.unprocessed.length + " files");
                          let lightcalimages = fileNamesToEnabledPath(fileProcessedStatus.unprocessed);
  
-                         let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, masterdarkPath, masterflatPath[i], filterName);
+                         var selectedMasterDark;
+                         if (Array.isArray(masterdarkPath)) {
+                               var lightExptime = filterFiles[0].exptime;
+                               selectedMasterDark = selectMasterDarkForExptime(masterdarkPath, lightExptime);
+                               util.addProcessingStep("calibrateEngine selected master dark for light exptime " + lightExptime + "s: " + selectedMasterDark);
+                         } else {
+                               selectedMasterDark = masterdarkPath;
+                         }
+                         let lightcalFileNames = runCalibrateLights(lightcalimages, masterbiasPath, selectedMasterDark, masterflatPath[i], filterName);
  
                          calibratedLightFileNames = calibratedLightFileNames.concat(lightcalFileNames, fileProcessedStatus.processed);
                    }
@@ -18442,9 +18545,6 @@ function createCropInformationAutoContinue()
        console.noteln("");
        console.noteln("Start enhancements processing...");
        guiUpdatePreviewId(enhancements_target_image);
-       if (gui) {
-            gui.switchtoPreviewTab();
-       }
  
        var enhancements_wins = enhancementsProcessing(parent, enhancements_target_image, true);
  
@@ -18681,10 +18781,6 @@ function autointegrateProcessingEngine(parent, auto_continue, autocontinue_narro
        H_in_R_channel = false;
        process_narrowband = autocontinue_narrowband;
        is_luminance_images = false;
- 
-       if (gui) {
-            gui.switchtoPreviewTab();
-       }
  
        console.noteln("--------------------------------------");
        var processing_info = getProcessingInfo();
