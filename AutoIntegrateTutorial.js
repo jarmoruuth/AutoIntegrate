@@ -825,7 +825,7 @@ AutoIntegrateTutorialSystem.prototype.showStep = function(stepIndex) {
       // Highlight target element
       if (step.named_target) {
             if (step.named_target == "coordinatesCopyFirstButton") {
-                  if (this.global.use_preview && this.global.ppar.preview.side_preview_visible && this.dialog.sidePreviewObj) {
+                  if (this.global.use_preview && this.dialog.sidePreviewObj) {
                         step.target = this.dialog.sidePreviewObj.control.coordinatesCopyFirstButton;
                   }
             }

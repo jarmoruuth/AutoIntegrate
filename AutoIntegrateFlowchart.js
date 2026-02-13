@@ -372,14 +372,9 @@ function flowchartGraph(rootnode, current_preview_image, txt)
       var width = size[0] + margin;
       var height = size[1] + margin;
 
-      if (ppar.preview.side_preview_visible) {
-            // We have " / 2" below to keep text size readable
-            width = Math.max(width, ppar.preview.side_preview_width / 2);
-            height = Math.max(height, ppar.preview.side_preview_height / 2);
-      } else {
-            width = Math.max(width, ppar.preview.preview_width);
-            height = Math.max(height, ppar.preview.preview_height);
-      }
+      // We have " / 2" below to keep text size readable
+      width = Math.max(width, ppar.preview.side_preview_width / 2);
+      height = Math.max(height, ppar.preview.side_preview_height / 2);
 
       if (par.flowchart_debug.val || par.debug.val) {
             console.writeln("flowchartGraph:background bitmap " + width + "x" + height);

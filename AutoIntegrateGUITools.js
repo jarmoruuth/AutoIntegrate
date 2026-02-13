@@ -956,6 +956,11 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
       var MASDynamicRangeCompression = newNumericControl(parent, "Dynamic Range Compression", par.MAS_dynamicRangeCompression, 0, 1,
             "<p>MAS dynamic range compression value. Higher values produce softer contrast in highlights. Possible values are between 0 and 1.</p>");
 
+      var MASStretchSizer0 = new HorizontalSizer;
+      MASStretchSizer0.spacing = 4;
+      MASStretchSizer0.add( MASTargetBackgroundControl );
+      MASStretchSizer0.addStretch();
+
       var MASStretchSizer1 = new HorizontalSizer;
       MASStretchSizer1.spacing = 4;
       // MASStretchSizer1.margin = 6;
@@ -1001,7 +1006,7 @@ function createStretchingSettingsSizer(parent, engine, level, preview_control = 
       var MASStretchSizer = new VerticalSizer;
       MASStretchSizer.spacing = 4;
       MASStretchSizer.margin = 6;
-      MASStretchSizer.add( MASTargetBackgroundControl );
+      MASStretchSizer.add( MASStretchSizer0 );
       MASStretchSizer.add( MASStretchSizer1 );
       MASStretchSizer.addStretch();
       MASStretchSizer.addSpacing(8);

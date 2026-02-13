@@ -754,7 +754,7 @@ this.par = {
       
 
       // Misc settings
-      show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true },
+      show_flowchart: { val: true, def: true, name : "Show flowchart", type : 'B', skip_reset: true, ignore_used: true },     // Ignore because when not using preview
       preview_autostf: { val: true, def: true, name : "Preview AutoSTF", type : 'B' },
       preview_resample: { val: false, def: false, name : "Preview resample", type : 'B' },
       preview_resample_target: { val: 2000, def: 2000, name : "Preview resample target", type : 'I' },
@@ -782,9 +782,9 @@ this.ppar = {
       savedVersion: "",       // Saved version of the script
       savedInterfaceVersion: 0,     // Saved interface version of the script
       preview: {
-            use_preview: true,            // Show image preview on dialog preview window
-            side_preview_visible: true,   // Show image preview on the side of the dialog
-            use_large_preview: true,      // Use large preview window
+            use_preview: true,           // Show image preview on dialog preview window
+            side_preview_visible: true,   // Always true, show image preview on the side of the dialog
+            use_large_preview: true,      // Always true, use large preview window
             preview_sizes: [],            // Array of [ screen_size, width, height ]
             preview_width: 0,             // Current preview width, default set in getPreviewSize.
             preview_height: 0,            // Current preview height, default set in getPreviewSize.

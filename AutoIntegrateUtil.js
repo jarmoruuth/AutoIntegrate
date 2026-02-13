@@ -1868,11 +1868,8 @@ function updateStatusInfoLabel(txt, write_to_console = false)
       if (txt.length > 100) {
             txt = txt.substring(0, 100);
       }
-      if (global.tabStatusInfoLabel != null) {
-            global.tabStatusInfoLabel.text = txt;
-      }
-      if (global.sideStatusInfoLabel != null) {
-            global.sideStatusInfoLabel.text = txt;
+      if (global.statusInfoLabel != null) {
+            global.statusInfoLabel.text = txt;
       }
 }
 

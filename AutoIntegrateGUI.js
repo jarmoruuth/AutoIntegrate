@@ -169,7 +169,6 @@ var histogramControl = null;       // For updating histogram window
 var mainTabBox = null;                 // For switching to preview tab
 
 var filtering_changed = false;        // Filtering settings have changed
-var tab_preview_page = null;
 var is_some_preview = false;
 var preview_size_changed = false;
 var preview_keep_zoom = false;
@@ -690,7 +689,7 @@ function Autorun(parent)
                         }
                   }
                   flowchart.flowchartReset();
-                  if (par.run_get_flowchart_data.val) {
+                  if (par.run_get_flowchart_data.val && global.use_preview) {
                         if (substack_mode) {
                               console.writeln("Do not get flowchart data for substack mode");
                         } else if (batch_narrowband_palette_mode || par.batch_mode.val) {
@@ -1031,21 +1030,16 @@ function updatePreviewTxt(txt)
       console.writeln(txt);
 }
 
-function getHistogramSize(side_preview)
+function getHistogramSize()
 {
-      if (side_preview) {
-            var width = Math.floor(ppar.preview.side_preview_width * 0.9);
-            var height = ppar.preview.side_histogram_height;
-      } else {
-            var width = Math.floor(ppar.preview.preview_width * 0.9);
-            var height = ppar.preview.histogram_height;
-      }
+      var width = Math.floor(ppar.preview.side_preview_width * 0.9);
+      var height = ppar.preview.side_histogram_height;
       return { width: width, height: height };
 }
 
-function setHistogramBitmapBackground(graphics, side_preview)
+function setHistogramBitmapBackground(graphics)
 {
-      var size = getHistogramSize(side_preview);
+      var size = getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -1086,7 +1080,7 @@ function calculateReverseLogarithmicXScale(minVal, maxVal, numBins)
       return xScale.sort((a, b) => a - b); // Sort in ascending order for the histogram logic
 }
 
-function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
+function getHistogramInfo(imgWin, log_x_scale = false)
 {
       if (par.debug.val || global.debug) console.writeln("getHistogramInfo");
       var view = imgWin.mainView;
@@ -1097,7 +1091,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       var maxvalue_pos = 0;
       var maxchannels = histogramMatrix.rows;
 
-      var size = getHistogramSize(side_preview);
+      var size = getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -1166,7 +1160,7 @@ function getHistogramInfo(imgWin, side_preview, log_x_scale = false)
       var bitmap = new Bitmap(width, height);
       var graphics = new VectorGraphics(bitmap);
 
-      setHistogramBitmapBackground(graphics, side_preview);
+      setHistogramBitmapBackground(graphics);
 
       for (var channel = 0; channel < maxchannels; channel++) {
             var x1 = 0;
@@ -1212,11 +1206,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
             guitools.current_preview.resampled = resampled;
             if (par.debug.val || global.debug) console.writeln("updatePreviewWinTxt:copy_image " + copy_image);
             if (preview_size_changed) {
-                  if (ppar.preview.side_preview_visible) {
-                        previewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
-                  } else {
-                        previewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
-                  }
+                  previewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
                   preview_size_changed = false;
             }
             run_autostf = run_autostf 
@@ -1233,7 +1223,7 @@ function updatePreviewWinTxt(imgWin, txt, histogramInfo = null, run_autostf = fa
                   if (histogramControl != null) {
                         console.writeln("Get new histogram info");
                         forceNewHistogram(imgWin);
-                        histogramInfo = getHistogramInfo(imgWin, ppar.preview.side_preview_visible, run_autostf);
+                        histogramInfo = getHistogramInfo(imgWin, run_autostf);
                   } else {
                         console.writeln("No histogram");
                         histogramInfo = null;
@@ -1388,13 +1378,8 @@ function updatePreviewNoImageInControl(control)
       if (!show_startup_image) {
             let width;
             let height;
-            if (ppar.preview.side_preview_visible) {
-                  width = ppar.preview.side_preview_width ;
-                  height = ppar.preview.side_preview_height;
-            } else {
-                  width = ppar.preview.preview_width;
-                  height = ppar.preview.preview_height;
-            }
+            width = ppar.preview.side_preview_width ;
+            height = ppar.preview.side_preview_height;
             let ratio = width / height;
             height = 1080;
             width = height * ratio;
@@ -3153,20 +3138,6 @@ function findPageIndexByName(tabBox, name)
       return -1;
 }
 
-function switchtoPreviewTab()
-{
-      if (global.use_preview && !ppar.preview.side_preview_visible && mainTabBox != null) {
-            // Set preview tab as current tab
-            for (var i = 0; i < global.tabs.length; i++) {
-                  if (global.tabs[i].name == tab_preview_page.name) {
-                        mainTabBox.currentPageIndex = i;
-                        break;
-                  }
-            }
-      }
-      return mainTabBox.currentPageIndex;
-}
-
 function filesTreeBox(parent, optionsSizer, pageIndex)
 {
       if (global.debug) console.writeln("filesTreeBox " + pageIndex);
@@ -3266,7 +3237,6 @@ function filesTreeBox(parent, optionsSizer, pageIndex)
                               if (par.debug.val) console.writeln("--- onCurrentNodeUpdated:updatePreviewWinTxt " + (Date.now()-start_time)/1000 + " sec");
                               if (par.debug.val) start_time = Date.now();
                               util.updateStatusInfoLabel(imageInfoTxt);
-                              switchtoPreviewTab();
                         }
                         current_selected_file_name = files_TreeBox.currentNode.filename;
                         current_selected_file_filter = files_TreeBox.currentNode.filter;
@@ -3696,11 +3666,7 @@ function newMaximizeDialogButton(parent)
                   console.writeln("Maximize dialog: restore");
                   maxDialogButton.icon = parent.scaledResource( ":/real-time-preview/full-view.png" );
                   maxDialogButton.toolTip = maxDialogToolTip;
-                  if (ppar.preview.side_preview_visible) {
-                        previewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
-                  } else {
-                        previewControl.setSize(ppar.preview.preview_width, ppar.preview.preview_height);
-                  }
+                  previewControl.setSize(ppar.preview.side_preview_width, ppar.preview.side_preview_height);
                   previewControl.adjustToContents();
                   parent.dialog.move(dialog_old_position);
                   dialog_mode = 1;
@@ -3711,14 +3677,8 @@ function newMaximizeDialogButton(parent)
                   console.writeln("Maximize dialog: maximize");
                   maxDialogButton.icon = parent.scaledResource( ":/image-window/fit-view-active.png" );
                   maxDialogButton.toolTip = "Restore dialog to a normal size.";
-                  if (ppar.preview.side_preview_visible) {
-                        var preview_width = ppar.preview.side_preview_width;
-                        var preview_height = ppar.preview.side_preview_height;
-                  } else {
-                        // tab preview
-                        var preview_width = ppar.preview.preview_width;
-                        var preview_height = ppar.preview.preview_height;
-                  }
+                  var preview_width = ppar.preview.side_preview_width;
+                  var preview_height = ppar.preview.side_preview_height;
                   var preview_control_width = previewControl.width;
                   var preview_control_height = previewControl.height;
                   if (!ppar.preview.show_histogram) {
@@ -3727,7 +3687,6 @@ function newMaximizeDialogButton(parent)
                         var histogram_control_height = histogramControl.height;
                   }
 
-                  var currentPageIndex = switchtoPreviewTab()
                   var emptyAreaHeight = mainTabBox.height - preview_control_height - histogram_control_height;
                   if (emptyAreaHeight < 0) {
                         emptyAreaHeight = 0;
@@ -3745,7 +3704,6 @@ function newMaximizeDialogButton(parent)
                                           max_preview_width, 
                                           max_preview_height);
 
-                  mainTabBox.currentPageIndex = currentPageIndex;
                   dialog_old_position = parent.dialog.position;   // save old position so we can restore it
                   parent.dialog.move(10, 10);                     // move to top left corner
                   dialog_mode = 2;
@@ -3782,11 +3740,9 @@ function newMinimizeDialogButton(parent)
                   minDialogButton.icon = parent.scaledResource( ":/workspace/window-iconize.png" );
                   minDialogButton.toolTip = minDialogToolTip;
                   if (global.use_preview) {
-                        if (ppar.preview.side_preview_visible) {
-                              previewControl.show();
-                              if (histogramControl != null) {
-                                    histogramControl.show();
-                              }
+                        previewControl.show();
+                        if (histogramControl != null) {
+                              histogramControl.show();
                         }
                   }
                   parent.top2ndRowControl.show();
@@ -3801,11 +3757,9 @@ function newMinimizeDialogButton(parent)
                   minDialogButton.toolTip = "Restore dialog to normal size.";
                   dialog_old_position = parent.dialog.position;    // save old position so we can restore it
                   if (global.use_preview) {
-                        if (ppar.preview.side_preview_visible) {
-                              previewControl.hide();
-                              if (histogramControl != null) {
-                                    histogramControl.hide();
-                              }
+                        previewControl.hide();
+                        if (histogramControl != null) {
+                              histogramControl.hide();
                         }
                   }
                   mainTabBox.hide();
@@ -4189,13 +4143,10 @@ function getWindowBitmap(imgWin)
       return util.getWindowBitmap(imgWin);
 }
 
-function newPreviewObj(parent, side_preview)
+function newPreviewObj(parent)
 {
-      if (side_preview) {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, "side", engine, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
-      } else {
-            var newPreviewControl = new AutoIntegratePreviewControl(parent, "tab", engine, util, global, ppar.preview.preview_width, ppar.preview.preview_height);
-      }
+      var newPreviewControl = new AutoIntegratePreviewControl(parent, "side", engine, util, global, ppar.preview.side_preview_width, ppar.preview.side_preview_height);
+
       enhancements_gui.setPreviewControl(newPreviewControl);
 
       var previewImageSizer = new Sizer();
@@ -4229,12 +4180,12 @@ function newPreviewObj(parent, side_preview)
                statuslabel: newStatusInfoLabel, sizer: previewSizer };
 }
 
-function newHistogramControl(parent, side_preview)
+function newHistogramControl(parent)
 {
       if (!ppar.preview.show_histogram) {
             return null;
       }
-      var size = getHistogramSize(side_preview);
+      var size = getHistogramSize();
       var width = size.width;
       var height = size.height;
 
@@ -4244,7 +4195,7 @@ function newHistogramControl(parent, side_preview)
 
       var bitmap = new Bitmap(width, height);
       var graphics = new VectorGraphics(bitmap);
-      setHistogramBitmapBackground(graphics, side_preview);
+      setHistogramBitmapBackground(graphics);
       graphics.end();
       histogramViewControl.aiInfo = { histogramBitmap: bitmap, scaledValues: null, cumulativeValues: null, percentageValues: null, log_x_scale: false };
       histogramViewControl.onPaint = function(x0, y0, x1, y1) {
@@ -4857,6 +4808,7 @@ function AutoIntegrateDialog()
             "<p>Generate .xdrz files even if Drizzle integration is not used. It is useful if you want to try Drizzle " + 
             "integration later with Start from ImageIntegration option.</p>" );
       if (!global.use_preview) {
+            par.skip_blink.used = false;  // Special case with no preiew.
             this.blink_checkbox = guitools.newCheckBoxEx(this, "No blink", par.skip_blink, "<p>Disable blinking of files.</p>");
             var blink_checkbox = this.blink_checkbox;
             this.blink_checkbox.onClick = function(checked) { 
@@ -7040,98 +6992,100 @@ function AutoIntegrateDialog()
             this.dialog.showTutorialManager();
       };
 
-      var flowchartToolTip = "<p>Flowchart information is always generated during the processing. It is saved to the " + 
-                             "setup file and AutosaveSetup file so it can be loaded later.</p>" +
-                             "<p>A graphical version of the flowchart is printed to the preview window and " + 
-                             "a text version is printed to the process console and AutoIntegrate log file.</p>";
+      if (global.use_preview) {
+            var flowchartToolTip = "<p>Flowchart information is always generated during the processing. It is saved to the " + 
+                              "setup file and AutosaveSetup file so it can be loaded later.</p>" +
+                              "<p>A graphical version of the flowchart is printed to the preview window and " + 
+                              "a text version is printed to the process console and AutoIntegrate log file.</p>";
 
-      // New Flowchart button
-      this.newFlowchartButton = new PushButton( this );
-      this.newFlowchartButton.text = "New Flowchart";
-      this.newFlowchartButton.toolTip = "<p>Create a new AutoIntegrate workflow flowchart using the current settings.</p>" +
-                                        "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
-                                        "<p>To run the simulated workflow all relevant files must be loaded to the Files tab.</p>" + 
-                                        flowchartToolTip;
-      this.newFlowchartButton.onClick = function()
-      {
-            if (global.is_processing != global.processing_state.none) {
-                  return;
-            }
-
-            console.noteln("New flowchart");
-            if (generateNewFlowchartData(this.parent)) {
-                  flowchartUpdated();
-                  console.noteln("Flowchart updated");
-            } else {
-                  console.noteln("No flowchart data available");
-            }
-      };
-
-      this.showFlowchartCheckBox = guitools.newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
-            "<p>Switch between flowchart and image view if flowchart is available.</p>" +
-            "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
-            "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
-            "view uses full processing flowchart.</p>" + 
-            guitools.skip_reset_tooltip,
-            function(checked) { 
-                  par.show_flowchart.val = checked;
-                  if (checked) {
-                        if (global.flowchartData != null) {
-                              flowchartUpdated();
-                        } else {
-                              console.noteln("No flowchart data available");
-                        }
-                  } else {
-                        if (guitools.current_preview.image != null) {
-                              previewControl.SetImage(guitools.current_preview.image, guitools.current_preview.txt);
-                        }
+            // New Flowchart button
+            this.newFlowchartButton = new PushButton( this );
+            this.newFlowchartButton.text = "New Flowchart";
+            this.newFlowchartButton.toolTip = "<p>Create a new AutoIntegrate workflow flowchart using the current settings.</p>" +
+                                          "<p>A partially simulated minimal workflow is run to generate the flowchart information.</p>";
+                                          "<p>To run the simulated workflow all relevant files must be loaded to the Files tab.</p>" + 
+                                          flowchartToolTip;
+            this.newFlowchartButton.onClick = function()
+            {
+                  if (global.is_processing != global.processing_state.none) {
+                        return;
                   }
-            });
 
-      var showFlowchartToolTip = 
-            "<h4>Generate Flowchart</h4>" +
-            "<p>" +
-            "Using the New Flowchart button the script will generate a flowchart of the processing workflow. " +
-            "Flowchart uses the current settings and images. A partially simulated minimal workflow is run to " +
-            "generate flowchart information. To run the simulated workflow all relevant files must be loaded " +
-            "to the <i>Files</i> tab. A graphical version of the flowchart is printed to the preview window and " +
-            "a text version is printed to the process console." +
-            "</p>" +
-            "<p>" +
-            "Full Flowchart is available after processing. It is saved to the AutosaveSetup file and also to the setup file " + 
-            "when available so it can be loaded later. A text version of flowchart is also printed to the AutoIntegrate log file." +
-            "</p>" +
-            "<p>" +
-            "Note that using the preview save button it is possible to save the flowchart image to a file." +
-            "</p>" +
-            "<h4>Live Flowchart</h4>" +
-            "<p>" +
-            "Flowchart information is always generated during processing. It can viewed using <i>Show Flowchart</i> " +
-            "checkbox. During processing Flowchart is updated after each step. By checking and unchecking the <i>Show Flowchart</i> " +
-            "checkbox it is possible to switch between the current preview image and flowchart." +
-            "</p>" +
-            "<p>" +
-            "Flowchart settings are in the <i>Interface</i> tab. Note that Flowchart settings are saved to persistent module settings " +
-            "but values are not reset with the Set default values button." +
-            "</p>" +
-            "<p>" +
-            "By default <i>Flowchart settings</i> option <i>Flowchart show processed image</i> is selected. This options shows the processed image " +
-            "in the preview window and the flowchart data is shown on top of the image. If this option is not selected then only the flowchart data " +
-            "is shown." +
-            "</p>" +
-            "<p>" +
-            "If <i>Flowchart settings</i> option <i>Get flowchart data before processing</i> is selected then flowchart data is collected " +
-            "before processing. This is useful if you want to see the full flowchart during processing. Note that this option is not " +
-            "selected by default. Full flowchart is not available with AutoContinue or batch processing. " +
-            "</p>";
+                  console.noteln("New flowchart");
+                  if (generateNewFlowchartData(this.parent)) {
+                        flowchartUpdated();
+                        console.noteln("Flowchart updated");
+                  } else {
+                        console.noteln("No flowchart data available");
+                  }
+            };
 
-      this.showFlowchartHelpTips = new ToolButton( this );
-      this.showFlowchartHelpTips.icon = this.scaledResource( ":/icons/help.png" );
-      this.showFlowchartHelpTips.setScaledFixedSize( 20, 20 );
-      this.showFlowchartHelpTips.toolTip = showFlowchartToolTip;
-      this.showFlowchartHelpTips.onClick = function()
-      {
-            new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon_Information ).execute();
+            this.showFlowchartCheckBox = guitools.newCheckBoxEx(this, "Show Flowchart", par.show_flowchart, 
+                  "<p>Switch between flowchart and image view if flowchart is available.</p>" +
+                  "<p>Can be checked during processing. In that case live updates to the flowchart are shown.</p>" + 
+                  "<p>If Flowchart setting <i>Get flowchart data before processing</i> is checked then the live flowchart " + 
+                  "view uses full processing flowchart.</p>" + 
+                  guitools.skip_reset_tooltip,
+                  function(checked) { 
+                        par.show_flowchart.val = checked;
+                        if (checked) {
+                              if (global.flowchartData != null) {
+                                    flowchartUpdated();
+                              } else {
+                                    console.noteln("No flowchart data available");
+                              }
+                        } else {
+                              if (guitools.current_preview.image != null) {
+                                    previewControl.SetImage(guitools.current_preview.image, guitools.current_preview.txt);
+                              }
+                        }
+                  });
+
+            var showFlowchartToolTip = 
+                  "<h4>Generate Flowchart</h4>" +
+                  "<p>" +
+                  "Using the New Flowchart button the script will generate a flowchart of the processing workflow. " +
+                  "Flowchart uses the current settings and images. A partially simulated minimal workflow is run to " +
+                  "generate flowchart information. To run the simulated workflow all relevant files must be loaded " +
+                  "to the <i>Files</i> tab. A graphical version of the flowchart is printed to the preview window and " +
+                  "a text version is printed to the process console." +
+                  "</p>" +
+                  "<p>" +
+                  "Full Flowchart is available after processing. It is saved to the AutosaveSetup file and also to the setup file " + 
+                  "when available so it can be loaded later. A text version of flowchart is also printed to the AutoIntegrate log file." +
+                  "</p>" +
+                  "<p>" +
+                  "Note that using the preview save button it is possible to save the flowchart image to a file." +
+                  "</p>" +
+                  "<h4>Live Flowchart</h4>" +
+                  "<p>" +
+                  "Flowchart information is always generated during processing. It can viewed using <i>Show Flowchart</i> " +
+                  "checkbox. During processing Flowchart is updated after each step. By checking and unchecking the <i>Show Flowchart</i> " +
+                  "checkbox it is possible to switch between the current preview image and flowchart." +
+                  "</p>" +
+                  "<p>" +
+                  "Flowchart settings are in the <i>Interface</i> tab. Note that Flowchart settings are saved to persistent module settings " +
+                  "but values are not reset with the Set default values button." +
+                  "</p>" +
+                  "<p>" +
+                  "By default <i>Flowchart settings</i> option <i>Flowchart show processed image</i> is selected. This options shows the processed image " +
+                  "in the preview window and the flowchart data is shown on top of the image. If this option is not selected then only the flowchart data " +
+                  "is shown." +
+                  "</p>" +
+                  "<p>" +
+                  "If <i>Flowchart settings</i> option <i>Get flowchart data before processing</i> is selected then flowchart data is collected " +
+                  "before processing. This is useful if you want to see the full flowchart during processing. Note that this option is not " +
+                  "selected by default. Full flowchart is not available with AutoContinue or batch processing. " +
+                  "</p>";
+
+            this.showFlowchartHelpTips = new ToolButton( this );
+            this.showFlowchartHelpTips.icon = this.scaledResource( ":/icons/help.png" );
+            this.showFlowchartHelpTips.setScaledFixedSize( 20, 20 );
+            this.showFlowchartHelpTips.toolTip = showFlowchartToolTip;
+            this.showFlowchartHelpTips.onClick = function()
+            {
+                  new MessageBox(showFlowchartToolTip, "Show Flowchart", StdIcon_Information ).execute();
+            }
       }
 
       this.previewAutoSTFCheckBox = guitools.newCheckBoxEx(this, "AutoSTF", par.preview_autostf, 
@@ -7281,10 +7235,6 @@ function AutoIntegrateDialog()
             "Enable image preview on script preview window. You need to restart the script before this setting is effective.",
             function(checked) { this.dialog.show_preview_CheckBox.aiParam.preview.use_preview = checked; });
 
-      this.use_large_preview_CheckBox = guitools.newPparCheckBox(this, "Side preview", ppar, ppar.preview.use_large_preview, 
-            "<p>Use a large preview window on the side of the main dialog.</p>",
-            function(checked) { this.dialog.use_large_preview_CheckBox.aiParam.preview.use_large_preview = checked; });
-
       this.show_histogram_CheckBox = guitools.newPparCheckBox(this, "Show histogram", ppar, ppar.preview.show_histogram, 
             "<p>Show image histogram.</p>",
             function(checked) { this.dialog.show_histogram_CheckBox.aiParam.preview.show_histogram = checked; });
@@ -7320,7 +7270,6 @@ function AutoIntegrateDialog()
       this.preview1Sizer.margin = 6;
       this.preview1Sizer.spacing = 4;
       this.preview1Sizer.add( this.show_preview_CheckBox );
-      this.preview1Sizer.add( this.use_large_preview_CheckBox );
       this.preview1Sizer.add( this.show_histogram_CheckBox );
       this.preview1Sizer.addStretch();
 
@@ -7342,42 +7291,26 @@ function AutoIntegrateDialog()
       this.preview11Sizer.add( this.startup_image_name_Button );
       this.preview11Sizer.addStretch();
 
-      this.tab_preview_width_label = guitools.newLabel(this, 'Tab preview width', "Preview image width.");
-      this.tab_preview_width_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.preview_width, 100, 4000, 
-            "Preview image width.",
-            function(value) { 
-                  updatePreviewSize(value, 0, 0, 0, 0); 
-            }
-      );
-      this.tab_preview_height_label = guitools.newLabel(this, 'height', "Preview image height.");
-      this.tab_preview_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.preview_height, 100, 4000, 
-            "Preview image height.",
-            function(value) { 
-                  updatePreviewSize(0, value, 0, 0, 0); 
-            }
-      );
-
-      this.tabPreviewSizer = new HorizontalSizer;
-      this.tabPreviewSizer.margin = 6;
-      this.tabPreviewSizer.spacing = 4;
-      this.tabPreviewSizer.add( this.tab_preview_width_label );
-      this.tabPreviewSizer.add( this.tab_preview_width_edit );
-      this.tabPreviewSizer.add( this.tab_preview_height_label );
-      this.tabPreviewSizer.add( this.tab_preview_height_edit );
-      this.tabPreviewSizer.addStretch();
-
-      this.side_preview_width_label = guitools.newLabel(this, 'Side preview width', "Side preview image width.");
+      this.side_preview_width_label = guitools.newLabel(this, 'Preview width', "Preview image width.");
       this.side_preview_width_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_width, 100, 4000, 
-            "Side preview image width.",
+            "Preview image width.",
             function(value) { 
                   updatePreviewSize(0, 0, 0, value, 0); 
             }
       );
-      this.side_preview_height_label = guitools.newLabel(this, 'height', "Side preview image height.");
+      this.side_preview_height_label = guitools.newLabel(this, 'height', "Preview image height.");
       this.side_preview_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_preview_height, 100, 4000, 
-            "Side preview image height.",
+            "Preview image height.",
             function(value) { 
                   updatePreviewSize(0, 0, 0, 0, value); 
+            }
+      );
+
+      this.side_histogram_height_label = guitools.newLabel(this, 'Preview histogram height', "Image histogram height in preview.");
+      this.side_histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
+            this.side_histogram_height_label.toolTip,
+            function(value) { 
+                  updatePreviewSize(0, 0, 0, 0, 0, value);
             }
       );
 
@@ -7388,35 +7321,10 @@ function AutoIntegrateDialog()
       this.preview2Sizer.add( this.side_preview_width_edit );
       this.preview2Sizer.add( this.side_preview_height_label );
       this.preview2Sizer.add( this.side_preview_height_edit );
-      this.preview2Sizer.add( this.tabPreviewSizer );
+      this.preview2Sizer.add( this.side_histogram_height_label );
+      this.preview2Sizer.add( this.side_histogram_height_edit );
       this.preview2Sizer.addStretch();
       this.preview2Sizer.add( this.saveInterfaceButton );
-
-      this.histogram_height_label = guitools.newLabel(this, 'Histogram height', "Image histogram height.");
-      this.histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.histogram_height, 50, 2000, 
-            this.histogram_height_label.toolTip,
-            function(value) { 
-                  updatePreviewSize(0, 0, value, 0, 0);
-            }
-      );
-
-      this.side_histogram_height_label = guitools.newLabel(this, 'Side preview histogram height', "Image histogram height in side preview.");
-      this.side_histogram_height_edit = guitools.newPparSpinBox(this, ppar, ppar.preview.side_histogram_height, 50, 2000, 
-            this.side_histogram_height_label.toolTip,
-            function(value) { 
-                  updatePreviewSize(0, 0, 0, 0, 0, value);
-            }
-      );
-
-      this.preview3Sizer = new HorizontalSizer;
-      this.preview3Sizer.margin = 6;
-      this.preview3Sizer.spacing = 4;
-      this.preview3Sizer.add( this.histogram_height_label );
-      this.preview3Sizer.add( this.histogram_height_edit );
-      this.preview3Sizer.add( this.side_histogram_height_label );
-      this.preview3Sizer.add( this.side_histogram_height_edit );
-      this.preview3Sizer.addStretch();
-      this.preview3Sizer.add( this.saveInterfaceButton );
 
       this.resample_target_Label = guitools.newLabel(this, 'Resample target', "<p>Target size for preview image resample.</p>" +
                                                                      "<p>Note that resample may alter how preview image and histogram are shown during the preview.</p>");
@@ -7480,7 +7388,6 @@ function AutoIntegrateDialog()
       this.interfaceControl.sizer.add( this.preview10Sizer );
       this.interfaceControl.sizer.add( this.preview11Sizer );
       this.interfaceControl.sizer.add( this.preview2Sizer );
-      this.interfaceControl.sizer.add( this.preview3Sizer );
       this.interfaceControl.sizer.add( this.preview4Sizer );
       this.interfaceControl.sizer.add( this.interfaceSizer );
       if (par.use_manual_icon_column.val) {
@@ -7620,7 +7527,7 @@ function AutoIntegrateDialog()
 
             this.info2_Sizer = new HorizontalSizer;
             this.info2_Sizer.spacing = 6;
-            this.info2_Sizer.add( this.tabStatusInfoLabel );
+            this.info2_Sizer.add( this.statusInfoLabel );
             this.info2_Sizer.addStretch();
       }
 
@@ -7640,12 +7547,14 @@ function AutoIntegrateDialog()
       this.buttons_Sizer.add( this.website_Button );
       this.buttons_Sizer.addSpacing( 6 );
       this.buttons_Sizer.add( this.adjusttocontent_Button );
-      this.buttons_Sizer.addSpacing( 48 );
-      this.buttons_Sizer.add( this.newFlowchartButton );
-      this.buttons_Sizer.add( this.showFlowchartCheckBox );
-      this.buttons_Sizer.add( this.showFlowchartHelpTips );
-      // this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
-      // this.buttons_Sizer.add( this.resampleCheckBox );
+      if (global.use_preview) {
+            this.buttons_Sizer.addSpacing( 48 );
+            this.buttons_Sizer.add( this.newFlowchartButton );
+            this.buttons_Sizer.add( this.showFlowchartCheckBox );
+            this.buttons_Sizer.add( this.showFlowchartHelpTips );
+            // this.buttons_Sizer.add( this.previewAutoSTFCheckBox );
+            // this.buttons_Sizer.add( this.resampleCheckBox );
+      }
       this.buttons_Sizer.addStretch();
       this.buttons_Sizer.addSpacing( 12 );
       this.buttons_Sizer.add( closeAllPrefixButton );
@@ -7793,6 +7702,7 @@ function AutoIntegrateDialog()
       // ---------------------------------------------
       // Enhancements group box
       // ---------------------------------------------
+      if (global.debug) console.writeln("Create enhancementsGroupBox");
       this.enhancementsGroupBox = guitools.newGroupBoxSizer(this);
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsTargetImageControl, "Target image for enhancements", "EnhancementsTarget");
       guitools.newSectionBarAdd(this, this.enhancementsGroupBox, this.enhancementsOptionsControl, "Misc options", "EnhancementsOptions");
@@ -7805,8 +7715,9 @@ function AutoIntegrateDialog()
       if (global.use_preview) {
             /* Create preview objects.
              */
-            this.previewObj = newPreviewObj(this, ppar.preview.side_preview_visible);
-            histogramControl = newHistogramControl(this, ppar.preview.side_preview_visible);
+            if (global.debug) console.writeln("Create preview objects");
+            this.previewObj = newPreviewObj(this);
+            histogramControl = newHistogramControl(this);
 
             previewControl = this.previewObj.control;
             previewInfoLabel = this.previewObj.infolabel;
@@ -7816,6 +7727,7 @@ function AutoIntegrateDialog()
       // ---------------------------------------------
       // Interface group box
       // ---------------------------------------------
+      if (global.debug) console.writeln("Create interfaceGroupBox");
       this.interfaceGroupBox = guitools.newGroupBoxSizer(this);
       guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.interfaceControl, "Interface settings", "interface");
       guitools.newSectionBarAdd(this, this.interfaceGroupBox, this.flowchartControl, "Flowchart settings", "Flowchart");
@@ -7827,6 +7739,8 @@ function AutoIntegrateDialog()
       /***********************************************\
        * Create tabs.
       \***********************************************/
+
+      if (global.debug) console.writeln("Create tabs");
 
       this.mainTabBox = new TabBox( this );
       mainTabBox = this.mainTabBox;
@@ -7897,33 +7811,18 @@ function AutoIntegrateDialog()
       this.enhancementsSizer = new HorizontalSizer;
       this.enhancementsSizer.margin = 6;
       this.enhancementsSizer.spacing = 4;
-      if (global.use_preview && !ppar.preview.side_preview_visible) {
-            this.enhancementsSizer2 = new VerticalSizer;
-            this.enhancementsSizer2.margin = 6;
-            this.enhancementsSizer2.spacing = 4;
-            this.enhancementsSizer2.add( this.previewObj.sizer );
-            if (histogramControl != null) {
-                  this.enhancementsSizer2.add( histogramControl );
-            }
-            this.enhancementsSizer2.addStretch();
-            this.enhancementsSizer.add( this.enhancementsSizer2 );
-      }
       this.enhancementsSizer.add( this.enhancementsGroupBox );
       let tabname;
       if (global.use_preview) {
-            if (ppar.preview.side_preview_visible) {
-                  tabname = "Enhancements";
-            } else {
-                  tabname = "Preview and enhancements";
-            }
+            tabname = "Enhancements";
       } else {
             tabname = "Enhancements";
       }
       this.enhancementsPage = { page: mainSizerTab(this, this.enhancementsSizer), name: tabname, expert_mode: false };
       global.tabs.push(this.enhancementsPage);
       this.mainTabBox.addPage( this.enhancementsPage.page, this.enhancementsPage.name );
-      tab_preview_page = this.enhancementsPage;
 
+      if (global.debug) console.writeln("Create interfaceTabSizer");
       this.interfaceTabSizer = new HorizontalSizer;
       this.interfaceTabSizer.margin = 6;
       this.interfaceTabSizer.spacing = 4;
@@ -7936,18 +7835,6 @@ function AutoIntegrateDialog()
       this.mainTabsSizer.margin = 6;
       this.mainTabsSizer.spacing = 4;
 
-      if (global.use_preview && !ppar.preview.use_large_preview && ppar.preview.side_preview_visible) {
-            if (global.debug) console.writeln("Adding side preview to main tabs sizer");
-            this.sidePreviewSizer = new VerticalSizer;
-            this.sidePreviewSizer.margin = 6;
-            this.sidePreviewSizer.spacing = 4;
-            this.sidePreviewSizer.add( this.previewObj.sizer );
-            if (histogramControl != null) {
-                  this.sidePreviewSizer.add( histogramControl );
-            }
-            this.sidePreviewSizer.addStretch();
-            this.mainTabsSizer.add( this.sidePreviewSizer );
-      }
       this.mainTabsSizer.add( this.mainTabBox );
       //this.mainTabsSizer.addStretch();
 
@@ -7992,7 +7879,7 @@ function AutoIntegrateDialog()
       this.sizer1 = new HorizontalSizer;
       //this.sizer1.margin = 6;
       //this.sizer1.spacing = 4;
-      if (global.use_preview && ppar.preview.use_large_preview && ppar.preview.side_preview_visible) {
+      if (global.use_preview) {
             if (global.debug) console.writeln("Adding side preview to main tabs sizer");
             this.sidePreviewSizer = new VerticalSizer;
             this.sidePreviewSizer.margin = 6;
@@ -8018,7 +7905,12 @@ function AutoIntegrateDialog()
       this.userResizable = true;
       this.ensureLayoutUpdated();
       this.adjustToContents();
-      //this.setVariableSize();
+      
+      // Force proper sizing when preview is disabled
+      if (!global.use_preview) {
+            this.adjustToContents();
+            this.setVariableSize();
+      }
       //this.files_GroupBox.setFixedHeight();
 
       setWindowPrefixHelpTip(ppar.win_prefix);
@@ -8033,53 +7925,23 @@ function AutoIntegrateDialog()
                                     this.dialog, 
                                     previewControl,
                                     false,      // maxsize
-                                    ppar.preview.side_preview_visible
-                                          ? ppar.preview.side_preview_width
-                                          : ppar.preview.preview_width,
-                                    ppar.preview.side_preview_visible
-                                          ? ppar.preview.side_preview_height
-                                          : ppar.preview.preview_height);
+                                    ppar.preview.side_preview_width,
+                                    ppar.preview.side_preview_height);
             if (preview_size.changes) {
-                  if (ppar.preview.side_preview_visible) {
-                        // side preview
-                        if (ppar.preview.side_preview_width != preview_size.width || ppar.preview.side_preview_height != preview_size.height) { 
-                              console.writeln("Adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
-                        }
-                        ppar.preview.side_preview_width = preview_size.width;
-                        ppar.preview.side_preview_height = preview_size.height;
-
-                        var new_width = Math.min(preview_size.width / 2, ppar.preview.preview_width);
-                        var new_height = Math.min(preview_size.height / 2, ppar.preview.preview_height);
-                        if (ppar.preview.preview_width != new_width || ppar.preview.preview_height != new_height) {
-                              console.writeln("Adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + new_width + "x" + new_height);
-                        }
-                        ppar.preview.preview_width = new_width;
-                        ppar.preview.preview_height = new_height;
-
-                  } else {
-                        // tab preview
-                        if (ppar.preview.preview_width != preview_size.width || ppar.preview.preview_height != preview_size.height) {
-                              console.writeln("Adjusted tab preview size from " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + " to " + preview_size.width + "x" + preview_size.height);
-                        }
-                        ppar.preview.preview_width = preview_size.width;
-                        ppar.preview.preview_height = preview_size.height;
-
-                        if (ppar.preview.side_preview_width != preview_size.width || ppar.preview.side_preview_height != preview_size.height) {
-                              console.writeln("Adjusted side preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
-                        }
-                        ppar.preview.side_preview_width = preview_size.width;
-                        ppar.preview.side_preview_height = preview_size.height;
+                  // side preview
+                  if (ppar.preview.side_preview_width != preview_size.width || ppar.preview.side_preview_height != preview_size.height) { 
+                        console.writeln("Adjusted preview size from " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + " to " + preview_size.width + "x" + preview_size.height);
                   }
+                  ppar.preview.side_preview_width = preview_size.width;
+                  ppar.preview.side_preview_height = preview_size.height;
             }
       }
       if (ppar.preview.use_preview) {
             if (par.debug.val || global.debug) console.writeln("updatePreviewNoImage, side_preview");
             updatePreviewNoImageInControl(previewControl);
             console.writeln("Screen size " + screen_size +  
-                            ", side preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
-                            ", side histogram height " + ppar.preview.side_histogram_height + 
-                            ", tab preview size " + ppar.preview.preview_width + "x" + ppar.preview.preview_height + 
-                            ", tab histogram height " + ppar.preview.histogram_height + 
+                            ", preview size " + ppar.preview.side_preview_width + "x" + ppar.preview.side_preview_height + 
+                            ", histogram height " + ppar.preview.side_histogram_height + 
                             ", dialog size " + this.width + "x" + this.height);
       }
 
@@ -8632,7 +8494,6 @@ this.updateWindowPrefix = updateWindowPrefix;
 this.updateOutputDirEdit = updateOutputDirEdit;
 this.getOutputDirEdit = getOutputDirEdit;
 this.getTreeBoxNodeFiles = getTreeBoxNodeFiles;
-this.switchtoPreviewTab = switchtoPreviewTab;
 this.flowchartUpdated = flowchartUpdated;
 
 this.RGBHa_prepare_method_values = RGBHa_prepare_method_values;

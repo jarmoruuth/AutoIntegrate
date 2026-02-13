@@ -365,9 +365,6 @@ function readPersistentSettings()
             if (preview.show_histogram == undefined) {
                   preview.show_histogram = ppar.preview.show_histogram;
             }
-            if (preview.histogram_height == undefined) {
-                  preview.histogram_height = ppar.preview.histogram_height;
-            }
             if (preview.side_preview_width == undefined) {
                   preview.side_preview_width = ppar.preview.side_preview_width;
             }
@@ -390,11 +387,6 @@ function readPersistentSettings()
                   ppar.preview.use_preview = tempSetting;
                   global.use_preview = tempSetting;
             }
-            var tempSetting = Settings.read(SETTINGSKEY + "/sidePreviewVisible", DataType_Boolean);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored sidePreviewVisible '" + tempSetting + "' from settings.");
-                  ppar.preview.side_preview_visible = tempSetting;
-            }
             /* Now we have preview size for each screen size. */
             var tempSetting = Settings.read(SETTINGSKEY + "/previewWidth", DataType_Int32);
             if (Settings.lastReadOK) {
@@ -405,11 +397,6 @@ function readPersistentSettings()
             if (Settings.lastReadOK) {
                   console.writeln("AutoIntegrate: Restored previewHeight '" + tempSetting + "' from settings.");
                   ppar.preview.preview_height = tempSetting;
-            }
-            var tempSetting = Settings.read(SETTINGSKEY + "/useLargePreview", DataType_Boolean);
-            if (Settings.lastReadOK) {
-                  console.writeln("AutoIntegrate: Restored useLargePreview '" + tempSetting + "' from settings.");
-                  ppar.preview.use_large_preview = tempSetting;
             }
       }
 
@@ -587,6 +574,12 @@ this.test_gui = function()
       return gui;
 }
 
+this.test_nopreview = function()
+{
+      global.ppar.preview.use_preview = false;
+      global.use_preview = false;
+}
+
 this.get_run_results = function()
 {
       return global.run_results;
@@ -648,7 +641,7 @@ this.autointegrate_main = function(runsetuppath = null)
              * For example:
              *    run -a="do_not_read_settings" -a="do_not_write_settings" --execute-mode=auto "C:/path_to_script/AutoIntegrate.js"
              */
-            for (let i = 0; i < jsArguments.length; i++) {
+            for (let i = 0; i < jsArguments.length && !global.testmode; i++) {
                   if (jsArguments[i].startsWith("runsetup=")) {
                         var eqpos = jsArguments[i].indexOf('=');
                         if (eqpos > 0) {
