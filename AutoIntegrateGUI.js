@@ -2659,6 +2659,82 @@ function addUnfilteredFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_
       files_TreeBox.canUpdate = true;
 }
 
+function addExptimeGroupedFilesToTreeBox(parent, pageIndex, newImageFileNames, skip_old_files = false)
+{
+      console.writeln("addExptimeGroupedFilesToTreeBox " + pageIndex);
+
+      var treeboxfiles = getNewTreeBoxFiles(parent, pageIndex, newImageFileNames, skip_old_files);
+      if (treeboxfiles.length == 0) {
+            if (global.debug) console.writeln("addExptimeGroupedFilesToTreeBox no files");
+            return;
+      }
+
+      // Group files by exposure time
+      var groups = {};
+      for (var i = 0; i < treeboxfiles.length; i++) {
+            var filename = treeboxfiles[i][0];
+            var exptime = engine.getExptimeFromFile(filename);
+            var key = exptime.toString();
+            if (!groups[key]) {
+                  groups[key] = { exptime: exptime, files: [] };
+            }
+            groups[key].files.push(treeboxfiles[i]);
+      }
+
+      // Sort groups by exposure time ascending
+      var sortedKeys = Object.keys(groups).sort(function(a, b) {
+            return parseFloat(a) - parseFloat(b);
+      });
+
+      var files_TreeBox = parent.treeBox[pageIndex];
+      files_TreeBox.clear();
+
+      var rootnode = new TreeBoxNode(files_TreeBox);
+      rootnode.expanded = true;
+      rootnode.setText(0, "Files grouped by exposure time");
+      rootnode.nodeData_type = "FrameGroup";
+      rootnode.collapsable = false;
+
+      files_TreeBox.canUpdate = false;
+
+      for (var k = 0; k < sortedKeys.length; k++) {
+            var key = sortedKeys[k];
+            var group = groups[key];
+            var exptimeLabel = group.exptime > 0 ? group.exptime + "s" : "Unknown";
+
+            var groupnode = new TreeBoxNode(rootnode);
+            groupnode.expanded = true;
+            groupnode.setText(0, exptimeLabel + " - " + group.files.length + " files");
+            groupnode.nodeData_type = "FrameGroup";
+            groupnode.collapsable = true;
+            groupnode.filename = "";
+
+            for (var j = 0; j < group.files.length; j++) {
+                  var fileEntry = group.files[j];
+                  if (!File.exists(fileEntry[0])) {
+                        console.criticalln("addExptimeGroupedFilesToTreeBox, no file " + fileEntry[0]);
+                        continue;
+                  }
+                  if (findFileFromTreeBox(files_TreeBox, fileEntry[0])) {
+                        console.writeln("Skipping duplicate file " + fileEntry[0]);
+                        continue;
+                  }
+                  var node = new TreeBoxNode(groupnode);
+                  node.setText(0, File.extractName(fileEntry[0]) + File.extractExtension(fileEntry[0]));
+                  node.setToolTip(0, fileEntry[0]);
+                  node.filename = fileEntry[0];
+                  node.nodeData_type = "";
+                  node.checkable = true;
+                  node.checked = fileEntry[1];
+                  node.collapsable = false;
+                  node.filter = '';
+                  node.best_image = false;
+                  node.reference_image = false;
+            }
+      }
+      files_TreeBox.canUpdate = true;
+}
+
 function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = false)
 {
       if (imageFileNames == null) {
@@ -2671,8 +2747,10 @@ function addFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files = f
             case global.pages.FLAT_DARKS:
                   addFilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
-            case global.pages.BIAS:
             case global.pages.DARKS:
+                  addExptimeGroupedFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
+                  break;
+            case global.pages.BIAS:
                   addUnfilteredFilesToTreeBox(parent, pageIndex, imageFileNames, skip_old_files);
                   break;
             default:

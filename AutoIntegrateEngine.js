@@ -18397,19 +18397,26 @@ function createCropInformationAutoContinue()
                          var groupFiles = darkExptimeGroups[dg].files;
                          var groupName = groupExptime + "s";
                          flowchart.flowchartChildBegin(groupName);
-                         util.addProcessingStep("calibrateEngine create master dark for " + groupName + " using " + groupFiles.length + " files");
 
-                         if (par.pre_calibrate_darks.val && masterbiasPath != null) {
-                               var darkcalFileNames = runCalibrateDarks(groupFiles, masterbiasPath);
-                               var darkimages = filesForImageIntegration(darkcalFileNames);
+                         if (groupFiles.length == 1) {
+                               // Single file in group, treat as pre-made master dark
+                               util.addProcessingStep("calibrateEngine use existing master dark for " + groupName + ": " + groupFiles[0]);
+                               masterdarkPath.push({ exptime: groupExptime, path: groupFiles[0] });
                          } else {
-                               var darkimages = filesForImageIntegration(groupFiles);
+                               util.addProcessingStep("calibrateEngine create master dark for " + groupName + " using " + groupFiles.length + " files");
+
+                               if (par.pre_calibrate_darks.val && masterbiasPath != null) {
+                                     var darkcalFileNames = runCalibrateDarks(groupFiles, masterbiasPath);
+                                     var darkimages = filesForImageIntegration(darkcalFileNames);
+                               } else {
+                                     var darkimages = filesForImageIntegration(groupFiles);
+                               }
+                               var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark");
+                               setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
+                               var groupMasterPath = saveMasterWindow(global.outputRootDir, masterdarkid);
+                               guiUpdatePreviewId(masterdarkid);
+                               masterdarkPath.push({ exptime: groupExptime, path: groupMasterPath });
                          }
-                         var masterdarkid = runImageIntegrationBiasDarks(darkimages, ppar.win_prefix + "AutoMasterDark_" + groupName, "dark");
-                         setImagetypKeyword(util.findWindow(masterdarkid), "Master dark");
-                         var groupMasterPath = saveMasterWindow(global.outputRootDir, masterdarkid);
-                         guiUpdatePreviewId(masterdarkid);
-                         masterdarkPath.push({ exptime: groupExptime, path: groupMasterPath });
 
                          flowchart.flowchartChildEnd(groupName);
                    }
@@ -19630,6 +19637,7 @@ this.openDirectoryFiles = openDirectoryFiles;
 this.getFilterFiles = getFilterFiles;
 this.getFilterHigh = getFilterHigh;
 this.getImagetypFiles = getImagetypFiles;
+this.getExptimeFromFile = getExptimeFromFile;
 this.runResample = runResample;
 
 this.writeProcessingStepsAndEndLog = writeProcessingStepsAndEndLog;
