@@ -59,14 +59,12 @@ var self = this;
 
 /* Following variables are AUTOMATICALLY PROCESSED so do not change format.
  */
-this.autointegrate_version = "AutoIntegrate v1.83";               // Version, also updated into updates.xri
+this.autointegrate_version = "AutoIntegrate v1.84 test1";         // Version, also updated into updates.xri
 this.autointegrate_info = "Simple and expert modes";              // For updates.xri
 
 this.autointegrate_version_info = [
       "Changes since the previous version:",
-      "- Added simple and expert modes.",
-      "- Performance fix to banding reduction.",
-      "- Support for MAS 1.1"
+      "- Matching dark frames to light frames based on exposure time.",
 ];
 
 /* Interface version changes:
